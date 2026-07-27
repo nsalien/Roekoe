@@ -5,6 +5,7 @@ import { App } from './App';
 import { AuthProvider } from './auth/AuthContext';
 import { GameProvider } from './game/GameContext';
 import { ToastProvider } from './components/ui';
+import '@fontsource-variable/inter';
 import './styles/global.css';
 
 ReactDOM.createRoot(document.getElementById('root')!).render(

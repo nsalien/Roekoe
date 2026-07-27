@@ -90,7 +90,7 @@ export function PigeonPage() {
         <div>
           {mine && (
             <div className="card">
-              <h2>💪 Training</h2>
+              <h2>Training</h2>
               <p className="muted">
                 Kost <Money value={TRAIN_COST} /> en wat conditie, geeft een kleine blijvende verbetering.
               </p>
@@ -103,7 +103,7 @@ export function PigeonPage() {
           )}
 
           <div className="card">
-            <h2>🧬 Afstamming</h2>
+            <h2>Afstamming</h2>
             <div className="grid cols-2">
               <PedigreeBox label="Vader (doffer)" pigeon={sire} />
               <PedigreeBox label="Moeder (duivin)" pigeon={dam} />

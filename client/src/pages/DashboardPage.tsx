@@ -49,22 +49,22 @@ export function DashboardPage() {
       </div>
 
       {/* Stat tiles */}
-      <div className="grid cols-3" style={{ marginBottom: 16 }}>
-        <div className="card">
-          <div className="faint">Kassa</div>
-          <div style={{ fontSize: '1.5rem' }}><Money value={loft.money} /></div>
+      <div className="grid cols-3" style={{ marginBottom: 18 }}>
+        <div className="tile">
+          <div className="tile-label">Kassa</div>
+          <div className="tile-value"><Money value={loft.money} /></div>
         </div>
-        <div className="card">
-          <div className="faint">Duiven</div>
-          <div style={{ fontSize: '1.5rem', fontWeight: 800 }}>
-            {loft.pigeonCount}<span className="faint" style={{ fontSize: '0.9rem' }}> / {loft.capacity}</span>
+        <div className="tile">
+          <div className="tile-label">Duiven</div>
+          <div className="tile-value">
+            {loft.pigeonCount}<span className="faint" style={{ fontSize: '0.95rem', fontWeight: 600 }}> / {loft.capacity}</span>
           </div>
         </div>
-        <div className="card">
-          <div className="faint">Seizoenspunten</div>
-          <div style={{ fontSize: '1.5rem', fontWeight: 800 }}>
+        <div className="tile">
+          <div className="tile-label">Seizoenspunten</div>
+          <div className="tile-value">
             {loft.seasonPoints}
-            {myRank && <span className="faint" style={{ fontSize: '0.9rem' }}> · #{myRank.rank}</span>}
+            {myRank && <span className="faint" style={{ fontSize: '0.95rem', fontWeight: 600 }}> · #{myRank.rank}</span>}
           </div>
         </div>
       </div>
@@ -72,7 +72,7 @@ export function DashboardPage() {
       <div className="grid cols-2">
         {/* Care panel */}
         <div className="card">
-          <h2>🌾 Verzorging</h2>
+          <h2>Verzorging</h2>
           <p className="muted" style={{ marginBottom: 10 }}>
             Voorraad voer: <strong>{loft.food.toLocaleString('nl-NL')} kg</strong> · gemiddelde conditie <strong>{avgForm}</strong>
           </p>
@@ -114,7 +114,7 @@ export function DashboardPage() {
         {/* Upcoming flights */}
         <div className="card">
           <div className="row" style={{ justifyContent: 'space-between' }}>
-            <h2>🏁 Aankomende vluchten</h2>
+            <h2>Aankomende vluchten</h2>
             <Link to="/vluchten" className="btn ghost sm">Alles</Link>
           </div>
           {scheduledFlights.length === 0 && <p className="muted">Geen vluchten gepland deze week.</p>}
@@ -136,7 +136,7 @@ export function DashboardPage() {
 
       {/* Top pigeons */}
       <div className="page-head" style={{ marginTop: 22 }}>
-        <h2>⭐ Toppers in je hok</h2>
+        <h2>Toppers in je hok</h2>
         <Link to="/hok" className="btn ghost sm">Naar mijn hok</Link>
       </div>
       <div className="grid pigeons">
@@ -148,7 +148,7 @@ export function DashboardPage() {
 
       {state.isAdmin && (
         <div className="card" style={{ marginTop: 18, borderStyle: 'dashed' }}>
-          <strong>👑 Beheerder</strong>
+          <strong>Beheerder</strong>
           <p className="muted" style={{ margin: '4px 0 0' }}>
             Jij bent de spelleider. Gebruik <em>“Volgende week”</em> bovenaan om de week af te sluiten: dan worden alle
             vluchten gevlogen, duiven gevoerd en jongen geboren. Week {world.currentWeek}.

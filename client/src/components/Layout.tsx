@@ -5,7 +5,7 @@ import { useState } from 'react';
 import { useAuth } from '../auth/AuthContext';
 import { useGame } from '../game/GameContext';
 import { api } from '../api/client';
-import { Money, useToast } from './ui';
+import { useToast } from './ui';
 
 const NAV = [
   { to: '/', label: 'Overzicht', icon: '🏠', end: true },
@@ -39,6 +39,8 @@ export function Layout() {
     }
   }
 
+  const initial = (user?.username ?? '?').charAt(0).toUpperCase();
+
   return (
     <div className="app">
       <header className="topbar">
@@ -53,30 +55,38 @@ export function Layout() {
               </NavLink>
             ))}
           </nav>
-          {state?.loft && (
-            <span className="purse" title="Kassa">
-              <Money value={state.loft.money} />
-            </span>
-          )}
+          <div className="topbar-right">
+            {state && (
+              <span className="chip week" title="Speelweek">
+                {state.world.currentWeek === 0 ? '' : `Week ${state.world.currentWeek}`}
+              </span>
+            )}
+            {state?.loft && (
+              <span className="chip money" title="Kassa">
+                <span className="coin">◎</span> {state.loft.money.toLocaleString('nl-NL')}
+              </span>
+            )}
+          </div>
         </div>
       </header>
 
-      <div className="container" style={{ paddingTop: 10 }}>
-        <div className="row" style={{ justifyContent: 'space-between', fontSize: '0.85rem' }}>
-          <span className="muted">
-            {state && (
-              <>📅 Week {state.world.currentWeek} · Seizoen {state.world.seasonYear}</>
-            )}
-          </span>
-          <span className="row" style={{ gap: 10 }}>
+      <div className="subhead">
+        <div className="container subhead-inner">
+          <div className="row" style={{ gap: 10 }}>
+            <span className="muted">
+              {state && <>Seizoen {state.world.seasonYear} · week {state.world.currentWeek}</>}
+            </span>
             {state?.isAdmin && (
               <button className="btn accent sm" onClick={advanceWeek} disabled={advancing}>
-                {advancing ? 'Bezig…' : '⏭ Volgende week'}
+                {advancing ? 'Bezig…' : 'Volgende week ›'}
               </button>
             )}
+          </div>
+          <div className="who">
+            <span className="avatar-dot">{initial}</span>
             <span className="muted">{user?.username}</span>
             <button className="btn ghost sm" onClick={logout}>Uitloggen</button>
-          </span>
+          </div>
         </div>
       </div>
 

@@ -56,7 +56,7 @@ export function BreedingPage() {
 
       <div className="grid cols-2">
         <div className="card">
-          <h2>🧬 Nieuw koppel</h2>
+          <h2>Nieuw koppel</h2>
           <p className="muted">
             Kost <Money value={BREED_COST} />. De jongen erven het gemiddelde van beide ouders, met wat variatie —
             koppel je besten voor de sterkste nakomelingen.
@@ -98,7 +98,7 @@ export function BreedingPage() {
         </div>
 
         <div className="card">
-          <h2>🥚 Broedsels onderweg</h2>
+          <h2>Broedsels onderweg</h2>
           {pairs.length === 0 && <p className="muted">Geen koppels aan het broeden.</p>}
           <div className="stack">
             {pairs.map((pair) => (
