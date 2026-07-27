@@ -1,0 +1,14 @@
+{
+  "name": "roekoe",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Roekoe — een online duivenmelker-managementspel voor vrienden (React + Vite client, Node game server).",
+  "scripts": {
+    "install:all": "npm --prefix server install && npm --prefix client install",
+    "dev:server": "npm --prefix server run dev",
+    "dev:client": "npm --prefix client run dev",
+    "build": "npm --prefix client run build",
+    "start": "npm --prefix server start",
+    "typecheck": "npm --prefix server run typecheck && npm --prefix client run typecheck"
+  }
+}

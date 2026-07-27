@@ -1,0 +1,2 @@
+# This folder holds the runtime JSON database (roekoe-db.json), which is
+# git-ignored. The file is created automatically when the server first starts.

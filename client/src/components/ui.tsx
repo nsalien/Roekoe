@@ -1,0 +1,85 @@
+/** Small shared presentational helpers. */
+
+import { createContext, useCallback, useContext, useState, type ReactNode } from 'react';
+import type { Sex } from '../types';
+
+export function Money({ value }: { value: number }) {
+  return (
+    <span className="money">
+      <span className="coin">◎</span> {value.toLocaleString('nl-NL')}
+    </span>
+  );
+}
+
+export function SexBadge({ sex }: { sex: Sex }) {
+  return (
+    <span className={`badge sex-${sex}`}>{sex === 'doffer' ? '♂ doffer' : '♀ duivin'}</span>
+  );
+}
+
+export function Spinner() {
+  return <div className="spinner" aria-label="Laden" />;
+}
+
+export function StatBar({
+  label,
+  value,
+  max = 100,
+  variant,
+}: {
+  label: string;
+  value: number;
+  max?: number;
+  variant?: 'form' | 'health';
+}) {
+  const pct = Math.max(0, Math.min(100, (value / max) * 100));
+  return (
+    <div className="stat">
+      <div className="stat-top">
+        <span className="stat-label">{label}</span>
+        <span className="stat-val">{Math.round(value)}</span>
+      </div>
+      <div className={`bar ${variant ?? ''}`}>
+        <span style={{ width: `${pct}%` }} />
+      </div>
+    </div>
+  );
+}
+
+/** Format seconds as h:mm:ss for flight times. */
+export function formatDuration(seconds: number): string {
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  const s = seconds % 60;
+  return h > 0
+    ? `${h}u ${m.toString().padStart(2, '0')}m`
+    : `${m}m ${s.toString().padStart(2, '0')}s`;
+}
+
+/* --- Toast system --------------------------------------------------------- */
+interface ToastValue {
+  show: (message: string, kind?: 'ok' | 'err') => void;
+}
+const ToastContext = createContext<ToastValue | null>(null);
+
+export function ToastProvider({ children }: { children: ReactNode }) {
+  const [toast, setToast] = useState<{ message: string; kind: 'ok' | 'err' } | null>(null);
+
+  const show = useCallback((message: string, kind: 'ok' | 'err' = 'ok') => {
+    setToast({ message, kind });
+    setTimeout(() => setToast(null), 2600);
+  }, []);
+
+  return (
+    <ToastContext.Provider value={{ show }}>
+      {children}
+      {toast && <div className={`toast ${toast.kind === 'err' ? 'err' : ''}`}>{toast.message}</div>}
+    </ToastContext.Provider>
+  );
+}
+
+export function useToast(): ToastValue {
+  const ctx = useContext(ToastContext);
+  if (!ctx) throw new Error('useToast buiten ToastProvider');
+  return ctx;
+}
