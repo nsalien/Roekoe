@@ -213,3 +213,55 @@ table.data tr.podium-1 td { background: color-mix(in srgb, var(--gold) 16%, tran
 .pill-tabs button { border: none; background: transparent; font: inherit; font-weight: 700; padding: 6px 14px; border-radius: 999px; cursor: pointer; color: var(--text-soft); }
 .pill-tabs button.active { background: var(--brand); color: #fff; }
 hr.sep { border: none; border-top: 1px solid var(--border); margin: 14px 0; }
+
+/* --- Bottom tab bar (mobile only) ---------------------------------------- */
+.bottomnav { display: none; }
+
+@media (max-width: 760px) {
+  /* The inline top nav can't fit on a phone; use the bottom bar instead. */
+  .topbar .nav { display: none; }
+  .topbar .purse { margin-left: auto; }
+  .topbar-inner { height: 52px; }
+
+  h1 { font-size: 1.35rem; }
+  .page { padding-bottom: 96px; } /* clear the fixed bottom bar */
+
+  .bottomnav {
+    display: flex;
+    position: fixed;
+    left: 0; right: 0; bottom: 0;
+    z-index: 40;
+    justify-content: space-around;
+    gap: 2px;
+    padding: 6px 4px calc(6px + env(safe-area-inset-bottom, 0px));
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    box-shadow: 0 -8px 22px -12px rgba(9, 58, 92, 0.4);
+  }
+  .bottomnav a {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    flex: 1;
+    min-width: 0;
+    padding: 4px 2px;
+    border-radius: 10px;
+    color: var(--text-soft);
+    font-size: 0.62rem;
+    font-weight: 700;
+    text-decoration: none;
+    line-height: 1;
+  }
+  .bottomnav a .ico { font-size: 1.2rem; line-height: 1; }
+  .bottomnav a.active { color: var(--brand-strong); background: var(--surface-2); }
+  .bottomnav a:hover { text-decoration: none; }
+
+  /* Give cards and controls a little more room to breathe on small screens. */
+  .card { padding: 14px; }
+  .grid.pigeons { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 400px) {
+  .grid.cols-3 { grid-template-columns: 1fr; }
+}

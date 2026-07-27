@@ -8,12 +8,12 @@ import { api } from '../api/client';
 import { Money, useToast } from './ui';
 
 const NAV = [
-  { to: '/', label: 'Overzicht', end: true },
-  { to: '/hok', label: 'Mijn hok' },
-  { to: '/vluchten', label: 'Vluchten' },
-  { to: '/markt', label: 'Markt' },
-  { to: '/kweek', label: 'Kweek' },
-  { to: '/ranglijst', label: 'Ranglijst' },
+  { to: '/', label: 'Overzicht', icon: '🏠', end: true },
+  { to: '/hok', label: 'Mijn hok', icon: '🕊️' },
+  { to: '/vluchten', label: 'Vluchten', icon: '🏁' },
+  { to: '/markt', label: 'Markt', icon: '🛒' },
+  { to: '/kweek', label: 'Kweek', icon: '🥚' },
+  { to: '/ranglijst', label: 'Rang', icon: '🏆' },
 ];
 
 export function Layout() {
@@ -83,6 +83,16 @@ export function Layout() {
       <main className="container page">
         <Outlet />
       </main>
+
+      {/* Bottom tab bar — only shown on phones (see global.css). */}
+      <nav className="bottomnav">
+        {NAV.map((n) => (
+          <NavLink key={n.to} to={n.to} end={n.end} className={({ isActive }) => (isActive ? 'active' : '')}>
+            <span className="ico">{n.icon}</span>
+            <span>{n.label}</span>
+          </NavLink>
+        ))}
+      </nav>
     </div>
   );
 }
