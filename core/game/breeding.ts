@@ -1,8 +1,8 @@
 /** Breeding: pairing pigeons and producing young that inherit attributes. */
 
 import { BREEDING, PIGEON_NAMES } from '../config/gameConfig.js';
-import type { Pigeon } from '../db/schema.js';
-import { newId } from '../db/store.js';
+import type { Pigeon } from '../schema.js';
+import { newId } from '../store.js';
 import { clamp, pick, randInt, randFloat, round1 } from './util.js';
 
 /** Inherit one attribute: average of parents plus a random mutation. */

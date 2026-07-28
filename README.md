@@ -8,107 +8,136 @@ mee als tegenstanders zodat het veld altijd gevuld is.
 De kernloop: **verzorgen → trainen → inschrijven voor vluchten → punten & geld
 verdienen → kopen/kweken/uitbreiden → herhalen.**
 
+Gebouwd om **volledig op Cloudflare** te draaien: een statische React-client op
+Cloudflare Pages, met de API als Pages Functions (Workers) en een Cloudflare
+**D1**-database. Geen server die altijd aan hoeft te staan.
+
 ## Wat zit erin
 
-- **Login per speler** (JWT), met een uitnodigingscode zodat alleen je vrienden
-  kunnen registreren. De eerste speler wordt automatisch beheerder.
+- **Login per speler** (JWT via Web Crypto), met een uitnodigingscode zodat alleen
+  je vrienden kunnen registreren. De eerste speler wordt automatisch beheerder.
 - **Duiven** met eigenschappen (snelheid, uithoudingsvermogen, oriëntatie) plus
-  dynamische conditie, gezondheid en ervaring. Leeftijd volgt een prestatiecurve.
+  dynamische conditie, gezondheid en ervaring, en een leeftijdscurve.
 - **Verzorging**: voerschema kiezen, voer bijkopen, wekelijkse conditie-opbouw en
   onderhoudskosten.
 - **Vluchten**: club- en nationale vluchten op verschillende afstanden. De afstand
   bepaalt welke eigenschappen zwaar wegen (sprint = snelheid, fond = uithouding +
   oriëntatie). Weer en geluk zorgen voor spanning.
-- **Markt**: koop van de NPC-duivenmarkt of van andere spelers; zet je eigen
-  duiven te koop.
-- **Kweek**: koppel een doffer en een duivin; de jongen erven het gemiddelde van
-  de ouders met wat variatie.
-- **Ranglijst**: seizoenspunten voor alle hokken (spelers + bots), met
-  seizoensreset.
+- **Markt**: koop van de NPC-duivenmarkt of van andere spelers; zet je eigen duiven
+  te koop.
+- **Kweek**: koppel een doffer en een duivin; de jongen erven het gemiddelde van de
+  ouders met wat variatie.
+- **Ranglijst**: seizoenspunten voor alle hokken (spelers + bots), met seizoensreset.
 - **Bots**: computertegenstanders die elke week voeren, inschrijven en trainen.
 
 ## Architectuur
 
-Een monorepo met twee delen, bewust gescheiden zodat je onderdelen los kunt
-uitbreiden:
-
 ```
 Roekoe/
-├── server/        Node + Express + TypeScript — de gezaghebbende spel-engine
-│   └── src/
-│       ├── config/gameConfig.ts   ← alle instelbare getallen (de "knoppen")
-│       ├── db/                     ← JSON-datalaag (makkelijk te vervangen door SQLite)
-│       ├── auth/                   ← wachtwoorden + JWT
-│       ├── game/                   ← pigeon, flight, breeding, economy, bots, engine
-│       └── routes/                 ← REST-API + presenters (DTO's)
-└── client/        React + Vite + TypeScript — de grafische web-app
-    └── src/
-        ├── pages/                  ← Login, Overzicht, Hok, Duif, Markt, Kweek, Vluchten, Ranglijst
-        ├── components/             ← o.a. de SVG-duif, statbalken, kaarten, layout
-        ├── game/ + auth/           ← gedeelde React-context (spelstatus, ingelogde speler)
-        └── api/                    ← dunne fetch-client
+├── client/            React + Vite + TypeScript — de grafische web-app (→ statisch)
+│   └── src/ pages, components, api, auth, game-context, styles
+├── core/              Runtime-neutrale spelkern (draait op de Workers-runtime)
+│   ├── config/gameConfig.ts   ← alle instelbare getallen (de "knoppen")
+│   ├── schema.ts              ← datamodel (entiteiten)
+│   ├── store.ts               ← Store-interface + in-memory basis
+│   ├── d1.ts                  ← D1-implementatie (laadt wereld, schrijft alleen wijzigingen)
+│   ├── auth.ts                ← wachtwoord-hashing + JWT via Web Crypto
+│   ├── presenters.ts          ← DTO's voor de client
+│   └── game/                  ← pigeon, flight, breeding, economy, bots, engine
+├── functions/
+│   └── api/[[path]].ts        ← de hele API als één Hono-app (Cloudflare Pages Function)
+├── migrations/0001_init.sql   ← D1-schema
+└── wrangler.toml              ← Pages + D1 configuratie
 ```
 
-Alle spellogica staat op de **server** (één bron van waarheid); de client is puur
-presentatie. Nieuwe functies voeg je meestal toe in `server/src/game/` +
-`gameConfig.ts` en een bijbehorende pagina in `client/src/pages/`.
+De **spelregels** staan één keer, in `core/` (gedeeld door de API). De API-laag in
+`functions/` is dun: elk verzoek laadt de wereld uit D1, draait de engine en schrijft
+de gewijzigde rijen terug. Nieuwe functies voeg je meestal toe in `core/game/` +
+`core/config/gameConfig.ts`, een endpoint in `functions/api/[[path]].ts`, en een
+pagina in `client/src/pages/`.
+
+> Omdat de wereld klein is (~10 spelers + bots) laadt elk verzoek de hele wereld en
+> schrijft alleen de gewijzigde rijen terug. Twee spelers die tegelijk iets aan
+> verschillende duiven/hokken doen, overschrijven elkaar dus niet. Wordt het ooit
+> groter, dan is `core/d1.ts` de enige plek om slimmer te persisteren.
 
 ## Lokaal draaien
 
 Vereist Node 20+.
 
 ```bash
-# 1. Dependencies installeren (server + client)
+# 1. Dependencies (root = Functions/Worker, plus de client)
 npm run install:all
 
-# 2. Server-config
-cp server/.env.example server/.env
-#   Zet in server/.env een eigen JWT_SECRET en een INVITE_CODE voor je vrienden.
+# 2. Lokale geheimen
+cp .dev.vars.example .dev.vars      # zet een JWT_SECRET; INVITE_CODE mag leeg voor testen
 
-# 3. In twee terminals:
-npm run dev:server     # API op http://localhost:4000
-npm run dev:client     # client op http://localhost:5173 (proxyt /api naar de server)
+# 3. Lokale D1-database aanmaken (schema toepassen)
+npm run db:migrate:local
+
+# 4. Alles samen draaien (bouwt de client + serveert API + lokale D1)
+npm run dev                          # http://localhost:8788
 ```
 
-Open http://localhost:5173 en registreer de eerste speler — die wordt beheerder.
+Open http://localhost:8788 en registreer de eerste speler — die wordt beheerder.
 
-### Als één geheel draaien (productie)
+Voor snelle client-iteratie met live herladen: `npm run dev:client` (Vite op :5173,
+proxyt `/api` naar :8788). Houd daarnaast `npm run dev` aan voor de API.
 
-De server serveert de gebouwde client automatisch als `client/dist` bestaat:
+## Online zetten op Cloudflare Pages (jouw domein)
+
+Eenmalig, met de Wrangler-CLI (`npx wrangler login` eerst):
 
 ```bash
-npm run build          # bouwt de client naar client/dist
-npm start              # server draait de API én de web-app op http://localhost:4000
+# 1. Maak de D1-database en zet het database_id in wrangler.toml
+npx wrangler d1 create roekoe-db
+#    -> kopieer het database_id naar wrangler.toml onder [[d1_databases]]
+
+# 2. Pas het schema toe op de echte database
+npm run db:migrate
+
+# 3. Zet je JWT-geheim (niet in git!)
+npx wrangler pages secret put JWT_SECRET
+#    Pas eventueel INVITE_CODE / ADMIN_USERS aan in wrangler.toml ([vars]).
+
+# 4. Bouw + deploy
+npm run deploy
 ```
+
+Daarna in het Cloudflare-dashboard: **Workers & Pages → jouw project → Custom
+domains** en koppel je eigen domein.
+
+Je kunt het ook via het dashboard koppelen aan deze GitHub-repo (build command
+`npm run build`, output `client/dist`); voeg dan de D1-binding en de `JWT_SECRET`
+in de projectinstellingen toe.
 
 ## Zo speel je
 
 1. **Registreer** een hok (eerste speler = beheerder).
 2. **Verzorg** je duiven op *Overzicht*: kies een voerschema en koop voer bij.
 3. **Schrijf in** voor vluchten onder *Vluchten → Gepland*.
-4. De **beheerder** klikt bovenaan op *Volgende week*: alle vluchten worden
-   gevlogen, duiven gevoerd, jongen geboren en de markt ververst.
-5. Bekijk de **uitslagen**, verdien geld en punten, en bouw je hok uit via
-   *Markt* en *Kweek*.
+4. De **beheerder** klikt bovenaan op *Volgende week*: alle vluchten worden gevlogen,
+   duiven gevoerd, jongen geboren en de markt ververst.
+5. Bekijk de **uitslagen**, verdien geld en punten, en bouw je hok uit via *Markt* en
+   *Kweek*.
 
-## Instellingen (`server/.env`)
+## Instellingen
 
-| Variabele     | Betekenis                                                        |
-| ------------- | ---------------------------------------------------------------- |
-| `PORT`        | Poort van de API-server (standaard 4000).                        |
-| `JWT_SECRET`  | Geheime sleutel voor sessietokens — **verander deze**.           |
-| `INVITE_CODE` | Code die vrienden nodig hebben om te registreren (leeg = open).  |
-| `ADMIN_USERS` | Komma-gescheiden gebruikersnamen met beheerdersrechten.          |
-| `DATA_DIR`    | Map waar de JSON-database wordt bewaard (standaard `./data`).    |
+| Variabele     | Waar | Betekenis                                                    |
+| ------------- | ---- | ------------------------------------------------------------ |
+| `JWT_SECRET`  | secret | Sleutel voor sessietokens — **zet als secret**, niet in git. |
+| `INVITE_CODE` | `wrangler.toml [vars]` / `.dev.vars` | Code die vrienden nodig hebben om te registreren (leeg = open). |
+| `ADMIN_USERS` | `wrangler.toml [vars]` | Komma-gescheiden gebruikersnamen met beheerdersrechten.      |
 
 ## Balans aanpassen
 
-Bijna alles is instelbaar in **`server/src/config/gameConfig.ts`**: startgeld,
-voerprijzen, de vluchtkalender, prijzengeld, punten, hoe afstand de eigenschappen
-weegt, kweekinstellingen, de leeftijdscurve en het aantal bots.
+Bijna alles is instelbaar in **`core/config/gameConfig.ts`**: startgeld, voerprijzen,
+de vluchtkalender, prijzengeld, punten, hoe afstand de eigenschappen weegt,
+kweekinstellingen, de leeftijdscurve en het aantal bots.
 
 ## Ideeën voor later
 
 Personeel aannemen, hokken bouwen/uitbreiden, een weersvoorspelling vóór de vlucht,
-rayons/regio's, een echte database (SQLite/Postgres — vervang alleen `server/src/db/store.ts`),
-duiven-pensioen en een stamboom-overzicht.
+rayons/regio's, duiven-pensioen en een uitgebreider stamboom-overzicht. Voor strikte
+consistentie bij veel gelijktijdige spelers kan de wereldstaat later naar een Durable
+Object (Workers betaald) verhuizen.

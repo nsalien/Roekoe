@@ -21,8 +21,8 @@ import {
   WEEKS_PER_YEAR,
   type FlightTemplate,
 } from '../config/gameConfig.js';
-import type { Database, Flight, Loft, Pigeon, User } from '../db/schema.js';
-import { newId, type Store } from '../db/store.js';
+import type { Database, Flight, Loft, Pigeon, User } from '../schema.js';
+import { newId, type Store } from '../store.js';
 import { botTakeWeeklyActions } from './bots.js';
 import { breed } from './breeding.js';
 import { applyWeeklyCare } from './economy.js';

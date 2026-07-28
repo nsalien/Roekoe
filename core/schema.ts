@@ -4,7 +4,7 @@
  * model and to evolve it (add fields, add entities) as the game grows.
  */
 
-import type { FeedRationKey } from '../config/gameConfig.js';
+import type { FeedRationKey } from './config/gameConfig.js';
 
 export type Sex = 'doffer' | 'duivin'; // male / female
 

@@ -6,7 +6,7 @@
  */
 
 import { FEED_RATIONS, TRAINING } from '../config/gameConfig.js';
-import type { Flight, Loft, Pigeon } from '../db/schema.js';
+import type { Flight, Loft, Pigeon } from '../schema.js';
 import { canRace, talent } from './pigeon.js';
 import { clamp, round1 } from './util.js';
 

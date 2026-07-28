@@ -8,8 +8,9 @@ export default defineConfig({
   server: {
     port: 5173,
     proxy: {
+      // `wrangler pages dev` serves the API (Functions + local D1) on :8788.
       '/api': {
-        target: 'http://localhost:4000',
+        target: 'http://localhost:8788',
         changeOrigin: true,
       },
     },

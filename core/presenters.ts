@@ -4,10 +4,10 @@
  * stays dumb and consistent. Keep these in sync with client/src/types.ts.
  */
 
-import type { Database, Flight, Loft, Pigeon } from '../db/schema.js';
-import { ageInWeeks, canRace, estimateValue, talent } from '../game/pigeon.js';
-import { ownerName } from '../game/engine.js';
-import { round1 } from '../game/util.js';
+import type { Database, Flight, Loft, Pigeon } from './schema.js';
+import { ageInWeeks, canRace, estimateValue, talent } from './game/pigeon.js';
+import { ownerName } from './game/engine.js';
+import { round1 } from './game/util.js';
 
 export function pigeonDTO(db: Database, p: Pigeon) {
   const week = db.world.currentWeek;

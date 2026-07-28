@@ -5,7 +5,7 @@ import {
   WEEKLY_UPKEEP_BASE,
   WEEKLY_UPKEEP_PER_PIGEON,
 } from '../config/gameConfig.js';
-import type { Loft, Pigeon } from '../db/schema.js';
+import type { Loft, Pigeon } from '../schema.js';
 import { clamp, round1 } from './util.js';
 
 export interface WeeklyReport {

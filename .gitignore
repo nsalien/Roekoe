@@ -14,6 +14,10 @@ roekoe-db.json.tmp
 .env
 *.log
 
+# Cloudflare / Wrangler
+.wrangler/
+.dev.vars
+
 # Editor / OS
 .DS_Store
 .vscode/

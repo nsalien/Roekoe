@@ -1,8 +1,8 @@
 /** Pigeon creation, ageing and derived helpers. */
 
 import { AGE_CURVE, PIGEON_NAMES, RACE_AGE_WEEKS } from '../config/gameConfig.js';
-import type { Pigeon, Sex } from '../db/schema.js';
-import { newId } from '../db/store.js';
+import type { Pigeon, Sex } from '../schema.js';
+import { newId } from '../store.js';
 import { bell, clamp, interpolate, pick, randInt, round1 } from './util.js';
 
 const ageCurvePoints = AGE_CURVE.map((p) => ({ x: p.weeks, y: p.multiplier }));

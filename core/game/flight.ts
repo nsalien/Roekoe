@@ -12,7 +12,7 @@ import {
   PRIZE_MONEY,
   RANKING_POINTS,
 } from '../config/gameConfig.js';
-import type { Flight, FlightResult, Loft, Pigeon } from '../db/schema.js';
+import type { Flight, FlightResult, Loft, Pigeon } from '../schema.js';
 import { ageMultiplier } from './pigeon.js';
 import { clamp, interpolate, pick, randFloat, round1 } from './util.js';
 

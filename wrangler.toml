@@ -1,0 +1,24 @@
+# Cloudflare Pages + Functions + D1 configuration.
+#
+# Deploy: `npm run deploy` (or connect the repo in the Cloudflare dashboard with
+# build command `npm run build` and output dir `client/dist`).
+#
+# The D1 database id below is created once with:
+#   npx wrangler d1 create roekoe-db
+# then paste the printed database_id here.
+
+name = "roekoe"
+compatibility_date = "2024-09-23"
+pages_build_output_dir = "client/dist"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "roekoe-db"
+database_id = "00000000-0000-0000-0000-000000000000"
+
+# Non-secret vars. INVITE_CODE gates registration to your friends.
+# Set JWT_SECRET as a *secret*, not here:
+#   npx wrangler pages secret put JWT_SECRET
+[vars]
+INVITE_CODE = "roekoe-vrienden"
+ADMIN_USERS = ""

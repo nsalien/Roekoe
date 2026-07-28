@@ -1,0 +1,4 @@
+# Copy to .dev.vars for local `wrangler pages dev`. Do NOT commit .dev.vars.
+JWT_SECRET=local-dev-secret-change-me
+INVITE_CODE=roekoe-vrienden
+ADMIN_USERS=
