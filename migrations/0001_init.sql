@@ -7,6 +7,7 @@ CREATE TABLE IF NOT EXISTS world (
   current_week INTEGER NOT NULL,
   season_year  INTEGER NOT NULL,
   seeded       INTEGER NOT NULL DEFAULT 0,
+  data_version INTEGER NOT NULL DEFAULT 0,
   version      INTEGER NOT NULL DEFAULT 0
 );
 
@@ -70,8 +71,12 @@ CREATE TABLE IF NOT EXISTS flights (
   type          TEXT NOT NULL,
   distance_km   INTEGER NOT NULL,
   entry_fee     INTEGER NOT NULL,
+  from_city     TEXT NOT NULL DEFAULT '',
+  to_city       TEXT NOT NULL DEFAULT '',
+  start_at      TEXT NOT NULL DEFAULT '',
   status        TEXT NOT NULL,
   entries       TEXT NOT NULL DEFAULT '[]',
+  sim           TEXT NOT NULL DEFAULT '[]',
   weather       TEXT NOT NULL DEFAULT '',
   weather_factor REAL NOT NULL DEFAULT 1,
   results       TEXT NOT NULL DEFAULT '[]',

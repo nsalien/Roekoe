@@ -7,6 +7,7 @@
 export type Sex = 'doffer' | 'duivin';
 export type FeedRation = 'low' | 'normal' | 'high';
 export type FlightType = 'club' | 'national';
+export type FlightStatus = 'scheduled' | 'live' | 'completed';
 
 export interface AuthUser {
   id: string;
@@ -75,12 +76,50 @@ export interface Flight {
   type: FlightType;
   distanceKm: number;
   entryFee: number;
-  status: 'scheduled' | 'completed';
+  fromCity: string;
+  toCity: string;
+  startAt: string;
+  status: FlightStatus;
   weather: string;
   entryCount: number;
   entries: FlightEntry[];
   results: FlightResult[];
   createdAt: string;
+}
+
+export interface LiveBird {
+  pigeonId: string;
+  pigeonName: string;
+  ownerId: string;
+  ownerName: string;
+  kmDone: number;
+  kmTotal: number;
+  kmRemaining: number;
+  speedKmh: number;
+  progress: number;
+  finished: boolean;
+  etaSeconds: number;
+  liveRank: number;
+}
+
+export interface LiveSnapshot {
+  status: FlightStatus;
+  elapsedSeconds: number;
+  totalSeconds: number;
+  overallProgress: number;
+  allFinished: boolean;
+  birds: LiveBird[];
+}
+
+export interface CommentLine {
+  atSeconds: number;
+  text: string;
+}
+
+export interface LiveResponse {
+  flight: Flight;
+  live: LiveSnapshot | null;
+  commentary: CommentLine[];
 }
 
 export interface RankingRow {
@@ -114,7 +153,6 @@ export interface GameState {
   scheduledFlights: Flight[];
   rankings: RankingRow[];
   feedRations: Record<FeedRation, FeedRationInfo>;
-  flightTemplates: { key: string; name: string; type: FlightType; distanceKm: number; entryFee: number }[];
 }
 
 export interface BreedingPair {

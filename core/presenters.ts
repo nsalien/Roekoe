@@ -7,6 +7,7 @@
 import type { Database, Flight, Loft, Pigeon } from './schema.js';
 import { ageInWeeks, canRace, estimateValue, talent } from './game/pigeon.js';
 import { ownerName } from './game/engine.js';
+import { flightCommentary, liveSnapshot } from './game/flight.js';
 import { round1 } from './game/util.js';
 
 export function pigeonDTO(db: Database, p: Pigeon) {
@@ -59,12 +60,25 @@ export function flightDTO(db: Database, f: Flight) {
     type: f.type,
     distanceKm: f.distanceKm,
     entryFee: f.entryFee,
+    fromCity: f.fromCity,
+    toCity: f.toCity,
+    startAt: f.startAt,
     status: f.status,
     weather: f.weather,
     entryCount: f.entries.length,
     entries: f.entries,
     results: f.results,
     createdAt: f.createdAt,
+  };
+}
+
+/** Full live view for a flight: meta + per-bird positions + commentary feed. */
+export function liveFlightDTO(db: Database, f: Flight, nowMs: number) {
+  const isRunning = f.status === 'live' || f.status === 'completed';
+  return {
+    flight: flightDTO(db, f),
+    live: isRunning ? liveSnapshot(f, nowMs) : null,
+    commentary: isRunning ? flightCommentary(f, nowMs) : [],
   };
 }
 

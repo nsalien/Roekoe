@@ -10,7 +10,6 @@ import {
   BOT_LOFT_NAMES,
   BREEDING,
   DEFAULT_BOT_COUNT,
-  FLIGHT_TEMPLATES,
   FOOD_PRICE_PER_KG,
   NPC_MARKET_LISTINGS_PER_WEEK,
   STARTING_FOOD,
@@ -19,16 +18,14 @@ import {
   STARTING_PIGEONS,
   TRAINING,
   WEEKS_PER_YEAR,
-  type FlightTemplate,
 } from '../config/gameConfig.js';
-import type { Database, Flight, Loft, Pigeon, User } from '../schema.js';
+import type { Database, Loft, User } from '../schema.js';
 import { newId, type Store } from '../store.js';
 import { botTakeWeeklyActions } from './bots.js';
 import { breed } from './breeding.js';
 import { applyWeeklyCare } from './economy.js';
-import { applyFlightEffects, simulateFlight, type Entry } from './flight.js';
 import { estimateValue, generatePigeon } from './pigeon.js';
-import { clamp, pick, randFloat, round1 } from './util.js';
+import { clamp, randFloat, round1 } from './util.js';
 
 export const NPC_OWNER_ID = 'npc_market';
 
@@ -60,36 +57,6 @@ export function createLoftForUser(store: Store, user: User, loftName: string): L
     }
     return loft;
   });
-}
-
-function makeFlight(template: FlightTemplate, week: number): Flight {
-  return {
-    id: newId('flt'),
-    week,
-    templateKey: template.key,
-    name: template.name,
-    type: template.type,
-    distanceKm: template.distanceKm,
-    entryFee: template.entryFee,
-    status: 'scheduled',
-    entries: [],
-    weather: '',
-    weatherFactor: 1,
-    results: [],
-    createdAt: new Date().toISOString(),
-  };
-}
-
-/** Generate the scheduled flights for a given week (idempotent per week). */
-export function generateFlightsForWeek(db: Database, week: number): void {
-  for (const t of FLIGHT_TEMPLATES) {
-    if (week % t.everyWeeks === t.offset % t.everyWeeks) {
-      const exists = db.flights.some(
-        (f) => f.week === week && f.templateKey === t.key,
-      );
-      if (!exists) db.flights.push(makeFlight(t, week));
-    }
-  }
 }
 
 /** Refresh the NPC market with fresh pigeons for the given week. */
@@ -138,66 +105,42 @@ export function seedWorld(store: Store): void {
         );
       }
     }
-    generateFlightsForWeek(db, week);
     refreshNpcMarket(db, week);
     db.world.seeded = true;
+    db.world.dataVersion = 1; // freshly-seeded birds already have funny names
   });
 }
 
 export interface WeekSummary {
   week: number;
-  ranFlights: { id: string; name: string; winner: string; entries: number }[];
   hatched: number;
   seasonRolledOver: boolean;
 }
 
 /**
- * Advance the world by one week: bots act, scheduled flights run, pigeons are
- * fed, breeding pairs hatch, the market refreshes and the calendar moves on.
+ * Advance the world by one week (the economy tick). Flights run on real time on
+ * their own; this feeds pigeons, hatches young, refreshes the market and rolls
+ * the calendar/season. Bots do their weekly housekeeping (food, training).
  */
 export function advanceWeek(store: Store): WeekSummary {
   return store.mutate((db) => {
     const week = db.world.currentWeek;
-    const summary: WeekSummary = { week, ranFlights: [], hatched: 0, seasonRolledOver: false };
+    const summary: WeekSummary = { week, hatched: 0, seasonRolledOver: false };
 
-    // 1. Bots make their decisions for this week's scheduled flights.
-    const scheduled = db.flights.filter((f) => f.week === week && f.status === 'scheduled');
+    // 1. Bots do their weekly housekeeping (feed/train). They enter flights in
+    //    real time (see schedule.ts), not here.
     for (const loft of db.lofts.filter((l) => l.isBot)) {
       const owned = db.pigeons.filter((p) => p.ownerId === loft.userId);
-      botTakeWeeklyActions(loft, owned, scheduled, week, FOOD_PRICE_PER_KG);
+      botTakeWeeklyActions(loft, owned, FOOD_PRICE_PER_KG);
     }
 
-    // 2. Run each scheduled flight.
-    for (const flight of scheduled) {
-      const entries: Entry[] = [];
-      for (const e of flight.entries) {
-        const pigeon = db.pigeons.find((p) => p.id === e.pigeonId);
-        if (!pigeon || pigeon.retired) continue;
-        entries.push({ pigeon, ownerName: ownerName(db, pigeon.ownerId) });
-      }
-      if (entries.length === 0) {
-        // Nobody entered — cancel the flight.
-        flight.status = 'completed';
-        flight.weather = 'Afgelast (geen deelnemers)';
-        continue;
-      }
-      const sim = simulateFlight(flight, week, entries);
-      applyFlightEffects(sim, db.pigeons, db.lofts);
-      summary.ranFlights.push({
-        id: flight.id,
-        name: flight.name,
-        winner: flight.results[0]?.ownerName ?? '—',
-        entries: entries.length,
-      });
-    }
-
-    // 3. Weekly care + upkeep for every loft.
+    // 2. Weekly care + upkeep for every loft.
     for (const loft of db.lofts) {
       const owned = db.pigeons.filter((p) => p.ownerId === loft.userId);
       applyWeeklyCare(loft, owned);
     }
 
-    // 4. Hatch breeding pairs due this week.
+    // 3. Hatch breeding pairs due this week.
     const due = db.breedingPairs.filter((bp) => bp.hatchWeek <= week);
     for (const bp of due) {
       const sire = db.pigeons.find((p) => p.id === bp.sireId);
@@ -214,7 +157,7 @@ export function advanceWeek(store: Store): WeekSummary {
     }
     db.breedingPairs = db.breedingPairs.filter((bp) => bp.hatchWeek > week);
 
-    // 5. Advance the calendar and prepare the new week.
+    // Advance the calendar and prepare the new week.
     db.world.currentWeek += 1;
     const newWeek = db.world.currentWeek;
     if (newWeek % WEEKS_PER_YEAR === 1) {
@@ -223,7 +166,6 @@ export function advanceWeek(store: Store): WeekSummary {
       for (const loft of db.lofts) loft.seasonPoints = 0;
       summary.seasonRolledOver = true;
     }
-    generateFlightsForWeek(db, newWeek);
     refreshNpcMarket(db, newWeek);
 
     return summary;
@@ -253,17 +195,21 @@ export function enterFlight(
 ): string | null {
   return store.mutate((db) => {
     const flight = db.flights.find((f) => f.id === flightId);
-    if (!flight || flight.status !== 'scheduled') return 'Vlucht niet beschikbaar';
-    if (flight.week !== db.world.currentWeek) return 'Deze vlucht is niet meer open';
+    if (!flight || flight.status !== 'scheduled') return 'Deze vlucht is niet (meer) open voor inschrijving';
     const loft = db.lofts.find((l) => l.userId === userId);
     const pigeon = db.pigeons.find((p) => p.id === pigeonId);
     if (!loft || !pigeon || pigeon.ownerId !== userId) return 'Duif niet gevonden';
     if (flight.entries.some((e) => e.pigeonId === pigeonId)) return 'Duif is al ingeschreven';
-    // A pigeon may only fly one flight per week.
+    // A pigeon may race at most once per day.
+    const day = flight.startAt.slice(0, 10);
     const racingElsewhere = db.flights.some(
-      (f) => f.week === flight.week && f.entries.some((e) => e.pigeonId === pigeonId),
+      (f) =>
+        f.id !== flight.id &&
+        f.status !== 'completed' &&
+        f.startAt.slice(0, 10) === day &&
+        f.entries.some((e) => e.pigeonId === pigeonId),
     );
-    if (racingElsewhere) return 'Deze duif vliegt deze week al een andere vlucht';
+    if (racingElsewhere) return 'Deze duif vliegt die dag al een andere vlucht';
     if (loft.money < flight.entryFee) return 'Niet genoeg geld voor het inschrijfgeld';
     loft.money -= flight.entryFee;
     flight.entries.push({ pigeonId, ownerId: userId });
@@ -298,7 +244,7 @@ export function listForSale(store: Store, userId: string, pigeonId: string, pric
     if (price <= 0) return 'Ongeldige prijs';
     // A pigeon that is currently racing or breeding cannot be sold.
     const racing = db.flights.some(
-      (f) => f.status === 'scheduled' && f.entries.some((e) => e.pigeonId === pigeonId),
+      (f) => f.status !== 'completed' && f.entries.some((e) => e.pigeonId === pigeonId),
     );
     if (racing) return 'Deze duif staat ingeschreven voor een vlucht';
     const breeding = db.breedingPairs.some((bp) => bp.sireId === pigeonId || bp.damId === pigeonId);

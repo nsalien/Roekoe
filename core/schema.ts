@@ -83,10 +83,21 @@ export interface FlightEntry {
   ownerId: string;
 }
 
+/** A single pigeon's frozen performance, computed when a flight goes live. */
+export interface SimEntry {
+  pigeonId: string;
+  pigeonName: string;
+  ownerId: string;
+  ownerName: string;
+  velocity: number; // metres per minute (realistic homing speed)
+  durationSeconds: number; // compressed live race duration for this bird
+}
+
 /**
- * A flight. When first generated it is `scheduled` and open for entries; once
- * the host advances the week it is simulated and becomes `completed` with a
- * full result table.
+ * A flight, tied to a real start time and a route (release point -> home).
+ *  - `scheduled`: open for entries, waiting for its start time.
+ *  - `live`: started; positions derive from the frozen `sim` + elapsed time.
+ *  - `completed`: everyone home; `results` is final.
  */
 export interface Flight {
   id: string;
@@ -96,9 +107,13 @@ export interface Flight {
   type: 'club' | 'national';
   distanceKm: number;
   entryFee: number;
-  status: 'scheduled' | 'completed';
+  fromCity: string; // release point
+  toCity: string; // home base
+  startAt: string; // ISO timestamp the flight is released
+  status: 'scheduled' | 'live' | 'completed';
   entries: FlightEntry[];
-  weather: string; // set on completion
+  sim: SimEntry[]; // frozen when the flight goes live
+  weather: string;
   weatherFactor: number;
   results: FlightResult[]; // empty until completed
   createdAt: string;
@@ -109,6 +124,8 @@ export interface World {
   currentWeek: number;
   seasonYear: number;
   seeded: boolean;
+  /** One-time data migrations applied (funny names, purge old flights, ...). */
+  dataVersion: number;
 }
 
 /** The full database document persisted to disk. */
@@ -123,7 +140,7 @@ export interface Database {
 
 export function emptyDatabase(): Database {
   return {
-    world: { currentWeek: 1, seasonYear: 1, seeded: false },
+    world: { currentWeek: 1, seasonYear: 1, seeded: false, dataVersion: 0 },
     users: [],
     lofts: [],
     pigeons: [],

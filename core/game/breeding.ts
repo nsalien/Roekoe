@@ -1,9 +1,10 @@
 /** Breeding: pairing pigeons and producing young that inherit attributes. */
 
-import { BREEDING, PIGEON_NAMES } from '../config/gameConfig.js';
+import { BREEDING } from '../config/gameConfig.js';
 import type { Pigeon } from '../schema.js';
 import { newId } from '../store.js';
-import { clamp, pick, randInt, randFloat, round1 } from './util.js';
+import { generatePigeonName } from './names.js';
+import { clamp, randInt, randFloat, round1 } from './util.js';
 
 /** Inherit one attribute: average of parents plus a random mutation. */
 function inherit(a: number, b: number): number {
@@ -25,15 +26,18 @@ export function breed(sire: Pigeon, dam: Pigeon, ownerId: string, hatchWeek: num
   const count = randInt(BREEDING.minYoung, BREEDING.maxYoung);
   const young: Pigeon[] = [];
   for (let i = 0; i < count; i++) {
+    const speed = inherit(sire.speed, dam.speed);
+    const endurance = inherit(sire.endurance, dam.endurance);
+    const orientation = inherit(sire.orientation, dam.orientation);
     young.push({
       id: newId('pig'),
       ownerId,
-      name: pick(PIGEON_NAMES),
+      name: generatePigeonName({ speed, endurance, orientation }),
       sex: Math.random() < 0.5 ? 'doffer' : 'duivin',
       birthWeek: hatchWeek,
-      speed: inherit(sire.speed, dam.speed),
-      endurance: inherit(sire.endurance, dam.endurance),
-      orientation: inherit(sire.orientation, dam.orientation),
+      speed,
+      endurance,
+      orientation,
       form: round1(randFloat(55, 75)),
       health: round1(randFloat(75, 95)),
       experience: 0,

@@ -11,11 +11,11 @@ import { cors } from 'hono/cors';
 import { handle } from 'hono/cloudflare-pages';
 import type { D1Database } from '@cloudflare/workers-types';
 
-import { D1Store } from '../../core/d1.js';
+import { D1Store, ensureSchema } from '../../core/d1.js';
 import type { User } from '../../core/schema.js';
 import { hashPassword, verifyPassword, signToken, verifyToken } from '../../core/auth.js';
 import { newId } from '../../core/store.js';
-import { FEED_RATIONS, FLIGHT_TEMPLATES } from '../../core/config/gameConfig.js';
+import { FEED_RATIONS } from '../../core/config/gameConfig.js';
 import {
   advanceWeek,
   buyFood,
@@ -30,7 +30,8 @@ import {
   unlist,
   withdrawFlight,
 } from '../../core/game/engine.js';
-import { flightDTO, loftDTO, pigeonDTO, rankingRows } from '../../core/presenters.js';
+import { advanceRealtime } from '../../core/game/schedule.js';
+import { flightDTO, liveFlightDTO, loftDTO, pigeonDTO, rankingRows } from '../../core/presenters.js';
 
 interface Env {
   DB: D1Database;
@@ -44,14 +45,24 @@ const app = new Hono<{ Bindings: Env; Variables: Vars }>().basePath('/api');
 
 app.use('*', cors());
 
-// Load the world, seed on first ever request, and resolve the current user.
+let schemaReady = false;
+
+// Load the world, seed on first ever request, run the real-time clock (schedule
+// flights, start/finish live races, bots auto-enter), and resolve the user.
 app.use('*', async (c, next) => {
+  if (!schemaReady) {
+    await ensureSchema(c.env.DB);
+    schemaReady = true;
+  }
   let store = await D1Store.load(c.env.DB);
   if (!store.data.world.seeded) {
     seedWorld(store);
     await store.persist();
     store = await D1Store.load(c.env.DB); // fresh snapshots for any later write
   }
+  // Real-time flight lifecycle + one-time data migrations. Persist any changes.
+  advanceRealtime(store.data, Date.now());
+  await store.persist();
   c.set('store', store);
 
   const auth = c.req.header('Authorization');
@@ -169,16 +180,18 @@ app.get('/state', (c) => {
     .filter((p) => p.ownerId === user.id)
     .map((p) => pigeonDTO(db, p))
     .sort((a, b) => b.talent - a.talent);
-  const scheduledFlights = db.flights.filter((f) => f.status === 'scheduled').map((f) => flightDTO(db, f));
+  const upcoming = db.flights
+    .filter((f) => f.status === 'scheduled' || f.status === 'live')
+    .sort((a, b) => a.startAt.localeCompare(b.startAt))
+    .map((f) => flightDTO(db, f));
   return c.json({
     world: db.world,
     isAdmin: user.isAdmin,
     loft: loft ? loftDTO(db, loft) : null,
     pigeons,
-    scheduledFlights,
+    scheduledFlights: upcoming,
     rankings: rankingRows(db),
     feedRations: FEED_RATIONS,
-    flightTemplates: FLIGHT_TEMPLATES,
   });
 });
 
@@ -301,13 +314,20 @@ app.post('/market/buy', async (c) => {
 app.get('/flights', (c) => {
   requireUser(c);
   const db = c.get('store').data;
-  const scheduled = db.flights.filter((f) => f.status === 'scheduled').map((f) => flightDTO(db, f));
+  const scheduled = db.flights
+    .filter((f) => f.status === 'scheduled')
+    .sort((a, b) => a.startAt.localeCompare(b.startAt))
+    .map((f) => flightDTO(db, f));
+  const live = db.flights
+    .filter((f) => f.status === 'live')
+    .sort((a, b) => a.startAt.localeCompare(b.startAt))
+    .map((f) => flightDTO(db, f));
   const completed = db.flights
     .filter((f) => f.status === 'completed')
-    .sort((a, b) => b.week - a.week || b.createdAt.localeCompare(a.createdAt))
+    .sort((a, b) => b.startAt.localeCompare(a.startAt) || b.createdAt.localeCompare(a.createdAt))
     .slice(0, 20)
     .map((f) => flightDTO(db, f));
-  return c.json({ scheduled, completed });
+  return c.json({ scheduled, live, completed });
 });
 
 app.get('/flights/:id', (c) => {
@@ -316,6 +336,15 @@ app.get('/flights/:id', (c) => {
   const f = db.flights.find((x) => x.id === c.req.param('id'));
   if (!f) return c.json({ error: 'Vlucht niet gevonden' }, 404);
   return c.json({ flight: flightDTO(db, f) });
+});
+
+/** Live positions + commentary for a flight (polled by the client). */
+app.get('/flights/:id/live', (c) => {
+  requireUser(c);
+  const db = c.get('store').data;
+  const f = db.flights.find((x) => x.id === c.req.param('id'));
+  if (!f) return c.json({ error: 'Vlucht niet gevonden' }, 404);
+  return c.json(liveFlightDTO(db, f, Date.now()));
 });
 
 app.post('/flights/:id/enter', async (c) => {

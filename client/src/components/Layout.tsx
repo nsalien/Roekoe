@@ -25,12 +25,15 @@ export function Layout() {
   async function advanceWeek() {
     setAdvancing(true);
     try {
-      const res = await api<{ summary: { ranFlights: { name: string; winner: string }[]; hatched: number } }>(
+      const res = await api<{ summary: { hatched: number; seasonRolledOver: boolean } }>(
         '/admin/advance-week',
         { method: 'POST' },
       );
-      const ran = res.summary.ranFlights.length;
-      toast.show(`Nieuwe week! ${ran} vlucht${ran === 1 ? '' : 'en'} gevlogen.`, 'ok');
+      const h = res.summary.hatched;
+      toast.show(
+        `Nieuwe week! Duiven gevoerd${h > 0 ? `, ${h} jong${h === 1 ? '' : 'en'} geboren` : ''}.`,
+        'ok',
+      );
       await refresh();
     } catch (e) {
       toast.show(e instanceof Error ? e.message : 'Mislukt', 'err');

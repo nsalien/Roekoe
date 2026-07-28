@@ -5,7 +5,7 @@ import { Link } from 'react-router-dom';
 import { useGame } from '../game/GameContext';
 import { useAuth } from '../auth/AuthContext';
 import { api } from '../api/client';
-import { Money, Spinner, useToast } from '../components/ui';
+import { Money, Spinner, countdownTo, formatFlightTime, useToast } from '../components/ui';
 import { PigeonCard } from '../components/PigeonCard';
 import type { FeedRation } from '../types';
 
@@ -24,6 +24,7 @@ export function DashboardPage() {
 
   const myRank = rankings.find((r) => r.userId === user?.id);
   const topPigeons = pigeons.slice(0, 3);
+  const now = Date.now();
   const avgForm = pigeons.length ? Math.round(pigeons.reduce((s, p) => s + p.form, 0) / pigeons.length) : 0;
 
   async function act(fn: () => Promise<unknown>, okMsg?: string) {
@@ -117,16 +118,27 @@ export function DashboardPage() {
             <h2>Aankomende vluchten</h2>
             <Link to="/vluchten" className="btn ghost sm">Alles</Link>
           </div>
-          {scheduledFlights.length === 0 && <p className="muted">Geen vluchten gepland deze week.</p>}
+          {scheduledFlights.length === 0 && <p className="muted">Geen vluchten gepland. Kom straks terug!</p>}
           <div className="stack">
-            {scheduledFlights.map((f) => (
-              <Link key={f.id} to="/vluchten" className="card" style={{ padding: 12, boxShadow: 'none' }}>
+            {scheduledFlights.slice(0, 4).map((f) => (
+              <Link
+                key={f.id}
+                to={f.status === 'live' ? `/vluchten/${f.id}` : '/vluchten'}
+                className="card"
+                style={{ padding: 12, boxShadow: 'none' }}
+              >
                 <div className="row" style={{ justifyContent: 'space-between' }}>
                   <div>
-                    <strong>{f.name}</strong>
-                    <div className="faint">{f.distanceKm} km · {f.entryCount} ingeschreven</div>
+                    <div className="row" style={{ gap: 6 }}>
+                      <strong>{f.name}</strong>
+                      {f.status === 'live' && <span className="badge" style={{ background: 'var(--accent)', color: '#fff' }}>🔴 LIVE</span>}
+                    </div>
+                    <div className="faint">{f.fromCity} → {f.toCity} · {f.distanceKm} km</div>
                   </div>
-                  <span className={`badge ${f.type}`}>{f.type === 'club' ? 'Club' : 'Nationaal'}</span>
+                  <div style={{ textAlign: 'right' }}>
+                    <div className="faint">{formatFlightTime(f.startAt)}</div>
+                    <div className="faint">{f.status === 'live' ? 'bezig' : countdownTo(f.startAt, now)}</div>
+                  </div>
                 </div>
               </Link>
             ))}

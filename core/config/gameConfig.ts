@@ -148,3 +148,126 @@ export const BOT_LOFT_NAMES = [
   'De Wolkenridders', 'Duivenkot Marcel', 'De Verre Reizigers', 'Hok De Vliegende Hollander',
   'De Nachtvluchters', 'Roekoe Racers', 'De Windvangers', 'Hok Zonnedael',
 ];
+
+// ===========================================================================
+// Real-time flights
+// ===========================================================================
+
+/** Time zone flights are scheduled in (wall-clock hours below are in this zone). */
+export const TIMEZONE = 'Europe/Brussels';
+
+/** Home base — birds are released down south and fly home to here. */
+export const HOME_CITY = 'Gent';
+
+/**
+ * A real duivenvlucht takes hours; we compress the clock so a race is
+ * watchable live in a few minutes. Lower = faster races.
+ */
+export const FLIGHT_TIME_SCALE = 0.02;
+export const MIN_FLIGHT_SECONDS = 45;
+
+/** How many days of flights are kept on the calendar ahead of "now". */
+export const SCHEDULE_HORIZON_DAYS = 4;
+
+/** A release point. Birds fly from `city` home to HOME_CITY over `distanceKm`. */
+export interface RaceRelease {
+  key: string;
+  city: string;
+  distanceKm: number;
+  type: 'club' | 'national';
+  name: string;
+  entryFee: number;
+}
+
+export const RACE_RELEASES: Record<string, RaceRelease> = {
+  quievrain: { key: 'quievrain', city: 'Quiévrain', distanceKm: 80, type: 'club', name: 'Clubvlucht — Sprint', entryFee: 25 },
+  parijs: { key: 'parijs', city: 'Parijs', distanceKm: 300, type: 'club', name: 'Clubvlucht — Midfond', entryFee: 40 },
+  bourges: { key: 'bourges', city: 'Bourges', distanceKm: 490, type: 'national', name: 'Nationale Fondvlucht', entryFee: 80 },
+};
+
+/** A recurring slot on the weekly calendar. weekday null = every day. */
+export interface ScheduleSlot {
+  key: string;
+  releaseKey: string;
+  weekday: number | null; // 0=Sunday .. 6=Saturday
+  hour: number;
+  minute: number;
+}
+
+export const REAL_SCHEDULE: ScheduleSlot[] = [
+  { key: 'daily-sprint', releaseKey: 'quievrain', weekday: null, hour: 11, minute: 0 },
+  { key: 'daily-midfond', releaseKey: 'parijs', weekday: null, hour: 17, minute: 0 },
+  { key: 'sat-fond', releaseKey: 'bourges', weekday: 6, hour: 9, minute: 0 },
+];
+
+// ===========================================================================
+// Funny Dutch pigeon names
+// ===========================================================================
+// A name is "<voornaam> <bijnaam>". The epithet is (often) picked from the
+// pigeon's most extreme genetic trait, so a low-endurance bird tends to become
+// something like "Betsy de Fatsy" and a fast one "Harry de Hete".
+
+export const PIGEON_FIRST_NAMES = [
+  'Harry', 'Betsy', 'Sjaak', 'Gerda', 'Rico', 'Chantal', 'Kevin', 'Brenda', 'José', 'Willy',
+  'Rita', 'Freddy', 'Ronnie', 'Marcel', 'Achiel', 'Cyriel', 'Pol', 'Fien', 'Roos', 'Ludo',
+  'Nand', 'Bertha', 'Godelieve', 'Bella', 'Karel', 'Trees', 'Fons', 'Rambo', 'Turbo', 'Whitney',
+  'Kimberly', 'Dave', 'Samantha', 'Rocky', 'Gaston', 'Yvonne', 'Marleen', 'Dirk', 'Patrick', 'Sandra',
+  'Jean-Pierre', 'Bompa', 'Nonkel', 'Tante', 'Sef', 'Wies', 'Miel', 'Stef',
+];
+
+export const EPITHETS = {
+  slowSpeed: ['de Trage', 'de Slak', 'op Slippers', 'de Treuzelaar', 'de Zondagsvlieger', 'met de Handrem'],
+  fastSpeed: ['de Hete', 'de Rappe', 'de Bliksem', 'Turbo', 'de Kogel', 'Speedy'],
+  lowEndurance: ['de Fatsy', 'de Dikke', 'Kortademig', 'de Puffer', 'met de Zwembandjes', 'de Frietvreter', 'de Hijger'],
+  highEndurance: ['de Taaie', 'de Diesel', 'den IJzeren', 'de Volhouder', 'de Marathon'],
+  lowOrientation: ['de Verdwaalde', 'de Toerist', 'Zonder-GPS', 'de Dwaler', 'Blindganger'],
+  highOrientation: ['de Slimme', 'het Kompas', 'de GPS', 'de Wegwijze', 'de Navigator'],
+  neutral: [
+    'de Verschrikkelijke', "van 't Stad", 'Junior', 'de Derde', 'de Kale', 'de Legende', 'met de Snor',
+    'de Zatte', 'de Gepensioneerde', 'de Mysterieuze', 'uit de Goot', 'de Onverwoestbare', 'Bonus',
+  ],
+} as const;
+
+// ===========================================================================
+// Live race commentary (dark-ish Flemish humour). {name}/{name2} get filled in.
+// ===========================================================================
+export const COMMENTARY = {
+  start: [
+    'De manden gaan open — daar vliegen ze, richting huis!',
+    'Lossing! De hemel kleurt grijs van de duiven.',
+    'En ze zijn vertrokken, zat van de vrijheid.',
+  ],
+  leading: [
+    '{name} vliegt op kop alsof de frituur zo sluit.',
+    '{name} leidt de dans en kijkt geen één keer om.',
+    '{name} voorop — de rest mag de veren opeten.',
+    '{name} ruikt de overwinning (of is dat de mestkar?).',
+  ],
+  lagging: [
+    '{name} bengelt achteraan en overweegt een tussenstop bij de frietkot.',
+    '{name} vliegt met de handrem op.',
+    '{name} is even geland om op een standbeeld te schijten.',
+    '{name} twijfelt of dit wel de juiste kant is.',
+    '{name} had misschien beter niet zo veel gegeten voor de start.',
+  ],
+  incident: [
+    'Een sperwer cirkelt boven de groep… iedereen doet plots héél hard zijn best.',
+    '{name} scheert rakelings langs een hoogspanningskabel. Spannend!',
+    '{name} pikt onderweg nog een frietje mee — multitasken heet dat.',
+    'Een kat kijkt hongerig omhoog. {name} versnelt wijselijk.',
+    '{name} vliegt door een zwerm muggen. Gratis eiwitten.',
+  ],
+  midrace: [
+    '{name} haalt {name2} in! Wat een duel!',
+    '{name} en {name2} vechten om elke meter.',
+    'Halverwege, en {name} ruikt de thuishaven.',
+    '{name} vliegt op routine, sigaar in de snavel.',
+    '{name} laat {name2} het vuile werk in de wind opknappen.',
+  ],
+  finish: [
+    '{name} valt in! Klok gedrukt!',
+    '{name} plooit de vleugels en duikt het hok in. Binnen!',
+    'Daar is {name}! De melker pinkt een traantje weg.',
+    '{name} landt en vraagt meteen om eten. Typisch.',
+  ],
+} as const;

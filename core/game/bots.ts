@@ -6,8 +6,8 @@
  */
 
 import { FEED_RATIONS, TRAINING } from '../config/gameConfig.js';
-import type { Flight, Loft, Pigeon } from '../schema.js';
-import { canRace, talent } from './pigeon.js';
+import type { Loft, Pigeon } from '../schema.js';
+import { talent } from './pigeon.js';
 import { clamp, round1 } from './util.js';
 
 /** Choose a feed ration based on how flush the bot is. */
@@ -18,15 +18,13 @@ function chooseRation(loft: Loft): void {
 }
 
 /**
- * Let one bot loft act for the current week: buy food, enter its best rested
- * pigeons into each scheduled flight, and occasionally train a youngster.
- * Mutates the loft, its pigeons and the flights' entry lists.
+ * A bot's weekly housekeeping: pick a feed ration, top up food and occasionally
+ * train a promising bird. (Entering flights happens in real time — see
+ * schedule.ts — so it is not done here.)
  */
 export function botTakeWeeklyActions(
   loft: Loft,
   pigeons: Pigeon[],
-  scheduledFlights: Flight[],
-  currentWeek: number,
   foodPricePerKg: number,
 ): void {
   chooseRation(loft);
@@ -39,29 +37,6 @@ export function botTakeWeeklyActions(
     if (buy > 0) {
       loft.food = round1(loft.food + buy);
       loft.money -= Math.round(buy * foodPricePerKg);
-    }
-  }
-
-  // Track which of the bot's pigeons are already committed this week so it
-  // spreads its birds across the different flights instead of stacking them.
-  const committed = new Set<string>(
-    scheduledFlights.flatMap((f) =>
-      f.entries.filter((e) => e.ownerId === loft.userId).map((e) => e.pigeonId),
-    ),
-  );
-
-  for (const flight of scheduledFlights) {
-    if (loft.money < flight.entryFee) continue;
-    const eligible = pigeons
-      .filter((p) => canRace(p, currentWeek) && p.form > 45 && !committed.has(p.id))
-      .sort((a, b) => talent(b) + b.form - (talent(a) + a.form));
-
-    // A bot enters up to 3 birds per flight, budget permitting.
-    for (const p of eligible.slice(0, 3)) {
-      if (loft.money < flight.entryFee) break;
-      flight.entries.push({ pigeonId: p.id, ownerId: loft.userId });
-      committed.add(p.id);
-      loft.money -= flight.entryFee;
     }
   }
 

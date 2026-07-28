@@ -12,6 +12,7 @@ import { PigeonPage } from './pages/PigeonPage';
 import { MarketPage } from './pages/MarketPage';
 import { BreedingPage } from './pages/BreedingPage';
 import { FlightsPage } from './pages/FlightsPage';
+import { LiveFlightPage } from './pages/LiveFlightPage';
 import { RankingPage } from './pages/RankingPage';
 
 export function App() {
@@ -36,7 +37,7 @@ export function App() {
         <Route path="/markt" element={<MarketPage />} />
         <Route path="/kweek" element={<BreedingPage />} />
         <Route path="/vluchten" element={<FlightsPage />} />
-        <Route path="/vluchten/:id" element={<FlightsPage />} />
+        <Route path="/vluchten/:id" element={<LiveFlightPage />} />
         <Route path="/ranglijst" element={<RankingPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>

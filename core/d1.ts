@@ -88,8 +88,12 @@ function rowToFlight(r: any): Flight {
     type: r.type,
     distanceKm: r.distance_km,
     entryFee: r.entry_fee,
+    fromCity: r.from_city ?? '',
+    toCity: r.to_city ?? '',
+    startAt: r.start_at ?? '',
     status: r.status,
     entries: JSON.parse(r.entries || '[]'),
+    sim: JSON.parse(r.sim || '[]'),
     weather: r.weather,
     weatherFactor: r.weather_factor,
     results: JSON.parse(r.results || '[]'),
@@ -123,6 +127,7 @@ export class D1Store implements Store {
         currentWeek: worldRow.current_week,
         seasonYear: worldRow.season_year,
         seeded: !!worldRow.seeded,
+        dataVersion: worldRow.data_version ?? 0,
       };
     }
 
@@ -160,13 +165,13 @@ export class D1Store implements Store {
     const wd = w.world;
     if (!this.worldExisted) {
       stmts.push(
-        db.prepare('INSERT INTO world (id, current_week, season_year, seeded, version) VALUES (1, ?, ?, ?, 1)')
-          .bind(wd.currentWeek, wd.seasonYear, b(wd.seeded)),
+        db.prepare('INSERT INTO world (id, current_week, season_year, seeded, data_version, version) VALUES (1, ?, ?, ?, ?, 1)')
+          .bind(wd.currentWeek, wd.seasonYear, b(wd.seeded), wd.dataVersion ?? 0),
       );
     } else {
       stmts.push(
-        db.prepare('UPDATE world SET current_week = ?, season_year = ?, seeded = ?, version = version + 1 WHERE id = 1')
-          .bind(wd.currentWeek, wd.seasonYear, b(wd.seeded)),
+        db.prepare('UPDATE world SET current_week = ?, season_year = ?, seeded = ?, data_version = ?, version = version + 1 WHERE id = 1')
+          .bind(wd.currentWeek, wd.seasonYear, b(wd.seeded), wd.dataVersion ?? 0),
       );
     }
 
@@ -212,16 +217,40 @@ export class D1Store implements Store {
     diff(this.snapshots.flights, w.flights, (f) => f.id, {
       upsert: (f) =>
         db.prepare(
-          'INSERT OR REPLACE INTO flights (id, week, template_key, name, type, distance_km, entry_fee, status, entries, weather, weather_factor, results, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+          'INSERT OR REPLACE INTO flights (id, week, template_key, name, type, distance_km, entry_fee, from_city, to_city, start_at, status, entries, sim, weather, weather_factor, results, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
         ).bind(
-          f.id, f.week, f.templateKey, f.name, f.type, f.distanceKm, f.entryFee, f.status,
-          JSON.stringify(f.entries), f.weather, f.weatherFactor, JSON.stringify(f.results), f.createdAt,
+          f.id, f.week, f.templateKey, f.name, f.type, f.distanceKm, f.entryFee,
+          f.fromCity, f.toCity, f.startAt, f.status,
+          JSON.stringify(f.entries), JSON.stringify(f.sim), f.weather, f.weatherFactor,
+          JSON.stringify(f.results), f.createdAt,
         ),
       del: (id) => db.prepare('DELETE FROM flights WHERE id = ?').bind(id),
       stmts,
     });
 
     if (stmts.length > 0) await db.batch(stmts);
+  }
+}
+
+/**
+ * Idempotent schema top-up. The base tables come from migrations/0001; this
+ * adds columns introduced later so existing databases upgrade themselves on
+ * deploy (no manual SQL needed). Safe to call on every cold start.
+ */
+export async function ensureSchema(db: D1Database): Promise<void> {
+  const alters = [
+    "ALTER TABLE flights ADD COLUMN from_city TEXT NOT NULL DEFAULT ''",
+    "ALTER TABLE flights ADD COLUMN to_city TEXT NOT NULL DEFAULT ''",
+    "ALTER TABLE flights ADD COLUMN start_at TEXT NOT NULL DEFAULT ''",
+    "ALTER TABLE flights ADD COLUMN sim TEXT NOT NULL DEFAULT '[]'",
+    'ALTER TABLE world ADD COLUMN data_version INTEGER NOT NULL DEFAULT 0',
+  ];
+  for (const sql of alters) {
+    try {
+      await db.exec(sql);
+    } catch {
+      // Column already exists — nothing to do.
+    }
   }
 }
 

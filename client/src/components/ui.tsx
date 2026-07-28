@@ -56,6 +56,40 @@ export function formatDuration(seconds: number): string {
     : `${m}m ${s.toString().padStart(2, '0')}s`;
 }
 
+const TZ = 'Europe/Brussels';
+
+/** A friendly local date+time for a flight, e.g. "vandaag 17:00" or "wo 30 jul 11:00". */
+export function formatFlightTime(iso: string): string {
+  if (!iso) return '';
+  const d = new Date(iso);
+  const now = new Date();
+  const time = d.toLocaleTimeString('nl-BE', { timeZone: TZ, hour: '2-digit', minute: '2-digit' });
+  const dayKey = (x: Date) => x.toLocaleDateString('nl-BE', { timeZone: TZ });
+  const today = dayKey(now);
+  const tomorrow = dayKey(new Date(now.getTime() + 86400000));
+  const yday = dayKey(new Date(now.getTime() - 86400000));
+  const dk = dayKey(d);
+  let label: string;
+  if (dk === today) label = 'vandaag';
+  else if (dk === tomorrow) label = 'morgen';
+  else if (dk === yday) label = 'gisteren';
+  else label = d.toLocaleDateString('nl-BE', { timeZone: TZ, weekday: 'short', day: 'numeric', month: 'short' });
+  return `${label} ${time}`;
+}
+
+/** Countdown text until an ISO timestamp, e.g. "over 1u 23m" or "gestart". */
+export function countdownTo(iso: string, nowMs: number = Date.now()): string {
+  const diff = Date.parse(iso) - nowMs;
+  if (diff <= 0) return 'gestart';
+  const s = Math.floor(diff / 1000);
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  const sec = s % 60;
+  if (h > 0) return `over ${h}u ${m}m`;
+  if (m > 0) return `over ${m}m ${sec}s`;
+  return `over ${sec}s`;
+}
+
 /* --- Toast system --------------------------------------------------------- */
 interface ToastValue {
   show: (message: string, kind?: 'ok' | 'err') => void;

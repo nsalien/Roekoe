@@ -1,9 +1,10 @@
 /** Pigeon creation, ageing and derived helpers. */
 
-import { AGE_CURVE, PIGEON_NAMES, RACE_AGE_WEEKS } from '../config/gameConfig.js';
+import { AGE_CURVE, RACE_AGE_WEEKS } from '../config/gameConfig.js';
 import type { Pigeon, Sex } from '../schema.js';
 import { newId } from '../store.js';
-import { bell, clamp, interpolate, pick, randInt, round1 } from './util.js';
+import { generatePigeonName } from './names.js';
+import { bell, clamp, interpolate, randInt, round1 } from './util.js';
 
 const ageCurvePoints = AGE_CURVE.map((p) => ({ x: p.weeks, y: p.multiplier }));
 
@@ -39,15 +40,18 @@ export function generatePigeon(opts: GenerateOptions): Pigeon {
     return round1(clamp(base + (quality - 0.5) * 40, 5, 97));
   };
   const birthWeek = opts.birthWeek ?? opts.currentWeek - randInt(RACE_AGE_WEEKS, 130);
+  const speed = roll();
+  const endurance = roll();
+  const orientation = roll();
   return {
     id: newId('pig'),
     ownerId: opts.ownerId,
-    name: opts.name ?? pick(PIGEON_NAMES),
+    name: opts.name ?? generatePigeonName({ speed, endurance, orientation }),
     sex: opts.sex ?? (Math.random() < 0.5 ? 'doffer' : 'duivin'),
     birthWeek,
-    speed: roll(),
-    endurance: roll(),
-    orientation: roll(),
+    speed,
+    endurance,
+    orientation,
     form: round1(bell(55, 85)),
     health: round1(bell(70, 95)),
     experience: 0,
