@@ -79,7 +79,7 @@ export function DashboardPage() {
           </p>
 
           <label>Voerschema</label>
-          <div className="pill-tabs" style={{ width: '100%', marginBottom: 12 }}>
+          <div className="pill-tabs" style={{ width: '100%', marginBottom: 10 }}>
             {(Object.keys(feedRations) as FeedRation[]).map((key) => (
               <button
                 key={key}
@@ -92,6 +92,38 @@ export function DashboardPage() {
               </button>
             ))}
           </div>
+
+          {/* What each schema does, per pigeon per week. */}
+          <div className="table-wrap" style={{ marginBottom: 14 }}>
+            <table className="data compact">
+              <thead>
+                <tr>
+                  <th>Schema</th>
+                  <th className="num">Voer/duif</th>
+                  <th className="num">Conditie</th>
+                  <th className="num">Gezondh.</th>
+                  <th className="num">Kost/duif</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(Object.keys(feedRations) as FeedRation[]).map((key) => {
+                  const r = feedRations[key];
+                  return (
+                    <tr key={key} className={loft.feedRation === key ? 'me' : ''}>
+                      <td>{r.label}</td>
+                      <td className="num">{r.foodPerPigeon} kg</td>
+                      <td className="num good">+{r.formRecovery}</td>
+                      <td className="num good">+{r.healthRecovery}</td>
+                      <td className="num"><Money value={Math.round(r.foodPerPigeon * FOOD_PRICE * 10) / 10} /></td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+          <p className="faint" style={{ margin: '-6px 0 12px', fontSize: '0.8rem' }}>
+            Per duif per week. Meer voer = sneller herstel én betere vluchten. Te weinig voer in voorraad: −8 conditie & −6 gezondheid voor álle duiven.
+          </p>
 
           <label>Voer bijkopen ({FOOD_PRICE} per kg)</label>
           <div className="row">

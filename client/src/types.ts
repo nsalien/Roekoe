@@ -25,6 +25,7 @@ export interface Pigeon {
   speed: number;
   endurance: number;
   orientation: number;
+  libido: number;
   form: number;
   health: number;
   experience: number;
@@ -36,7 +37,28 @@ export interface Pigeon {
   sireId: string | null;
   damId: string | null;
   retired: boolean;
-  fromNpc?: boolean;
+}
+
+export interface Trade {
+  id: string;
+  pigeonName: string;
+  sellerName: string;
+  buyerName: string;
+  price: number;
+  at: string;
+}
+
+export interface RaceHistoryRow {
+  flightId: string;
+  name: string;
+  fromCity: string;
+  toCity: string;
+  distanceKm: number;
+  startAt: string;
+  rank: number;
+  total: number;
+  points: number;
+  prize: number;
 }
 
 export interface Loft {

@@ -5,14 +5,15 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import { api } from '../api/client';
 import { useGame } from '../game/GameContext';
 import { PigeonAvatar } from '../components/PigeonAvatar';
-import { Money, SexBadge, Spinner, StatBar, useToast } from '../components/ui';
-import type { Pigeon } from '../types';
+import { Money, SexBadge, Spinner, StatBar, formatFlightTime, useToast } from '../components/ui';
+import type { Pigeon, RaceHistoryRow } from '../types';
 
 interface PigeonDetail {
   pigeon: Pigeon;
   sire: Pigeon | null;
   dam: Pigeon | null;
   mine: boolean;
+  history: RaceHistoryRow[];
 }
 
 const TRAIN_COST = 120;
@@ -40,7 +41,7 @@ export function PigeonPage() {
   }, [id]);
 
   if (!data) return <Spinner />;
-  const { pigeon: p, sire, dam, mine } = data;
+  const { pigeon: p, sire, dam, mine, history } = data;
 
   async function train(attr: 'speed' | 'endurance' | 'orientation') {
     setBusy(true);
@@ -82,6 +83,7 @@ export function PigeonPage() {
           <StatBar label="Snelheid" value={p.speed} />
           <StatBar label="Uithoudingsvermogen" value={p.endurance} />
           <StatBar label="Oriëntatie" value={p.orientation} />
+          <StatBar label="❤️ Libido" value={p.libido} />
           <StatBar label="Conditie" value={p.form} variant="form" />
           <StatBar label="Gezondheid" value={p.health} variant="health" />
           <StatBar label="Ervaring" value={p.experience} />
@@ -109,6 +111,46 @@ export function PigeonPage() {
               <PedigreeBox label="Moeder (duivin)" pigeon={dam} />
             </div>
             {!sire && !dam && <p className="muted" style={{ marginTop: 8 }}>Afkomst onbekend (grondduif).</p>}
+          </div>
+
+          <div className="card">
+            <h2>Wedstrijdhistoriek</h2>
+            {history.length === 0 ? (
+              <p className="muted">Deze duif heeft nog geen vluchten gevlogen.</p>
+            ) : (
+              <div className="table-wrap">
+                <table className="data">
+                  <thead>
+                    <tr>
+                      <th>Vlucht</th>
+                      <th>Route</th>
+                      <th className="num">Plaats</th>
+                      <th className="num">Ptn</th>
+                      <th className="num">Prijs</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {history.map((h) => (
+                      <tr key={h.flightId} className={h.rank === 1 ? 'podium-1' : ''}>
+                        <td>
+                          <Link to={`/vluchten/${h.flightId}`} style={{ color: 'inherit' }}>
+                            {h.name}
+                          </Link>
+                          <div className="faint">{formatFlightTime(h.startAt)}</div>
+                        </td>
+                        <td className="faint">{h.fromCity} → {h.toCity} · {h.distanceKm} km</td>
+                        <td className="num">
+                          {h.rank === 1 ? '🥇' : h.rank === 2 ? '🥈' : h.rank === 3 ? '🥉' : `${h.rank}e`}
+                          <span className="faint"> / {h.total}</span>
+                        </td>
+                        <td className="num">{h.points}</td>
+                        <td className="num">{h.prize > 0 ? <Money value={h.prize} /> : '—'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
         </div>
       </div>

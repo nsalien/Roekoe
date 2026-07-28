@@ -23,7 +23,6 @@ import {
   createLoftForUser,
   enterFlight,
   listForSale,
-  NPC_OWNER_ID,
   seedWorld,
   startBreeding,
   trainPigeon,
@@ -38,7 +37,9 @@ import {
   loftDTO,
   notificationsFor,
   pigeonDTO,
+  pigeonRaceHistory,
   rankingRows,
+  recentTrades,
 } from '../../core/presenters.js';
 
 interface Env {
@@ -246,6 +247,7 @@ app.get('/pigeons/:id', (c) => {
     sire: sire ? pigeonDTO(db, sire) : null,
     dam: dam ? pigeonDTO(db, dam) : null,
     mine: p.ownerId === user.id,
+    history: pigeonRaceHistory(db, p.id),
   });
 });
 
@@ -315,9 +317,9 @@ app.get('/market', (c) => {
   const db = c.get('store').data;
   const listings = db.pigeons
     .filter((p) => p.forSale && p.ownerId !== user.id)
-    .map((p) => ({ ...pigeonDTO(db, p), fromNpc: p.ownerId === NPC_OWNER_ID }))
+    .map((p) => pigeonDTO(db, p))
     .sort((a, b) => (a.price ?? 0) - (b.price ?? 0));
-  return c.json({ listings });
+  return c.json({ listings, trades: recentTrades(db) });
 });
 
 app.post('/market/list', async (c) => {

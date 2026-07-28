@@ -42,6 +42,7 @@ CREATE TABLE IF NOT EXISTS pigeons (
   speed          REAL NOT NULL,
   endurance      REAL NOT NULL,
   orientation    REAL NOT NULL,
+  libido         REAL NOT NULL DEFAULT 50,
   form           REAL NOT NULL,
   health         REAL NOT NULL,
   experience     REAL NOT NULL,
@@ -97,3 +98,15 @@ CREATE TABLE IF NOT EXISTS notifications (
   read       INTEGER NOT NULL DEFAULT 0
 );
 CREATE INDEX IF NOT EXISTS idx_notifications_user ON notifications (user_id);
+
+CREATE TABLE IF NOT EXISTS trades (
+  id          TEXT PRIMARY KEY,
+  pigeon_id   TEXT NOT NULL,
+  pigeon_name TEXT NOT NULL,
+  seller_id   TEXT NOT NULL,
+  seller_name TEXT NOT NULL,
+  buyer_id    TEXT NOT NULL,
+  buyer_name  TEXT NOT NULL,
+  price       INTEGER NOT NULL,
+  at          TEXT NOT NULL
+);

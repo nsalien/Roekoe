@@ -19,6 +19,7 @@ export interface Pigeon {
   speed: number;
   endurance: number;
   orientation: number;
+  libido: number; // drive to breed: higher = more (and more likely) young
   // Dynamic condition (0-100). Fluctuates week to week with care and racing.
   form: number;
   health: number;
@@ -120,6 +121,19 @@ export interface Flight {
   createdAt: string;
 }
 
+/** A completed market sale, kept as buy/sell history. */
+export interface Trade {
+  id: string;
+  pigeonId: string;
+  pigeonName: string;
+  sellerId: string;
+  sellerName: string;
+  buyerId: string;
+  buyerName: string;
+  price: number;
+  at: string; // ISO timestamp
+}
+
 /** An in-app notification shown in the bell inbox. */
 export interface Notification {
   id: string;
@@ -150,6 +164,7 @@ export interface Database {
   breedingPairs: BreedingPair[];
   flights: Flight[];
   notifications: Notification[];
+  trades: Trade[];
 }
 
 export function emptyDatabase(): Database {
@@ -161,5 +176,6 @@ export function emptyDatabase(): Database {
     breedingPairs: [],
     flights: [],
     notifications: [],
+    trades: [],
   };
 }

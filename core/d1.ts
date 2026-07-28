@@ -19,6 +19,7 @@ import type {
   Loft,
   Notification,
   Pigeon,
+  Trade,
   User,
 } from './schema.js';
 import { emptyDatabase } from './schema.js';
@@ -59,6 +60,7 @@ function rowToPigeon(r: any): Pigeon {
     speed: r.speed,
     endurance: r.endurance,
     orientation: r.orientation,
+    libido: r.libido ?? 50,
     form: r.form,
     health: r.health,
     experience: r.experience,
@@ -114,6 +116,19 @@ function rowToNotification(r: any): Notification {
     read: !!r.read,
   };
 }
+function rowToTrade(r: any): Trade {
+  return {
+    id: r.id,
+    pigeonId: r.pigeon_id,
+    pigeonName: r.pigeon_name,
+    sellerId: r.seller_id,
+    sellerName: r.seller_name,
+    buyerId: r.buyer_id,
+    buyerName: r.buyer_name,
+    price: r.price,
+    at: r.at,
+  };
+}
 
 export class D1Store implements Store {
   private constructor(
@@ -145,13 +160,14 @@ export class D1Store implements Store {
       };
     }
 
-    const [users, lofts, pigeons, breeding, flights, notifications] = await Promise.all([
+    const [users, lofts, pigeons, breeding, flights, notifications, trades] = await Promise.all([
       db.prepare('SELECT * FROM users').all(),
       db.prepare('SELECT * FROM lofts').all(),
       db.prepare('SELECT * FROM pigeons').all(),
       db.prepare('SELECT * FROM breeding_pairs').all(),
       db.prepare('SELECT * FROM flights').all(),
       db.prepare('SELECT * FROM notifications').all(),
+      db.prepare('SELECT * FROM trades').all(),
     ]);
 
     dbObj.users = (users.results as any[]).map(rowToUser);
@@ -160,6 +176,7 @@ export class D1Store implements Store {
     dbObj.breedingPairs = (breeding.results as any[]).map(rowToBreeding);
     dbObj.flights = (flights.results as any[]).map(rowToFlight);
     dbObj.notifications = (notifications.results as any[]).map(rowToNotification);
+    dbObj.trades = (trades.results as any[]).map(rowToTrade);
 
     const snapshots: Record<string, Map<string, string>> = {
       users: snapshot(dbObj.users, (u) => u.id),
@@ -168,6 +185,7 @@ export class D1Store implements Store {
       breedingPairs: snapshot(dbObj.breedingPairs, (bp) => bp.id),
       flights: snapshot(dbObj.flights, (f) => f.id),
       notifications: snapshot(dbObj.notifications, (nt) => nt.id),
+      trades: snapshot(dbObj.trades, (t) => t.id),
     };
 
     return new D1Store(db, dbObj, snapshots, worldExisted);
@@ -213,9 +231,9 @@ export class D1Store implements Store {
     diff(this.snapshots.pigeons, w.pigeons, (p) => p.id, {
       upsert: (p) =>
         db.prepare(
-          'INSERT OR REPLACE INTO pigeons (id, owner_id, name, sex, birth_week, speed, endurance, orientation, form, health, experience, sire_id, dam_id, for_sale, price, created_at_week, retired) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+          'INSERT OR REPLACE INTO pigeons (id, owner_id, name, sex, birth_week, speed, endurance, orientation, libido, form, health, experience, sire_id, dam_id, for_sale, price, created_at_week, retired) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
         ).bind(
-          p.id, p.ownerId, p.name, p.sex, p.birthWeek, p.speed, p.endurance, p.orientation, p.form, p.health,
+          p.id, p.ownerId, p.name, p.sex, p.birthWeek, p.speed, p.endurance, p.orientation, p.libido, p.form, p.health,
           p.experience, p.sireId, p.damId, b(p.forSale), p.price, p.createdAtWeek, b(p.retired),
         ),
       del: (id) => db.prepare('DELETE FROM pigeons WHERE id = ?').bind(id),
@@ -254,6 +272,15 @@ export class D1Store implements Store {
       stmts,
     });
 
+    diff(this.snapshots.trades, w.trades, (t) => t.id, {
+      upsert: (t) =>
+        db.prepare(
+          'INSERT OR REPLACE INTO trades (id, pigeon_id, pigeon_name, seller_id, seller_name, buyer_id, buyer_name, price, at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        ).bind(t.id, t.pigeonId, t.pigeonName, t.sellerId, t.sellerName, t.buyerId, t.buyerName, t.price, t.at),
+      del: (id) => db.prepare('DELETE FROM trades WHERE id = ?').bind(id),
+      stmts,
+    });
+
     if (stmts.length > 0) await db.batch(stmts);
   }
 }
@@ -271,6 +298,7 @@ export async function ensureSchema(db: D1Database): Promise<void> {
     "ALTER TABLE flights ADD COLUMN sim TEXT NOT NULL DEFAULT '[]'",
     "ALTER TABLE flights ADD COLUMN recap TEXT NOT NULL DEFAULT ''",
     'ALTER TABLE world ADD COLUMN data_version INTEGER NOT NULL DEFAULT 0',
+    'ALTER TABLE pigeons ADD COLUMN libido REAL NOT NULL DEFAULT 50',
   ];
   for (const sql of alters) {
     try {
@@ -289,6 +317,14 @@ export async function ensureSchema(db: D1Database): Promise<void> {
   }
   try {
     await db.exec('CREATE INDEX IF NOT EXISTS idx_notifications_user ON notifications (user_id)');
+  } catch {
+    // Already exists.
+  }
+  // Market buy/sell history (introduced with the player-only market).
+  try {
+    await db.exec(
+      'CREATE TABLE IF NOT EXISTS trades (id TEXT PRIMARY KEY, pigeon_id TEXT NOT NULL, pigeon_name TEXT NOT NULL, seller_id TEXT NOT NULL, seller_name TEXT NOT NULL, buyer_id TEXT NOT NULL, buyer_name TEXT NOT NULL, price INTEGER NOT NULL, at TEXT NOT NULL)',
+    );
   } catch {
     // Already exists.
   }

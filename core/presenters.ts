@@ -4,7 +4,7 @@
  * stays dumb and consistent. Keep these in sync with client/src/types.ts.
  */
 
-import type { Database, Flight, Loft, Notification, Pigeon } from './schema.js';
+import type { Database, Flight, Loft, Notification, Pigeon, Trade } from './schema.js';
 import { ageInWeeks, canRace, estimateValue, talent } from './game/pigeon.js';
 import { ownerName } from './game/engine.js';
 import { flightCommentary, liveSnapshot } from './game/flight.js';
@@ -22,6 +22,7 @@ export function pigeonDTO(db: Database, p: Pigeon) {
     speed: p.speed,
     endurance: p.endurance,
     orientation: p.orientation,
+    libido: p.libido,
     form: p.form,
     health: p.health,
     experience: p.experience,
@@ -104,6 +105,59 @@ export function liveFlightDTO(db: Database, f: Flight, nowMs: number) {
     live: isRunning ? liveSnapshot(f, nowMs) : null,
     commentary: isRunning ? flightCommentary(f, nowMs) : [],
   };
+}
+
+export function tradeDTO(t: Trade) {
+  return {
+    id: t.id,
+    pigeonName: t.pigeonName,
+    sellerName: t.sellerName,
+    buyerName: t.buyerName,
+    price: t.price,
+    at: t.at,
+  };
+}
+
+/** Recent market sales, newest first. */
+export function recentTrades(db: Database, limit = 30) {
+  return [...db.trades]
+    .sort((a, b) => (a.at < b.at ? 1 : -1))
+    .slice(0, limit)
+    .map(tradeDTO);
+}
+
+/** Every completed flight a pigeon took part in, with its placing. Newest first. */
+export function pigeonRaceHistory(db: Database, pigeonId: string) {
+  const rows: {
+    flightId: string;
+    name: string;
+    fromCity: string;
+    toCity: string;
+    distanceKm: number;
+    startAt: string;
+    rank: number;
+    total: number;
+    points: number;
+    prize: number;
+  }[] = [];
+  for (const f of db.flights) {
+    if (f.status !== 'completed') continue;
+    const r = f.results.find((x) => x.pigeonId === pigeonId);
+    if (!r) continue;
+    rows.push({
+      flightId: f.id,
+      name: f.name,
+      fromCity: f.fromCity,
+      toCity: f.toCity,
+      distanceKm: f.distanceKm,
+      startAt: f.startAt,
+      rank: r.rank,
+      total: f.results.length,
+      points: r.points,
+      prize: r.prize,
+    });
+  }
+  return rows.sort((a, b) => (a.startAt < b.startAt ? 1 : -1));
 }
 
 /** Season ranking rows sorted by points, humans and bots together. */

@@ -31,10 +31,18 @@ function epithetForTraits(t: Traitish): string {
   return pick(high ? EPITHETS.highOrientation : EPITHETS.lowOrientation);
 }
 
-/** Generate a full funny name; ~55% trait-based, otherwise a neutral epithet. */
+/**
+ * Generate a full funny name. Roughly: 30% pitch-black humour, otherwise
+ * ~45% trait-based (so the name hints at the bird's standout trait) and the
+ * rest a neutral epithet.
+ */
 export function generatePigeonName(traits?: Traitish): string {
   const first = pick(PIGEON_FIRST_NAMES);
-  const epithet = traits && Math.random() < 0.55 ? epithetForTraits(traits) : pick(EPITHETS.neutral);
+  const r = Math.random();
+  let epithet: string;
+  if (r < 0.3) epithet = pick(EPITHETS.dark);
+  else if (traits && r < 0.75) epithet = epithetForTraits(traits);
+  else epithet = pick(EPITHETS.neutral);
   return `${first} ${epithet}`;
 }
 

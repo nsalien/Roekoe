@@ -35,7 +35,8 @@ import {
 import type { WeatherResult } from './weather.js';
 import { generatePigeonName, isLegacyName } from './names.js';
 import { canRace, talent } from './pigeon.js';
-import { ownerName } from './engine.js';
+import { NPC_OWNER_ID, ownerName } from './engine.js';
+import { bell, round1 } from './util.js';
 
 // --- Time-zone helpers -----------------------------------------------------
 
@@ -269,6 +270,15 @@ function runDataMigrations(db: Database): void {
     // Drop leftover old-model scheduled flights (they had no real start time).
     db.flights = db.flights.filter((f) => !(f.status === 'scheduled' && !f.startAt));
     db.world.dataVersion = 1;
+  }
+  if ((db.world.dataVersion ?? 0) < 2) {
+    // The market is now player-only: remove leftover NPC market birds.
+    db.pigeons = db.pigeons.filter((p) => p.ownerId !== NPC_OWNER_ID);
+    // Backfill libido for pigeons created before the attribute existed.
+    for (const p of db.pigeons) {
+      if (typeof p.libido !== 'number' || Number.isNaN(p.libido)) p.libido = round1(bell(20, 90));
+    }
+    db.world.dataVersion = 2;
   }
 }
 

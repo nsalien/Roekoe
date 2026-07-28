@@ -183,6 +183,7 @@ export interface RaceRelease {
 }
 
 export const RACE_RELEASES: Record<string, RaceRelease> = {
+  avondsprint: { key: 'avondsprint', city: 'Ath', distanceKm: 50, type: 'club', name: 'Avondsprint', entryFee: 20 },
   quievrain: { key: 'quievrain', city: 'Quiévrain', distanceKm: 80, type: 'club', name: 'Clubvlucht — Sprint', entryFee: 25 },
   parijs: { key: 'parijs', city: 'Parijs', distanceKm: 300, type: 'club', name: 'Clubvlucht — Midfond', entryFee: 40 },
   bourges: { key: 'bourges', city: 'Bourges', distanceKm: 490, type: 'national', name: 'Nationale Fondvlucht', entryFee: 80 },
@@ -191,6 +192,7 @@ export const RACE_RELEASES: Record<string, RaceRelease> = {
 /** Coordinates (lat, lon) used to fetch real weather + wind along the route. */
 export const CITY_COORDS: Record<string, { lat: number; lon: number }> = {
   Gent: { lat: 51.05, lon: 3.72 },
+  Ath: { lat: 50.63, lon: 3.78 },
   Quiévrain: { lat: 50.4, lon: 3.68 },
   Parijs: { lat: 48.85, lon: 2.35 },
   Bourges: { lat: 47.08, lon: 2.4 },
@@ -227,6 +229,7 @@ export interface ScheduleSlot {
 export const REAL_SCHEDULE: ScheduleSlot[] = [
   { key: 'daily-sprint', releaseKey: 'quievrain', weekday: null, hour: 11, minute: 0 },
   { key: 'daily-midfond', releaseKey: 'parijs', weekday: null, hour: 17, minute: 0 },
+  { key: 'daily-avond', releaseKey: 'avondsprint', weekday: null, hour: 21, minute: 0 },
   { key: 'sat-fond', releaseKey: 'bourges', weekday: 6, hour: 9, minute: 0 },
 ];
 
@@ -255,6 +258,14 @@ export const EPITHETS = {
   neutral: [
     'de Verschrikkelijke', "van 't Stad", 'Junior', 'de Derde', 'de Kale', 'de Legende', 'met de Snor',
     'de Zatte', 'de Gepensioneerde', 'de Mysterieuze', 'uit de Goot', 'de Onverwoestbare', 'Bonus',
+  ],
+  // Pikzwarte humor: galgenhumor over duivenpech, sperwers en de soeppot.
+  dark: [
+    'Toekomstige Soep', 'de Sperwersnack', 'Bijna-Dood', 'de Orgaandonor', 'Kanonnenvlees',
+    'met één Poot in het Graf', 'de Laatste Adem', 'de Doodgraver', 'Rouwrandje', 'de Terminale',
+    'de Weduwmaker', 'de Kamikaze', 'Uitvaart Inbegrepen', 'de Hartaanval', 'de Wees',
+    'Vulling voor de Kat', 'de Zelfmoordvlieger', 'Laatste Wens', 'de Nabestaande', 'de Doodskist-Ontwijker',
+    'Postuum Kampioen', 'de Grafdelver', 'Bijna Opgegeten', 'de Onterfde', 'met een Testament op Zak',
   ],
 } as const;
 

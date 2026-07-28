@@ -56,9 +56,9 @@ export function PigeonCard({
       )}
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '2px 12px', marginTop: 6 }}>
-        <StatBar label="Snel" value={pigeon.speed} />
-        <StatBar label="Duur" value={pigeon.endurance} />
-        <StatBar label="Oriënt" value={pigeon.orientation} />
+        <StatBar label="Snelheid" value={pigeon.speed} />
+        <StatBar label="Uithouding" value={pigeon.endurance} />
+        <StatBar label="Oriëntatie" value={pigeon.orientation} />
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2px 12px', marginTop: 2 }}>
         <StatBar label="Conditie" value={pigeon.form} variant="form" />

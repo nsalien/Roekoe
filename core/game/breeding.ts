@@ -4,7 +4,7 @@ import { BREEDING } from '../config/gameConfig.js';
 import type { Pigeon } from '../schema.js';
 import { newId } from '../store.js';
 import { generatePigeonName } from './names.js';
-import { clamp, randInt, randFloat, round1 } from './util.js';
+import { clamp, randFloat, round1 } from './util.js';
 
 /** Inherit one attribute: average of parents plus a random mutation. */
 function inherit(a: number, b: number): number {
@@ -21,14 +21,24 @@ export function canBreed(sire: Pigeon, dam: Pigeon, currentWeek: number): string
   return null;
 }
 
-/** Produce 1..maxYoung offspring from two parents. */
+/**
+ * Produce offspring from two parents. Libido drives fertility: the average
+ * parent libido sets both the chance of getting any young at all and the odds
+ * of a second youngster. A low-libido pair can come up empty (a wasted koppel).
+ */
 export function breed(sire: Pigeon, dam: Pigeon, ownerId: string, hatchWeek: number): Pigeon[] {
-  const count = randInt(BREEDING.minYoung, BREEDING.maxYoung);
+  const avgLibido = (sire.libido + dam.libido) / 2;
+  const successChance = clamp(0.55 + (avgLibido / 100) * 0.45, 0.55, 1);
+  if (Math.random() > successChance) return []; // no young this time
+  const secondChance = clamp((avgLibido / 100) * 0.7, 0, 0.7);
+  const count = Math.random() < secondChance ? 2 : 1;
+
   const young: Pigeon[] = [];
   for (let i = 0; i < count; i++) {
     const speed = inherit(sire.speed, dam.speed);
     const endurance = inherit(sire.endurance, dam.endurance);
     const orientation = inherit(sire.orientation, dam.orientation);
+    const libido = inherit(sire.libido, dam.libido);
     young.push({
       id: newId('pig'),
       ownerId,
@@ -38,6 +48,7 @@ export function breed(sire: Pigeon, dam: Pigeon, ownerId: string, hatchWeek: num
       speed,
       endurance,
       orientation,
+      libido,
       form: round1(randFloat(55, 75)),
       health: round1(randFloat(75, 95)),
       experience: 0,

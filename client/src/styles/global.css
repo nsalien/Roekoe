@@ -354,3 +354,7 @@ a.bell-item:hover { background: var(--surface-2); }
 .recap-badge { font-weight: 800; color: var(--text); margin-right: 4px; }
 .recap-card { background: var(--brand-soft); }
 .recap-text { font-size: 0.95rem; line-height: 1.6; margin: 6px 0 0; }
+
+/* --- Ration table helpers ------------------------------------------------- */
+table.data.compact th, table.data.compact td { padding: 6px 9px; font-size: 0.82rem; }
+table.data td.good { color: var(--good); font-weight: 700; }

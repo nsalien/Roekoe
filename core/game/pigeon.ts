@@ -43,6 +43,8 @@ export function generatePigeon(opts: GenerateOptions): Pigeon {
   const speed = roll();
   const endurance = roll();
   const orientation = roll();
+  // Libido spans the full range independently of racing quality.
+  const libido = round1(bell(20, 90));
   return {
     id: newId('pig'),
     ownerId: opts.ownerId,
@@ -52,6 +54,7 @@ export function generatePigeon(opts: GenerateOptions): Pigeon {
     speed,
     endurance,
     orientation,
+    libido,
     form: round1(bell(55, 85)),
     health: round1(bell(70, 95)),
     experience: 0,

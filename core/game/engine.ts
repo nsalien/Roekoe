@@ -11,7 +11,6 @@ import {
   BREEDING,
   DEFAULT_BOT_COUNT,
   FOOD_PRICE_PER_KG,
-  NPC_MARKET_LISTINGS_PER_WEEK,
   STARTING_FOOD,
   STARTING_LOFT_CAPACITY,
   STARTING_MONEY,
@@ -24,7 +23,7 @@ import { newId, type Store } from '../store.js';
 import { botTakeWeeklyActions } from './bots.js';
 import { breed } from './breeding.js';
 import { applyWeeklyCare } from './economy.js';
-import { estimateValue, generatePigeon } from './pigeon.js';
+import { generatePigeon } from './pigeon.js';
 import { clamp, randFloat, round1 } from './util.js';
 
 export const NPC_OWNER_ID = 'npc_market';
@@ -59,19 +58,7 @@ export function createLoftForUser(store: Store, user: User, loftName: string): L
   });
 }
 
-/** Refresh the NPC market with fresh pigeons for the given week. */
-export function refreshNpcMarket(db: Database, week: number): void {
-  // Remove last week's unsold NPC birds so the market doesn't pile up.
-  db.pigeons = db.pigeons.filter((p) => !(p.ownerId === NPC_OWNER_ID));
-  for (let i = 0; i < NPC_MARKET_LISTINGS_PER_WEEK; i++) {
-    const p = generatePigeon({ ownerId: NPC_OWNER_ID, currentWeek: week, quality: randFloat(0.35, 0.85) });
-    p.forSale = true;
-    p.price = estimateValue(p, week);
-    db.pigeons.push(p);
-  }
-}
-
-/** Seed bots, the first week's flights and the market. Runs once. */
+/** Seed bots and their pigeons. Runs once. */
 export function seedWorld(store: Store): void {
   store.mutate((db) => {
     if (db.world.seeded) return;
@@ -105,9 +92,8 @@ export function seedWorld(store: Store): void {
         );
       }
     }
-    refreshNpcMarket(db, week);
     db.world.seeded = true;
-    db.world.dataVersion = 1; // freshly-seeded birds already have funny names
+    db.world.dataVersion = 2; // freshly-seeded birds already have funny names + libido
   });
 }
 
@@ -166,7 +152,6 @@ export function advanceWeek(store: Store): WeekSummary {
       for (const loft of db.lofts) loft.seasonPoints = 0;
       summary.seasonRolledOver = true;
     }
-    refreshNpcMarket(db, newWeek);
 
     return summary;
   });
@@ -277,13 +262,29 @@ export function buyPigeon(store: Store, userId: string, pigeonId: string): strin
     if (buyer.money < pigeon.price) return 'Niet genoeg geld';
     const owned = db.pigeons.filter((p) => p.ownerId === userId).length;
     if (owned >= buyer.capacity) return 'Je hok zit vol';
-    buyer.money -= pigeon.price;
-    // Pay the seller (unless it's the NPC market).
-    const seller = db.lofts.find((l) => l.userId === pigeon.ownerId);
-    if (seller) seller.money += pigeon.price;
+    const price = pigeon.price;
+    const sellerId = pigeon.ownerId;
+    buyer.money -= price;
+    // Pay the seller.
+    const seller = db.lofts.find((l) => l.userId === sellerId);
+    if (seller) seller.money += price;
     pigeon.ownerId = userId;
     pigeon.forSale = false;
     pigeon.price = null;
+    // Record the sale as buy/sell history.
+    db.trades.push({
+      id: newId('trd'),
+      pigeonId: pigeon.id,
+      pigeonName: pigeon.name,
+      sellerId,
+      sellerName: ownerName(db, sellerId),
+      buyerId: userId,
+      buyerName: buyer.name,
+      price,
+      at: new Date().toISOString(),
+    });
+    // Keep history bounded.
+    if (db.trades.length > 200) db.trades = db.trades.slice(-200);
     return null;
   });
 }
