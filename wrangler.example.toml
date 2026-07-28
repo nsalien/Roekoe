@@ -22,3 +22,9 @@ database_id = "00000000-0000-0000-0000-000000000000"
 [vars]
 INVITE_CODE = "roekoe-vrienden"
 ADMIN_USERS = ""
+
+# NOTE: this file is only for LOCAL development with the Wrangler CLI.
+# Do NOT commit a real wrangler.toml — if one exists in the repo, Cloudflare
+# Pages ignores all dashboard bindings/vars/secrets. For deploying, configure
+# the D1 binding + JWT_SECRET in the Cloudflare dashboard instead (see DEPLOY.md).
+# Local use: cp wrangler.example.toml wrangler.toml

@@ -22,3 +22,6 @@ roekoe-db.json.tmp
 .DS_Store
 .vscode/
 .idea/
+
+# Local-only Wrangler config (see wrangler.example.toml)
+/wrangler.toml

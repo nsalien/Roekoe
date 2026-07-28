@@ -69,8 +69,9 @@ Vereist Node 20+.
 # 1. Dependencies (root = Functions/Worker, plus de client)
 npm run install:all
 
-# 2. Lokale geheimen
-cp .dev.vars.example .dev.vars      # zet een JWT_SECRET; INVITE_CODE mag leeg voor testen
+# 2. Lokale config + geheimen
+cp wrangler.example.toml wrangler.toml   # alleen voor lokaal (staat in .gitignore)
+cp .dev.vars.example .dev.vars           # zet een JWT_SECRET; INVITE_CODE mag leeg voor testen
 
 # 3. Lokale D1-database aanmaken (schema toepassen)
 npm run db:migrate:local
@@ -86,7 +87,17 @@ proxyt `/api` naar :8788). Houd daarnaast `npm run dev` aan voor de API.
 
 ## Online zetten op Cloudflare Pages (jouw domein)
 
-Eenmalig, met de Wrangler-CLI (`npx wrangler login` eerst):
+**Alleen een telefoon? Volg [`DEPLOY.md`](./DEPLOY.md)** — dat is een stap-voor-stap
+gids die volledig via het Cloudflare-dashboard werkt, zonder computer, CLI of
+bestanden bewerken.
+
+> Let op: er staat bewust géén `wrangler.toml` in de repo. Als die er wél is,
+> negeert Cloudflare Pages alle dashboard-instellingen (bindings, vars, secrets).
+> Voor deployen configureer je de D1-binding + `JWT_SECRET` dus in het dashboard.
+
+Liever met de Wrangler-CLI op een computer? Maak dan eerst een lokale
+`wrangler.toml` (`cp wrangler.example.toml wrangler.toml`, vul je database_id in),
+`npx wrangler login`, en dan:
 
 ```bash
 # 1. Maak de D1-database en zet het database_id in wrangler.toml
