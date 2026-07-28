@@ -144,13 +144,13 @@ export function FlightsPage() {
                 )}
 
                 <hr className="sep" />
-                <div className="row" style={{ justifyContent: 'space-between' }}>
+                <div className="row" style={{ justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
                   <EnterControl
                     disabled={busy}
                     options={available.map((p) => ({ id: p.id, label: `${p.name} (★${p.talent}, cond. ${Math.round(p.form)})` }))}
                     onEnter={(pigeonId) => act(() => api(`/flights/${f.id}/enter`, { method: 'POST', body: { pigeonId } }), 'Ingeschreven!')}
                   />
-                  <span className="faint">{f.entryCount} ingeschreven</span>
+                  <span className="faint" style={{ flexShrink: 0 }}>{f.entryCount} ingeschreven</span>
                 </div>
               </div>
             );
@@ -182,14 +182,18 @@ function EnterControl({
   const [sel, setSel] = useState('');
   if (options.length === 0) return <span className="muted">Geen vluchtklare duiven beschikbaar.</span>;
   return (
-    <div className="row">
-      <select value={sel} onChange={(e) => setSel(e.target.value)} style={{ minWidth: 200, width: 'auto' }}>
+    <div className="row enter-control" style={{ gap: 8, flex: 1, minWidth: 0 }}>
+      <select
+        value={sel}
+        onChange={(e) => setSel(e.target.value)}
+        style={{ flex: 1, minWidth: 0, maxWidth: '100%' }}
+      >
         <option value="">— kies een duif —</option>
         {options.map((o) => (
           <option key={o.id} value={o.id}>{o.label}</option>
         ))}
       </select>
-      <button className="btn" disabled={disabled || !sel} onClick={() => { onEnter(sel); setSel(''); }}>
+      <button className="btn" disabled={disabled || !sel} onClick={() => { onEnter(sel); setSel(''); }} style={{ flexShrink: 0 }}>
         Inschrijven
       </button>
     </div>
@@ -221,6 +225,12 @@ function FlightResultCard({ flight, meId }: { flight: Flight; meId?: string }) {
           )}
         </div>
       </div>
+
+      {flight.recap && (
+        <div className="recap" style={{ marginTop: 10 }}>
+          <span className="recap-badge">📻 Verslag</span> {flight.recap}
+        </div>
+      )}
 
       {!cancelled && (
         <>

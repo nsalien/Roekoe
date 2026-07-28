@@ -160,11 +160,14 @@ export const TIMEZONE = 'Europe/Brussels';
 export const HOME_CITY = 'Gent';
 
 /**
- * A real duivenvlucht takes hours; we compress the clock so a race is
- * watchable live in a few minutes. Lower = faster races.
+ * Flights run in REAL time: a race that would take a pigeon ~3 hours to fly
+ * home actually takes ~3 hours in the game. (Minimum below just avoids
+ * zero-length edge cases.)
  */
-export const FLIGHT_TIME_SCALE = 0.02;
-export const MIN_FLIGHT_SECONDS = 45;
+export const MIN_FLIGHT_SECONDS = 300;
+
+/** Live commentary is emitted every this many real seconds (10 minutes). */
+export const COMMENTARY_INTERVAL_SECONDS = 600;
 
 /** How many days of flights are kept on the calendar ahead of "now". */
 export const SCHEDULE_HORIZON_DAYS = 4;
@@ -183,6 +186,33 @@ export const RACE_RELEASES: Record<string, RaceRelease> = {
   quievrain: { key: 'quievrain', city: 'Quiévrain', distanceKm: 80, type: 'club', name: 'Clubvlucht — Sprint', entryFee: 25 },
   parijs: { key: 'parijs', city: 'Parijs', distanceKm: 300, type: 'club', name: 'Clubvlucht — Midfond', entryFee: 40 },
   bourges: { key: 'bourges', city: 'Bourges', distanceKm: 490, type: 'national', name: 'Nationale Fondvlucht', entryFee: 80 },
+};
+
+/** Coordinates (lat, lon) used to fetch real weather + wind along the route. */
+export const CITY_COORDS: Record<string, { lat: number; lon: number }> = {
+  Gent: { lat: 51.05, lon: 3.72 },
+  Quiévrain: { lat: 50.4, lon: 3.68 },
+  Parijs: { lat: 48.85, lon: 2.35 },
+  Bourges: { lat: 47.08, lon: 2.4 },
+};
+
+/**
+ * Racing improves birds. After a flight each participant has a chance to gain a
+ * little in the attribute that mattered most for that distance (racing builds
+ * condition). Better placings and lower current values improve more easily.
+ */
+export const IMPROVE = {
+  cap: 96, // racing can nudge slightly past the training cap (92)
+  baseChance: 0.4,
+  gainMin: 0.4,
+  gainMax: 1.6,
+} as const;
+
+/** Dutch labels for the three trainable/improvable attributes. */
+export const IMPROVE_ATTR_LABEL: Record<'speed' | 'endurance' | 'orientation', string> = {
+  speed: 'snelheid',
+  endurance: 'uithouding',
+  orientation: 'oriëntatie',
 };
 
 /** A recurring slot on the weekly calendar. weekday null = every day. */

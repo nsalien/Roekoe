@@ -84,6 +84,7 @@ export interface Flight {
   entryCount: number;
   entries: FlightEntry[];
   results: FlightResult[];
+  recap: string;
   createdAt: string;
 }
 
@@ -153,6 +154,24 @@ export interface GameState {
   scheduledFlights: Flight[];
   rankings: RankingRow[];
   feedRations: Record<FeedRation, FeedRationInfo>;
+  unreadNotifications: number;
+}
+
+export type NotificationKind = 'result' | 'improve' | 'info';
+
+export interface AppNotification {
+  id: string;
+  kind: NotificationKind;
+  title: string;
+  body: string;
+  flightId: string | null;
+  createdAt: string;
+  read: boolean;
+}
+
+export interface NotificationsResponse {
+  notifications: AppNotification[];
+  unread: number;
 }
 
 export interface BreedingPair {

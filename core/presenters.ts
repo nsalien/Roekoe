@@ -4,7 +4,7 @@
  * stays dumb and consistent. Keep these in sync with client/src/types.ts.
  */
 
-import type { Database, Flight, Loft, Pigeon } from './schema.js';
+import type { Database, Flight, Loft, Notification, Pigeon } from './schema.js';
 import { ageInWeeks, canRace, estimateValue, talent } from './game/pigeon.js';
 import { ownerName } from './game/engine.js';
 import { flightCommentary, liveSnapshot } from './game/flight.js';
@@ -68,7 +68,31 @@ export function flightDTO(db: Database, f: Flight) {
     entryCount: f.entries.length,
     entries: f.entries,
     results: f.results,
+    recap: f.recap,
     createdAt: f.createdAt,
+  };
+}
+
+export function notificationDTO(n: Notification) {
+  return {
+    id: n.id,
+    kind: n.kind,
+    title: n.title,
+    body: n.body,
+    flightId: n.flightId,
+    createdAt: n.createdAt,
+    read: n.read,
+  };
+}
+
+/** A user's notifications, newest first, plus the unread count. */
+export function notificationsFor(db: Database, userId: string) {
+  const list = db.notifications
+    .filter((n) => n.userId === userId)
+    .sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
+  return {
+    notifications: list.map(notificationDTO),
+    unread: list.filter((n) => !n.read).length,
   };
 }
 

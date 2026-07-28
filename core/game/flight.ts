@@ -9,24 +9,18 @@
 
 import {
   COMMENTARY,
+  COMMENTARY_INTERVAL_SECONDS,
   DISTANCE_WEIGHTING,
-  FLIGHT_TIME_SCALE,
+  IMPROVE,
+  IMPROVE_ATTR_LABEL,
   MIN_FLIGHT_SECONDS,
   PRIZE_MONEY,
   RANKING_POINTS,
 } from '../config/gameConfig.js';
 import type { Flight, FlightResult, Loft, Pigeon } from '../schema.js';
 import { ageMultiplier } from './pigeon.js';
-import { clamp, hashString, interpolate, pick, pickWith, randFloat, round1, seededRng } from './util.js';
-
-const WEATHER_TABLE = [
-  { label: 'Zonnig, rugwind', factor: 1.12 },
-  { label: 'Helder en kalm', factor: 1.05 },
-  { label: 'Licht bewolkt', factor: 1.0 },
-  { label: 'Bewolkt, zijwind', factor: 0.95 },
-  { label: 'Tegenwind', factor: 0.85 },
-  { label: 'Regen en mist', factor: 0.72 },
-];
+import { randomWeather, type WeatherResult } from './weather.js';
+import { clamp, hashString, interpolate, pickWith, randFloat, round1, seededRng } from './util.js';
 
 /** Attribute weighting for a given distance (interpolated short<->long). */
 function weightsForDistance(distanceKm: number) {
@@ -90,30 +84,38 @@ export function pigeonVelocity(
   return round1(velocity);
 }
 
+export interface Improvement {
+  pigeonId: string;
+  ownerId: string;
+  pigeonName: string;
+  attr: 'speed' | 'endurance' | 'orientation';
+  gain: number;
+}
+
 export interface SimulatedFlight {
   /** Effects to apply to each participating pigeon after the flight. */
   fatigue: { pigeonId: string; formDelta: number; healthDelta: number; experienceDelta: number }[];
   /** Prize + points to credit each owner's loft. */
   payouts: { ownerId: string; prize: number; points: number; wins: number }[];
+  /** Permanent attribute gains from racing. */
+  improvements: Improvement[];
 }
 
 /**
- * Start a scheduled flight: roll the weather, freeze each pigeon's velocity and
- * a compressed live race duration, and flip the flight to `live`. Positions are
- * derived from this frozen `sim` for the rest of the race.
+ * Start a scheduled flight: apply the weather, freeze each pigeon's velocity and
+ * its REAL homing duration, and flip the flight to `live`. Positions are derived
+ * from this frozen `sim` for the rest of the race.
  */
-export function startLiveFlight(flight: Flight, entries: Entry[], week: number): void {
-  const weather = pick(WEATHER_TABLE);
-  flight.weather = weather.label;
-  flight.weatherFactor = weather.factor;
+export function startLiveFlight(flight: Flight, entries: Entry[], week: number, weather?: WeatherResult): void {
+  const w = weather ?? randomWeather();
+  flight.weather = w.label;
+  flight.weatherFactor = w.factor;
   flight.sim = entries.map((e) => {
     const luck = randFloat(0.9, 1.1);
-    const velocity = pigeonVelocity(e.pigeon, flight.distanceKm, week, weather.factor, luck);
-    const realMinutes = (flight.distanceKm * 1000) / velocity; // true homing minutes
-    const durationSeconds = Math.max(
-      MIN_FLIGHT_SECONDS,
-      Math.round(realMinutes * 60 * FLIGHT_TIME_SCALE),
-    );
+    const velocity = pigeonVelocity(e.pigeon, flight.distanceKm, week, w.factor, luck);
+    // Real homing time: distance / speed. A ~72 km/h bird over 300 km ≈ 4 hours.
+    const realSeconds = ((flight.distanceKm * 1000) / velocity) * 60;
+    const durationSeconds = Math.max(MIN_FLIGHT_SECONDS, Math.round(realSeconds));
     return {
       pigeonId: e.pigeon.id,
       pigeonName: e.pigeon.name,
@@ -131,16 +133,29 @@ export function flightTotalSeconds(flight: Flight): number {
   return flight.sim.reduce((m, s) => Math.max(m, s.durationSeconds), 1);
 }
 
+/** Pick which attribute a bird gets a chance to grow in, weighted by distance. */
+function pickImproveAttr(w: { speed: number; endurance: number; orientation: number }): Improvement['attr'] {
+  const total = w.speed + w.endurance + w.orientation;
+  let r = Math.random() * total;
+  if ((r -= w.speed) < 0) return 'speed';
+  if ((r -= w.endurance) < 0) return 'endurance';
+  return 'orientation';
+}
+
 /**
  * Finalize a live flight into ranked results and return the effects to apply.
- * Ranks by finish time (shortest = winner).
+ * Ranks by finish time (shortest = winner). Also rolls each bird's chance to
+ * permanently improve (racing builds condition) and writes the flight's recap.
  */
-export function finalizeFlight(flight: Flight): SimulatedFlight {
+export function finalizeFlight(flight: Flight, pigeons: Pigeon[]): SimulatedFlight {
   const scored = [...flight.sim].sort((a, b) => a.durationSeconds - b.durationSeconds);
   const prizes = PRIZE_MONEY[flight.type];
   const results: FlightResult[] = [];
   const payoutMap = new Map<string, { prize: number; points: number; wins: number }>();
   const fatigue: SimulatedFlight['fatigue'] = [];
+  const improvements: Improvement[] = [];
+  const w = weightsForDistance(flight.distanceKm);
+  const n = scored.length;
 
   scored.forEach((s, i) => {
     const rank = i + 1;
@@ -167,12 +182,36 @@ export function finalizeFlight(flight: Flight): SimulatedFlight {
     const healthDelta = -round1(randFloat(0, flight.distanceKm / 200));
     const experienceDelta = round1(2 + flight.distanceKm / 100);
     fatigue.push({ pigeonId: s.pigeonId, formDelta, healthDelta, experienceDelta });
+
+    // Racing builds condition: a chance to grow in the attribute that matters
+    // most for this distance. Front-runners and birds with more headroom
+    // improve more readily; the gain shrinks as the attribute nears its cap.
+    const pigeon = pigeons.find((p) => p.id === s.pigeonId);
+    if (pigeon) {
+      const attr = pickImproveAttr(w);
+      const room = clamp((IMPROVE.cap - pigeon[attr]) / IMPROVE.cap, 0, 1);
+      const placeBonus = (n > 1 ? (n - i) / n : 1) * 0.3; // up to +0.3 for the winner
+      const chance = clamp(IMPROVE.baseChance * (0.5 + room) + placeBonus, 0, 0.9);
+      if (pigeon[attr] < IMPROVE.cap && Math.random() < chance) {
+        const gain = round1(randFloat(IMPROVE.gainMin, IMPROVE.gainMax) * (0.4 + room));
+        if (gain > 0) {
+          improvements.push({
+            pigeonId: pigeon.id,
+            ownerId: pigeon.ownerId,
+            pigeonName: pigeon.name,
+            attr,
+            gain,
+          });
+        }
+      }
+    }
   });
 
   flight.results = results;
+  flight.recap = generateRecap(flight);
   flight.status = 'completed';
   const payouts = [...payoutMap.entries()].map(([ownerId, v]) => ({ ownerId, ...v }));
-  return { fatigue, payouts };
+  return { fatigue, payouts, improvements };
 }
 
 export interface LiveBird {
@@ -265,7 +304,6 @@ export function flightCommentary(flight: Flight, nowMs: number): CommentLine[] {
   const slow = byVel.slice(-Math.max(1, Math.ceil(byVel.length / 3))).map((s) => s.pigeonName);
   const all = flight.sim.map((s) => s.pigeonName);
 
-  const count = Math.round(clamp(total / 12, 5, 26));
   const lines: CommentLine[] = [];
   const fill = (tpl: string, pool: string[]) => {
     const n1 = pickWith(rng, pool);
@@ -275,17 +313,15 @@ export function flightCommentary(flight: Flight, nowMs: number): CommentLine[] {
     return tpl.replace('{name}', n1).replace('{name2}', n2);
   };
 
-  for (let i = 0; i < count; i++) {
-    const at = Math.round((total * i) / count);
+  // One line at the start, then a fresh update every 10 real minutes.
+  lines.push({ atSeconds: 0, text: pickWith(rng, COMMENTARY.start) });
+  for (let at = COMMENTARY_INTERVAL_SECONDS; at < total; at += COMMENTARY_INTERVAL_SECONDS) {
+    const r = rng();
     let text: string;
-    if (i === 0) text = pickWith(rng, COMMENTARY.start);
-    else {
-      const r = rng();
-      if (r < 0.3) text = fill(pickWith(rng, COMMENTARY.leading), fast);
-      else if (r < 0.55) text = fill(pickWith(rng, COMMENTARY.lagging), slow);
-      else if (r < 0.75) text = fill(pickWith(rng, COMMENTARY.midrace), all);
-      else text = fill(pickWith(rng, COMMENTARY.incident), all);
-    }
+    if (r < 0.3) text = fill(pickWith(rng, COMMENTARY.leading), fast);
+    else if (r < 0.55) text = fill(pickWith(rng, COMMENTARY.lagging), slow);
+    else if (r < 0.75) text = fill(pickWith(rng, COMMENTARY.midrace), all);
+    else text = fill(pickWith(rng, COMMENTARY.incident), all);
     lines.push({ atSeconds: at, text });
   }
   // Finishers: a line as each bird comes home.
@@ -311,6 +347,11 @@ export function applyFlightEffects(
     p.health = round1(clamp(p.health + f.healthDelta, 0, 100));
     p.experience = round1(clamp(p.experience + f.experienceDelta, 0, 100));
   }
+  for (const imp of sim.improvements) {
+    const p = pigeons.find((x) => x.id === imp.pigeonId);
+    if (!p) continue;
+    p[imp.attr] = round1(clamp(p[imp.attr] + imp.gain, 0, IMPROVE.cap));
+  }
   for (const pay of sim.payouts) {
     const loft = lofts.find((l) => l.userId === pay.ownerId);
     if (!loft) continue;
@@ -318,4 +359,52 @@ export function applyFlightEffects(
     loft.seasonPoints += pay.points;
     loft.totalWins += pay.wins;
   }
+}
+
+/**
+ * A short sports-reporter recap of a completed flight — read after the race by
+ * everyone. Deterministic (seeded on the flight id) so it never changes.
+ */
+export function generateRecap(flight: Flight): string {
+  const r = flight.results;
+  if (r.length === 0) {
+    return `De vlucht van ${flight.fromCity} naar ${flight.toCity} ging niet door — geen enkele duif waagde zich aan de reis. De duivenmelkers bleven aan de toog hangen.`;
+  }
+  const rng = seededRng(hashString(flight.id + ':recap'));
+  const winner = r[0];
+  const km = flight.distanceKm;
+  const winKmh = round1(km / (winner.timeSeconds / 3600));
+  const winMin = Math.round(winner.timeSeconds / 60);
+
+  const parts: string[] = [];
+  parts.push(
+    `${flight.name}: ${r.length} duiven werden gelost in ${flight.fromCity} voor de ${km} km lange thuisreis naar ${flight.toCity}. Weer onderweg: ${flight.weather || 'wisselvallig'}.`,
+  );
+  const winLines = [
+    `${winner.pigeonName} van ${winner.ownerName} draaide er de sokken in en klokte als eerste — ${winKmh} km/u, thuis na een dikke ${winMin} minuten. Een monsterprestatie!`,
+    `De zege ging naar ${winner.pigeonName} van ${winner.ownerName}, die met ${winKmh} km/u iedereen op afstand hield. Na ${winMin} minuten viel-ie binnen alsof het niets was.`,
+    `Het was ${winner.pigeonName} van ${winner.ownerName} die de klok als eerste deed rinkelen: ${winKmh} km/u gemiddeld. De rest mocht de kruimels oprapen.`,
+  ];
+  parts.push(pickWith(rng, winLines));
+
+  if (r.length >= 3) {
+    parts.push(
+      `Op het podium vervolledigd door ${r[1].pigeonName} (${r[1].ownerName}) en ${r[2].pigeonName} (${r[2].ownerName}). Ereplaatsen die smaken naar meer.`,
+    );
+  } else if (r.length === 2) {
+    parts.push(`${r[1].pigeonName} van ${r[1].ownerName} moest nipt de duimen leggen en pakte de tweede stek.`);
+  }
+
+  if (r.length >= 4) {
+    const last = r[r.length - 1];
+    const tailLines = [
+      `Helemaal achteraan sukkelde ${last.pigeonName} van ${last.ownerName} binnen — waarschijnlijk nog even gestopt voor een frietje. Volgende keer beter, kameraad.`,
+      `De rode lantaarn is voor ${last.pigeonName} (${last.ownerName}). Thuisgekomen, moe maar voldaan, en dat telt ook.`,
+      `${last.pigeonName} van ${last.ownerName} deed er het langst over, maar wie het laatst lacht… tja, die is gewoon laatst.`,
+    ];
+    parts.push(pickWith(rng, tailLines));
+  }
+
+  parts.push('Tot de volgende lossing, duivenvrienden!');
+  return parts.join(' ');
 }

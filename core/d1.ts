@@ -17,6 +17,7 @@ import type {
   Database,
   Flight,
   Loft,
+  Notification,
   Pigeon,
   User,
 } from './schema.js';
@@ -97,7 +98,20 @@ function rowToFlight(r: any): Flight {
     weather: r.weather,
     weatherFactor: r.weather_factor,
     results: JSON.parse(r.results || '[]'),
+    recap: r.recap ?? '',
     createdAt: r.created_at,
+  };
+}
+function rowToNotification(r: any): Notification {
+  return {
+    id: r.id,
+    userId: r.user_id,
+    kind: r.kind,
+    title: r.title,
+    body: r.body,
+    flightId: r.flight_id ?? null,
+    createdAt: r.created_at,
+    read: !!r.read,
   };
 }
 
@@ -131,12 +145,13 @@ export class D1Store implements Store {
       };
     }
 
-    const [users, lofts, pigeons, breeding, flights] = await Promise.all([
+    const [users, lofts, pigeons, breeding, flights, notifications] = await Promise.all([
       db.prepare('SELECT * FROM users').all(),
       db.prepare('SELECT * FROM lofts').all(),
       db.prepare('SELECT * FROM pigeons').all(),
       db.prepare('SELECT * FROM breeding_pairs').all(),
       db.prepare('SELECT * FROM flights').all(),
+      db.prepare('SELECT * FROM notifications').all(),
     ]);
 
     dbObj.users = (users.results as any[]).map(rowToUser);
@@ -144,6 +159,7 @@ export class D1Store implements Store {
     dbObj.pigeons = (pigeons.results as any[]).map(rowToPigeon);
     dbObj.breedingPairs = (breeding.results as any[]).map(rowToBreeding);
     dbObj.flights = (flights.results as any[]).map(rowToFlight);
+    dbObj.notifications = (notifications.results as any[]).map(rowToNotification);
 
     const snapshots: Record<string, Map<string, string>> = {
       users: snapshot(dbObj.users, (u) => u.id),
@@ -151,6 +167,7 @@ export class D1Store implements Store {
       pigeons: snapshot(dbObj.pigeons, (p) => p.id),
       breedingPairs: snapshot(dbObj.breedingPairs, (bp) => bp.id),
       flights: snapshot(dbObj.flights, (f) => f.id),
+      notifications: snapshot(dbObj.notifications, (nt) => nt.id),
     };
 
     return new D1Store(db, dbObj, snapshots, worldExisted);
@@ -217,14 +234,23 @@ export class D1Store implements Store {
     diff(this.snapshots.flights, w.flights, (f) => f.id, {
       upsert: (f) =>
         db.prepare(
-          'INSERT OR REPLACE INTO flights (id, week, template_key, name, type, distance_km, entry_fee, from_city, to_city, start_at, status, entries, sim, weather, weather_factor, results, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+          'INSERT OR REPLACE INTO flights (id, week, template_key, name, type, distance_km, entry_fee, from_city, to_city, start_at, status, entries, sim, weather, weather_factor, results, recap, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
         ).bind(
           f.id, f.week, f.templateKey, f.name, f.type, f.distanceKm, f.entryFee,
           f.fromCity, f.toCity, f.startAt, f.status,
           JSON.stringify(f.entries), JSON.stringify(f.sim), f.weather, f.weatherFactor,
-          JSON.stringify(f.results), f.createdAt,
+          JSON.stringify(f.results), f.recap, f.createdAt,
         ),
       del: (id) => db.prepare('DELETE FROM flights WHERE id = ?').bind(id),
+      stmts,
+    });
+
+    diff(this.snapshots.notifications, w.notifications, (nt) => nt.id, {
+      upsert: (nt) =>
+        db.prepare(
+          'INSERT OR REPLACE INTO notifications (id, user_id, kind, title, body, flight_id, created_at, read) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+        ).bind(nt.id, nt.userId, nt.kind, nt.title, nt.body, nt.flightId, nt.createdAt, b(nt.read)),
+      del: (id) => db.prepare('DELETE FROM notifications WHERE id = ?').bind(id),
       stmts,
     });
 
@@ -243,6 +269,7 @@ export async function ensureSchema(db: D1Database): Promise<void> {
     "ALTER TABLE flights ADD COLUMN to_city TEXT NOT NULL DEFAULT ''",
     "ALTER TABLE flights ADD COLUMN start_at TEXT NOT NULL DEFAULT ''",
     "ALTER TABLE flights ADD COLUMN sim TEXT NOT NULL DEFAULT '[]'",
+    "ALTER TABLE flights ADD COLUMN recap TEXT NOT NULL DEFAULT ''",
     'ALTER TABLE world ADD COLUMN data_version INTEGER NOT NULL DEFAULT 0',
   ];
   for (const sql of alters) {
@@ -251,6 +278,19 @@ export async function ensureSchema(db: D1Database): Promise<void> {
     } catch {
       // Column already exists — nothing to do.
     }
+  }
+  // Notifications inbox (introduced with real-time results). Create if missing.
+  try {
+    await db.exec(
+      'CREATE TABLE IF NOT EXISTS notifications (id TEXT PRIMARY KEY, user_id TEXT NOT NULL, kind TEXT NOT NULL, title TEXT NOT NULL, body TEXT NOT NULL, flight_id TEXT, created_at TEXT NOT NULL, read INTEGER NOT NULL DEFAULT 0)',
+    );
+  } catch {
+    // Already exists.
+  }
+  try {
+    await db.exec('CREATE INDEX IF NOT EXISTS idx_notifications_user ON notifications (user_id)');
+  } catch {
+    // Already exists.
   }
 }
 

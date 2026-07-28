@@ -14,15 +14,25 @@
 
 import {
   HOME_CITY,
+  IMPROVE_ATTR_LABEL,
   RACE_RELEASES,
   REAL_SCHEDULE,
   SCHEDULE_HORIZON_DAYS,
   TIMEZONE,
   type RaceRelease,
 } from '../config/gameConfig.js';
-import type { Database, Flight } from '../schema.js';
+import type { Database, Flight, FlightResult } from '../schema.js';
 import { newId } from '../store.js';
-import { applyFlightEffects, finalizeFlight, flightTotalSeconds, startLiveFlight, type Entry } from './flight.js';
+import {
+  applyFlightEffects,
+  finalizeFlight,
+  flightTotalSeconds,
+  generateRecap,
+  startLiveFlight,
+  type Entry,
+  type SimulatedFlight,
+} from './flight.js';
+import type { WeatherResult } from './weather.js';
 import { generatePigeonName, isLegacyName } from './names.js';
 import { canRace, talent } from './pigeon.js';
 import { ownerName } from './engine.js';
@@ -78,6 +88,7 @@ function makeRealtimeFlight(templateKey: string, release: RaceRelease, startMs: 
     weather: '',
     weatherFactor: 1,
     results: [],
+    recap: '',
     createdAt: new Date().toISOString(),
   };
 }
@@ -135,8 +146,86 @@ export function ensureFlightsScheduled(db: Database, nowMs: number): void {
   }
 }
 
+/** Dutch ordinal-ish suffix for a placing (1e, 2e, 3e, ...). */
+function ordinal(n: number): string {
+  return `${n}e`;
+}
+
+function pushNotification(
+  db: Database,
+  userId: string,
+  kind: 'result' | 'improve' | 'info',
+  title: string,
+  body: string,
+  flightId: string | null,
+): void {
+  db.notifications.push({
+    id: newId('ntf'),
+    userId,
+    kind,
+    title,
+    body,
+    flightId,
+    createdAt: new Date().toISOString(),
+    read: false,
+  });
+}
+
+/** Keep each user's inbox to a sane size (newest first). */
+function trimNotifications(db: Database, keepPerUser = 40): void {
+  const byUser = new Map<string, number>();
+  db.notifications = [...db.notifications]
+    .sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1))
+    .filter((nt) => {
+      const seen = byUser.get(nt.userId) ?? 0;
+      byUser.set(nt.userId, seen + 1);
+      return seen < keepPerUser;
+    });
+}
+
+/** Notify human owners of their results and any improvements after a flight. */
+function emitFlightNotifications(db: Database, flight: Flight, sim: SimulatedFlight): void {
+  const humanIds = new Set(db.lofts.filter((l) => !l.isBot).map((l) => l.userId));
+
+  const byOwner = new Map<string, FlightResult[]>();
+  for (const res of flight.results) {
+    if (!humanIds.has(res.ownerId)) continue;
+    const arr = byOwner.get(res.ownerId) ?? [];
+    arr.push(res);
+    byOwner.set(res.ownerId, arr);
+  }
+  for (const [ownerId, list] of byOwner) {
+    list.sort((a, b) => a.rank - b.rank);
+    const best = list[0];
+    const prize = list.reduce((s, r) => s + r.prize, 0);
+    const points = list.reduce((s, r) => s + r.points, 0);
+    const many = list.length > 1 ? ` (${list.length} duiven ingezet)` : '';
+    const title = best.rank === 1 ? `🏆 Overwinning — ${flight.name}!` : `Uitslag — ${flight.name}`;
+    const money = prize > 0 ? ` en €${prize}` : '';
+    const body =
+      `${best.pigeonName} werd ${ordinal(best.rank)} van ${flight.results.length}${many} ` +
+      `(${flight.fromCity} → ${flight.toCity}). Opbrengst: ${points} punten${money}.`;
+    pushNotification(db, ownerId, 'result', title, body, flight.id);
+  }
+
+  for (const imp of sim.improvements) {
+    if (!humanIds.has(imp.ownerId)) continue;
+    const label = IMPROVE_ATTR_LABEL[imp.attr];
+    pushNotification(
+      db,
+      imp.ownerId,
+      'improve',
+      `📈 ${imp.pigeonName} is verbeterd!`,
+      `Door mee te vliegen groeide ${imp.pigeonName} in ${label} (+${imp.gain}). Deelnemen aan vluchten bouwt conditie op!`,
+      flight.id,
+    );
+  }
+
+  trimNotifications(db);
+}
+
 /** Start flights whose time has come and finalize flights that are over. */
-export function tickFlights(db: Database, nowMs: number): void {
+export function tickFlights(db: Database, nowMs: number, weatherByFlight?: Map<string, WeatherResult>): void {
   for (const flight of db.flights) {
     const startMs = flight.startAt ? Date.parse(flight.startAt) : NaN;
 
@@ -151,16 +240,18 @@ export function tickFlights(db: Database, nowMs: number): void {
         flight.status = 'completed';
         flight.weather = 'Afgelast (geen deelnemers)';
         flight.results = [];
+        flight.recap = generateRecap(flight);
         continue;
       }
-      startLiveFlight(flight, entries, flight.week);
+      startLiveFlight(flight, entries, flight.week, weatherByFlight?.get(flight.id));
     }
 
     if (flight.status === 'live' && !Number.isNaN(startMs)) {
       const total = flightTotalSeconds(flight);
       if (nowMs >= startMs + total * 1000) {
-        const sim = finalizeFlight(flight);
+        const sim = finalizeFlight(flight, db.pigeons);
         applyFlightEffects(sim, db.pigeons, db.lofts);
+        emitFlightNotifications(db, flight, sim);
       }
     }
   }
@@ -181,9 +272,26 @@ function runDataMigrations(db: Database): void {
   }
 }
 
+/**
+ * Flights that are due to start right now and still need their real weather
+ * fetched. The API middleware prefetches weather for these (async) before the
+ * synchronous tick, so a live flight can be frozen against real conditions.
+ */
+export function flightsAwaitingStart(db: Database, nowMs: number): Flight[] {
+  return db.flights.filter((f) => {
+    if (f.status !== 'scheduled' || !f.startAt) return false;
+    const startMs = Date.parse(f.startAt);
+    return !Number.isNaN(startMs) && nowMs >= startMs && f.entries.length > 0;
+  });
+}
+
 /** Run every real-time step for the current instant. Caller persists. */
-export function advanceRealtime(db: Database, nowMs: number): void {
+export function advanceRealtime(
+  db: Database,
+  nowMs: number,
+  weatherByFlight?: Map<string, WeatherResult>,
+): void {
   runDataMigrations(db);
   ensureFlightsScheduled(db, nowMs);
-  tickFlights(db, nowMs);
+  tickFlights(db, nowMs, weatherByFlight);
 }

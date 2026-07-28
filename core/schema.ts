@@ -116,7 +116,20 @@ export interface Flight {
   weather: string;
   weatherFactor: number;
   results: FlightResult[]; // empty until completed
+  recap: string; // sports-reporter summary, written at finish
   createdAt: string;
+}
+
+/** An in-app notification shown in the bell inbox. */
+export interface Notification {
+  id: string;
+  userId: string;
+  kind: 'result' | 'improve' | 'info';
+  title: string;
+  body: string;
+  flightId: string | null;
+  createdAt: string;
+  read: boolean;
 }
 
 /** Global world state. */
@@ -136,6 +149,7 @@ export interface Database {
   pigeons: Pigeon[];
   breedingPairs: BreedingPair[];
   flights: Flight[];
+  notifications: Notification[];
 }
 
 export function emptyDatabase(): Database {
@@ -146,5 +160,6 @@ export function emptyDatabase(): Database {
     pigeons: [],
     breedingPairs: [],
     flights: [],
+    notifications: [],
   };
 }

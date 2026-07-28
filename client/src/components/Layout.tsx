@@ -6,6 +6,7 @@ import { useAuth } from '../auth/AuthContext';
 import { useGame } from '../game/GameContext';
 import { api } from '../api/client';
 import { useToast } from './ui';
+import { NotificationsBell } from './NotificationsBell';
 
 const NAV = [
   { to: '/', label: 'Overzicht', icon: '🏠', end: true },
@@ -69,6 +70,7 @@ export function Layout() {
                 <span className="coin">◎</span> {state.loft.money.toLocaleString('nl-NL')}
               </span>
             )}
+            {state && <NotificationsBell />}
           </div>
         </div>
       </header>

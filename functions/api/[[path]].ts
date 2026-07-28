@@ -30,8 +30,16 @@ import {
   unlist,
   withdrawFlight,
 } from '../../core/game/engine.js';
-import { advanceRealtime } from '../../core/game/schedule.js';
-import { flightDTO, liveFlightDTO, loftDTO, pigeonDTO, rankingRows } from '../../core/presenters.js';
+import { advanceRealtime, flightsAwaitingStart } from '../../core/game/schedule.js';
+import { fetchFlightWeather, type WeatherResult } from '../../core/game/weather.js';
+import {
+  flightDTO,
+  liveFlightDTO,
+  loftDTO,
+  notificationsFor,
+  pigeonDTO,
+  rankingRows,
+} from '../../core/presenters.js';
 
 interface Env {
   DB: D1Database;
@@ -61,7 +69,15 @@ app.use('*', async (c, next) => {
     store = await D1Store.load(c.env.DB); // fresh snapshots for any later write
   }
   // Real-time flight lifecycle + one-time data migrations. Persist any changes.
-  advanceRealtime(store.data, Date.now());
+  const nowMs = Date.now();
+  // Fetch real weather for any flight about to start, so it's frozen against
+  // actual conditions in the release region (falls back to a random sky).
+  const due = flightsAwaitingStart(store.data, nowMs);
+  const weatherByFlight = new Map<string, WeatherResult>();
+  for (const f of due) {
+    weatherByFlight.set(f.id, await fetchFlightWeather(f.fromCity, f.toCity));
+  }
+  advanceRealtime(store.data, nowMs, weatherByFlight);
   await store.persist();
   c.set('store', store);
 
@@ -192,7 +208,30 @@ app.get('/state', (c) => {
     scheduledFlights: upcoming,
     rankings: rankingRows(db),
     feedRations: FEED_RATIONS,
+    unreadNotifications: notificationsFor(db, user.id).unread,
   });
+});
+
+// --- Notifications ---------------------------------------------------------
+app.get('/notifications', (c) => {
+  const user = requireUser(c);
+  const db = c.get('store').data;
+  return c.json(notificationsFor(db, user.id));
+});
+
+app.post('/notifications/read', async (c) => {
+  const user = requireUser(c);
+  const body = await c.req.json().catch(() => ({}));
+  const store = c.get('store');
+  const ids: string[] | null = Array.isArray(body.ids) ? body.ids.map(String) : null;
+  store.mutate((db) => {
+    for (const n of db.notifications) {
+      if (n.userId !== user.id) continue;
+      if (ids === null || ids.includes(n.id)) n.read = true;
+    }
+  });
+  await store.persist();
+  return c.json(notificationsFor(store.data, user.id));
 });
 
 app.get('/pigeons/:id', (c) => {

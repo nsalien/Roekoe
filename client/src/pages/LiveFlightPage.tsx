@@ -35,7 +35,12 @@ export function LiveFlightPage() {
 
   useEffect(() => {
     load();
-    const t = setInterval(load, 2500);
+    // Flights run in real time (hours), so a gentle poll keeps the board fresh
+    // without hammering the server. We stop polling once the race is over.
+    const t = setInterval(() => {
+      if (wasCompleted.current) return;
+      load();
+    }, 8000);
     return () => clearInterval(t);
   }, [load]);
 
@@ -163,6 +168,14 @@ export function LiveFlightPage() {
               </div>
             ))}
           </div>
+        </div>
+      )}
+
+      {/* Sports-reporter recap */}
+      {isDone && flight.recap && (
+        <div className="card recap-card">
+          <h2>📻 Samenvatting van de wedstrijd</h2>
+          <p className="recap-text">{flight.recap}</p>
         </div>
       )}
 

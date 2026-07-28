@@ -80,7 +80,20 @@ CREATE TABLE IF NOT EXISTS flights (
   weather       TEXT NOT NULL DEFAULT '',
   weather_factor REAL NOT NULL DEFAULT 1,
   results       TEXT NOT NULL DEFAULT '[]',
+  recap         TEXT NOT NULL DEFAULT '',
   created_at    TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_flights_status ON flights (status);
 CREATE INDEX IF NOT EXISTS idx_flights_week ON flights (week);
+
+CREATE TABLE IF NOT EXISTS notifications (
+  id         TEXT PRIMARY KEY,
+  user_id    TEXT NOT NULL,
+  kind       TEXT NOT NULL,
+  title      TEXT NOT NULL,
+  body       TEXT NOT NULL,
+  flight_id  TEXT,
+  created_at TEXT NOT NULL,
+  read       INTEGER NOT NULL DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS idx_notifications_user ON notifications (user_id);
