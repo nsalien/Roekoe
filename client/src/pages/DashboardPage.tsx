@@ -27,6 +27,13 @@ export function DashboardPage() {
   const now = Date.now();
   const avgForm = pigeons.length ? Math.round(pigeons.reduce((s, p) => s + p.form, 0) / pigeons.length) : 0;
 
+  // Ailing birds still in the normal loft (need the player to act).
+  const needCare = pigeons.filter((p) => p.ailment && !p.inInfirmary).length;
+  // The player's own next race (soonest scheduled or currently live).
+  const myNextFlight = [...scheduledFlights]
+    .filter((f) => f.entries.some((e) => e.ownerId === user?.id))
+    .sort((a, b) => a.startAt.localeCompare(b.startAt))[0];
+
   async function act(fn: () => Promise<unknown>, okMsg?: string) {
     setBusy(true);
     try {
@@ -68,6 +75,52 @@ export function DashboardPage() {
             {myRank && <span className="faint" style={{ fontSize: '0.95rem', fontWeight: 600 }}> · #{myRank.rank}</span>}
           </div>
         </div>
+      </div>
+
+      {/* Health + next-flight tiles */}
+      <div className="grid cols-3" style={{ marginBottom: 18 }}>
+        <Link to="/ziekenboeg" className="tile card-hover" style={{ display: 'block', color: 'inherit' }}>
+          <div className="tile-label">Ziek / gewond</div>
+          <div className="tile-value" style={{ color: needCare > 0 ? 'var(--bad)' : 'var(--good)' }}>
+            {needCare}
+          </div>
+          <div className="faint" style={{ fontSize: '0.8rem' }}>
+            {needCare > 0 ? '⚠️ actie nodig — naar ziekenboeg' : 'alles gezond 🎉'}
+          </div>
+        </Link>
+
+        <Link to="/ziekenboeg" className="tile card-hover" style={{ display: 'block', color: 'inherit' }}>
+          <div className="tile-label">In de ziekenboeg</div>
+          <div className="tile-value">
+            {loft.infirmaryCount}
+            <span className="faint" style={{ fontSize: '0.95rem', fontWeight: 600 }}> / {loft.infirmaryCapacity}</span>
+          </div>
+          <div className="faint" style={{ fontSize: '0.8rem' }}>in verzorging</div>
+        </Link>
+
+        {myNextFlight ? (
+          <Link to={`/vluchten/${myNextFlight.id}`} className="tile card-hover" style={{ display: 'block', color: 'inherit' }}>
+            <div className="tile-label">
+              Jouw volgende vlucht
+              {myNextFlight.status === 'live' && (
+                <span className="badge" style={{ marginLeft: 6, background: 'var(--accent)', color: '#fff' }}>🔴 LIVE</span>
+              )}
+            </div>
+            <div style={{ fontWeight: 800, fontSize: '1.05rem', marginTop: 2 }}>{myNextFlight.name}</div>
+            <div className="faint" style={{ fontSize: '0.82rem' }}>{myNextFlight.fromCity} → {myNextFlight.toCity}</div>
+            <div className="faint" style={{ fontSize: '0.82rem' }}>
+              {myNextFlight.status === 'live'
+                ? 'bezig — volg live →'
+                : `${formatFlightTime(myNextFlight.startAt)} · ${countdownTo(myNextFlight.startAt, now)}`}
+            </div>
+          </Link>
+        ) : (
+          <div className="tile">
+            <div className="tile-label">Jouw volgende vlucht</div>
+            <div className="tile-value" style={{ fontSize: '1.05rem' }}>—</div>
+            <div className="faint" style={{ fontSize: '0.8rem' }}>schrijf een duif in bij Vluchten</div>
+          </div>
+        )}
       </div>
 
       <div className="grid cols-2">
