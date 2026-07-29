@@ -418,7 +418,9 @@ table.data td.good { color: var(--good); font-weight: 700; }
 .badge-xp { font-size: 0.75rem; font-weight: 700; color: var(--accent); margin-top: 4px; }
 
 /* --- Bottom-nav overflow ("Meer") ----------------------------------------- */
-.bottomnav .morebtn { display: none; background: none; border: none; cursor: pointer; font: inherit; }
+/* The whole bottom bar is hidden on desktop, so the button only needs its
+   reset here; its display:flex comes from the mobile .bottomnav rule above. */
+.bottomnav .morebtn { background: none; border: none; cursor: pointer; font: inherit; }
 .bottomnav-scrim, .bottomnav-sheet { display: none; }
 @media (max-width: 820px) {
   .bottomnav .morebtn.active { color: var(--brand-strong); }
