@@ -124,7 +124,7 @@ export function seedWorld(store: Store): void {
       }
     }
     db.world.seeded = true;
-    db.world.dataVersion = 4; // fresh world already uses funny names, libido + tiered flights
+    db.world.dataVersion = 5; // fresh world already uses funny names, libido + tiered flights
   });
 }
 

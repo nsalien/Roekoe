@@ -37,7 +37,7 @@ import type { WeatherResult } from './weather.js';
 import { generatePigeonName, isLegacyName } from './names.js';
 import { canRace, talent } from './pigeon.js';
 import { NPC_OWNER_ID, ownerName } from './engine.js';
-import { bell, haversineKm, pick, round1 } from './util.js';
+import { bell, clamp, haversineKm, pick, randFloat, round1 } from './util.js';
 
 // --- Time-zone helpers -----------------------------------------------------
 
@@ -350,6 +350,17 @@ function runDataMigrations(db: Database): void {
       (f) => f.status !== 'scheduled' || valid.some((p) => f.templateKey.startsWith(p)),
     );
     db.world.dataVersion = 4;
+  }
+  if ((db.world.dataVersion ?? 0) < 5) {
+    // Older pigeons were all pinned to the libido column default (50). Give them
+    // varied libido based on their conditie + energie, plus genetic noise.
+    for (const p of db.pigeons) {
+      if (p.libido === 50) {
+        const target = p.endurance * 0.5 + p.form * 0.5;
+        p.libido = round1(clamp(target + randFloat(-18, 18), 5, 95));
+      }
+    }
+    db.world.dataVersion = 5;
   }
 }
 
