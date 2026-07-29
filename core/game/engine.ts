@@ -20,7 +20,9 @@ import {
   WEEKS_PER_YEAR,
 } from '../config/gameConfig.js';
 import type { Database, Loft, User } from '../schema.js';
+import { emptyStats } from '../schema.js';
 import { newId, type Store } from '../store.js';
+import { awardBadge, evaluateBadges } from './badges.js';
 import { botTakeWeeklyActions } from './bots.js';
 import { chargeWeeklyUpkeep } from './economy.js';
 import { runHealthWeek } from './health.js';
@@ -73,6 +75,10 @@ export function createLoftForUser(store: Store, user: User, loftName: string): L
       medicatedFood: false,
       doctors: 0,
       physios: 0,
+      xp: 0,
+      level: 1,
+      stats: emptyStats(),
+      badges: [],
     };
     db.lofts.push(loft);
     for (let i = 0; i < STARTING_PIGEONS; i++) {
@@ -113,6 +119,10 @@ export function seedWorld(store: Store): void {
         medicatedFood: false,
         doctors: 0,
         physios: 0,
+        xp: 0,
+        level: 1,
+        stats: emptyStats(),
+        badges: [],
       };
       db.lofts.push(loft);
       const count = STARTING_PIGEONS + Math.floor(Math.random() * 4);
@@ -170,8 +180,12 @@ export function advanceWeek(store: Store): WeekSummary {
     db.world.currentWeek += 1;
     const newWeek = db.world.currentWeek;
     if (newWeek % WEEKS_PER_YEAR === 1) {
-      // Season rollover: reset season points, keep money/pigeons.
+      // Season rollover: crown the champion, then reset season points.
       db.world.seasonYear += 1;
+      const champion = [...db.lofts].sort(
+        (a, b) => b.seasonPoints - a.seasonPoints || b.totalWins - a.totalWins,
+      )[0];
+      if (champion && champion.seasonPoints > 0) awardBadge(db, champion, 'season_champion');
       for (const loft of db.lofts) loft.seasonPoints = 0;
       summary.seasonRolledOver = true;
     }
@@ -223,6 +237,8 @@ export function enterFlight(
     if (loft.money < flight.entryFee) return 'Niet genoeg geld voor het inschrijfgeld';
     loft.money -= flight.entryFee;
     flight.entries.push({ pigeonId, ownerId: userId });
+    loft.stats.entries += 1;
+    evaluateBadges(db, loft);
     return null;
   });
 }
@@ -310,6 +326,14 @@ export function buyPigeon(store: Store, userId: string, pigeonId: string): strin
     });
     // Keep history bounded.
     if (db.trades.length > 200) db.trades = db.trades.slice(-200);
+    // Badges for buyer + seller.
+    buyer.stats.buys += 1;
+    evaluateBadges(db, buyer);
+    if (seller) {
+      seller.stats.sells += 1;
+      if (price > 1000) awardBadge(db, seller, 'handelaar');
+      evaluateBadges(db, seller);
+    }
     return null;
   });
 }
@@ -429,6 +453,10 @@ export function setInfirmaryStaff(
     if (!loft) return 'Geen hok gevonden';
     loft.doctors = Math.round(clamp(doctors, 0, 20));
     loft.physios = Math.round(clamp(physios, 0, 20));
+    if (loft.doctors > 0 || loft.physios > 0) {
+      loft.stats.staffHired = Math.max(loft.stats.staffHired, 1);
+      evaluateBadges(db, loft);
+    }
     return null;
   });
 }

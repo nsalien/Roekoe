@@ -178,8 +178,44 @@ export interface RankingRow {
   isBot: boolean;
   seasonPoints: number;
   totalWins: number;
+  level: number;
   pigeonCount: number;
   rank: number;
+}
+
+export type BadgeGroup = 'race' | 'podium' | 'breed' | 'market' | 'care' | 'milestone' | 'fun';
+
+export interface BadgeItem {
+  key: string;
+  group: BadgeGroup;
+  label: string;
+  description: string;
+  xp: number;
+  icon: string;
+  earned: boolean;
+  earnedAt: string | null;
+}
+
+export interface Trophy {
+  flightId: string;
+  name: string;
+  fromCity: string;
+  toCity: string;
+  startAt: string;
+  pigeonName: string;
+  rank: number;
+}
+
+export interface PlayerProfile {
+  level: number;
+  xp: number;
+  intoLevel: number;
+  needForNext: number;
+  earnedCount: number;
+  totalBadges: number;
+  badges: BadgeItem[];
+  medals: { gold: number; silver: number; bronze: number };
+  trophies: Trophy[];
 }
 
 export interface World {
@@ -207,7 +243,7 @@ export interface GameState {
   unreadNotifications: number;
 }
 
-export type NotificationKind = 'result' | 'improve' | 'info' | 'health';
+export type NotificationKind = 'result' | 'improve' | 'info' | 'health' | 'badge';
 
 export interface AppNotification {
   id: string;

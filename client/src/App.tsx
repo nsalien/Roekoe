@@ -14,6 +14,7 @@ import { BreedingPage } from './pages/BreedingPage';
 import { FlightsPage } from './pages/FlightsPage';
 import { LiveFlightPage } from './pages/LiveFlightPage';
 import { InfirmaryPage } from './pages/InfirmaryPage';
+import { AchievementsPage } from './pages/AchievementsPage';
 import { RankingPage } from './pages/RankingPage';
 
 export function App() {
@@ -40,6 +41,7 @@ export function App() {
         <Route path="/vluchten" element={<FlightsPage />} />
         <Route path="/vluchten/:id" element={<LiveFlightPage />} />
         <Route path="/ziekenboeg" element={<InfirmaryPage />} />
+        <Route path="/prestaties" element={<AchievementsPage />} />
         <Route path="/ranglijst" element={<RankingPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>

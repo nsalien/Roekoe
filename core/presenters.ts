@@ -8,6 +8,7 @@ import type { Database, Flight, Loft, Notification, Pigeon, Trade } from './sche
 import { ageInWeeks, canRace, estimateValue, talent } from './game/pigeon.js';
 import { ownerName } from './game/engine.js';
 import { flightCommentary, liveSnapshot } from './game/flight.js';
+import { BADGES, levelForXp } from './game/badges.js';
 import { round1 } from './game/util.js';
 
 export function pigeonDTO(db: Database, p: Pigeon) {
@@ -179,8 +180,56 @@ export function rankingRows(db: Database) {
       isBot: l.isBot,
       seasonPoints: l.seasonPoints,
       totalWins: l.totalWins,
+      level: l.level ?? 1,
       pigeonCount: db.pigeons.filter((p) => p.ownerId === l.userId).length,
     }))
     .sort((a, b) => b.seasonPoints - a.seasonPoints || b.totalWins - a.totalWins)
     .map((row, i) => ({ ...row, rank: i + 1 }));
+}
+
+/** A player's prestige: level, badges (earned + locked) and trophy cabinet. */
+export function playerProfile(db: Database, userId: string) {
+  const loft = db.lofts.find((l) => l.userId === userId);
+  if (!loft) return null;
+  const lvl = levelForXp(loft.xp);
+  const earned = new Map((loft.badges ?? []).map((b) => [b.key, b.at]));
+  const badges = BADGES.map((def) => ({
+    key: def.key,
+    group: def.group,
+    label: def.label,
+    description: def.description,
+    xp: def.xp,
+    icon: def.icon,
+    earned: earned.has(def.key),
+    earnedAt: earned.get(def.key) ?? null,
+  }));
+
+  const trophies: {
+    flightId: string; name: string; fromCity: string; toCity: string;
+    startAt: string; pigeonName: string; rank: number;
+  }[] = [];
+  for (const f of db.flights) {
+    if (f.status !== 'completed') continue;
+    for (const r of f.results) {
+      if (r.ownerId === userId && r.rank <= 3) {
+        trophies.push({
+          flightId: f.id, name: f.name, fromCity: f.fromCity, toCity: f.toCity,
+          startAt: f.startAt, pigeonName: r.pigeonName, rank: r.rank,
+        });
+      }
+    }
+  }
+  trophies.sort((a, b) => (a.startAt < b.startAt ? 1 : -1));
+
+  return {
+    level: lvl.level,
+    xp: loft.xp,
+    intoLevel: lvl.intoLevel,
+    needForNext: lvl.needForNext,
+    earnedCount: (loft.badges ?? []).length,
+    totalBadges: BADGES.length,
+    badges,
+    medals: { gold: loft.stats.gold, silver: loft.stats.silver, bronze: loft.stats.bronze },
+    trophies: trophies.slice(0, 60),
+  };
 }

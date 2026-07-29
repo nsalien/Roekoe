@@ -15,8 +15,13 @@ const NAV = [
   { to: '/markt', label: 'Markt', short: 'Markt', icon: '🛒' },
   { to: '/kweek', label: 'Kweek', short: 'Kweek', icon: '🥚' },
   { to: '/ziekenboeg', label: 'Ziekenboeg', short: 'Zieken', icon: '🏥' },
+  { to: '/prestaties', label: 'Prestaties', short: 'Prestige', icon: '🎖️' },
   { to: '/ranglijst', label: 'Rang', short: 'Rang', icon: '🏆' },
 ];
+
+// On phones the bottom bar shows the first PRIMARY items; the rest hide behind
+// a "› Meer" button so the bar has room to grow with new sections.
+const PRIMARY = 5;
 
 export function Layout() {
   const { user, logout } = useAuth();
@@ -97,14 +102,55 @@ export function Layout() {
       </main>
 
       {/* Bottom tab bar — only shown on phones (see global.css). */}
+      <BottomNav />
+    </div>
+  );
+}
+
+function BottomNav() {
+  const [open, setOpen] = useState(false);
+  const primary = NAV.slice(0, PRIMARY);
+  const overflow = NAV.slice(PRIMARY);
+  return (
+    <>
+      {open && (
+        <>
+          <div className="bottomnav-scrim" onClick={() => setOpen(false)} />
+          <div className="bottomnav-sheet">
+            {overflow.map((n) => (
+              <NavLink
+                key={n.to}
+                to={n.to}
+                end={n.end}
+                className={({ isActive }) => (isActive ? 'active' : '')}
+                onClick={() => setOpen(false)}
+              >
+                <span className="ico">{n.icon}</span>
+                <span>{n.label}</span>
+              </NavLink>
+            ))}
+          </div>
+        </>
+      )}
       <nav className="bottomnav">
-        {NAV.map((n) => (
+        {primary.map((n) => (
           <NavLink key={n.to} to={n.to} end={n.end} className={({ isActive }) => (isActive ? 'active' : '')}>
             <span className="ico">{n.icon}</span>
             <span>{n.short}</span>
           </NavLink>
         ))}
+        {overflow.length > 0 && (
+          <button
+            type="button"
+            className={`morebtn ${open ? 'active' : ''}`}
+            onClick={() => setOpen((o) => !o)}
+            aria-label="Meer"
+          >
+            <span className="ico">{open ? '×' : '›'}</span>
+            <span>Meer</span>
+          </button>
+        )}
       </nav>
-    </div>
+    </>
   );
 }

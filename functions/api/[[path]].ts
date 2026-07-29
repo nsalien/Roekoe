@@ -41,6 +41,7 @@ import {
   notificationsFor,
   pigeonDTO,
   pigeonRaceHistory,
+  playerProfile,
   rankingRows,
   recentTrades,
 } from '../../core/presenters.js';
@@ -215,6 +216,15 @@ app.get('/state', (c) => {
     infirmary: INFIRMARY,
     unreadNotifications: notificationsFor(db, user.id).unread,
   });
+});
+
+// --- Prestige (badges, level, trophies) ------------------------------------
+app.get('/profile', (c) => {
+  const user = requireUser(c);
+  const db = c.get('store').data;
+  const profile = playerProfile(db, user.id);
+  if (!profile) return c.json({ error: 'Geen hok gevonden' }, 404);
+  return c.json(profile);
 });
 
 // --- Notifications ---------------------------------------------------------

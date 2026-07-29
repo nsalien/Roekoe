@@ -20,6 +20,7 @@ import {
 } from '../config/gameConfig.js';
 import type { Ailment, Database, Loft, Pigeon } from '../schema.js';
 import { ageMortality } from './pigeon.js';
+import { awardBadge, evaluateBadges } from './badges.js';
 import { clamp, pick, round1 } from './util.js';
 
 export interface HealthEvent {
@@ -46,6 +47,7 @@ export function randomDisease(week: number): Ailment {
 /** Give a pigeon an ailment and apply its onset hit to condition. */
 export function applyAilment(p: Pigeon, a: Ailment): void {
   p.ailment = a;
+  p.everAiled = true;
   const hit = HEALTH.onsetHealthHit[a.severity];
   p.health = round1(clamp(p.health - hit, 0, 100));
   p.form = round1(clamp(p.form - hit * 0.5, 0, 100));
@@ -112,6 +114,10 @@ export function runHealthWeek(db: Database, week: number): HealthEvent[] {
         const was = p.ailment;
         p.ailment = null;
         p.health = round1(clamp(p.health + 15, 0, 100));
+        loft.stats.cures += 1;
+        if (was.severity === 'ernstig') loft.stats.curesSevere += 1;
+        awardBadge(db, loft, 'cure_1');
+        if (was.severity === 'ernstig') awardBadge(db, loft, 'cure_severe');
         events.push({
           pigeonId: p.id, ownerId: p.ownerId, pigeonName: p.name, type: 'recovered',
           title: `💚 ${p.name} is hersteld`,
@@ -130,6 +136,8 @@ export function runHealthWeek(db: Database, week: number): HealthEvent[] {
       }
       if (pDeath > 0 && Math.random() < clamp(pDeath, 0, 0.95)) {
         dead.add(p.id);
+        if (p.ailment?.name === 'Sperwerverwonding') awardBadge(db, loft, 'rip_sperwer');
+        else if (!p.ailment) awardBadge(db, loft, 'vredig');
         const cause = p.ailment
           ? `bezweken aan ${p.ailment.name.toLowerCase()}`
           : 'op hoge leeftijd vredig ingeslapen';

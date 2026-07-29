@@ -28,6 +28,7 @@ import type { Database, Flight, FlightResult } from '../schema.js';
 import { newId } from '../store.js';
 import { applyDayOfCare } from './economy.js';
 import { breed } from './breeding.js';
+import { awardBadge, awardFlightBadges, evaluateBadges } from './badges.js';
 import {
   applyFlightEffects,
   finalizeFlight,
@@ -304,6 +305,7 @@ export function tickFlights(db: Database, nowMs: number, weatherByFlight?: Map<s
         const sim = finalizeFlight(flight, db.pigeons);
         applyFlightEffects(sim, db.pigeons, db.lofts);
         emitFlightNotifications(db, flight, sim);
+        awardFlightBadges(db, flight);
       }
     }
   }
@@ -431,6 +433,8 @@ export function tickDailyCare(db: Database, nowMs: number): void {
     }
   }
   db.world.lastDailyTick = new Date(last + days * DAY_MS).toISOString();
+  // Catch state badges that daily recovery may have unlocked (topfit, kerngezond).
+  for (const loft of db.lofts) if (!loft.isBot) evaluateBadges(db, loft);
 }
 
 /** Hatch breeding pairs whose time has come (real time, any moment). */
@@ -450,6 +454,16 @@ export function tickBreedingHatch(db: Database, nowMs: number): void {
     const space = (loft?.capacity ?? 0) - owned;
     const admitted = young.slice(0, Math.max(0, space));
     db.pigeons.push(...admitted);
+
+    // Breeding badges.
+    if (loft && admitted.length > 0) {
+      loft.stats.babies += admitted.length;
+      if (young.length >= 2) awardBadge(db, loft, 'tweeling');
+      if (admitted.some((y) => talent(y) > 85)) awardBadge(db, loft, 'topfokker');
+      const grandIds = [sire.sireId, sire.damId, dam.sireId, dam.damId].filter(Boolean) as string[];
+      if (grandIds.some((gid) => db.pigeons.some((p) => p.id === gid))) awardBadge(db, loft, 'dynastie');
+      evaluateBadges(db, loft);
+    }
 
     if (loft && humanIds.has(loft.userId)) {
       if (admitted.length > 0) {

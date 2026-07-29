@@ -79,6 +79,8 @@ export function generatePigeon(opts: GenerateOptions): Pigeon {
     retired: false,
     ailment: null,
     inInfirmary: false,
+    races: 0,
+    everAiled: false,
   };
 }
 

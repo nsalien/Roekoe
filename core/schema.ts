@@ -50,6 +50,9 @@ export interface Pigeon {
   // Health status.
   ailment: Ailment | null; // current disease/injury, or null if healthy
   inInfirmary: boolean; // resting in the ziekenboeg (isolated, recovering)
+  // Career counters (for badges).
+  races: number; // flights this bird has finished
+  everAiled: boolean; // has ever been ill or injured (for "Comeback" badge)
 }
 
 /** Everything about a player's operation that is not an individual pigeon. */
@@ -68,6 +71,33 @@ export interface Loft {
   medicatedFood: boolean; // feed medicated food to infirmary birds (weekly cost)
   doctors: number; // hired pigeon doctors (help disease recovery)
   physios: number; // hired pigeon physiotherapists (help injury recovery)
+  // Prestige (badges / level).
+  xp: number; // total player experience from badges
+  level: number; // derived from xp (cached for the ranking)
+  stats: PlayerStats; // lifetime counters that drive badges
+  badges: EarnedBadge[]; // badges earned, with timestamps
+}
+
+/** Lifetime counters per loft that unlock badges. */
+export interface PlayerStats {
+  regionalWins: number;
+  nationalWins: number;
+  intlWins: number;
+  gold: number;
+  silver: number;
+  bronze: number;
+  entries: number;
+  babies: number;
+  buys: number;
+  sells: number;
+  cures: number;
+  curesSevere: number;
+  staffHired: number;
+}
+
+export interface EarnedBadge {
+  key: string;
+  at: string; // ISO timestamp
 }
 
 export interface User {
@@ -162,7 +192,7 @@ export interface Trade {
 export interface Notification {
   id: string;
   userId: string;
-  kind: 'result' | 'improve' | 'info' | 'health';
+  kind: 'result' | 'improve' | 'info' | 'health' | 'badge';
   title: string;
   body: string;
   flightId: string | null;
@@ -191,6 +221,15 @@ export interface Database {
   flights: Flight[];
   notifications: Notification[];
   trades: Trade[];
+}
+
+export function emptyStats(): PlayerStats {
+  return {
+    regionalWins: 0, nationalWins: 0, intlWins: 0,
+    gold: 0, silver: 0, bronze: 0,
+    entries: 0, babies: 0, buys: 0, sells: 0,
+    cures: 0, curesSevere: 0, staffHired: 0,
+  };
 }
 
 export function emptyDatabase(): Database {

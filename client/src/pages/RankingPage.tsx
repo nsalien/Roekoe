@@ -23,7 +23,7 @@ export function RankingPage() {
           <table className="data">
             <thead>
               <tr>
-                <th>#</th><th>Hok</th><th className="num">Punten</th><th className="num">Overwinningen</th><th className="num">Duiven</th>
+                <th>#</th><th>Hok</th><th className="num">Lvl</th><th className="num">Punten</th><th className="num">Winst</th><th className="num">Duiven</th>
               </tr>
             </thead>
             <tbody>
@@ -34,6 +34,7 @@ export function RankingPage() {
                     {r.name} {r.isBot && <span className="badge bot">bot</span>}
                     {r.userId === user?.id && <span className="badge club" style={{ marginLeft: 6 }}>jij</span>}
                   </td>
+                  <td className="num"><span className="level-badge sm">Lvl {r.level}</span></td>
                   <td className="num"><strong>{r.seasonPoints}</strong></td>
                   <td className="num">{r.totalWins}</td>
                   <td className="num">{r.pigeonCount}</td>
