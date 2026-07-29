@@ -72,6 +72,16 @@ snelheid = (700 + basisscore·9) · energiefactor · gezondheidsf. · ervaringfa
 **Alle drie de vaardigheden tellen dus mee** (snelheid vooral kort, conditie &
 oriëntatie vooral lang), net als gezondheid, energie en ervaring.
 
+> **Voorbeeld.** Een sterke duif (snelheid 80, conditie 70, oriëntatie 65,
+> energie 90, gezondheid 85, ervaring 40) op een vlucht van **300 km**:
+> de gewichten worden ≈ snelheid 0.43 / conditie 0.28 / oriëntatie 0.28, dus
+> basisscore ≈ 73. Met de energie- (×1.06), gezondheids- (×0.96) en
+> ervaringbonus (×1.13) en een lichte rugwind (×1.1) komt ze aan
+> **≈ 100 km/u** en doet ze **≈ 2 u 55** over de 300 km.
+> Een futloze duif (energie 30, gezondheid 45) op dezelfde vlucht haalt maar
+> ~70 km/u en verliest zo een half uur — energie en gezondheid maken echt
+> het verschil.
+
 ### 2.4 Duur (echte tijd)
 ```
 seconden = (afstand_km · 1000 / snelheid_m_per_min) · 60
@@ -86,6 +96,10 @@ along = windsnelheid · cos(hoek tussen windrichting en route)   // + = rugwind
 weerfactor = clamp(1 + along/120 − min(neerslag, 4)·0.04, 0.70, 1.20)
 ```
 Rugwind versnelt, tegenwind + regen vertragen. Zonder netwerk: willekeurig weer.
+
+> **Voorbeeld.** 20 km/u wind recht op de rug → factor 1 + 20/120 ≈ **1.17**
+> (17% sneller). Diezelfde 20 km/u recht tegen → **0.83** (17% trager). Giet het
+> ook nog eens (3 mm regen), dan gaat er nog eens ~0.12 af.
 
 ### 2.6 Uitslag: prijzengeld & punten
 Gerangschikt op finishtijd (snelste eerst).
@@ -111,6 +125,12 @@ Per deelnemende duif, na afloop:
 | **Gezondheid** | −(willekeurig 0 … afstand/200) |
 | **Ervaring** | +(2 + afstand/100) |
 
+> **Voorbeeld.** Na een vlucht van **300 km** verliest een duif ongeveer
+> **18 energie**, wint ze ~**1 conditie** en ~**5 ervaring**, en gaat er een
+> beetje gezondheid af. Een korte regiovlucht van 60 km kost maar ~10 energie;
+> een internationale van 700 km bijna 30. Vandaar dat je duiven na een zware
+> vlucht enkele dagen moet laten recupereren (zie §4).
+
 ### 3.1 Kans op verbetering van een vaardigheid
 Elke deelnemer maakt kans om te groeien in de vaardigheid die voor die afstand
 telt (gewogen keuze uit snelheid/conditie/oriëntatie):
@@ -122,13 +142,23 @@ groei       = willekeurig(0.4 … 1.6) · (0.4 + ruimte)   // cap 96
 ```
 Bij een verbetering krijgt de speler een melding.
 
+> **Voorbeeld.** Een duif met conditie 70 wint een vlucht met 12 deelnemers.
+> Ruimte = (96−70)/96 ≈ 0.27, plaatsbonus (winnaar) = 0.3, dus kans ≈
+> **61%** op groei van ~**+0.7 conditie**. De laatst aankomende duif heeft
+> dezelfde ruimte maar amper plaatsbonus, en dus maar ~35% kans. Winnen én
+> onervaren/zwakke duiven leren dus het snelst bij.
+
 ### 3.2 Kans op kwetsuur
 ```
 basiskans   = 0.025 + afstand · 0.00018
 kans_duif   = basiskans · (1 + (100 − Energie)/100)     // lage energie = risicovoller
 ```
-De kwetsuur is willekeurig uit de lijst (zie §5). Voorbeeld: 490 km bij volle
-energie ≈ 11%.
+De kwetsuur is willekeurig uit de lijst (zie §5).
+
+> **Voorbeeld.** Op een fondvlucht van **490 km** is de basiskans 0.025 +
+> 490·0.00018 ≈ **11%** bij volle energie. Vliegt de duif op haar tandvlees
+> (energie 30), dan wordt dat ×1.7 → **~19%**. Uitgeputte duiven laten vliegen
+> is dus vragen om blessures.
 
 ---
 
@@ -155,6 +185,12 @@ niet gevoerd (voorraad op):
   Gezondheid−= 6/7
 ```
 
+> **Voorbeeld.** Een hok met **6 duiven** op Normaal eet 6 kg/dag, dus je
+> startvoorraad van 80 kg is na ~**13 dagen** op. Een goed gevoerde duif met
+> ervaring 40 wint ongeveer **+2 energie per dag** (≈ +14 per week). Loopt je
+> voer leeg, dan verliest élke duif ~1 energie én ~1 gezondheid per dag — dat
+> tikt snel aan. Koop dus tijdig bij (€3/kg).
+
 ### 4.1 Libido (dagelijkse drift)
 ```
 doel = Conditie·0.5 + Energie·0.5
@@ -163,6 +199,11 @@ Libido += (doel − Libido) · 0.04
 ```
 Zo volgt libido conditie + energie, maar een handvol duiven houdt ondanks lage
 energie tóch een hoog libido.
+
+> **Voorbeeld.** Een duif met conditie 70 en energie 40 heeft een libido-doel
+> van 55; haar libido kruipt met ~1 per dag richting die 55. Een fitte duif
+> (conditie 90, energie 90) mikt op 90. Ongeveer **1 op de 8** duiven is van
+> nature "fris" en houdt libido 65–89, ook al is de energie laag.
 
 ### 4.2 Wekelijkse onkosten
 Bij "Volgende week" (spelleider) wordt aangerekend:
@@ -195,6 +236,12 @@ totale_kans   = clamp(1 − (1 − van_anderen)·(1 − spontaan), 0, 0.85)
 ```
 Een duif **in de ziekenboeg** is geïsoleerd: besmet niemand en wordt niet besmet.
 
+> **Voorbeeld.** Eén zieke hokgenoot loopt rond. Een fitte duif (gezondheid 85,
+> energie 90) heeft daardoor maar **~2% kans/week** om ziek te worden. Een
+> verzwakte duif (gezondheid 40, energie 20) zit rond **~13% kans/week** — meer
+> dan zes keer zoveel. Lage gezondheid én lage energie maken je hok dus veel
+> kwetsbaarder; zet zieke duiven meteen in de ziekenboeg om de ketting te breken.
+
 ### 5.3 Kans op herstel (wekelijks)
 ```
 basis (in ziekenboeg): licht 0.55 · matig 0.38 · ernstig 0.22
@@ -203,6 +250,11 @@ basis (in ziekenboeg): licht 0.55 · matig 0.38 · ernstig 0.22
   cap: 0.92
 in het gewone hok (niet geïsoleerd): basis · 0.40   (geen extra's)
 ```
+
+> **Voorbeeld.** Een **matige** ziekte geneest per week met:
+> ~**15%** in het gewone hok · ~**38%** in de ziekenboeg ·
+> ~**56%** met medicinaal voer · ~**84%** met voer + dokter.
+> Investeren in verzorging halveert dus makkelijk de tijd dat een duif ziek is.
 
 ### 5.4 De ziekenboeg
 - Capaciteit: **4 duiven** (later uitbreidbaar).
@@ -230,6 +282,12 @@ leeftijd (interp): 4j 0.001 · 6j 0.006 · 8j 0.025 · 10j 0.07 · 12j 0.16 · 1
 ```
 Bij overlijden krijgt de eigenaar een melding.
 
+> **Voorbeeld.** Een gezonde duif van **8 jaar** heeft ~**2.5% kans/week** om te
+> sterven; op **12 jaar** al ~**16%**. Een duif met een **onbehandelde ernstige**
+> aandoening krijgt daar +10% bovenop (in de ziekenboeg maar +2.5%). Een oude,
+> zieke, onverzorgde duif kan dus zomaar 25%+ kans per week hebben — verzorging
+> in de ziekenboeg drukt dat fors.
+
 ---
 
 ## 7. Kweken (broeden)
@@ -251,6 +309,11 @@ tweede:
 tweelingkans = clamp(libido_gem/100 · 0.7 · energiefactor, 0, 0.7)
 ```
 
+> **Voorbeeld.** Twee fitte ouders (libido 70, energie 80) hebben ~**78% kans**
+> op minstens één jong en ~**44% kans** op een tweeling. Zakt hun energie naar
+> 20, dan valt de succeskans terug naar ~**52%** en komt de worp vaker leeg uit.
+> Koppel dus goed uitgeruste, energieke duiven met een hoog libido.
+
 **Uitkomen: echte tijd.** Eieren komen **3 dagen** na het koppelen uit, op eender
 welk moment van de dag — niet pas op het weekeinde. De speler krijgt een melding.
 
@@ -264,6 +327,10 @@ mutatie (±8), begrensd op 5…99.
 Kost **€120**, verbruikt **15 energie**, en geeft een kleine blijvende
 verbetering (~+1.2, tot max 92) aan snelheid, conditie of oriëntatie, plus
 **+4 ervaring**. Vereist voldoende energie.
+
+> **Voorbeeld.** Eén trainingsbeurt tilt bv. snelheid van 78 naar ~79 en kost
+> €120 + 15 energie. Kleine stapjes dus: trainen is een trage, betrouwbare manier
+> om een duif op te bouwen, terwijl vluchten sneller (maar met risico) verbeteren.
 
 ---
 
