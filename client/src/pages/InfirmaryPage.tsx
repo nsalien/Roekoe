@@ -3,10 +3,11 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useGame } from '../game/GameContext';
+import { useAuth } from '../auth/AuthContext';
 import { api } from '../api/client';
 import { Money, Spinner, useToast } from '../components/ui';
 import { PigeonAvatar } from '../components/PigeonAvatar';
-import type { Pigeon, Severity } from '../types';
+import type { InfirmaryConfig, Pigeon, Severity } from '../types';
 
 const SEV_RANK: Record<Severity, number> = { ernstig: 3, matig: 2, licht: 1 };
 
@@ -17,8 +18,21 @@ function SeverityBadge({ s }: { s: Severity }) {
 
 export function InfirmaryPage() {
   const { state, refresh } = useGame();
+  const { user } = useAuth();
   const toast = useToast();
   const [busy, setBusy] = useState(false);
+
+  // One-time introduction, remembered per user (per browser).
+  const introKey = `roekoe.introSeen.infirmary.${user?.id ?? 'anon'}`;
+  const [showIntro, setShowIntro] = useState(() => !localStorage.getItem(introKey));
+  function dismissIntro() {
+    try {
+      localStorage.setItem(introKey, '1');
+    } catch {
+      /* private mode — just close */
+    }
+    setShowIntro(false);
+  }
 
   if (!state) return <Spinner />;
   const { loft, pigeons, infirmary: cfg } = state;
@@ -58,6 +72,8 @@ export function InfirmaryPage() {
 
   return (
     <div>
+      {showIntro && <InfirmaryIntro cfg={cfg} onClose={dismissIntro} />}
+
       <div className="page-head">
         <div>
           <h1>🏥 De Ziekenboeg</h1>
@@ -177,6 +193,52 @@ export function InfirmaryPage() {
           </div>
         </>
       )}
+    </div>
+  );
+}
+
+function InfirmaryIntro({ cfg, onClose }: { cfg: InfirmaryConfig; onClose: () => void }) {
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal" onClick={(e) => e.stopPropagation()}>
+        <h2 style={{ marginTop: 0 }}>🏥 Welkom in de Ziekenboeg</h2>
+        <p className="muted" style={{ marginTop: 0 }}>
+          Even kort uitleggen waar deze afdeling voor dient — je ziet dit maar één keer.
+        </p>
+
+        <ul className="intro-list">
+          <li>
+            <strong>Herstelplek.</strong> Hier laat je <em>zieke of gekwetste</em> duiven bijkomen,
+            afgezonderd van de rest van je hok.
+          </li>
+          <li>
+            <strong>Stopt besmetting.</strong> Een zieke duif die in je gewone hok blijft, kan
+            hokgenoten aansteken — hoe lager hun gezondheid, hoe groter het risico. In de ziekenboeg
+            besmet ze niemand.
+          </li>
+          <li>
+            <strong>Sneller genezen.</strong> Duiven herstellen hier veel sneller dan in het hok,
+            en nóg sneller met de juiste verzorging.
+          </li>
+          <li>
+            <strong>Verzorging (zoals het voedersysteem):</strong> 💊 medicinaal voer verhoogt de
+            herstelkans van iedereen, een 🩺 duivendokter geneest ziektes ({cfg.birdsPerDoctor} per dokter)
+            en een 🦴 duivenkinesist geneest kwetsuren ({cfg.birdsPerPhysio} per kinesist). Personeel kost
+            weeksalaris.
+          </li>
+          <li>
+            <strong>Let op.</strong> Onbehandelde ernstige aandoeningen (of hoge ouderdom) kunnen
+            dodelijk zijn. Duiven in de ziekenboeg kunnen niet vliegen, trainen of kweken.
+          </li>
+        </ul>
+
+        <p className="faint" style={{ fontSize: '0.82rem' }}>
+          Je verplaatst een duif hierheen via haar eigen pagina, of via de knoppen op deze pagina.
+          De ziekenboeg heeft momenteel plaats voor {cfg.baseCapacity} duiven.
+        </p>
+
+        <button className="btn accent block" onClick={onClose}>Begrepen! 🕊️</button>
+      </div>
     </div>
   );
 }

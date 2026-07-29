@@ -369,3 +369,19 @@ table.data td.good { color: var(--good); font-weight: 700; }
 @media (prefers-color-scheme: dark) {
   .badge.sev-matig { background: #3a2410; color: #fdba74; }
 }
+
+/* --- Modal / one-time intro overlay --------------------------------------- */
+.modal-overlay {
+  position: fixed; inset: 0; z-index: 80;
+  background: rgba(15, 23, 42, 0.55);
+  backdrop-filter: blur(3px);
+  display: flex; align-items: center; justify-content: center;
+  padding: 18px;
+}
+.modal {
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg);
+  box-shadow: var(--shadow-lg); padding: 22px;
+  width: min(520px, 100%); max-height: 88vh; overflow-y: auto;
+}
+.intro-list { margin: 4px 0 10px; padding-left: 20px; display: flex; flex-direction: column; gap: 9px; }
+.intro-list li { line-height: 1.45; }
