@@ -314,8 +314,18 @@ tweelingkans = clamp(libido_gem/100 · 0.7 · energiefactor, 0, 0.7)
 > 20, dan valt de succeskans terug naar ~**52%** en komt de worp vaker leeg uit.
 > Koppel dus goed uitgeruste, energieke duiven met een hoog libido.
 
-**Uitkomen: echte tijd.** Eieren komen **3 dagen** na het koppelen uit, op eender
-welk moment van de dag — niet pas op het weekeinde. De speler krijgt een melding.
+**Uitkomen: onvoorspelbaar.** Er is géén vaste tijd en geen aftelklok. Elk
+moment is er een willekeurige kans dat de eieren uitkomen; die kans is groter
+naarmate het **libido en de energie** van de ouders hoger zijn. Een topfit koppel
+komt gemiddeld al na ~1 dag uit, een lusteloos koppel kan tot ~6 dagen duren —
+maar het kan altijd vroeger of later. De speler krijgt een melding zodra het
+gebeurt.
+
+> **Voorbeeld.** Met de "fertiliteit" = gemiddelde van libido en energie: bij
+> een zeer fit koppel (fertiliteit ~90) is de gemiddelde uitkomsttijd ~1,3 dag;
+> bij een futloos koppel (fertiliteit ~20) eerder ~4,9 dag. Omdat het een kans
+> per moment is, weet je nooit exact wanneer — soms is het er al in enkele uren,
+> soms pas na een week.
 
 **Overerving:** elke vaardigheid = gemiddelde van beide ouders ± willekeurige
 mutatie (±8), begrensd op 5…99.

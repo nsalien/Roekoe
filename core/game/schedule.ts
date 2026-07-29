@@ -13,6 +13,7 @@
  */
 
 import {
+  BREEDING,
   FEED_RATIONS,
   FLIGHT_TIERS,
   FOOD_PRICE_PER_KG,
@@ -417,6 +418,13 @@ function runDataMigrations(db: Database): void {
     for (const loft of db.lofts) evaluateBadges(db, loft);
     db.world.dataVersion = 7;
   }
+  if ((db.world.dataVersion ?? 0) < 8) {
+    // Breeding hatches are now random (no fixed countdown). Reset pending pairs
+    // so their (previously fixed) hatch time restarts under the new model.
+    const now = new Date().toISOString();
+    for (const bp of db.breedingPairs) bp.hatchAt = now;
+    db.world.dataVersion = 8;
+  }
 }
 
 /**
@@ -468,17 +476,46 @@ export function tickDailyCare(db: Database, nowMs: number): void {
   for (const loft of db.lofts) if (!loft.isBot) evaluateBadges(db, loft);
 }
 
-/** Hatch breeding pairs whose time has come (real time, any moment). */
+/**
+ * Hatch breeding pairs — unpredictably. Each check rolls a random chance based
+ * on elapsed time and the parents' current libido + energie, so there is no
+ * fixed hatch time: fitter pairs simply have a higher chance every moment.
+ * (`bp.hatchAt` stores the last-checked time.)
+ */
 export function tickBreedingHatch(db: Database, nowMs: number): void {
   const humanIds = new Set(db.lofts.filter((l) => !l.isBot).map((l) => l.userId));
   const hatched = new Set<string>();
   for (const bp of db.breedingPairs) {
-    const at = bp.hatchAt ? Date.parse(bp.hatchAt) : NaN;
-    if (Number.isNaN(at) || nowMs < at) continue;
-    hatched.add(bp.id);
+    const checkedAt = bp.hatchAt ? Date.parse(bp.hatchAt) : NaN;
+    if (Number.isNaN(checkedAt)) {
+      bp.hatchAt = new Date(nowMs).toISOString();
+      continue;
+    }
     const sire = db.pigeons.find((p) => p.id === bp.sireId);
     const dam = db.pigeons.find((p) => p.id === bp.damId);
-    if (!sire || !dam) continue;
+    if (!sire || !dam) {
+      hatched.add(bp.id); // a parent was sold or died — the pairing lapses
+      continue;
+    }
+    const dtHours = (nowMs - checkedAt) / 3600000;
+    if (dtHours <= 0) continue;
+
+    // Fertility from current libido + energie → mean days → hatch rate per hour.
+    const fertility = clamp(
+      ((sire.libido + dam.libido) / 2) * 0.5 + ((sire.form + dam.form) / 2) * 0.5,
+      0,
+      100,
+    ) / 100;
+    const meanDays =
+      BREEDING.hatchMaxMeanDays - fertility * (BREEDING.hatchMaxMeanDays - BREEDING.hatchMinMeanDays);
+    const lambdaPerHour = 1 / (meanDays * 24);
+    const hatchNow = Math.random() < 1 - Math.exp(-lambdaPerHour * dtHours);
+    if (!hatchNow) {
+      bp.hatchAt = new Date(nowMs).toISOString(); // remember we checked
+      continue;
+    }
+
+    hatched.add(bp.id);
     const young = breed(sire, dam, bp.ownerId, db.world.currentWeek);
     const loft = db.lofts.find((l) => l.userId === bp.ownerId);
     const owned = db.pigeons.filter((p) => p.ownerId === bp.ownerId).length;

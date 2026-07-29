@@ -114,8 +114,13 @@ export const DISTANCE_WEIGHTING = {
 /** Breeding settings. */
 export const BREEDING = {
   cost: 200,
-  weeksToHatch: 2, // legacy; hatching now runs in real time (see daysToHatch)
-  daysToHatch: 3, // eggs hatch this many real days after pairing (any time of day)
+  weeksToHatch: 2, // legacy
+  // Hatching is unpredictable: each moment there is a random chance, tuned so
+  // that on average a maximally fertile pair (high libido + energie) hatches in
+  // ~hatchMinMeanDays and a listless pair takes up to ~hatchMaxMeanDays. There
+  // is no fixed timer and no countdown — it can come sooner or later.
+  hatchMinMeanDays: 0.75,
+  hatchMaxMeanDays: 6,
   minYoung: 1,
   maxYoung: 2,
   /** Random mutation range (+/-) applied to inherited attributes. */

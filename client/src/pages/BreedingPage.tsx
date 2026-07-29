@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { api } from '../api/client';
 import { useGame } from '../game/GameContext';
-import { Money, Spinner, countdownTo, useToast } from '../components/ui';
+import { Money, Spinner, useToast } from '../components/ui';
 import { PigeonAvatar } from '../components/PigeonAvatar';
 import type { BreedingPair } from '../types';
 
@@ -36,7 +36,7 @@ export function BreedingPage() {
     setBusy(true);
     try {
       await api('/breeding', { method: 'POST', body: { sireId, damId } });
-      toast.show('Koppel gevormd! De jongen komen over enkele dagen. 🥚', 'ok');
+      toast.show('Koppel gevormd! Wanneer de jongen komen, is een verrassing. 🥚', 'ok');
       setSireId('');
       setDamId('');
       await loadPairs();
@@ -106,7 +106,7 @@ export function BreedingPage() {
               <div key={pair.id} className="card" style={{ boxShadow: 'none', background: 'var(--surface-2)' }}>
                 <div className="row" style={{ justifyContent: 'space-between' }}>
                   <span>{pair.sire} × {pair.dam}</span>
-                  <strong>{Date.parse(pair.hatchAt) <= Date.now() ? 'komt eraan…' : countdownTo(pair.hatchAt)}</strong>
+                  <strong className="faint">🥚 aan het broeden…</strong>
                 </div>
               </div>
             ))}

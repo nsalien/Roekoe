@@ -133,7 +133,7 @@ export function seedWorld(store: Store): void {
       }
     }
     db.world.seeded = true;
-    db.world.dataVersion = 7; // fresh world: gendered names, libido, tiered flights, badges
+    db.world.dataVersion = 8; // fresh world: gendered names, libido, tiered flights, badges
   });
 }
 
@@ -408,7 +408,8 @@ export function startBreeding(
       sireId,
       damId,
       hatchWeek: db.world.currentWeek + BREEDING.weeksToHatch,
-      hatchAt: new Date(Date.now() + BREEDING.daysToHatch * 86400000).toISOString(),
+      // `hatchAt` is now the "last checked" time for the random hatch roll.
+      hatchAt: new Date().toISOString(),
       createdAtWeek: db.world.currentWeek,
     });
     return null;
