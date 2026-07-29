@@ -133,7 +133,7 @@ export function seedWorld(store: Store): void {
       }
     }
     db.world.seeded = true;
-    db.world.dataVersion = 6; // fresh world already uses gendered names, libido + tiered flights
+    db.world.dataVersion = 7; // fresh world: gendered names, libido, tiered flights, badges
   });
 }
 
@@ -191,6 +191,18 @@ export function advanceWeek(store: Store): WeekSummary {
     }
 
     return summary;
+  });
+}
+
+/** Rename a player's loft. Returns an error string or null on success. */
+export function renameLoft(store: Store, userId: string, name: string): string | null {
+  return store.mutate((db) => {
+    const loft = db.lofts.find((l) => l.userId === userId);
+    if (!loft) return 'Geen hok gevonden';
+    const trimmed = name.trim();
+    if (trimmed.length < 2 || trimmed.length > 32) return 'Naam moet tussen 2 en 32 tekens zijn';
+    loft.name = trimmed;
+    return null;
   });
 }
 

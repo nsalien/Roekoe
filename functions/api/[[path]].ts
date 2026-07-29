@@ -23,6 +23,7 @@ import {
   createLoftForUser,
   enterFlight,
   listForSale,
+  renameLoft,
   seedWorld,
   setInfirmary,
   setInfirmaryStaff,
@@ -216,6 +217,15 @@ app.get('/state', (c) => {
     infirmary: INFIRMARY,
     unreadNotifications: notificationsFor(db, user.id).unread,
   });
+});
+
+app.post('/loft/name', async (c) => {
+  const user = requireUser(c);
+  const body = await c.req.json().catch(() => ({}));
+  const store = c.get('store');
+  const err = renameLoft(store, user.id, String(body.name ?? ''));
+  await store.persist();
+  return err ? c.json({ error: err }, 400) : c.json({ ok: true });
 });
 
 // --- Prestige (badges, level, trophies) ------------------------------------

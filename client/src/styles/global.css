@@ -40,6 +40,9 @@
   --r: 12px;
   --r-lg: 16px;
 
+  /* mobile bottom-nav row height (content, excl. safe-area) */
+  --botnav-h: 56px;
+
   /* elevation — kept subtle */
   --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.04), 0 1px 3px rgba(15, 23, 42, 0.06);
   --shadow-md: 0 4px 12px -4px rgba(15, 23, 42, 0.12);
@@ -294,14 +297,15 @@ hr.sep { border: none; border-top: 1px solid var(--border); margin: 16px 0; }
   .bottomnav {
     display: flex;
     position: fixed; left: 0; right: 0; bottom: 0; z-index: 40;
+    height: calc(var(--botnav-h) + env(safe-area-inset-bottom, 0px));
+    padding-bottom: env(safe-area-inset-bottom, 0px);
     justify-content: space-around; gap: 2px;
-    padding: 7px 4px calc(7px + env(safe-area-inset-bottom, 0px));
     background: color-mix(in srgb, var(--surface) 92%, transparent);
     backdrop-filter: saturate(1.4) blur(10px);
     border-top: 1px solid var(--border);
   }
-  .bottomnav a {
-    display: flex; flex-direction: column; align-items: center; gap: 3px;
+  .bottomnav a, .bottomnav .morebtn {
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
     flex: 1; min-width: 0; padding: 4px 2px; border-radius: var(--r-sm);
     color: var(--text-faint); font-size: 0.63rem; font-weight: 700; line-height: 1;
     white-space: nowrap;
@@ -414,32 +418,28 @@ table.data td.good { color: var(--good); font-weight: 700; }
 .badge-xp { font-size: 0.75rem; font-weight: 700; color: var(--accent); margin-top: 4px; }
 
 /* --- Bottom-nav overflow ("Meer") ----------------------------------------- */
-.bottomnav .morebtn {
-  display: none; background: none; border: none; cursor: pointer; font: inherit;
-}
+.bottomnav .morebtn { display: none; background: none; border: none; cursor: pointer; font: inherit; }
+.bottomnav-scrim, .bottomnav-sheet { display: none; }
 @media (max-width: 820px) {
-  .bottomnav .morebtn {
-    display: flex; flex-direction: column; align-items: center; gap: 3px;
-    flex: 1; min-width: 0; padding: 4px 2px; border-radius: var(--r-sm);
-    color: var(--text-faint); font-size: 0.63rem; font-weight: 700; line-height: 1;
-    white-space: nowrap;
-  }
-  .bottomnav .morebtn .ico { font-size: 1.15rem; line-height: 1; }
   .bottomnav .morebtn.active { color: var(--brand-strong); }
-  .bottomnav-scrim { position: fixed; inset: 0; z-index: 39; background: rgba(15,23,42,0.35); }
+  .bottomnav-scrim { display: block; position: fixed; inset: 0; z-index: 39; background: rgba(15,23,42,0.35); }
+  /* The overflow row sits directly on top of the bar and is exactly as tall. */
   .bottomnav-sheet {
+    display: flex; justify-content: space-around; gap: 2px;
     position: fixed; left: 0; right: 0; z-index: 41;
-    bottom: calc(58px + env(safe-area-inset-bottom, 0px));
-    background: var(--surface); border-top: 1px solid var(--border);
-    box-shadow: var(--shadow-lg);
-    display: grid; grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)); gap: 4px;
-    padding: 12px 12px calc(12px + env(safe-area-inset-bottom, 0px));
+    bottom: calc(var(--botnav-h) + env(safe-area-inset-bottom, 0px));
+    height: var(--botnav-h);
+    background: color-mix(in srgb, var(--surface) 96%, transparent);
+    backdrop-filter: saturate(1.4) blur(10px);
+    border-top: 1px solid var(--border);
+    box-shadow: 0 -8px 24px -12px rgba(15,23,42,0.25);
+    padding: 0 2px;
   }
   .bottomnav-sheet a {
-    display: flex; flex-direction: column; align-items: center; gap: 4px;
-    padding: 10px 4px; border-radius: var(--r-sm);
-    color: var(--text-soft); font-size: 0.72rem; font-weight: 700; text-align: center;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+    flex: 1; min-width: 0; padding: 4px 2px; border-radius: var(--r-sm);
+    color: var(--text-soft); font-size: 0.63rem; font-weight: 700; line-height: 1; white-space: nowrap;
   }
-  .bottomnav-sheet a .ico { font-size: 1.35rem; }
-  .bottomnav-sheet a.active { background: var(--brand-soft); color: var(--brand-ink); }
+  .bottomnav-sheet a .ico { font-size: 1.15rem; line-height: 1; }
+  .bottomnav-sheet a.active { color: var(--brand-strong); }
 }

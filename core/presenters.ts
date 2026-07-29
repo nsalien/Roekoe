@@ -208,10 +208,15 @@ export function playerProfile(db: Database, userId: string) {
     flightId: string; name: string; fromCity: string; toCity: string;
     startAt: string; pigeonName: string; rank: number;
   }[] = [];
+  // Count medals from the same source as the list, so they always agree.
+  const medals = { gold: 0, silver: 0, bronze: 0 };
   for (const f of db.flights) {
     if (f.status !== 'completed') continue;
     for (const r of f.results) {
       if (r.ownerId === userId && r.rank <= 3) {
+        if (r.rank === 1) medals.gold += 1;
+        else if (r.rank === 2) medals.silver += 1;
+        else medals.bronze += 1;
         trophies.push({
           flightId: f.id, name: f.name, fromCity: f.fromCity, toCity: f.toCity,
           startAt: f.startAt, pigeonName: r.pigeonName, rank: r.rank,
@@ -229,7 +234,7 @@ export function playerProfile(db: Database, userId: string) {
     earnedCount: (loft.badges ?? []).length,
     totalBadges: BADGES.length,
     badges,
-    medals: { gold: loft.stats.gold, silver: loft.stats.silver, bronze: loft.stats.bronze },
+    medals,
     trophies: trophies.slice(0, 60),
   };
 }

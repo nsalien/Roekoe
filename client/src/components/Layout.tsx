@@ -17,6 +17,7 @@ const NAV = [
   { to: '/ziekenboeg', label: 'Ziekenboeg', short: 'Zieken', icon: '🏥' },
   { to: '/prestaties', label: 'Prestaties', short: 'Prestige', icon: '🎖️' },
   { to: '/ranglijst', label: 'Rang', short: 'Rang', icon: '🏆' },
+  { to: '/profiel', label: 'Profiel', short: 'Profiel', icon: '👤' },
 ];
 
 // On phones the bottom bar shows the first PRIMARY items; the rest hide behind
@@ -126,7 +127,7 @@ function BottomNav() {
                 onClick={() => setOpen(false)}
               >
                 <span className="ico">{n.icon}</span>
-                <span>{n.label}</span>
+                <span>{n.short}</span>
               </NavLink>
             ))}
           </div>

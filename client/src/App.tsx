@@ -15,6 +15,7 @@ import { FlightsPage } from './pages/FlightsPage';
 import { LiveFlightPage } from './pages/LiveFlightPage';
 import { InfirmaryPage } from './pages/InfirmaryPage';
 import { AchievementsPage } from './pages/AchievementsPage';
+import { ProfilePage } from './pages/ProfilePage';
 import { RankingPage } from './pages/RankingPage';
 
 export function App() {
@@ -42,6 +43,7 @@ export function App() {
         <Route path="/vluchten/:id" element={<LiveFlightPage />} />
         <Route path="/ziekenboeg" element={<InfirmaryPage />} />
         <Route path="/prestaties" element={<AchievementsPage />} />
+        <Route path="/profiel" element={<ProfilePage />} />
         <Route path="/ranglijst" element={<RankingPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>

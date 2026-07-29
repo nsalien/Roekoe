@@ -386,6 +386,37 @@ function runDataMigrations(db: Database): void {
     }
     db.world.dataVersion = 6;
   }
+  if ((db.world.dataVersion ?? 0) < 7) {
+    // Backfill medal + win counters and per-pigeon race counts from completed
+    // flight history, so badges and the trophy tiles reflect past results.
+    const raceCount = new Map<string, number>();
+    for (const loft of db.lofts) {
+      loft.stats.gold = 0; loft.stats.silver = 0; loft.stats.bronze = 0;
+      loft.stats.regionalWins = 0; loft.stats.nationalWins = 0; loft.stats.intlWins = 0;
+    }
+    for (const f of db.flights) {
+      if (f.status !== 'completed') continue;
+      const winners = new Map<string, boolean>();
+      for (const r of f.results) {
+        raceCount.set(r.pigeonId, (raceCount.get(r.pigeonId) ?? 0) + 1);
+        const loft = db.lofts.find((l) => l.userId === r.ownerId);
+        if (!loft) continue;
+        if (r.rank === 1) { loft.stats.gold += 1; winners.set(r.ownerId, true); }
+        else if (r.rank === 2) loft.stats.silver += 1;
+        else if (r.rank === 3) loft.stats.bronze += 1;
+      }
+      for (const ownerId of winners.keys()) {
+        const loft = db.lofts.find((l) => l.userId === ownerId);
+        if (!loft) continue;
+        if (f.type === 'national') loft.stats.nationalWins += 1;
+        else if (f.type === 'international') loft.stats.intlWins += 1;
+        else loft.stats.regionalWins += 1; // regional + legacy 'club'
+      }
+    }
+    for (const p of db.pigeons) p.races = raceCount.get(p.id) ?? p.races ?? 0;
+    for (const loft of db.lofts) evaluateBadges(db, loft);
+    db.world.dataVersion = 7;
+  }
 }
 
 /**
