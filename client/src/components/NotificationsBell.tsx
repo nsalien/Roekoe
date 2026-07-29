@@ -14,6 +14,7 @@ const ICON: Record<AppNotification['kind'], string> = {
   result: '🏁',
   improve: '📈',
   info: 'ℹ️',
+  health: '🏥',
 };
 
 /** Short "x min geleden" style relative time. */

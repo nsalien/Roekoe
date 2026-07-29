@@ -11,14 +11,16 @@ import {
   COMMENTARY,
   COMMENTARY_INTERVAL_SECONDS,
   DISTANCE_WEIGHTING,
+  HEALTH,
   IMPROVE,
   IMPROVE_ATTR_LABEL,
   MIN_FLIGHT_SECONDS,
   PRIZE_MONEY,
   RANKING_POINTS,
 } from '../config/gameConfig.js';
-import type { Flight, FlightResult, Loft, Pigeon } from '../schema.js';
+import type { Ailment, Flight, FlightResult, Loft, Pigeon } from '../schema.js';
 import { ageMultiplier } from './pigeon.js';
+import { applyAilment, randomInjury } from './health.js';
 import { randomWeather, type WeatherResult } from './weather.js';
 import { clamp, hashString, interpolate, pickWith, randFloat, round1, seededRng } from './util.js';
 
@@ -92,6 +94,13 @@ export interface Improvement {
   gain: number;
 }
 
+export interface FlightInjury {
+  pigeonId: string;
+  ownerId: string;
+  pigeonName: string;
+  ailment: Ailment;
+}
+
 export interface SimulatedFlight {
   /** Effects to apply to each participating pigeon after the flight. */
   fatigue: { pigeonId: string; formDelta: number; healthDelta: number; experienceDelta: number }[];
@@ -99,6 +108,8 @@ export interface SimulatedFlight {
   payouts: { ownerId: string; prize: number; points: number; wins: number }[];
   /** Permanent attribute gains from racing. */
   improvements: Improvement[];
+  /** Birds hurt during the flight. */
+  injuries: FlightInjury[];
 }
 
 /**
@@ -154,8 +165,10 @@ export function finalizeFlight(flight: Flight, pigeons: Pigeon[]): SimulatedFlig
   const payoutMap = new Map<string, { prize: number; points: number; wins: number }>();
   const fatigue: SimulatedFlight['fatigue'] = [];
   const improvements: Improvement[] = [];
+  const injuries: FlightInjury[] = [];
   const w = weightsForDistance(flight.distanceKm);
   const n = scored.length;
+  const injuryChance = HEALTH.flightInjuryBase + flight.distanceKm * HEALTH.flightInjuryPerKm;
 
   scored.forEach((s, i) => {
     const rank = i + 1;
@@ -204,6 +217,16 @@ export function finalizeFlight(flight: Flight, pigeons: Pigeon[]): SimulatedFlig
           });
         }
       }
+
+      // Rough flights leave some birds hurt (unless already ailing).
+      if (!pigeon.ailment && Math.random() < injuryChance) {
+        injuries.push({
+          pigeonId: pigeon.id,
+          ownerId: pigeon.ownerId,
+          pigeonName: pigeon.name,
+          ailment: randomInjury(flight.week),
+        });
+      }
     }
   });
 
@@ -211,7 +234,7 @@ export function finalizeFlight(flight: Flight, pigeons: Pigeon[]): SimulatedFlig
   flight.recap = generateRecap(flight);
   flight.status = 'completed';
   const payouts = [...payoutMap.entries()].map(([ownerId, v]) => ({ ownerId, ...v }));
-  return { fatigue, payouts, improvements };
+  return { fatigue, payouts, improvements, injuries };
 }
 
 export interface LiveBird {
@@ -351,6 +374,11 @@ export function applyFlightEffects(
     const p = pigeons.find((x) => x.id === imp.pigeonId);
     if (!p) continue;
     p[imp.attr] = round1(clamp(p[imp.attr] + imp.gain, 0, IMPROVE.cap));
+  }
+  for (const inj of sim.injuries) {
+    const p = pigeons.find((x) => x.id === inj.pigeonId);
+    if (!p || p.ailment) continue;
+    applyAilment(p, inj.ailment);
   }
   for (const pay of sim.payouts) {
     const loft = lofts.find((l) => l.userId === pay.ownerId);

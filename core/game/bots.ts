@@ -5,10 +5,37 @@
  * smarter later.
  */
 
-import { FEED_RATIONS, TRAINING } from '../config/gameConfig.js';
+import { FEED_RATIONS, INFIRMARY, TRAINING } from '../config/gameConfig.js';
 import type { Loft, Pigeon } from '../schema.js';
 import { talent } from './pigeon.js';
 import { clamp, round1 } from './util.js';
+
+/** Bots isolate and (if they can afford it) treat their ailing birds. */
+function manageInfirmary(loft: Loft, pigeons: Pigeon[]): void {
+  const active = pigeons.filter((p) => !p.retired);
+  // Free up healthy birds resting in the infirmary.
+  for (const p of active) if (p.inInfirmary && !p.ailment) p.inInfirmary = false;
+  // Move ailing birds into the infirmary up to capacity.
+  let free = loft.infirmaryCapacity - active.filter((p) => p.inInfirmary).length;
+  for (const p of active) {
+    if (free <= 0) break;
+    if (p.ailment && !p.inInfirmary) {
+      p.inInfirmary = true;
+      free--;
+    }
+  }
+  const sickIn = active.filter((p) => p.inInfirmary && p.ailment?.kind === 'ziekte').length;
+  const injIn = active.filter((p) => p.inInfirmary && p.ailment?.kind === 'kwetsuur').length;
+  if (loft.money > 1500 && sickIn + injIn > 0) {
+    loft.medicatedFood = true;
+    loft.doctors = loft.money > 2600 ? Math.ceil(sickIn / INFIRMARY.birdsPerDoctor) : 0;
+    loft.physios = loft.money > 2600 ? Math.ceil(injIn / INFIRMARY.birdsPerPhysio) : 0;
+  } else {
+    loft.medicatedFood = false;
+    loft.doctors = 0;
+    loft.physios = 0;
+  }
+}
 
 /** Choose a feed ration based on how flush the bot is. */
 function chooseRation(loft: Loft): void {
@@ -28,6 +55,7 @@ export function botTakeWeeklyActions(
   foodPricePerKg: number,
 ): void {
   chooseRation(loft);
+  manageInfirmary(loft, pigeons);
 
   // Keep a healthy food buffer.
   const ration = FEED_RATIONS[loft.feedRation];

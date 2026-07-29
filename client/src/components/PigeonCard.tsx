@@ -39,6 +39,12 @@ export function PigeonCard({
             ★ {pigeon.talent}
           </span>
           {pigeon.forSale && <span className="badge sale">te koop</span>}
+          {pigeon.ailment && (
+            <span className={`badge ${pigeon.ailment.severity === 'ernstig' ? 'sev-ernstig' : pigeon.ailment.severity === 'matig' ? 'sev-matig' : 'sev-licht'}`}>
+              {pigeon.ailment.kind === 'ziekte' ? '🤒' : '🩹'} {pigeon.ailment.name}
+            </span>
+          )}
+          {pigeon.inInfirmary && <span className="badge" style={{ background: 'var(--brand-soft)', color: 'var(--brand-ink)' }}>🏥</span>}
         </div>
         {showOwner && <div className="faint" style={{ marginBottom: 6 }}>🏠 {pigeon.ownerName}</div>}
       </div>

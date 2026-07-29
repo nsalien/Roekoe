@@ -57,6 +57,20 @@ export function PigeonPage() {
     }
   }
 
+  async function moveInfirmary(wantIn: boolean) {
+    setBusy(true);
+    try {
+      await api(`/pigeons/${p.id}/infirmary`, { method: 'POST', body: { in: wantIn } });
+      toast.show(wantIn ? 'Naar de ziekenboeg 🏥' : 'Terug naar het hok 🕊️', 'ok');
+      await load();
+      await refresh();
+    } catch (e) {
+      toast.show(e instanceof Error ? e.message : 'Mislukt', 'err');
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return (
     <div>
       <Link to="/hok" className="faint">← terug naar hok</Link>
@@ -66,10 +80,16 @@ export function PigeonPage() {
             <PigeonAvatar pigeon={p} size={120} />
             <div>
               <h1 style={{ marginBottom: 6 }}>{p.name}</h1>
-              <div className="row" style={{ gap: 6 }}>
+              <div className="row" style={{ gap: 6, flexWrap: 'wrap' }}>
                 <SexBadge sex={p.sex} />
                 <span className="badge bot">★ talent {p.talent}</span>
                 {p.forSale && <span className="badge sale">te koop · <Money value={p.price ?? 0} /></span>}
+                {p.ailment && (
+                  <span className="badge" style={{ background: p.ailment.kind === 'ziekte' ? 'var(--bad-soft)' : 'var(--gold-soft)', color: p.ailment.kind === 'ziekte' ? 'var(--bad)' : 'var(--gold)' }}>
+                    {p.ailment.kind === 'ziekte' ? '🤒' : '🩹'} {p.ailment.name}
+                  </span>
+                )}
+                {p.inInfirmary && <span className="badge" style={{ background: 'var(--brand-soft)', color: 'var(--brand-ink)' }}>🏥 in ziekenboeg</span>}
               </div>
               <p className="muted" style={{ marginTop: 8 }}>
                 {Math.floor(p.ageWeeks / 52) > 0 ? `${Math.floor(p.ageWeeks / 52)}j ` : ''}{p.ageWeeks % 52} wk oud ·
@@ -90,7 +110,39 @@ export function PigeonPage() {
         </div>
 
         <div>
-          {mine && (
+          {(p.ailment || p.inInfirmary) && (
+            <div className="card" style={{ borderColor: p.ailment ? 'var(--bad)' : 'var(--brand)' }}>
+              <h2>Gezondheid</h2>
+              {p.ailment ? (
+                <>
+                  <div className="row" style={{ gap: 6, flexWrap: 'wrap' }}>
+                    <span className="badge" style={{ background: p.ailment.kind === 'ziekte' ? 'var(--bad-soft)' : 'var(--gold-soft)', color: p.ailment.kind === 'ziekte' ? 'var(--bad)' : 'var(--gold)' }}>
+                      {p.ailment.kind === 'ziekte' ? '🦠 Ziekte' : '🩹 Kwetsuur'}
+                    </span>
+                    <strong>{p.ailment.name}</strong>
+                    <span className={`badge ${p.ailment.severity === 'ernstig' ? 'sev-ernstig' : p.ailment.severity === 'matig' ? 'sev-matig' : 'sev-licht'}`}>{p.ailment.severity}</span>
+                  </div>
+                  <p className="muted" style={{ marginTop: 8 }}>{p.ailment.description}</p>
+                </>
+              ) : (
+                <p className="muted">Deze duif rust uit in de ziekenboeg en kan niet vliegen zolang ze daar zit.</p>
+              )}
+              {mine && (
+                p.inInfirmary ? (
+                  <button className="btn ghost block" disabled={busy} onClick={() => moveInfirmary(false)}>← Terug naar het hok</button>
+                ) : (
+                  <button className="btn accent block" disabled={busy} onClick={() => moveInfirmary(true)}>→ Naar de ziekenboeg</button>
+                )
+              )}
+              {mine && p.ailment && !p.inInfirmary && (
+                <p className="faint" style={{ margin: '8px 0 0', fontSize: '0.8rem' }}>
+                  In de ziekenboeg herstelt ze sneller en besmet ze de rest van je hok niet.
+                </p>
+              )}
+            </div>
+          )}
+
+          {mine && !p.ailment && !p.inInfirmary && (
             <div className="card">
               <h2>Training</h2>
               <p className="muted">

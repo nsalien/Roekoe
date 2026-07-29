@@ -9,12 +9,13 @@ import { useToast } from './ui';
 import { NotificationsBell } from './NotificationsBell';
 
 const NAV = [
-  { to: '/', label: 'Overzicht', icon: '🏠', end: true },
-  { to: '/hok', label: 'Mijn hok', icon: '🕊️' },
-  { to: '/vluchten', label: 'Vluchten', icon: '🏁' },
-  { to: '/markt', label: 'Markt', icon: '🛒' },
-  { to: '/kweek', label: 'Kweek', icon: '🥚' },
-  { to: '/ranglijst', label: 'Rang', icon: '🏆' },
+  { to: '/', label: 'Overzicht', short: 'Start', icon: '🏠', end: true },
+  { to: '/hok', label: 'Mijn hok', short: 'Hok', icon: '🕊️' },
+  { to: '/vluchten', label: 'Vluchten', short: 'Vlucht', icon: '🏁' },
+  { to: '/markt', label: 'Markt', short: 'Markt', icon: '🛒' },
+  { to: '/kweek', label: 'Kweek', short: 'Kweek', icon: '🥚' },
+  { to: '/ziekenboeg', label: 'Ziekenboeg', short: 'Zieken', icon: '🏥' },
+  { to: '/ranglijst', label: 'Rang', short: 'Rang', icon: '🏆' },
 ];
 
 export function Layout() {
@@ -104,7 +105,7 @@ export function Layout() {
         {NAV.map((n) => (
           <NavLink key={n.to} to={n.to} end={n.end} className={({ isActive }) => (isActive ? 'active' : '')}>
             <span className="ico">{n.icon}</span>
-            <span>{n.label}</span>
+            <span>{n.short}</span>
           </NavLink>
         ))}
       </nav>

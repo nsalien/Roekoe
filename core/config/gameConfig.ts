@@ -217,6 +217,88 @@ export const IMPROVE_ATTR_LABEL: Record<'speed' | 'endurance' | 'orientation', s
   orientation: 'oriëntatie',
 };
 
+// ===========================================================================
+// Health: disease, injury, the infirmary and mortality
+// ===========================================================================
+
+export type Severity = 'licht' | 'matig' | 'ernstig';
+
+export interface AilmentTemplate {
+  name: string;
+  severity: Severity;
+  description: string;
+}
+
+/** Diseases a pigeon can catch (contagious if not isolated in the infirmary). */
+export const DISEASES: AilmentTemplate[] = [
+  { name: 'Het Geel', severity: 'licht', description: 'Trichomonaden: gele belslag in de keel, de duif eet moeizaam.' },
+  { name: 'Duivenpokken', severity: 'matig', description: 'Wratige bultjes op snavel en poten door een virus.' },
+  { name: 'Ornithose', severity: 'matig', description: 'Luchtweginfectie: loopneus, piepende adem en tranende ogen.' },
+  { name: 'Coccidiose', severity: 'matig', description: 'Darmparasiet: waterige groene mest en sloomheid.' },
+  { name: 'Paramyxovirose', severity: 'ernstig', description: 'Virus met draaihals en verlamming. Zeer besmettelijk en gevaarlijk.' },
+  { name: 'Salmonellose (paratyfus)', severity: 'ernstig', description: 'Bacterie die gewrichten en organen aantast; kan dodelijk zijn.' },
+];
+
+/** Injuries a pigeon can pick up (mostly during flights). Not contagious. */
+export const INJURIES: AilmentTemplate[] = [
+  { name: 'Gebroken slagpen', severity: 'licht', description: 'Een afgebroken slagpen hindert de vlucht tot ze weer aangroeit.' },
+  { name: 'Gekneusde poot', severity: 'licht', description: 'Gezwollen pootje na een botsing; de duif hinkt wat rond.' },
+  { name: 'Verrekte borstspier', severity: 'licht', description: 'Overbelaste vliegspier die rust nodig heeft.' },
+  { name: 'Verstuikte vleugel', severity: 'matig', description: 'Gezwollen vleugelgewricht; tijdelijk niet vliegklaar.' },
+  { name: 'Borstbeenkneuzing', severity: 'matig', description: 'Kneuzing na een harde landing; pijnlijk bij elke vleugelslag.' },
+  { name: 'Sperwerverwonding', severity: 'ernstig', description: 'Klauw- en beetwonden na de aanval van een roofvogel.' },
+  { name: 'Botbreuk in de vleugel', severity: 'ernstig', description: 'Gebroken vleugelbot; langdurig herstel, vliegen uitgesloten.' },
+];
+
+/** The infirmary (ziekenboeg): isolate + treat ailing birds. */
+export const INFIRMARY = {
+  baseCapacity: 4, // upgradeable later
+  medicatedFoodPerBird: 45, // weekly € per bird in the infirmary when medicated feed is on
+  doctorSalary: 400, // weekly € per pigeon doctor hired
+  physioSalary: 350, // weekly € per pigeon physiotherapist hired
+  birdsPerDoctor: 2, // one doctor treats up to this many sick birds well
+  birdsPerPhysio: 2, // one physio treats up to this many injured birds well
+} as const;
+
+/** Health-system tuning. All probabilities are per weekly tick. */
+export const HEALTH = {
+  /** Health lost when an ailment first strikes, by severity. */
+  onsetHealthHit: { licht: 10, matig: 22, ernstig: 38 } as Record<Severity, number>,
+  /** Base weekly recovery chance while resting in the infirmary. */
+  recoverInInfirmary: { licht: 0.55, matig: 0.38, ernstig: 0.22 } as Record<Severity, number>,
+  /** Recovery is much slower for a bird left in the normal loft. */
+  recoverOutsideFactor: 0.4,
+  /** Medicated feed boosts recovery of any ailment in the infirmary. */
+  medicatedFoodBonus: 0.18,
+  /** A doctor covering a sick bird boosts its disease recovery. */
+  doctorBonus: 0.28,
+  /** A physio covering an injured bird boosts its injury recovery. */
+  physioBonus: 0.28,
+  /** Recovery chance is capped here so nothing is ever guaranteed. */
+  recoverCap: 0.92,
+  /** Per-source weekly infection chance, scaled by (1.2 - targetHealth/100). */
+  contagionPerSource: 0.11,
+  /** Weekly chance a low-condition bird falls ill on its own (× (1-health/100)). */
+  spontaneousIllness: 0.05,
+  /** Extra weekly death chance from an untreated severe/moderate ailment. */
+  ailmentMortalityOutside: { licht: 0, matig: 0.03, ernstig: 0.1 } as Record<Severity, number>,
+  ailmentMortalityInfirmary: { licht: 0, matig: 0.005, ernstig: 0.025 } as Record<Severity, number>,
+  /** Chance a finished flight leaves a bird injured, plus a per-km term. */
+  flightInjuryBase: 0.025,
+  flightInjuryPerKm: 0.00018,
+} as const;
+
+/** Weekly death probability by age in weeks (interpolated). Old birds fade. */
+export const MORTALITY_CURVE: { weeks: number; p: number }[] = [
+  { weeks: 0, p: 0 },
+  { weeks: 208, p: 0.001 }, // ~4 years
+  { weeks: 312, p: 0.006 }, // ~6 years
+  { weeks: 416, p: 0.025 }, // ~8 years
+  { weeks: 520, p: 0.07 }, // ~10 years
+  { weeks: 624, p: 0.16 }, // ~12 years
+  { weeks: 780, p: 0.4 }, // ~15 years
+];
+
 /** A recurring slot on the weekly calendar. weekday null = every day. */
 export interface ScheduleSlot {
   key: string;

@@ -8,6 +8,15 @@ export type Sex = 'doffer' | 'duivin';
 export type FeedRation = 'low' | 'normal' | 'high';
 export type FlightType = 'club' | 'national';
 export type FlightStatus = 'scheduled' | 'live' | 'completed';
+export type Severity = 'licht' | 'matig' | 'ernstig';
+
+export interface Ailment {
+  kind: 'ziekte' | 'kwetsuur';
+  name: string;
+  severity: Severity;
+  description: string;
+  sinceWeek: number;
+}
 
 export interface AuthUser {
   id: string;
@@ -37,6 +46,8 @@ export interface Pigeon {
   sireId: string | null;
   damId: string | null;
   retired: boolean;
+  ailment: Ailment | null;
+  inInfirmary: boolean;
 }
 
 export interface Trade {
@@ -72,6 +83,22 @@ export interface Loft {
   seasonPoints: number;
   totalWins: number;
   isBot: boolean;
+  infirmaryCapacity: number;
+  infirmaryCount: number;
+  medicatedFood: boolean;
+  doctors: number;
+  physios: number;
+  sickCount: number;
+  injuredCount: number;
+}
+
+export interface InfirmaryConfig {
+  baseCapacity: number;
+  medicatedFoodPerBird: number;
+  doctorSalary: number;
+  physioSalary: number;
+  birdsPerDoctor: number;
+  birdsPerPhysio: number;
 }
 
 export interface FlightEntry {
@@ -176,10 +203,11 @@ export interface GameState {
   scheduledFlights: Flight[];
   rankings: RankingRow[];
   feedRations: Record<FeedRation, FeedRationInfo>;
+  infirmary: InfirmaryConfig;
   unreadNotifications: number;
 }
 
-export type NotificationKind = 'result' | 'improve' | 'info';
+export type NotificationKind = 'result' | 'improve' | 'info' | 'health';
 
 export interface AppNotification {
   id: string;

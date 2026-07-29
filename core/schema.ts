@@ -4,9 +4,18 @@
  * model and to evolve it (add fields, add entities) as the game grows.
  */
 
-import type { FeedRationKey } from './config/gameConfig.js';
+import type { FeedRationKey, Severity } from './config/gameConfig.js';
 
 export type Sex = 'doffer' | 'duivin'; // male / female
+
+/** A current disease or injury a pigeon is suffering from. */
+export interface Ailment {
+  kind: 'ziekte' | 'kwetsuur';
+  name: string;
+  severity: Severity;
+  description: string;
+  sinceWeek: number;
+}
 
 /** Core, mostly-genetic attributes plus the dynamic condition of a pigeon. */
 export interface Pigeon {
@@ -32,6 +41,9 @@ export interface Pigeon {
   price: number | null;
   createdAtWeek: number;
   retired: boolean;
+  // Health status.
+  ailment: Ailment | null; // current disease/injury, or null if healthy
+  inInfirmary: boolean; // resting in the ziekenboeg (isolated, recovering)
 }
 
 /** Everything about a player's operation that is not an individual pigeon. */
@@ -45,6 +57,11 @@ export interface Loft {
   seasonPoints: number; // ranking points accumulated this season
   totalWins: number;
   isBot: boolean;
+  // Infirmary (ziekenboeg).
+  infirmaryCapacity: number; // max birds that can rest in the infirmary at once
+  medicatedFood: boolean; // feed medicated food to infirmary birds (weekly cost)
+  doctors: number; // hired pigeon doctors (help disease recovery)
+  physios: number; // hired pigeon physiotherapists (help injury recovery)
 }
 
 export interface User {
@@ -138,7 +155,7 @@ export interface Trade {
 export interface Notification {
   id: string;
   userId: string;
-  kind: 'result' | 'improve' | 'info';
+  kind: 'result' | 'improve' | 'info' | 'health';
   title: string;
   body: string;
   flightId: string | null;

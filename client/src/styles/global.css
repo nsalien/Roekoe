@@ -361,3 +361,11 @@ a.bell-item:hover { background: var(--surface-2); }
 /* --- Ration table helpers ------------------------------------------------- */
 table.data.compact th, table.data.compact td { padding: 6px 9px; font-size: 0.82rem; }
 table.data td.good { color: var(--good); font-weight: 700; }
+
+/* --- Health / ailment badges ---------------------------------------------- */
+.badge.sev-licht { background: var(--gold-soft); color: var(--gold); }
+.badge.sev-matig { background: #ffedd5; color: #c2410c; }
+.badge.sev-ernstig { background: var(--bad-soft); color: var(--bad); }
+@media (prefers-color-scheme: dark) {
+  .badge.sev-matig { background: #3a2410; color: #fdba74; }
+}

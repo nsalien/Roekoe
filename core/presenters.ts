@@ -34,11 +34,14 @@ export function pigeonDTO(db: Database, p: Pigeon) {
     sireId: p.sireId,
     damId: p.damId,
     retired: p.retired,
+    ailment: p.ailment,
+    inInfirmary: p.inInfirmary,
   };
 }
 
 export function loftDTO(db: Database, loft: Loft) {
   const pigeons = db.pigeons.filter((p) => p.ownerId === loft.userId);
+  const infirmary = pigeons.filter((p) => p.inInfirmary);
   return {
     userId: loft.userId,
     name: loft.name,
@@ -50,6 +53,13 @@ export function loftDTO(db: Database, loft: Loft) {
     seasonPoints: loft.seasonPoints,
     totalWins: loft.totalWins,
     isBot: loft.isBot,
+    infirmaryCapacity: loft.infirmaryCapacity,
+    infirmaryCount: infirmary.length,
+    medicatedFood: loft.medicatedFood,
+    doctors: loft.doctors,
+    physios: loft.physios,
+    sickCount: infirmary.filter((p) => p.ailment?.kind === 'ziekte').length,
+    injuredCount: infirmary.filter((p) => p.ailment?.kind === 'kwetsuur').length,
   };
 }
 

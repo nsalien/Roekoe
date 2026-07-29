@@ -1,19 +1,31 @@
 /** Pigeon creation, ageing and derived helpers. */
 
-import { AGE_CURVE, RACE_AGE_WEEKS } from '../config/gameConfig.js';
+import { AGE_CURVE, MORTALITY_CURVE, RACE_AGE_WEEKS } from '../config/gameConfig.js';
 import type { Pigeon, Sex } from '../schema.js';
 import { newId } from '../store.js';
 import { generatePigeonName } from './names.js';
 import { bell, clamp, interpolate, randInt, round1 } from './util.js';
 
 const ageCurvePoints = AGE_CURVE.map((p) => ({ x: p.weeks, y: p.multiplier }));
+const mortalityPoints = MORTALITY_CURVE.map((p) => ({ x: p.weeks, y: p.p }));
 
 export function ageInWeeks(pigeon: Pigeon, currentWeek: number): number {
   return Math.max(0, currentWeek - pigeon.birthWeek);
 }
 
+/** Weekly probability this pigeon dies of old age (0..1). */
+export function ageMortality(pigeon: Pigeon, currentWeek: number): number {
+  return interpolate(mortalityPoints, ageInWeeks(pigeon, currentWeek));
+}
+
 export function canRace(pigeon: Pigeon, currentWeek: number): boolean {
-  return !pigeon.retired && ageInWeeks(pigeon, currentWeek) >= RACE_AGE_WEEKS && pigeon.health > 15;
+  return (
+    !pigeon.retired &&
+    !pigeon.ailment &&
+    !pigeon.inInfirmary &&
+    ageInWeeks(pigeon, currentWeek) >= RACE_AGE_WEEKS &&
+    pigeon.health > 15
+  );
 }
 
 /** Performance multiplier from the age curve (0..1). */
@@ -64,6 +76,8 @@ export function generatePigeon(opts: GenerateOptions): Pigeon {
     price: null,
     createdAtWeek: opts.currentWeek,
     retired: false,
+    ailment: null,
+    inInfirmary: false,
   };
 }
 

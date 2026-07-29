@@ -15,7 +15,7 @@ import { D1Store, ensureSchema } from '../../core/d1.js';
 import type { User } from '../../core/schema.js';
 import { hashPassword, verifyPassword, signToken, verifyToken } from '../../core/auth.js';
 import { newId } from '../../core/store.js';
-import { FEED_RATIONS } from '../../core/config/gameConfig.js';
+import { FEED_RATIONS, INFIRMARY } from '../../core/config/gameConfig.js';
 import {
   advanceWeek,
   buyFood,
@@ -24,6 +24,9 @@ import {
   enterFlight,
   listForSale,
   seedWorld,
+  setInfirmary,
+  setInfirmaryStaff,
+  setMedicatedFood,
   startBreeding,
   trainPigeon,
   unlist,
@@ -209,6 +212,7 @@ app.get('/state', (c) => {
     scheduledFlights: upcoming,
     rankings: rankingRows(db),
     feedRations: FEED_RATIONS,
+    infirmary: INFIRMARY,
     unreadNotifications: notificationsFor(db, user.id).unread,
   });
 });
@@ -282,6 +286,34 @@ app.post('/pigeons/:id/train', async (c) => {
   if (!['speed', 'endurance', 'orientation'].includes(body.attr)) return c.json({ error: 'Ongeldige eigenschap' }, 400);
   const store = c.get('store');
   const err = trainPigeon(store, user.id, c.req.param('id'), body.attr);
+  await store.persist();
+  return err ? c.json({ error: err }, 400) : c.json({ ok: true });
+});
+
+// --- Infirmary (ziekenboeg) ------------------------------------------------
+app.post('/pigeons/:id/infirmary', async (c) => {
+  const user = requireUser(c);
+  const body = await c.req.json().catch(() => ({}));
+  const store = c.get('store');
+  const err = setInfirmary(store, user.id, c.req.param('id'), body.in === true);
+  await store.persist();
+  return err ? c.json({ error: err }, 400) : c.json({ ok: true });
+});
+
+app.post('/loft/infirmary/medicated', async (c) => {
+  const user = requireUser(c);
+  const body = await c.req.json().catch(() => ({}));
+  const store = c.get('store');
+  const err = setMedicatedFood(store, user.id, body.on === true);
+  await store.persist();
+  return err ? c.json({ error: err }, 400) : c.json({ ok: true });
+});
+
+app.post('/loft/infirmary/staff', async (c) => {
+  const user = requireUser(c);
+  const body = await c.req.json().catch(() => ({}));
+  const store = c.get('store');
+  const err = setInfirmaryStaff(store, user.id, Number(body.doctors) || 0, Number(body.physios) || 0);
   await store.persist();
   return err ? c.json({ error: err }, 400) : c.json({ ok: true });
 });

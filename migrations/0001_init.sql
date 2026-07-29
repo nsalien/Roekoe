@@ -30,7 +30,11 @@ CREATE TABLE IF NOT EXISTS lofts (
   capacity      INTEGER NOT NULL,
   season_points INTEGER NOT NULL DEFAULT 0,
   total_wins    INTEGER NOT NULL DEFAULT 0,
-  is_bot        INTEGER NOT NULL DEFAULT 0
+  is_bot        INTEGER NOT NULL DEFAULT 0,
+  infirmary_capacity INTEGER NOT NULL DEFAULT 4,
+  medicated_food     INTEGER NOT NULL DEFAULT 0,
+  doctors            INTEGER NOT NULL DEFAULT 0,
+  physios            INTEGER NOT NULL DEFAULT 0
 );
 
 CREATE TABLE IF NOT EXISTS pigeons (
@@ -51,7 +55,9 @@ CREATE TABLE IF NOT EXISTS pigeons (
   for_sale       INTEGER NOT NULL DEFAULT 0,
   price          INTEGER,
   created_at_week INTEGER NOT NULL,
-  retired        INTEGER NOT NULL DEFAULT 0
+  retired        INTEGER NOT NULL DEFAULT 0,
+  ailment        TEXT NOT NULL DEFAULT '',
+  in_infirmary   INTEGER NOT NULL DEFAULT 0
 );
 CREATE INDEX IF NOT EXISTS idx_pigeons_owner ON pigeons (owner_id);
 

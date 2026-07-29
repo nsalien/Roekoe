@@ -155,7 +155,7 @@ function ordinal(n: number): string {
 function pushNotification(
   db: Database,
   userId: string,
-  kind: 'result' | 'improve' | 'info',
+  kind: 'result' | 'improve' | 'info' | 'health',
   title: string,
   body: string,
   flightId: string | null,
@@ -218,6 +218,19 @@ function emitFlightNotifications(db: Database, flight: Flight, sim: SimulatedFli
       'improve',
       `📈 ${imp.pigeonName} is verbeterd!`,
       `Door mee te vliegen groeide ${imp.pigeonName} in ${label} (+${imp.gain}). Deelnemen aan vluchten bouwt conditie op!`,
+      flight.id,
+    );
+  }
+
+  for (const inj of sim.injuries) {
+    if (!humanIds.has(inj.ownerId)) continue;
+    const a = inj.ailment;
+    pushNotification(
+      db,
+      inj.ownerId,
+      'health',
+      `🤕 ${inj.pigeonName} raakte gekwetst`,
+      `Tijdens de vlucht: ${a.name} (${a.severity}). ${a.description} Overweeg de ziekenboeg met een kinesist.`,
       flight.id,
     );
   }

@@ -48,6 +48,10 @@ function rowToLoft(r: any): Loft {
     seasonPoints: r.season_points,
     totalWins: r.total_wins,
     isBot: !!r.is_bot,
+    infirmaryCapacity: r.infirmary_capacity ?? 4,
+    medicatedFood: !!r.medicated_food,
+    doctors: r.doctors ?? 0,
+    physios: r.physios ?? 0,
   };
 }
 function rowToPigeon(r: any): Pigeon {
@@ -70,6 +74,8 @@ function rowToPigeon(r: any): Pigeon {
     price: r.price,
     createdAtWeek: r.created_at_week,
     retired: !!r.retired,
+    ailment: r.ailment ? JSON.parse(r.ailment) : null,
+    inInfirmary: !!r.in_infirmary,
   };
 }
 function rowToBreeding(r: any): BreedingPair {
@@ -222,8 +228,11 @@ export class D1Store implements Store {
     diff(this.snapshots.lofts, w.lofts, (l) => l.userId, {
       upsert: (l) =>
         db.prepare(
-          'INSERT OR REPLACE INTO lofts (user_id, name, money, food, feed_ration, capacity, season_points, total_wins, is_bot) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
-        ).bind(l.userId, l.name, l.money, l.food, l.feedRation, l.capacity, l.seasonPoints, l.totalWins, b(l.isBot)),
+          'INSERT OR REPLACE INTO lofts (user_id, name, money, food, feed_ration, capacity, season_points, total_wins, is_bot, infirmary_capacity, medicated_food, doctors, physios) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        ).bind(
+          l.userId, l.name, l.money, l.food, l.feedRation, l.capacity, l.seasonPoints, l.totalWins, b(l.isBot),
+          l.infirmaryCapacity, b(l.medicatedFood), l.doctors, l.physios,
+        ),
       del: (id) => db.prepare('DELETE FROM lofts WHERE user_id = ?').bind(id),
       stmts,
     });
@@ -231,10 +240,11 @@ export class D1Store implements Store {
     diff(this.snapshots.pigeons, w.pigeons, (p) => p.id, {
       upsert: (p) =>
         db.prepare(
-          'INSERT OR REPLACE INTO pigeons (id, owner_id, name, sex, birth_week, speed, endurance, orientation, libido, form, health, experience, sire_id, dam_id, for_sale, price, created_at_week, retired) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+          'INSERT OR REPLACE INTO pigeons (id, owner_id, name, sex, birth_week, speed, endurance, orientation, libido, form, health, experience, sire_id, dam_id, for_sale, price, created_at_week, retired, ailment, in_infirmary) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
         ).bind(
           p.id, p.ownerId, p.name, p.sex, p.birthWeek, p.speed, p.endurance, p.orientation, p.libido, p.form, p.health,
           p.experience, p.sireId, p.damId, b(p.forSale), p.price, p.createdAtWeek, b(p.retired),
+          p.ailment ? JSON.stringify(p.ailment) : '', b(p.inInfirmary),
         ),
       del: (id) => db.prepare('DELETE FROM pigeons WHERE id = ?').bind(id),
       stmts,
@@ -299,6 +309,12 @@ export async function ensureSchema(db: D1Database): Promise<void> {
     "ALTER TABLE flights ADD COLUMN recap TEXT NOT NULL DEFAULT ''",
     'ALTER TABLE world ADD COLUMN data_version INTEGER NOT NULL DEFAULT 0',
     'ALTER TABLE pigeons ADD COLUMN libido REAL NOT NULL DEFAULT 50',
+    "ALTER TABLE pigeons ADD COLUMN ailment TEXT NOT NULL DEFAULT ''",
+    'ALTER TABLE pigeons ADD COLUMN in_infirmary INTEGER NOT NULL DEFAULT 0',
+    'ALTER TABLE lofts ADD COLUMN infirmary_capacity INTEGER NOT NULL DEFAULT 4',
+    'ALTER TABLE lofts ADD COLUMN medicated_food INTEGER NOT NULL DEFAULT 0',
+    'ALTER TABLE lofts ADD COLUMN doctors INTEGER NOT NULL DEFAULT 0',
+    'ALTER TABLE lofts ADD COLUMN physios INTEGER NOT NULL DEFAULT 0',
   ];
   for (const sql of alters) {
     try {

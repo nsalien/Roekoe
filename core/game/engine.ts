@@ -11,6 +11,7 @@ import {
   BREEDING,
   DEFAULT_BOT_COUNT,
   FOOD_PRICE_PER_KG,
+  INFIRMARY,
   STARTING_FOOD,
   STARTING_LOFT_CAPACITY,
   STARTING_MONEY,
@@ -23,7 +24,8 @@ import { newId, type Store } from '../store.js';
 import { botTakeWeeklyActions } from './bots.js';
 import { breed } from './breeding.js';
 import { applyWeeklyCare } from './economy.js';
-import { generatePigeon } from './pigeon.js';
+import { runHealthWeek } from './health.js';
+import { canRace, generatePigeon } from './pigeon.js';
 import { clamp, randFloat, round1 } from './util.js';
 
 export const NPC_OWNER_ID = 'npc_market';
@@ -32,6 +34,27 @@ export function ownerName(db: Database, ownerId: string): string {
   if (ownerId === NPC_OWNER_ID) return 'Duivenmarkt';
   const loft = db.lofts.find((l) => l.userId === ownerId);
   return loft?.name ?? 'Onbekend';
+}
+
+/** Push an in-app notification (bell inbox). */
+function notify(
+  db: Database,
+  userId: string,
+  kind: 'result' | 'improve' | 'info' | 'health',
+  title: string,
+  body: string,
+  flightId: string | null = null,
+): void {
+  db.notifications.push({
+    id: newId('ntf'), userId, kind, title, body, flightId,
+    createdAt: new Date().toISOString(), read: false,
+  });
+  // Keep each user's inbox bounded (newest kept).
+  const mine = db.notifications.filter((n) => n.userId === userId);
+  if (mine.length > 40) {
+    const drop = new Set(mine.slice(0, mine.length - 40).map((n) => n.id));
+    db.notifications = db.notifications.filter((n) => !drop.has(n.id));
+  }
 }
 
 /** Create a starting loft + pigeons for a freshly registered user. */
@@ -47,6 +70,10 @@ export function createLoftForUser(store: Store, user: User, loftName: string): L
       seasonPoints: 0,
       totalWins: 0,
       isBot: user.isBot,
+      infirmaryCapacity: INFIRMARY.baseCapacity,
+      medicatedFood: false,
+      doctors: 0,
+      physios: 0,
     };
     db.lofts.push(loft);
     for (let i = 0; i < STARTING_PIGEONS; i++) {
@@ -83,6 +110,10 @@ export function seedWorld(store: Store): void {
         seasonPoints: 0,
         totalWins: 0,
         isBot: true,
+        infirmaryCapacity: INFIRMARY.baseCapacity,
+        medicatedFood: false,
+        doctors: 0,
+        physios: 0,
       };
       db.lofts.push(loft);
       const count = STARTING_PIGEONS + Math.floor(Math.random() * 4);
@@ -124,6 +155,14 @@ export function advanceWeek(store: Store): WeekSummary {
     for (const loft of db.lofts) {
       const owned = db.pigeons.filter((p) => p.ownerId === loft.userId);
       applyWeeklyCare(loft, owned);
+    }
+
+    // 2b. Health: disease onset/spread, recovery, and mortality. Notify humans.
+    const humanIds = new Set(db.lofts.filter((l) => !l.isBot).map((l) => l.userId));
+    for (const ev of runHealthWeek(db, week)) {
+      if (humanIds.has(ev.ownerId)) {
+        notify(db, ev.ownerId, 'health', ev.title, ev.body);
+      }
     }
 
     // 3. Hatch breeding pairs due this week.
@@ -184,6 +223,8 @@ export function enterFlight(
     const loft = db.lofts.find((l) => l.userId === userId);
     const pigeon = db.pigeons.find((p) => p.id === pigeonId);
     if (!loft || !pigeon || pigeon.ownerId !== userId) return 'Duif niet gevonden';
+    if (!canRace(pigeon, db.world.currentWeek))
+      return 'Deze duif is niet vluchtklaar (te jong, ziek, gewond of in de ziekenboeg)';
     if (flight.entries.some((e) => e.pigeonId === pigeonId)) return 'Duif is al ingeschreven';
     // A pigeon may race at most once per day.
     const day = flight.startAt.slice(0, 10);
@@ -300,6 +341,7 @@ export function trainPigeon(
     const loft = db.lofts.find((l) => l.userId === userId);
     const pigeon = db.pigeons.find((p) => p.id === pigeonId && p.ownerId === userId);
     if (!loft || !pigeon) return 'Duif niet gevonden';
+    if (pigeon.ailment || pigeon.inInfirmary) return 'Een zieke, gekwetste of herstellende duif kan niet trainen';
     if (loft.money < TRAINING.cost) return 'Niet genoeg geld om te trainen';
     if (pigeon.form < TRAINING.formCost + 5) return 'Deze duif heeft te weinig conditie om te trainen';
     if (pigeon[attr] >= TRAINING.attributeCap)
@@ -329,6 +371,8 @@ export function startBreeding(
     if (dam.sex !== 'duivin') return 'De tweede ouder moet een duivin zijn';
     if (sire.form < BREEDING.minParentForm || dam.form < BREEDING.minParentForm)
       return `Beide ouders hebben minstens ${BREEDING.minParentForm} conditie nodig`;
+    if (sire.ailment || dam.ailment) return 'Een zieke of gekwetste duif kan niet koppelen';
+    if (sire.inInfirmary || dam.inInfirmary) return 'Een duif in de ziekenboeg kan niet koppelen';
     const alreadyBreeding = db.breedingPairs.some(
       (bp) => bp.sireId === sireId || bp.damId === sireId || bp.sireId === damId || bp.damId === damId,
     );
@@ -346,6 +390,60 @@ export function startBreeding(
       hatchWeek: db.world.currentWeek + BREEDING.weeksToHatch,
       createdAtWeek: db.world.currentWeek,
     });
+    return null;
+  });
+}
+
+/** Move one of your pigeons into or out of the infirmary. */
+export function setInfirmary(
+  store: Store,
+  userId: string,
+  pigeonId: string,
+  wantIn: boolean,
+): string | null {
+  return store.mutate((db) => {
+    const pigeon = db.pigeons.find((p) => p.id === pigeonId && p.ownerId === userId);
+    if (!pigeon) return 'Duif niet gevonden';
+    if (!wantIn) {
+      pigeon.inInfirmary = false;
+      return null;
+    }
+    if (pigeon.inInfirmary) return null;
+    const loft = db.lofts.find((l) => l.userId === userId);
+    const inCount = db.pigeons.filter((p) => p.ownerId === userId && p.inInfirmary).length;
+    if (loft && inCount >= loft.infirmaryCapacity)
+      return `De ziekenboeg zit vol (max ${loft.infirmaryCapacity} duiven)`;
+    const racing = db.flights.some(
+      (f) => f.status !== 'completed' && f.entries.some((e) => e.pigeonId === pigeonId),
+    );
+    if (racing) return 'Deze duif staat ingeschreven voor een vlucht';
+    pigeon.inInfirmary = true;
+    return null;
+  });
+}
+
+/** Turn medicated feed for the infirmary on or off. */
+export function setMedicatedFood(store: Store, userId: string, on: boolean): string | null {
+  return store.mutate((db) => {
+    const loft = db.lofts.find((l) => l.userId === userId);
+    if (!loft) return 'Geen hok gevonden';
+    loft.medicatedFood = !!on;
+    return null;
+  });
+}
+
+/** Set how many pigeon doctors / physiotherapists are on the payroll. */
+export function setInfirmaryStaff(
+  store: Store,
+  userId: string,
+  doctors: number,
+  physios: number,
+): string | null {
+  return store.mutate((db) => {
+    const loft = db.lofts.find((l) => l.userId === userId);
+    if (!loft) return 'Geen hok gevonden';
+    loft.doctors = Math.round(clamp(doctors, 0, 20));
+    loft.physios = Math.round(clamp(physios, 0, 20));
     return null;
   });
 }
