@@ -109,8 +109,10 @@ small, .faint { color: var(--text-faint); font-size: 0.82rem; }
 
 /* --- Layout --------------------------------------------------------------- */
 .app { min-height: 100%; display: flex; flex-direction: column; }
-.container { width: 100%; max-width: 1120px; margin: 0 auto; padding: 0 20px; }
-.page { padding: 24px 0 64px; }
+/* Horizontal padding only (longhand), so it never clobbers .page's vertical
+   padding on the shared <main class="container page"> element. */
+.container { width: 100%; max-width: 1120px; margin: 0 auto; padding-left: 20px; padding-right: 20px; }
+.page { padding-top: 24px; padding-bottom: 64px; }
 .page-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 18px; }
 .page-head h1 { margin-bottom: 2px; }
 
@@ -281,7 +283,7 @@ hr.sep { border: none; border-top: 1px solid var(--border); margin: 16px 0; }
   h1 { font-size: 1.3rem; }
   /* Reserve room for the fixed bottom nav (~64px) PLUS the device safe-area
      inset, so the last content is always fully scrollable above the bar. */
-  .page { padding: 20px 0 calc(84px + env(safe-area-inset-bottom, 0px)); }
+  .page { padding-top: 20px; padding-bottom: calc(96px + env(safe-area-inset-bottom, 0px)); }
   .grid.pigeons { grid-template-columns: 1fr; }
 
   .bottomnav {
@@ -306,7 +308,7 @@ hr.sep { border: none; border-top: 1px solid var(--border); margin: 16px 0; }
 
 @media (max-width: 420px) {
   .grid.cols-3 { grid-template-columns: 1fr 1fr; }
-  .container { padding: 0 14px; }
+  .container { padding-left: 14px; padding-right: 14px; }
 }
 
 /* --- Notifications bell ---------------------------------------------------- */
