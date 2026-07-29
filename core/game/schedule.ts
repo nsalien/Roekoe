@@ -30,6 +30,8 @@ import { newId } from '../store.js';
 import { applyDayOfCare } from './economy.js';
 import { breed } from './breeding.js';
 import { awardBadge, awardFlightBadges, evaluateBadges } from './badges.js';
+import { ensureAuctions } from './auction.js';
+import { progressMissions } from './missions.js';
 import {
   applyFlightEffects,
   finalizeFlight,
@@ -307,6 +309,15 @@ export function tickFlights(db: Database, nowMs: number, weatherByFlight?: Map<s
         applyFlightEffects(sim, db.pigeons, db.lofts);
         emitFlightNotifications(db, flight, sim);
         awardFlightBadges(db, flight);
+        // Daily-mission progress for win/podium.
+        for (const ownerId of new Set(flight.results.map((r) => r.ownerId))) {
+          const loft = db.lofts.find((l) => l.userId === ownerId);
+          if (!loft || loft.isBot) continue;
+          const mine = flight.results.filter((r) => r.ownerId === ownerId);
+          const podiums = mine.filter((r) => r.rank <= 3).length;
+          if (podiums > 0) progressMissions(db, loft, 'podium', podiums);
+          if (mine.some((r) => r.rank === 1)) progressMissions(db, loft, 'win', 1);
+        }
       }
     }
   }
@@ -566,6 +577,7 @@ export function advanceRealtime(
 ): void {
   runDataMigrations(db);
   ensureFlightsScheduled(db, nowMs);
+  ensureAuctions(db, nowMs);
   tickDailyCare(db, nowMs);
   tickBreedingHatch(db, nowMs);
   tickFlights(db, nowMs, weatherByFlight);

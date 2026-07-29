@@ -368,6 +368,21 @@ karaktergebonden, neutrale en pikzwarte humor, met voorkeur voor alliteratie
 De speler krijgt een melding bij: vluchtuitslag, verbetering van een duif,
 kwetsuur, ziekte, herstel, sterfte en geboorte van jongen.
 
+## 12. Dagopdrachten, gebeurtenissen & veiling
+
+- **Dagopdrachten.** Elke dag krijg je 3 kleine opdrachten (bv. een duif
+  inschrijven, een vlucht winnen, voer kopen, trainen). Voltooien geeft geld +
+  XP. Elke dag dat je speelt verhoogt je **streak** met een groeiende dagbonus
+  (€10 + €5 per streakdag, tot €120).
+- **Gebeurtenissen (dilemma's).** Nu en dan (~1 op 3 dagen) verschijnt een
+  keuzekaartje: een koopman die je beste duif wil kopen, een verdwaalde duif, een
+  griepgolf, een sperwer of een "kat in een zak". Elke keuze heeft gevolgen —
+  soms winst, soms risico.
+- **Zondagveiling.** Elke **zondag van 11:00 tot 20:00** (Brussel) gaat een
+  topduif onder de hamer op de markt. Je biedt met echt geld; je inzet wordt
+  vastgehouden en terugbetaald zodra iemand je overbiedt. Bij sluiting wint de
+  hoogste bieder de duif.
+
 ---
 
 *Alle getallen hierboven zijn de tuning-constanten; pas ze aan in

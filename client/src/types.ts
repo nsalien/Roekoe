@@ -240,7 +240,37 @@ export interface GameState {
   rankings: RankingRow[];
   feedRations: Record<FeedRation, FeedRationInfo>;
   infirmary: InfirmaryConfig;
+  missions: DailyMission[];
+  streak: number;
+  pendingEvent: EventCard | null;
   unreadNotifications: number;
+}
+
+export interface DailyMission {
+  key: string;
+  label: string;
+  target: number;
+  progress: number;
+  rewardMoney: number;
+  rewardXp: number;
+  done: boolean;
+}
+
+export interface EventCard {
+  key: string;
+  title: string;
+  text: string;
+  icon: string;
+  options: { label: string }[];
+}
+
+export interface AuctionInfo {
+  id: string;
+  pigeon: Pigeon | null;
+  endAt: string;
+  currentBid: number;
+  currentBidderName: string | null;
+  minNextBid: number;
 }
 
 export type NotificationKind = 'result' | 'improve' | 'info' | 'health' | 'badge';

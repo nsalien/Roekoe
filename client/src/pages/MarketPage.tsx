@@ -1,11 +1,13 @@
 /** Duivenmarkt: browse and buy pigeons listed by other players, with sale history. */
 
 import { useCallback, useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { api } from '../api/client';
 import { useGame } from '../game/GameContext';
-import { Money, Spinner, useToast } from '../components/ui';
+import { Money, Spinner, countdownTo, useToast } from '../components/ui';
 import { PigeonCard } from '../components/PigeonCard';
-import type { Pigeon, Trade } from '../types';
+import { PigeonAvatar } from '../components/PigeonAvatar';
+import type { AuctionInfo, Pigeon, Trade } from '../types';
 
 /** A short "x min geleden" style relative time. */
 function ago(iso: string): string {
@@ -23,12 +25,14 @@ export function MarketPage() {
   const toast = useToast();
   const [listings, setListings] = useState<Pigeon[] | null>(null);
   const [trades, setTrades] = useState<Trade[]>([]);
+  const [auction, setAuction] = useState<AuctionInfo | null>(null);
   const [busy, setBusy] = useState(false);
 
   const load = useCallback(async () => {
-    const res = await api<{ listings: Pigeon[]; trades: Trade[] }>('/market');
+    const res = await api<{ listings: Pigeon[]; trades: Trade[]; auction: AuctionInfo | null }>('/market');
     setListings(res.listings);
     setTrades(res.trades ?? []);
+    setAuction(res.auction ?? null);
   }, []);
   useEffect(() => {
     load();
@@ -39,6 +43,20 @@ export function MarketPage() {
     try {
       await api('/market/buy', { method: 'POST', body: { pigeonId: p.id } });
       toast.show(`${p.name} gekocht! 🕊️`, 'ok');
+      await load();
+      await refresh();
+    } catch (e) {
+      toast.show(e instanceof Error ? e.message : 'Mislukt', 'err');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function bid(amount: number) {
+    setBusy(true);
+    try {
+      await api('/auction/bid', { method: 'POST', body: { amount } });
+      toast.show('Bod geplaatst! 🔨', 'ok');
       await load();
       await refresh();
     } catch (e) {
@@ -61,6 +79,10 @@ export function MarketPage() {
           </p>
         </div>
       </div>
+
+      {auction?.pigeon && (
+        <AuctionCard auction={auction} money={money} busy={busy} onBid={bid} />
+      )}
 
       {listings.length === 0 && (
         <div className="card muted">
@@ -115,6 +137,72 @@ export function MarketPage() {
             </table>
           </div>
         )}
+      </div>
+    </div>
+  );
+}
+
+function AuctionCard({
+  auction,
+  money,
+  busy,
+  onBid,
+}: {
+  auction: AuctionInfo;
+  money: number;
+  busy: boolean;
+  onBid: (amount: number) => void;
+}) {
+  const p = auction.pigeon!;
+  const [amount, setAmount] = useState(auction.minNextBid);
+  // Keep the input at least the minimum next bid as it rises.
+  useEffect(() => {
+    setAmount((a) => Math.max(a, auction.minNextBid));
+  }, [auction.minNextBid]);
+
+  return (
+    <div className="card" style={{ borderColor: 'var(--accent)', marginBottom: 16 }}>
+      <div className="row" style={{ justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
+        <div className="row" style={{ gap: 8 }}>
+          <span className="badge" style={{ background: 'var(--accent)', color: '#fff' }}>🔨 ZONDAGVEILING</span>
+          <strong>Topduif onder de hamer</strong>
+        </div>
+        <span className="faint">sluit {countdownTo(auction.endAt)}</span>
+      </div>
+
+      <div className="row" style={{ gap: 14, alignItems: 'center', marginTop: 12 }}>
+        <PigeonAvatar pigeon={p} size={72} />
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <Link to={`/duif/${p.id}`} style={{ color: 'inherit' }}><strong style={{ fontSize: '1.05rem' }}>{p.name}</strong></Link>
+          <div className="faint">★ talent {p.talent} · {p.sex} · geschatte waarde <Money value={p.value} /></div>
+          <div style={{ marginTop: 4 }}>
+            {auction.currentBid > 0 ? (
+              <>Hoogste bod: <strong><Money value={auction.currentBid} /></strong> <span className="faint">door {auction.currentBidderName}</span></>
+            ) : (
+              <span className="faint">Nog geen bod — startbod <Money value={auction.minNextBid} /></span>
+            )}
+          </div>
+        </div>
+      </div>
+
+      <hr className="sep" />
+      <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
+        <input
+          type="number"
+          value={amount}
+          min={auction.minNextBid}
+          step={5}
+          onChange={(e) => setAmount(Number(e.target.value))}
+          style={{ maxWidth: 140 }}
+        />
+        <button
+          className="btn accent"
+          disabled={busy || amount < auction.minNextBid || amount > money}
+          onClick={() => onBid(amount)}
+        >
+          Bied <Money value={amount} />
+        </button>
+        <span className="faint" style={{ alignSelf: 'center' }}>min. {auction.minNextBid}</span>
       </div>
     </div>
   );

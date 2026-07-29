@@ -25,6 +25,8 @@ import { newId, type Store } from '../store.js';
 import { awardBadge, evaluateBadges } from './badges.js';
 import { botTakeWeeklyActions } from './bots.js';
 import { chargeWeeklyUpkeep } from './economy.js';
+import { progressMissions } from './missions.js';
+import { resolveEvent as resolveEventCard } from './events.js';
 import { runHealthWeek } from './health.js';
 import { canRace, generatePigeon } from './pigeon.js';
 import { clamp, randFloat, round1 } from './util.js';
@@ -33,6 +35,7 @@ export const NPC_OWNER_ID = 'npc_market';
 
 export function ownerName(db: Database, ownerId: string): string {
   if (ownerId === NPC_OWNER_ID) return 'Duivenmarkt';
+  if (ownerId === 'auction_house') return 'Veilinghuis';
   const loft = db.lofts.find((l) => l.userId === ownerId);
   return loft?.name ?? 'Onbekend';
 }
@@ -79,6 +82,10 @@ export function createLoftForUser(store: Store, user: User, loftName: string): L
       level: 1,
       stats: emptyStats(),
       badges: [],
+      missions: [],
+      missionsDay: '',
+      streak: 0,
+      pendingEvent: null,
     };
     db.lofts.push(loft);
     for (let i = 0; i < STARTING_PIGEONS; i++) {
@@ -123,6 +130,10 @@ export function seedWorld(store: Store): void {
         level: 1,
         stats: emptyStats(),
         badges: [],
+        missions: [],
+        missionsDay: '',
+        streak: 0,
+        pendingEvent: null,
       };
       db.lofts.push(loft);
       const count = STARTING_PIGEONS + Math.floor(Math.random() * 4);
@@ -216,6 +227,7 @@ export function buyFood(store: Store, userId: string, kg: number): string | null
     if (loft.money < cost) return 'Niet genoeg geld';
     loft.money -= cost;
     loft.food = round1(loft.food + kg);
+    progressMissions(db, loft, 'buyfood', 1);
     return null;
   });
 }
@@ -250,6 +262,7 @@ export function enterFlight(
     loft.money -= flight.entryFee;
     flight.entries.push({ pigeonId, ownerId: userId });
     loft.stats.entries += 1;
+    progressMissions(db, loft, 'enter', 1);
     evaluateBadges(db, loft);
     return null;
   });
@@ -340,10 +353,12 @@ export function buyPigeon(store: Store, userId: string, pigeonId: string): strin
     if (db.trades.length > 200) db.trades = db.trades.slice(-200);
     // Badges for buyer + seller.
     buyer.stats.buys += 1;
+    progressMissions(db, buyer, 'market', 1);
     evaluateBadges(db, buyer);
     if (seller) {
       seller.stats.sells += 1;
       if (price > 1000) awardBadge(db, seller, 'handelaar');
+      progressMissions(db, seller, 'market', 1);
       evaluateBadges(db, seller);
     }
     return null;
@@ -371,6 +386,7 @@ export function trainPigeon(
     pigeon[attr] = round1(clamp(pigeon[attr] + gain, 0, TRAINING.attributeCap));
     pigeon.form = round1(clamp(pigeon.form - TRAINING.formCost, 0, 100));
     pigeon.experience = round1(clamp(pigeon.experience + TRAINING.experienceGain, 0, 100));
+    progressMissions(db, loft, 'train', 1);
     return null;
   });
 }
@@ -440,7 +456,17 @@ export function setInfirmary(
     );
     if (racing) return 'Deze duif staat ingeschreven voor een vlucht';
     pigeon.inInfirmary = true;
+    progressMissions(db, loft ?? undefined, 'care', 1);
     return null;
+  });
+}
+
+/** Resolve the player's pending dilemma with a chosen option. */
+export function chooseEvent(store: Store, userId: string, choice: number): string {
+  return store.mutate((db) => {
+    const loft = db.lofts.find((l) => l.userId === userId);
+    if (!loft) return '!Geen hok gevonden';
+    return resolveEventCard(db, loft, choice, db.world.currentWeek);
   });
 }
 

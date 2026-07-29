@@ -112,6 +112,22 @@ function pushBadge(db: Database, userId: string, def: BadgeDef): void {
   });
 }
 
+/** Add XP directly (missions, streaks, …) and handle level-ups. */
+export function grantXp(db: Database, loft: Loft, amount: number): void {
+  if (amount <= 0) return;
+  const before = loft.level;
+  loft.xp += amount;
+  loft.level = levelForXp(loft.xp).level;
+  if (!loft.isBot && loft.level > before) {
+    db.notifications.push({
+      id: newId('ntf'), userId: loft.userId, kind: 'badge',
+      title: `⭐ Level ${loft.level} bereikt!`,
+      body: `Je hok is gestegen naar niveau ${loft.level}. Anderen zien dit in de ranglijst.`,
+      flightId: null, createdAt: new Date().toISOString(), read: false,
+    });
+  }
+}
+
 /** Award a badge (once). Returns true if it was newly earned. */
 export function awardBadge(db: Database, loft: Loft, key: string): boolean {
   if (loft.badges.some((b) => b.key === key)) return false;

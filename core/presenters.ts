@@ -129,6 +129,21 @@ export function tradeDTO(t: Trade) {
   };
 }
 
+/** The open Sunday auction, if any, for the market page. */
+export function auctionDTO(db: Database) {
+  const a = db.auctions.find((x) => x.status === 'open');
+  if (!a) return null;
+  const p = db.pigeons.find((x) => x.id === a.pigeonId);
+  return {
+    id: a.id,
+    pigeon: p ? pigeonDTO(db, p) : null,
+    endAt: a.endAt,
+    currentBid: a.currentBid,
+    currentBidderName: a.currentBidderName,
+    minNextBid: a.currentBid > 0 ? a.currentBid + a.minIncrement : a.minBid,
+  };
+}
+
 /** Recent market sales, newest first. */
 export function recentTrades(db: Database, limit = 30) {
   return [...db.trades]

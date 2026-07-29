@@ -21,6 +21,7 @@ import {
   buyFood,
   buyPigeon,
   createLoftForUser,
+  chooseEvent,
   enterFlight,
   listForSale,
   renameLoft,
@@ -35,7 +36,10 @@ import {
 } from '../../core/game/engine.js';
 import { advanceRealtime, flightsAwaitingStart } from '../../core/game/schedule.js';
 import { fetchFlightWeather, type WeatherResult } from '../../core/game/weather.js';
+import { placeBid } from '../../core/game/auction.js';
+import { refreshDailyMissions } from '../../core/game/missions.js';
 import {
+  auctionDTO,
   flightDTO,
   liveFlightDTO,
   loftDTO,
@@ -92,7 +96,12 @@ app.use('*', async (c, next) => {
     const payload = await verifyToken(auth.slice(7), c.env.JWT_SECRET);
     if (payload) {
       const user = store.data.users.find((u) => u.id === payload.sub);
-      if (user) c.set('user', user);
+      if (user) {
+        c.set('user', user);
+        // Per-user: roll over daily missions/streak (and maybe a dilemma).
+        const loft = store.data.lofts.find((l) => l.userId === user.id);
+        if (loft && refreshDailyMissions(store.data, loft, nowMs)) await store.persist();
+      }
     }
   }
   await next();
@@ -215,8 +224,22 @@ app.get('/state', (c) => {
     rankings: rankingRows(db),
     feedRations: FEED_RATIONS,
     infirmary: INFIRMARY,
+    missions: loft?.missions ?? [],
+    streak: loft?.streak ?? 0,
+    pendingEvent: loft?.pendingEvent ?? null,
     unreadNotifications: notificationsFor(db, user.id).unread,
   });
+});
+
+// --- Events (dilemmas) -----------------------------------------------------
+app.post('/event/choose', async (c) => {
+  const user = requireUser(c);
+  const body = await c.req.json().catch(() => ({}));
+  const store = c.get('store');
+  const result = chooseEvent(store, user.id, Number(body.choice) || 0);
+  await store.persist();
+  if (result.startsWith('!')) return c.json({ error: result.slice(1) }, 400);
+  return c.json({ ok: true, result });
 });
 
 app.post('/loft/name', async (c) => {
@@ -370,7 +393,16 @@ app.get('/market', (c) => {
     .filter((p) => p.forSale && p.ownerId !== user.id)
     .map((p) => pigeonDTO(db, p))
     .sort((a, b) => (a.price ?? 0) - (b.price ?? 0));
-  return c.json({ listings, trades: recentTrades(db) });
+  return c.json({ listings, trades: recentTrades(db), auction: auctionDTO(db) });
+});
+
+app.post('/auction/bid', async (c) => {
+  const user = requireUser(c);
+  const body = await c.req.json().catch(() => ({}));
+  const store = c.get('store');
+  const err = placeBid(store.data, user.id, Number(body.amount) || 0);
+  await store.persist();
+  return err ? c.json({ error: err }, 400) : c.json({ ok: true });
 });
 
 app.post('/market/list', async (c) => {

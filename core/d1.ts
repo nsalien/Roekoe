@@ -13,6 +13,7 @@
 
 import type { D1Database, D1PreparedStatement } from '@cloudflare/workers-types';
 import type {
+  Auction,
   BreedingPair,
   Database,
   Flight,
@@ -56,6 +57,10 @@ function rowToLoft(r: any): Loft {
     level: r.level ?? 1,
     stats: r.stats ? { ...emptyStats(), ...JSON.parse(r.stats) } : emptyStats(),
     badges: r.badges ? JSON.parse(r.badges) : [],
+    missions: r.missions ? JSON.parse(r.missions) : [],
+    missionsDay: r.missions_day ?? '',
+    streak: r.streak ?? 0,
+    pendingEvent: r.pending_event ? JSON.parse(r.pending_event) : null,
   };
 }
 function rowToPigeon(r: any): Pigeon {
@@ -129,6 +134,21 @@ function rowToNotification(r: any): Notification {
     read: !!r.read,
   };
 }
+function rowToAuction(r: any): Auction {
+  return {
+    id: r.id,
+    templateKey: r.template_key,
+    pigeonId: r.pigeon_id,
+    startAt: r.start_at,
+    endAt: r.end_at,
+    minBid: r.min_bid,
+    minIncrement: r.min_increment,
+    currentBid: r.current_bid,
+    currentBidderId: r.current_bidder_id ?? null,
+    currentBidderName: r.current_bidder_name ?? null,
+    status: r.status,
+  };
+}
 function rowToTrade(r: any): Trade {
   return {
     id: r.id,
@@ -174,7 +194,7 @@ export class D1Store implements Store {
       };
     }
 
-    const [users, lofts, pigeons, breeding, flights, notifications, trades] = await Promise.all([
+    const [users, lofts, pigeons, breeding, flights, notifications, trades, auctions] = await Promise.all([
       db.prepare('SELECT * FROM users').all(),
       db.prepare('SELECT * FROM lofts').all(),
       db.prepare('SELECT * FROM pigeons').all(),
@@ -182,6 +202,7 @@ export class D1Store implements Store {
       db.prepare('SELECT * FROM flights').all(),
       db.prepare('SELECT * FROM notifications').all(),
       db.prepare('SELECT * FROM trades').all(),
+      db.prepare('SELECT * FROM auctions').all(),
     ]);
 
     dbObj.users = (users.results as any[]).map(rowToUser);
@@ -191,6 +212,7 @@ export class D1Store implements Store {
     dbObj.flights = (flights.results as any[]).map(rowToFlight);
     dbObj.notifications = (notifications.results as any[]).map(rowToNotification);
     dbObj.trades = (trades.results as any[]).map(rowToTrade);
+    dbObj.auctions = (auctions.results as any[]).map(rowToAuction);
 
     const snapshots: Record<string, Map<string, string>> = {
       users: snapshot(dbObj.users, (u) => u.id),
@@ -200,6 +222,7 @@ export class D1Store implements Store {
       flights: snapshot(dbObj.flights, (f) => f.id),
       notifications: snapshot(dbObj.notifications, (nt) => nt.id),
       trades: snapshot(dbObj.trades, (t) => t.id),
+      auctions: snapshot(dbObj.auctions, (a) => a.id),
     };
 
     return new D1Store(db, dbObj, snapshots, worldExisted);
@@ -236,11 +259,13 @@ export class D1Store implements Store {
     diff(this.snapshots.lofts, w.lofts, (l) => l.userId, {
       upsert: (l) =>
         db.prepare(
-          'INSERT OR REPLACE INTO lofts (user_id, name, money, food, feed_ration, capacity, season_points, total_wins, is_bot, infirmary_capacity, medicated_food, doctors, physios, xp, level, stats, badges) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+          'INSERT OR REPLACE INTO lofts (user_id, name, money, food, feed_ration, capacity, season_points, total_wins, is_bot, infirmary_capacity, medicated_food, doctors, physios, xp, level, stats, badges, missions, missions_day, streak, pending_event) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
         ).bind(
           l.userId, l.name, l.money, l.food, l.feedRation, l.capacity, l.seasonPoints, l.totalWins, b(l.isBot),
           l.infirmaryCapacity, b(l.medicatedFood), l.doctors, l.physios,
           l.xp, l.level, JSON.stringify(l.stats), JSON.stringify(l.badges),
+          JSON.stringify(l.missions ?? []), l.missionsDay ?? '', l.streak ?? 0,
+          l.pendingEvent ? JSON.stringify(l.pendingEvent) : '',
         ),
       del: (id) => db.prepare('DELETE FROM lofts WHERE user_id = ?').bind(id),
       stmts,
@@ -300,6 +325,15 @@ export class D1Store implements Store {
       stmts,
     });
 
+    diff(this.snapshots.auctions, w.auctions, (a) => a.id, {
+      upsert: (a) =>
+        db.prepare(
+          'INSERT OR REPLACE INTO auctions (id, template_key, pigeon_id, start_at, end_at, min_bid, min_increment, current_bid, current_bidder_id, current_bidder_name, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        ).bind(a.id, a.templateKey, a.pigeonId, a.startAt, a.endAt, a.minBid, a.minIncrement, a.currentBid, a.currentBidderId, a.currentBidderName, a.status),
+      del: (id) => db.prepare('DELETE FROM auctions WHERE id = ?').bind(id),
+      stmts,
+    });
+
     if (stmts.length > 0) await db.batch(stmts);
   }
 }
@@ -332,6 +366,10 @@ export async function ensureSchema(db: D1Database): Promise<void> {
     "ALTER TABLE lofts ADD COLUMN badges TEXT NOT NULL DEFAULT ''",
     'ALTER TABLE pigeons ADD COLUMN races INTEGER NOT NULL DEFAULT 0',
     'ALTER TABLE pigeons ADD COLUMN ever_ailed INTEGER NOT NULL DEFAULT 0',
+    "ALTER TABLE lofts ADD COLUMN missions TEXT NOT NULL DEFAULT ''",
+    "ALTER TABLE lofts ADD COLUMN missions_day TEXT NOT NULL DEFAULT ''",
+    'ALTER TABLE lofts ADD COLUMN streak INTEGER NOT NULL DEFAULT 0',
+    "ALTER TABLE lofts ADD COLUMN pending_event TEXT NOT NULL DEFAULT ''",
   ];
   for (const sql of alters) {
     try {
@@ -357,6 +395,14 @@ export async function ensureSchema(db: D1Database): Promise<void> {
   try {
     await db.exec(
       'CREATE TABLE IF NOT EXISTS trades (id TEXT PRIMARY KEY, pigeon_id TEXT NOT NULL, pigeon_name TEXT NOT NULL, seller_id TEXT NOT NULL, seller_name TEXT NOT NULL, buyer_id TEXT NOT NULL, buyer_name TEXT NOT NULL, price INTEGER NOT NULL, at TEXT NOT NULL)',
+    );
+  } catch {
+    // Already exists.
+  }
+  // Weekly auctions.
+  try {
+    await db.exec(
+      'CREATE TABLE IF NOT EXISTS auctions (id TEXT PRIMARY KEY, template_key TEXT NOT NULL, pigeon_id TEXT NOT NULL, start_at TEXT NOT NULL, end_at TEXT NOT NULL, min_bid INTEGER NOT NULL, min_increment INTEGER NOT NULL, current_bid INTEGER NOT NULL DEFAULT 0, current_bidder_id TEXT, current_bidder_name TEXT, status TEXT NOT NULL)',
     );
   } catch {
     // Already exists.

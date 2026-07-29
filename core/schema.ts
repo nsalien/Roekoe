@@ -76,6 +76,32 @@ export interface Loft {
   level: number; // derived from xp (cached for the ranking)
   stats: PlayerStats; // lifetime counters that drive badges
   badges: EarnedBadge[]; // badges earned, with timestamps
+  // Engagement.
+  missions: DailyMission[]; // today's daily tasks
+  missionsDay: string; // date key (yyyy-mm-dd, Brussels) the missions belong to
+  streak: number; // consecutive active days
+  pendingEvent: EventCard | null; // an unresolved dilemma awaiting the player
+}
+
+/** A small daily task that rewards money + XP when completed. */
+export interface DailyMission {
+  key: string;
+  label: string;
+  target: number;
+  progress: number;
+  rewardMoney: number;
+  rewardXp: number;
+  done: boolean;
+}
+
+/** A dilemma the player must resolve by picking one of the options. */
+export interface EventCard {
+  key: string;
+  title: string;
+  text: string;
+  icon: string;
+  options: { label: string }[];
+  data?: Record<string, number | string>;
 }
 
 /** Lifetime counters per loft that unlock badges. */
@@ -188,6 +214,21 @@ export interface Trade {
   at: string; // ISO timestamp
 }
 
+/** A weekly auction of a special top pigeon. */
+export interface Auction {
+  id: string;
+  templateKey: string; // one per Sunday
+  pigeonId: string;
+  startAt: string;
+  endAt: string;
+  minBid: number;
+  minIncrement: number;
+  currentBid: number;
+  currentBidderId: string | null;
+  currentBidderName: string | null;
+  status: 'open' | 'closed';
+}
+
 /** An in-app notification shown in the bell inbox. */
 export interface Notification {
   id: string;
@@ -221,6 +262,7 @@ export interface Database {
   flights: Flight[];
   notifications: Notification[];
   trades: Trade[];
+  auctions: Auction[];
 }
 
 export function emptyStats(): PlayerStats {
@@ -242,5 +284,6 @@ export function emptyDatabase(): Database {
     flights: [],
     notifications: [],
     trades: [],
+    auctions: [],
   };
 }

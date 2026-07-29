@@ -39,7 +39,11 @@ CREATE TABLE IF NOT EXISTS lofts (
   xp                 INTEGER NOT NULL DEFAULT 0,
   level              INTEGER NOT NULL DEFAULT 1,
   stats              TEXT NOT NULL DEFAULT '',
-  badges             TEXT NOT NULL DEFAULT ''
+  badges             TEXT NOT NULL DEFAULT '',
+  missions           TEXT NOT NULL DEFAULT '',
+  missions_day       TEXT NOT NULL DEFAULT '',
+  streak             INTEGER NOT NULL DEFAULT 0,
+  pending_event      TEXT NOT NULL DEFAULT ''
 );
 
 CREATE TABLE IF NOT EXISTS pigeons (
@@ -123,4 +127,18 @@ CREATE TABLE IF NOT EXISTS trades (
   buyer_name  TEXT NOT NULL,
   price       INTEGER NOT NULL,
   at          TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS auctions (
+  id                  TEXT PRIMARY KEY,
+  template_key        TEXT NOT NULL,
+  pigeon_id           TEXT NOT NULL,
+  start_at            TEXT NOT NULL,
+  end_at              TEXT NOT NULL,
+  min_bid             INTEGER NOT NULL,
+  min_increment       INTEGER NOT NULL,
+  current_bid         INTEGER NOT NULL DEFAULT 0,
+  current_bidder_id   TEXT,
+  current_bidder_name TEXT,
+  status              TEXT NOT NULL
 );

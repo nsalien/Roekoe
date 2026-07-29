@@ -120,6 +120,31 @@ export function DashboardPage() {
         )}
       </div>
 
+      {/* Daily missions */}
+      {state.missions.length > 0 && (
+        <div className="card" style={{ marginBottom: 18 }}>
+          <div className="row" style={{ justifyContent: 'space-between' }}>
+            <h2 style={{ margin: 0 }}>🎯 Dagopdrachten</h2>
+            <span className="chip week" title="Dagen op rij ingelogd">🔥 {state.streak} op rij</span>
+          </div>
+          <div className="stack" style={{ marginTop: 10, gap: 10 }}>
+            {state.missions.map((m) => (
+              <div key={m.key}>
+                <div className="row" style={{ justifyContent: 'space-between', gap: 8 }}>
+                  <span className={m.done ? 'faint' : ''}>{m.done ? '✅ ' : ''}{m.label}</span>
+                  <span className="faint" style={{ flexShrink: 0, fontSize: '0.82rem' }}>
+                    {m.progress}/{m.target} · +<Money value={m.rewardMoney} /> +{m.rewardXp}xp
+                  </span>
+                </div>
+                <div className="bar" style={{ height: 7, marginTop: 3 }}>
+                  <span style={{ width: `${Math.min(100, (m.progress / m.target) * 100)}%`, background: m.done ? 'var(--good)' : undefined }} />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className="grid cols-2">
         {/* Care panel */}
         <div className="card">

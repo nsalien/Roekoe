@@ -104,6 +104,43 @@ export function Layout() {
 
       {/* Bottom tab bar — only shown on phones (see global.css). */}
       <BottomNav />
+
+      {state?.pendingEvent && <EventModal />}
+    </div>
+  );
+}
+
+function EventModal() {
+  const { state, refresh } = useGame();
+  const toast = useToast();
+  const [busy, setBusy] = useState(false);
+  const event = state?.pendingEvent;
+  if (!event) return null;
+
+  async function choose(i: number) {
+    setBusy(true);
+    try {
+      const res = await api<{ result: string }>('/event/choose', { method: 'POST', body: { choice: i } });
+      toast.show(res.result || 'Afgehandeld', 'ok');
+      await refresh();
+    } catch (e) {
+      toast.show(e instanceof Error ? e.message : 'Mislukt', 'err');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="modal-overlay">
+      <div className="modal">
+        <h2 style={{ marginTop: 0 }}>{event.icon} {event.title}</h2>
+        <p className="muted">{event.text}</p>
+        <div className="stack" style={{ marginTop: 12, gap: 8 }}>
+          {event.options.map((o, i) => (
+            <button key={i} className="btn block" disabled={busy} onClick={() => choose(i)}>{o.label}</button>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }
