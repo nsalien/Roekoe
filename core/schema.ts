@@ -122,7 +122,7 @@ export interface Flight {
   week: number;
   templateKey: string;
   name: string;
-  type: 'club' | 'national';
+  type: 'regional' | 'national' | 'international';
   distanceKm: number;
   entryFee: number;
   fromCity: string; // release point

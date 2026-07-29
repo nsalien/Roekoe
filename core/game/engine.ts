@@ -124,7 +124,7 @@ export function seedWorld(store: Store): void {
       }
     }
     db.world.seeded = true;
-    db.world.dataVersion = 2; // freshly-seeded birds already have funny names + libido
+    db.world.dataVersion = 3; // fresh world already uses funny names, libido + tiered flights
   });
 }
 

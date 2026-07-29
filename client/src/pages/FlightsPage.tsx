@@ -5,7 +5,7 @@ import { Link } from 'react-router-dom';
 import { api } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
 import { useGame } from '../game/GameContext';
-import { Money, Spinner, countdownTo, formatDuration, formatFlightTime, useToast } from '../components/ui';
+import { Money, Spinner, countdownTo, formatDuration, formatFlightTime, tierLabel, useToast } from '../components/ui';
 import type { Flight } from '../types';
 
 /** A ticking clock so countdowns update every second. */
@@ -110,7 +110,7 @@ export function FlightsPage() {
                   <div>
                     <div className="row" style={{ gap: 8 }}>
                       <h2 style={{ margin: 0 }}>{f.name}</h2>
-                      <span className={`badge ${f.type}`}>{f.type === 'club' ? 'Club' : 'Nationaal'}</span>
+                      <span className={`badge ${f.type}`}>{tierLabel(f.type)}</span>
                     </div>
                     <div className="faint" style={{ marginTop: 2 }}>
                       🕊️ {f.fromCity} → {f.toCity} · {f.distanceKm} km · inschrijfgeld <Money value={f.entryFee} />
@@ -212,7 +212,7 @@ function FlightResultCard({ flight, meId }: { flight: Flight; meId?: string }) {
         <div>
           <div className="row" style={{ gap: 8 }}>
             <strong>{flight.name}</strong>
-            <span className={`badge ${flight.type}`}>{flight.type === 'club' ? 'Club' : 'Nat.'}</span>
+            <span className={`badge ${flight.type}`}>{tierLabel(flight.type)}</span>
           </div>
           <div className="faint">{formatFlightTime(flight.startAt)} · {flight.fromCity} → {flight.toCity} · {flight.weather}</div>
         </div>

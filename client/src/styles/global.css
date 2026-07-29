@@ -216,7 +216,12 @@ input:focus, select:focus { outline: none; border-color: var(--brand); box-shado
 .badge.sex-doffer { background: #e0edff; color: #1d4ed8; }
 .badge.sex-duivin { background: #fce7f3; color: #be185d; }
 .badge.club { background: var(--brand-soft); color: var(--brand-ink); }
+.badge.regional { background: var(--brand-soft); color: var(--brand-ink); }
 .badge.national { background: var(--gold-soft); color: var(--gold); }
+.badge.international { background: #ede9fe; color: #6d28d9; }
+@media (prefers-color-scheme: dark) {
+  .badge.international { background: #241a3f; color: #c4b5fd; }
+}
 .badge.sale { background: var(--good-soft); color: var(--good); }
 .badge.bot { background: var(--surface-2); color: var(--text-soft); border: 1px solid var(--border); }
 @media (prefers-color-scheme: dark) {

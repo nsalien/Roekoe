@@ -13,13 +13,14 @@
  */
 
 import {
-  HOME_CITY,
+  FLIGHT_TIERS,
   IMPROVE_ATTR_LABEL,
-  RACE_RELEASES,
+  RACE_CITIES,
   REAL_SCHEDULE,
   SCHEDULE_HORIZON_DAYS,
   TIMEZONE,
-  type RaceRelease,
+  type FlightTier,
+  type RaceCity,
 } from '../config/gameConfig.js';
 import type { Database, Flight, FlightResult } from '../schema.js';
 import { newId } from '../store.js';
@@ -36,7 +37,7 @@ import type { WeatherResult } from './weather.js';
 import { generatePigeonName, isLegacyName } from './names.js';
 import { canRace, talent } from './pigeon.js';
 import { NPC_OWNER_ID, ownerName } from './engine.js';
-import { bell, round1 } from './util.js';
+import { bell, haversineKm, pick, round1 } from './util.js';
 
 // --- Time-zone helpers -----------------------------------------------------
 
@@ -71,17 +72,43 @@ function wallToUtcMs(tz: string, y: number, m: number, d: number, hh: number, mm
 
 // --- Scheduling ------------------------------------------------------------
 
-function makeRealtimeFlight(templateKey: string, release: RaceRelease, startMs: number, week: number): Flight {
+/** The pool of cities a tier draws its start/finish from. */
+function tierPool(tier: FlightTier): RaceCity[] {
+  if (tier === 'regional') return RACE_CITIES.filter((c) => c.flanders);
+  if (tier === 'national') return RACE_CITIES.filter((c) => c.country === 'BE');
+  return RACE_CITIES; // international: anywhere
+}
+
+/** Pick a random start + finish for a tier, within its distance window. */
+export function pickRoute(tier: FlightTier): { fromCity: string; toCity: string; distanceKm: number } {
+  const pool = tierPool(tier);
+  const { minKm, maxKm } = FLIGHT_TIERS[tier];
+  let fallback: { a: RaceCity; b: RaceCity; d: number } | null = null;
+  for (let i = 0; i < 60; i++) {
+    const a = pick(pool);
+    const b = pick(pool);
+    if (a.name === b.name) continue;
+    const d = haversineKm(a, b);
+    if (d >= minKm && d <= maxKm) return { fromCity: a.name, toCity: b.name, distanceKm: Math.round(d) };
+    if (!fallback) fallback = { a, b, d }; // any distinct pair, just in case
+  }
+  const f = fallback ?? { a: pool[0], b: pool[1], d: haversineKm(pool[0], pool[1]) };
+  return { fromCity: f.a.name, toCity: f.b.name, distanceKm: Math.round(f.d) };
+}
+
+function makeRealtimeFlight(templateKey: string, tier: FlightTier, startMs: number, week: number): Flight {
+  const cfg = FLIGHT_TIERS[tier];
+  const route = pickRoute(tier);
   return {
     id: newId('flt'),
     week,
     templateKey,
-    name: release.name,
-    type: release.type,
-    distanceKm: release.distanceKm,
-    entryFee: release.entryFee,
-    fromCity: release.city,
-    toCity: HOME_CITY,
+    name: cfg.name,
+    type: tier,
+    distanceKm: route.distanceKm,
+    entryFee: cfg.entryFee,
+    fromCity: route.fromCity,
+    toCity: route.toCity,
     startAt: new Date(startMs).toISOString(),
     status: 'scheduled',
     entries: [],
@@ -139,8 +166,7 @@ export function ensureFlightsScheduled(db: Database, nowMs: number): void {
       const templateKey = `${slot.key}:${y}-${m}-${d}`;
       if (db.flights.some((f) => f.templateKey === templateKey)) continue;
 
-      const release = RACE_RELEASES[slot.releaseKey];
-      const flight = makeRealtimeFlight(templateKey, release, startMs, db.world.currentWeek);
+      const flight = makeRealtimeFlight(templateKey, slot.tier, startMs, db.world.currentWeek);
       db.flights.push(flight);
       botsEnterFlight(db, flight);
     }
@@ -292,6 +318,21 @@ function runDataMigrations(db: Database): void {
       if (typeof p.libido !== 'number' || Number.isNaN(p.libido)) p.libido = round1(bell(20, 90));
     }
     db.world.dataVersion = 2;
+  }
+  if ((db.world.dataVersion ?? 0) < 3) {
+    // Flights now have varied, randomised routes across three tiers. Re-route
+    // any already-scheduled flight so old fixed Gent-bound races get variety.
+    for (const f of db.flights) {
+      if (f.status !== 'scheduled') continue;
+      const tier: FlightTier = f.distanceKm > 350 ? 'international' : f.distanceKm >= 150 ? 'national' : 'regional';
+      const route = pickRoute(tier);
+      f.type = tier;
+      f.name = FLIGHT_TIERS[tier].name;
+      f.fromCity = route.fromCity;
+      f.toCity = route.toCity;
+      f.distanceKm = route.distanceKm;
+    }
+    db.world.dataVersion = 3;
   }
 }
 

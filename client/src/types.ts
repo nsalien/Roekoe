@@ -6,7 +6,7 @@
 
 export type Sex = 'doffer' | 'duivin';
 export type FeedRation = 'low' | 'normal' | 'high';
-export type FlightType = 'club' | 'national';
+export type FlightType = 'regional' | 'national' | 'international';
 export type FlightStatus = 'scheduled' | 'live' | 'completed';
 export type Severity = 'licht' | 'matig' | 'ernstig';
 

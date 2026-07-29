@@ -46,6 +46,17 @@ export function StatBar({
   );
 }
 
+/** Dutch label for a flight tier (tolerates legacy 'club'/'national' values). */
+export function tierLabel(type: string): string {
+  switch (type) {
+    case 'regional': return 'Regionaal';
+    case 'national': return 'Nationaal';
+    case 'international': return 'Internationaal';
+    case 'club': return 'Club';
+    default: return 'Nationaal';
+  }
+}
+
 /** Format seconds as h:mm:ss for flight times. */
 export function formatDuration(seconds: number): string {
   const h = Math.floor(seconds / 3600);

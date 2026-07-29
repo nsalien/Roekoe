@@ -83,9 +83,12 @@ export const FLIGHT_TEMPLATES: FlightTemplate[] = [
  * Prize money paid out to the top finishers of a flight, scaled by flight type.
  * Index 0 = winner, 1 = second, etc. Ranks beyond the array get nothing.
  */
-export const PRIZE_MONEY: Record<'club' | 'national', number[]> = {
-  club: [400, 250, 150, 90, 60, 40, 25, 15],
-  national: [1500, 900, 550, 350, 220, 140, 90, 60, 40, 25],
+export type FlightTier = 'regional' | 'national' | 'international';
+
+export const PRIZE_MONEY: Record<FlightTier, number[]> = {
+  regional: [300, 180, 110, 70, 45, 30, 20, 12],
+  national: [900, 550, 350, 220, 140, 90, 60, 40, 25, 15],
+  international: [2200, 1300, 800, 500, 320, 200, 130, 85, 55, 35, 25, 15],
 };
 
 /** Ranking points awarded by finishing position (index 0 = winner). */
@@ -156,13 +159,10 @@ export const BOT_LOFT_NAMES = [
 /** Time zone flights are scheduled in (wall-clock hours below are in this zone). */
 export const TIMEZONE = 'Europe/Brussels';
 
-/** Home base — birds are released down south and fly home to here. */
-export const HOME_CITY = 'Gent';
-
 /**
  * Flights run in REAL time: a race that would take a pigeon ~3 hours to fly
- * home actually takes ~3 hours in the game. (Minimum below just avoids
- * zero-length edge cases.)
+ * actually takes ~3 hours in the game. (Minimum below just avoids zero-length
+ * edge cases.)
  */
 export const MIN_FLIGHT_SECONDS = 300;
 
@@ -172,30 +172,101 @@ export const COMMENTARY_INTERVAL_SECONDS = 600;
 /** How many days of flights are kept on the calendar ahead of "now". */
 export const SCHEDULE_HORIZON_DAYS = 4;
 
-/** A release point. Birds fly from `city` home to HOME_CITY over `distanceKm`. */
-export interface RaceRelease {
-  key: string;
-  city: string;
-  distanceKm: number;
-  type: 'club' | 'national';
+export type Country = 'BE' | 'NL' | 'FR' | 'GB' | 'LU' | 'DE';
+
+/** A racing city, with coordinates used for distance + real weather. */
+export interface RaceCity {
   name: string;
-  entryFee: number;
+  lat: number;
+  lon: number;
+  country: Country;
+  flanders?: boolean; // true for cities in Vlaanderen (regional races)
 }
 
-export const RACE_RELEASES: Record<string, RaceRelease> = {
-  avondsprint: { key: 'avondsprint', city: 'Ath', distanceKm: 50, type: 'club', name: 'Avondsprint', entryFee: 20 },
-  quievrain: { key: 'quievrain', city: 'Quiévrain', distanceKm: 80, type: 'club', name: 'Clubvlucht — Sprint', entryFee: 25 },
-  parijs: { key: 'parijs', city: 'Parijs', distanceKm: 300, type: 'club', name: 'Clubvlucht — Midfond', entryFee: 40 },
-  bourges: { key: 'bourges', city: 'Bourges', distanceKm: 490, type: 'national', name: 'Nationale Fondvlucht', entryFee: 80 },
-};
+/**
+ * Cities used to build flights. Regional races pick two Flemish cities,
+ * national races two Belgian cities, international races any two across the
+ * six countries. Routes (start + finish) are randomised per flight.
+ */
+export const RACE_CITIES: RaceCity[] = [
+  // Vlaanderen (BE, regional pool)
+  { name: 'Gent', lat: 51.05, lon: 3.72, country: 'BE', flanders: true },
+  { name: 'Antwerpen', lat: 51.22, lon: 4.4, country: 'BE', flanders: true },
+  { name: 'Brugge', lat: 51.21, lon: 3.22, country: 'BE', flanders: true },
+  { name: 'Kortrijk', lat: 50.83, lon: 3.26, country: 'BE', flanders: true },
+  { name: 'Hasselt', lat: 50.93, lon: 5.34, country: 'BE', flanders: true },
+  { name: 'Leuven', lat: 50.88, lon: 4.7, country: 'BE', flanders: true },
+  { name: 'Oostende', lat: 51.23, lon: 2.92, country: 'BE', flanders: true },
+  { name: 'Mechelen', lat: 51.03, lon: 4.48, country: 'BE', flanders: true },
+  { name: 'Aalst', lat: 50.94, lon: 4.04, country: 'BE', flanders: true },
+  { name: 'Sint-Niklaas', lat: 51.16, lon: 4.14, country: 'BE', flanders: true },
+  { name: 'Roeselare', lat: 50.95, lon: 3.13, country: 'BE', flanders: true },
+  { name: 'Turnhout', lat: 51.32, lon: 4.95, country: 'BE', flanders: true },
+  { name: 'Genk', lat: 50.97, lon: 5.5, country: 'BE', flanders: true },
+  { name: 'Ieper', lat: 50.85, lon: 2.89, country: 'BE', flanders: true },
+  { name: 'Dendermonde', lat: 51.03, lon: 4.1, country: 'BE', flanders: true },
+  { name: 'Geraardsbergen', lat: 50.77, lon: 3.88, country: 'BE', flanders: true },
+  // Wallonië + Brussel (BE, national pool)
+  { name: 'Brussel', lat: 50.85, lon: 4.35, country: 'BE' },
+  { name: 'Charleroi', lat: 50.41, lon: 4.44, country: 'BE' },
+  { name: 'Luik', lat: 50.63, lon: 5.57, country: 'BE' },
+  { name: 'Namen', lat: 50.47, lon: 4.87, country: 'BE' },
+  { name: 'Bergen', lat: 50.45, lon: 3.95, country: 'BE' },
+  { name: 'Doornik', lat: 50.61, lon: 3.39, country: 'BE' },
+  { name: 'Aarlen', lat: 49.68, lon: 5.81, country: 'BE' },
+  { name: 'Bastenaken', lat: 50.0, lon: 5.72, country: 'BE' },
+  // Nederland
+  { name: 'Amsterdam', lat: 52.37, lon: 4.9, country: 'NL' },
+  { name: 'Rotterdam', lat: 51.92, lon: 4.48, country: 'NL' },
+  { name: 'Eindhoven', lat: 51.44, lon: 5.48, country: 'NL' },
+  { name: 'Breda', lat: 51.59, lon: 4.78, country: 'NL' },
+  { name: 'Maastricht', lat: 50.85, lon: 5.69, country: 'NL' },
+  { name: 'Utrecht', lat: 52.09, lon: 5.12, country: 'NL' },
+  { name: 'Groningen', lat: 53.22, lon: 6.57, country: 'NL' },
+  { name: 'Venlo', lat: 51.37, lon: 6.17, country: 'NL' },
+  // Frankrijk
+  { name: 'Rijsel', lat: 50.63, lon: 3.06, country: 'FR' },
+  { name: 'Parijs', lat: 48.85, lon: 2.35, country: 'FR' },
+  { name: 'Bourges', lat: 47.08, lon: 2.4, country: 'FR' },
+  { name: 'Reims', lat: 49.26, lon: 4.03, country: 'FR' },
+  { name: 'Amiens', lat: 49.9, lon: 2.3, country: 'FR' },
+  { name: 'Straatsburg', lat: 48.57, lon: 7.75, country: 'FR' },
+  { name: 'Orléans', lat: 47.9, lon: 1.9, country: 'FR' },
+  { name: 'Limoges', lat: 45.83, lon: 1.26, country: 'FR' },
+  // Engeland
+  { name: 'Londen', lat: 51.51, lon: -0.13, country: 'GB' },
+  { name: 'Dover', lat: 51.13, lon: 1.31, country: 'GB' },
+  { name: 'Canterbury', lat: 51.28, lon: 1.08, country: 'GB' },
+  { name: 'Brighton', lat: 50.82, lon: -0.14, country: 'GB' },
+  // Luxemburg
+  { name: 'Luxemburg', lat: 49.61, lon: 6.13, country: 'LU' },
+  { name: 'Ettelbruck', lat: 49.85, lon: 6.1, country: 'LU' },
+  // Duitsland
+  { name: 'Keulen', lat: 50.94, lon: 6.96, country: 'DE' },
+  { name: 'Aken', lat: 50.78, lon: 6.08, country: 'DE' },
+  { name: 'Düsseldorf', lat: 51.23, lon: 6.78, country: 'DE' },
+  { name: 'Trier', lat: 49.75, lon: 6.64, country: 'DE' },
+  { name: 'Frankfurt', lat: 50.11, lon: 8.68, country: 'DE' },
+];
 
-/** Coordinates (lat, lon) used to fetch real weather + wind along the route. */
-export const CITY_COORDS: Record<string, { lat: number; lon: number }> = {
-  Gent: { lat: 51.05, lon: 3.72 },
-  Ath: { lat: 50.63, lon: 3.78 },
-  Quiévrain: { lat: 50.4, lon: 3.68 },
-  Parijs: { lat: 48.85, lon: 2.35 },
-  Bourges: { lat: 47.08, lon: 2.4 },
+/** Coordinates by city name (derived), for weather lookups. */
+export const CITY_COORDS: Record<string, { lat: number; lon: number }> = Object.fromEntries(
+  RACE_CITIES.map((c) => [c.name, { lat: c.lat, lon: c.lon }]),
+);
+
+/** Per-tier settings: which cities, distance window, entry fee and label. */
+export interface TierConfig {
+  label: string;
+  name: string;
+  entryFee: number;
+  minKm: number;
+  maxKm: number;
+}
+
+export const FLIGHT_TIERS: Record<FlightTier, TierConfig> = {
+  regional: { label: 'Regionaal', name: 'Regiovlucht (Vlaanderen)', entryFee: 20, minKm: 30, maxKm: 160 },
+  national: { label: 'Nationaal', name: 'Nationale vlucht (België)', entryFee: 40, minKm: 60, maxKm: 290 },
+  international: { label: 'Internationaal', name: 'Internationale vlucht', entryFee: 80, minKm: 180, maxKm: 950 },
 };
 
 /**
@@ -302,17 +373,18 @@ export const MORTALITY_CURVE: { weeks: number; p: number }[] = [
 /** A recurring slot on the weekly calendar. weekday null = every day. */
 export interface ScheduleSlot {
   key: string;
-  releaseKey: string;
+  tier: FlightTier;
   weekday: number | null; // 0=Sunday .. 6=Saturday
   hour: number;
   minute: number;
 }
 
 export const REAL_SCHEDULE: ScheduleSlot[] = [
-  { key: 'daily-sprint', releaseKey: 'quievrain', weekday: null, hour: 11, minute: 0 },
-  { key: 'daily-midfond', releaseKey: 'parijs', weekday: null, hour: 17, minute: 0 },
-  { key: 'daily-avond', releaseKey: 'avondsprint', weekday: null, hour: 21, minute: 0 },
-  { key: 'sat-fond', releaseKey: 'bourges', weekday: 6, hour: 9, minute: 0 },
+  { key: 'reg-morning', tier: 'regional', weekday: null, hour: 9, minute: 0 },
+  { key: 'reg-midday', tier: 'regional', weekday: null, hour: 12, minute: 30 },
+  { key: 'nat-afternoon', tier: 'national', weekday: null, hour: 16, minute: 0 },
+  { key: 'intl-evening', tier: 'international', weekday: null, hour: 20, minute: 0 },
+  { key: 'sat-intl', tier: 'international', weekday: 6, hour: 8, minute: 0 },
 ];
 
 // ===========================================================================
