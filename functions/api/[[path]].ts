@@ -328,8 +328,7 @@ app.get('/breeding', (c) => {
       id: bp.id,
       sire: db.pigeons.find((p) => p.id === bp.sireId)?.name ?? '?',
       dam: db.pigeons.find((p) => p.id === bp.damId)?.name ?? '?',
-      hatchWeek: bp.hatchWeek,
-      weeksLeft: Math.max(0, bp.hatchWeek - db.world.currentWeek),
+      hatchAt: bp.hatchAt,
     }));
   return c.json({ pairs });
 });

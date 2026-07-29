@@ -244,8 +244,9 @@ export function DashboardPage() {
         <div className="card" style={{ marginTop: 18, borderStyle: 'dashed' }}>
           <strong>Beheerder</strong>
           <p className="muted" style={{ margin: '4px 0 0' }}>
-            Jij bent de spelleider. Gebruik <em>“Volgende week”</em> bovenaan om de week af te sluiten: dan worden alle
-            vluchten gevlogen, duiven gevoerd en jongen geboren. Week {world.currentWeek}.
+            Jij bent de spelleider. Vluchten, voeding (dagelijks) en broedsels lopen vanzelf in echte tijd. Gebruik
+            <em> “Volgende week”</em> bovenaan om de vaste onkosten te verrekenen, ziekte/herstel/sterfte te verwerken
+            en het seizoen te laten vorderen. Week {world.currentWeek}.
           </p>
         </div>
       )}

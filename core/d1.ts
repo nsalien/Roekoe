@@ -85,6 +85,7 @@ function rowToBreeding(r: any): BreedingPair {
     sireId: r.sire_id,
     damId: r.dam_id,
     hatchWeek: r.hatch_week,
+    hatchAt: r.hatch_at ?? '',
     createdAtWeek: r.created_at_week,
   };
 }
@@ -163,6 +164,7 @@ export class D1Store implements Store {
         seasonYear: worldRow.season_year,
         seeded: !!worldRow.seeded,
         dataVersion: worldRow.data_version ?? 0,
+        lastDailyTick: worldRow.last_daily_tick ?? '',
       };
     }
 
@@ -206,13 +208,13 @@ export class D1Store implements Store {
     const wd = w.world;
     if (!this.worldExisted) {
       stmts.push(
-        db.prepare('INSERT INTO world (id, current_week, season_year, seeded, data_version, version) VALUES (1, ?, ?, ?, ?, 1)')
-          .bind(wd.currentWeek, wd.seasonYear, b(wd.seeded), wd.dataVersion ?? 0),
+        db.prepare('INSERT INTO world (id, current_week, season_year, seeded, data_version, last_daily_tick, version) VALUES (1, ?, ?, ?, ?, ?, 1)')
+          .bind(wd.currentWeek, wd.seasonYear, b(wd.seeded), wd.dataVersion ?? 0, wd.lastDailyTick ?? ''),
       );
     } else {
       stmts.push(
-        db.prepare('UPDATE world SET current_week = ?, season_year = ?, seeded = ?, data_version = ?, version = version + 1 WHERE id = 1')
-          .bind(wd.currentWeek, wd.seasonYear, b(wd.seeded), wd.dataVersion ?? 0),
+        db.prepare('UPDATE world SET current_week = ?, season_year = ?, seeded = ?, data_version = ?, last_daily_tick = ?, version = version + 1 WHERE id = 1')
+          .bind(wd.currentWeek, wd.seasonYear, b(wd.seeded), wd.dataVersion ?? 0, wd.lastDailyTick ?? ''),
       );
     }
 
@@ -253,8 +255,8 @@ export class D1Store implements Store {
     diff(this.snapshots.breedingPairs, w.breedingPairs, (bp) => bp.id, {
       upsert: (bp) =>
         db.prepare(
-          'INSERT OR REPLACE INTO breeding_pairs (id, owner_id, sire_id, dam_id, hatch_week, created_at_week) VALUES (?, ?, ?, ?, ?, ?)',
-        ).bind(bp.id, bp.ownerId, bp.sireId, bp.damId, bp.hatchWeek, bp.createdAtWeek),
+          'INSERT OR REPLACE INTO breeding_pairs (id, owner_id, sire_id, dam_id, hatch_week, hatch_at, created_at_week) VALUES (?, ?, ?, ?, ?, ?, ?)',
+        ).bind(bp.id, bp.ownerId, bp.sireId, bp.damId, bp.hatchWeek, bp.hatchAt, bp.createdAtWeek),
       del: (id) => db.prepare('DELETE FROM breeding_pairs WHERE id = ?').bind(id),
       stmts,
     });
@@ -308,6 +310,8 @@ export async function ensureSchema(db: D1Database): Promise<void> {
     "ALTER TABLE flights ADD COLUMN sim TEXT NOT NULL DEFAULT '[]'",
     "ALTER TABLE flights ADD COLUMN recap TEXT NOT NULL DEFAULT ''",
     'ALTER TABLE world ADD COLUMN data_version INTEGER NOT NULL DEFAULT 0',
+    "ALTER TABLE world ADD COLUMN last_daily_tick TEXT NOT NULL DEFAULT ''",
+    "ALTER TABLE breeding_pairs ADD COLUMN hatch_at TEXT NOT NULL DEFAULT ''",
     'ALTER TABLE pigeons ADD COLUMN libido REAL NOT NULL DEFAULT 50',
     "ALTER TABLE pigeons ADD COLUMN ailment TEXT NOT NULL DEFAULT ''",
     'ALTER TABLE pigeons ADD COLUMN in_infirmary INTEGER NOT NULL DEFAULT 0',

@@ -1,4 +1,4 @@
-/** Weekly economy: feeding, condition recovery and upkeep costs. */
+/** Economy: daily feeding + condition recovery, and the weekly upkeep charge. */
 
 import {
   FEED_RATIONS,
@@ -8,64 +8,50 @@ import {
 import type { Loft, Pigeon } from '../schema.js';
 import { clamp, hashString, round1 } from './util.js';
 
-export interface WeeklyReport {
-  userId: string;
-  foodConsumed: number;
-  foodShortfall: boolean;
-  upkeep: number;
-  moneyAfter: number;
-}
-
 /**
- * Process one week of care for a single loft and its pigeons (mutates them).
+ * Apply ONE day of care to a loft: eat food, then recover (or lose) energie and
+ * health, and drift libido. Returns whether the loft could feed everyone.
  *
- * Rest + food restore a bird's ENERGIE (`form`); experienced birds recover
- * faster. Good CONDITIE (`endurance`) lifts health, and libido drifts toward a
- * bird's conditie + energie. Underfeeding drains energie and health. Upkeep is
- * charged regardless.
+ * Rest + food restore ENERGIE (`form`), faster for experienced birds. Good
+ * CONDITIE (`endurance`) lifts health. Libido drifts toward a bird's conditie +
+ * energie, though a stable ~12% "frisky" minority keeps a high drive anyway.
+ * Weekly ration figures are applied at 1/7 per day.
  */
-export function applyWeeklyCare(loft: Loft, pigeons: Pigeon[]): WeeklyReport {
+export function applyDayOfCare(loft: Loft, pigeons: Pigeon[]): boolean {
   const active = pigeons.filter((p) => !p.retired);
+  if (active.length === 0) return true;
   const ration = FEED_RATIONS[loft.feedRation];
-  const needed = round1(active.length * ration.foodPerPigeon);
+  const need = round1(active.length * ration.foodPerPigeon);
 
   let fed = true;
-  if (loft.food >= needed) {
-    loft.food = round1(loft.food - needed);
+  if (loft.food >= need) {
+    loft.food = round1(loft.food - need);
   } else {
-    // Not enough food: feed what we can, condition suffers.
     fed = false;
     loft.food = 0;
   }
 
   for (const p of active) {
     if (fed) {
-      // Energie recovers with rest + food, faster for experienced birds.
-      const energyGain = ration.formRecovery * (1 + p.experience / 200); // up to +50%
+      const energyGain = (ration.formRecovery / 7) * (1 + p.experience / 200); // exp speeds recovery
       p.form = round1(clamp(p.form + energyGain, 0, 100));
-      // Health recovers with food, boosted by good conditie.
-      p.health = round1(clamp(p.health + ration.healthRecovery + p.endurance / 40, 0, 100));
+      p.health = round1(clamp(p.health + ration.healthRecovery / 7 + p.endurance / 280, 0, 100));
     } else {
-      p.form = round1(clamp(p.form - 8, 0, 100));
-      p.health = round1(clamp(p.health - 6, 0, 100));
+      p.form = round1(clamp(p.form - 8 / 7, 0, 100));
+      p.health = round1(clamp(p.health - 6 / 7, 0, 100));
     }
-    // Libido drifts toward a blend of conditie + energie. But ~12% of birds are
-    // innately frisky (a stable per-bird trait) and keep a high drive even on
-    // low energie, so a few low-energy duiven still have good libido.
-    let libidoTarget = p.endurance * 0.5 + p.form * 0.5;
+    // Libido drifts toward conditie + energie; a frisky minority stays high.
+    let target = p.endurance * 0.5 + p.form * 0.5;
     const h = hashString(p.id);
-    if (h % 100 < 12) libidoTarget = Math.max(libidoTarget, 65 + ((h >> 7) % 25)); // 65-89, stable
-    p.libido = round1(clamp(p.libido + (libidoTarget - p.libido) * 0.25, 0, 100));
+    if (h % 100 < 12) target = Math.max(target, 65 + ((h >> 7) % 25));
+    p.libido = round1(clamp(p.libido + (target - p.libido) * 0.04, 0, 100));
   }
+  return fed;
+}
 
-  const upkeep = WEEKLY_UPKEEP_BASE + active.length * WEEKLY_UPKEEP_PER_PIGEON;
+/** Charge a loft its weekly maintenance overhead (money). */
+export function chargeWeeklyUpkeep(loft: Loft, activeCount: number): number {
+  const upkeep = WEEKLY_UPKEEP_BASE + activeCount * WEEKLY_UPKEEP_PER_PIGEON;
   loft.money -= upkeep;
-
-  return {
-    userId: loft.userId,
-    foodConsumed: fed ? needed : loft.food,
-    foodShortfall: !fed,
-    upkeep,
-    moneyAfter: loft.money,
-  };
+  return upkeep;
 }

@@ -42,11 +42,12 @@ export function breed(sire: Pigeon, dam: Pigeon, ownerId: string, hatchWeek: num
     const endurance = inherit(sire.endurance, dam.endurance);
     const orientation = inherit(sire.orientation, dam.orientation);
     const libido = inherit(sire.libido, dam.libido);
+    const sex: 'doffer' | 'duivin' = Math.random() < 0.5 ? 'doffer' : 'duivin';
     young.push({
       id: newId('pig'),
       ownerId,
-      name: generatePigeonName({ speed, endurance, orientation }),
-      sex: Math.random() < 0.5 ? 'doffer' : 'duivin',
+      name: generatePigeonName(sex, { speed, endurance, orientation }),
+      sex,
       birthWeek: hatchWeek,
       speed,
       endurance,

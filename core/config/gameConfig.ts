@@ -21,12 +21,15 @@ export const STARTING_MONEY = 5000;
 /** How many pigeons a new player starts their loft with. */
 export const STARTING_PIGEONS = 6;
 
-/** Food (kg) a new player starts with in stock. */
-export const STARTING_FOOD = 200;
+/** Food (kg) a new player starts with in stock. Consumed daily, so this is a
+ *  buffer of roughly two weeks for a starting loft. */
+export const STARTING_FOOD = 80;
 
 /**
- * Feed rations. A higher ration recovers form faster but costs more food and
- * money per pigeon per week.
+ * Feed rations. `foodPerPigeon` is consumed PER DAY per pigeon; a higher ration
+ * costs more food but restores more energie/health. `formRecovery` and
+ * `healthRecovery` are WEEKLY targets — the daily care applies 1/7 of them each
+ * day.
  */
 export const FEED_RATIONS = {
   low: { label: 'Zuinig', foodPerPigeon: 0.7, formRecovery: 6, healthRecovery: 2 },
@@ -111,7 +114,8 @@ export const DISTANCE_WEIGHTING = {
 /** Breeding settings. */
 export const BREEDING = {
   cost: 200,
-  weeksToHatch: 2,
+  weeksToHatch: 2, // legacy; hatching now runs in real time (see daysToHatch)
+  daysToHatch: 3, // eggs hatch this many real days after pairing (any time of day)
   minYoung: 1,
   maxYoung: 2,
   /** Random mutation range (+/-) applied to inherited attributes. */
@@ -264,8 +268,8 @@ export interface TierConfig {
 }
 
 export const FLIGHT_TIERS: Record<FlightTier, TierConfig> = {
-  regional: { label: 'Regionaal', name: 'Regiovlucht (Vlaanderen)', entryFee: 20, minKm: 30, maxKm: 160 },
-  national: { label: 'Nationaal', name: 'Nationale vlucht (België)', entryFee: 40, minKm: 60, maxKm: 290 },
+  regional: { label: 'Regionaal', name: 'Regiovlucht', entryFee: 20, minKm: 30, maxKm: 160 },
+  national: { label: 'Nationaal', name: 'Nationale vlucht', entryFee: 40, minKm: 60, maxKm: 290 },
   international: { label: 'Internationaal', name: 'Internationale vlucht', entryFee: 80, minKm: 180, maxKm: 950 },
 };
 
@@ -394,17 +398,29 @@ export const REAL_SCHEDULE: ScheduleSlot[] = [
 // ===========================================================================
 // Funny Dutch pigeon names
 // ===========================================================================
-// A name is "<voornaam> <bijnaam>". The epithet is (often) picked from the
-// pigeon's most extreme genetic trait, so a low-endurance bird tends to become
-// something like "Betsy de Fatsy" and a fast one "Harry de Hete".
+// A name is "<voornaam> <bijnaam>". Doffers get male first names, duivinnen
+// female ones. The epithet mixes trait-based, neutral and pitch-black humour,
+// with a preference for alliteration (e.g. "Stevie de Snelle").
 
-export const PIGEON_FIRST_NAMES = [
-  'Harry', 'Betsy', 'Sjaak', 'Gerda', 'Rico', 'Chantal', 'Kevin', 'Brenda', 'José', 'Willy',
-  'Rita', 'Freddy', 'Ronnie', 'Marcel', 'Achiel', 'Cyriel', 'Pol', 'Fien', 'Roos', 'Ludo',
-  'Nand', 'Bertha', 'Godelieve', 'Bella', 'Karel', 'Trees', 'Fons', 'Rambo', 'Turbo', 'Whitney',
-  'Kimberly', 'Dave', 'Samantha', 'Rocky', 'Gaston', 'Yvonne', 'Marleen', 'Dirk', 'Patrick', 'Sandra',
-  'Jean-Pierre', 'Bompa', 'Nonkel', 'Tante', 'Sef', 'Wies', 'Miel', 'Stef',
+export const MALE_FIRST_NAMES = [
+  'Harry', 'Sjaak', 'Rico', 'Kevin', 'Willy', 'Freddy', 'Ronnie', 'Marcel', 'Achiel', 'Cyriel',
+  'Pol', 'Ludo', 'Nand', 'Karel', 'Fons', 'Rambo', 'Rocky', 'Gaston', 'Dirk', 'Patrick',
+  'Jean-Pierre', 'Bompa', 'Nonkel', 'Sef', 'Miel', 'Stef', 'Stevie', 'Bert', 'Gust', 'Frans',
+  'Jos', 'Leon', 'Marc', 'Rik', 'Theo', 'Vic', 'Wim', 'Zeger', 'Denis', 'Edgard',
+  'Georges', 'Herman', 'Ivan', 'Jules', 'Koen', 'Lowie', 'Maurice', 'Norbert', 'Oscar', 'Prosper',
+  'Roger', 'Staf', 'Tuur', 'Valere', 'Warre', 'Dave', 'José', 'Turbo',
 ];
+
+export const FEMALE_FIRST_NAMES = [
+  'Betsy', 'Gerda', 'Chantal', 'Brenda', 'Rita', 'Fien', 'Roos', 'Bertha', 'Godelieve', 'Bella',
+  'Trees', 'Whitney', 'Kimberly', 'Samantha', 'Yvonne', 'Marleen', 'Sandra', 'Tante', 'Wies', 'Nancy',
+  'Denise', 'Simonne', 'Agnes', 'Bea', 'Carine', 'Diane', 'Emma', 'Francine', 'Greet', 'Hilde',
+  'Ingrid', 'Josée', 'Katrien', 'Lea', 'Maria', 'Nadine', 'Odette', 'Paula', 'Rosa', 'Sonja',
+  'Tinne', 'Ursula', 'Viviane', 'Wendy', 'Christine', 'Godelieve', 'Martha', 'Zoë',
+];
+
+/** All first names (both sexes), used to detect legacy/wrong-gender names. */
+export const PIGEON_FIRST_NAMES = [...MALE_FIRST_NAMES, ...FEMALE_FIRST_NAMES];
 
 export const EPITHETS = {
   slowSpeed: ['de Trage', 'de Slak', 'op Slippers', 'de Treuzelaar', 'de Zondagsvlieger', 'met de Handrem'],

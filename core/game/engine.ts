@@ -22,8 +22,7 @@ import {
 import type { Database, Loft, User } from '../schema.js';
 import { newId, type Store } from '../store.js';
 import { botTakeWeeklyActions } from './bots.js';
-import { breed } from './breeding.js';
-import { applyWeeklyCare } from './economy.js';
+import { chargeWeeklyUpkeep } from './economy.js';
 import { runHealthWeek } from './health.js';
 import { canRace, generatePigeon } from './pigeon.js';
 import { clamp, randFloat, round1 } from './util.js';
@@ -124,7 +123,7 @@ export function seedWorld(store: Store): void {
       }
     }
     db.world.seeded = true;
-    db.world.dataVersion = 5; // fresh world already uses funny names, libido + tiered flights
+    db.world.dataVersion = 6; // fresh world already uses gendered names, libido + tiered flights
   });
 }
 
@@ -151,10 +150,11 @@ export function advanceWeek(store: Store): WeekSummary {
       botTakeWeeklyActions(loft, owned, FOOD_PRICE_PER_KG);
     }
 
-    // 2. Weekly care + upkeep for every loft.
+    // 2. Weekly maintenance charge (food + condition recovery run daily, in
+    //    real time — see tickDailyCare).
     for (const loft of db.lofts) {
-      const owned = db.pigeons.filter((p) => p.ownerId === loft.userId);
-      applyWeeklyCare(loft, owned);
+      const activeCount = db.pigeons.filter((p) => p.ownerId === loft.userId && !p.retired).length;
+      chargeWeeklyUpkeep(loft, activeCount);
     }
 
     // 2b. Health: disease onset/spread, recovery, and mortality. Notify humans.
@@ -164,23 +164,7 @@ export function advanceWeek(store: Store): WeekSummary {
         notify(db, ev.ownerId, 'health', ev.title, ev.body);
       }
     }
-
-    // 3. Hatch breeding pairs due this week.
-    const due = db.breedingPairs.filter((bp) => bp.hatchWeek <= week);
-    for (const bp of due) {
-      const sire = db.pigeons.find((p) => p.id === bp.sireId);
-      const dam = db.pigeons.find((p) => p.id === bp.damId);
-      if (sire && dam) {
-        const young = breed(sire, dam, bp.ownerId, week);
-        const loft = db.lofts.find((l) => l.userId === bp.ownerId);
-        const owned = db.pigeons.filter((p) => p.ownerId === bp.ownerId).length;
-        const space = (loft?.capacity ?? 0) - owned;
-        const admitted = young.slice(0, Math.max(0, space));
-        db.pigeons.push(...admitted);
-        summary.hatched += admitted.length;
-      }
-    }
-    db.breedingPairs = db.breedingPairs.filter((bp) => bp.hatchWeek > week);
+    // (Breeding hatches in real time now — see tickBreedingHatch.)
 
     // Advance the calendar and prepare the new week.
     db.world.currentWeek += 1;
@@ -388,6 +372,7 @@ export function startBreeding(
       sireId,
       damId,
       hatchWeek: db.world.currentWeek + BREEDING.weeksToHatch,
+      hatchAt: new Date(Date.now() + BREEDING.daysToHatch * 86400000).toISOString(),
       createdAtWeek: db.world.currentWeek,
     });
     return null;

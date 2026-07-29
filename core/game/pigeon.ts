@@ -57,11 +57,12 @@ export function generatePigeon(opts: GenerateOptions): Pigeon {
   const orientation = roll();
   // Libido spans the full range independently of racing quality.
   const libido = round1(bell(20, 90));
+  const sex: Sex = opts.sex ?? (Math.random() < 0.5 ? 'doffer' : 'duivin');
   return {
     id: newId('pig'),
     ownerId: opts.ownerId,
-    name: opts.name ?? generatePigeonName({ speed, endurance, orientation }),
-    sex: opts.sex ?? (Math.random() < 0.5 ? 'doffer' : 'duivin'),
+    name: opts.name ?? generatePigeonName(sex, { speed, endurance, orientation }),
+    sex,
     birthWeek,
     speed,
     endurance,

@@ -31,11 +31,7 @@ export function Layout() {
         '/admin/advance-week',
         { method: 'POST' },
       );
-      const h = res.summary.hatched;
-      toast.show(
-        `Nieuwe week! Duiven gevoerd${h > 0 ? `, ${h} jong${h === 1 ? '' : 'en'} geboren` : ''}.`,
-        'ok',
-      );
+      toast.show('Nieuwe week! Onkosten verrekend en gezondheid bijgewerkt.', 'ok');
       await refresh();
     } catch (e) {
       toast.show(e instanceof Error ? e.message : 'Mislukt', 'err');

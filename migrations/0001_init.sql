@@ -8,6 +8,7 @@ CREATE TABLE IF NOT EXISTS world (
   season_year  INTEGER NOT NULL,
   seeded       INTEGER NOT NULL DEFAULT 0,
   data_version INTEGER NOT NULL DEFAULT 0,
+  last_daily_tick TEXT NOT NULL DEFAULT '',
   version      INTEGER NOT NULL DEFAULT 0
 );
 
@@ -67,6 +68,7 @@ CREATE TABLE IF NOT EXISTS breeding_pairs (
   sire_id        TEXT NOT NULL,
   dam_id         TEXT NOT NULL,
   hatch_week     INTEGER NOT NULL,
+  hatch_at       TEXT NOT NULL DEFAULT '',
   created_at_week INTEGER NOT NULL
 );
 

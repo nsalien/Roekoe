@@ -1,11 +1,18 @@
 /**
- * Funny Dutch/Flemish pigeon names. The epithet is usually derived from the
- * pigeon's most extreme genetic trait, so the name hints at what the bird is
- * (good or bad) at — e.g. a low-endurance bird tends to become "Betsy de Fatsy",
- * a fast one "Harry de Hete".
+ * Funny Flemish pigeon names. Doffers get male first names, duivinnen female
+ * ones. The epithet is a mix of trait-based, neutral and pitch-black humour;
+ * where possible it alliterates with the first name (e.g. "Stevie de Snelle",
+ * "Dirk de Doodgraver").
  */
 
-import { EPITHETS, PIGEON_FIRST_NAMES, PIGEON_NAMES } from '../config/gameConfig.js';
+import {
+  EPITHETS,
+  FEMALE_FIRST_NAMES,
+  MALE_FIRST_NAMES,
+  PIGEON_FIRST_NAMES,
+  PIGEON_NAMES,
+} from '../config/gameConfig.js';
+import type { Sex } from '../schema.js';
 import { pick } from './util.js';
 
 interface Traitish {
@@ -16,7 +23,6 @@ interface Traitish {
 
 /** Choose an epithet that fits the pigeon's standout (or standout-bad) trait. */
 function epithetForTraits(t: Traitish): string {
-  // Find the most extreme trait (furthest from the average of ~50).
   const traits: { key: 'speed' | 'endurance' | 'orientation'; v: number }[] = [
     { key: 'speed', v: t.speed },
     { key: 'endurance', v: t.endurance },
@@ -31,22 +37,62 @@ function epithetForTraits(t: Traitish): string {
   return pick(high ? EPITHETS.highOrientation : EPITHETS.lowOrientation);
 }
 
+const SMALL_WORDS = new Set([
+  'de', 'den', 'het', 'met', 'op', 'van', 'uit', 'zonder', 't', "'t", 'een', 'la',
+]);
+
+/** The initial letter of an epithet's key (memorable) word, uppercased. */
+function epithetInitial(epithet: string): string {
+  for (const word of epithet.split(/[\s-]+/)) {
+    if (!word) continue;
+    if (SMALL_WORDS.has(word.toLowerCase())) continue;
+    return word[0].toUpperCase();
+  }
+  return epithet[0]?.toUpperCase() ?? '';
+}
+
 /**
- * Generate a full funny name. Roughly: 30% pitch-black humour, otherwise
- * ~45% trait-based (so the name hints at the bird's standout trait) and the
- * rest a neutral epithet.
+ * Generate a full name for a pigeon of the given sex. Roughly a quarter of the
+ * names lean into pitch-black humour, the rest are trait-based or neutral. When
+ * an alliterating epithet exists it's preferred, giving names like
+ * "Stevie de Snelle".
  */
-export function generatePigeonName(traits?: Traitish): string {
-  const first = pick(PIGEON_FIRST_NAMES);
+export function generatePigeonName(sex: Sex, traits?: Traitish): string {
+  const first = pick(sex === 'doffer' ? MALE_FIRST_NAMES : FEMALE_FIRST_NAMES);
+
+  // Build the candidate epithet pool for this bird.
   const r = Math.random();
-  let epithet: string;
-  if (r < 0.3) epithet = pick(EPITHETS.dark);
-  else if (traits && r < 0.75) epithet = epithetForTraits(traits);
-  else epithet = pick(EPITHETS.neutral);
+  let pool: readonly string[];
+  if (r < 0.28) pool = EPITHETS.dark;
+  else if (traits && r < 0.7) pool = [epithetForTraits(traits)]; // already a single fit
+  else pool = EPITHETS.neutral;
+
+  // Prefer an alliterating epithet from the broadest sensible set.
+  const initial = first[0]?.toUpperCase() ?? '';
+  const wide = [...pool, ...EPITHETS.neutral, ...EPITHETS.dark];
+  const alliterating = wide.filter((e) => epithetInitial(e) === initial);
+  const epithet =
+    alliterating.length > 0 && Math.random() < 0.7 ? pick(alliterating) : pick(pool);
+
   return `${first} ${epithet}`;
 }
 
-/** True for the old single-word names, so a migration can rename them. */
+/** True for old single-word names or a wrong-gender first name, so a migration
+ *  can rename them. */
 export function isLegacyName(name: string): boolean {
-  return !name.includes(' ') || (PIGEON_NAMES as readonly string[]).includes(name);
+  if (!name.includes(' ')) return true;
+  if ((PIGEON_NAMES as readonly string[]).includes(name)) return true;
+  return false;
 }
+
+/** True when a name's first word doesn't match the pigeon's sex. */
+export function isWrongGenderName(name: string, sex: Sex): boolean {
+  const first = name.split(' ')[0];
+  const list = sex === 'doffer' ? MALE_FIRST_NAMES : FEMALE_FIRST_NAMES;
+  const other = sex === 'doffer' ? FEMALE_FIRST_NAMES : MALE_FIRST_NAMES;
+  // Only flag names we recognise as belonging to the other sex.
+  return !(list as readonly string[]).includes(first) && (other as readonly string[]).includes(first);
+}
+
+// Keep PIGEON_FIRST_NAMES referenced so its export stays used.
+void PIGEON_FIRST_NAMES;

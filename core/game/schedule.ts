@@ -13,7 +13,9 @@
  */
 
 import {
+  FEED_RATIONS,
   FLIGHT_TIERS,
+  FOOD_PRICE_PER_KG,
   IMPROVE_ATTR_LABEL,
   RACE_CITIES,
   REAL_SCHEDULE,
@@ -24,6 +26,8 @@ import {
 } from '../config/gameConfig.js';
 import type { Database, Flight, FlightResult } from '../schema.js';
 import { newId } from '../store.js';
+import { applyDayOfCare } from './economy.js';
+import { breed } from './breeding.js';
 import {
   applyFlightEffects,
   finalizeFlight,
@@ -34,7 +38,7 @@ import {
   type SimulatedFlight,
 } from './flight.js';
 import type { WeatherResult } from './weather.js';
-import { generatePigeonName, isLegacyName } from './names.js';
+import { generatePigeonName, isLegacyName, isWrongGenderName } from './names.js';
 import { canRace, talent } from './pigeon.js';
 import { NPC_OWNER_ID, ownerName } from './engine.js';
 import { bell, clamp, hashString, haversineKm, pick, randFloat, round1 } from './util.js';
@@ -311,7 +315,7 @@ function runDataMigrations(db: Database): void {
     // Give every existing bird a funny name.
     for (const p of db.pigeons) {
       if (isLegacyName(p.name)) {
-        p.name = generatePigeonName({ speed: p.speed, endurance: p.endurance, orientation: p.orientation });
+        p.name = generatePigeonName(p.sex, { speed: p.speed, endurance: p.endurance, orientation: p.orientation });
       }
     }
     // Drop leftover old-model scheduled flights (they had no real start time).
@@ -365,6 +369,21 @@ function runDataMigrations(db: Database): void {
     }
     db.world.dataVersion = 5;
   }
+  if ((db.world.dataVersion ?? 0) < 6) {
+    // Give birds a first name matching their sex (no "Nancy" doffers).
+    for (const p of db.pigeons) {
+      if (isWrongGenderName(p.name, p.sex)) {
+        p.name = generatePigeonName(p.sex, { speed: p.speed, endurance: p.endurance, orientation: p.orientation });
+      }
+    }
+    // Refresh scheduled flight titles (drop "(Vlaanderen)"/"(België)").
+    for (const f of db.flights) {
+      if (f.status === 'scheduled' && FLIGHT_TIERS[f.type as FlightTier]) {
+        f.name = FLIGHT_TIERS[f.type as FlightTier].name;
+      }
+    }
+    db.world.dataVersion = 6;
+  }
 }
 
 /**
@@ -380,6 +399,83 @@ export function flightsAwaitingStart(db: Database, nowMs: number): Flight[] {
   });
 }
 
+const DAY_MS = 86400000;
+
+/** Consume food and recover condition once per real day (with catch-up). */
+export function tickDailyCare(db: Database, nowMs: number): void {
+  const last = db.world.lastDailyTick ? Date.parse(db.world.lastDailyTick) : NaN;
+  if (Number.isNaN(last)) {
+    db.world.lastDailyTick = new Date(nowMs).toISOString();
+    return;
+  }
+  let days = Math.floor((nowMs - last) / DAY_MS);
+  if (days <= 0) return;
+  days = Math.min(days, 30); // cap catch-up after a long absence
+
+  for (let i = 0; i < days; i++) {
+    for (const loft of db.lofts) {
+      const owned = db.pigeons.filter((p) => p.ownerId === loft.userId && !p.retired);
+      if (owned.length === 0) continue;
+      // Bots restock food in real time so they don't starve between weeks.
+      if (loft.isBot) {
+        const need = owned.length * FEED_RATIONS[loft.feedRation].foodPerPigeon;
+        if (loft.food < need * 5 && loft.money > 400) {
+          const buy = Math.min(need * 20, Math.floor((loft.money - 300) / FOOD_PRICE_PER_KG));
+          if (buy > 0) {
+            loft.food = round1(loft.food + buy);
+            loft.money -= Math.round(buy * FOOD_PRICE_PER_KG);
+          }
+        }
+      }
+      applyDayOfCare(loft, owned);
+    }
+  }
+  db.world.lastDailyTick = new Date(last + days * DAY_MS).toISOString();
+}
+
+/** Hatch breeding pairs whose time has come (real time, any moment). */
+export function tickBreedingHatch(db: Database, nowMs: number): void {
+  const humanIds = new Set(db.lofts.filter((l) => !l.isBot).map((l) => l.userId));
+  const hatched = new Set<string>();
+  for (const bp of db.breedingPairs) {
+    const at = bp.hatchAt ? Date.parse(bp.hatchAt) : NaN;
+    if (Number.isNaN(at) || nowMs < at) continue;
+    hatched.add(bp.id);
+    const sire = db.pigeons.find((p) => p.id === bp.sireId);
+    const dam = db.pigeons.find((p) => p.id === bp.damId);
+    if (!sire || !dam) continue;
+    const young = breed(sire, dam, bp.ownerId, db.world.currentWeek);
+    const loft = db.lofts.find((l) => l.userId === bp.ownerId);
+    const owned = db.pigeons.filter((p) => p.ownerId === bp.ownerId).length;
+    const space = (loft?.capacity ?? 0) - owned;
+    const admitted = young.slice(0, Math.max(0, space));
+    db.pigeons.push(...admitted);
+
+    if (loft && humanIds.has(loft.userId)) {
+      if (admitted.length > 0) {
+        const names = admitted.map((p) => p.name).join(' en ');
+        pushNotification(
+          db, loft.userId, 'info',
+          `🐣 ${admitted.length === 1 ? 'Een jong' : `${admitted.length} jongen`} geboren!`,
+          `${sire.name} × ${dam.name} bracht ${names} voort. Welkom in het hok!`,
+          null,
+        );
+      } else if (young.length === 0) {
+        pushNotification(
+          db, loft.userId, 'info',
+          '🥚 Koppel zonder resultaat',
+          `${sire.name} × ${dam.name} leverde geen jongen op. Lage energie of libido, misschien volgende keer beter.`,
+          null,
+        );
+      }
+    }
+  }
+  if (hatched.size > 0) {
+    db.breedingPairs = db.breedingPairs.filter((bp) => !hatched.has(bp.id));
+    trimNotifications(db);
+  }
+}
+
 /** Run every real-time step for the current instant. Caller persists. */
 export function advanceRealtime(
   db: Database,
@@ -388,5 +484,7 @@ export function advanceRealtime(
 ): void {
   runDataMigrations(db);
   ensureFlightsScheduled(db, nowMs);
+  tickDailyCare(db, nowMs);
+  tickBreedingHatch(db, nowMs);
   tickFlights(db, nowMs, weatherByFlight);
 }

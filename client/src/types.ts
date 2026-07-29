@@ -228,6 +228,5 @@ export interface BreedingPair {
   id: string;
   sire: string;
   dam: string;
-  hatchWeek: number;
-  weeksLeft: number;
+  hatchAt: string;
 }

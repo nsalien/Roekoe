@@ -85,7 +85,8 @@ export interface BreedingPair {
   ownerId: string;
   sireId: string;
   damId: string;
-  hatchWeek: number; // world week the young arrive
+  hatchWeek: number; // legacy; hatching is now driven by hatchAt
+  hatchAt: string; // ISO timestamp the young arrive (real time)
   createdAtWeek: number;
 }
 
@@ -176,6 +177,8 @@ export interface World {
   seeded: boolean;
   /** One-time data migrations applied (funny names, purge old flights, ...). */
   dataVersion: number;
+  /** ISO timestamp of the last daily food/care tick (real time). */
+  lastDailyTick: string;
 }
 
 /** The full database document persisted to disk. */
@@ -192,7 +195,7 @@ export interface Database {
 
 export function emptyDatabase(): Database {
   return {
-    world: { currentWeek: 1, seasonYear: 1, seeded: false, dataVersion: 0 },
+    world: { currentWeek: 1, seasonYear: 1, seeded: false, dataVersion: 0, lastDailyTick: '' },
     users: [],
     lofts: [],
     pigeons: [],
