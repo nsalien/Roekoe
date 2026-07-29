@@ -284,7 +284,7 @@ export const IMPROVE = {
 /** Dutch labels for the three trainable/improvable attributes. */
 export const IMPROVE_ATTR_LABEL: Record<'speed' | 'endurance' | 'orientation', string> = {
   speed: 'snelheid',
-  endurance: 'uithouding',
+  endurance: 'conditie',
   orientation: 'oriëntatie',
 };
 
@@ -370,21 +370,25 @@ export const MORTALITY_CURVE: { weeks: number; p: number }[] = [
   { weeks: 780, p: 0.4 }, // ~15 years
 ];
 
-/** A recurring slot on the weekly calendar. weekday null = every day. */
+/**
+ * A recurring slot on the weekly calendar. weekday null = every day. If `tiers`
+ * is given, the tier is chosen deterministically per day (so a slot can rotate
+ * between, say, national and international long flights). Max two slots a day.
+ */
 export interface ScheduleSlot {
   key: string;
-  tier: FlightTier;
+  tier?: FlightTier;
+  tiers?: FlightTier[];
   weekday: number | null; // 0=Sunday .. 6=Saturday
   hour: number;
   minute: number;
 }
 
 export const REAL_SCHEDULE: ScheduleSlot[] = [
-  { key: 'reg-morning', tier: 'regional', weekday: null, hour: 9, minute: 0 },
-  { key: 'reg-midday', tier: 'regional', weekday: null, hour: 12, minute: 30 },
-  { key: 'nat-afternoon', tier: 'national', weekday: null, hour: 16, minute: 0 },
-  { key: 'intl-evening', tier: 'international', weekday: null, hour: 20, minute: 0 },
-  { key: 'sat-intl', tier: 'international', weekday: 6, hour: 8, minute: 0 },
+  // Morning: a long-distance race (national or international, rotating per day).
+  { key: 'morning-long', tiers: ['national', 'international'], weekday: null, hour: 10, minute: 0 },
+  // Late afternoon: a short regional race.
+  { key: 'evening-short', tier: 'regional', weekday: null, hour: 17, minute: 0 },
 ];
 
 // ===========================================================================

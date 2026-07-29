@@ -50,9 +50,9 @@ export function LoftPage() {
           <select value={sort} onChange={(e) => setSort(e.target.value as SortKey)} style={{ width: 'auto' }}>
             <option value="talent">Talent</option>
             <option value="speed">Snelheid</option>
-            <option value="endurance">Uithouding</option>
+            <option value="endurance">Conditie</option>
             <option value="orientation">Oriëntatie</option>
-            <option value="form">Conditie</option>
+            <option value="form">Energie</option>
             <option value="ageWeeks">Leeftijd</option>
           </select>
         </label>

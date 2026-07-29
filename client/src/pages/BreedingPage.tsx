@@ -59,7 +59,8 @@ export function BreedingPage() {
           <h2>Nieuw koppel</h2>
           <p className="muted">
             Kost <Money value={BREED_COST} />. De jongen erven het gemiddelde van beide ouders, met wat variatie —
-            koppel je besten voor de sterkste nakomelingen.
+            koppel je besten voor de sterkste nakomelingen. Een hoog <strong>❤ libido</strong> en voldoende
+            <strong> ⚡ energie</strong> vergroten de kans op (meer) jongen; te weinig energie levert soms niets op.
           </p>
 
           <div className="field">
@@ -67,7 +68,7 @@ export function BreedingPage() {
             <select value={sireId} onChange={(e) => setSireId(e.target.value)}>
               <option value="">— kies een doffer —</option>
               {doffers.map((p) => (
-                <option key={p.id} value={p.id}>{p.name} (★{p.talent}, conditie {Math.round(p.form)})</option>
+                <option key={p.id} value={p.id}>{p.name} (★{p.talent} · ❤{Math.round(p.libido)} · ⚡{Math.round(p.form)})</option>
               ))}
             </select>
           </div>
@@ -76,7 +77,7 @@ export function BreedingPage() {
             <select value={damId} onChange={(e) => setDamId(e.target.value)}>
               <option value="">— kies een duivin —</option>
               {duivinnen.map((p) => (
-                <option key={p.id} value={p.id}>{p.name} (★{p.talent}, conditie {Math.round(p.form)})</option>
+                <option key={p.id} value={p.id}>{p.name} (★{p.talent} · ❤{Math.round(p.libido)} · ⚡{Math.round(p.form)})</option>
               ))}
             </select>
           </div>

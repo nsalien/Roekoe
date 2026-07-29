@@ -125,7 +125,7 @@ export function DashboardPage() {
         <div className="card">
           <h2>Verzorging</h2>
           <p className="muted" style={{ marginBottom: 10 }}>
-            Voorraad voer: <strong>{loft.food.toLocaleString('nl-NL')} kg</strong> · gemiddelde conditie <strong>{avgForm}</strong>
+            Voorraad voer: <strong>{loft.food.toLocaleString('nl-NL')} kg</strong> · gemiddelde energie <strong>{avgForm}</strong>
           </p>
 
           <label>Voerschema</label>
@@ -150,7 +150,7 @@ export function DashboardPage() {
                 <tr>
                   <th>Schema</th>
                   <th className="num">Voer/duif</th>
-                  <th className="num">Conditie</th>
+                  <th className="num">Energie</th>
                   <th className="num">Gezondh.</th>
                   <th className="num">Kost/duif</th>
                 </tr>
@@ -172,7 +172,7 @@ export function DashboardPage() {
             </table>
           </div>
           <p className="faint" style={{ margin: '-6px 0 12px', fontSize: '0.8rem' }}>
-            Per duif per week. Meer voer = sneller herstel én betere vluchten. Te weinig voer in voorraad: −8 conditie & −6 gezondheid voor álle duiven.
+            Per duif per week. Meer voer = sneller energieherstel én betere vluchten. Te weinig voer in voorraad: −8 energie & −6 gezondheid voor álle duiven.
           </p>
 
           <label>Voer bijkopen ({FOOD_PRICE} per kg)</label>

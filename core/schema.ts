@@ -24,15 +24,21 @@ export interface Pigeon {
   name: string;
   sex: Sex;
   birthWeek: number; // world week the pigeon was born
-  // Genetic attributes (0-100). Improve slowly through training / breeding.
+  // Skill attributes (0-100). Improve slowly through training / racing.
   speed: number;
+  // `endurance` is the pigeon's CONDITIE (fitness/stamina). Racing builds it;
+  // higher conditie lets a bird hold its speed on longer flights and lifts its
+  // health + libido over time. (Kept as `endurance` for storage compatibility.)
   endurance: number;
   orientation: number;
-  libido: number; // drive to breed: higher = more (and more likely) young
-  // Dynamic condition (0-100). Fluctuates week to week with care and racing.
+  libido: number; // drive to breed; rises with good conditie + energie
+  // Dynamic resources (0-100). Fluctuate week to week with care and racing.
+  // `form` is the pigeon's ENERGIE ("fut"): drained by racing, restored by rest
+  // + food. Low energie means poor performance and more illness/injury; it also
+  // gates breeding. (Kept as `form` for storage compatibility.)
   form: number;
   health: number;
-  experience: number; // grows by racing; small performance bonus
+  experience: number; // ervaring: confidence → better racing + faster energy recovery
   // Pedigree, for breeding UI and inheritance display.
   sireId: string | null;
   damId: string | null;

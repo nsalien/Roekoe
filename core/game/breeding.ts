@@ -28,9 +28,12 @@ export function canBreed(sire: Pigeon, dam: Pigeon, currentWeek: number): string
  */
 export function breed(sire: Pigeon, dam: Pigeon, ownerId: string, hatchWeek: number): Pigeon[] {
   const avgLibido = (sire.libido + dam.libido) / 2;
-  const successChance = clamp(0.55 + (avgLibido / 100) * 0.45, 0.55, 1);
+  // Low energie (form) makes a pair less likely to produce young.
+  const avgEnergy = (sire.form + dam.form) / 2;
+  const energyFactor = clamp(0.5 + avgEnergy / 200, 0.5, 1);
+  const successChance = clamp((0.55 + (avgLibido / 100) * 0.45) * energyFactor, 0.2, 1);
   if (Math.random() > successChance) return []; // no young this time
-  const secondChance = clamp((avgLibido / 100) * 0.7, 0, 0.7);
+  const secondChance = clamp((avgLibido / 100) * 0.7 * energyFactor, 0, 0.7);
   const count = Math.random() < secondChance ? 2 : 1;
 
   const young: Pigeon[] = [];

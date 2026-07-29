@@ -147,9 +147,11 @@ export function runHealthWeek(db: Database, week: number): HealthEvent[] {
     const sources = alive.filter((p) => p.ailment?.kind === 'ziekte' && !p.inInfirmary).length;
     for (const p of alive) {
       if (p.ailment || p.inInfirmary) continue; // already ailing, or safely isolated
-      const perSource = HEALTH.contagionPerSource * clamp(1.2 - p.health / 100, 0.1, 1.2);
+      // Low energie (form) makes a bird more susceptible; being fit protects it.
+      const energyRisk = clamp(1.3 - p.form / 100, 0.3, 1.3);
+      const perSource = HEALTH.contagionPerSource * clamp(1.2 - p.health / 100, 0.1, 1.2) * energyRisk;
       const fromOthers = sources > 0 ? 1 - Math.pow(1 - perSource, sources) : 0;
-      const spontaneous = HEALTH.spontaneousIllness * clamp(1 - p.health / 100, 0, 1);
+      const spontaneous = HEALTH.spontaneousIllness * clamp(1 - p.health / 100, 0, 1) * energyRisk;
       const chance = clamp(1 - (1 - fromOthers) * (1 - spontaneous), 0, 0.85);
       if (Math.random() < chance) {
         const disease = randomDisease(week);

@@ -18,8 +18,11 @@ export interface WeeklyReport {
 
 /**
  * Process one week of care for a single loft and its pigeons (mutates them).
- * Well-fed, healthy pigeons recover form; underfeeding or an empty food store
- * hurts condition. Upkeep is charged regardless.
+ *
+ * Rest + food restore a bird's ENERGIE (`form`); experienced birds recover
+ * faster. Good CONDITIE (`endurance`) lifts health, and libido drifts toward a
+ * bird's conditie + energie. Underfeeding drains energie and health. Upkeep is
+ * charged regardless.
  */
 export function applyWeeklyCare(loft: Loft, pigeons: Pigeon[]): WeeklyReport {
   const active = pigeons.filter((p) => !p.retired);
@@ -37,12 +40,18 @@ export function applyWeeklyCare(loft: Loft, pigeons: Pigeon[]): WeeklyReport {
 
   for (const p of active) {
     if (fed) {
-      p.form = round1(clamp(p.form + ration.formRecovery, 0, 100));
-      p.health = round1(clamp(p.health + ration.healthRecovery, 0, 100));
+      // Energie recovers with rest + food, faster for experienced birds.
+      const energyGain = ration.formRecovery * (1 + p.experience / 200); // up to +50%
+      p.form = round1(clamp(p.form + energyGain, 0, 100));
+      // Health recovers with food, boosted by good conditie.
+      p.health = round1(clamp(p.health + ration.healthRecovery + p.endurance / 40, 0, 100));
     } else {
       p.form = round1(clamp(p.form - 8, 0, 100));
       p.health = round1(clamp(p.health - 6, 0, 100));
     }
+    // Libido drifts toward a blend of conditie + energie.
+    const libidoTarget = p.endurance * 0.5 + p.form * 0.5;
+    p.libido = round1(clamp(p.libido + (libidoTarget - p.libido) * 0.25, 0, 100));
   }
 
   const upkeep = WEEKLY_UPKEEP_BASE + active.length * WEEKLY_UPKEEP_PER_PIGEON;

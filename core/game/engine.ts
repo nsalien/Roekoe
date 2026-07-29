@@ -124,7 +124,7 @@ export function seedWorld(store: Store): void {
       }
     }
     db.world.seeded = true;
-    db.world.dataVersion = 3; // fresh world already uses funny names, libido + tiered flights
+    db.world.dataVersion = 4; // fresh world already uses funny names, libido + tiered flights
   });
 }
 
@@ -343,7 +343,7 @@ export function trainPigeon(
     if (!loft || !pigeon) return 'Duif niet gevonden';
     if (pigeon.ailment || pigeon.inInfirmary) return 'Een zieke, gekwetste of herstellende duif kan niet trainen';
     if (loft.money < TRAINING.cost) return 'Niet genoeg geld om te trainen';
-    if (pigeon.form < TRAINING.formCost + 5) return 'Deze duif heeft te weinig conditie om te trainen';
+    if (pigeon.form < TRAINING.formCost + 5) return 'Deze duif heeft te weinig energie om te trainen';
     if (pigeon[attr] >= TRAINING.attributeCap)
       return `Deze eigenschap kan niet verder getraind worden (max ${TRAINING.attributeCap})`;
     loft.money -= TRAINING.cost;
@@ -370,7 +370,7 @@ export function startBreeding(
     if (sire.sex !== 'doffer') return 'De eerste ouder moet een doffer zijn';
     if (dam.sex !== 'duivin') return 'De tweede ouder moet een duivin zijn';
     if (sire.form < BREEDING.minParentForm || dam.form < BREEDING.minParentForm)
-      return `Beide ouders hebben minstens ${BREEDING.minParentForm} conditie nodig`;
+      return `Beide ouders hebben minstens ${BREEDING.minParentForm} energie nodig`;
     if (sire.ailment || dam.ailment) return 'Een zieke of gekwetste duif kan niet koppelen';
     if (sire.inInfirmary || dam.inInfirmary) return 'Een duif in de ziekenboeg kan niet koppelen';
     const alreadyBreeding = db.breedingPairs.some(
@@ -379,7 +379,7 @@ export function startBreeding(
     if (alreadyBreeding) return 'Een van deze duiven koppelt al';
     if (loft.money < BREEDING.cost) return 'Niet genoeg geld om te koppelen';
     loft.money -= BREEDING.cost;
-    // Breeding costs the parents some condition.
+    // Breeding costs the parents some energie.
     sire.form = round1(clamp(sire.form - 15, 0, 100));
     dam.form = round1(clamp(dam.form - 15, 0, 100));
     db.breedingPairs.push({

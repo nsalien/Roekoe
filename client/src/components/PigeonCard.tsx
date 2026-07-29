@@ -63,12 +63,14 @@ export function PigeonCard({
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '2px 12px', marginTop: 6 }}>
         <StatBar label="Snelheid" value={pigeon.speed} />
-        <StatBar label="Uithouding" value={pigeon.endurance} />
+        <StatBar label="Conditie" value={pigeon.endurance} />
         <StatBar label="Oriëntatie" value={pigeon.orientation} />
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2px 12px', marginTop: 2 }}>
-        <StatBar label="Conditie" value={pigeon.form} variant="form" />
+        <StatBar label="Energie" value={pigeon.form} variant="form" />
         <StatBar label="Gezondh." value={pigeon.health} variant="health" />
+        <StatBar label="Libido" value={pigeon.libido} />
+        <StatBar label="Ervaring" value={pigeon.experience} />
       </div>
 
       {children && <div style={{ marginTop: 10 }}>{children}</div>}

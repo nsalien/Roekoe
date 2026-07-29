@@ -146,6 +146,11 @@ function botsEnterFlight(db: Database, flight: Flight): void {
   }
 }
 
+/** Small stable hash of a calendar day, for per-day tier rotation. */
+function hashDate(y: number, m: number, d: number): number {
+  return (y * 372 + m * 31 + d) | 0;
+}
+
 /** Keep the next few days of flights on the calendar (idempotent). */
 export function ensureFlightsScheduled(db: Database, nowMs: number): void {
   const today = tzDateParts(TIMEZONE, nowMs);
@@ -166,7 +171,10 @@ export function ensureFlightsScheduled(db: Database, nowMs: number): void {
       const templateKey = `${slot.key}:${y}-${m}-${d}`;
       if (db.flights.some((f) => f.templateKey === templateKey)) continue;
 
-      const flight = makeRealtimeFlight(templateKey, slot.tier, startMs, db.world.currentWeek);
+      // Resolve the tier: fixed, or rotate deterministically by the date.
+      const tier: FlightTier = slot.tier
+        ?? slot.tiers![Math.abs(hashDate(y, m, d)) % slot.tiers!.length];
+      const flight = makeRealtimeFlight(templateKey, tier, startMs, db.world.currentWeek);
       db.flights.push(flight);
       botsEnterFlight(db, flight);
     }
@@ -333,6 +341,15 @@ function runDataMigrations(db: Database): void {
       f.distanceKm = route.distanceKm;
     }
     db.world.dataVersion = 3;
+  }
+  if ((db.world.dataVersion ?? 0) < 4) {
+    // Calendar slimmed to two flights a day. Drop scheduled flights that came
+    // from slots that no longer exist; the new slots repopulate immediately.
+    const valid = REAL_SCHEDULE.map((s) => `${s.key}:`);
+    db.flights = db.flights.filter(
+      (f) => f.status !== 'scheduled' || valid.some((p) => f.templateKey.startsWith(p)),
+    );
+    db.world.dataVersion = 4;
   }
 }
 

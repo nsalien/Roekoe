@@ -101,11 +101,11 @@ export function PigeonPage() {
 
           <hr className="sep" />
           <StatBar label="Snelheid" value={p.speed} />
-          <StatBar label="Uithoudingsvermogen" value={p.endurance} />
+          <StatBar label="Conditie" value={p.endurance} />
           <StatBar label="Oriëntatie" value={p.orientation} />
-          <StatBar label="❤️ Libido" value={p.libido} />
-          <StatBar label="Conditie" value={p.form} variant="form" />
+          <StatBar label="⚡ Energie" value={p.form} variant="form" />
           <StatBar label="Gezondheid" value={p.health} variant="health" />
+          <StatBar label="❤️ Libido" value={p.libido} />
           <StatBar label="Ervaring" value={p.experience} />
         </div>
 
@@ -146,11 +146,11 @@ export function PigeonPage() {
             <div className="card">
               <h2>Training</h2>
               <p className="muted">
-                Kost <Money value={TRAIN_COST} /> en wat conditie, geeft een kleine blijvende verbetering.
+                Kost <Money value={TRAIN_COST} /> en wat energie, geeft een kleine blijvende verbetering.
               </p>
               <div className="stack" style={{ marginTop: 8 }}>
                 <button className="btn" disabled={busy} onClick={() => train('speed')}>Train snelheid</button>
-                <button className="btn" disabled={busy} onClick={() => train('endurance')}>Train uithouding</button>
+                <button className="btn" disabled={busy} onClick={() => train('endurance')}>Train conditie</button>
                 <button className="btn" disabled={busy} onClick={() => train('orientation')}>Train oriëntatie</button>
               </div>
             </div>

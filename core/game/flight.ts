@@ -71,7 +71,8 @@ export function pigeonVelocity(
     ],
     pigeon.health,
   );
-  const experienceFactor = 1 + clamp(pigeon.experience, 0, 100) / 400; // up to +25%
+  // Ervaring = confidence: seasoned birds race noticeably better.
+  const experienceFactor = 1 + clamp(pigeon.experience, 0, 100) / 300; // up to +33%
   const age = ageMultiplier(pigeon, currentWeek);
 
   // Base racing pigeons average ~1200 m/min; scale attribute score around that.
@@ -103,7 +104,13 @@ export interface FlightInjury {
 
 export interface SimulatedFlight {
   /** Effects to apply to each participating pigeon after the flight. */
-  fatigue: { pigeonId: string; formDelta: number; healthDelta: number; experienceDelta: number }[];
+  fatigue: {
+    pigeonId: string;
+    formDelta: number; // energie drain
+    enduranceDelta: number; // conditie gain (racing builds fitness)
+    healthDelta: number;
+    experienceDelta: number;
+  }[];
   /** Prize + points to credit each owner's loft. */
   payouts: { ownerId: string; prize: number; points: number; wins: number }[];
   /** Permanent attribute gains from racing. */
@@ -191,10 +198,12 @@ export function finalizeFlight(flight: Flight, pigeons: Pigeon[]): SimulatedFlig
     if (rank === 1) acc.wins += 1;
     payoutMap.set(s.ownerId, acc);
 
+    // Racing drains energie, builds conditie and grows experience.
     const formDelta = -round1(8 + flight.distanceKm / 40 + randFloat(0, 6));
+    const enduranceDelta = round1(0.3 + flight.distanceKm / 500 + randFloat(0, 0.4));
     const healthDelta = -round1(randFloat(0, flight.distanceKm / 200));
     const experienceDelta = round1(2 + flight.distanceKm / 100);
-    fatigue.push({ pigeonId: s.pigeonId, formDelta, healthDelta, experienceDelta });
+    fatigue.push({ pigeonId: s.pigeonId, formDelta, enduranceDelta, healthDelta, experienceDelta });
 
     // Racing builds condition: a chance to grow in the attribute that matters
     // most for this distance. Front-runners and birds with more headroom
@@ -218,8 +227,10 @@ export function finalizeFlight(flight: Flight, pigeons: Pigeon[]): SimulatedFlig
         }
       }
 
-      // Rough flights leave some birds hurt (unless already ailing).
-      if (!pigeon.ailment && Math.random() < injuryChance) {
+      // Rough flights leave some birds hurt (unless already ailing). Low
+      // energie (form) makes a bird more injury-prone.
+      const perBirdInjury = injuryChance * (1 + (100 - pigeon.form) / 100);
+      if (!pigeon.ailment && Math.random() < perBirdInjury) {
         injuries.push({
           pigeonId: pigeon.id,
           ownerId: pigeon.ownerId,
@@ -366,7 +377,8 @@ export function applyFlightEffects(
   for (const f of sim.fatigue) {
     const p = pigeons.find((x) => x.id === f.pigeonId);
     if (!p) continue;
-    p.form = round1(clamp(p.form + f.formDelta, 0, 100));
+    p.form = round1(clamp(p.form + f.formDelta, 0, 100)); // energie
+    p.endurance = round1(clamp(p.endurance + f.enduranceDelta, 0, 100)); // conditie
     p.health = round1(clamp(p.health + f.healthDelta, 0, 100));
     p.experience = round1(clamp(p.experience + f.experienceDelta, 0, 100));
   }
