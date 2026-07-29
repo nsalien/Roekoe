@@ -37,7 +37,7 @@ import type { WeatherResult } from './weather.js';
 import { generatePigeonName, isLegacyName } from './names.js';
 import { canRace, talent } from './pigeon.js';
 import { NPC_OWNER_ID, ownerName } from './engine.js';
-import { bell, clamp, haversineKm, pick, randFloat, round1 } from './util.js';
+import { bell, clamp, hashString, haversineKm, pick, randFloat, round1 } from './util.js';
 
 // --- Time-zone helpers -----------------------------------------------------
 
@@ -356,8 +356,11 @@ function runDataMigrations(db: Database): void {
     // varied libido based on their conditie + energie, plus genetic noise.
     for (const p of db.pigeons) {
       if (p.libido === 50) {
-        const target = p.endurance * 0.5 + p.form * 0.5;
-        p.libido = round1(clamp(target + randFloat(-18, 18), 5, 95));
+        let base = p.endurance * 0.5 + p.form * 0.5 + randFloat(-18, 18);
+        // The same ~12% innately-frisky minority starts with a high drive.
+        const h = hashString(p.id);
+        if (h % 100 < 12) base = Math.max(base, 65 + ((h >> 7) % 25));
+        p.libido = round1(clamp(base, 5, 95));
       }
     }
     db.world.dataVersion = 5;

@@ -6,7 +6,7 @@ import {
   WEEKLY_UPKEEP_PER_PIGEON,
 } from '../config/gameConfig.js';
 import type { Loft, Pigeon } from '../schema.js';
-import { clamp, round1 } from './util.js';
+import { clamp, hashString, round1 } from './util.js';
 
 export interface WeeklyReport {
   userId: string;
@@ -49,8 +49,12 @@ export function applyWeeklyCare(loft: Loft, pigeons: Pigeon[]): WeeklyReport {
       p.form = round1(clamp(p.form - 8, 0, 100));
       p.health = round1(clamp(p.health - 6, 0, 100));
     }
-    // Libido drifts toward a blend of conditie + energie.
-    const libidoTarget = p.endurance * 0.5 + p.form * 0.5;
+    // Libido drifts toward a blend of conditie + energie. But ~12% of birds are
+    // innately frisky (a stable per-bird trait) and keep a high drive even on
+    // low energie, so a few low-energy duiven still have good libido.
+    let libidoTarget = p.endurance * 0.5 + p.form * 0.5;
+    const h = hashString(p.id);
+    if (h % 100 < 12) libidoTarget = Math.max(libidoTarget, 65 + ((h >> 7) % 25)); // 65-89, stable
     p.libido = round1(clamp(p.libido + (libidoTarget - p.libido) * 0.25, 0, 100));
   }
 
