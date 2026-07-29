@@ -75,10 +75,7 @@ export function DashboardPage() {
             {myRank && <span className="faint" style={{ fontSize: '0.95rem', fontWeight: 600 }}> · #{myRank.rank}</span>}
           </div>
         </div>
-      </div>
 
-      {/* Health + next-flight tiles */}
-      <div className="grid cols-3" style={{ marginBottom: 18 }}>
         <Link to="/ziekenboeg" className="tile card-hover" style={{ display: 'block', color: 'inherit' }}>
           <div className="tile-label">Ziek / gewond</div>
           <div className="tile-value" style={{ color: needCare > 0 ? 'var(--bad)' : 'var(--good)' }}>
