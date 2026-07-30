@@ -84,6 +84,7 @@ export const BADGES: BadgeDef[] = [
   { key: 'cure_1', group: 'care', label: 'Genezer', description: 'Genees een zieke of gewonde duif.', xp: 25, icon: '💊', test: (l) => s(l).cures >= 1 },
   { key: 'cure_severe', group: 'care', label: 'Wonderdokter', description: 'Genees een ernstige aandoening.', xp: 75, icon: '🩺', test: (l) => s(l).curesSevere >= 1 },
   { key: 'staff_1', group: 'care', label: 'Werkgever', description: 'Huur een dokter of kinesist.', xp: 25, icon: '👨‍⚕️', test: (l) => s(l).staffHired >= 1 },
+  { key: 'opvang', group: 'care', label: 'Duivenredder', description: 'Adopteer een duif uit het opvangcentrum.', xp: 40, icon: '🏠' },
   { key: 'topfit', group: 'care', label: 'Topfit', description: 'Breng een duif op 100 conditie.', xp: 100, icon: '🏋️', test: (l, db) => db.pigeons.some((p) => p.ownerId === l.userId && p.endurance >= 99.5) },
   { key: 'taaie_rakker', group: 'care', label: 'Taaie Rakker', description: 'Een duif overleeft 25 vluchten.', xp: 100, icon: '🦾', test: (l, db) => db.pigeons.some((p) => p.ownerId === l.userId && p.races >= 25) },
 

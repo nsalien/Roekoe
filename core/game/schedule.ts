@@ -450,6 +450,15 @@ function runDataMigrations(db: Database): void {
     for (const bp of db.breedingPairs) bp.hatchAt = now;
     db.world.dataVersion = 8;
   }
+  if ((db.world.dataVersion ?? 0) < 9) {
+    // Retro-award the shelter-adoption badge from trade history.
+    for (const t of db.trades) {
+      if (t.sellerId !== 'shelter_center' && t.sellerName !== 'Opvangcentrum') continue;
+      const loft = db.lofts.find((l) => l.userId === t.buyerId);
+      if (loft) awardBadge(db, loft, 'opvang');
+    }
+    db.world.dataVersion = 9;
+  }
 }
 
 /**

@@ -148,7 +148,7 @@ export function seedWorld(store: Store): void {
       }
     }
     db.world.seeded = true;
-    db.world.dataVersion = 8; // fresh world: gendered names, libido, tiered flights, badges
+    db.world.dataVersion = 9; // fresh world: gendered names, libido, tiered flights, badges
   });
 }
 

@@ -14,6 +14,7 @@
 import type { Auction, Database, Loft } from '../schema.js';
 import { newId } from '../store.js';
 import { AUCTION } from '../config/gameConfig.js';
+import { awardBadge } from './badges.js';
 import { estimateValue, generatePigeon, talent } from './pigeon.js';
 import { randFloat } from './util.js';
 
@@ -126,6 +127,7 @@ function closeAuction(db: Database, a: Auction): void {
         ? `${p.name} komt uit het opvangcentrum naar jouw hok, voor €${a.currentBid}. Met wat training komt die er wel.`
         : `${p.name} is voor jou, voor €${a.currentBid}. Veel vliegplezier!`;
       notify(db, winner, title, body);
+      if (shelter) awardBadge(db, winner, 'opvang');
     }
   } else if (p) {
     db.pigeons = db.pigeons.filter((x) => x.id !== a.pigeonId); // unsold, withdrawn
