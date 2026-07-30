@@ -53,6 +53,8 @@ export interface Pigeon {
   // Career counters (for badges).
   races: number; // flights this bird has finished
   everAiled: boolean; // has ever been ill or injured (for "Comeback" badge)
+  // Development.
+  coached: boolean; // has a hired private coach improving its racing attributes
 }
 
 /** Everything about a player's operation that is not an individual pigeon. */
@@ -63,6 +65,7 @@ export interface Loft {
   food: number; // kg in stock
   feedRation: FeedRationKey;
   capacity: number;
+  compartments: number; // private compartments bought (better rest, less disease)
   seasonPoints: number; // ranking points accumulated this season
   totalWins: number;
   isBot: boolean;

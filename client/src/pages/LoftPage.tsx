@@ -5,7 +5,7 @@ import { useGame } from '../game/GameContext';
 import { api } from '../api/client';
 import { Money, Spinner, useToast } from '../components/ui';
 import { PigeonCard } from '../components/PigeonCard';
-import type { Pigeon } from '../types';
+import type { Loft, Pigeon } from '../types';
 
 type SortKey = 'talent' | 'speed' | 'endurance' | 'orientation' | 'form' | 'ageWeeks';
 
@@ -58,6 +58,8 @@ export function LoftPage() {
         </label>
       </div>
 
+      {state.loft && <LoftUpgrades loft={state.loft} busy={busy} act={act} />}
+
       <div className="grid pigeons">
         {pigeons.map((p) => (
           <PigeonCard key={p.id} pigeon={p} to={`/duif/${p.id}`}>
@@ -93,6 +95,62 @@ export function LoftPage() {
             )}
           </PigeonCard>
         ))}
+      </div>
+    </div>
+  );
+}
+
+function LoftUpgrades({
+  loft,
+  busy,
+  act,
+}: {
+  loft: Loft;
+  busy: boolean;
+  act: (fn: () => Promise<unknown>, ok?: string) => void;
+}) {
+  const coverage = loft.pigeonCount > 0 ? Math.min(100, Math.round((loft.compartments / loft.pigeonCount) * 100)) : 0;
+  return (
+    <div className="card" style={{ marginBottom: 18 }}>
+      <h2 style={{ marginTop: 0 }}>🏗️ Uitbreidingen</h2>
+      <div className="grid cols-2">
+        {/* Capacity */}
+        <div>
+          <strong>🏠 Hokcapaciteit</strong>
+          <div className="faint" style={{ margin: '2px 0 8px' }}>
+            Nu plaats voor <strong>{loft.capacity}</strong> duiven.
+          </div>
+          {loft.nextCapacity ? (
+            <button
+              className="btn accent block"
+              disabled={busy || loft.money < loft.nextCapacity.price}
+              onClick={() => act(() => api('/loft/capacity', { method: 'POST' }), 'Hok uitgebreid! 🏠')}
+            >
+              Uitbreiden naar {loft.nextCapacity.capacity} · <Money value={loft.nextCapacity.price} />
+            </button>
+          ) : (
+            <div className="faint">Maximale capaciteit bereikt.</div>
+          )}
+        </div>
+
+        {/* Compartments */}
+        <div>
+          <strong>🧱 Aparte hokken</strong>
+          <div className="faint" style={{ margin: '2px 0 8px' }}>
+            {loft.compartments} apart · {coverage}% van je duiven zit apart. Beter energieherstel en minder ziekte.
+          </div>
+          {loft.compartmentCost != null ? (
+            <button
+              className="btn block"
+              disabled={busy || loft.money < loft.compartmentCost}
+              onClick={() => act(() => api('/loft/compartment', { method: 'POST' }), 'Apart hok gebouwd! 🧱')}
+            >
+              Apart hok bijbouwen · <Money value={loft.compartmentCost} />
+            </button>
+          ) : (
+            <div className="faint">Elke plaats heeft al een apart hok.</div>
+          )}
+        </div>
       </div>
     </div>
   );

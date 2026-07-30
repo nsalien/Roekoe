@@ -177,6 +177,8 @@ export function DashboardPage() {
                   <th className="num">Voer/duif</th>
                   <th className="num">Energie</th>
                   <th className="num">Gezondh.</th>
+                  <th className="num">Cond.</th>
+                  <th className="num">Libido</th>
                   <th className="num">Kost/duif</th>
                 </tr>
               </thead>
@@ -189,6 +191,8 @@ export function DashboardPage() {
                       <td className="num">{r.foodPerPigeon} kg</td>
                       <td className="num good">+{r.formRecovery}</td>
                       <td className="num good">+{r.healthRecovery}</td>
+                      <td className="num good">{r.enduranceRecovery ? `+${r.enduranceRecovery}` : '—'}</td>
+                      <td className="num good">{r.libidoRecovery ? `+${r.libidoRecovery}` : '—'}</td>
                       <td className="num"><Money value={Math.round(r.foodPerPigeon * FOOD_PRICE * 10) / 10} /></td>
                     </tr>
                   );

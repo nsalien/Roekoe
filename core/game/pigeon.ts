@@ -81,6 +81,7 @@ export function generatePigeon(opts: GenerateOptions): Pigeon {
     inInfirmary: false,
     races: 0,
     everAiled: false,
+    coached: false,
   };
 }
 

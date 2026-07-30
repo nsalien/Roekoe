@@ -5,9 +5,10 @@
  */
 
 import type { Database, Flight, Loft, Notification, Pigeon, Trade } from './schema.js';
+import { compartmentCost } from './config/gameConfig.js';
 import { ageInWeeks, canRace, estimateValue, talent } from './game/pigeon.js';
 import { auctionKind } from './game/auction.js';
-import { ownerName } from './game/engine.js';
+import { nextCapacityTier, nextInfirmaryTier, ownerName } from './game/engine.js';
 import { flightCommentary, liveSnapshot } from './game/flight.js';
 import { BADGES, levelForXp } from './game/badges.js';
 import { round1 } from './game/util.js';
@@ -38,6 +39,7 @@ export function pigeonDTO(db: Database, p: Pigeon) {
     retired: p.retired,
     ailment: p.ailment,
     inInfirmary: p.inInfirmary,
+    coached: p.coached ?? false,
   };
 }
 
@@ -53,6 +55,10 @@ export function loftDTO(db: Database, loft: Loft) {
     food: round1(loft.food),
     feedRation: loft.feedRation,
     capacity: loft.capacity,
+    compartments: loft.compartments ?? 0,
+    compartmentCost: (loft.compartments ?? 0) >= loft.capacity ? null : compartmentCost(loft.compartments ?? 0),
+    nextCapacity: nextCapacityTier(loft.capacity),
+    nextInfirmary: nextInfirmaryTier(loft.infirmaryCapacity),
     pigeonCount: pigeons.length,
     seasonPoints: loft.seasonPoints,
     totalWins: loft.totalWins,

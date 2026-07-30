@@ -409,6 +409,30 @@ kwetsuur, ziekte, herstel, sterfte en geboorte van jongen.
     een topsponsor (tier 3), 3 sponsors tegelijk, en een "sponsorimperium" met
     sponsors in 4 verschillende categorieën tegelijk.
 
+## 13. Je geld uitgeven: hok, voeding & coaches
+
+Verdiend geld kan je investeren in je hok en je duiven (bij *Mijn hok*, de
+*Ziekenboeg* en de duifpagina):
+
+- **Hokcapaciteit.** Je start met plaats voor **8** duiven en breidt uit naar
+  10, 12, 16 en 20 (elke stap kost meer). Zonder plaats kan je niet kopen,
+  adopteren of kweken.
+- **Aparte hokken.** Koop losse compartimenten zodat je duiven niet allemaal op
+  elkaar zitten. Hoe meer van je duiven een eigen plek hebben (dekkingsgraad =
+  aparte hokken ÷ aantal duiven), hoe **sneller ze energie herstellen** en hoe
+  **kleiner de kans op ziekte**. Elk apart hok wordt los gekocht en wordt telkens
+  wat duurder.
+- **Ziekenboeg uitbreiden.** Koop extra bedden (van 4 naar 6, 8, 10) zodat je
+  meer zieke duiven tegelijk kan verzorgen.
+- **Voerschema's.** Naast Zuinig/Normaal/Royaal zijn er twee premiumopties:
+  **Premium** (meer energie- en gezondheidsherstel én bouwt langzaam conditie op)
+  en **Libido-mix** (verhoogt de voortplantingsdrang). Ze verbruiken meer voer.
+- **Privécoach.** Huur een coach voor één specifieke duif. Die traint haar
+  dagelijks in **snelheid, conditie én oriëntatie** (tot 96 — voorbij de gewone
+  trainingsgrens) plus ervaring, puur om beter te racen — **nooit libido**. Een
+  coach kost veel bij het inhuren én een weeksalaris zolang hij aanblijft.
+- **Duif hernoemen.** Geef een duif een nieuwe naam voor €1.000.
+
 ---
 
 *Alle getallen hierboven zijn de tuning-constanten; pas ze aan in

@@ -15,10 +15,11 @@ import { D1Store, ensureSchema } from '../../core/d1.js';
 import type { User } from '../../core/schema.js';
 import { hashPassword, verifyPassword, signToken, verifyToken } from '../../core/auth.js';
 import { newId } from '../../core/store.js';
-import { FEED_RATIONS, INFIRMARY } from '../../core/config/gameConfig.js';
+import { COACH, FEED_RATIONS, INFIRMARY, RENAME_COST } from '../../core/config/gameConfig.js';
 import {
   acceptSponsor,
   advanceWeek,
+  buyCompartment,
   buyFood,
   buyPigeon,
   cancelSponsor,
@@ -28,13 +29,17 @@ import {
   listForSale,
   refuseSponsor,
   renameLoft,
+  renamePigeon,
   seedWorld,
+  setCoach,
   setInfirmary,
   setInfirmaryStaff,
   setMedicatedFood,
   startBreeding,
   trainPigeon,
   unlist,
+  upgradeCapacity,
+  upgradeInfirmary,
   withdrawFlight,
 } from '../../core/game/engine.js';
 import { advanceRealtime, flightsAwaitingStart } from '../../core/game/schedule.js';
@@ -233,6 +238,7 @@ app.get('/state', (c) => {
     rankings: rankingRows(db),
     feedRations: FEED_RATIONS,
     infirmary: INFIRMARY,
+    economy: { renameCost: RENAME_COST, coachHireCost: COACH.hireCost, coachSalary: COACH.weeklySalary },
     missions: loft?.missions ?? [],
     streak: loft?.streak ?? 0,
     pendingEvent: loft?.pendingEvent ?? null,
@@ -350,7 +356,7 @@ app.get('/pigeons/:id', (c) => {
 app.post('/loft/ration', async (c) => {
   const user = requireUser(c);
   const body = await c.req.json().catch(() => ({}));
-  if (!['low', 'normal', 'high'].includes(body.ration)) return c.json({ error: 'Ongeldige keuze' }, 400);
+  if (!['low', 'normal', 'high', 'premium', 'libido'].includes(body.ration)) return c.json({ error: 'Ongeldige keuze' }, 400);
   const store = c.get('store');
   store.mutate((db) => {
     const loft = db.lofts.find((l) => l.userId === user.id);
@@ -367,6 +373,48 @@ app.post('/loft/food', async (c) => {
   if (!(kg > 0) || kg > 10000) return c.json({ error: 'Ongeldige hoeveelheid' }, 400);
   const store = c.get('store');
   const err = buyFood(store, user.id, kg);
+  await store.persist();
+  return err ? c.json({ error: err }, 400) : c.json({ ok: true });
+});
+
+app.post('/loft/capacity', async (c) => {
+  const user = requireUser(c);
+  const store = c.get('store');
+  const err = upgradeCapacity(store, user.id);
+  await store.persist();
+  return err ? c.json({ error: err }, 400) : c.json({ ok: true });
+});
+
+app.post('/loft/compartment', async (c) => {
+  const user = requireUser(c);
+  const store = c.get('store');
+  const err = buyCompartment(store, user.id);
+  await store.persist();
+  return err ? c.json({ error: err }, 400) : c.json({ ok: true });
+});
+
+app.post('/loft/infirmary/upgrade', async (c) => {
+  const user = requireUser(c);
+  const store = c.get('store');
+  const err = upgradeInfirmary(store, user.id);
+  await store.persist();
+  return err ? c.json({ error: err }, 400) : c.json({ ok: true });
+});
+
+app.post('/pigeons/:id/coach', async (c) => {
+  const user = requireUser(c);
+  const body = await c.req.json().catch(() => ({}));
+  const store = c.get('store');
+  const err = setCoach(store, user.id, c.req.param('id'), body.on === true);
+  await store.persist();
+  return err ? c.json({ error: err }, 400) : c.json({ ok: true });
+});
+
+app.post('/pigeons/:id/rename', async (c) => {
+  const user = requireUser(c);
+  const body = await c.req.json().catch(() => ({}));
+  const store = c.get('store');
+  const err = renamePigeon(store, user.id, c.req.param('id'), String(body.name ?? ''));
   await store.persist();
   return err ? c.json({ error: err }, 400) : c.json({ ok: true });
 });

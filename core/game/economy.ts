@@ -1,12 +1,20 @@
 /** Economy: daily feeding + condition recovery, and the weekly upkeep charge. */
 
 import {
+  COACH,
+  COMPARTMENT,
   FEED_RATIONS,
   WEEKLY_UPKEEP_BASE,
   WEEKLY_UPKEEP_PER_PIGEON,
 } from '../config/gameConfig.js';
 import type { Loft, Pigeon } from '../schema.js';
 import { clamp, hashString, round1 } from './util.js';
+
+/** Fraction of a loft's birds that enjoy a private compartment (0..1). */
+export function compartmentCoverage(loft: Loft, pigeonCount: number): number {
+  if (pigeonCount <= 0) return 0;
+  return clamp((loft.compartments ?? 0) / pigeonCount, 0, 1);
+}
 
 /**
  * Apply ONE day of care to a loft: eat food, then recover (or lose) energie and
@@ -31,11 +39,27 @@ export function applyDayOfCare(loft: Loft, pigeons: Pigeon[]): boolean {
     loft.food = 0;
   }
 
+  // Private compartments: birds rest better and healthier the more of them get
+  // their own space (coverage-scaled).
+  const coverage = compartmentCoverage(loft, active.length);
+  const formMult = 1 + COMPARTMENT.formRecoveryBonus * coverage;
+  const healthMult = 1 + COMPARTMENT.healthRecoveryBonus * coverage;
+
   for (const p of active) {
     if (fed) {
-      const energyGain = (ration.formRecovery / 7) * (1 + p.experience / 200); // exp speeds recovery
+      const energyGain = (ration.formRecovery / 7) * (1 + p.experience / 200) * formMult; // exp + compartments speed recovery
       p.form = round1(clamp(p.form + energyGain, 0, 100));
-      p.health = round1(clamp(p.health + ration.healthRecovery / 7 + p.endurance / 280, 0, 100));
+      p.health = round1(clamp(p.health + (ration.healthRecovery / 7) * healthMult + p.endurance / 280, 0, 100));
+      // Premium feed slowly builds conditie; a libido-mix lifts the drive.
+      if (ration.enduranceRecovery) p.endurance = round1(clamp(p.endurance + ration.enduranceRecovery / 7, 0, 100));
+      if (ration.libidoRecovery) p.libido = round1(clamp(p.libido + ration.libidoRecovery / 7, 0, 100));
+      // A hired coach drills every racing attribute (never libido).
+      if (p.coached && !p.ailment && !p.inInfirmary) {
+        p.speed = round1(clamp(p.speed + COACH.dailyGain, 0, COACH.attributeCap));
+        p.endurance = round1(clamp(p.endurance + COACH.dailyGain, 0, COACH.attributeCap));
+        p.orientation = round1(clamp(p.orientation + COACH.dailyGain, 0, COACH.attributeCap));
+        p.experience = round1(clamp(p.experience + COACH.experienceDailyGain, 0, 100));
+      }
     } else {
       p.form = round1(clamp(p.form - 8 / 7, 0, 100));
       p.health = round1(clamp(p.health - 6 / 7, 0, 100));

@@ -132,6 +132,30 @@ export function InfirmaryPage() {
               </div>
               <Stepper value={loft.physios} disabled={busy} onChange={(v) => setStaff(loft.doctors, v)} />
             </div>
+
+            <hr className="sep" />
+
+            {/* Infirmary beds upgrade */}
+            <div className="row" style={{ justifyContent: 'space-between', gap: 10 }}>
+              <div>
+                <strong>🛏️ Meer bedden</strong>
+                <div className="faint">
+                  De ziekenboeg heeft nu {loft.infirmaryCapacity} bedden ({loft.infirmaryCount} bezet).
+                </div>
+              </div>
+              {loft.nextInfirmary ? (
+                <button
+                  className="btn accent sm"
+                  style={{ flexShrink: 0 }}
+                  disabled={busy || loft.money < loft.nextInfirmary.price}
+                  onClick={() => act(() => api('/loft/infirmary/upgrade', { method: 'POST' }), 'Ziekenboeg uitgebreid! 🏥')}
+                >
+                  Naar {loft.nextInfirmary.capacity} · <Money value={loft.nextInfirmary.price} />
+                </button>
+              ) : (
+                <span className="faint" style={{ flexShrink: 0 }}>maximaal</span>
+              )}
+            </div>
           </div>
         </div>
 

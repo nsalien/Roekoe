@@ -30,6 +30,7 @@ CREATE TABLE IF NOT EXISTS lofts (
   food          REAL NOT NULL,
   feed_ration   TEXT NOT NULL,
   capacity      INTEGER NOT NULL,
+  compartments  INTEGER NOT NULL DEFAULT 0,
   season_points INTEGER NOT NULL DEFAULT 0,
   total_wins    INTEGER NOT NULL DEFAULT 0,
   is_bot        INTEGER NOT NULL DEFAULT 0,
@@ -69,6 +70,7 @@ CREATE TABLE IF NOT EXISTS pigeons (
   retired        INTEGER NOT NULL DEFAULT 0,
   ailment        TEXT NOT NULL DEFAULT '',
   in_infirmary   INTEGER NOT NULL DEFAULT 0,
+  coached        INTEGER NOT NULL DEFAULT 0,
   races          INTEGER NOT NULL DEFAULT 0,
   ever_ailed     INTEGER NOT NULL DEFAULT 0
 );

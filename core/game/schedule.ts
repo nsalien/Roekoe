@@ -13,6 +13,7 @@
  */
 
 import {
+  BOT_LOFT_CAPACITY,
   BREEDING,
   FEED_RATIONS,
   FLIGHT_TIERS,
@@ -21,6 +22,7 @@ import {
   RACE_CITIES,
   REAL_SCHEDULE,
   SCHEDULE_HORIZON_DAYS,
+  STARTING_LOFT_CAPACITY,
   TIMEZONE,
   type FlightTier,
   type RaceCity,
@@ -458,6 +460,16 @@ function runDataMigrations(db: Database): void {
       if (loft) awardBadge(db, loft, 'opvang');
     }
     db.world.dataVersion = 9;
+  }
+  if ((db.world.dataVersion ?? 0) < 10) {
+    // Loft capacity is now a buyable upgrade from a base of 8; reset existing
+    // human lofts to the base (bots keep headroom). Backfill new fields.
+    for (const loft of db.lofts) {
+      loft.capacity = loft.isBot ? BOT_LOFT_CAPACITY : STARTING_LOFT_CAPACITY;
+      if (loft.compartments == null) loft.compartments = 0;
+    }
+    for (const p of db.pigeons) if (p.coached == null) p.coached = false;
+    db.world.dataVersion = 10;
   }
 }
 

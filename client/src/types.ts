@@ -5,7 +5,7 @@
  */
 
 export type Sex = 'doffer' | 'duivin';
-export type FeedRation = 'low' | 'normal' | 'high';
+export type FeedRation = 'low' | 'normal' | 'high' | 'premium' | 'libido';
 export type FlightType = 'regional' | 'national' | 'international';
 export type FlightStatus = 'scheduled' | 'live' | 'completed';
 export type Severity = 'licht' | 'matig' | 'ernstig';
@@ -48,6 +48,7 @@ export interface Pigeon {
   retired: boolean;
   ailment: Ailment | null;
   inInfirmary: boolean;
+  coached: boolean;
 }
 
 export interface Trade {
@@ -81,6 +82,10 @@ export interface Loft {
   food: number;
   feedRation: FeedRation;
   capacity: number;
+  compartments: number;
+  compartmentCost: number | null;
+  nextCapacity: { capacity: number; price: number } | null;
+  nextInfirmary: { capacity: number; price: number } | null;
   pigeonCount: number;
   seasonPoints: number;
   totalWins: number;
@@ -92,6 +97,12 @@ export interface Loft {
   physios: number;
   sickCount: number;
   injuredCount: number;
+}
+
+export interface EconomyCosts {
+  renameCost: number;
+  coachHireCost: number;
+  coachSalary: number;
 }
 
 export interface InfirmaryConfig {
@@ -231,6 +242,8 @@ export interface FeedRationInfo {
   foodPerPigeon: number;
   formRecovery: number;
   healthRecovery: number;
+  enduranceRecovery: number;
+  libidoRecovery: number;
 }
 
 export interface GameState {
@@ -242,6 +255,7 @@ export interface GameState {
   rankings: RankingRow[];
   feedRations: Record<FeedRation, FeedRationInfo>;
   infirmary: InfirmaryConfig;
+  economy: EconomyCosts;
   missions: DailyMission[];
   streak: number;
   pendingEvent: EventCard | null;

@@ -12,8 +12,58 @@ export const WEEKS_PER_YEAR = 52;
 /** A pigeon can be entered into flights once it reaches this age (in weeks). */
 export const RACE_AGE_WEEKS = 8;
 
-/** Loft capacity a new player starts with (max pigeons owned). */
-export const STARTING_LOFT_CAPACITY = 20;
+/** Loft capacity a new player starts with (max pigeons owned). Upgradeable. */
+export const STARTING_LOFT_CAPACITY = 8;
+
+/** Capacity a bot loft gets (bots don't buy upgrades, so give them headroom). */
+export const BOT_LOFT_CAPACITY = 20;
+
+/**
+ * Buyable loft-capacity upgrades. Each tier lifts the maximum number of pigeons
+ * you can own; you buy them in order (8 → 10 → 12 → 16 → 20).
+ */
+export const LOFT_CAPACITY_TIERS: { capacity: number; price: number }[] = [
+  { capacity: 10, price: 1500 },
+  { capacity: 12, price: 3500 },
+  { capacity: 16, price: 8000 },
+  { capacity: 20, price: 16000 },
+];
+
+/**
+ * Private compartments ("aparte hokken"). Instead of cramming every bird
+ * together, you buy separate compartments. Coverage = compartments / pigeons:
+ * the more birds get their own space, the faster they recover energie and the
+ * lower the chance of disease spreading. Each compartment is bought separately
+ * and gets a bit pricier.
+ */
+export const COMPARTMENT = {
+  baseCost: 800, // price of the first compartment
+  stepCost: 400, // added per compartment already owned
+  formRecoveryBonus: 0.6, // up to +60% energie recovery at full coverage
+  healthRecoveryBonus: 0.4, // up to +40% health recovery at full coverage
+  diseaseReduction: 0.5, // up to −50% disease onset at full coverage
+} as const;
+/** Price of the next compartment given how many you already own. */
+export function compartmentCost(owned: number): number {
+  return COMPARTMENT.baseCost + owned * COMPARTMENT.stepCost;
+}
+
+/**
+ * Private coach. A coach is hired for one specific pigeon and drills it on every
+ * racing attribute (snelheid, conditie, oriëntatie) plus ervaring — never
+ * libido. It is expensive up front and carries a weekly salary, but pushes a
+ * bird past the normal training ceiling.
+ */
+export const COACH = {
+  hireCost: 4000, // one-time, per pigeon
+  weeklySalary: 250, // per coached pigeon, charged at "volgende week"
+  dailyGain: 0.35, // per racing attribute, per day
+  experienceDailyGain: 0.5,
+  attributeCap: 96, // coaches can push past the training cap (92)
+} as const;
+
+/** Cost to rename one of your pigeons. */
+export const RENAME_COST = 1000;
 
 /** Money every new player (and bot) starts with. */
 export const STARTING_MONEY = 5000;
@@ -32,9 +82,11 @@ export const STARTING_FOOD = 80;
  * day.
  */
 export const FEED_RATIONS = {
-  low: { label: 'Zuinig', foodPerPigeon: 0.7, formRecovery: 6, healthRecovery: 2 },
-  normal: { label: 'Normaal', foodPerPigeon: 1.0, formRecovery: 12, healthRecovery: 5 },
-  high: { label: 'Royaal', foodPerPigeon: 1.4, formRecovery: 18, healthRecovery: 8 },
+  low: { label: 'Zuinig', foodPerPigeon: 0.7, formRecovery: 6, healthRecovery: 2, enduranceRecovery: 0, libidoRecovery: 0 },
+  normal: { label: 'Normaal', foodPerPigeon: 1.0, formRecovery: 12, healthRecovery: 5, enduranceRecovery: 0, libidoRecovery: 0 },
+  high: { label: 'Royaal', foodPerPigeon: 1.4, formRecovery: 18, healthRecovery: 8, enduranceRecovery: 0, libidoRecovery: 0 },
+  premium: { label: 'Premium', foodPerPigeon: 1.8, formRecovery: 22, healthRecovery: 11, enduranceRecovery: 3, libidoRecovery: 0 },
+  libido: { label: 'Libido-mix', foodPerPigeon: 1.4, formRecovery: 12, healthRecovery: 5, enduranceRecovery: 0, libidoRecovery: 9 },
 } as const;
 export type FeedRationKey = keyof typeof FEED_RATIONS;
 
@@ -454,13 +506,20 @@ export const INJURIES: AilmentTemplate[] = [
 
 /** The infirmary (ziekenboeg): isolate + treat ailing birds. */
 export const INFIRMARY = {
-  baseCapacity: 4, // upgradeable later
+  baseCapacity: 4, // starting number of infirmary beds
   medicatedFoodPerBird: 45, // weekly € per bird in the infirmary when medicated feed is on
   doctorSalary: 400, // weekly € per pigeon doctor hired
   physioSalary: 350, // weekly € per pigeon physiotherapist hired
   birdsPerDoctor: 2, // one doctor treats up to this many sick birds well
   birdsPerPhysio: 2, // one physio treats up to this many injured birds well
 } as const;
+
+/** Buyable infirmary-bed upgrades, bought in order from the base of 4. */
+export const INFIRMARY_CAPACITY_TIERS: { capacity: number; price: number }[] = [
+  { capacity: 6, price: 1200 },
+  { capacity: 8, price: 3000 },
+  { capacity: 10, price: 6000 },
+];
 
 /** Health-system tuning. All probabilities are per weekly tick. */
 export const HEALTH = {

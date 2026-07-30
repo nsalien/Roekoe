@@ -21,10 +21,12 @@ const TRAIN_COST = 120;
 export function PigeonPage() {
   const { id } = useParams();
   const nav = useNavigate();
-  const { refresh } = useGame();
+  const { state, refresh } = useGame();
   const toast = useToast();
   const [data, setData] = useState<PigeonDetail | null>(null);
   const [busy, setBusy] = useState(false);
+  const [renaming, setRenaming] = useState(false);
+  const [newName, setNewName] = useState('');
 
   async function load() {
     if (!id) return;
@@ -71,6 +73,33 @@ export function PigeonPage() {
     }
   }
 
+  async function run(fn: () => Promise<unknown>, ok: string) {
+    setBusy(true);
+    try {
+      await fn();
+      toast.show(ok, 'ok');
+      await load();
+      await refresh();
+    } catch (e) {
+      toast.show(e instanceof Error ? e.message : 'Mislukt', 'err');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function setCoach(on: boolean) {
+    return run(() => api(`/pigeons/${p.id}/coach`, { method: 'POST', body: { on } }), on ? 'Coach ingehuurd! 🎯' : 'Coach ontslagen');
+  }
+
+  function rename() {
+    const name = newName.trim();
+    if (name.length < 2) return;
+    return run(() => api(`/pigeons/${p.id}/rename`, { method: 'POST', body: { name } }), 'Hernoemd! ✏️').then(() => {
+      setRenaming(false);
+      setNewName('');
+    });
+  }
+
   return (
     <div>
       <Link to="/hok" className="faint">← terug naar hok</Link>
@@ -90,6 +119,7 @@ export function PigeonPage() {
                   </span>
                 )}
                 {p.inInfirmary && <span className="badge" style={{ background: 'var(--brand-soft)', color: 'var(--brand-ink)' }}>🏥 in ziekenboeg</span>}
+                {p.coached && <span className="badge" style={{ background: 'var(--gold-soft)', color: 'var(--gold)' }}>🎯 coach</span>}
               </div>
               <p className="muted" style={{ marginTop: 8 }}>
                 {Math.floor(p.ageWeeks / 52) > 0 ? `${Math.floor(p.ageWeeks / 52)}j ` : ''}{p.ageWeeks % 52} wk oud ·
@@ -153,6 +183,58 @@ export function PigeonPage() {
                 <button className="btn" disabled={busy} onClick={() => train('endurance')}>Train conditie</button>
                 <button className="btn" disabled={busy} onClick={() => train('orientation')}>Train oriëntatie</button>
               </div>
+            </div>
+          )}
+
+          {mine && !p.retired && (
+            <div className="card">
+              <h2>Ontwikkeling</h2>
+
+              {/* Private coach */}
+              <div className="row" style={{ justifyContent: 'space-between', gap: 10, alignItems: 'flex-start' }}>
+                <div>
+                  <strong>🎯 Privécoach</strong>
+                  <div className="faint" style={{ fontSize: '0.85rem' }}>
+                    Begeleidt de duif dagelijks in snelheid, conditie én oriëntatie (tot 96) — puur om beter te racen, niet voor libido.
+                    {state?.economy && (
+                      <> Kost <Money value={state.economy.coachHireCost} /> + <Money value={state.economy.coachSalary} />/week.</>
+                    )}
+                  </div>
+                </div>
+                {p.coached ? (
+                  <button className="btn ghost sm" style={{ flexShrink: 0 }} disabled={busy} onClick={() => setCoach(false)}>Ontslaan</button>
+                ) : (
+                  <button className="btn accent sm" style={{ flexShrink: 0 }} disabled={busy} onClick={() => setCoach(true)}>Inhuren</button>
+                )}
+              </div>
+
+              <hr className="sep" />
+
+              {/* Rename */}
+              {renaming ? (
+                <div className="row" style={{ gap: 8 }}>
+                  <input
+                    type="text"
+                    value={newName}
+                    maxLength={28}
+                    placeholder="Nieuwe naam"
+                    onChange={(e) => setNewName(e.target.value)}
+                    style={{ flex: 1, minWidth: 0 }}
+                  />
+                  <button className="btn accent sm" disabled={busy || newName.trim().length < 2} onClick={rename}>Bevestig</button>
+                  <button className="btn ghost sm" disabled={busy} onClick={() => setRenaming(false)}>×</button>
+                </div>
+              ) : (
+                <div className="row" style={{ justifyContent: 'space-between', gap: 10 }}>
+                  <div>
+                    <strong>✏️ Hernoemen</strong>
+                    <div className="faint" style={{ fontSize: '0.85rem' }}>
+                      Geef je duif een nieuwe naam{state?.economy && <> voor <Money value={state.economy.renameCost} /></>}.
+                    </div>
+                  </div>
+                  <button className="btn sm" style={{ flexShrink: 0 }} disabled={busy} onClick={() => { setNewName(p.name); setRenaming(true); }}>Hernoemen</button>
+                </div>
+              )}
             </div>
           )}
 

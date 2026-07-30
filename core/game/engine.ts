@@ -7,17 +7,23 @@
  */
 
 import {
+  BOT_LOFT_CAPACITY,
   BOT_LOFT_NAMES,
   BREEDING,
+  COACH,
   DEFAULT_BOT_COUNT,
   FOOD_PRICE_PER_KG,
   INFIRMARY,
+  INFIRMARY_CAPACITY_TIERS,
+  LOFT_CAPACITY_TIERS,
+  RENAME_COST,
   STARTING_FOOD,
   STARTING_LOFT_CAPACITY,
   STARTING_MONEY,
   STARTING_PIGEONS,
   TRAINING,
   WEEKS_PER_YEAR,
+  compartmentCost,
 } from '../config/gameConfig.js';
 import type { Database, Loft, User } from '../schema.js';
 import { emptySponsorState, emptyStats } from '../schema.js';
@@ -73,6 +79,7 @@ export function createLoftForUser(store: Store, user: User, loftName: string): L
       food: STARTING_FOOD,
       feedRation: 'normal',
       capacity: STARTING_LOFT_CAPACITY,
+      compartments: 0,
       seasonPoints: 0,
       totalWins: 0,
       isBot: user.isBot,
@@ -121,7 +128,8 @@ export function seedWorld(store: Store): void {
         money: STARTING_MONEY,
         food: STARTING_FOOD,
         feedRation: 'normal',
-        capacity: STARTING_LOFT_CAPACITY,
+        capacity: BOT_LOFT_CAPACITY,
+        compartments: 0,
         seasonPoints: 0,
         totalWins: 0,
         isBot: true,
@@ -148,7 +156,7 @@ export function seedWorld(store: Store): void {
       }
     }
     db.world.seeded = true;
-    db.world.dataVersion = 9; // fresh world: gendered names, libido, tiered flights, badges
+    db.world.dataVersion = 10; // fresh world: gendered names, libido, tiered flights, badges
   });
 }
 
@@ -195,6 +203,12 @@ export function advanceWeek(store: Store): WeekSummary {
       }
     }
 
+    // 2d. Private coaches draw a weekly salary per coached pigeon.
+    for (const loft of db.lofts) {
+      const coached = db.pigeons.filter((p) => p.ownerId === loft.userId && p.coached && !p.retired).length;
+      if (coached > 0) loft.money -= coached * COACH.weeklySalary;
+    }
+
     // 2b. Health: disease onset/spread, recovery, and mortality. Notify humans.
     const humanIds = new Set(db.lofts.filter((l) => !l.isBot).map((l) => l.userId));
     for (const ev of runHealthWeek(db, week)) {
@@ -230,6 +244,92 @@ export function renameLoft(store: Store, userId: string, name: string): string |
     const trimmed = name.trim();
     if (trimmed.length < 2 || trimmed.length > 32) return 'Naam moet tussen 2 en 32 tekens zijn';
     loft.name = trimmed;
+    return null;
+  });
+}
+
+/** The next loft-capacity upgrade tier a loft can buy, or null if maxed. */
+export function nextCapacityTier(capacity: number): { capacity: number; price: number } | null {
+  return LOFT_CAPACITY_TIERS.find((t) => t.capacity > capacity) ?? null;
+}
+
+/** Buy the next loft-capacity upgrade. Returns an error string or null. */
+export function upgradeCapacity(store: Store, userId: string): string | null {
+  return store.mutate((db) => {
+    const loft = db.lofts.find((l) => l.userId === userId);
+    if (!loft) return 'Geen hok gevonden';
+    const tier = nextCapacityTier(loft.capacity);
+    if (!tier) return 'Je hok heeft al de maximale capaciteit';
+    if (loft.money < tier.price) return 'Niet genoeg geld voor deze uitbreiding';
+    loft.money -= tier.price;
+    loft.capacity = tier.capacity;
+    return null;
+  });
+}
+
+/** Buy one more private compartment (capped at loft capacity). */
+export function buyCompartment(store: Store, userId: string): string | null {
+  return store.mutate((db) => {
+    const loft = db.lofts.find((l) => l.userId === userId);
+    if (!loft) return 'Geen hok gevonden';
+    if ((loft.compartments ?? 0) >= loft.capacity) return 'Je hebt al voor elke plaats een apart hok';
+    const cost = compartmentCost(loft.compartments ?? 0);
+    if (loft.money < cost) return 'Niet genoeg geld voor een apart hok';
+    loft.money -= cost;
+    loft.compartments = (loft.compartments ?? 0) + 1;
+    return null;
+  });
+}
+
+/** The next infirmary-bed upgrade tier, or null if maxed. */
+export function nextInfirmaryTier(capacity: number): { capacity: number; price: number } | null {
+  return INFIRMARY_CAPACITY_TIERS.find((t) => t.capacity > capacity) ?? null;
+}
+
+/** Buy the next infirmary-capacity upgrade. Returns an error string or null. */
+export function upgradeInfirmary(store: Store, userId: string): string | null {
+  return store.mutate((db) => {
+    const loft = db.lofts.find((l) => l.userId === userId);
+    if (!loft) return 'Geen hok gevonden';
+    const tier = nextInfirmaryTier(loft.infirmaryCapacity);
+    if (!tier) return 'De ziekenboeg is al maximaal uitgebreid';
+    if (loft.money < tier.price) return 'Niet genoeg geld voor deze uitbreiding';
+    loft.money -= tier.price;
+    loft.infirmaryCapacity = tier.capacity;
+    return null;
+  });
+}
+
+/** Hire or dismiss a private coach for one pigeon. Returns error string or null. */
+export function setCoach(store: Store, userId: string, pigeonId: string, on: boolean): string | null {
+  return store.mutate((db) => {
+    const loft = db.lofts.find((l) => l.userId === userId);
+    const pigeon = db.pigeons.find((p) => p.id === pigeonId && p.ownerId === userId);
+    if (!loft || !pigeon) return 'Duif niet gevonden';
+    if (!on) {
+      pigeon.coached = false;
+      return null;
+    }
+    if (pigeon.coached) return 'Deze duif heeft al een coach';
+    if (pigeon.retired) return 'Een duif op rust kan geen coach krijgen';
+    if (loft.money < COACH.hireCost) return `Niet genoeg geld (een coach kost €${COACH.hireCost})`;
+    loft.money -= COACH.hireCost;
+    pigeon.coached = true;
+    return null;
+  });
+}
+
+/** Rename one of your pigeons for a fee. Returns an error string or null. */
+export function renamePigeon(store: Store, userId: string, pigeonId: string, name: string): string | null {
+  return store.mutate((db) => {
+    const loft = db.lofts.find((l) => l.userId === userId);
+    const pigeon = db.pigeons.find((p) => p.id === pigeonId && p.ownerId === userId);
+    if (!loft || !pigeon) return 'Duif niet gevonden';
+    const trimmed = name.trim();
+    if (trimmed.length < 2 || trimmed.length > 28) return 'Naam moet tussen 2 en 28 tekens zijn';
+    if (loft.money < RENAME_COST) return `Niet genoeg geld (hernoemen kost €${RENAME_COST})`;
+    loft.money -= RENAME_COST;
+    pigeon.name = trimmed;
     return null;
   });
 }
