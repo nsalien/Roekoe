@@ -173,16 +173,24 @@ de lijst (zie §5).
 
 ## 4. Voeding & verzorging (dagelijks, echte tijd)
 
-Voeding en herstel gebeuren **elke dag** automatisch (niet pas op weekeinde).
+Voeding en herstel gebeuren **elke dag** automatisch (niet pas op weekeinde) —
+energie, gezondheid, conditie en libido bewegen dus dagelijks.
 
-**Rantsoenen** (verbruik per duif per **dag**):
-| Schema | Voer/duif/dag | Energie/week | Gezondheid/week |
+**Voorraad wordt per type apart bijgehouden**, en **elke duif** krijgt een eigen
+type (in te stellen bij *Mijn hok* of op de duifpagina). Een duif eet 1/7 van
+haar weekverbruik per dag uit de voorraad van háár type. Is die voorraad op, dan
+blijft die duif onvoerd (−energie & −gezondheid). Op het **Overzicht** koop je
+voorraad per type; er is geen algemene "alles ineens"-knop.
+
+| Type | Voer/duif/week | Prijs/kg | Effect |
 |---|---|---|---|
-| Zuinig | 0.7 kg | +6 | +2 |
-| Normaal | 1.0 kg | +12 | +5 |
-| Royaal | 1.4 kg | +18 | +8 |
+| Normaal | 1.0 kg | €3 | energie +12/wk, gezondheid +5/wk |
+| Premium | 1.5 kg | €6 | energie +16, gezondheid +9, **conditie +4** |
+| Libido-mix | 1.4 kg | €4.5 | energie +10, gezondheid +5, **libido +14** |
+| Herstel | 1.5 kg | €3 | **energie +24**, gezondheid +3 |
 
-Voerprijs: **€3/kg**. Startvoorraad: **80 kg** (± twee weken voor een starthok).
+Iedereen start (na de overstap) met **50 kg Normaal**; alle duiven staan standaard
+op Normaal.
 
 Per dag, per duif (weekwaarden gedeeld door 7):
 ```
@@ -461,6 +469,30 @@ Verdiend geld kan je investeren in je hok en je duiven (bij *Mijn hok*, de
   conditie tot **92**, en enkel een **coach** duwt een race-eigenschap helemaal
   tot **100**. Voer verlaagt nooit een al hoger opgebouwde waarde.
 - **Duif hernoemen** kost €1.000. **Je hok hernoemen** (bij Profiel) kost €2.000.
+
+## 14. Weddenschappen
+
+Vanaf **12 uur voor de start** tot het moment dat de vlucht begint, verschijnt bij
+de vlucht een knop om te **wedden**. Zodra de vlucht start, kan je niet meer
+inzetten.
+
+Je kiest een **inzet**, een **type weddenschap** en (meestal) een **doelduif** —
+ook duiven van andere spelers. Types:
+- **Wint de vlucht** — de gekozen duif wordt eerste.
+- **Eindigt allerlaatste** — de gekozen duif komt als laatste binnen.
+- **Eigen duif in top 3** — een van jóuw duiven eindigt bij de eerste drie.
+- **Een van mijn duiven wint** — om het even welke van jouw ingeschreven duiven.
+- **Komt eerder thuis dan…** — kop-aan-kop tussen twee duiven.
+
+Het spel schat de **kans** op basis van de eigenschappen van de duif (hetzelfde
+snelheidsmodel als de vlucht) én haar recente uitslagen. Een sterke favoriet
+heeft een grote kans en dus een **lagere uitbetalingsratio**; een outsider betaalt
+meer. Vóór je bevestigt zie je de geschatte kans, de **ratio** en je **mogelijke
+winst** (inzet × ratio, met een bookmakersmarge). Je inzet wordt meteen
+afgehouden; bij winst krijg je inzet × ratio terug. Doet de doelduif niet mee
+(uitgeschreven), dan is de weddenschap vervallen en krijg je je inzet terug.
+
+Inzet: min. €10, max. €5.000.
 
 ---
 

@@ -14,6 +14,7 @@ export function DashboardPage() {
   const { user } = useAuth();
   const toast = useToast();
   const [buyKg, setBuyKg] = useState(50);
+  const [buyType, setBuyType] = useState<FeedRation>('normal');
   const [busy, setBusy] = useState(false);
 
   if (loading || !state) return <Spinner />;
@@ -24,11 +25,8 @@ export function DashboardPage() {
   const topPigeons = pigeons.slice(0, 3);
   const now = Date.now();
   const avgForm = pigeons.length ? Math.round(pigeons.reduce((s, p) => s + p.form, 0) / pigeons.length) : 0;
-  // Highlight a ration only when the whole flock is on it (feeding is per pigeon).
-  const uniformRation = pigeons.length && pigeons.every((p) => p.ration === pigeons[0].ration) ? pigeons[0].ration : null;
   const coachedCount = pigeons.filter((p) => p.coached).length;
   const eco = state.economy;
-  const FOOD_PRICE = eco.foodPricePerKg;
   const weeklyFixed = eco.weeklyUpkeepBase + pigeons.length * eco.weeklyUpkeepPerPigeon + coachedCount * eco.coachSalary;
 
   // Ailing birds still in the normal loft (need the player to act).
@@ -154,37 +152,23 @@ export function DashboardPage() {
         <div className="card">
           <h2>Verzorging</h2>
           <p className="muted" style={{ marginBottom: 6 }}>
-            Voorraad voer: <strong>{loft.food.toLocaleString('nl-NL')} kg</strong> · gemiddelde energie <strong>{avgForm}</strong>
+            Gemiddelde energie <strong>{avgForm}</strong>. Voedsel wordt <strong>per type apart</strong> beheerd — elke duif eet van haar eigen type (in te stellen bij <strong>Mijn hok</strong>).
           </p>
           <p className="faint" style={{ marginBottom: 10, fontSize: '0.82rem' }}>
             Vaste weekkost: <strong><Money value={weeklyFixed} /></strong> (onderhoud
             {coachedCount > 0 ? ` + ${coachedCount} coach${coachedCount === 1 ? '' : 'es'}` : ''}) — exclusief voer & ziekenboeg.
           </p>
 
-          <label>Voer voor álle duiven ineens</label>
-          <div className="pill-tabs" style={{ width: '100%', marginBottom: 10, flexWrap: 'wrap' }}>
-            {(Object.keys(feedRations) as FeedRation[]).map((key) => (
-              <button
-                key={key}
-                className={uniformRation === key ? 'active' : ''}
-                style={{ flex: '1 0 30%' }}
-                disabled={busy}
-                onClick={() => act(() => api('/loft/ration', { method: 'POST', body: { ration: key } }), `Alle duiven op ${feedRations[key].label}`)}
-              >
-                {feedRations[key].label}
-              </button>
-            ))}
-          </div>
-
-          {/* Compact reference cards for each schema (wrap nicely on phones). */}
+          {/* Per-type stock + effects (informational). */}
           <div className="ration-cards" style={{ marginBottom: 10 }}>
             {(Object.keys(feedRations) as FeedRation[]).map((key) => {
               const r = feedRations[key];
+              const stock = loft.food[key] ?? 0;
               return (
-                <div key={key} className={`ration-card${uniformRation === key ? ' active' : ''}`}>
+                <div key={key} className="ration-card">
                   <div className="row" style={{ justifyContent: 'space-between', gap: 6 }}>
                     <strong>{r.label}</strong>
-                    <span className="faint">{r.foodPerPigeon} kg · <Money value={Math.round(r.foodPerPigeon * FOOD_PRICE * 10) / 10} /></span>
+                    <span className="faint">{Math.round(stock * 10) / 10} kg</span>
                   </div>
                   <div className="row" style={{ gap: 5, flexWrap: 'wrap', marginTop: 5 }}>
                     <span className="chip-mini good">⚡ +{r.formRecovery}</span>
@@ -192,29 +176,37 @@ export function DashboardPage() {
                     {r.enduranceRecovery > 0 && <span className="chip-mini good">💪 +{r.enduranceRecovery}</span>}
                     {r.libidoRecovery > 0 && <span className="chip-mini good">❤️ +{r.libidoRecovery}</span>}
                   </div>
+                  <div className="faint" style={{ marginTop: 4, fontSize: '0.75rem' }}>
+                    {r.foodPerPigeon} kg/week · <Money value={r.pricePerKg} />/kg
+                  </div>
                 </div>
               );
             })}
           </div>
           <p className="faint" style={{ margin: '0 0 12px', fontSize: '0.8rem' }}>
-            Waarden per duif per week (energie · gezondheid · conditie · libido). Per duif kan je een eigen schema kiezen in <strong>Mijn hok</strong> of op de duifpagina. Te weinig voorraad: −8 energie & −6 gezondheid voor álle duiven.
+            Waarden per duif per week (energie · gezondheid · conditie · libido). Geen voorraad van een type = die duiven blijven onvoerd (−energie & −gezondheid).
           </p>
 
-          <label>Voer bijkopen ({FOOD_PRICE} per kg)</label>
-          <div className="row">
+          <label>Voer bijkopen</label>
+          <div className="row" style={{ flexWrap: 'wrap' }}>
+            <select value={buyType} onChange={(e) => setBuyType(e.target.value as FeedRation)} style={{ width: 'auto' }}>
+              {(Object.keys(feedRations) as FeedRation[]).map((key) => (
+                <option key={key} value={key}>{feedRations[key].label} (€{feedRations[key].pricePerKg}/kg)</option>
+              ))}
+            </select>
             <input
               type="number"
               min={1}
               value={buyKg}
               onChange={(e) => setBuyKg(Number(e.target.value))}
-              style={{ maxWidth: 120 }}
+              style={{ maxWidth: 90 }}
             />
             <button
               className="btn"
               disabled={busy || buyKg <= 0}
-              onClick={() => act(() => api('/loft/food', { method: 'POST', body: { kg: buyKg } }), `${buyKg} kg voer gekocht`)}
+              onClick={() => act(() => api('/loft/food', { method: 'POST', body: { type: buyType, kg: buyKg } }), `${buyKg} kg ${feedRations[buyType].label} gekocht`)}
             >
-              Kopen · <Money value={Math.round(buyKg * FOOD_PRICE)} />
+              Kopen · <Money value={Math.round(buyKg * feedRations[buyType].pricePerKg)} />
             </button>
           </div>
         </div>

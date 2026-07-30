@@ -5,7 +5,9 @@
  */
 
 export type Sex = 'doffer' | 'duivin';
-export type FeedRation = 'low' | 'normal' | 'high' | 'premium' | 'libido';
+export type FeedRation = 'normal' | 'premium' | 'libido' | 'herstel';
+export type FoodStock = Record<FeedRation, number>;
+export type BetKind = 'win' | 'last' | 'own_top3' | 'mine_wins' | 'head2head';
 export type FlightType = 'regional' | 'national' | 'international';
 export type FlightStatus = 'scheduled' | 'live' | 'completed';
 export type Severity = 'licht' | 'matig' | 'ernstig';
@@ -82,7 +84,7 @@ export interface Loft {
   sponsorCount: number;
   sponsorOfferCount: number;
   money: number;
-  food: number;
+  food: FoodStock;
   feedRation: FeedRation;
   capacity: number;
   compartments: number;
@@ -112,7 +114,34 @@ export interface EconomyCosts {
   weeklyUpkeepPerPigeon: number;
   trainCost: number;
   breedCost: number;
-  foodPricePerKg: number;
+}
+
+export interface FlightEntrant {
+  pigeonId: string;
+  name: string;
+  ownerId: string;
+  ownerName: string;
+  talent: number;
+}
+
+export interface BetView {
+  id: string;
+  kind: BetKind;
+  pigeonName: string;
+  rivalName: string | null;
+  stake: number;
+  ratio: number;
+  potentialWin: number;
+  status: 'open' | 'won' | 'lost' | 'void';
+  flightName: string;
+  flightId: string;
+}
+
+export interface BetPreview {
+  ratio: number;
+  prob: number;
+  potentialWin: number;
+  label: string;
 }
 
 export interface InfirmaryConfig {
@@ -156,6 +185,8 @@ export interface Flight {
   weather: string;
   entryCount: number;
   entries: FlightEntry[];
+  entrants: FlightEntrant[];
+  bettingOpen: boolean;
   results: FlightResult[];
   recap: string;
   createdAt: string;
@@ -251,6 +282,7 @@ export interface World {
 export interface FeedRationInfo {
   label: string;
   foodPerPigeon: number;
+  pricePerKg: number;
   formRecovery: number;
   healthRecovery: number;
   enduranceRecovery: number;

@@ -19,7 +19,6 @@ import {
   BREEDING,
   COACH,
   FEED_RATIONS,
-  FOOD_PRICE_PER_KG,
   INFIRMARY,
   RENAME_COST,
   RENAME_LOFT_COST,
@@ -42,7 +41,6 @@ import {
   renameLoft,
   renamePigeon,
   seedWorld,
-  setAllRations,
   setCoach,
   setInfirmary,
   setInfirmaryStaff,
@@ -60,6 +58,8 @@ import {
 import { advanceRealtime, flightsAwaitingStart } from '../../core/game/schedule.js';
 import { fetchFlightWeather, type WeatherResult } from '../../core/game/weather.js';
 import { placeBid } from '../../core/game/auction.js';
+import { betsView, placeBet, previewBet } from '../../core/game/betting.js';
+import type { BetKind } from '../../core/schema.js';
 import { refreshDailyMissions } from '../../core/game/missions.js';
 import { evaluateSponsorOffers, sponsorView } from '../../core/game/sponsors.js';
 import {
@@ -262,7 +262,6 @@ app.get('/state', (c) => {
       weeklyUpkeepPerPigeon: WEEKLY_UPKEEP_PER_PIGEON,
       trainCost: TRAINING.cost,
       breedCost: BREEDING.cost,
-      foodPricePerKg: FOOD_PRICE_PER_KG,
     },
     missions: loft?.missions ?? [],
     streak: loft?.streak ?? 0,
@@ -378,15 +377,6 @@ app.get('/pigeons/:id', (c) => {
 });
 
 // --- Care ------------------------------------------------------------------
-app.post('/loft/ration', async (c) => {
-  const user = requireUser(c);
-  const body = await c.req.json().catch(() => ({}));
-  const store = c.get('store');
-  const err = setAllRations(store, user.id, String(body.ration ?? ''));
-  await store.persist();
-  return err ? c.json({ error: err }, 400) : c.json({ ok: true });
-});
-
 app.post('/pigeons/:id/ration', async (c) => {
   const user = requireUser(c);
   const body = await c.req.json().catch(() => ({}));
@@ -411,7 +401,7 @@ app.post('/loft/food', async (c) => {
   const kg = Number(body.kg);
   if (!(kg > 0) || kg > 10000) return c.json({ error: 'Ongeldige hoeveelheid' }, 400);
   const store = c.get('store');
-  const err = buyFood(store, user.id, kg);
+  const err = buyFood(store, user.id, String(body.type ?? 'normal'), kg);
   await store.persist();
   return err ? c.json({ error: err }, 400) : c.json({ ok: true });
 });
@@ -621,6 +611,48 @@ app.post('/flights/:id/enter', async (c) => {
   const err = enterFlight(store, user.id, c.req.param('id'), String(body.pigeonId ?? ''));
   await store.persist();
   return err ? c.json({ error: err }, 400) : c.json({ ok: true });
+});
+
+// --- Betting ---------------------------------------------------------------
+app.get('/bets', (c) => {
+  const user = requireUser(c);
+  const db = c.get('store').data;
+  return c.json({ bets: betsView(db, user.id) });
+});
+
+app.post('/bets/preview', async (c) => {
+  const user = requireUser(c);
+  const body = await c.req.json().catch(() => ({}));
+  const db = c.get('store').data;
+  const flight = db.flights.find((f) => f.id === String(body.flightId ?? ''));
+  if (!flight) return c.json({ error: 'Vlucht niet gevonden' }, 404);
+  const res = previewBet(
+    db, flight, user.id,
+    String(body.kind ?? '') as BetKind,
+    body.pigeonId ? String(body.pigeonId) : null,
+    body.rivalId ? String(body.rivalId) : null,
+    Number(body.stake) || 0,
+  );
+  if (typeof res === 'string') return c.json({ error: res.replace(/^!/, '') }, 400);
+  return c.json(res);
+});
+
+app.post('/bets', async (c) => {
+  const user = requireUser(c);
+  const body = await c.req.json().catch(() => ({}));
+  const store = c.get('store');
+  const res = placeBet(
+    store.data, user.id,
+    String(body.flightId ?? ''),
+    String(body.kind ?? '') as BetKind,
+    body.pigeonId ? String(body.pigeonId) : null,
+    body.rivalId ? String(body.rivalId) : null,
+    Number(body.stake) || 0,
+    Date.now(),
+  );
+  await store.persist();
+  if (typeof res === 'string') return c.json({ error: res.replace(/^!/, '') }, 400);
+  return c.json({ ok: true, bet: res });
 });
 
 app.post('/flights/:id/withdraw', async (c) => {

@@ -23,19 +23,24 @@ import { clamp, hashString, round1 } from './util.js';
 export function applyDayOfCare(loft: Loft, pigeons: Pigeon[], livePigeonIds?: Set<string>): boolean {
   const active = pigeons;
   if (active.length === 0) return true;
-  const rationOf = (p: Pigeon) => FEED_RATIONS[p.ration ?? loft.feedRation] ?? FEED_RATIONS.normal;
-  const need = round1(active.reduce((sum, p) => sum + rationOf(p).foodPerPigeon, 0));
+  const stock = loft.food;
+  const rationKeyOf = (p: Pigeon): keyof typeof FEED_RATIONS =>
+    (p.ration && p.ration in FEED_RATIONS ? p.ration : (loft.feedRation in FEED_RATIONS ? loft.feedRation : 'normal'));
 
-  let fed = true;
-  if (loft.food >= need) {
-    loft.food = round1(loft.food - need);
-  } else {
-    fed = false;
-    loft.food = 0;
-  }
-
+  let allFed = true;
   for (const p of active) {
-    const ration = rationOf(p);
+    const key = rationKeyOf(p);
+    const ration = FEED_RATIONS[key];
+    // Feeding is per pigeon, drawn from its own food type's stock (weekly rate,
+    // 1/7 per day). No stock of that type → this bird goes unfed today.
+    const dailyNeed = ration.foodPerPigeon / 7;
+    let fed = true;
+    if ((stock[key] ?? 0) >= dailyNeed) {
+      stock[key] = round1(stock[key] - dailyNeed);
+    } else {
+      fed = false;
+      allFed = false;
+    }
     // A private compartment lets this bird rest better and stay healthier.
     const formMult = 1 + (p.compartment ? COMPARTMENT.formRecoveryBonus : 0);
     const healthMult = 1 + (p.compartment ? COMPARTMENT.healthRecoveryBonus : 0);
@@ -68,7 +73,7 @@ export function applyDayOfCare(loft: Loft, pigeons: Pigeon[], livePigeonIds?: Se
     if (h % 100 < 12) target = Math.max(target, 65 + ((h >> 7) % 25));
     p.libido = round1(clamp(p.libido + (target - p.libido) * 0.04, 0, 100));
   }
-  return fed;
+  return allFed;
 }
 
 /** Charge a loft its weekly maintenance overhead (money). */

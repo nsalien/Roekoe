@@ -29,6 +29,7 @@ CREATE TABLE IF NOT EXISTS lofts (
   money         REAL NOT NULL,
   food          REAL NOT NULL,
   feed_ration   TEXT NOT NULL,
+  food_stock    TEXT NOT NULL DEFAULT '',
   capacity      INTEGER NOT NULL,
   compartments  INTEGER NOT NULL DEFAULT 0,
   season_points INTEGER NOT NULL DEFAULT 0,
@@ -149,3 +150,22 @@ CREATE TABLE IF NOT EXISTS auctions (
   bids                TEXT NOT NULL DEFAULT '[]',
   status              TEXT NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS bets (
+  id            TEXT PRIMARY KEY,
+  user_id       TEXT NOT NULL,
+  user_name     TEXT NOT NULL,
+  flight_id     TEXT NOT NULL,
+  kind          TEXT NOT NULL,
+  pigeon_id     TEXT,
+  pigeon_name   TEXT NOT NULL,
+  rival_id      TEXT,
+  rival_name    TEXT,
+  stake         INTEGER NOT NULL,
+  ratio         REAL NOT NULL,
+  potential_win INTEGER NOT NULL,
+  status        TEXT NOT NULL,
+  placed_at     TEXT NOT NULL,
+  settled_at    TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_bets_user ON bets (user_id);

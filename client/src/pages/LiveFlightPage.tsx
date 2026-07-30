@@ -114,10 +114,13 @@ export function LiveFlightPage() {
             {live.birds.map((b) => {
               const mine = b.ownerId === user?.id;
               return (
-                <div key={b.pigeonId}>
+                <div
+                  key={b.pigeonId}
+                  style={mine ? { background: 'var(--brand-soft)', borderLeft: '3px solid var(--brand-strong)', borderRadius: 8, padding: '6px 8px' } : undefined}
+                >
                   <div className="row" style={{ justifyContent: 'space-between', fontSize: '0.9rem' }}>
                     <span className="stat-label">
-                      <strong>{b.liveRank}.</strong> {b.pigeonName}
+                      <strong>{b.liveRank}.</strong> {mine ? <strong>{b.pigeonName}</strong> : b.pigeonName}
                       {mine && <span className="badge club" style={{ marginLeft: 6 }}>jij</span>}
                       <span className="faint"> · {b.ownerName}</span>
                     </span>

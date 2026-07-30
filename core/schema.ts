@@ -60,12 +60,15 @@ export interface Pigeon {
 }
 
 /** Everything about a player's operation that is not an individual pigeon. */
+/** Food stock, kept separately per feed type (kg). */
+export type FoodStock = Record<FeedRationKey, number>;
+
 export interface Loft {
   userId: string;
   name: string;
   money: number;
-  food: number; // kg in stock
-  feedRation: FeedRationKey;
+  food: FoodStock; // kg in stock, per feed type
+  feedRation: FeedRationKey; // default ration for new pigeons (not a global setter)
   capacity: number;
   compartments: number; // private compartments bought (better rest, less disease)
   seasonPoints: number; // ranking points accumulated this season
@@ -280,6 +283,28 @@ export interface Auction {
   status: 'open' | 'closed';
 }
 
+/** The kinds of wager a player can place on a flight. */
+export type BetKind = 'win' | 'last' | 'own_top3' | 'mine_wins' | 'head2head';
+
+/** A wager on a flight outcome. Money is deducted when placed; paid on a win. */
+export interface Bet {
+  id: string;
+  userId: string;
+  userName: string;
+  flightId: string;
+  kind: BetKind;
+  pigeonId: string | null; // the bird bet on (or "my bird" for own_top3/head2head)
+  pigeonName: string;
+  rivalId: string | null; // head2head opponent
+  rivalName: string | null;
+  stake: number;
+  ratio: number; // payout multiplier, locked at placement
+  potentialWin: number; // total returned on a win (stake × ratio)
+  status: 'open' | 'won' | 'lost' | 'void';
+  placedAt: string;
+  settledAt: string | null;
+}
+
 /** An in-app notification shown in the bell inbox. */
 export interface Notification {
   id: string;
@@ -316,6 +341,11 @@ export interface Database {
   notifications: Notification[];
   trades: Trade[];
   auctions: Auction[];
+  bets: Bet[];
+}
+
+export function emptyFoodStock(): FoodStock {
+  return { normal: 0, premium: 0, libido: 0, herstel: 0 };
 }
 
 export function emptySponsorState(): SponsorState {
@@ -342,5 +372,6 @@ export function emptyDatabase(): Database {
     notifications: [],
     trades: [],
     auctions: [],
+    bets: [],
   };
 }

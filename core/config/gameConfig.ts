@@ -83,30 +83,45 @@ export const FLIGHT_RISK = {
   lowEnergieInjuryBonus: 0.6, // added injury chance at 0 energie
 } as const;
 
+/**
+ * Betting. From `windowHours` before a flight starts until the moment it starts,
+ * players can bet money on outcomes. The game estimates each bird's chance from
+ * its attributes + recent form; a stronger favourite pays a lower ratio. The
+ * `houseMargin` is the bookmaker edge baked into every ratio.
+ */
+export const BETTING = {
+  windowHours: 12, // bets open this many hours before the start
+  minStake: 10,
+  maxStake: 5000,
+  houseMargin: 0.12,
+  minRatio: 1.05,
+  maxRatio: 25,
+  sharpness: 5, // exponent on strength — sharpens how much the favourite is favoured
+} as const;
+
 /** Money every new player (and bot) starts with. */
 export const STARTING_MONEY = 5000;
 
 /** How many pigeons a new player starts their loft with. */
 export const STARTING_PIGEONS = 6;
 
-/** Food (kg) a new player starts with in stock. Consumed daily, so this is a
- *  buffer of roughly two weeks for a starting loft. */
-export const STARTING_FOOD = 80;
-
 /**
- * Feed rations. `foodPerPigeon` is consumed PER DAY per pigeon; a higher ration
- * costs more food but restores more energie/health. `formRecovery` and
- * `healthRecovery` are WEEKLY targets — the daily care applies 1/7 of them each
- * day.
+ * Feed rations. Food stock is now kept PER TYPE. `foodPerPigeon` is the WEEKLY
+ * consumption per pigeon on that ration (the daily care eats 1/7 each day from
+ * that type's stock). `formRecovery`/`healthRecovery`/`enduranceRecovery`/
+ * `libidoRecovery` are WEEKLY targets applied 1/7 per day. `pricePerKg` is the
+ * buy price per kg for that type.
  */
 export const FEED_RATIONS = {
-  low: { label: 'Zuinig', foodPerPigeon: 0.7, formRecovery: 6, healthRecovery: 2, enduranceRecovery: 0, libidoRecovery: 0 },
-  normal: { label: 'Normaal', foodPerPigeon: 1.0, formRecovery: 12, healthRecovery: 5, enduranceRecovery: 0, libidoRecovery: 0 },
-  high: { label: 'Royaal', foodPerPigeon: 1.4, formRecovery: 18, healthRecovery: 8, enduranceRecovery: 0, libidoRecovery: 0 },
-  premium: { label: 'Premium', foodPerPigeon: 1.8, formRecovery: 22, healthRecovery: 11, enduranceRecovery: 3, libidoRecovery: 0 },
-  libido: { label: 'Libido-mix', foodPerPigeon: 1.4, formRecovery: 12, healthRecovery: 5, enduranceRecovery: 0, libidoRecovery: 9 },
+  normal: { label: 'Normaal', foodPerPigeon: 1.0, pricePerKg: 3, formRecovery: 12, healthRecovery: 5, enduranceRecovery: 0, libidoRecovery: 0 },
+  premium: { label: 'Premium', foodPerPigeon: 1.5, pricePerKg: 6, formRecovery: 16, healthRecovery: 9, enduranceRecovery: 4, libidoRecovery: 0 },
+  libido: { label: 'Libido-mix', foodPerPigeon: 1.4, pricePerKg: 4.5, formRecovery: 10, healthRecovery: 5, enduranceRecovery: 0, libidoRecovery: 14 },
+  herstel: { label: 'Herstel', foodPerPigeon: 1.5, pricePerKg: 3, formRecovery: 24, healthRecovery: 3, enduranceRecovery: 0, libidoRecovery: 0 },
 } as const;
 export type FeedRationKey = keyof typeof FEED_RATIONS;
+
+/** Food (kg per type) a new player starts with. */
+export const STARTING_FOOD_STOCK = { normal: 50, premium: 0, libido: 0, herstel: 0 };
 
 /** Price of one kg of pigeon food when buying from the supply store. */
 export const FOOD_PRICE_PER_KG = 3;

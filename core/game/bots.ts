@@ -37,12 +37,10 @@ function manageInfirmary(loft: Loft, pigeons: Pigeon[]): void {
   }
 }
 
-/** Choose a feed ration based on how flush the bot is, and feed every bird it. */
+/** Bots feed everyone the standard 'normal' ration. */
 function chooseRation(loft: Loft, pigeons: Pigeon[]): void {
-  const ration = loft.money > 4000 ? 'high' : loft.money > 1000 ? 'normal' : 'low';
-  loft.feedRation = ration;
-  // Feeding is per pigeon now — keep the bot's flock on its chosen schedule.
-  for (const p of pigeons) p.ration = ration;
+  loft.feedRation = 'normal';
+  for (const p of pigeons) p.ration = 'normal';
 }
 
 /**
@@ -58,13 +56,12 @@ export function botTakeWeeklyActions(
   chooseRation(loft, pigeons);
   manageInfirmary(loft, pigeons);
 
-  // Keep a healthy food buffer.
-  const ration = FEED_RATIONS[loft.feedRation];
-  const desiredFood = pigeons.length * ration.foodPerPigeon * 4;
-  if (loft.food < desiredFood && loft.money > 800) {
-    const buy = Math.min(desiredFood - loft.food, Math.floor((loft.money - 500) / foodPricePerKg));
+  // Keep a healthy 'normal' food buffer (bots only eat normal).
+  const desiredFood = pigeons.length * FEED_RATIONS.normal.foodPerPigeon * 4;
+  if ((loft.food.normal ?? 0) < desiredFood && loft.money > 800) {
+    const buy = Math.min(desiredFood - (loft.food.normal ?? 0), Math.floor((loft.money - 500) / foodPricePerKg));
     if (buy > 0) {
-      loft.food = round1(loft.food + buy);
+      loft.food.normal = round1((loft.food.normal ?? 0) + buy);
       loft.money -= Math.round(buy * foodPricePerKg);
     }
   }

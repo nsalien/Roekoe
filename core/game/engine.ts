@@ -19,7 +19,7 @@ import {
   LOFT_CAPACITY_TIERS,
   RENAME_COST,
   RENAME_LOFT_COST,
-  STARTING_FOOD,
+  STARTING_FOOD_STOCK,
   STARTING_LOFT_CAPACITY,
   STARTING_MONEY,
   STARTING_PIGEONS,
@@ -79,7 +79,7 @@ export function createLoftForUser(store: Store, user: User, loftName: string): L
       userId: user.id,
       name: loftName,
       money: STARTING_MONEY,
-      food: STARTING_FOOD,
+      food: { ...STARTING_FOOD_STOCK },
       feedRation: 'normal',
       capacity: STARTING_LOFT_CAPACITY,
       compartments: 0,
@@ -129,7 +129,7 @@ export function seedWorld(store: Store): void {
         userId: botUser.id,
         name: BOT_LOFT_NAMES[i % BOT_LOFT_NAMES.length],
         money: STARTING_MONEY,
-        food: STARTING_FOOD,
+        food: { ...STARTING_FOOD_STOCK },
         feedRation: 'normal',
         capacity: BOT_LOFT_CAPACITY,
         compartments: 0,
@@ -159,7 +159,7 @@ export function seedWorld(store: Store): void {
       }
     }
     db.world.seeded = true;
-    db.world.dataVersion = 12; // fresh world: gendered names, libido, tiered flights, badges
+    db.world.dataVersion = 13; // fresh world: gendered names, libido, tiered flights, badges
   });
 }
 
@@ -360,18 +360,6 @@ export function setPigeonRation(store: Store, userId: string, pigeonId: string, 
   });
 }
 
-/** Set the same feed schedule for the loft default and every owned pigeon. */
-export function setAllRations(store: Store, userId: string, ration: string): string | null {
-  return store.mutate((db) => {
-    const loft = db.lofts.find((l) => l.userId === userId);
-    if (!loft) return 'Geen hok gevonden';
-    if (!(ration in FEED_RATIONS)) return 'Ongeldig voerschema';
-    loft.feedRation = ration as FeedRationKey;
-    for (const p of db.pigeons) if (p.ownerId === userId) p.ration = ration as FeedRationKey;
-    return null;
-  });
-}
-
 /** Put a pigeon in (or out of) a private compartment. Returns error or null. */
 export function setPigeonCompartment(store: Store, userId: string, pigeonId: string, on: boolean): string | null {
   return store.mutate((db) => {
@@ -390,16 +378,18 @@ export function setPigeonCompartment(store: Store, userId: string, pigeonId: str
   });
 }
 
-/** Buy food for a loft. Returns an error string or null on success. */
-export function buyFood(store: Store, userId: string, kg: number): string | null {
+/** Buy food of a given type for a loft. Returns an error string or null. */
+export function buyFood(store: Store, userId: string, type: string, kg: number): string | null {
   return store.mutate((db) => {
     const loft = db.lofts.find((l) => l.userId === userId);
     if (!loft) return 'Geen hok gevonden';
+    if (!(type in FEED_RATIONS)) return 'Ongeldig voedingstype';
     if (kg <= 0) return 'Ongeldige hoeveelheid';
-    const cost = Math.round(kg * FOOD_PRICE_PER_KG);
+    const key = type as FeedRationKey;
+    const cost = Math.round(kg * FEED_RATIONS[key].pricePerKg);
     if (loft.money < cost) return 'Niet genoeg geld';
     loft.money -= cost;
-    loft.food = round1(loft.food + kg);
+    loft.food[key] = round1((loft.food[key] ?? 0) + kg);
     progressMissions(db, loft, 'buyfood', 1);
     return null;
   });

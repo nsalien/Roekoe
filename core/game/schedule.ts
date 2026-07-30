@@ -33,6 +33,7 @@ import { applyDayOfCare } from './economy.js';
 import { breed } from './breeding.js';
 import { awardBadge, awardFlightBadges, evaluateBadges } from './badges.js';
 import { ensureAuctions } from './auction.js';
+import { settleFlightBets } from './betting.js';
 import { progressMissions } from './missions.js';
 import { activeContracts } from './sponsors.js';
 import {
@@ -315,6 +316,7 @@ export function tickFlights(db: Database, nowMs: number, weatherByFlight?: Map<s
         applyFlightEffects(sim, db.pigeons, db.lofts);
         emitFlightNotifications(db, flight, sim);
         awardFlightBadges(db, flight);
+        settleFlightBets(db, flight);
         // Daily-mission progress for win/podium.
         for (const ownerId of new Set(flight.results.map((r) => r.ownerId))) {
           const loft = db.lofts.find((l) => l.userId === ownerId);
@@ -509,6 +511,16 @@ function runDataMigrations(db: Database): void {
     }
     db.world.dataVersion = 12;
   }
+  if ((db.world.dataVersion ?? 0) < 13) {
+    // Food is now kept per type. Wipe old stock, give everyone 50 kg Normaal,
+    // and reset every bird to the 'normal' ration.
+    for (const loft of db.lofts) {
+      loft.food = { normal: 50, premium: 0, libido: 0, herstel: 0 };
+      loft.feedRation = 'normal';
+    }
+    for (const p of db.pigeons) p.ration = 'normal';
+    db.world.dataVersion = 13;
+  }
 }
 
 /**
@@ -546,13 +558,14 @@ export function tickDailyCare(db: Database, nowMs: number): void {
     for (const loft of db.lofts) {
       const owned = db.pigeons.filter((p) => p.ownerId === loft.userId);
       if (owned.length === 0) continue;
-      // Bots restock food in real time so they don't starve between weeks.
+      // Bots eat 'normal' and restock that type in real time so they don't
+      // starve between weeks.
       if (loft.isBot) {
-        const need = owned.length * FEED_RATIONS[loft.feedRation].foodPerPigeon;
-        if (loft.food < need * 5 && loft.money > 400) {
-          const buy = Math.min(need * 20, Math.floor((loft.money - 300) / FOOD_PRICE_PER_KG));
+        const weeklyNeed = owned.length * FEED_RATIONS.normal.foodPerPigeon;
+        if ((loft.food.normal ?? 0) < weeklyNeed && loft.money > 400) {
+          const buy = Math.min(weeklyNeed * 3, Math.floor((loft.money - 300) / FOOD_PRICE_PER_KG));
           if (buy > 0) {
-            loft.food = round1(loft.food + buy);
+            loft.food.normal = round1((loft.food.normal ?? 0) + buy);
             loft.money -= Math.round(buy * FOOD_PRICE_PER_KG);
           }
         }

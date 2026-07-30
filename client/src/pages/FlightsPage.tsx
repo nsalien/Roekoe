@@ -6,7 +6,7 @@ import { api } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
 import { useGame } from '../game/GameContext';
 import { Money, Spinner, countdownTo, formatDuration, formatFlightTime, tierLabel, useToast } from '../components/ui';
-import type { Flight } from '../types';
+import type { BetKind, BetPreview, BetView, Flight } from '../types';
 
 /** A ticking clock so countdowns update every second. */
 function useNow(intervalMs = 1000): number {
@@ -29,15 +29,22 @@ export function FlightsPage() {
   const [tab, setTab] = useState<'scheduled' | 'results'>('scheduled');
   const [busy, setBusy] = useState(false);
 
+  const [bets, setBets] = useState<BetView[]>([]);
+
   const load = useCallback(async () => {
     const res = await api<{ scheduled: Flight[]; live: Flight[]; completed: Flight[] }>('/flights');
     setScheduled(res.scheduled);
     setLive(res.live);
     setCompleted(res.completed);
   }, []);
+  const loadBets = useCallback(async () => {
+    const res = await api<{ bets: BetView[] }>('/bets');
+    setBets(res.bets);
+  }, []);
   useEffect(() => {
     load();
-  }, [load, state?.world.currentWeek]);
+    loadBets();
+  }, [load, loadBets, state?.world.currentWeek]);
 
   // Reload periodically so flights flip to live / completed without a manual refresh.
   useEffect(() => {
@@ -81,6 +88,20 @@ export function FlightsPage() {
 
       {tab === 'scheduled' && (
         <div className="stack">
+          {bets.filter((b) => b.status === 'open').length > 0 && (
+            <div className="card">
+              <h2 style={{ marginTop: 0 }}>🎲 Jouw lopende weddenschappen</h2>
+              <div className="stack" style={{ gap: 6 }}>
+                {bets.filter((b) => b.status === 'open').map((b) => (
+                  <div key={b.id} className="row" style={{ justifyContent: 'space-between', gap: 8, fontSize: '0.9rem' }}>
+                    <span>{betLabel(b)} <span className="faint">· {b.flightName}</span></span>
+                    <span className="faint">inzet <Money value={b.stake} /> · bij winst <strong><Money value={b.potentialWin} /></strong></span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Live races first */}
           {live.map((f) => (
             <div key={f.id} className="card" style={{ borderColor: 'var(--accent)' }}>
@@ -154,6 +175,10 @@ export function FlightsPage() {
                   />
                   <span className="faint" style={{ flexShrink: 0 }}>{f.entryCount} ingeschreven</span>
                 </div>
+
+                {f.bettingOpen && (
+                  <BetPanel flight={f} meId={user?.id} onPlaced={() => { loadBets(); refresh(); }} />
+                )}
               </div>
             );
           })}
@@ -162,12 +187,156 @@ export function FlightsPage() {
 
       {tab === 'results' && (
         <div className="stack">
+          {bets.filter((b) => b.status !== 'open').length > 0 && (
+            <div className="card">
+              <h2 style={{ marginTop: 0 }}>🎲 Afgeronde weddenschappen</h2>
+              <div className="stack" style={{ gap: 6 }}>
+                {bets.filter((b) => b.status !== 'open').map((b) => (
+                  <div key={b.id} className="row" style={{ justifyContent: 'space-between', gap: 8, fontSize: '0.9rem' }}>
+                    <span>{betLabel(b)} <span className="faint">· {b.flightName}</span></span>
+                    <span className={b.status === 'won' ? 'good' : b.status === 'lost' ? 'bad' : 'faint'}>
+                      {b.status === 'won' ? <>gewonnen +<Money value={b.potentialWin} /></> : b.status === 'lost' ? <>verloren −<Money value={b.stake} /></> : 'vervallen'}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {completed.length === 0 && <div className="card muted">Nog geen uitslagen.</div>}
           {completed.map((f) => (
             <FlightResultCard key={f.id} flight={f} meId={user?.id} />
           ))}
         </div>
       )}
+    </div>
+  );
+}
+
+const KIND_LABELS: Record<BetKind, string> = {
+  win: 'Wint de vlucht',
+  last: 'Eindigt allerlaatste',
+  own_top3: 'Eigen duif in top 3',
+  mine_wins: 'Een van mijn duiven wint',
+  head2head: 'Komt eerder thuis dan…',
+};
+
+function betLabel(b: BetView): string {
+  if (b.kind === 'mine_wins') return 'Een van je duiven wint';
+  if (b.kind === 'head2head') return `${b.pigeonName} > ${b.rivalName}`;
+  const tail = b.kind === 'win' ? 'wint' : b.kind === 'last' ? 'laatste' : 'top 3';
+  return `${b.pigeonName} ${tail}`;
+}
+
+function BetPanel({ flight, meId, onPlaced }: { flight: Flight; meId?: string; onPlaced: () => void }) {
+  const toast = useToast();
+  const [open, setOpen] = useState(false);
+  const [kind, setKind] = useState<BetKind>('win');
+  const [pigeonId, setPigeonId] = useState('');
+  const [rivalId, setRivalId] = useState('');
+  const [stake, setStake] = useState(50);
+  const [preview, setPreview] = useState<BetPreview | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  const entrants = flight.entrants;
+  const mine = entrants.filter((e) => e.ownerId === meId);
+  const targets = kind === 'own_top3' ? mine : entrants;
+  const needsTarget = kind !== 'mine_wins';
+  const needsRival = kind === 'head2head';
+
+  // Keep target valid for the chosen kind.
+  useEffect(() => {
+    if (!needsTarget) return;
+    if (!targets.some((t) => t.pigeonId === pigeonId)) setPigeonId(targets[0]?.pigeonId ?? '');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [kind, flight.id]);
+
+  // Live odds preview.
+  useEffect(() => {
+    let cancelled = false;
+    async function run() {
+      if (needsTarget && !pigeonId) { setPreview(null); return; }
+      if (needsRival && (!rivalId || rivalId === pigeonId)) { setPreview(null); return; }
+      try {
+        const p = await api<BetPreview>('/bets/preview', {
+          method: 'POST',
+          body: { flightId: flight.id, kind, pigeonId: needsTarget ? pigeonId : null, rivalId: needsRival ? rivalId : null, stake },
+        });
+        if (!cancelled) setPreview(p);
+      } catch {
+        if (!cancelled) setPreview(null);
+      }
+    }
+    run();
+    return () => { cancelled = true; };
+  }, [kind, pigeonId, rivalId, stake, flight.id, needsTarget, needsRival]);
+
+  async function confirm() {
+    setBusy(true);
+    try {
+      await api('/bets', {
+        method: 'POST',
+        body: { flightId: flight.id, kind, pigeonId: needsTarget ? pigeonId : null, rivalId: needsRival ? rivalId : null, stake },
+      });
+      toast.show('Weddenschap geplaatst! 🎲', 'ok');
+      setOpen(false);
+      onPlaced();
+    } catch (e) {
+      toast.show(e instanceof Error ? e.message : 'Mislukt', 'err');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  if (!open) {
+    return (
+      <button className="btn ghost sm" style={{ marginTop: 10 }} onClick={() => setOpen(true)}>🎲 Weddenschap plaatsen</button>
+    );
+  }
+
+  const availableKinds: BetKind[] = ['win', 'last', 'head2head', ...(mine.length > 0 ? (['own_top3', 'mine_wins'] as BetKind[]) : [])];
+
+  return (
+    <div className="card" style={{ marginTop: 10, background: 'var(--surface-2)', boxShadow: 'none' }}>
+      <div className="row" style={{ justifyContent: 'space-between' }}>
+        <strong>🎲 Weddenschap</strong>
+        <button className="btn ghost sm" onClick={() => setOpen(false)}>×</button>
+      </div>
+
+      <label style={{ marginTop: 8 }}>Type</label>
+      <select value={kind} onChange={(e) => setKind(e.target.value as BetKind)} disabled={busy}>
+        {availableKinds.map((k) => <option key={k} value={k}>{KIND_LABELS[k]}</option>)}
+      </select>
+
+      {needsTarget && (
+        <>
+          <label style={{ marginTop: 8 }}>{kind === 'own_top3' ? 'Jouw duif' : 'Duif'}</label>
+          <select value={pigeonId} onChange={(e) => setPigeonId(e.target.value)} disabled={busy}>
+            {targets.map((t) => <option key={t.pigeonId} value={t.pigeonId}>{t.name} (★{t.talent} · {t.ownerName})</option>)}
+          </select>
+        </>
+      )}
+      {needsRival && (
+        <>
+          <label style={{ marginTop: 8 }}>Tegenstander</label>
+          <select value={rivalId} onChange={(e) => setRivalId(e.target.value)} disabled={busy}>
+            <option value="">— kies —</option>
+            {entrants.filter((t) => t.pigeonId !== pigeonId).map((t) => <option key={t.pigeonId} value={t.pigeonId}>{t.name} ({t.ownerName})</option>)}
+          </select>
+        </>
+      )}
+
+      <label style={{ marginTop: 8 }}>Inzet</label>
+      <input type="number" min={10} value={stake} onChange={(e) => setStake(Number(e.target.value))} disabled={busy} style={{ maxWidth: 140 }} />
+
+      <div className="row" style={{ justifyContent: 'space-between', marginTop: 10, gap: 8, flexWrap: 'wrap' }}>
+        <span className="faint">
+          {preview
+            ? <>Kans ~{Math.round(preview.prob * 100)}% · ratio <strong>{preview.ratio}×</strong> · winst <strong><Money value={preview.potentialWin} /></strong></>
+            : 'Kies je weddenschap…'}
+        </span>
+        <button className="btn accent sm" disabled={busy || !preview} onClick={confirm}>Bevestig</button>
+      </div>
     </div>
   );
 }
@@ -237,17 +406,23 @@ function FlightResultCard({ flight, meId }: { flight: Flight; meId?: string }) {
       {!cancelled && (
         <>
           <div style={{ marginTop: 12 }}>
-            {top.map((r) => (
-              <div key={r.pigeonId} className="stat">
+            {top.map((r) => {
+              const mine = r.ownerId === meId;
+              return (
+              <div key={r.pigeonId} className="stat" style={mine ? { background: 'var(--brand-soft)', borderRadius: 8, padding: '4px 8px' } : undefined}>
                 <div className="stat-top">
-                  <span className="stat-label">{r.finished ? `${r.rank}.` : '—'} {r.pigeonName} <span className="faint">· {r.ownerName}</span></span>
+                  <span className="stat-label">
+                    {r.finished ? `${r.rank}.` : '—'} <strong>{r.pigeonName}</strong> <span className="faint">· {r.ownerName}</span>
+                    {mine && <span className="badge club" style={{ marginLeft: 6 }}>jij</span>}
+                  </span>
                   <span className="stat-val">{r.finished ? `${r.velocity} m/min` : '❌ niet thuis'}</span>
                 </div>
                 <div className="bar">
                   <span style={{ width: `${r.finished ? (r.velocity / maxV) * 100 : 0}%`, background: r.ownerId === meId ? 'linear-gradient(90deg,#f97316,#fdba74)' : undefined }} />
                 </div>
               </div>
-            ))}
+              );
+            })}
           </div>
 
           {open && (

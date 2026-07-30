@@ -8,6 +8,7 @@ import type { Database, Flight, Loft, Notification, Pigeon, Trade } from './sche
 import { compartmentCost } from './config/gameConfig.js';
 import { ageInWeeks, canRace, estimateValue, talent } from './game/pigeon.js';
 import { auctionKind } from './game/auction.js';
+import { bettingOpen } from './game/betting.js';
 import { nextCapacityTier, nextInfirmaryTier, ownerName } from './game/engine.js';
 import { flightCommentary, liveSnapshot } from './game/flight.js';
 import { BADGES, levelForXp } from './game/badges.js';
@@ -55,7 +56,7 @@ export function loftDTO(db: Database, loft: Loft) {
     sponsorCount: loft.sponsorship?.active.length ?? 0,
     sponsorOfferCount: loft.sponsorship?.offers.length ?? 0,
     money: Math.round(loft.money),
-    food: round1(loft.food),
+    food: loft.food,
     feedRation: loft.feedRation,
     capacity: loft.capacity,
     compartments: loft.compartments ?? 0,
@@ -92,6 +93,18 @@ export function flightDTO(db: Database, f: Flight) {
     weather: f.weather,
     entryCount: f.entries.length,
     entries: f.entries,
+    // Enough info about every entrant for the betting UI (names, owners, talent).
+    entrants: f.entries.map((e) => {
+      const p = db.pigeons.find((x) => x.id === e.pigeonId);
+      return {
+        pigeonId: e.pigeonId,
+        name: p?.name ?? 'duif',
+        ownerId: e.ownerId,
+        ownerName: ownerName(db, e.ownerId),
+        talent: p ? talent(p) : 0,
+      };
+    }),
+    bettingOpen: bettingOpen(f, Date.now()),
     results: f.results,
     recap: f.recap,
     createdAt: f.createdAt,

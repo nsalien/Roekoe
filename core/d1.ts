@@ -14,6 +14,7 @@
 import type { D1Database, D1PreparedStatement } from '@cloudflare/workers-types';
 import type {
   Auction,
+  Bet,
   BreedingPair,
   Database,
   Flight,
@@ -24,7 +25,7 @@ import type {
   Trade,
   User,
 } from './schema.js';
-import { emptyDatabase, emptySponsorState, emptyStats } from './schema.js';
+import { emptyDatabase, emptyFoodStock, emptySponsorState, emptyStats } from './schema.js';
 import type { Store } from './store.js';
 
 const b = (v: unknown) => (v ? 1 : 0);
@@ -44,7 +45,7 @@ function rowToLoft(r: any): Loft {
     userId: r.user_id,
     name: r.name,
     money: r.money,
-    food: r.food,
+    food: r.food_stock ? { ...emptyFoodStock(), ...JSON.parse(r.food_stock) } : emptyFoodStock(),
     feedRation: r.feed_ration,
     capacity: r.capacity,
     compartments: r.compartments ?? 0,
@@ -172,6 +173,25 @@ function rowToAuction(r: any): Auction {
     status: r.status,
   };
 }
+function rowToBet(r: any): Bet {
+  return {
+    id: r.id,
+    userId: r.user_id,
+    userName: r.user_name,
+    flightId: r.flight_id,
+    kind: r.kind,
+    pigeonId: r.pigeon_id ?? null,
+    pigeonName: r.pigeon_name,
+    rivalId: r.rival_id ?? null,
+    rivalName: r.rival_name ?? null,
+    stake: r.stake,
+    ratio: r.ratio,
+    potentialWin: r.potential_win,
+    status: r.status,
+    placedAt: r.placed_at,
+    settledAt: r.settled_at ?? null,
+  };
+}
 function rowToTrade(r: any): Trade {
   return {
     id: r.id,
@@ -218,7 +238,7 @@ export class D1Store implements Store {
       };
     }
 
-    const [users, lofts, pigeons, breeding, flights, notifications, trades, auctions] = await Promise.all([
+    const [users, lofts, pigeons, breeding, flights, notifications, trades, auctions, bets] = await Promise.all([
       db.prepare('SELECT * FROM users').all(),
       db.prepare('SELECT * FROM lofts').all(),
       db.prepare('SELECT * FROM pigeons').all(),
@@ -227,6 +247,7 @@ export class D1Store implements Store {
       db.prepare('SELECT * FROM notifications').all(),
       db.prepare('SELECT * FROM trades').all(),
       db.prepare('SELECT * FROM auctions').all(),
+      db.prepare('SELECT * FROM bets').all(),
     ]);
 
     dbObj.users = (users.results as any[]).map(rowToUser);
@@ -237,6 +258,7 @@ export class D1Store implements Store {
     dbObj.notifications = (notifications.results as any[]).map(rowToNotification);
     dbObj.trades = (trades.results as any[]).map(rowToTrade);
     dbObj.auctions = (auctions.results as any[]).map(rowToAuction);
+    dbObj.bets = (bets.results as any[]).map(rowToBet);
 
     const snapshots: Record<string, Map<string, string>> = {
       users: snapshot(dbObj.users, (u) => u.id),
@@ -247,6 +269,7 @@ export class D1Store implements Store {
       notifications: snapshot(dbObj.notifications, (nt) => nt.id),
       trades: snapshot(dbObj.trades, (t) => t.id),
       auctions: snapshot(dbObj.auctions, (a) => a.id),
+      bets: snapshot(dbObj.bets, (bt) => bt.id),
     };
 
     return new D1Store(db, dbObj, snapshots, worldExisted);
@@ -283,9 +306,9 @@ export class D1Store implements Store {
     diff(this.snapshots.lofts, w.lofts, (l) => l.userId, {
       upsert: (l) =>
         db.prepare(
-          'INSERT OR REPLACE INTO lofts (user_id, name, money, food, feed_ration, capacity, compartments, season_points, total_wins, is_bot, infirmary_capacity, medicated_food, doctors, physios, xp, level, stats, badges, missions, missions_day, streak, pending_event, sponsorship) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+          'INSERT OR REPLACE INTO lofts (user_id, name, money, food, food_stock, feed_ration, capacity, compartments, season_points, total_wins, is_bot, infirmary_capacity, medicated_food, doctors, physios, xp, level, stats, badges, missions, missions_day, streak, pending_event, sponsorship) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
         ).bind(
-          l.userId, l.name, l.money, l.food, l.feedRation, l.capacity, l.compartments ?? 0, l.seasonPoints, l.totalWins, b(l.isBot),
+          l.userId, l.name, l.money, 0, JSON.stringify(l.food ?? emptyFoodStock()), l.feedRation, l.capacity, l.compartments ?? 0, l.seasonPoints, l.totalWins, b(l.isBot),
           l.infirmaryCapacity, b(l.medicatedFood), l.doctors, l.physios,
           l.xp, l.level, JSON.stringify(l.stats), JSON.stringify(l.badges),
           JSON.stringify(l.missions ?? []), l.missionsDay ?? '', l.streak ?? 0,
@@ -360,6 +383,15 @@ export class D1Store implements Store {
       stmts,
     });
 
+    diff(this.snapshots.bets, w.bets, (bt) => bt.id, {
+      upsert: (bt) =>
+        db.prepare(
+          'INSERT OR REPLACE INTO bets (id, user_id, user_name, flight_id, kind, pigeon_id, pigeon_name, rival_id, rival_name, stake, ratio, potential_win, status, placed_at, settled_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        ).bind(bt.id, bt.userId, bt.userName, bt.flightId, bt.kind, bt.pigeonId, bt.pigeonName, bt.rivalId, bt.rivalName, bt.stake, bt.ratio, bt.potentialWin, bt.status, bt.placedAt, bt.settledAt),
+      del: (id) => db.prepare('DELETE FROM bets WHERE id = ?').bind(id),
+      stmts,
+    });
+
     if (stmts.length > 0) await db.batch(stmts);
   }
 }
@@ -406,6 +438,7 @@ export async function ensureSchema(db: D1Database): Promise<void> {
     'ALTER TABLE pigeons ADD COLUMN compartment INTEGER NOT NULL DEFAULT 0',
     "ALTER TABLE world ADD COLUMN last_shelter_spawn TEXT NOT NULL DEFAULT ''",
     "ALTER TABLE auctions ADD COLUMN bids TEXT NOT NULL DEFAULT '[]'",
+    "ALTER TABLE lofts ADD COLUMN food_stock TEXT NOT NULL DEFAULT ''",
   ];
   for (const sql of alters) {
     try {
@@ -440,6 +473,19 @@ export async function ensureSchema(db: D1Database): Promise<void> {
     await db.exec(
       'CREATE TABLE IF NOT EXISTS auctions (id TEXT PRIMARY KEY, template_key TEXT NOT NULL, pigeon_id TEXT NOT NULL, start_at TEXT NOT NULL, end_at TEXT NOT NULL, min_bid INTEGER NOT NULL, min_increment INTEGER NOT NULL, current_bid INTEGER NOT NULL DEFAULT 0, current_bidder_id TEXT, current_bidder_name TEXT, status TEXT NOT NULL)',
     );
+  } catch {
+    // Already exists.
+  }
+  // Flight bets.
+  try {
+    await db.exec(
+      "CREATE TABLE IF NOT EXISTS bets (id TEXT PRIMARY KEY, user_id TEXT NOT NULL, user_name TEXT NOT NULL, flight_id TEXT NOT NULL, kind TEXT NOT NULL, pigeon_id TEXT, pigeon_name TEXT NOT NULL, rival_id TEXT, rival_name TEXT, stake INTEGER NOT NULL, ratio REAL NOT NULL, potential_win INTEGER NOT NULL, status TEXT NOT NULL, placed_at TEXT NOT NULL, settled_at TEXT)",
+    );
+  } catch {
+    // Already exists.
+  }
+  try {
+    await db.exec('CREATE INDEX IF NOT EXISTS idx_bets_user ON bets (user_id)');
   } catch {
     // Already exists.
   }
