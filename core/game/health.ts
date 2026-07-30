@@ -20,7 +20,6 @@ import {
   type AilmentTemplate,
 } from '../config/gameConfig.js';
 import type { Ailment, Database, Loft, Pigeon } from '../schema.js';
-import { compartmentCoverage } from './economy.js';
 import { ageMortality } from './pigeon.js';
 import { awardBadge, evaluateBadges } from './badges.js';
 import { clamp, pick, round1 } from './util.js';
@@ -155,8 +154,6 @@ export function runHealthWeek(db: Database, week: number): HealthEvent[] {
     // 4. Contagion + spontaneous illness among the survivors.
     const alive = birds.filter((p) => !dead.has(p.id));
     const sources = alive.filter((p) => p.ailment?.kind === 'ziekte' && !p.inInfirmary).length;
-    // Private compartments keep birds apart, cutting the onset chance.
-    const compartmentGuard = 1 - COMPARTMENT.diseaseReduction * compartmentCoverage(loft, birds.length);
     for (const p of alive) {
       if (p.ailment || p.inInfirmary) continue; // already ailing, or safely isolated
       // Low energie (form) makes a bird more susceptible; being fit protects it.
@@ -164,6 +161,8 @@ export function runHealthWeek(db: Database, week: number): HealthEvent[] {
       const perSource = HEALTH.contagionPerSource * clamp(1.2 - p.health / 100, 0.1, 1.2) * energyRisk;
       const fromOthers = sources > 0 ? 1 - Math.pow(1 - perSource, sources) : 0;
       const spontaneous = HEALTH.spontaneousIllness * clamp(1 - p.health / 100, 0, 1) * energyRisk;
+      // A private compartment keeps this bird apart, cutting its onset chance.
+      const compartmentGuard = p.compartment ? 1 - COMPARTMENT.diseaseReduction : 1;
       const chance = clamp(1 - (1 - fromOthers) * (1 - spontaneous), 0, 0.85) * compartmentGuard;
       if (Math.random() < chance) {
         const disease = randomDisease(week);

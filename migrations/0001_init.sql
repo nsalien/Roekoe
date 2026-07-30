@@ -71,6 +71,8 @@ CREATE TABLE IF NOT EXISTS pigeons (
   ailment        TEXT NOT NULL DEFAULT '',
   in_infirmary   INTEGER NOT NULL DEFAULT 0,
   coached        INTEGER NOT NULL DEFAULT 0,
+  ration         TEXT NOT NULL DEFAULT 'normal',
+  compartment    INTEGER NOT NULL DEFAULT 0,
   races          INTEGER NOT NULL DEFAULT 0,
   ever_ailed     INTEGER NOT NULL DEFAULT 0
 );

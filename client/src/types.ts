@@ -49,6 +49,8 @@ export interface Pigeon {
   ailment: Ailment | null;
   inInfirmary: boolean;
   coached: boolean;
+  ration: FeedRation;
+  compartment: boolean;
 }
 
 export interface Trade {
@@ -83,6 +85,7 @@ export interface Loft {
   feedRation: FeedRation;
   capacity: number;
   compartments: number;
+  compartmentsUsed: number;
   compartmentCost: number | null;
   nextCapacity: { capacity: number; price: number } | null;
   nextInfirmary: { capacity: number; price: number } | null;

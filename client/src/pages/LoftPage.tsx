@@ -5,7 +5,7 @@ import { useGame } from '../game/GameContext';
 import { api } from '../api/client';
 import { Money, Spinner, useToast } from '../components/ui';
 import { PigeonCard } from '../components/PigeonCard';
-import type { Loft, Pigeon } from '../types';
+import type { FeedRation, Loft, Pigeon } from '../types';
 
 type SortKey = 'talent' | 'speed' | 'endurance' | 'orientation' | 'form' | 'ageWeeks';
 
@@ -63,6 +63,28 @@ export function LoftPage() {
       <div className="grid pigeons">
         {pigeons.map((p) => (
           <PigeonCard key={p.id} pigeon={p} to={`/duif/${p.id}`}>
+            {/* Per-pigeon feeding + private compartment */}
+            <div className="row" style={{ gap: 6, marginBottom: 6, flexWrap: 'wrap' }}>
+              <select
+                value={p.ration}
+                disabled={busy}
+                title="Voerschema van deze duif"
+                onChange={(e) => act(() => api(`/pigeons/${p.id}/ration`, { method: 'POST', body: { ration: e.target.value } }))}
+                style={{ flex: 1, minWidth: 90, width: 'auto' }}
+              >
+                {(Object.keys(state.feedRations) as FeedRation[]).map((k) => (
+                  <option key={k} value={k}>🍽 {state.feedRations[k].label}</option>
+                ))}
+              </select>
+              <button
+                className={`btn sm ${p.compartment ? 'accent' : 'ghost'}`}
+                disabled={busy || (!p.compartment && (state.loft?.compartmentsUsed ?? 0) >= (state.loft?.compartments ?? 0))}
+                title={p.compartment ? 'Zit in een apart hok' : 'Zit samen met de anderen'}
+                onClick={() => act(() => api(`/pigeons/${p.id}/compartment`, { method: 'POST', body: { on: !p.compartment } }))}
+              >
+                🧱 {p.compartment ? 'Apart' : 'Samen'}
+              </button>
+            </div>
             {sellFor === p.id ? (
               <div className="row">
                 <input
@@ -109,7 +131,6 @@ function LoftUpgrades({
   busy: boolean;
   act: (fn: () => Promise<unknown>, ok?: string) => void;
 }) {
-  const coverage = loft.pigeonCount > 0 ? Math.min(100, Math.round((loft.compartments / loft.pigeonCount) * 100)) : 0;
   return (
     <div className="card" style={{ marginBottom: 18 }}>
       <h2 style={{ marginTop: 0 }}>🏗️ Uitbreidingen</h2>
@@ -122,11 +143,11 @@ function LoftUpgrades({
           </div>
           {loft.nextCapacity ? (
             <button
-              className="btn accent block"
+              className="btn accent sm"
               disabled={busy || loft.money < loft.nextCapacity.price}
               onClick={() => act(() => api('/loft/capacity', { method: 'POST' }), 'Hok uitgebreid! 🏠')}
             >
-              Uitbreiden naar {loft.nextCapacity.capacity} · <Money value={loft.nextCapacity.price} />
+              Naar {loft.nextCapacity.capacity} · <Money value={loft.nextCapacity.price} />
             </button>
           ) : (
             <div className="faint">Maximale capaciteit bereikt.</div>
@@ -137,15 +158,15 @@ function LoftUpgrades({
         <div>
           <strong>🧱 Aparte hokken</strong>
           <div className="faint" style={{ margin: '2px 0 8px' }}>
-            {loft.compartments} apart · {coverage}% van je duiven zit apart. Beter energieherstel en minder ziekte.
+            {loft.compartmentsUsed}/{loft.compartments} in gebruik. Kies per duif hieronder wie apart zit — beter energieherstel en minder ziekte.
           </div>
           {loft.compartmentCost != null ? (
             <button
-              className="btn block"
+              className="btn sm"
               disabled={busy || loft.money < loft.compartmentCost}
               onClick={() => act(() => api('/loft/compartment', { method: 'POST' }), 'Apart hok gebouwd! 🧱')}
             >
-              Apart hok bijbouwen · <Money value={loft.compartmentCost} />
+              Bijbouwen · <Money value={loft.compartmentCost} />
             </button>
           ) : (
             <div className="faint">Elke plaats heeft al een apart hok.</div>

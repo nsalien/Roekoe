@@ -31,10 +31,13 @@ import {
   renameLoft,
   renamePigeon,
   seedWorld,
+  setAllRations,
   setCoach,
   setInfirmary,
   setInfirmaryStaff,
   setMedicatedFood,
+  setPigeonCompartment,
+  setPigeonRation,
   startBreeding,
   trainPigeon,
   unlist,
@@ -356,14 +359,28 @@ app.get('/pigeons/:id', (c) => {
 app.post('/loft/ration', async (c) => {
   const user = requireUser(c);
   const body = await c.req.json().catch(() => ({}));
-  if (!['low', 'normal', 'high', 'premium', 'libido'].includes(body.ration)) return c.json({ error: 'Ongeldige keuze' }, 400);
   const store = c.get('store');
-  store.mutate((db) => {
-    const loft = db.lofts.find((l) => l.userId === user.id);
-    if (loft) loft.feedRation = body.ration;
-  });
+  const err = setAllRations(store, user.id, String(body.ration ?? ''));
   await store.persist();
-  return c.json({ ok: true });
+  return err ? c.json({ error: err }, 400) : c.json({ ok: true });
+});
+
+app.post('/pigeons/:id/ration', async (c) => {
+  const user = requireUser(c);
+  const body = await c.req.json().catch(() => ({}));
+  const store = c.get('store');
+  const err = setPigeonRation(store, user.id, c.req.param('id'), String(body.ration ?? ''));
+  await store.persist();
+  return err ? c.json({ error: err }, 400) : c.json({ ok: true });
+});
+
+app.post('/pigeons/:id/compartment', async (c) => {
+  const user = requireUser(c);
+  const body = await c.req.json().catch(() => ({}));
+  const store = c.get('store');
+  const err = setPigeonCompartment(store, user.id, c.req.param('id'), body.on === true);
+  await store.persist();
+  return err ? c.json({ error: err }, 400) : c.json({ ok: true });
 });
 
 app.post('/loft/food', async (c) => {

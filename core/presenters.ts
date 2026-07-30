@@ -40,6 +40,8 @@ export function pigeonDTO(db: Database, p: Pigeon) {
     ailment: p.ailment,
     inInfirmary: p.inInfirmary,
     coached: p.coached ?? false,
+    ration: p.ration ?? 'normal',
+    compartment: p.compartment ?? false,
   };
 }
 
@@ -56,6 +58,7 @@ export function loftDTO(db: Database, loft: Loft) {
     feedRation: loft.feedRation,
     capacity: loft.capacity,
     compartments: loft.compartments ?? 0,
+    compartmentsUsed: pigeons.filter((p) => p.compartment).length,
     compartmentCost: (loft.compartments ?? 0) >= loft.capacity ? null : compartmentCost(loft.compartments ?? 0),
     nextCapacity: nextCapacityTier(loft.capacity),
     nextInfirmary: nextInfirmaryTier(loft.infirmaryCapacity),

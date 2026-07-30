@@ -138,6 +138,27 @@ small, .faint { color: var(--text-faint); font-size: 0.82rem; }
 }
 .nav a:hover { background: var(--surface-2); color: var(--text); }
 .nav a.active { background: var(--brand-soft); color: var(--brand-ink); }
+.ration-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 8px;
+}
+.ration-card {
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  background: var(--surface-2);
+  padding: 8px 10px;
+  font-size: 0.85rem;
+}
+.ration-card.active { border-color: var(--brand); background: var(--brand-soft); }
+.chip-mini {
+  display: inline-flex; align-items: center;
+  padding: 1px 7px; border-radius: 999px;
+  background: var(--surface); border: 1px solid var(--border);
+  font-size: 0.72rem; font-weight: 700; white-space: nowrap;
+}
+.chip-mini.good { color: var(--good); }
+
 .nav a .nav-dot {
   display: inline-flex; align-items: center; justify-content: center;
   min-width: 16px; height: 16px; margin-left: 5px; padding: 0 4px;

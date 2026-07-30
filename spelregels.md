@@ -418,15 +418,19 @@ Verdiend geld kan je investeren in je hok en je duiven (bij *Mijn hok*, de
   10, 12, 16 en 20 (elke stap kost meer). Zonder plaats kan je niet kopen,
   adopteren of kweken.
 - **Aparte hokken.** Koop losse compartimenten zodat je duiven niet allemaal op
-  elkaar zitten. Hoe meer van je duiven een eigen plek hebben (dekkingsgraad =
-  aparte hokken ÷ aantal duiven), hoe **sneller ze energie herstellen** en hoe
-  **kleiner de kans op ziekte**. Elk apart hok wordt los gekocht en wordt telkens
-  wat duurder.
+  elkaar zitten. Elk apart hok wordt los gekocht (telkens wat duurder), en je
+  **kiest zelf welke duiven** er een krijgen (knop bij *Mijn hok* of op de
+  duifpagina). Heb je minder aparte hokken dan duiven, dan zitten de rest gewoon
+  samen. Een duif in een apart hok **herstelt sneller energie** en heeft een
+  **kleinere kans op ziekte**.
 - **Ziekenboeg uitbreiden.** Koop extra bedden (van 4 naar 6, 8, 10) zodat je
   meer zieke duiven tegelijk kan verzorgen.
-- **Voerschema's.** Naast Zuinig/Normaal/Royaal zijn er twee premiumopties:
-  **Premium** (meer energie- en gezondheidsherstel én bouwt langzaam conditie op)
-  en **Libido-mix** (verhoogt de voortplantingsdrang). Ze verbruiken meer voer.
+- **Voerschema's — per duif.** Elke duif heeft eigen noden (vluchten vs. broeden),
+  dus je kiest **per duif** een voerschema (bij *Mijn hok* of op de duifpagina).
+  Op het overzicht kan je met één klik álle duiven op hetzelfde schema zetten.
+  Naast Zuinig/Normaal/Royaal zijn er twee premiumopties: **Premium** (meer
+  energie- en gezondheidsherstel én bouwt langzaam conditie op) en **Libido-mix**
+  (verhoogt de voortplantingsdrang). Ze verbruiken meer voer.
 - **Privécoach.** Huur een coach voor één specifieke duif. Die traint haar
   dagelijks in **snelheid, conditie én oriëntatie** (tot 96 — voorbij de gewone
   trainingsgrens) plus ervaring, puur om beter te racen — **nooit libido**. Een

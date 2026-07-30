@@ -12,6 +12,7 @@ import {
   BREEDING,
   COACH,
   DEFAULT_BOT_COUNT,
+  FEED_RATIONS,
   FOOD_PRICE_PER_KG,
   INFIRMARY,
   INFIRMARY_CAPACITY_TIERS,
@@ -24,6 +25,7 @@ import {
   TRAINING,
   WEEKS_PER_YEAR,
   compartmentCost,
+  type FeedRationKey,
 } from '../config/gameConfig.js';
 import type { Database, Loft, User } from '../schema.js';
 import { emptySponsorState, emptyStats } from '../schema.js';
@@ -156,7 +158,7 @@ export function seedWorld(store: Store): void {
       }
     }
     db.world.seeded = true;
-    db.world.dataVersion = 10; // fresh world: gendered names, libido, tiered flights, badges
+    db.world.dataVersion = 11; // fresh world: gendered names, libido, tiered flights, badges
   });
 }
 
@@ -330,6 +332,47 @@ export function renamePigeon(store: Store, userId: string, pigeonId: string, nam
     if (loft.money < RENAME_COST) return `Niet genoeg geld (hernoemen kost €${RENAME_COST})`;
     loft.money -= RENAME_COST;
     pigeon.name = trimmed;
+    return null;
+  });
+}
+
+/** Set one pigeon's own feed schedule. Returns an error string or null. */
+export function setPigeonRation(store: Store, userId: string, pigeonId: string, ration: string): string | null {
+  return store.mutate((db) => {
+    const pigeon = db.pigeons.find((p) => p.id === pigeonId && p.ownerId === userId);
+    if (!pigeon) return 'Duif niet gevonden';
+    if (!(ration in FEED_RATIONS)) return 'Ongeldig voerschema';
+    pigeon.ration = ration as FeedRationKey;
+    return null;
+  });
+}
+
+/** Set the same feed schedule for the loft default and every owned pigeon. */
+export function setAllRations(store: Store, userId: string, ration: string): string | null {
+  return store.mutate((db) => {
+    const loft = db.lofts.find((l) => l.userId === userId);
+    if (!loft) return 'Geen hok gevonden';
+    if (!(ration in FEED_RATIONS)) return 'Ongeldig voerschema';
+    loft.feedRation = ration as FeedRationKey;
+    for (const p of db.pigeons) if (p.ownerId === userId) p.ration = ration as FeedRationKey;
+    return null;
+  });
+}
+
+/** Put a pigeon in (or out of) a private compartment. Returns error or null. */
+export function setPigeonCompartment(store: Store, userId: string, pigeonId: string, on: boolean): string | null {
+  return store.mutate((db) => {
+    const loft = db.lofts.find((l) => l.userId === userId);
+    const pigeon = db.pigeons.find((p) => p.id === pigeonId && p.ownerId === userId);
+    if (!loft || !pigeon) return 'Duif niet gevonden';
+    if (!on) {
+      pigeon.compartment = false;
+      return null;
+    }
+    if (pigeon.compartment) return null;
+    const used = db.pigeons.filter((p) => p.ownerId === userId && p.compartment).length;
+    if (used >= (loft.compartments ?? 0)) return 'Geen vrij apart hok — bouw er eerst een bij';
+    pigeon.compartment = true;
     return null;
   });
 }

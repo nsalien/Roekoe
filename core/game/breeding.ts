@@ -67,6 +67,8 @@ export function breed(sire: Pigeon, dam: Pigeon, ownerId: string, hatchWeek: num
       races: 0,
       everAiled: false,
       coached: false,
+      ration: 'normal',
+      compartment: false,
     });
   }
   return young;

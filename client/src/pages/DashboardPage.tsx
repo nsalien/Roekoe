@@ -153,55 +153,43 @@ export function DashboardPage() {
             Voorraad voer: <strong>{loft.food.toLocaleString('nl-NL')} kg</strong> · gemiddelde energie <strong>{avgForm}</strong>
           </p>
 
-          <label>Voerschema</label>
-          <div className="pill-tabs" style={{ width: '100%', marginBottom: 10 }}>
+          <label>Voer voor álle duiven ineens</label>
+          <div className="pill-tabs" style={{ width: '100%', marginBottom: 10, flexWrap: 'wrap' }}>
             {(Object.keys(feedRations) as FeedRation[]).map((key) => (
               <button
                 key={key}
                 className={loft.feedRation === key ? 'active' : ''}
-                style={{ flex: 1 }}
+                style={{ flex: '1 0 30%' }}
                 disabled={busy}
-                onClick={() => act(() => api('/loft/ration', { method: 'POST', body: { ration: key } }))}
+                onClick={() => act(() => api('/loft/ration', { method: 'POST', body: { ration: key } }), `Alle duiven op ${feedRations[key].label}`)}
               >
                 {feedRations[key].label}
               </button>
             ))}
           </div>
 
-          {/* What each schema does, per pigeon per week. */}
-          <div className="table-wrap" style={{ marginBottom: 14 }}>
-            <table className="data compact">
-              <thead>
-                <tr>
-                  <th>Schema</th>
-                  <th className="num">Voer/duif</th>
-                  <th className="num">Energie</th>
-                  <th className="num">Gezondh.</th>
-                  <th className="num">Cond.</th>
-                  <th className="num">Libido</th>
-                  <th className="num">Kost/duif</th>
-                </tr>
-              </thead>
-              <tbody>
-                {(Object.keys(feedRations) as FeedRation[]).map((key) => {
-                  const r = feedRations[key];
-                  return (
-                    <tr key={key} className={loft.feedRation === key ? 'me' : ''}>
-                      <td>{r.label}</td>
-                      <td className="num">{r.foodPerPigeon} kg</td>
-                      <td className="num good">+{r.formRecovery}</td>
-                      <td className="num good">+{r.healthRecovery}</td>
-                      <td className="num good">{r.enduranceRecovery ? `+${r.enduranceRecovery}` : '—'}</td>
-                      <td className="num good">{r.libidoRecovery ? `+${r.libidoRecovery}` : '—'}</td>
-                      <td className="num"><Money value={Math.round(r.foodPerPigeon * FOOD_PRICE * 10) / 10} /></td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+          {/* Compact reference cards for each schema (wrap nicely on phones). */}
+          <div className="ration-cards" style={{ marginBottom: 10 }}>
+            {(Object.keys(feedRations) as FeedRation[]).map((key) => {
+              const r = feedRations[key];
+              return (
+                <div key={key} className={`ration-card${loft.feedRation === key ? ' active' : ''}`}>
+                  <div className="row" style={{ justifyContent: 'space-between', gap: 6 }}>
+                    <strong>{r.label}</strong>
+                    <span className="faint">{r.foodPerPigeon} kg · <Money value={Math.round(r.foodPerPigeon * FOOD_PRICE * 10) / 10} /></span>
+                  </div>
+                  <div className="row" style={{ gap: 5, flexWrap: 'wrap', marginTop: 5 }}>
+                    <span className="chip-mini good">⚡ +{r.formRecovery}</span>
+                    <span className="chip-mini good">❤️‍🩹 +{r.healthRecovery}</span>
+                    {r.enduranceRecovery > 0 && <span className="chip-mini good">💪 +{r.enduranceRecovery}</span>}
+                    {r.libidoRecovery > 0 && <span className="chip-mini good">❤️ +{r.libidoRecovery}</span>}
+                  </div>
+                </div>
+              );
+            })}
           </div>
-          <p className="faint" style={{ margin: '-6px 0 12px', fontSize: '0.8rem' }}>
-            Per duif per week. Meer voer = sneller energieherstel én betere vluchten. Te weinig voer in voorraad: −8 energie & −6 gezondheid voor álle duiven.
+          <p className="faint" style={{ margin: '0 0 12px', fontSize: '0.8rem' }}>
+            Waarden per duif per week (energie · gezondheid · conditie · libido). Per duif kan je een eigen schema kiezen in <strong>Mijn hok</strong> of op de duifpagina. Te weinig voorraad: −8 energie & −6 gezondheid voor álle duiven.
           </p>
 
           <label>Voer bijkopen ({FOOD_PRICE} per kg)</label>

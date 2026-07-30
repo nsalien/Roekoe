@@ -471,6 +471,16 @@ function runDataMigrations(db: Database): void {
     for (const p of db.pigeons) if (p.coached == null) p.coached = false;
     db.world.dataVersion = 10;
   }
+  if ((db.world.dataVersion ?? 0) < 11) {
+    // Feeding is now per pigeon: seed each bird with its loft's current schedule
+    // so nothing changes until the player picks a different ration.
+    const rationByOwner = new Map(db.lofts.map((l) => [l.userId, l.feedRation]));
+    for (const p of db.pigeons) {
+      if (p.ration == null) p.ration = rationByOwner.get(p.ownerId) ?? 'normal';
+      if (p.compartment == null) p.compartment = false;
+    }
+    db.world.dataVersion = 11;
+  }
 }
 
 /**

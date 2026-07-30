@@ -91,6 +91,14 @@ export function PigeonPage() {
     return run(() => api(`/pigeons/${p.id}/coach`, { method: 'POST', body: { on } }), on ? 'Coach ingehuurd! 🎯' : 'Coach ontslagen');
   }
 
+  function setRation(ration: string) {
+    return run(() => api(`/pigeons/${p.id}/ration`, { method: 'POST', body: { ration } }), 'Voer aangepast 🍽');
+  }
+
+  function setCompartment(on: boolean) {
+    return run(() => api(`/pigeons/${p.id}/compartment`, { method: 'POST', body: { on } }), on ? 'In apart hok 🧱' : 'Terug bij de rest');
+  }
+
   function rename() {
     const name = newName.trim();
     if (name.length < 2) return;
@@ -206,6 +214,40 @@ export function PigeonPage() {
                 ) : (
                   <button className="btn accent sm" style={{ flexShrink: 0 }} disabled={busy} onClick={() => setCoach(true)}>Inhuren</button>
                 )}
+              </div>
+
+              <hr className="sep" />
+
+              {/* Feeding + private compartment */}
+              <div className="row" style={{ justifyContent: 'space-between', gap: 10, alignItems: 'flex-start' }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <strong>🍽 Voer & huisvesting</strong>
+                  <div className="faint" style={{ fontSize: '0.85rem' }}>
+                    Kies een eigen voerschema (vluchten vs. broeden) en of deze duif apart zit.
+                  </div>
+                </div>
+              </div>
+              <div className="row" style={{ gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
+                {state?.feedRations && (
+                  <select
+                    value={p.ration}
+                    disabled={busy}
+                    onChange={(e) => setRation(e.target.value)}
+                    style={{ flex: 1, minWidth: 120, width: 'auto' }}
+                  >
+                    {Object.keys(state.feedRations).map((k) => (
+                      <option key={k} value={k}>🍽 {state.feedRations[k as keyof typeof state.feedRations].label}</option>
+                    ))}
+                  </select>
+                )}
+                <button
+                  className={`btn sm ${p.compartment ? 'accent' : 'ghost'}`}
+                  disabled={busy || (!p.compartment && (state?.loft ? state.loft.compartmentsUsed >= state.loft.compartments : true))}
+                  title={p.compartment ? 'Zit in een apart hok' : 'Zit samen met de rest'}
+                  onClick={() => setCompartment(!p.compartment)}
+                >
+                  🧱 {p.compartment ? 'Apart hok' : 'Samen'}
+                </button>
               </div>
 
               <hr className="sep" />

@@ -82,6 +82,8 @@ export function generatePigeon(opts: GenerateOptions): Pigeon {
     races: 0,
     everAiled: false,
     coached: false,
+    ration: 'normal',
+    compartment: false,
   };
 }
 

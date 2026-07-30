@@ -10,12 +10,6 @@ import {
 import type { Loft, Pigeon } from '../schema.js';
 import { clamp, hashString, round1 } from './util.js';
 
-/** Fraction of a loft's birds that enjoy a private compartment (0..1). */
-export function compartmentCoverage(loft: Loft, pigeonCount: number): number {
-  if (pigeonCount <= 0) return 0;
-  return clamp((loft.compartments ?? 0) / pigeonCount, 0, 1);
-}
-
 /**
  * Apply ONE day of care to a loft: eat food, then recover (or lose) energie and
  * health, and drift libido. Returns whether the loft could feed everyone.
@@ -28,8 +22,8 @@ export function compartmentCoverage(loft: Loft, pigeonCount: number): number {
 export function applyDayOfCare(loft: Loft, pigeons: Pigeon[]): boolean {
   const active = pigeons.filter((p) => !p.retired);
   if (active.length === 0) return true;
-  const ration = FEED_RATIONS[loft.feedRation];
-  const need = round1(active.length * ration.foodPerPigeon);
+  const rationOf = (p: Pigeon) => FEED_RATIONS[p.ration ?? loft.feedRation] ?? FEED_RATIONS.normal;
+  const need = round1(active.reduce((sum, p) => sum + rationOf(p).foodPerPigeon, 0));
 
   let fed = true;
   if (loft.food >= need) {
@@ -39,15 +33,13 @@ export function applyDayOfCare(loft: Loft, pigeons: Pigeon[]): boolean {
     loft.food = 0;
   }
 
-  // Private compartments: birds rest better and healthier the more of them get
-  // their own space (coverage-scaled).
-  const coverage = compartmentCoverage(loft, active.length);
-  const formMult = 1 + COMPARTMENT.formRecoveryBonus * coverage;
-  const healthMult = 1 + COMPARTMENT.healthRecoveryBonus * coverage;
-
   for (const p of active) {
+    const ration = rationOf(p);
+    // A private compartment lets this bird rest better and stay healthier.
+    const formMult = 1 + (p.compartment ? COMPARTMENT.formRecoveryBonus : 0);
+    const healthMult = 1 + (p.compartment ? COMPARTMENT.healthRecoveryBonus : 0);
     if (fed) {
-      const energyGain = (ration.formRecovery / 7) * (1 + p.experience / 200) * formMult; // exp + compartments speed recovery
+      const energyGain = (ration.formRecovery / 7) * (1 + p.experience / 200) * formMult; // exp + compartment speed recovery
       p.form = round1(clamp(p.form + energyGain, 0, 100));
       p.health = round1(clamp(p.health + (ration.healthRecovery / 7) * healthMult + p.endurance / 280, 0, 100));
       // Premium feed slowly builds conditie; a libido-mix lifts the drive.
