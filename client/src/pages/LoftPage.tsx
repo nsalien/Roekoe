@@ -76,14 +76,16 @@ export function LoftPage() {
                   <option key={k} value={k}>🍽 {state.feedRations[k].label}</option>
                 ))}
               </select>
-              <button
-                className={`btn sm ${p.compartment ? 'accent' : 'ghost'}`}
-                disabled={busy || (!p.compartment && (state.loft?.compartmentsUsed ?? 0) >= (state.loft?.compartments ?? 0))}
-                title={p.compartment ? 'Zit in een apart hok' : 'Zit samen met de anderen'}
-                onClick={() => act(() => api(`/pigeons/${p.id}/compartment`, { method: 'POST', body: { on: !p.compartment } }))}
-              >
-                🧱 {p.compartment ? 'Apart' : 'Samen'}
-              </button>
+              {!p.inInfirmary && (
+                <button
+                  className={`btn sm ${p.compartment ? 'accent' : 'ghost'}`}
+                  disabled={busy || (!p.compartment && (state.loft?.compartmentsUsed ?? 0) >= (state.loft?.compartments ?? 0))}
+                  title={p.compartment ? 'Zit in een apart hok' : 'Zit samen met de anderen'}
+                  onClick={() => act(() => api(`/pigeons/${p.id}/compartment`, { method: 'POST', body: { on: !p.compartment } }))}
+                >
+                  🧱 {p.compartment ? 'Apart' : 'Samen'}
+                </button>
+              )}
             </div>
             {sellFor === p.id ? (
               <div className="row">

@@ -7,8 +7,6 @@ import { Money, Spinner, useToast } from '../components/ui';
 import { PigeonAvatar } from '../components/PigeonAvatar';
 import type { BreedingPair } from '../types';
 
-const BREED_COST = 200;
-
 export function BreedingPage() {
   const { state, loading, refresh } = useGame();
   const toast = useToast();
@@ -26,10 +24,26 @@ export function BreedingPage() {
   }, [loadPairs, state?.world.currentWeek]);
 
   if (loading || !state) return <Spinner />;
-  const doffers = state.pigeons.filter((p) => p.sex === 'doffer');
-  const duivinnen = state.pigeons.filter((p) => p.sex === 'duivin');
+  const BREED_COST = state.economy.breedCost;
+  const eligible = (p: (typeof state.pigeons)[number]) => !p.ailment && !p.inInfirmary && !p.breeding && !p.racing;
+  const doffers = state.pigeons.filter((p) => p.sex === 'doffer' && eligible(p));
+  const duivinnen = state.pigeons.filter((p) => p.sex === 'duivin' && eligible(p));
   const sire = doffers.find((p) => p.id === sireId);
   const dam = duivinnen.find((p) => p.id === damId);
+
+  async function stop(pairId: string) {
+    setBusy(true);
+    try {
+      await api(`/breeding/${pairId}/stop`, { method: 'POST' });
+      toast.show('Koppel gestopt — de duiven kunnen weer vliegen.', 'ok');
+      await loadPairs();
+      await refresh();
+    } catch (e) {
+      toast.show(e instanceof Error ? e.message : 'Mislukt', 'err');
+    } finally {
+      setBusy(false);
+    }
+  }
 
   async function start() {
     if (!sireId || !damId) return;
@@ -104,9 +118,12 @@ export function BreedingPage() {
           <div className="stack">
             {pairs.map((pair) => (
               <div key={pair.id} className="card" style={{ boxShadow: 'none', background: 'var(--surface-2)' }}>
-                <div className="row" style={{ justifyContent: 'space-between' }}>
+                <div className="row" style={{ justifyContent: 'space-between', gap: 8 }}>
                   <span>{pair.sire} × {pair.dam}</span>
-                  <strong className="faint">🥚 aan het broeden…</strong>
+                  <div className="row" style={{ gap: 8 }}>
+                    <strong className="faint">🥚 aan het broeden…</strong>
+                    <button className="btn ghost sm" disabled={busy} onClick={() => stop(pair.id)}>Stop</button>
+                  </div>
                 </div>
               </div>
             ))}

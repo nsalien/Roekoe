@@ -106,7 +106,7 @@ export const BADGES: BadgeDef[] = [
   // --- Fun / dark ---
   { key: 'rip_sperwer', group: 'fun', label: 'RIP 🕊️', description: 'Verlies een duif aan een sperwer.', xp: 25, icon: '🦅' },
   { key: 'vredig', group: 'fun', label: 'Vredig Heengegaan', description: 'Een duif sterft van ouderdom.', xp: 25, icon: '🕯️' },
-  { key: 'kerngezond', group: 'fun', label: 'Kerngezond Hok', description: 'Al je duiven tegelijk 100% gezond (min. 4).', xp: 75, icon: '💚', test: (l, db) => { const mine = db.pigeons.filter((p) => p.ownerId === l.userId && !p.retired); return mine.length >= 4 && mine.every((p) => p.health >= 100); } },
+  { key: 'kerngezond', group: 'fun', label: 'Kerngezond Hok', description: 'Al je duiven tegelijk 100% gezond (min. 4).', xp: 75, icon: '💚', test: (l, db) => { const mine = db.pigeons.filter((p) => p.ownerId === l.userId); return mine.length >= 4 && mine.every((p) => p.health >= 100); } },
 ];
 
 export const BADGE_MAP = new Map(BADGES.map((b) => [b.key, b]));
@@ -195,7 +195,7 @@ export function awardFlightBadges(db: Database, flight: Flight): void {
   for (const ownerId of owners) {
     const loft = db.lofts.find((l) => l.userId === ownerId);
     if (!loft) continue;
-    const mine = flight.results.filter((r) => r.ownerId === ownerId);
+    const mine = flight.results.filter((r) => r.ownerId === ownerId && r.finished !== false);
     for (const r of mine) {
       if (r.rank === 1) loft.stats.gold += 1;
       else if (r.rank === 2) loft.stats.silver += 1;

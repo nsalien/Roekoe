@@ -16,8 +16,6 @@ interface PigeonDetail {
   history: RaceHistoryRow[];
 }
 
-const TRAIN_COST = 120;
-
 export function PigeonPage() {
   const { id } = useParams();
   const nav = useNavigate();
@@ -193,7 +191,7 @@ export function PigeonPage() {
             <div className="card">
               <h2>Training</h2>
               <p className="muted">
-                Kost <Money value={TRAIN_COST} /> en wat energie, geeft een kleine blijvende verbetering.
+                {state?.economy && <>Kost <Money value={state.economy.trainCost} /> en wat energie, </>}geeft een kleine blijvende verbetering.
               </p>
               <div className="stack" style={{ marginTop: 8 }}>
                 <button className="btn" disabled={busy} onClick={() => train('speed')}>Train snelheid</button>
@@ -203,7 +201,7 @@ export function PigeonPage() {
             </div>
           )}
 
-          {mine && !p.retired && (
+          {mine && (
             <div className="card">
               <h2>Ontwikkeling</h2>
 

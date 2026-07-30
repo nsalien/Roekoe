@@ -76,7 +76,7 @@ function createSundayAuction(db: Database, key: string, startMs: number, endMs: 
     id: newId('auc'), templateKey: key, pigeonId: p.id,
     startAt: new Date(startMs).toISOString(), endAt: new Date(endMs).toISOString(),
     minBid, minIncrement: Math.max(25, Math.round((minBid * 0.05) / 5) * 5),
-    currentBid: 0, currentBidderId: null, currentBidderName: null, status: 'open',
+    currentBid: 0, currentBidderId: null, currentBidderName: null, bids: [], status: 'open',
   });
   for (const loft of db.lofts) {
     if (!loft.isBot) {
@@ -100,37 +100,52 @@ function createShelterAuction(db: Database, nowMs: number): void {
     startAt: new Date(nowMs).toISOString(),
     endAt: new Date(nowMs + AUCTION.shelterWindowHours * 3600000).toISOString(),
     minBid: AUCTION.shelterStartBid, minIncrement: 5,
-    currentBid: 0, currentBidderId: null, currentBidderName: null, status: 'open',
+    currentBid: 0, currentBidderId: null, currentBidderName: null, bids: [], status: 'open',
   });
 }
 
 function closeAuction(db: Database, a: Auction): void {
   a.status = 'closed';
   const p = db.pigeons.find((x) => x.id === a.pigeonId);
+  if (!p) return;
   const shelter = auctionKind(a) === 'shelter';
   const sellerId = shelter ? SHELTER_ID : AUCTION_HOUSE_ID;
   const sellerName = shelter ? 'Opvangcentrum' : 'Veilinghuis';
-  if (a.currentBidderId && p) {
-    p.ownerId = a.currentBidderId;
-    p.forSale = false;
-    const winner = db.lofts.find((l) => l.userId === a.currentBidderId);
-    if (winner) {
-      db.trades.push({
-        id: newId('trd'), pigeonId: p.id, pigeonName: p.name,
-        sellerId, sellerName,
-        buyerId: winner.userId, buyerName: winner.name, price: a.currentBid,
-        at: new Date().toISOString(),
-      });
-      winner.stats.buys += 1;
-      const title = shelter ? '🏠 Opvangduif geadopteerd!' : '🔨 Veiling gewonnen!';
-      const body = shelter
-        ? `${p.name} komt uit het opvangcentrum naar jouw hok, voor €${a.currentBid}. Met wat training komt die er wel.`
-        : `${p.name} is voor jou, voor €${a.currentBid}. Veel vliegplezier!`;
-      notify(db, winner, title, body);
-      if (shelter) awardBadge(db, winner, 'opvang');
+
+  // Cascade: highest bidder who can still pay AND has room wins, at their bid.
+  const ordered = [...(a.bids ?? [])].sort((x, y) => y.amount - x.amount);
+  let winner: Loft | undefined;
+  let price = 0;
+  for (const b of ordered) {
+    const loft = db.lofts.find((l) => l.userId === b.userId);
+    if (!loft) continue;
+    const owned = db.pigeons.filter((x) => x.ownerId === loft.userId).length;
+    if (loft.money >= b.amount && owned < loft.capacity) {
+      winner = loft;
+      price = b.amount;
+      break;
     }
-  } else if (p) {
-    db.pigeons = db.pigeons.filter((x) => x.id !== a.pigeonId); // unsold, withdrawn
+  }
+
+  if (winner) {
+    winner.money -= price;
+    p.ownerId = winner.userId;
+    p.forSale = false;
+    db.trades.push({
+      id: newId('trd'), pigeonId: p.id, pigeonName: p.name,
+      sellerId, sellerName,
+      buyerId: winner.userId, buyerName: winner.name, price,
+      at: new Date().toISOString(),
+    });
+    winner.stats.buys += 1;
+    const title = shelter ? '🏠 Opvangduif geadopteerd!' : '🔨 Veiling gewonnen!';
+    const body = shelter
+      ? `${p.name} komt uit het opvangcentrum naar jouw hok, voor €${price}. Met wat training komt die er wel.`
+      : `${p.name} is voor jou, voor €${price}. Veel vliegplezier!`;
+    notify(db, winner, title, body);
+    if (shelter) awardBadge(db, winner, 'opvang');
+  } else {
+    db.pigeons = db.pigeons.filter((x) => x.id !== a.pigeonId); // no payable bidder
   }
 }
 
@@ -175,7 +190,12 @@ export function ensureAuctions(db: Database, nowMs: number): void {
   if (db.auctions.length > 12) db.auctions = db.auctions.slice(-12);
 }
 
-/** Place a bid on an open auction (by id). Returns an error string or null. */
+/**
+ * Place a bid on an open auction (by id). Money is NOT escrowed — you only have
+ * to hold the amount when you bid. At close the highest bidder who can still pay
+ * (and has room) wins; if not, it cascades to the next highest bidder.
+ * Returns an error string or null.
+ */
 export function placeBid(db: Database, userId: string, auctionId: string, amount: number): string | null {
   const a = db.auctions.find((x) => x.id === auctionId && x.status === 'open');
   if (!a) return 'Deze veiling loopt niet (meer)';
@@ -185,17 +205,20 @@ export function placeBid(db: Database, userId: string, auctionId: string, amount
   const bid = Math.round(amount);
   const minNext = a.currentBid > 0 ? a.currentBid + a.minIncrement : a.minBid;
   if (!(bid >= minNext)) return `Minimaal bod is €${minNext}`;
-  if (loft.money < bid) return 'Niet genoeg geld voor dit bod';
+  if (loft.money < bid) return 'Je moet het geld dat je biedt ook echt hebben';
   const owned = db.pigeons.filter((p) => p.ownerId === userId).length;
   if (owned >= loft.capacity) return 'Je hok zit vol';
-  if (a.currentBidderId) {
+
+  // Record (or raise) this player's standing bid.
+  a.bids = (a.bids ?? []).filter((b) => b.userId !== userId);
+  a.bids.push({ userId, name: loft.name, amount: bid });
+
+  if (a.currentBidderId && a.currentBidderId !== userId) {
     const prev = db.lofts.find((l) => l.userId === a.currentBidderId);
-    if (prev) {
-      prev.money += a.currentBid;
-      if (!prev.isBot) notify(db, prev, '📉 Overboden', `Iemand bood meer op ${db.pigeons.find((p) => p.id === a.pigeonId)?.name ?? 'de veilingduif'}. Je inzet is terugbetaald.`);
+    if (prev && !prev.isBot) {
+      notify(db, prev, '📉 Overboden', `Iemand bood meer op ${db.pigeons.find((p) => p.id === a.pigeonId)?.name ?? 'de veilingduif'}.`);
     }
   }
-  loft.money -= bid;
   a.currentBid = bid;
   a.currentBidderId = userId;
   a.currentBidderName = loft.name;

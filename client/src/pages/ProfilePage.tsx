@@ -59,16 +59,21 @@ export function ProfilePage() {
           </span>
           <div style={{ flex: 1, minWidth: 0 }}>
             {editing ? (
-              <div className="row" style={{ gap: 6 }}>
-                <input
-                  value={name}
-                  maxLength={32}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder="Naam van je hok"
-                  style={{ maxWidth: 260 }}
-                />
-                <button className="btn sm" disabled={busy || name.trim().length < 2} onClick={saveName}>Bewaar</button>
-                <button className="btn ghost sm" onClick={() => setEditing(false)}>Annuleer</button>
+              <div>
+                <div className="row" style={{ gap: 6 }}>
+                  <input
+                    value={name}
+                    maxLength={32}
+                    onChange={(e) => setName(e.target.value)}
+                    placeholder="Naam van je hok"
+                    style={{ maxWidth: 260 }}
+                  />
+                  <button className="btn sm" disabled={busy || name.trim().length < 2} onClick={saveName}>Bewaar</button>
+                  <button className="btn ghost sm" onClick={() => setEditing(false)}>Annuleer</button>
+                </div>
+                <div className="faint" style={{ fontSize: '0.82rem', marginTop: 4 }}>
+                  Een hok hernoemen kost <Money value={state.economy.renameLoftCost} />.
+                </div>
               </div>
             ) : (
               <div className="row" style={{ justifyContent: 'space-between', gap: 8 }}>

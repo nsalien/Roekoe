@@ -148,12 +148,21 @@ Bij een verbetering krijgt de speler een melding.
 > dezelfde ruimte maar amper plaatsbonus, en dus maar ~35% kans. Winnen én
 > onervaren/zwakke duiven leren dus het snelst bij.
 
-### 3.2 Kans op kwetsuur
+### 3.2 Energie, thuiskomen & kans op kwetsuur
+
+Om in te schrijven heeft een duif **minstens 1 energie** nodig. Vliegt ze op een
+haast lege tank, dan is er een reële kans dat ze de vlucht **niet uitrijdt (DNF)**
+— ze raakt niet thuis, verdient geen punten of prijs, en is nadien vaak gekwetst.
+Onder ~22 energie loopt die kans snel op; bij bijna 0 energie komt ze zo goed als
+zeker niet thuis.
+
 ```
 basiskans   = 0.025 + afstand · 0.00018
-kans_duif   = basiskans · (1 + (100 − Energie)/100)     // lage energie = risicovoller
+kans_duif   = basiskans · (1 + (100 − Energie)/100) + extra_bij_lage_energie
 ```
-De kwetsuur is willekeurig uit de lijst (zie §5).
+Onder ~25 energie komt er een extra blessurekans bij (tot +0.6 bij 0 energie); een
+duif die niet thuis raakt, is bijna altijd gewond. De kwetsuur is willekeurig uit
+de lijst (zie §5).
 
 > **Voorbeeld.** Op een fondvlucht van **490 km** is de basiskans 0.025 +
 > 490·0.00018 ≈ **11%** bij volle energie. Vliegt de duif op haar tandvlees
@@ -210,7 +219,12 @@ Bij "Volgende week" (spelleider) wordt aangerekend:
 ```
 onkosten = 150 + 15 · aantal_duiven
 ```
-Ziekte/herstel/sterfte en het seizoen worden ook dan verwerkt (zie §5, §6).
+Daarbovenop komen coachsalarissen (§13) en de ziekenboegkosten (§5). Ziekte/
+herstel/sterfte en het seizoen worden ook dan verwerkt (zie §5, §6).
+
+Onkosten kunnen je kassa **onder €0** duwen. Sta je negatief, dan **kan je niet
+meer inschrijven** voor vluchten: eerst een duif verkopen om terug uit het rood
+te geraken.
 
 ---
 
@@ -293,8 +307,12 @@ Bij overlijden krijgt de eigenaar een melding.
 ## 7. Kweken (broeden)
 
 **Voorwaarden:** een doffer + een duivin, beide met energie ≥ **40**, geen
-ziekte/kwetsuur, niet in de ziekenboeg. Kost **€200** en **−15 energie** per
-ouder.
+ziekte/kwetsuur, niet in de ziekenboeg, en **niet ingeschreven voor een vlucht**.
+Kost **€200** en **−15 energie** per ouder.
+
+Een duif die aan het **broeden** is, **kan niet deelnemen aan vluchten**. Wil je
+haar terug laten vliegen, dan **stop je het koppel** (knop bij *Kweek*) — het
+koppel vervalt zonder jongen en de duiven zijn weer vluchtklaar.
 
 **Kans op jongen** (bij het uitkomen):
 ```
@@ -335,8 +353,9 @@ mutatie (±8), begrensd op 5…99.
 ## 8. Training
 
 Kost **€120**, verbruikt **15 energie**, en geeft een kleine blijvende
-verbetering (~+1.2, tot max 92) aan snelheid, conditie of oriëntatie, plus
-**+4 ervaring**. Vereist voldoende energie.
+verbetering (~+1.2, tot max **90**) aan snelheid, conditie of oriëntatie, plus
+**+4 ervaring**. Vereist voldoende energie. Je kan een duif **enkel trainen als
+ze thuis is** — niet zolang ze voor een vlucht ingeschreven staat.
 
 > **Voorbeeld.** Eén trainingsbeurt tilt bv. snelheid van 78 naar ~79 en kost
 > €120 + 15 energie. Kleine stapjes dus: trainen is een trage, betrouwbare manier
@@ -380,9 +399,11 @@ kwetsuur, ziekte, herstel, sterfte en geboorte van jongen.
   dorpsfeest of een "kat in een zak". Elke keuze heeft gevolgen — soms winst,
   soms risico.
 - **Zondagveiling.** Elke **zondag van 11:00 tot 20:00** (Brussel) gaat een
-  topduif onder de hamer op de markt. Je biedt met echt geld; je inzet wordt
-  vastgehouden en terugbetaald zodra iemand je overbiedt. Bij sluiting wint de
-  hoogste bieder de duif.
+  topduif onder de hamer op de markt. Je moet het geld dat je biedt op dat moment
+  ook echt hebben, maar het wordt **niet vastgehouden** — je kan het intussen nog
+  gewoon gebruiken. Bij sluiting wint de hoogste bieder, **op voorwaarde dat hij
+  het bedrag nog kan betalen** (en plaats heeft). Kan hij niet, dan gaat de duif
+  naar de volgende hoogste bieder aan diens bod, enzovoort.
 - **Opvangcentrum-veiling.** Op willekeurige maar regelmatige momenten (gemiddeld
   ~1 per 9 uur) duikt er een duif uit het opvangcentrum op de markt op. Het is
   geen renduif — de eigenschappen zijn matig — maar met training groeit ze en kan
@@ -432,10 +453,14 @@ Verdiend geld kan je investeren in je hok en je duiven (bij *Mijn hok*, de
   energie- en gezondheidsherstel én bouwt langzaam conditie op) en **Libido-mix**
   (verhoogt de voortplantingsdrang). Ze verbruiken meer voer.
 - **Privécoach.** Huur een coach voor één specifieke duif. Die traint haar
-  dagelijks in **snelheid, conditie én oriëntatie** (tot 96 — voorbij de gewone
-  trainingsgrens) plus ervaring, puur om beter te racen — **nooit libido**. Een
-  coach kost veel bij het inhuren én een weeksalaris zolang hij aanblijft.
-- **Duif hernoemen.** Geef een duif een nieuwe naam voor €1.000.
+  dagelijks in **snelheid, conditie én oriëntatie** plus ervaring, puur om beter
+  te racen — **nooit libido**. Een coach werkt niet terwijl de duif effectief aan
+  het vliegen is (een lopende vlucht); ingeschreven-maar-nog-niet-gestart mag wel.
+  Kost veel bij het inhuren én een weeksalaris zolang hij aanblijft.
+- **Trainingsplafonds.** Zelf **trainen** komt tot **90**, **premiumvoer** bouwt
+  conditie tot **92**, en enkel een **coach** duwt een race-eigenschap helemaal
+  tot **100**. Voer verlaagt nooit een al hoger opgebouwde waarde.
+- **Duif hernoemen** kost €1.000. **Je hok hernoemen** (bij Profiel) kost €2.000.
 
 ---
 

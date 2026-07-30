@@ -146,5 +146,6 @@ CREATE TABLE IF NOT EXISTS auctions (
   current_bid         INTEGER NOT NULL DEFAULT 0,
   current_bidder_id   TEXT,
   current_bidder_name TEXT,
+  bids                TEXT NOT NULL DEFAULT '[]',
   status              TEXT NOT NULL
 );

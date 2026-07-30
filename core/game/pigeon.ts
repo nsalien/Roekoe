@@ -20,7 +20,6 @@ export function ageMortality(pigeon: Pigeon, currentWeek: number): number {
 
 export function canRace(pigeon: Pigeon, currentWeek: number): boolean {
   return (
-    !pigeon.retired &&
     !pigeon.ailment &&
     !pigeon.inInfirmary &&
     ageInWeeks(pigeon, currentWeek) >= RACE_AGE_WEEKS &&
@@ -76,7 +75,6 @@ export function generatePigeon(opts: GenerateOptions): Pigeon {
     forSale: false,
     price: null,
     createdAtWeek: opts.currentWeek,
-    retired: false,
     ailment: null,
     inInfirmary: false,
     races: 0,

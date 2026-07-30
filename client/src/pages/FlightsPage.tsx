@@ -103,7 +103,9 @@ export function FlightsPage() {
 
           {scheduled.map((f) => {
             const myEntries = f.entries.filter((e) => e.ownerId === user?.id);
-            const available = state.pigeons.filter((p) => p.canRace && !committed.has(p.id));
+            const available = state.pigeons.filter(
+              (p) => p.canRace && !committed.has(p.id) && !p.breeding && p.form >= 1,
+            );
             return (
               <div key={f.id} className="card">
                 <div className="row" style={{ justifyContent: 'space-between', alignItems: 'flex-start' }}>
@@ -147,7 +149,7 @@ export function FlightsPage() {
                 <div className="row" style={{ justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
                   <EnterControl
                     disabled={busy}
-                    options={available.map((p) => ({ id: p.id, label: `${p.name} (★${p.talent}, cond. ${Math.round(p.form)})` }))}
+                    options={available.map((p) => ({ id: p.id, label: `${p.name} (★${p.talent}, energie ${Math.round(p.form)})` }))}
                     onEnter={(pigeonId) => act(() => api(`/flights/${f.id}/enter`, { method: 'POST', body: { pigeonId } }), 'Ingeschreven!')}
                   />
                   <span className="faint" style={{ flexShrink: 0 }}>{f.entryCount} ingeschreven</span>
@@ -203,7 +205,7 @@ function EnterControl({
 function FlightResultCard({ flight, meId }: { flight: Flight; meId?: string }) {
   const [open, setOpen] = useState(false);
   const top = flight.results.slice(0, 5);
-  const maxV = top.length ? top[0].velocity : 1;
+  const maxV = Math.max(1, ...flight.results.map((r) => r.velocity));
   const cancelled = flight.results.length === 0;
 
   return (
@@ -220,7 +222,7 @@ function FlightResultCard({ flight, meId }: { flight: Flight; meId?: string }) {
           {cancelled ? <span className="muted">afgelast</span> : (
             <>
               <div className="faint">winnaar</div>
-              <strong>{flight.results[0]?.ownerName}</strong>
+              <strong>{flight.results.find((r) => r.finished)?.ownerName ?? 'niemand thuis'}</strong>
             </>
           )}
         </div>
@@ -238,11 +240,11 @@ function FlightResultCard({ flight, meId }: { flight: Flight; meId?: string }) {
             {top.map((r) => (
               <div key={r.pigeonId} className="stat">
                 <div className="stat-top">
-                  <span className="stat-label">{r.rank}. {r.pigeonName} <span className="faint">· {r.ownerName}</span></span>
-                  <span className="stat-val">{r.velocity} m/min</span>
+                  <span className="stat-label">{r.finished ? `${r.rank}.` : '—'} {r.pigeonName} <span className="faint">· {r.ownerName}</span></span>
+                  <span className="stat-val">{r.finished ? `${r.velocity} m/min` : '❌ niet thuis'}</span>
                 </div>
                 <div className="bar">
-                  <span style={{ width: `${(r.velocity / maxV) * 100}%`, background: r.ownerId === meId ? 'linear-gradient(90deg,#f97316,#fdba74)' : undefined }} />
+                  <span style={{ width: `${r.finished ? (r.velocity / maxV) * 100 : 0}%`, background: r.ownerId === meId ? 'linear-gradient(90deg,#f97316,#fdba74)' : undefined }} />
                 </div>
               </div>
             ))}
@@ -256,9 +258,9 @@ function FlightResultCard({ flight, meId }: { flight: Flight; meId?: string }) {
                 </thead>
                 <tbody>
                   {flight.results.map((r) => (
-                    <tr key={r.pigeonId} className={r.ownerId === meId ? 'me' : r.rank === 1 ? 'podium-1' : ''}>
-                      <td>{r.rank}</td><td>{r.pigeonName}</td><td>{r.ownerName}</td>
-                      <td className="num">{r.velocity}</td><td className="num">{formatDuration(r.timeSeconds)}</td>
+                    <tr key={r.pigeonId} className={r.ownerId === meId ? 'me' : r.finished && r.rank === 1 ? 'podium-1' : ''}>
+                      <td>{r.finished ? r.rank : '—'}</td><td>{r.pigeonName}</td><td>{r.ownerName}</td>
+                      <td className="num">{r.finished ? r.velocity : '—'}</td><td className="num">{r.finished ? formatDuration(r.timeSeconds) : '❌ DNF'}</td>
                       <td className="num">{r.prize > 0 ? <Money value={r.prize} /> : '—'}</td><td className="num">{r.points}</td>
                     </tr>
                   ))}

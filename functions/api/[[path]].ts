@@ -15,7 +15,18 @@ import { D1Store, ensureSchema } from '../../core/d1.js';
 import type { User } from '../../core/schema.js';
 import { hashPassword, verifyPassword, signToken, verifyToken } from '../../core/auth.js';
 import { newId } from '../../core/store.js';
-import { COACH, FEED_RATIONS, INFIRMARY, RENAME_COST } from '../../core/config/gameConfig.js';
+import {
+  BREEDING,
+  COACH,
+  FEED_RATIONS,
+  FOOD_PRICE_PER_KG,
+  INFIRMARY,
+  RENAME_COST,
+  RENAME_LOFT_COST,
+  TRAINING,
+  WEEKLY_UPKEEP_BASE,
+  WEEKLY_UPKEEP_PER_PIGEON,
+} from '../../core/config/gameConfig.js';
 import {
   acceptSponsor,
   advanceWeek,
@@ -39,6 +50,7 @@ import {
   setPigeonCompartment,
   setPigeonRation,
   startBreeding,
+  stopBreeding,
   trainPigeon,
   unlist,
   upgradeCapacity,
@@ -241,7 +253,17 @@ app.get('/state', (c) => {
     rankings: rankingRows(db),
     feedRations: FEED_RATIONS,
     infirmary: INFIRMARY,
-    economy: { renameCost: RENAME_COST, coachHireCost: COACH.hireCost, coachSalary: COACH.weeklySalary },
+    economy: {
+      renameCost: RENAME_COST,
+      renameLoftCost: RENAME_LOFT_COST,
+      coachHireCost: COACH.hireCost,
+      coachSalary: COACH.weeklySalary,
+      weeklyUpkeepBase: WEEKLY_UPKEEP_BASE,
+      weeklyUpkeepPerPigeon: WEEKLY_UPKEEP_PER_PIGEON,
+      trainCost: TRAINING.cost,
+      breedCost: BREEDING.cost,
+      foodPricePerKg: FOOD_PRICE_PER_KG,
+    },
     missions: loft?.missions ?? [],
     streak: loft?.streak ?? 0,
     pendingEvent: loft?.pendingEvent ?? null,
@@ -494,6 +516,14 @@ app.post('/breeding', async (c) => {
   const body = await c.req.json().catch(() => ({}));
   const store = c.get('store');
   const err = startBreeding(store, user.id, String(body.sireId ?? ''), String(body.damId ?? ''));
+  await store.persist();
+  return err ? c.json({ error: err }, 400) : c.json({ ok: true });
+});
+
+app.post('/breeding/:id/stop', async (c) => {
+  const user = requireUser(c);
+  const store = c.get('store');
+  const err = stopBreeding(store, user.id, c.req.param('id'));
   await store.persist();
   return err ? c.json({ error: err }, 400) : c.json({ ok: true });
 });

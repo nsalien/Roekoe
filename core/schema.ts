@@ -46,7 +46,6 @@ export interface Pigeon {
   forSale: boolean;
   price: number | null;
   createdAtWeek: number;
-  retired: boolean;
   // Health status.
   ailment: Ailment | null; // current disease/injury, or null if healthy
   inInfirmary: boolean; // resting in the ziekenboeg (isolated, recovering)
@@ -185,7 +184,6 @@ export interface BreedingPair {
   ownerId: string;
   sireId: string;
   damId: string;
-  hatchWeek: number; // legacy; hatching is now driven by hatchAt
   hatchAt: string; // ISO timestamp the young arrive (real time)
   createdAtWeek: number;
 }
@@ -201,6 +199,7 @@ export interface FlightResult {
   rank: number;
   points: number;
   prize: number;
+  finished: boolean; // false = did not make it home (exhausted)
 }
 
 export interface FlightEntry {
@@ -259,6 +258,13 @@ export interface Trade {
 }
 
 /** A weekly auction of a special top pigeon. */
+/** One player's standing bid in an auction (money is NOT escrowed). */
+export interface AuctionBid {
+  userId: string;
+  name: string;
+  amount: number;
+}
+
 export interface Auction {
   id: string;
   templateKey: string; // one per Sunday
@@ -270,6 +276,7 @@ export interface Auction {
   currentBid: number;
   currentBidderId: string | null;
   currentBidderName: string | null;
+  bids: AuctionBid[]; // every player's highest bid, for cascade at close
   status: 'open' | 'closed';
 }
 

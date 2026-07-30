@@ -18,6 +18,7 @@ import {
   INFIRMARY_CAPACITY_TIERS,
   LOFT_CAPACITY_TIERS,
   RENAME_COST,
+  RENAME_LOFT_COST,
   STARTING_FOOD,
   STARTING_LOFT_CAPACITY,
   STARTING_MONEY,
@@ -158,7 +159,7 @@ export function seedWorld(store: Store): void {
       }
     }
     db.world.seeded = true;
-    db.world.dataVersion = 11; // fresh world: gendered names, libido, tiered flights, badges
+    db.world.dataVersion = 12; // fresh world: gendered names, libido, tiered flights, badges
   });
 }
 
@@ -188,7 +189,7 @@ export function advanceWeek(store: Store): WeekSummary {
     // 2. Weekly maintenance charge (food + condition recovery run daily, in
     //    real time — see tickDailyCare).
     for (const loft of db.lofts) {
-      const activeCount = db.pigeons.filter((p) => p.ownerId === loft.userId && !p.retired).length;
+      const activeCount = db.pigeons.filter((p) => p.ownerId === loft.userId).length;
       chargeWeeklyUpkeep(loft, activeCount);
     }
 
@@ -207,7 +208,7 @@ export function advanceWeek(store: Store): WeekSummary {
 
     // 2d. Private coaches draw a weekly salary per coached pigeon.
     for (const loft of db.lofts) {
-      const coached = db.pigeons.filter((p) => p.ownerId === loft.userId && p.coached && !p.retired).length;
+      const coached = db.pigeons.filter((p) => p.ownerId === loft.userId && p.coached).length;
       if (coached > 0) loft.money -= coached * COACH.weeklySalary;
     }
 
@@ -238,14 +239,27 @@ export function advanceWeek(store: Store): WeekSummary {
   });
 }
 
-/** Rename a player's loft. Returns an error string or null on success. */
+/** Rename a player's loft for a fee. Returns an error string or null. */
 export function renameLoft(store: Store, userId: string, name: string): string | null {
   return store.mutate((db) => {
     const loft = db.lofts.find((l) => l.userId === userId);
     if (!loft) return 'Geen hok gevonden';
     const trimmed = name.trim();
     if (trimmed.length < 2 || trimmed.length > 32) return 'Naam moet tussen 2 en 32 tekens zijn';
+    if (trimmed === loft.name) return 'Dat is al de naam van je hok';
+    if (loft.money < RENAME_LOFT_COST) return `Niet genoeg geld (hok hernoemen kost €${RENAME_LOFT_COST})`;
+    loft.money -= RENAME_LOFT_COST;
     loft.name = trimmed;
+    return null;
+  });
+}
+
+/** Cancel a breeding pair so the parents can race again (no refund). */
+export function stopBreeding(store: Store, userId: string, pairId: string): string | null {
+  return store.mutate((db) => {
+    const idx = db.breedingPairs.findIndex((bp) => bp.id === pairId && bp.ownerId === userId);
+    if (idx === -1) return 'Koppel niet gevonden';
+    db.breedingPairs.splice(idx, 1);
     return null;
   });
 }
@@ -313,7 +327,6 @@ export function setCoach(store: Store, userId: string, pigeonId: string, on: boo
       return null;
     }
     if (pigeon.coached) return 'Deze duif heeft al een coach';
-    if (pigeon.retired) return 'Een duif op rust kan geen coach krijgen';
     if (loft.money < COACH.hireCost) return `Niet genoeg geld (een coach kost €${COACH.hireCost})`;
     loft.money -= COACH.hireCost;
     pigeon.coached = true;
@@ -407,6 +420,10 @@ export function enterFlight(
     if (!loft || !pigeon || pigeon.ownerId !== userId) return 'Duif niet gevonden';
     if (!canRace(pigeon, db.world.currentWeek))
       return 'Deze duif is niet vluchtklaar (te jong, ziek, gewond of in de ziekenboeg)';
+    if (pigeon.form < 1) return 'Deze duif is volledig uitgeput — laat ze eerst wat rusten';
+    const breeding = db.breedingPairs.some((bp) => bp.sireId === pigeonId || bp.damId === pigeonId);
+    if (breeding) return 'Deze duif koppelt — stop eerst het broeden voordat ze weer kan vliegen';
+    if (loft.money < 0) return 'Je kassa staat negatief — verkoop eerst een duif voor je inschrijft';
     if (flight.entries.some((e) => e.pigeonId === pigeonId)) return 'Duif is al ingeschreven';
     // A pigeon may race at most once per day.
     const day = flight.startAt.slice(0, 10);
@@ -577,6 +594,10 @@ export function startBreeding(
       (bp) => bp.sireId === sireId || bp.damId === sireId || bp.sireId === damId || bp.damId === damId,
     );
     if (alreadyBreeding) return 'Een van deze duiven koppelt al';
+    const racing = db.flights.some(
+      (f) => f.status !== 'completed' && f.entries.some((e) => e.pigeonId === sireId || e.pigeonId === damId),
+    );
+    if (racing) return 'Een ingeschreven duif kan niet koppelen — schrijf ze eerst uit voor een vlucht';
     if (loft.money < BREEDING.cost) return 'Niet genoeg geld om te koppelen';
     loft.money -= BREEDING.cost;
     // Breeding costs the parents some energie.
@@ -587,8 +608,7 @@ export function startBreeding(
       ownerId: userId,
       sireId,
       damId,
-      hatchWeek: db.world.currentWeek + BREEDING.weeksToHatch,
-      // `hatchAt` is now the "last checked" time for the random hatch roll.
+      // `hatchAt` is the "last checked" time for the random hatch roll.
       hatchAt: new Date().toISOString(),
       createdAtWeek: db.world.currentWeek,
     });

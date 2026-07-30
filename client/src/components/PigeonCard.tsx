@@ -45,6 +45,10 @@ export function PigeonCard({
             </span>
           )}
           {pigeon.inInfirmary && <span className="badge" style={{ background: 'var(--brand-soft)', color: 'var(--brand-ink)' }}>🏥</span>}
+          {pigeon.coached && <span className="badge" style={{ background: 'var(--gold-soft)', color: 'var(--gold)' }}>🎯</span>}
+          {pigeon.compartment && <span className="badge" style={{ background: 'var(--surface-2)', color: 'var(--text-soft)' }}>🧱</span>}
+          {pigeon.racing && <span className="badge" style={{ background: 'var(--surface-2)', color: 'var(--text-soft)' }}>🏁</span>}
+          {pigeon.breeding && <span className="badge" style={{ background: 'var(--surface-2)', color: 'var(--text-soft)' }}>🥚</span>}
         </div>
         {showOwner && <div className="faint" style={{ marginBottom: 6 }}>🏠 {pigeon.ownerName}</div>}
       </div>

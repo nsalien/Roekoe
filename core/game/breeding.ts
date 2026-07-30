@@ -15,7 +15,6 @@ function inherit(a: number, b: number): number {
 export function canBreed(sire: Pigeon, dam: Pigeon, currentWeek: number): string | null {
   if (sire.sex !== 'doffer') return 'De eerste ouder moet een doffer zijn';
   if (dam.sex !== 'duivin') return 'De tweede ouder moet een duivin zijn';
-  if (sire.retired || dam.retired) return 'Een gepensioneerde duif kan niet kweken';
   if (sire.form < BREEDING.minParentForm || dam.form < BREEDING.minParentForm)
     return `Beide ouders hebben minstens ${BREEDING.minParentForm} conditie nodig`;
   return null;
@@ -61,7 +60,6 @@ export function breed(sire: Pigeon, dam: Pigeon, ownerId: string, hatchWeek: num
       forSale: false,
       price: null,
       createdAtWeek: hatchWeek,
-      retired: false,
       ailment: null,
       inInfirmary: false,
       races: 0,

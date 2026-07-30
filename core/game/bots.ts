@@ -12,7 +12,7 @@ import { clamp, round1 } from './util.js';
 
 /** Bots isolate and (if they can afford it) treat their ailing birds. */
 function manageInfirmary(loft: Loft, pigeons: Pigeon[]): void {
-  const active = pigeons.filter((p) => !p.retired);
+  const active = pigeons;
   // Free up healthy birds resting in the infirmary.
   for (const p of active) if (p.inInfirmary && !p.ailment) p.inInfirmary = false;
   // Move ailing birds into the infirmary up to capacity.
@@ -37,11 +37,12 @@ function manageInfirmary(loft: Loft, pigeons: Pigeon[]): void {
   }
 }
 
-/** Choose a feed ration based on how flush the bot is. */
-function chooseRation(loft: Loft): void {
-  if (loft.money > 4000) loft.feedRation = 'high';
-  else if (loft.money > 1000) loft.feedRation = 'normal';
-  else loft.feedRation = 'low';
+/** Choose a feed ration based on how flush the bot is, and feed every bird it. */
+function chooseRation(loft: Loft, pigeons: Pigeon[]): void {
+  const ration = loft.money > 4000 ? 'high' : loft.money > 1000 ? 'normal' : 'low';
+  loft.feedRation = ration;
+  // Feeding is per pigeon now — keep the bot's flock on its chosen schedule.
+  for (const p of pigeons) p.ration = ration;
 }
 
 /**
@@ -54,7 +55,7 @@ export function botTakeWeeklyActions(
   pigeons: Pigeon[],
   foodPricePerKg: number,
 ): void {
-  chooseRation(loft);
+  chooseRation(loft, pigeons);
   manageInfirmary(loft, pigeons);
 
   // Keep a healthy food buffer.
@@ -71,7 +72,7 @@ export function botTakeWeeklyActions(
   // Occasionally invest in training a promising young pigeon.
   if (loft.money > TRAINING.cost * 3) {
     const candidate = pigeons
-      .filter((p) => !p.retired && p.form > TRAINING.formCost + 20)
+      .filter((p) => p.form > TRAINING.formCost + 20)
       .sort((a, b) => talent(b) - talent(a))[0];
     if (candidate && Math.random() < 0.5) {
       const attr = (['speed', 'endurance', 'orientation'] as const)[Math.floor(Math.random() * 3)];

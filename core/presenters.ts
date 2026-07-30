@@ -36,13 +36,13 @@ export function pigeonDTO(db: Database, p: Pigeon) {
     price: p.price,
     sireId: p.sireId,
     damId: p.damId,
-    retired: p.retired,
     ailment: p.ailment,
     inInfirmary: p.inInfirmary,
     coached: p.coached ?? false,
     ration: p.ration ?? 'normal',
     compartment: p.compartment ?? false,
     racing: db.flights.some((f) => f.status !== 'completed' && f.entries.some((e) => e.pigeonId === p.id)),
+    breeding: db.breedingPairs.some((bp) => bp.sireId === p.id || bp.damId === p.id),
   };
 }
 
@@ -251,7 +251,7 @@ export function playerProfile(db: Database, userId: string) {
   for (const f of db.flights) {
     if (f.status !== 'completed') continue;
     for (const r of f.results) {
-      if (r.ownerId === userId && r.rank <= 3) {
+      if (r.ownerId === userId && r.rank <= 3 && r.finished !== false) {
         if (r.rank === 1) medals.gold += 1;
         else if (r.rank === 2) medals.silver += 1;
         else medals.bronze += 1;

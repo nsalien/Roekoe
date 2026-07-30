@@ -4,6 +4,7 @@ import {
   COACH,
   COMPARTMENT,
   FEED_RATIONS,
+  FOOD_ENDURANCE_CAP,
   WEEKLY_UPKEEP_BASE,
   WEEKLY_UPKEEP_PER_PIGEON,
 } from '../config/gameConfig.js';
@@ -19,8 +20,8 @@ import { clamp, hashString, round1 } from './util.js';
  * energie, though a stable ~12% "frisky" minority keeps a high drive anyway.
  * Weekly ration figures are applied at 1/7 per day.
  */
-export function applyDayOfCare(loft: Loft, pigeons: Pigeon[]): boolean {
-  const active = pigeons.filter((p) => !p.retired);
+export function applyDayOfCare(loft: Loft, pigeons: Pigeon[], livePigeonIds?: Set<string>): boolean {
+  const active = pigeons;
   if (active.length === 0) return true;
   const rationOf = (p: Pigeon) => FEED_RATIONS[p.ration ?? loft.feedRation] ?? FEED_RATIONS.normal;
   const need = round1(active.reduce((sum, p) => sum + rationOf(p).foodPerPigeon, 0));
@@ -42,11 +43,16 @@ export function applyDayOfCare(loft: Loft, pigeons: Pigeon[]): boolean {
       const energyGain = (ration.formRecovery / 7) * (1 + p.experience / 200) * formMult; // exp + compartment speed recovery
       p.form = round1(clamp(p.form + energyGain, 0, 100));
       p.health = round1(clamp(p.health + (ration.healthRecovery / 7) * healthMult + p.endurance / 280, 0, 100));
-      // Premium feed slowly builds conditie; a libido-mix lifts the drive.
-      if (ration.enduranceRecovery) p.endurance = round1(clamp(p.endurance + ration.enduranceRecovery / 7, 0, 100));
+      // Premium feed slowly builds conditie (up to its own cap, never lowering
+      // a bird already built higher by racing/coach); a libido-mix lifts drive.
+      if (ration.enduranceRecovery) {
+        const target = Math.min(p.endurance + ration.enduranceRecovery / 7, FOOD_ENDURANCE_CAP);
+        if (target > p.endurance) p.endurance = round1(target);
+      }
       if (ration.libidoRecovery) p.libido = round1(clamp(p.libido + ration.libidoRecovery / 7, 0, 100));
-      // A hired coach drills every racing attribute (never libido).
-      if (p.coached && !p.ailment && !p.inInfirmary) {
+      // A hired coach drills every racing attribute (never libido) — but not
+      // while the bird is actually away racing (a live flight).
+      if (p.coached && !p.ailment && !p.inInfirmary && !livePigeonIds?.has(p.id)) {
         p.speed = round1(clamp(p.speed + COACH.dailyGain, 0, COACH.attributeCap));
         p.endurance = round1(clamp(p.endurance + COACH.dailyGain, 0, COACH.attributeCap));
         p.orientation = round1(clamp(p.orientation + COACH.dailyGain, 0, COACH.attributeCap));

@@ -11,7 +11,7 @@ import { applyAilment, randomDisease } from './health.js';
 import { clamp, pick, randFloat, round1 } from './util.js';
 
 function owendBy(db: Database, loft: Loft): Pigeon[] {
-  return db.pigeons.filter((p) => p.ownerId === loft.userId && !p.retired);
+  return db.pigeons.filter((p) => p.ownerId === loft.userId);
 }
 
 /** Build a random dilemma for a loft, or null if none fits right now. */

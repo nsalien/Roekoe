@@ -100,7 +100,7 @@ export function activeContracts(loft: Loft): { def: SponsorDef; contract: Active
 export function ownedBestTalent(db: Database, userId: string): number {
   let best = 0;
   for (const p of db.pigeons) {
-    if (p.ownerId === userId && !p.retired) best = Math.max(best, talent(p));
+    if (p.ownerId === userId) best = Math.max(best, talent(p));
   }
   return Math.round(best);
 }

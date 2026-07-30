@@ -103,7 +103,6 @@ function rowToPigeon(r: any): Pigeon {
     forSale: !!r.for_sale,
     price: r.price,
     createdAtWeek: r.created_at_week,
-    retired: !!r.retired,
     ailment: r.ailment ? JSON.parse(r.ailment) : null,
     inInfirmary: !!r.in_infirmary,
     races: r.races ?? 0,
@@ -119,7 +118,6 @@ function rowToBreeding(r: any): BreedingPair {
     ownerId: r.owner_id,
     sireId: r.sire_id,
     damId: r.dam_id,
-    hatchWeek: r.hatch_week,
     hatchAt: r.hatch_at ?? '',
     createdAtWeek: r.created_at_week,
   };
@@ -170,6 +168,7 @@ function rowToAuction(r: any): Auction {
     currentBid: r.current_bid,
     currentBidderId: r.current_bidder_id ?? null,
     currentBidderName: r.current_bidder_name ?? null,
+    bids: r.bids ? JSON.parse(r.bids) : [],
     status: r.status,
   };
 }
@@ -303,7 +302,7 @@ export class D1Store implements Store {
           'INSERT OR REPLACE INTO pigeons (id, owner_id, name, sex, birth_week, speed, endurance, orientation, libido, form, health, experience, sire_id, dam_id, for_sale, price, created_at_week, retired, ailment, in_infirmary, races, ever_ailed, coached, ration, compartment) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
         ).bind(
           p.id, p.ownerId, p.name, p.sex, p.birthWeek, p.speed, p.endurance, p.orientation, p.libido, p.form, p.health,
-          p.experience, p.sireId, p.damId, b(p.forSale), p.price, p.createdAtWeek, b(p.retired),
+          p.experience, p.sireId, p.damId, b(p.forSale), p.price, p.createdAtWeek, 0,
           p.ailment ? JSON.stringify(p.ailment) : '', b(p.inInfirmary), p.races, b(p.everAiled), b(p.coached),
           p.ration ?? 'normal', b(p.compartment),
         ),
@@ -315,7 +314,7 @@ export class D1Store implements Store {
       upsert: (bp) =>
         db.prepare(
           'INSERT OR REPLACE INTO breeding_pairs (id, owner_id, sire_id, dam_id, hatch_week, hatch_at, created_at_week) VALUES (?, ?, ?, ?, ?, ?, ?)',
-        ).bind(bp.id, bp.ownerId, bp.sireId, bp.damId, bp.hatchWeek, bp.hatchAt, bp.createdAtWeek),
+        ).bind(bp.id, bp.ownerId, bp.sireId, bp.damId, 0, bp.hatchAt, bp.createdAtWeek),
       del: (id) => db.prepare('DELETE FROM breeding_pairs WHERE id = ?').bind(id),
       stmts,
     });
@@ -355,8 +354,8 @@ export class D1Store implements Store {
     diff(this.snapshots.auctions, w.auctions, (a) => a.id, {
       upsert: (a) =>
         db.prepare(
-          'INSERT OR REPLACE INTO auctions (id, template_key, pigeon_id, start_at, end_at, min_bid, min_increment, current_bid, current_bidder_id, current_bidder_name, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-        ).bind(a.id, a.templateKey, a.pigeonId, a.startAt, a.endAt, a.minBid, a.minIncrement, a.currentBid, a.currentBidderId, a.currentBidderName, a.status),
+          'INSERT OR REPLACE INTO auctions (id, template_key, pigeon_id, start_at, end_at, min_bid, min_increment, current_bid, current_bidder_id, current_bidder_name, bids, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        ).bind(a.id, a.templateKey, a.pigeonId, a.startAt, a.endAt, a.minBid, a.minIncrement, a.currentBid, a.currentBidderId, a.currentBidderName, JSON.stringify(a.bids ?? []), a.status),
       del: (id) => db.prepare('DELETE FROM auctions WHERE id = ?').bind(id),
       stmts,
     });
@@ -406,6 +405,7 @@ export async function ensureSchema(db: D1Database): Promise<void> {
     "ALTER TABLE pigeons ADD COLUMN ration TEXT NOT NULL DEFAULT 'normal'",
     'ALTER TABLE pigeons ADD COLUMN compartment INTEGER NOT NULL DEFAULT 0',
     "ALTER TABLE world ADD COLUMN last_shelter_spawn TEXT NOT NULL DEFAULT ''",
+    "ALTER TABLE auctions ADD COLUMN bids TEXT NOT NULL DEFAULT '[]'",
   ];
   for (const sql of alters) {
     try {

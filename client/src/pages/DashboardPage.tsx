@@ -9,8 +9,6 @@ import { Money, Spinner, countdownTo, formatFlightTime, useToast } from '../comp
 import { PigeonCard } from '../components/PigeonCard';
 import type { FeedRation } from '../types';
 
-const FOOD_PRICE = 3;
-
 export function DashboardPage() {
   const { state, loading, refresh } = useGame();
   const { user } = useAuth();
@@ -26,6 +24,12 @@ export function DashboardPage() {
   const topPigeons = pigeons.slice(0, 3);
   const now = Date.now();
   const avgForm = pigeons.length ? Math.round(pigeons.reduce((s, p) => s + p.form, 0) / pigeons.length) : 0;
+  // Highlight a ration only when the whole flock is on it (feeding is per pigeon).
+  const uniformRation = pigeons.length && pigeons.every((p) => p.ration === pigeons[0].ration) ? pigeons[0].ration : null;
+  const coachedCount = pigeons.filter((p) => p.coached).length;
+  const eco = state.economy;
+  const FOOD_PRICE = eco.foodPricePerKg;
+  const weeklyFixed = eco.weeklyUpkeepBase + pigeons.length * eco.weeklyUpkeepPerPigeon + coachedCount * eco.coachSalary;
 
   // Ailing birds still in the normal loft (need the player to act).
   const needCare = pigeons.filter((p) => p.ailment && !p.inInfirmary).length;
@@ -149,8 +153,12 @@ export function DashboardPage() {
         {/* Care panel */}
         <div className="card">
           <h2>Verzorging</h2>
-          <p className="muted" style={{ marginBottom: 10 }}>
+          <p className="muted" style={{ marginBottom: 6 }}>
             Voorraad voer: <strong>{loft.food.toLocaleString('nl-NL')} kg</strong> · gemiddelde energie <strong>{avgForm}</strong>
+          </p>
+          <p className="faint" style={{ marginBottom: 10, fontSize: '0.82rem' }}>
+            Vaste weekkost: <strong><Money value={weeklyFixed} /></strong> (onderhoud
+            {coachedCount > 0 ? ` + ${coachedCount} coach${coachedCount === 1 ? '' : 'es'}` : ''}) — exclusief voer & ziekenboeg.
           </p>
 
           <label>Voer voor álle duiven ineens</label>
@@ -158,7 +166,7 @@ export function DashboardPage() {
             {(Object.keys(feedRations) as FeedRation[]).map((key) => (
               <button
                 key={key}
-                className={loft.feedRation === key ? 'active' : ''}
+                className={uniformRation === key ? 'active' : ''}
                 style={{ flex: '1 0 30%' }}
                 disabled={busy}
                 onClick={() => act(() => api('/loft/ration', { method: 'POST', body: { ration: key } }), `Alle duiven op ${feedRations[key].label}`)}
@@ -173,7 +181,7 @@ export function DashboardPage() {
             {(Object.keys(feedRations) as FeedRation[]).map((key) => {
               const r = feedRations[key];
               return (
-                <div key={key} className={`ration-card${loft.feedRation === key ? ' active' : ''}`}>
+                <div key={key} className={`ration-card${uniformRation === key ? ' active' : ''}`}>
                   <div className="row" style={{ justifyContent: 'space-between', gap: 6 }}>
                     <strong>{r.label}</strong>
                     <span className="faint">{r.foodPerPigeon} kg · <Money value={Math.round(r.foodPerPigeon * FOOD_PRICE * 10) / 10} /></span>

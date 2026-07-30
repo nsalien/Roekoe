@@ -100,7 +100,7 @@ export function runHealthWeek(db: Database, week: number): HealthEvent[] {
   const dead = new Set<string>();
 
   for (const loft of db.lofts) {
-    const birds = db.pigeons.filter((p) => p.ownerId === loft.userId && !p.retired);
+    const birds = db.pigeons.filter((p) => p.ownerId === loft.userId);
     if (birds.length === 0) continue;
 
     // 1. Charge the infirmary's running costs.

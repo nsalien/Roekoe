@@ -241,16 +241,19 @@ function emitFlightNotifications(db: Database, flight: Flight, sim: SimulatedFli
     byOwner.set(res.ownerId, arr);
   }
   for (const [ownerId, list] of byOwner) {
-    list.sort((a, b) => a.rank - b.rank);
+    // Rank finishers first so "best" is a bird that actually came home if any did.
+    list.sort((a, b) => (a.finished === false ? 1 : 0) - (b.finished === false ? 1 : 0) || a.rank - b.rank);
     const best = list[0];
     const prize = list.reduce((s, r) => s + r.prize, 0);
     const points = list.reduce((s, r) => s + r.points, 0);
     const many = list.length > 1 ? ` (${list.length} duiven ingezet)` : '';
-    const title = best.rank === 1 ? `🏆 Overwinning — ${flight.name}!` : `Uitslag — ${flight.name}`;
+    const won = best.rank === 1 && best.finished !== false;
+    const title = won ? `🏆 Overwinning — ${flight.name}!` : `Uitslag — ${flight.name}`;
     const money = prize > 0 ? ` en €${prize}` : '';
-    const body =
-      `${best.pigeonName} werd ${ordinal(best.rank)} van ${flight.results.length}${many} ` +
-      `(${flight.fromCity} → ${flight.toCity}). Opbrengst: ${points} punten${money}.`;
+    const body = best.finished === false
+      ? `${best.pigeonName} raakte niet thuis${many} — te weinig energie. Opbrengst: ${points} punten${money}.`
+      : `${best.pigeonName} werd ${ordinal(best.rank)} van ${flight.results.length}${many} ` +
+        `(${flight.fromCity} → ${flight.toCity}). Opbrengst: ${points} punten${money}.`;
     pushNotification(db, ownerId, 'result', title, body, flight.id);
   }
 
@@ -292,7 +295,7 @@ export function tickFlights(db: Database, nowMs: number, weatherByFlight?: Map<s
       const entries: Entry[] = [];
       for (const e of flight.entries) {
         const pigeon = db.pigeons.find((p) => p.id === e.pigeonId);
-        if (!pigeon || pigeon.retired) continue;
+        if (!pigeon) continue;
         entries.push({ pigeon, ownerName: ownerName(db, pigeon.ownerId) });
       }
       if (entries.length === 0) {
@@ -316,7 +319,7 @@ export function tickFlights(db: Database, nowMs: number, weatherByFlight?: Map<s
         for (const ownerId of new Set(flight.results.map((r) => r.ownerId))) {
           const loft = db.lofts.find((l) => l.userId === ownerId);
           if (!loft || loft.isBot) continue;
-          const mine = flight.results.filter((r) => r.ownerId === ownerId);
+          const mine = flight.results.filter((r) => r.ownerId === ownerId && r.finished !== false);
           const podiums = mine.filter((r) => r.rank <= 3).length;
           if (podiums > 0) progressMissions(db, loft, 'podium', podiums);
           const wins = mine.filter((r) => r.rank === 1).length;
@@ -428,7 +431,7 @@ function runDataMigrations(db: Database): void {
       for (const r of f.results) {
         raceCount.set(r.pigeonId, (raceCount.get(r.pigeonId) ?? 0) + 1);
         const loft = db.lofts.find((l) => l.userId === r.ownerId);
-        if (!loft) continue;
+        if (!loft || r.finished === false) continue;
         if (r.rank === 1) { loft.stats.gold += 1; winners.set(r.ownerId, true); }
         else if (r.rank === 2) loft.stats.silver += 1;
         else if (r.rank === 3) loft.stats.bronze += 1;
@@ -481,6 +484,31 @@ function runDataMigrations(db: Database): void {
     }
     db.world.dataVersion = 11;
   }
+  if ((db.world.dataVersion ?? 0) < 12) {
+    // Enforce the 8-pigeon base: any human loft over capacity loses its most
+    // recently born birds down to capacity.
+    for (const loft of db.lofts) {
+      if (loft.isBot) continue;
+      const owned = db.pigeons.filter((p) => p.ownerId === loft.userId);
+      if (owned.length <= loft.capacity) continue;
+      const sorted = [...owned].sort(
+        (a, b) => b.birthWeek - a.birthWeek || b.createdAtWeek - a.createdAtWeek || (a.id < b.id ? 1 : -1),
+      );
+      const remove = sorted.slice(0, owned.length - loft.capacity);
+      const removeIds = new Set(remove.map((p) => p.id));
+      db.pigeons = db.pigeons.filter((p) => !removeIds.has(p.id));
+      db.breedingPairs = db.breedingPairs.filter((bp) => !removeIds.has(bp.sireId) && !removeIds.has(bp.damId));
+      for (const f of db.flights) {
+        if (f.status !== 'completed') f.entries = f.entries.filter((e) => !removeIds.has(e.pigeonId));
+      }
+      pushNotification(
+        db, loft.userId, 'info', '🏠 Hok teruggebracht tot de basis',
+        `Je hok telt voortaan maximaal ${loft.capacity} duiven. Je ${remove.length} jongste duif/duiven ${remove.length === 1 ? 'is' : 'zijn'} vertrokken. Breid je hok uit om er meer te houden.`,
+        null,
+      );
+    }
+    db.world.dataVersion = 12;
+  }
 }
 
 /**
@@ -509,9 +537,14 @@ export function tickDailyCare(db: Database, nowMs: number): void {
   if (days <= 0) return;
   days = Math.min(days, 30); // cap catch-up after a long absence
 
+  // Birds currently away on a live flight — their coach can't drill them.
+  const livePigeonIds = new Set<string>(
+    db.flights.filter((f) => f.status === 'live').flatMap((f) => f.entries.map((e) => e.pigeonId)),
+  );
+
   for (let i = 0; i < days; i++) {
     for (const loft of db.lofts) {
-      const owned = db.pigeons.filter((p) => p.ownerId === loft.userId && !p.retired);
+      const owned = db.pigeons.filter((p) => p.ownerId === loft.userId);
       if (owned.length === 0) continue;
       // Bots restock food in real time so they don't starve between weeks.
       if (loft.isBot) {
@@ -524,7 +557,7 @@ export function tickDailyCare(db: Database, nowMs: number): void {
           }
         }
       }
-      applyDayOfCare(loft, owned);
+      applyDayOfCare(loft, owned, livePigeonIds);
     }
   }
   db.world.lastDailyTick = new Date(last + days * DAY_MS).toISOString();

@@ -11,6 +11,7 @@ import {
   COMMENTARY,
   COMMENTARY_INTERVAL_SECONDS,
   DISTANCE_WEIGHTING,
+  FLIGHT_RISK,
   HEALTH,
   IMPROVE,
   IMPROVE_ATTR_LABEL,
@@ -166,7 +167,6 @@ function pickImproveAttr(w: { speed: number; endurance: number; orientation: num
  * permanently improve (racing builds condition) and writes the flight's recap.
  */
 export function finalizeFlight(flight: Flight, pigeons: Pigeon[]): SimulatedFlight {
-  const scored = [...flight.sim].sort((a, b) => a.durationSeconds - b.durationSeconds);
   const prizes = PRIZE_MONEY[flight.type];
   const results: FlightResult[] = [];
   const payoutMap = new Map<string, { prize: number; points: number; wins: number }>();
@@ -174,63 +174,81 @@ export function finalizeFlight(flight: Flight, pigeons: Pigeon[]): SimulatedFlig
   const improvements: Improvement[] = [];
   const injuries: FlightInjury[] = [];
   const w = weightsForDistance(flight.distanceKm);
-  const n = scored.length;
   const injuryChance = HEALTH.flightInjuryBase + flight.distanceKm * HEALTH.flightInjuryPerKm;
 
-  scored.forEach((s, i) => {
+  // Decide who makes it home. A bird entered with very low energie may not
+  // finish; the exhausted ones are ranked below everyone who did come home.
+  const dnf = new Set<string>();
+  for (const s of flight.sim) {
+    const pigeon = pigeons.find((p) => p.id === s.pigeonId);
+    const form = pigeon ? pigeon.form : 50;
+    const dnfChance = clamp(
+      (FLIGHT_RISK.dnfFormThreshold - form) / FLIGHT_RISK.dnfFormThreshold,
+      0,
+      FLIGHT_RISK.dnfMaxChance,
+    );
+    if (pigeon && Math.random() < dnfChance) dnf.add(s.pigeonId);
+  }
+  const finishers = flight.sim.filter((s) => !dnf.has(s.pigeonId)).sort((a, b) => a.durationSeconds - b.durationSeconds);
+  const nonFinishers = flight.sim.filter((s) => dnf.has(s.pigeonId));
+  const ordered = [...finishers, ...nonFinishers];
+  const n = finishers.length;
+
+  ordered.forEach((s, i) => {
+    const isDnf = dnf.has(s.pigeonId);
     const rank = i + 1;
-    const points = RANKING_POINTS[i] ?? 0;
-    const prize = prizes[i] ?? 0;
+    const points = isDnf ? 0 : RANKING_POINTS[i] ?? 0;
+    const prize = isDnf ? 0 : prizes[i] ?? 0;
     results.push({
       pigeonId: s.pigeonId,
       pigeonName: s.pigeonName,
       ownerId: s.ownerId,
       ownerName: s.ownerName,
-      velocity: s.velocity,
-      timeSeconds: s.durationSeconds,
+      velocity: isDnf ? 0 : s.velocity,
+      timeSeconds: isDnf ? 0 : s.durationSeconds,
       rank,
       points,
       prize,
+      finished: !isDnf,
     });
     const acc = payoutMap.get(s.ownerId) ?? { prize: 0, points: 0, wins: 0 };
     acc.prize += prize;
     acc.points += points;
-    if (rank === 1) acc.wins += 1;
+    if (rank === 1 && !isDnf) acc.wins += 1;
     payoutMap.set(s.ownerId, acc);
 
-    // Racing drains energie, builds conditie and grows experience.
-    const formDelta = -round1(8 + flight.distanceKm / 40 + randFloat(0, 6));
-    const enduranceDelta = round1(0.3 + flight.distanceKm / 500 + randFloat(0, 0.4));
-    const healthDelta = -round1(randFloat(0, flight.distanceKm / 200));
-    const experienceDelta = round1(2 + flight.distanceKm / 100);
+    // Fatigue: racing drains energie; a bird that didn't make it home is wrecked.
+    const formDelta = -round1(8 + flight.distanceKm / 40 + randFloat(0, 6) + (isDnf ? 12 : 0));
+    const enduranceDelta = isDnf ? 0 : round1(0.3 + flight.distanceKm / 500 + randFloat(0, 0.4));
+    const healthDelta = -round1(randFloat(0, flight.distanceKm / 200) + (isDnf ? randFloat(4, 9) : 0));
+    const experienceDelta = round1((isDnf ? 1 : 2) + flight.distanceKm / 100);
     fatigue.push({ pigeonId: s.pigeonId, formDelta, enduranceDelta, healthDelta, experienceDelta });
 
-    // Racing builds condition: a chance to grow in the attribute that matters
-    // most for this distance. Front-runners and birds with more headroom
-    // improve more readily; the gain shrinks as the attribute nears its cap.
     const pigeon = pigeons.find((p) => p.id === s.pigeonId);
     if (pigeon) {
-      const attr = pickImproveAttr(w);
-      const room = clamp((IMPROVE.cap - pigeon[attr]) / IMPROVE.cap, 0, 1);
-      const placeBonus = (n > 1 ? (n - i) / n : 1) * 0.3; // up to +0.3 for the winner
-      const chance = clamp(IMPROVE.baseChance * (0.5 + room) + placeBonus, 0, 0.9);
-      if (pigeon[attr] < IMPROVE.cap && Math.random() < chance) {
-        const gain = round1(randFloat(IMPROVE.gainMin, IMPROVE.gainMax) * (0.4 + room));
-        if (gain > 0) {
-          improvements.push({
-            pigeonId: pigeon.id,
-            ownerId: pigeon.ownerId,
-            pigeonName: pigeon.name,
-            attr,
-            gain,
-          });
+      // Racing builds condition (finishers only): a chance to grow in the
+      // attribute that matters most for this distance.
+      if (!isDnf) {
+        const attr = pickImproveAttr(w);
+        const room = clamp((IMPROVE.cap - pigeon[attr]) / IMPROVE.cap, 0, 1);
+        const placeBonus = (n > 1 ? (n - i) / n : 1) * 0.3; // up to +0.3 for the winner
+        const chance = clamp(IMPROVE.baseChance * (0.5 + room) + placeBonus, 0, 0.9);
+        if (pigeon[attr] < IMPROVE.cap && Math.random() < chance) {
+          const gain = round1(randFloat(IMPROVE.gainMin, IMPROVE.gainMax) * (0.4 + room));
+          if (gain > 0) {
+            improvements.push({ pigeonId: pigeon.id, ownerId: pigeon.ownerId, pigeonName: pigeon.name, attr, gain });
+          }
         }
       }
 
-      // Rough flights leave some birds hurt (unless already ailing). Low
-      // energie (form) makes a bird more injury-prone.
-      const perBirdInjury = injuryChance * (1 + (100 - pigeon.form) / 100);
-      if (!pigeon.ailment && Math.random() < perBirdInjury) {
+      // Rough flights leave birds hurt. Low energie ramps up the risk; an
+      // exhausted bird that didn't make it home is very likely injured.
+      const lowEnergie = pigeon.form < FLIGHT_RISK.lowEnergieInjuryThreshold
+        ? ((FLIGHT_RISK.lowEnergieInjuryThreshold - pigeon.form) / FLIGHT_RISK.lowEnergieInjuryThreshold) * FLIGHT_RISK.lowEnergieInjuryBonus
+        : 0;
+      let perBirdInjury = injuryChance * (1 + (100 - pigeon.form) / 100) + lowEnergie;
+      if (isDnf) perBirdInjury = Math.max(perBirdInjury, 0.8);
+      if (!pigeon.ailment && Math.random() < clamp(perBirdInjury, 0, 0.95)) {
         injuries.push({
           pigeonId: pigeon.id,
           ownerId: pigeon.ownerId,
@@ -411,15 +429,24 @@ export function generateRecap(flight: Flight): string {
     return `De vlucht van ${flight.fromCity} naar ${flight.toCity} ging niet door — geen enkele duif waagde zich aan de reis. De duivenmelkers bleven aan de toog hangen.`;
   }
   const rng = seededRng(hashString(flight.id + ':recap'));
-  const winner = r[0];
   const km = flight.distanceKm;
-  const winKmh = round1(km / (winner.timeSeconds / 3600));
-  const winMin = Math.round(winner.timeSeconds / 60);
+  const finished = r.filter((x) => x.finished !== false);
+  const lost = r.length - finished.length;
 
   const parts: string[] = [];
   parts.push(
     `${flight.name}: ${r.length} duiven werden gelost in ${flight.fromCity} voor de ${km} km lange thuisreis naar ${flight.toCity}. Weer onderweg: ${flight.weather || 'wisselvallig'}.`,
   );
+
+  if (finished.length === 0) {
+    parts.push('Onwaarschijnlijk maar waar: geen enkele duif raakte thuis. Volledig uitgeput onderweg gestrand — een pikzwarte dag voor de melkers.');
+    parts.push('Tot de volgende lossing, duivenvrienden!');
+    return parts.join(' ');
+  }
+
+  const winner = finished[0];
+  const winKmh = round1(km / (winner.timeSeconds / 3600));
+  const winMin = Math.round(winner.timeSeconds / 60);
   const winLines = [
     `${winner.pigeonName} van ${winner.ownerName} draaide er de sokken in en klokte als eerste — ${winKmh} km/u, thuis na een dikke ${winMin} minuten. Een monsterprestatie!`,
     `De zege ging naar ${winner.pigeonName} van ${winner.ownerName}, die met ${winKmh} km/u iedereen op afstand hield. Na ${winMin} minuten viel-ie binnen alsof het niets was.`,
@@ -427,16 +454,20 @@ export function generateRecap(flight: Flight): string {
   ];
   parts.push(pickWith(rng, winLines));
 
-  if (r.length >= 3) {
+  if (finished.length >= 3) {
     parts.push(
-      `Op het podium vervolledigd door ${r[1].pigeonName} (${r[1].ownerName}) en ${r[2].pigeonName} (${r[2].ownerName}). Ereplaatsen die smaken naar meer.`,
+      `Op het podium vervolledigd door ${finished[1].pigeonName} (${finished[1].ownerName}) en ${finished[2].pigeonName} (${finished[2].ownerName}). Ereplaatsen die smaken naar meer.`,
     );
-  } else if (r.length === 2) {
-    parts.push(`${r[1].pigeonName} van ${r[1].ownerName} moest nipt de duimen leggen en pakte de tweede stek.`);
+  } else if (finished.length === 2) {
+    parts.push(`${finished[1].pigeonName} van ${finished[1].ownerName} moest nipt de duimen leggen en pakte de tweede stek.`);
   }
 
-  if (r.length >= 4) {
-    const last = r[r.length - 1];
+  if (lost > 0) {
+    parts.push(`${lost} duif${lost === 1 ? '' : 'ven'} raakte${lost === 1 ? '' : 'n'} niet thuis — te weinig energie in de tank. Een dure les voor de baas.`);
+  }
+
+  if (finished.length >= 4) {
+    const last = finished[finished.length - 1];
     const tailLines = [
       `Helemaal achteraan sukkelde ${last.pigeonName} van ${last.ownerName} binnen — waarschijnlijk nog even gestopt voor een frietje. Volgende keer beter, kameraad.`,
       `De rode lantaarn is voor ${last.pigeonName} (${last.ownerName}). Thuisgekomen, moe maar voldaan, en dat telt ook.`,

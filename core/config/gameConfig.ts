@@ -59,11 +59,29 @@ export const COACH = {
   weeklySalary: 250, // per coached pigeon, charged at "volgende week"
   dailyGain: 0.35, // per racing attribute, per day
   experienceDailyGain: 0.5,
-  attributeCap: 96, // coaches can push past the training cap (92)
+  attributeCap: 100, // coaches can push all the way to the maximum
 } as const;
 
 /** Cost to rename one of your pigeons. */
 export const RENAME_COST = 1000;
+
+/** Cost to rename your loft. */
+export const RENAME_LOFT_COST = 2000;
+
+/** How far premium feed can build a pigeon's conditie (endurance). */
+export const FOOD_ENDURANCE_CAP = 92;
+
+/**
+ * Racing risk from exhaustion. A bird entered with very low energie (form) may
+ * not make it home (DNF) and is far more likely to get hurt. Above the
+ * threshold there is no extra risk.
+ */
+export const FLIGHT_RISK = {
+  dnfFormThreshold: 22, // below this energie, a did-not-finish chance kicks in
+  dnfMaxChance: 0.9, // at 0 energie, almost certainly does not finish
+  lowEnergieInjuryThreshold: 25, // below this energie, extra injury risk ramps up
+  lowEnergieInjuryBonus: 0.6, // added injury chance at 0 energie
+} as const;
 
 /** Money every new player (and bot) starts with. */
 export const STARTING_MONEY = 5000;
@@ -108,7 +126,7 @@ export const TRAINING = {
   cost: 120,
   formCost: 15,
   attributeGain: 1.2, // average points added to the trained attribute
-  attributeCap: 92, // training alone cannot push an attribute past this
+  attributeCap: 90, // training alone cannot push an attribute past this
   experienceGain: 4,
   restWeeks: 0,
 } as const;

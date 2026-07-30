@@ -45,13 +45,13 @@ export interface Pigeon {
   price: number | null;
   sireId: string | null;
   damId: string | null;
-  retired: boolean;
   ailment: Ailment | null;
   inInfirmary: boolean;
   coached: boolean;
   ration: FeedRation;
   compartment: boolean;
   racing: boolean;
+  breeding: boolean;
 }
 
 export interface Trade {
@@ -105,8 +105,14 @@ export interface Loft {
 
 export interface EconomyCosts {
   renameCost: number;
+  renameLoftCost: number;
   coachHireCost: number;
   coachSalary: number;
+  weeklyUpkeepBase: number;
+  weeklyUpkeepPerPigeon: number;
+  trainCost: number;
+  breedCost: number;
+  foodPricePerKg: number;
 }
 
 export interface InfirmaryConfig {
@@ -133,6 +139,7 @@ export interface FlightResult {
   rank: number;
   points: number;
   prize: number;
+  finished: boolean;
 }
 
 export interface Flight {
