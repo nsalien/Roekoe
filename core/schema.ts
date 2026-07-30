@@ -81,6 +81,10 @@ export interface Loft {
   missionsDay: string; // date key (yyyy-mm-dd, Brussels) the missions belong to
   streak: number; // consecutive active days
   pendingEvent: EventCard | null; // an unresolved dilemma awaiting the player
+  // Sponsoring: a company backing the loft for ongoing income.
+  sponsorId: string | null; // active head sponsor, or null
+  sponsorSince: string; // ISO timestamp the current sponsor was signed
+  sponsorsSigned: string[]; // sponsor ids ever signed (one-time signing bonus guard)
 }
 
 /** A small daily task that rewards money + XP when completed. */
@@ -250,6 +254,8 @@ export interface World {
   dataVersion: number;
   /** ISO timestamp of the last daily food/care tick (real time). */
   lastDailyTick: string;
+  /** ISO timestamp a shelter (opvangcentrum) auction was last spawned. */
+  lastShelterSpawn: string;
 }
 
 /** The full database document persisted to disk. */
@@ -276,7 +282,7 @@ export function emptyStats(): PlayerStats {
 
 export function emptyDatabase(): Database {
   return {
-    world: { currentWeek: 1, seasonYear: 1, seeded: false, dataVersion: 0, lastDailyTick: '' },
+    world: { currentWeek: 1, seasonYear: 1, seeded: false, dataVersion: 0, lastDailyTick: '', lastShelterSpawn: '' },
     users: [],
     lofts: [],
     pigeons: [],

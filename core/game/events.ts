@@ -19,7 +19,6 @@ export function makeEvent(db: Database, loft: Loft, week: number): EventCard | n
   const owned = owendBy(db, loft);
   const eligible = ['stray', 'flu', 'gamble', 'sponsor', 'quack', 'heatwave', 'event'];
   if (owned.length > 3) eligible.push('merchant');
-  if (owned.length > 0) eligible.push('thief');
   const kind = pick(eligible);
 
   switch (kind) {
@@ -68,12 +67,6 @@ export function makeEvent(db: Database, loft: Loft, week: number): EventCard | n
         key: 'heatwave', icon: '🥵', title: 'Hittegolf op komst',
         text: 'Het wordt bloedheet dit weekend. Investeer je in extra water en schaduw voor je hok?',
         options: [{ label: 'Water & schaduw (€80)' }, { label: 'Niets doen (risico)' }],
-      };
-    case 'thief':
-      return {
-        key: 'thief', icon: '🥷', title: 'Duivendief op pad',
-        text: 'Er loert een duivendief rond de hokken in de buurt. Installeer je een alarm?',
-        options: [{ label: 'Alarm plaatsen (€150)' }, { label: 'Risico nemen' }],
       };
     default: // 'event'
       return {
@@ -196,20 +189,6 @@ export function resolveEvent(db: Database, loft: Loft, choice: number, week: num
         return `${victims.length} duif/duiven leden onder de hitte.`;
       }
       return 'Het viel al bij al mee met de hitte.';
-    }
-    case 'thief': {
-      if (choice === 0) {
-        if (loft.money < 150) return 'Niet genoeg geld.';
-        loft.money -= 150;
-        return 'Alarm geplaatst — geen dief die het nog waagt.';
-      }
-      if (Math.random() < 0.3 && owned.length > 0) {
-        const best = [...owned].sort((a, b) => estimateValue(b, week) - estimateValue(a, week))[0];
-        db.pigeons = db.pigeons.filter((p) => p.id !== best.id);
-        notify(db, loft, '🥷 Duif gestolen!', `${best.name} is 's nachts uit je hok verdwenen. Wat een strop.`);
-        return `${best.name} werd gestolen!`;
-      }
-      return 'Je had geluk — de dief liet je hok links liggen.';
     }
     case 'event': {
       if (choice !== 0) return 'Je slaat de uitnodiging beleefd af.';

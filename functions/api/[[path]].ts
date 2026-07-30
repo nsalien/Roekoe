@@ -20,6 +20,7 @@ import {
   advanceWeek,
   buyFood,
   buyPigeon,
+  cancelSponsor,
   createLoftForUser,
   chooseEvent,
   enterFlight,
@@ -29,6 +30,7 @@ import {
   setInfirmary,
   setInfirmaryStaff,
   setMedicatedFood,
+  signSponsor,
   startBreeding,
   trainPigeon,
   unlist,
@@ -38,8 +40,9 @@ import { advanceRealtime, flightsAwaitingStart } from '../../core/game/schedule.
 import { fetchFlightWeather, type WeatherResult } from '../../core/game/weather.js';
 import { placeBid } from '../../core/game/auction.js';
 import { refreshDailyMissions } from '../../core/game/missions.js';
+import { sponsorView } from '../../core/game/sponsors.js';
 import {
-  auctionDTO,
+  auctionsDTO,
   flightDTO,
   liveFlightDTO,
   loftDTO,
@@ -260,6 +263,34 @@ app.get('/profile', (c) => {
   return c.json(profile);
 });
 
+// --- Sponsors --------------------------------------------------------------
+app.get('/sponsors', (c) => {
+  const user = requireUser(c);
+  const db = c.get('store').data;
+  const loft = db.lofts.find((l) => l.userId === user.id);
+  if (!loft) return c.json({ error: 'Geen hok gevonden' }, 404);
+  return c.json(sponsorView(db, loft));
+});
+
+app.post('/sponsors/sign', async (c) => {
+  const user = requireUser(c);
+  const body = await c.req.json().catch(() => ({}));
+  const store = c.get('store');
+  const result = signSponsor(store, user.id, String(body.sponsorId ?? ''));
+  await store.persist();
+  if (result.startsWith('!')) return c.json({ error: result.slice(1) }, 400);
+  return c.json({ ok: true, result });
+});
+
+app.post('/sponsors/cancel', async (c) => {
+  const user = requireUser(c);
+  const store = c.get('store');
+  const result = cancelSponsor(store, user.id);
+  await store.persist();
+  if (result.startsWith('!')) return c.json({ error: result.slice(1) }, 400);
+  return c.json({ ok: true, result });
+});
+
 // --- Notifications ---------------------------------------------------------
 app.get('/notifications', (c) => {
   const user = requireUser(c);
@@ -393,14 +424,14 @@ app.get('/market', (c) => {
     .filter((p) => p.forSale && p.ownerId !== user.id)
     .map((p) => pigeonDTO(db, p))
     .sort((a, b) => (a.price ?? 0) - (b.price ?? 0));
-  return c.json({ listings, trades: recentTrades(db), auction: auctionDTO(db) });
+  return c.json({ listings, trades: recentTrades(db), auctions: auctionsDTO(db) });
 });
 
 app.post('/auction/bid', async (c) => {
   const user = requireUser(c);
   const body = await c.req.json().catch(() => ({}));
   const store = c.get('store');
-  const err = placeBid(store.data, user.id, Number(body.amount) || 0);
+  const err = placeBid(store.data, user.id, String(body.auctionId ?? ''), Number(body.amount) || 0);
   await store.persist();
   return err ? c.json({ error: err }, 400) : c.json({ ok: true });
 });

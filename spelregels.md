@@ -368,7 +368,7 @@ karaktergebonden, neutrale en pikzwarte humor, met voorkeur voor alliteratie
 De speler krijgt een melding bij: vluchtuitslag, verbetering van een duif,
 kwetsuur, ziekte, herstel, sterfte en geboorte van jongen.
 
-## 12. Dagopdrachten, gebeurtenissen & veiling
+## 12. Dagopdrachten, gebeurtenissen, veilingen & sponsors
 
 - **Dagopdrachten.** Elke dag krijg je 3 kleine opdrachten (bv. een duif
   inschrijven, een vlucht winnen, voer kopen, trainen). Voltooien geeft geld +
@@ -376,12 +376,23 @@ kwetsuur, ziekte, herstel, sterfte en geboorte van jongen.
   (€10 + €5 per streakdag, tot €120).
 - **Gebeurtenissen (dilemma's).** Nu en dan (~1 op 3 dagen) verschijnt een
   keuzekaartje: een koopman die je beste duif wil kopen, een verdwaalde duif, een
-  griepgolf, een sperwer of een "kat in een zak". Elke keuze heeft gevolgen —
-  soms winst, soms risico.
+  griepgolf, een gulle frituursponsor, een kwakzalver, een hittegolf, een
+  dorpsfeest of een "kat in een zak". Elke keuze heeft gevolgen — soms winst,
+  soms risico.
 - **Zondagveiling.** Elke **zondag van 11:00 tot 20:00** (Brussel) gaat een
   topduif onder de hamer op de markt. Je biedt met echt geld; je inzet wordt
   vastgehouden en terugbetaald zodra iemand je overbiedt. Bij sluiting wint de
   hoogste bieder de duif.
+- **Opvangcentrum-veiling.** Op willekeurige maar regelmatige momenten (gemiddeld
+  ~1 per 9 uur) duikt er een duif uit het opvangcentrum op de markt op. Het is
+  geen renduif — de eigenschappen zijn matig — maar met training groeit ze en kan
+  je ze later opnieuw verkopen. **Startbod: €25**, venster van 6 uur.
+- **Sponsors.** Presteer goed en bedrijven willen in je hok investeren. Je kiest
+  één **hoofdsponsor** die zich vrijspeelt via prestaties (niveau, overwinningen,
+  seizoenspunten, talent van je beste duif, of gouden medailles). Tekenen geeft
+  eenmalig **tekengeld**, daarna een **weekbijdrage** (bij "Volgende week") en een
+  **bonus per gewonnen vlucht**. Overstappen naar een andere sponsor kan altijd;
+  het tekengeld krijg je maar één keer per sponsor.
 
 ---
 

@@ -61,6 +61,9 @@ function rowToLoft(r: any): Loft {
     missionsDay: r.missions_day ?? '',
     streak: r.streak ?? 0,
     pendingEvent: r.pending_event ? JSON.parse(r.pending_event) : null,
+    sponsorId: r.sponsor_id || null,
+    sponsorSince: r.sponsor_since ?? '',
+    sponsorsSigned: r.sponsors_signed ? JSON.parse(r.sponsors_signed) : [],
   };
 }
 function rowToPigeon(r: any): Pigeon {
@@ -191,6 +194,7 @@ export class D1Store implements Store {
         seeded: !!worldRow.seeded,
         dataVersion: worldRow.data_version ?? 0,
         lastDailyTick: worldRow.last_daily_tick ?? '',
+        lastShelterSpawn: worldRow.last_shelter_spawn ?? '',
       };
     }
 
@@ -237,13 +241,13 @@ export class D1Store implements Store {
     const wd = w.world;
     if (!this.worldExisted) {
       stmts.push(
-        db.prepare('INSERT INTO world (id, current_week, season_year, seeded, data_version, last_daily_tick, version) VALUES (1, ?, ?, ?, ?, ?, 1)')
-          .bind(wd.currentWeek, wd.seasonYear, b(wd.seeded), wd.dataVersion ?? 0, wd.lastDailyTick ?? ''),
+        db.prepare('INSERT INTO world (id, current_week, season_year, seeded, data_version, last_daily_tick, last_shelter_spawn, version) VALUES (1, ?, ?, ?, ?, ?, ?, 1)')
+          .bind(wd.currentWeek, wd.seasonYear, b(wd.seeded), wd.dataVersion ?? 0, wd.lastDailyTick ?? '', wd.lastShelterSpawn ?? ''),
       );
     } else {
       stmts.push(
-        db.prepare('UPDATE world SET current_week = ?, season_year = ?, seeded = ?, data_version = ?, last_daily_tick = ?, version = version + 1 WHERE id = 1')
-          .bind(wd.currentWeek, wd.seasonYear, b(wd.seeded), wd.dataVersion ?? 0, wd.lastDailyTick ?? ''),
+        db.prepare('UPDATE world SET current_week = ?, season_year = ?, seeded = ?, data_version = ?, last_daily_tick = ?, last_shelter_spawn = ?, version = version + 1 WHERE id = 1')
+          .bind(wd.currentWeek, wd.seasonYear, b(wd.seeded), wd.dataVersion ?? 0, wd.lastDailyTick ?? '', wd.lastShelterSpawn ?? ''),
       );
     }
 
@@ -259,13 +263,14 @@ export class D1Store implements Store {
     diff(this.snapshots.lofts, w.lofts, (l) => l.userId, {
       upsert: (l) =>
         db.prepare(
-          'INSERT OR REPLACE INTO lofts (user_id, name, money, food, feed_ration, capacity, season_points, total_wins, is_bot, infirmary_capacity, medicated_food, doctors, physios, xp, level, stats, badges, missions, missions_day, streak, pending_event) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+          'INSERT OR REPLACE INTO lofts (user_id, name, money, food, feed_ration, capacity, season_points, total_wins, is_bot, infirmary_capacity, medicated_food, doctors, physios, xp, level, stats, badges, missions, missions_day, streak, pending_event, sponsor_id, sponsor_since, sponsors_signed) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
         ).bind(
           l.userId, l.name, l.money, l.food, l.feedRation, l.capacity, l.seasonPoints, l.totalWins, b(l.isBot),
           l.infirmaryCapacity, b(l.medicatedFood), l.doctors, l.physios,
           l.xp, l.level, JSON.stringify(l.stats), JSON.stringify(l.badges),
           JSON.stringify(l.missions ?? []), l.missionsDay ?? '', l.streak ?? 0,
           l.pendingEvent ? JSON.stringify(l.pendingEvent) : '',
+          l.sponsorId ?? null, l.sponsorSince ?? '', JSON.stringify(l.sponsorsSigned ?? []),
         ),
       del: (id) => db.prepare('DELETE FROM lofts WHERE user_id = ?').bind(id),
       stmts,
@@ -370,6 +375,10 @@ export async function ensureSchema(db: D1Database): Promise<void> {
     "ALTER TABLE lofts ADD COLUMN missions_day TEXT NOT NULL DEFAULT ''",
     'ALTER TABLE lofts ADD COLUMN streak INTEGER NOT NULL DEFAULT 0',
     "ALTER TABLE lofts ADD COLUMN pending_event TEXT NOT NULL DEFAULT ''",
+    "ALTER TABLE lofts ADD COLUMN sponsor_id TEXT",
+    "ALTER TABLE lofts ADD COLUMN sponsor_since TEXT NOT NULL DEFAULT ''",
+    "ALTER TABLE lofts ADD COLUMN sponsors_signed TEXT NOT NULL DEFAULT '[]'",
+    "ALTER TABLE world ADD COLUMN last_shelter_spawn TEXT NOT NULL DEFAULT ''",
   ];
   for (const sql of alters) {
     try {

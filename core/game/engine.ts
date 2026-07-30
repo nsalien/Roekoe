@@ -27,6 +27,7 @@ import { botTakeWeeklyActions } from './bots.js';
 import { chargeWeeklyUpkeep } from './economy.js';
 import { progressMissions } from './missions.js';
 import { resolveEvent as resolveEventCard } from './events.js';
+import { applyCancelSponsor, applySignSponsor, sponsorById } from './sponsors.js';
 import { runHealthWeek } from './health.js';
 import { canRace, generatePigeon } from './pigeon.js';
 import { clamp, randFloat, round1 } from './util.js';
@@ -36,6 +37,7 @@ export const NPC_OWNER_ID = 'npc_market';
 export function ownerName(db: Database, ownerId: string): string {
   if (ownerId === NPC_OWNER_ID) return 'Duivenmarkt';
   if (ownerId === 'auction_house') return 'Veilinghuis';
+  if (ownerId === 'shelter_center') return 'Opvangcentrum';
   const loft = db.lofts.find((l) => l.userId === ownerId);
   return loft?.name ?? 'Onbekend';
 }
@@ -86,6 +88,9 @@ export function createLoftForUser(store: Store, user: User, loftName: string): L
       missionsDay: '',
       streak: 0,
       pendingEvent: null,
+      sponsorId: null,
+      sponsorSince: '',
+      sponsorsSigned: [],
     };
     db.lofts.push(loft);
     for (let i = 0; i < STARTING_PIGEONS; i++) {
@@ -134,6 +139,9 @@ export function seedWorld(store: Store): void {
         missionsDay: '',
         streak: 0,
         pendingEvent: null,
+        sponsorId: null,
+        sponsorSince: '',
+        sponsorsSigned: [],
       };
       db.lofts.push(loft);
       const count = STARTING_PIGEONS + Math.floor(Math.random() * 4);
@@ -176,6 +184,18 @@ export function advanceWeek(store: Store): WeekSummary {
     for (const loft of db.lofts) {
       const activeCount = db.pigeons.filter((p) => p.ownerId === loft.userId && !p.retired).length;
       chargeWeeklyUpkeep(loft, activeCount);
+    }
+
+    // 2c. Sponsors pay their weekly stipend to the lofts they back.
+    for (const loft of db.lofts) {
+      const sponsor = sponsorById(loft.sponsorId);
+      if (sponsor) {
+        loft.money += sponsor.weeklyStipend;
+        if (!loft.isBot) {
+          notify(db, loft.userId, 'info', `${sponsor.icon} Sponsorbijdrage`,
+            `${sponsor.name} stortte je weekbijdrage van €${sponsor.weeklyStipend}.`);
+        }
+      }
     }
 
     // 2b. Health: disease onset/spread, recovery, and mortality. Notify humans.
@@ -467,6 +487,24 @@ export function chooseEvent(store: Store, userId: string, choice: number): strin
     const loft = db.lofts.find((l) => l.userId === userId);
     if (!loft) return '!Geen hok gevonden';
     return resolveEventCard(db, loft, choice, db.world.currentWeek);
+  });
+}
+
+/** Sign a company as the loft's head sponsor. Returns a message or '!error'. */
+export function signSponsor(store: Store, userId: string, sponsorId: string): string {
+  return store.mutate((db) => {
+    const loft = db.lofts.find((l) => l.userId === userId);
+    if (!loft) return '!Geen hok gevonden';
+    return applySignSponsor(db, loft, sponsorId);
+  });
+}
+
+/** Drop the loft's current head sponsor. Returns a message or '!error'. */
+export function cancelSponsor(store: Store, userId: string): string {
+  return store.mutate((db) => {
+    const loft = db.lofts.find((l) => l.userId === userId);
+    if (!loft) return '!Geen hok gevonden';
+    return applyCancelSponsor(db, loft);
   });
 }
 

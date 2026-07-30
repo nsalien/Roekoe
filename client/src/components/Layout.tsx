@@ -15,6 +15,7 @@ const NAV = [
   { to: '/markt', label: 'Markt', short: 'Markt', icon: '🛒' },
   { to: '/kweek', label: 'Kweek', short: 'Kweek', icon: '🥚' },
   { to: '/ziekenboeg', label: 'Ziekenboeg', short: 'Zieken', icon: '🏥' },
+  { to: '/sponsors', label: 'Sponsors', short: 'Sponsor', icon: '🤝' },
   { to: '/prestaties', label: 'Prestaties', short: 'Prestige', icon: '🎖️' },
   { to: '/ranglijst', label: 'Rang', short: 'Rang', icon: '🏆' },
   { to: '/profiel', label: 'Profiel', short: 'Profiel', icon: '👤' },

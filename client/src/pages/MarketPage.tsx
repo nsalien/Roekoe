@@ -25,14 +25,14 @@ export function MarketPage() {
   const toast = useToast();
   const [listings, setListings] = useState<Pigeon[] | null>(null);
   const [trades, setTrades] = useState<Trade[]>([]);
-  const [auction, setAuction] = useState<AuctionInfo | null>(null);
+  const [auctions, setAuctions] = useState<AuctionInfo[]>([]);
   const [busy, setBusy] = useState(false);
 
   const load = useCallback(async () => {
-    const res = await api<{ listings: Pigeon[]; trades: Trade[]; auction: AuctionInfo | null }>('/market');
+    const res = await api<{ listings: Pigeon[]; trades: Trade[]; auctions: AuctionInfo[] }>('/market');
     setListings(res.listings);
     setTrades(res.trades ?? []);
-    setAuction(res.auction ?? null);
+    setAuctions(res.auctions ?? []);
   }, []);
   useEffect(() => {
     load();
@@ -52,10 +52,10 @@ export function MarketPage() {
     }
   }
 
-  async function bid(amount: number) {
+  async function bid(auctionId: string, amount: number) {
     setBusy(true);
     try {
-      await api('/auction/bid', { method: 'POST', body: { amount } });
+      await api('/auction/bid', { method: 'POST', body: { auctionId, amount } });
       toast.show('Bod geplaatst! 🔨', 'ok');
       await load();
       await refresh();
@@ -80,9 +80,9 @@ export function MarketPage() {
         </div>
       </div>
 
-      {auction?.pigeon && (
-        <AuctionCard auction={auction} money={money} busy={busy} onBid={bid} />
-      )}
+      {auctions.filter((a) => a.pigeon).map((a) => (
+        <AuctionCard key={a.id} auction={a} money={money} busy={busy} onBid={bid} />
+      ))}
 
       {listings.length === 0 && (
         <div className="card muted">
@@ -151,24 +151,34 @@ function AuctionCard({
   auction: AuctionInfo;
   money: number;
   busy: boolean;
-  onBid: (amount: number) => void;
+  onBid: (auctionId: string, amount: number) => void;
 }) {
   const p = auction.pigeon!;
+  const shelter = auction.kind === 'shelter';
   const [amount, setAmount] = useState(auction.minNextBid);
   // Keep the input at least the minimum next bid as it rises.
   useEffect(() => {
     setAmount((a) => Math.max(a, auction.minNextBid));
   }, [auction.minNextBid]);
 
+  const accent = shelter ? 'var(--good)' : 'var(--accent)';
   return (
-    <div className="card" style={{ borderColor: 'var(--accent)', marginBottom: 16 }}>
+    <div className="card" style={{ borderColor: accent, marginBottom: 16 }}>
       <div className="row" style={{ justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
         <div className="row" style={{ gap: 8 }}>
-          <span className="badge" style={{ background: 'var(--accent)', color: '#fff' }}>🔨 ZONDAGVEILING</span>
-          <strong>Topduif onder de hamer</strong>
+          <span className="badge" style={{ background: accent, color: '#fff' }}>
+            {shelter ? '🏠 OPVANGCENTRUM' : '🔨 ZONDAGVEILING'}
+          </span>
+          <strong>{shelter ? 'Duif zoekt een baasje' : 'Topduif onder de hamer'}</strong>
         </div>
         <span className="faint">sluit {countdownTo(auction.endAt)}</span>
       </div>
+
+      {shelter && (
+        <p className="faint" style={{ margin: '8px 0 0', fontSize: '0.85rem' }}>
+          Geen renduif, maar met wat training en geduld groeit die er wel bovenop — en later weer te koop.
+        </p>
+      )}
 
       <div className="row" style={{ gap: 14, alignItems: 'center', marginTop: 12 }}>
         <PigeonAvatar pigeon={p} size={72} />
@@ -198,7 +208,7 @@ function AuctionCard({
         <button
           className="btn accent"
           disabled={busy || amount < auction.minNextBid || amount > money}
-          onClick={() => onBid(amount)}
+          onClick={() => onBid(auction.id, amount)}
         >
           Bied <Money value={amount} />
         </button>

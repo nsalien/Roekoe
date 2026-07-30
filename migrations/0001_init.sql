@@ -9,6 +9,7 @@ CREATE TABLE IF NOT EXISTS world (
   seeded       INTEGER NOT NULL DEFAULT 0,
   data_version INTEGER NOT NULL DEFAULT 0,
   last_daily_tick TEXT NOT NULL DEFAULT '',
+  last_shelter_spawn TEXT NOT NULL DEFAULT '',
   version      INTEGER NOT NULL DEFAULT 0
 );
 
@@ -43,7 +44,10 @@ CREATE TABLE IF NOT EXISTS lofts (
   missions           TEXT NOT NULL DEFAULT '',
   missions_day       TEXT NOT NULL DEFAULT '',
   streak             INTEGER NOT NULL DEFAULT 0,
-  pending_event      TEXT NOT NULL DEFAULT ''
+  pending_event      TEXT NOT NULL DEFAULT '',
+  sponsor_id         TEXT,
+  sponsor_since      TEXT NOT NULL DEFAULT '',
+  sponsors_signed    TEXT NOT NULL DEFAULT '[]'
 );
 
 CREATE TABLE IF NOT EXISTS pigeons (

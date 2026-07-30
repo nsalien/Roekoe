@@ -6,6 +6,8 @@
 
 import type { Database, Flight, Loft, Notification, Pigeon, Trade } from './schema.js';
 import { ageInWeeks, canRace, estimateValue, talent } from './game/pigeon.js';
+import { auctionKind } from './game/auction.js';
+import { sponsorById } from './game/sponsors.js';
 import { ownerName } from './game/engine.js';
 import { flightCommentary, liveSnapshot } from './game/flight.js';
 import { BADGES, levelForXp } from './game/badges.js';
@@ -43,9 +45,13 @@ export function pigeonDTO(db: Database, p: Pigeon) {
 export function loftDTO(db: Database, loft: Loft) {
   const pigeons = db.pigeons.filter((p) => p.ownerId === loft.userId);
   const infirmary = pigeons.filter((p) => p.inInfirmary);
+  const sponsor = sponsorById(loft.sponsorId);
   return {
     userId: loft.userId,
     name: loft.name,
+    sponsorId: loft.sponsorId ?? null,
+    sponsorName: sponsor?.name ?? null,
+    sponsorIcon: sponsor?.icon ?? null,
     money: Math.round(loft.money),
     food: round1(loft.food),
     feedRation: loft.feedRation,
@@ -129,19 +135,29 @@ export function tradeDTO(t: Trade) {
   };
 }
 
-/** The open Sunday auction, if any, for the market page. */
-export function auctionDTO(db: Database) {
-  const a = db.auctions.find((x) => x.status === 'open');
-  if (!a) return null;
-  const p = db.pigeons.find((x) => x.id === a.pigeonId);
-  return {
-    id: a.id,
-    pigeon: p ? pigeonDTO(db, p) : null,
-    endAt: a.endAt,
-    currentBid: a.currentBid,
-    currentBidderName: a.currentBidderName,
-    minNextBid: a.currentBid > 0 ? a.currentBid + a.minIncrement : a.minBid,
-  };
+/** All currently-open auctions for the market page (Sunday first, then shelter). */
+export function auctionsDTO(db: Database) {
+  return db.auctions
+    .filter((a) => a.status === 'open')
+    .map((a) => {
+      const p = db.pigeons.find((x) => x.id === a.pigeonId);
+      const kind = auctionKind(a);
+      return {
+        id: a.id,
+        kind,
+        sellerName: kind === 'shelter' ? 'Opvangcentrum' : 'Veilinghuis',
+        pigeon: p ? pigeonDTO(db, p) : null,
+        startAt: a.startAt,
+        endAt: a.endAt,
+        currentBid: a.currentBid,
+        currentBidderName: a.currentBidderName,
+        minNextBid: a.currentBid > 0 ? a.currentBid + a.minIncrement : a.minBid,
+      };
+    })
+    .sort((a, b) => {
+      if (a.kind !== b.kind) return a.kind === 'sunday' ? -1 : 1;
+      return a.endAt.localeCompare(b.endAt);
+    });
 }
 
 /** Recent market sales, newest first. */

@@ -32,6 +32,7 @@ import { breed } from './breeding.js';
 import { awardBadge, awardFlightBadges, evaluateBadges } from './badges.js';
 import { ensureAuctions } from './auction.js';
 import { progressMissions } from './missions.js';
+import { sponsorById } from './sponsors.js';
 import {
   applyFlightEffects,
   finalizeFlight,
@@ -316,7 +317,18 @@ export function tickFlights(db: Database, nowMs: number, weatherByFlight?: Map<s
           const mine = flight.results.filter((r) => r.ownerId === ownerId);
           const podiums = mine.filter((r) => r.rank <= 3).length;
           if (podiums > 0) progressMissions(db, loft, 'podium', podiums);
-          if (mine.some((r) => r.rank === 1)) progressMissions(db, loft, 'win', 1);
+          const wins = mine.filter((r) => r.rank === 1).length;
+          if (wins > 0) progressMissions(db, loft, 'win', 1);
+          // Head sponsor pays a bonus for each winning bird.
+          const sponsor = sponsorById(loft.sponsorId);
+          if (sponsor && wins > 0) {
+            const bonus = sponsor.winBonus * wins;
+            loft.money += bonus;
+            pushNotification(
+              db, loft.userId, 'info', `${sponsor.icon} Sponsorbonus`,
+              `${sponsor.name} beloont je overwinning met €${bonus}.`, flight.id,
+            );
+          }
         }
       }
     }

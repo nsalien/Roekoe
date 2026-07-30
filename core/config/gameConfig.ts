@@ -279,6 +279,85 @@ export const FLIGHT_TIERS: Record<FlightTier, TierConfig> = {
 };
 
 /**
+ * Auctions. A single top pigeon is auctioned every Sunday (see auction.ts).
+ * On top of that, rescue-centre ("opvangcentrum") birds pop up at random,
+ * regular moments: low-quality pigeons that still fetch a starting bid of €25
+ * because a new owner can always train them up.
+ */
+export const AUCTION = {
+  /** Rescue-centre auctions: mean hours between appearances (memoryless). */
+  shelterMeanIntervalHours: 9,
+  /** How long a rescue-centre auction stays open, in hours. */
+  shelterWindowHours: 6,
+  /** Never run more than this many rescue auctions at once. */
+  shelterMaxConcurrent: 2,
+  /** Opening bid for a rescue-centre bird. */
+  shelterStartBid: 25,
+  /** Quality range for rescue birds (they are no racers). */
+  shelterQualityMin: 0.05,
+  shelterQualityMax: 0.35,
+} as const;
+
+/**
+ * Sponsors. When a loft performs well, companies want to invest in the melker.
+ * Each sponsor unlocks at a prestige threshold and, once signed as your head
+ * sponsor, pays a one-time signing bonus plus a weekly stipend and a bonus for
+ * every flight you win. Only one sponsor can be active at a time — picking one
+ * is a small strategic choice. Amounts are deliberately modest.
+ */
+export interface SponsorDef {
+  id: string;
+  name: string;
+  icon: string;
+  tagline: string;
+  tier: number;
+  /** Unlock thresholds (all listed conditions must be met). */
+  req: {
+    level?: number;
+    totalWins?: number;
+    seasonPoints?: number;
+    bestTalent?: number;
+    gold?: number;
+  };
+  signingBonus: number; // one-time, first time you sign this sponsor
+  weeklyStipend: number; // paid every "volgende week" tick while active
+  winBonus: number; // paid each time one of your pigeons wins a flight
+}
+
+export const SPONSORS: SponsorDef[] = [
+  {
+    id: 'zatte_duif', name: 'Café De Zatte Duif', icon: '🍺', tier: 1,
+    tagline: 'Ons café hangt vol duivenfoto’s. Kom erbij, den eerste pint is voor u.',
+    req: {}, signingBonus: 150, weeklyStipend: 30, winBonus: 10,
+  },
+  {
+    id: 'vetzakske', name: "Frituur 't Vetzakske", icon: '🍟', tier: 1,
+    tagline: 'Elke overwinning trakteren we op een grote friet met stoofvleessaus.',
+    req: { totalWins: 3 }, signingBonus: 300, weeklyStipend: 60, winBonus: 20,
+  },
+  {
+    id: 'kruimeltje', name: "Bakkerij 't Kruimeltje", icon: '🥖', tier: 2,
+    tagline: 'Verse pistolets voor de kampioen, elke zondagmorgen.',
+    req: { seasonPoints: 120 }, signingBonus: 400, weeklyStipend: 80, winBonus: 15,
+  },
+  {
+    id: 'van_hoof', name: 'Landbouwmachines Van Hoof', icon: '🚜', tier: 2,
+    tagline: 'Wij houden van sterke beesten met pk’s onder de vleugels.',
+    req: { bestTalent: 75 }, signingBonus: 600, weeklyStipend: 120, winBonus: 25,
+  },
+  {
+    id: 'fondinvest', name: 'Duivenbank Fondinvest', icon: '🏦', tier: 3,
+    tagline: 'Uw prestaties, onze investering. Beleg in pluimen.',
+    req: { level: 6 }, signingBonus: 1000, weeklyStipend: 180, winBonus: 35,
+  },
+  {
+    id: 'snelle_vleugel', name: 'Racing Team Snelle Vleugel', icon: '🏎️', tier: 3,
+    tagline: 'Alleen echte winnaars dragen ons logo. Ben jij er klaar voor?',
+    req: { gold: 10 }, signingBonus: 1500, weeklyStipend: 260, winBonus: 55,
+  },
+];
+
+/**
  * Racing improves birds. After a flight each participant has a chance to gain a
  * little in the attribute that mattered most for that distance (racing builds
  * condition). Better placings and lower current values improve more easily.

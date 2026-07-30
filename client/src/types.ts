@@ -75,6 +75,9 @@ export interface RaceHistoryRow {
 export interface Loft {
   userId: string;
   name: string;
+  sponsorId: string | null;
+  sponsorName: string | null;
+  sponsorIcon: string | null;
   money: number;
   food: number;
   feedRation: FeedRation;
@@ -266,11 +269,36 @@ export interface EventCard {
 
 export interface AuctionInfo {
   id: string;
+  kind: 'sunday' | 'shelter';
+  sellerName: string;
   pigeon: Pigeon | null;
+  startAt: string;
   endAt: string;
   currentBid: number;
   currentBidderName: string | null;
   minNextBid: number;
+}
+
+export interface SponsorOffer {
+  id: string;
+  name: string;
+  icon: string;
+  tagline: string;
+  tier: number;
+  signingBonus: number;
+  weeklyStipend: number;
+  winBonus: number;
+  requirement: string;
+  unlocked: boolean;
+  active: boolean;
+  signedBefore: boolean;
+}
+
+export interface SponsorView {
+  activeId: string | null;
+  sponsorSince: string | null;
+  bestTalent: number;
+  offers: SponsorOffer[];
 }
 
 export type NotificationKind = 'result' | 'improve' | 'info' | 'health' | 'badge';
