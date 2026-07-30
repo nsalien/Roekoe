@@ -85,17 +85,39 @@ export interface Loft {
   sponsorship: SponsorState;
 }
 
-/** A signed sponsorship contract. */
-export interface ActiveSponsorship {
+/** The money terms of a sponsor deal (they scale with performance over time). */
+export interface OfferTerms {
+  signingBonus: number; // one-time on signing
+  weeklyStipend: number; // per "volgende week" tick
+  winBonus: number; // per flight won
+}
+
+/** A pending sponsor offer with its concrete (performance-scaled) terms. */
+export interface SponsorOffer extends OfferTerms {
   id: string; // sponsor id (see config SPONSORS)
+  at: string; // ISO timestamp the offer was made
+}
+
+/** A signed sponsorship contract (keeps the terms agreed at signing). */
+export interface ActiveSponsorship {
+  id: string;
   since: string; // ISO timestamp the contract was signed
+  weeklyStipend: number;
+  winBonus: number;
+}
+
+/** A refused or cancelled sponsor, eligible to re-offer later. */
+export interface DeclinedSponsor {
+  id: string;
+  at: string; // ISO timestamp it was refused/cancelled
+  perf: number; // loft performance score at that moment (for re-offer scaling)
 }
 
 /** Everything about a loft's sponsors: active contracts + offer bookkeeping. */
 export interface SponsorState {
   active: ActiveSponsorship[]; // current contracts (max one per category)
-  offers: string[]; // sponsor ids currently offering (new, awaiting accept/refuse)
-  seen: string[]; // sponsor ids ever offered (so we notify only once)
+  offers: SponsorOffer[]; // pending offers awaiting accept/refuse
+  declined: DeclinedSponsor[]; // refused/cancelled; may re-offer after a cooldown
   signed: string[]; // sponsor ids ever accepted (one-time signing-bonus guard)
 }
 
@@ -284,7 +306,7 @@ export interface Database {
 }
 
 export function emptySponsorState(): SponsorState {
-  return { active: [], offers: [], seen: [], signed: [] };
+  return { active: [], offers: [], declined: [], signed: [] };
 }
 
 export function emptyStats(): PlayerStats {

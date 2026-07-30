@@ -400,8 +400,11 @@ kwetsuur, ziekte, herstel, sterfte en geboorte van jongen.
     je overstappen naar een concurrent in dezelfde categorie, dan moet je het oude
     contract opzeggen en een **verbrekingsvergoeding** betalen. Sponsors uit
     verschillende categorieën gaan probleemloos samen.
-  - Een geweigerd aanbod verdwijnt niet: je vindt het onder "Beschikbaar" terug en
-    kan later alsnog tekenen. Het tekengeld krijg je maar één keer per sponsor.
+  - Weiger je een aanbod, dan **verdwijnt het**. De sponsor kan later (na een
+    afkoelperiode van ~3 dagen) **opnieuw aankloppen** — met een aanbod dat mee
+    schaalt met je prestaties intussen: beter gepresteerd → een rijker aanbod,
+    minder goed → een magerder aanbod. Het tekengeld krijg je maar één keer per
+    sponsor. Ook een opgezegd contract kan later opnieuw aangeboden worden.
 
 ---
 

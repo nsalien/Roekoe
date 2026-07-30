@@ -303,7 +303,6 @@ export interface SponsorView {
   bestTalent: number;
   active: Sponsor[];
   offers: Sponsor[];
-  available: Sponsor[];
 }
 
 export type NotificationKind = 'result' | 'improve' | 'info' | 'health' | 'badge';

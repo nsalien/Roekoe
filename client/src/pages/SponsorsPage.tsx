@@ -56,7 +56,7 @@ export function SponsorsPage() {
   }
 
   if (!view) return <Spinner />;
-  const nothing = view.active.length === 0 && view.offers.length === 0 && view.available.length === 0;
+  const nothing = view.active.length === 0 && view.offers.length === 0;
 
   return (
     <div>
@@ -96,18 +96,6 @@ export function SponsorsPage() {
           <div className="grid cols-2">
             {view.active.map((s) => (
               <SponsorCard key={s.id} s={s} busy={busy} active onCancel={() => cancel(s)} />
-            ))}
-          </div>
-        </>
-      )}
-
-      {view.available.length > 0 && (
-        <>
-          <div className="page-head" style={{ marginTop: 22 }}><h2>Beschikbaar</h2></div>
-          <p className="muted" style={{ marginTop: -6 }}>Eerder aangeboden — je kan alsnog tekenen.</p>
-          <div className="grid cols-2">
-            {view.available.map((s) => (
-              <SponsorCard key={s.id} s={s} busy={busy} onAccept={() => accept(s)} />
             ))}
           </div>
         </>

@@ -336,6 +336,16 @@ export interface SponsorDef {
   breakPenalty: number; // fee to terminate this contract early
 }
 
+/**
+ * After a player refuses (or cancels) a sponsor the offer disappears, but the
+ * company may come knocking again once this much real time has passed — with
+ * terms rescaled to how the loft has performed since (better → more, worse →
+ * less). Bounds cap that rescaling.
+ */
+export const SPONSOR_REOFFER_COOLDOWN_HOURS = 72;
+export const SPONSOR_REOFFER_MULT_MIN = 0.7;
+export const SPONSOR_REOFFER_MULT_MAX = 1.5;
+
 export const SPONSORS: SponsorDef[] = [
   // Tier 1 — first real milestones (a first win, loyal participation).
   {

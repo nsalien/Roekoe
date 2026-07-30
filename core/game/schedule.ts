@@ -32,7 +32,7 @@ import { breed } from './breeding.js';
 import { awardBadge, awardFlightBadges, evaluateBadges } from './badges.js';
 import { ensureAuctions } from './auction.js';
 import { progressMissions } from './missions.js';
-import { activeSponsorDefs } from './sponsors.js';
+import { activeContracts } from './sponsors.js';
 import {
   applyFlightEffects,
   finalizeFlight,
@@ -321,8 +321,8 @@ export function tickFlights(db: Database, nowMs: number, weatherByFlight?: Map<s
           if (wins > 0) progressMissions(db, loft, 'win', 1);
           // Every active sponsor pays a bonus for each winning bird.
           if (wins > 0) {
-            const sponsors = activeSponsorDefs(loft);
-            const bonus = sponsors.reduce((s, sp) => s + sp.winBonus * wins, 0);
+            const contracts = activeContracts(loft);
+            const bonus = contracts.reduce((s, c) => s + c.contract.winBonus * wins, 0);
             if (bonus > 0) {
               loft.money += bonus;
               pushNotification(

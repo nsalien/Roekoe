@@ -66,25 +66,17 @@ function rowToLoft(r: any): Loft {
   };
 }
 
-/** Read the sponsor state, migrating from the old single-sponsor columns. */
+/**
+ * Read the sponsor state. Any older shape (or the pre-blob single-sponsor
+ * columns) is tolerated here and fully normalised later by the sponsors module.
+ */
 function parseSponsorship(r: any): SponsorState {
   if (r.sponsorship) {
-    try {
-      const s = JSON.parse(r.sponsorship);
-      return {
-        active: Array.isArray(s.active) ? s.active : [],
-        offers: Array.isArray(s.offers) ? s.offers : [],
-        seen: Array.isArray(s.seen) ? s.seen : [],
-        signed: Array.isArray(s.signed) ? s.signed : [],
-      };
-    } catch {
-      // fall through to legacy / empty
-    }
+    try { return JSON.parse(r.sponsorship) as SponsorState; } catch { /* fall through */ }
   }
   const st = emptySponsorState();
   if (r.sponsor_id) {
-    st.active.push({ id: r.sponsor_id, since: r.sponsor_since ?? '' });
-    st.seen.push(r.sponsor_id);
+    st.active.push({ id: r.sponsor_id, since: r.sponsor_since ?? '', weeklyStipend: 0, winBonus: 0 });
   }
   if (r.sponsors_signed) {
     try { st.signed = JSON.parse(r.sponsors_signed); } catch { /* ignore */ }
