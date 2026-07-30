@@ -405,6 +405,9 @@ kwetsuur, ziekte, herstel, sterfte en geboorte van jongen.
     schaalt met je prestaties intussen: beter gepresteerd → een rijker aanbod,
     minder goed → een magerder aanbod. Het tekengeld krijg je maar één keer per
     sponsor. Ook een opgezegd contract kan later opnieuw aangeboden worden.
+  - Er zijn eigen **sponsorbadges** (Prestaties): je eerste contract, tekenen bij
+    een topsponsor (tier 3), 3 sponsors tegelijk, en een "sponsorimperium" met
+    sponsors in 4 verschillende categorieën tegelijk.
 
 ---
 

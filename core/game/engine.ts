@@ -492,7 +492,9 @@ export function acceptSponsor(store: Store, userId: string, sponsorId: string, r
   return store.mutate((db) => {
     const loft = db.lofts.find((l) => l.userId === userId);
     if (!loft) return '!Geen hok gevonden';
-    return applyAcceptSponsor(db, loft, sponsorId, replace);
+    const result = applyAcceptSponsor(db, loft, sponsorId, replace);
+    if (!result.startsWith('!')) evaluateBadges(db, loft);
+    return result;
   });
 }
 

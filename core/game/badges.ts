@@ -7,13 +7,13 @@
  * badges are awarded imperatively where the event happens.
  */
 
-import { EPITHETS } from '../config/gameConfig.js';
+import { EPITHETS, SPONSORS } from '../config/gameConfig.js';
 import type { Database, Flight, Loft } from '../schema.js';
 import { newId } from '../store.js';
 
 export interface BadgeDef {
   key: string;
-  group: 'race' | 'podium' | 'breed' | 'market' | 'care' | 'milestone' | 'fun';
+  group: 'race' | 'podium' | 'breed' | 'market' | 'care' | 'milestone' | 'sponsor' | 'fun';
   label: string;
   description: string;
   xp: number;
@@ -23,6 +23,20 @@ export interface BadgeDef {
 }
 
 const s = (l: Loft) => l.stats;
+
+// --- Sponsor helpers (read defensively; sponsorship may be un-normalised) ---
+const SPONSOR_DEF = new Map(SPONSORS.map((sp) => [sp.id, sp]));
+const signedCount = (l: Loft) => l.sponsorship?.signed?.length ?? 0;
+const activeCount = (l: Loft) => l.sponsorship?.active?.length ?? 0;
+const signedAnyTier3 = (l: Loft) => (l.sponsorship?.signed ?? []).some((id) => SPONSOR_DEF.get(id)?.tier === 3);
+function activeCategoryCount(l: Loft): number {
+  const cats = new Set<string>();
+  for (const a of l.sponsorship?.active ?? []) {
+    const def = SPONSOR_DEF.get(a.id);
+    if (def) cats.add(def.category);
+  }
+  return cats.size;
+}
 
 export const BADGES: BadgeDef[] = [
   // --- Race wins ---
@@ -81,6 +95,12 @@ export const BADGES: BadgeDef[] = [
   { key: 'baron', group: 'milestone', label: 'Duivenbaron', description: 'Heb €10.000 in kas.', xp: 100, icon: '💵', test: (l) => l.money >= 10000 },
   { key: 'millionair', group: 'milestone', label: "Miljonair van 't dorp", description: 'Heb €50.000 in kas.', xp: 300, icon: '🤑', test: (l) => l.money >= 50000 },
   { key: 'season_champion', group: 'milestone', label: 'Seizoenskampioen', description: 'Eindig als #1 bij een seizoenswissel.', xp: 500, icon: '👑' },
+
+  // --- Sponsors ---
+  { key: 'sponsor_1', group: 'sponsor', label: 'Eerste Sponsor', description: 'Teken je eerste sponsorcontract.', xp: 25, icon: '🤝', test: (l) => signedCount(l) >= 1 },
+  { key: 'sponsor_multi', group: 'sponsor', label: 'Goed Omringd', description: 'Heb 3 sponsors tegelijk actief.', xp: 75, icon: '📣', test: (l) => activeCount(l) >= 3 },
+  { key: 'sponsor_big', group: 'sponsor', label: 'Grote Vissen', description: 'Teken bij een topsponsor (tier 3).', xp: 100, icon: '🏦', test: (l) => signedAnyTier3(l) },
+  { key: 'sponsor_empire', group: 'sponsor', label: 'Sponsorimperium', description: 'Heb tegelijk sponsors in 4 verschillende categorieën.', xp: 200, icon: '👔', test: (l) => activeCategoryCount(l) >= 4 },
 
   // --- Fun / dark ---
   { key: 'rip_sperwer', group: 'fun', label: 'RIP 🕊️', description: 'Verlies een duif aan een sperwer.', xp: 25, icon: '🦅' },

@@ -14,9 +14,10 @@ const GROUP_LABEL: Record<BadgeGroup, string> = {
   market: '🛒 Markt',
   care: '💊 Verzorging',
   milestone: '📈 Mijlpalen',
+  sponsor: '🤝 Sponsors',
   fun: '☠️ Speciaal',
 };
-const GROUP_ORDER: BadgeGroup[] = ['race', 'podium', 'breed', 'market', 'care', 'milestone', 'fun'];
+const GROUP_ORDER: BadgeGroup[] = ['race', 'podium', 'breed', 'market', 'care', 'milestone', 'sponsor', 'fun'];
 
 export function AchievementsPage() {
   const { state } = useGame();

@@ -185,7 +185,7 @@ export interface RankingRow {
   rank: number;
 }
 
-export type BadgeGroup = 'race' | 'podium' | 'breed' | 'market' | 'care' | 'milestone' | 'fun';
+export type BadgeGroup = 'race' | 'podium' | 'breed' | 'market' | 'care' | 'milestone' | 'sponsor' | 'fun';
 
 export interface BadgeItem {
   key: string;
