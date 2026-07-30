@@ -51,6 +51,7 @@ export interface Pigeon {
   coached: boolean;
   ration: FeedRation;
   compartment: boolean;
+  racing: boolean;
 }
 
 export interface Trade {

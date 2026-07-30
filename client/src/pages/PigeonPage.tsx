@@ -180,7 +180,16 @@ export function PigeonPage() {
             </div>
           )}
 
-          {mine && !p.ailment && !p.inInfirmary && (
+          {mine && !p.ailment && !p.inInfirmary && p.racing && (
+            <div className="card">
+              <h2>Training</h2>
+              <p className="muted">
+                🏁 Deze duif is ingeschreven voor een vlucht. Trainen kan pas weer als ze thuis is.
+              </p>
+            </div>
+          )}
+
+          {mine && !p.ailment && !p.inInfirmary && !p.racing && (
             <div className="card">
               <h2>Training</h2>
               <p className="muted">

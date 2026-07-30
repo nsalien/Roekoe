@@ -42,6 +42,7 @@ export function pigeonDTO(db: Database, p: Pigeon) {
     coached: p.coached ?? false,
     ration: p.ration ?? 'normal',
     compartment: p.compartment ?? false,
+    racing: db.flights.some((f) => f.status !== 'completed' && f.entries.some((e) => e.pigeonId === p.id)),
   };
 }
 

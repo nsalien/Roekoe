@@ -537,6 +537,10 @@ export function trainPigeon(
     const pigeon = db.pigeons.find((p) => p.id === pigeonId && p.ownerId === userId);
     if (!loft || !pigeon) return 'Duif niet gevonden';
     if (pigeon.ailment || pigeon.inInfirmary) return 'Een zieke, gekwetste of herstellende duif kan niet trainen';
+    const racing = db.flights.some(
+      (f) => f.status !== 'completed' && f.entries.some((e) => e.pigeonId === pigeonId),
+    );
+    if (racing) return 'Deze duif is ingeschreven voor een vlucht — trainen kan pas als ze weer thuis is';
     if (loft.money < TRAINING.cost) return 'Niet genoeg geld om te trainen';
     if (pigeon.form < TRAINING.formCost + 5) return 'Deze duif heeft te weinig energie om te trainen';
     if (pigeon[attr] >= TRAINING.attributeCap)
