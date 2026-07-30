@@ -81,10 +81,22 @@ export interface Loft {
   missionsDay: string; // date key (yyyy-mm-dd, Brussels) the missions belong to
   streak: number; // consecutive active days
   pendingEvent: EventCard | null; // an unresolved dilemma awaiting the player
-  // Sponsoring: a company backing the loft for ongoing income.
-  sponsorId: string | null; // active head sponsor, or null
-  sponsorSince: string; // ISO timestamp the current sponsor was signed
-  sponsorsSigned: string[]; // sponsor ids ever signed (one-time signing bonus guard)
+  // Sponsoring: companies that offer to back the loft once it performs well.
+  sponsorship: SponsorState;
+}
+
+/** A signed sponsorship contract. */
+export interface ActiveSponsorship {
+  id: string; // sponsor id (see config SPONSORS)
+  since: string; // ISO timestamp the contract was signed
+}
+
+/** Everything about a loft's sponsors: active contracts + offer bookkeeping. */
+export interface SponsorState {
+  active: ActiveSponsorship[]; // current contracts (max one per category)
+  offers: string[]; // sponsor ids currently offering (new, awaiting accept/refuse)
+  seen: string[]; // sponsor ids ever offered (so we notify only once)
+  signed: string[]; // sponsor ids ever accepted (one-time signing-bonus guard)
 }
 
 /** A small daily task that rewards money + XP when completed. */
@@ -269,6 +281,10 @@ export interface Database {
   notifications: Notification[];
   trades: Trade[];
   auctions: Auction[];
+}
+
+export function emptySponsorState(): SponsorState {
+  return { active: [], offers: [], seen: [], signed: [] };
 }
 
 export function emptyStats(): PlayerStats {

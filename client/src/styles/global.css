@@ -138,6 +138,12 @@ small, .faint { color: var(--text-faint); font-size: 0.82rem; }
 }
 .nav a:hover { background: var(--surface-2); color: var(--text); }
 .nav a.active { background: var(--brand-soft); color: var(--brand-ink); }
+.nav a .nav-dot {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 16px; height: 16px; margin-left: 5px; padding: 0 4px;
+  border-radius: 999px; background: var(--accent); color: #fff;
+  font-size: 0.7rem; font-weight: 800; line-height: 1; vertical-align: middle;
+}
 
 .topbar-right { margin-left: auto; display: flex; align-items: center; gap: 8px; }
 .chip {

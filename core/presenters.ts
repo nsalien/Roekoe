@@ -7,7 +7,6 @@
 import type { Database, Flight, Loft, Notification, Pigeon, Trade } from './schema.js';
 import { ageInWeeks, canRace, estimateValue, talent } from './game/pigeon.js';
 import { auctionKind } from './game/auction.js';
-import { sponsorById } from './game/sponsors.js';
 import { ownerName } from './game/engine.js';
 import { flightCommentary, liveSnapshot } from './game/flight.js';
 import { BADGES, levelForXp } from './game/badges.js';
@@ -45,13 +44,11 @@ export function pigeonDTO(db: Database, p: Pigeon) {
 export function loftDTO(db: Database, loft: Loft) {
   const pigeons = db.pigeons.filter((p) => p.ownerId === loft.userId);
   const infirmary = pigeons.filter((p) => p.inInfirmary);
-  const sponsor = sponsorById(loft.sponsorId);
   return {
     userId: loft.userId,
     name: loft.name,
-    sponsorId: loft.sponsorId ?? null,
-    sponsorName: sponsor?.name ?? null,
-    sponsorIcon: sponsor?.icon ?? null,
+    sponsorCount: loft.sponsorship?.active.length ?? 0,
+    sponsorOfferCount: loft.sponsorship?.offers.length ?? 0,
     money: Math.round(loft.money),
     food: round1(loft.food),
     feedRation: loft.feedRation,

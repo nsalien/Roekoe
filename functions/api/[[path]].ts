@@ -17,6 +17,7 @@ import { hashPassword, verifyPassword, signToken, verifyToken } from '../../core
 import { newId } from '../../core/store.js';
 import { FEED_RATIONS, INFIRMARY } from '../../core/config/gameConfig.js';
 import {
+  acceptSponsor,
   advanceWeek,
   buyFood,
   buyPigeon,
@@ -25,12 +26,12 @@ import {
   chooseEvent,
   enterFlight,
   listForSale,
+  refuseSponsor,
   renameLoft,
   seedWorld,
   setInfirmary,
   setInfirmaryStaff,
   setMedicatedFood,
-  signSponsor,
   startBreeding,
   trainPigeon,
   unlist,
@@ -40,7 +41,7 @@ import { advanceRealtime, flightsAwaitingStart } from '../../core/game/schedule.
 import { fetchFlightWeather, type WeatherResult } from '../../core/game/weather.js';
 import { placeBid } from '../../core/game/auction.js';
 import { refreshDailyMissions } from '../../core/game/missions.js';
-import { sponsorView } from '../../core/game/sponsors.js';
+import { evaluateSponsorOffers, sponsorView } from '../../core/game/sponsors.js';
 import {
   auctionsDTO,
   flightDTO,
@@ -101,9 +102,14 @@ app.use('*', async (c, next) => {
       const user = store.data.users.find((u) => u.id === payload.sub);
       if (user) {
         c.set('user', user);
-        // Per-user: roll over daily missions/streak (and maybe a dilemma).
+        // Per-user: roll over daily missions/streak (and maybe a dilemma), and
+        // let sponsors make new offers when the loft has earned their interest.
         const loft = store.data.lofts.find((l) => l.userId === user.id);
-        if (loft && refreshDailyMissions(store.data, loft, nowMs)) await store.persist();
+        if (loft) {
+          let dirty = refreshDailyMissions(store.data, loft, nowMs);
+          if (evaluateSponsorOffers(store.data, loft, nowMs)) dirty = true;
+          if (dirty) await store.persist();
+        }
       }
     }
   }
@@ -272,11 +278,21 @@ app.get('/sponsors', (c) => {
   return c.json(sponsorView(db, loft));
 });
 
-app.post('/sponsors/sign', async (c) => {
+app.post('/sponsors/accept', async (c) => {
   const user = requireUser(c);
   const body = await c.req.json().catch(() => ({}));
   const store = c.get('store');
-  const result = signSponsor(store, user.id, String(body.sponsorId ?? ''));
+  const result = acceptSponsor(store, user.id, String(body.sponsorId ?? ''), body.replace === true);
+  await store.persist();
+  if (result.startsWith('!')) return c.json({ error: result.slice(1) }, 400);
+  return c.json({ ok: true, result });
+});
+
+app.post('/sponsors/refuse', async (c) => {
+  const user = requireUser(c);
+  const body = await c.req.json().catch(() => ({}));
+  const store = c.get('store');
+  const result = refuseSponsor(store, user.id, String(body.sponsorId ?? ''));
   await store.persist();
   if (result.startsWith('!')) return c.json({ error: result.slice(1) }, 400);
   return c.json({ ok: true, result });
@@ -284,8 +300,9 @@ app.post('/sponsors/sign', async (c) => {
 
 app.post('/sponsors/cancel', async (c) => {
   const user = requireUser(c);
+  const body = await c.req.json().catch(() => ({}));
   const store = c.get('store');
-  const result = cancelSponsor(store, user.id);
+  const result = cancelSponsor(store, user.id, String(body.sponsorId ?? ''));
   await store.persist();
   if (result.startsWith('!')) return c.json({ error: result.slice(1) }, 400);
   return c.json({ ok: true, result });

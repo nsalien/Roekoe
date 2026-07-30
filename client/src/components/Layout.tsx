@@ -57,11 +57,15 @@ export function Layout() {
             <span className="logo">🕊️</span> Roekoe
           </Link>
           <nav className="nav">
-            {NAV.map((n) => (
-              <NavLink key={n.to} to={n.to} end={n.end} className={({ isActive }) => (isActive ? 'active' : '')}>
-                {n.label}
-              </NavLink>
-            ))}
+            {NAV.map((n) => {
+              const offers = n.to === '/sponsors' ? state?.loft?.sponsorOfferCount ?? 0 : 0;
+              return (
+                <NavLink key={n.to} to={n.to} end={n.end} className={({ isActive }) => (isActive ? 'active' : '')}>
+                  {n.label}
+                  {offers > 0 && <span className="nav-dot" title={`${offers} nieuw aanbod`}>{offers}</span>}
+                </NavLink>
+              );
+            })}
           </nav>
           <div className="topbar-right">
             {state && (

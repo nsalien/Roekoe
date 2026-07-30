@@ -387,12 +387,21 @@ kwetsuur, ziekte, herstel, sterfte en geboorte van jongen.
   ~1 per 9 uur) duikt er een duif uit het opvangcentrum op de markt op. Het is
   geen renduif — de eigenschappen zijn matig — maar met training groeit ze en kan
   je ze later opnieuw verkopen. **Startbod: €25**, venster van 6 uur.
-- **Sponsors.** Presteer goed en bedrijven willen in je hok investeren. Je kiest
-  één **hoofdsponsor** die zich vrijspeelt via prestaties (niveau, overwinningen,
-  seizoenspunten, talent van je beste duif, of gouden medailles). Tekenen geeft
-  eenmalig **tekengeld**, daarna een **weekbijdrage** (bij "Volgende week") en een
-  **bonus per gewonnen vlucht**. Overstappen naar een andere sponsor kan altijd;
-  het tekengeld krijg je maar één keer per sponsor.
+- **Sponsors.** Er is **niets beschikbaar tot je het verdient**. Zodra je duiven
+  en resultaten een drempel halen (bv. je eerste overwinning, veel deelnames, een
+  getalenteerde duif, seizoenspunten, niveau of gouden medailles), **biedt** die
+  sponsor zich aan: er verschijnt een melding én een aanbod op de sponsorpagina
+  dat je **aanvaardt of weigert**. Hoe beter je duiven en prestaties, hoe grotere
+  sponsors zich melden en hoe groter het aanbod.
+  - Aanvaarden geeft eenmalig **tekengeld**, daarna elke week een **weekbijdrage**
+    (bij "Volgende week") en een **bonus per gewonnen vlucht**.
+  - Je kan **meerdere sponsors tegelijk** hebben, maar **per categorie** (café,
+    frituur, bakkerij, …) telkens maar **één** — concurrenten vechten om jou. Wil
+    je overstappen naar een concurrent in dezelfde categorie, dan moet je het oude
+    contract opzeggen en een **verbrekingsvergoeding** betalen. Sponsors uit
+    verschillende categorieën gaan probleemloos samen.
+  - Een geweigerd aanbod verdwijnt niet: je vindt het onder "Beschikbaar" terug en
+    kan later alsnog tekenen. Het tekengeld krijg je maar één keer per sponsor.
 
 ---
 

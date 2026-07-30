@@ -20,14 +20,14 @@ import {
   WEEKS_PER_YEAR,
 } from '../config/gameConfig.js';
 import type { Database, Loft, User } from '../schema.js';
-import { emptyStats } from '../schema.js';
+import { emptySponsorState, emptyStats } from '../schema.js';
 import { newId, type Store } from '../store.js';
 import { awardBadge, evaluateBadges } from './badges.js';
 import { botTakeWeeklyActions } from './bots.js';
 import { chargeWeeklyUpkeep } from './economy.js';
 import { progressMissions } from './missions.js';
 import { resolveEvent as resolveEventCard } from './events.js';
-import { applyCancelSponsor, applySignSponsor, sponsorById } from './sponsors.js';
+import { activeSponsorDefs, applyAcceptSponsor, applyCancelSponsor, applyRefuseSponsor } from './sponsors.js';
 import { runHealthWeek } from './health.js';
 import { canRace, generatePigeon } from './pigeon.js';
 import { clamp, randFloat, round1 } from './util.js';
@@ -88,9 +88,7 @@ export function createLoftForUser(store: Store, user: User, loftName: string): L
       missionsDay: '',
       streak: 0,
       pendingEvent: null,
-      sponsorId: null,
-      sponsorSince: '',
-      sponsorsSigned: [],
+      sponsorship: emptySponsorState(),
     };
     db.lofts.push(loft);
     for (let i = 0; i < STARTING_PIGEONS; i++) {
@@ -139,9 +137,7 @@ export function seedWorld(store: Store): void {
         missionsDay: '',
         streak: 0,
         pendingEvent: null,
-        sponsorId: null,
-        sponsorSince: '',
-        sponsorsSigned: [],
+        sponsorship: emptySponsorState(),
       };
       db.lofts.push(loft);
       const count = STARTING_PIGEONS + Math.floor(Math.random() * 4);
@@ -188,13 +184,14 @@ export function advanceWeek(store: Store): WeekSummary {
 
     // 2c. Sponsors pay their weekly stipend to the lofts they back.
     for (const loft of db.lofts) {
-      const sponsor = sponsorById(loft.sponsorId);
-      if (sponsor) {
-        loft.money += sponsor.weeklyStipend;
-        if (!loft.isBot) {
-          notify(db, loft.userId, 'info', `${sponsor.icon} Sponsorbijdrage`,
-            `${sponsor.name} stortte je weekbijdrage van €${sponsor.weeklyStipend}.`);
-        }
+      const sponsors = activeSponsorDefs(loft);
+      if (sponsors.length === 0) continue;
+      const total = sponsors.reduce((s, sp) => s + sp.weeklyStipend, 0);
+      loft.money += total;
+      if (!loft.isBot) {
+        const who = sponsors.length === 1 ? sponsors[0].name : `${sponsors.length} sponsors`;
+        notify(db, loft.userId, 'info', '🤝 Sponsorbijdrage',
+          `${who} stortten samen €${total} weekbijdrage.`);
       }
     }
 
@@ -490,21 +487,30 @@ export function chooseEvent(store: Store, userId: string, choice: number): strin
   });
 }
 
-/** Sign a company as the loft's head sponsor. Returns a message or '!error'. */
-export function signSponsor(store: Store, userId: string, sponsorId: string): string {
+/** Accept a sponsor's offer. `replace` confirms dropping a same-category rival. */
+export function acceptSponsor(store: Store, userId: string, sponsorId: string, replace: boolean): string {
   return store.mutate((db) => {
     const loft = db.lofts.find((l) => l.userId === userId);
     if (!loft) return '!Geen hok gevonden';
-    return applySignSponsor(db, loft, sponsorId);
+    return applyAcceptSponsor(db, loft, sponsorId, replace);
   });
 }
 
-/** Drop the loft's current head sponsor. Returns a message or '!error'. */
-export function cancelSponsor(store: Store, userId: string): string {
+/** Refuse a pending sponsor offer. Returns a message or '!error'. */
+export function refuseSponsor(store: Store, userId: string, sponsorId: string): string {
   return store.mutate((db) => {
     const loft = db.lofts.find((l) => l.userId === userId);
     if (!loft) return '!Geen hok gevonden';
-    return applyCancelSponsor(db, loft);
+    return applyRefuseSponsor(db, loft, sponsorId);
+  });
+}
+
+/** Terminate an active sponsor contract (charges its break penalty). */
+export function cancelSponsor(store: Store, userId: string, sponsorId: string): string {
+  return store.mutate((db) => {
+    const loft = db.lofts.find((l) => l.userId === userId);
+    if (!loft) return '!Geen hok gevonden';
+    return applyCancelSponsor(db, loft, sponsorId);
   });
 }
 

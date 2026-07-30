@@ -20,10 +20,11 @@ import type {
   Loft,
   Notification,
   Pigeon,
+  SponsorState,
   Trade,
   User,
 } from './schema.js';
-import { emptyDatabase, emptyStats } from './schema.js';
+import { emptyDatabase, emptySponsorState, emptyStats } from './schema.js';
 import type { Store } from './store.js';
 
 const b = (v: unknown) => (v ? 1 : 0);
@@ -61,10 +62,34 @@ function rowToLoft(r: any): Loft {
     missionsDay: r.missions_day ?? '',
     streak: r.streak ?? 0,
     pendingEvent: r.pending_event ? JSON.parse(r.pending_event) : null,
-    sponsorId: r.sponsor_id || null,
-    sponsorSince: r.sponsor_since ?? '',
-    sponsorsSigned: r.sponsors_signed ? JSON.parse(r.sponsors_signed) : [],
+    sponsorship: parseSponsorship(r),
   };
+}
+
+/** Read the sponsor state, migrating from the old single-sponsor columns. */
+function parseSponsorship(r: any): SponsorState {
+  if (r.sponsorship) {
+    try {
+      const s = JSON.parse(r.sponsorship);
+      return {
+        active: Array.isArray(s.active) ? s.active : [],
+        offers: Array.isArray(s.offers) ? s.offers : [],
+        seen: Array.isArray(s.seen) ? s.seen : [],
+        signed: Array.isArray(s.signed) ? s.signed : [],
+      };
+    } catch {
+      // fall through to legacy / empty
+    }
+  }
+  const st = emptySponsorState();
+  if (r.sponsor_id) {
+    st.active.push({ id: r.sponsor_id, since: r.sponsor_since ?? '' });
+    st.seen.push(r.sponsor_id);
+  }
+  if (r.sponsors_signed) {
+    try { st.signed = JSON.parse(r.sponsors_signed); } catch { /* ignore */ }
+  }
+  return st;
 }
 function rowToPigeon(r: any): Pigeon {
   return {
@@ -263,14 +288,14 @@ export class D1Store implements Store {
     diff(this.snapshots.lofts, w.lofts, (l) => l.userId, {
       upsert: (l) =>
         db.prepare(
-          'INSERT OR REPLACE INTO lofts (user_id, name, money, food, feed_ration, capacity, season_points, total_wins, is_bot, infirmary_capacity, medicated_food, doctors, physios, xp, level, stats, badges, missions, missions_day, streak, pending_event, sponsor_id, sponsor_since, sponsors_signed) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+          'INSERT OR REPLACE INTO lofts (user_id, name, money, food, feed_ration, capacity, season_points, total_wins, is_bot, infirmary_capacity, medicated_food, doctors, physios, xp, level, stats, badges, missions, missions_day, streak, pending_event, sponsorship) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
         ).bind(
           l.userId, l.name, l.money, l.food, l.feedRation, l.capacity, l.seasonPoints, l.totalWins, b(l.isBot),
           l.infirmaryCapacity, b(l.medicatedFood), l.doctors, l.physios,
           l.xp, l.level, JSON.stringify(l.stats), JSON.stringify(l.badges),
           JSON.stringify(l.missions ?? []), l.missionsDay ?? '', l.streak ?? 0,
           l.pendingEvent ? JSON.stringify(l.pendingEvent) : '',
-          l.sponsorId ?? null, l.sponsorSince ?? '', JSON.stringify(l.sponsorsSigned ?? []),
+          JSON.stringify(l.sponsorship ?? emptySponsorState()),
         ),
       del: (id) => db.prepare('DELETE FROM lofts WHERE user_id = ?').bind(id),
       stmts,
@@ -378,6 +403,7 @@ export async function ensureSchema(db: D1Database): Promise<void> {
     "ALTER TABLE lofts ADD COLUMN sponsor_id TEXT",
     "ALTER TABLE lofts ADD COLUMN sponsor_since TEXT NOT NULL DEFAULT ''",
     "ALTER TABLE lofts ADD COLUMN sponsors_signed TEXT NOT NULL DEFAULT '[]'",
+    "ALTER TABLE lofts ADD COLUMN sponsorship TEXT NOT NULL DEFAULT ''",
     "ALTER TABLE world ADD COLUMN last_shelter_spawn TEXT NOT NULL DEFAULT ''",
   ];
   for (const sql of alters) {

@@ -75,9 +75,8 @@ export interface RaceHistoryRow {
 export interface Loft {
   userId: string;
   name: string;
-  sponsorId: string | null;
-  sponsorName: string | null;
-  sponsorIcon: string | null;
+  sponsorCount: number;
+  sponsorOfferCount: number;
   money: number;
   food: number;
   feedRation: FeedRation;
@@ -279,26 +278,32 @@ export interface AuctionInfo {
   minNextBid: number;
 }
 
-export interface SponsorOffer {
+export interface Sponsor {
   id: string;
   name: string;
   icon: string;
   tagline: string;
   tier: number;
+  category: string;
+  categoryLabel: string;
   signingBonus: number;
   weeklyStipend: number;
   winBonus: number;
+  breakPenalty: number;
   requirement: string;
-  unlocked: boolean;
-  active: boolean;
   signedBefore: boolean;
+  // Present on active contracts:
+  since?: string;
+  // Present on offers/available (a same-category rival you'd have to drop):
+  conflictWith?: string | null;
+  conflictPenalty?: number;
 }
 
 export interface SponsorView {
-  activeId: string | null;
-  sponsorSince: string | null;
   bestTalent: number;
-  offers: SponsorOffer[];
+  active: Sponsor[];
+  offers: Sponsor[];
+  available: Sponsor[];
 }
 
 export type NotificationKind = 'result' | 'improve' | 'info' | 'health' | 'badge';

@@ -299,11 +299,19 @@ export const AUCTION = {
 } as const;
 
 /**
- * Sponsors. When a loft performs well, companies want to invest in the melker.
- * Each sponsor unlocks at a prestige threshold and, once signed as your head
- * sponsor, pays a one-time signing bonus plus a weekly stipend and a bonus for
- * every flight you win. Only one sponsor can be active at a time — picking one
- * is a small strategic choice. Amounts are deliberately modest.
+ * Sponsors. Companies do NOT appear until a loft has actually earned their
+ * interest — nothing is available at the start. As soon as your pigeons and
+ * results cross a threshold, that sponsor makes an OFFER (a notification fires
+ * and it shows up on the sponsor page) which the player accepts or refuses.
+ * Better pigeons / better results attract bigger sponsors with bigger offers.
+ *
+ * A loft may hold several contracts at once, but only ONE per `category`:
+ * competitors in the same category fight over you. Accepting a competitor while
+ * you already back one means breaking the old contract and paying its penalty
+ * (`breakPenalty`). Sponsors in different categories happily coexist.
+ *
+ * Once active a sponsor pays a one-time signing bonus, a weekly stipend and a
+ * bonus for every flight you win. Amounts scale with tier.
  */
 export interface SponsorDef {
   id: string;
@@ -311,49 +319,74 @@ export interface SponsorDef {
   icon: string;
   tagline: string;
   tier: number;
-  /** Unlock thresholds (all listed conditions must be met). */
+  category: string; // competition group: café, frituur, bakkerij, landbouw, bank, racing …
+  categoryLabel: string; // human label for the category
+  /** Interest thresholds — the sponsor offers once ALL listed are met. */
   req: {
     level?: number;
     totalWins?: number;
+    entries?: number;
     seasonPoints?: number;
     bestTalent?: number;
     gold?: number;
   };
-  signingBonus: number; // one-time, first time you sign this sponsor
+  signingBonus: number; // one-time, first time you accept this sponsor
   weeklyStipend: number; // paid every "volgende week" tick while active
   winBonus: number; // paid each time one of your pigeons wins a flight
+  breakPenalty: number; // fee to terminate this contract early
 }
 
 export const SPONSORS: SponsorDef[] = [
+  // Tier 1 — first real milestones (a first win, loyal participation).
   {
     id: 'zatte_duif', name: 'Café De Zatte Duif', icon: '🍺', tier: 1,
-    tagline: 'Ons café hangt vol duivenfoto’s. Kom erbij, den eerste pint is voor u.',
-    req: {}, signingBonus: 150, weeklyStipend: 30, winBonus: 10,
+    category: 'cafe', categoryLabel: 'Café',
+    tagline: 'Ge hebt uw eerste vlucht gewonnen! Ons café hangt vol duivenfoto’s — kom erbij.',
+    req: { totalWins: 1 }, signingBonus: 200, weeklyStipend: 40, winBonus: 12, breakPenalty: 150,
   },
   {
     id: 'vetzakske', name: "Frituur 't Vetzakske", icon: '🍟', tier: 1,
-    tagline: 'Elke overwinning trakteren we op een grote friet met stoofvleessaus.',
-    req: { totalWins: 3 }, signingBonus: 300, weeklyStipend: 60, winBonus: 20,
+    category: 'frituur', categoryLabel: 'Frituur',
+    tagline: 'Ge zijt een trouwe deelnemer. Elke overwinning trakteren we op een grote friet.',
+    req: { entries: 12 }, signingBonus: 300, weeklyStipend: 60, winBonus: 18, breakPenalty: 220,
   },
+  // Tier 2 — a good bird, some season success, a rival café.
   {
     id: 'kruimeltje', name: "Bakkerij 't Kruimeltje", icon: '🥖', tier: 2,
-    tagline: 'Verse pistolets voor de kampioen, elke zondagmorgen.',
-    req: { seasonPoints: 120 }, signingBonus: 400, weeklyStipend: 80, winBonus: 15,
+    category: 'bakkerij', categoryLabel: 'Bakkerij',
+    tagline: 'Zo’n getalenteerde duif verdient verse pistolets, elke zondagmorgen.',
+    req: { bestTalent: 70 }, signingBonus: 450, weeklyStipend: 85, winBonus: 20, breakPenalty: 320,
+  },
+  {
+    id: 'den_dorst', name: 'Café Den Droogen Dorst', icon: '🍻', tier: 2,
+    category: 'cafe', categoryLabel: 'Café',
+    tagline: 'Dat café verderop mag u dan wel hebben, MAAR wij bieden meer, melker.',
+    req: { totalWins: 5 }, signingBonus: 500, weeklyStipend: 95, winBonus: 22, breakPenalty: 380,
   },
   {
     id: 'van_hoof', name: 'Landbouwmachines Van Hoof', icon: '🚜', tier: 2,
+    category: 'landbouw', categoryLabel: 'Landbouw',
     tagline: 'Wij houden van sterke beesten met pk’s onder de vleugels.',
-    req: { bestTalent: 75 }, signingBonus: 600, weeklyStipend: 120, winBonus: 25,
+    req: { bestTalent: 80 }, signingBonus: 600, weeklyStipend: 120, winBonus: 25, breakPenalty: 450,
+  },
+  // Tier 3 — top performers, a rival frituur, big money.
+  {
+    id: 'gulden_friet', name: 'Frituur De Gulden Friet', icon: '🍟', tier: 3,
+    category: 'frituur', categoryLabel: 'Frituur',
+    tagline: 'Acht overwinningen?! Laat die andere frituur maar zitten, wij bakken groter.',
+    req: { totalWins: 8 }, signingBonus: 800, weeklyStipend: 150, winBonus: 30, breakPenalty: 600,
   },
   {
     id: 'fondinvest', name: 'Duivenbank Fondinvest', icon: '🏦', tier: 3,
+    category: 'bank', categoryLabel: 'Bank',
     tagline: 'Uw prestaties, onze investering. Beleg in pluimen.',
-    req: { level: 6 }, signingBonus: 1000, weeklyStipend: 180, winBonus: 35,
+    req: { level: 6 }, signingBonus: 1000, weeklyStipend: 180, winBonus: 35, breakPenalty: 800,
   },
   {
     id: 'snelle_vleugel', name: 'Racing Team Snelle Vleugel', icon: '🏎️', tier: 3,
-    tagline: 'Alleen echte winnaars dragen ons logo. Ben jij er klaar voor?',
-    req: { gold: 10 }, signingBonus: 1500, weeklyStipend: 260, winBonus: 55,
+    category: 'racing', categoryLabel: 'Racingteam',
+    tagline: 'Alleen echte winnaars dragen ons logo. Jij hoort er nu bij.',
+    req: { gold: 12 }, signingBonus: 1500, weeklyStipend: 260, winBonus: 55, breakPenalty: 1100,
   },
 ];
 

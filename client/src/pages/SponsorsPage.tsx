@@ -1,11 +1,12 @@
-/** Sponsors: companies that invest in a well-performing melker. Sign one head
- * sponsor for a signing bonus, a weekly stipend and a bonus per won flight. */
+/** Sponsors: companies only make an offer once your loft has earned their
+ * interest. Accept or refuse offers; hold at most one sponsor per category
+ * (a competitor costs a break penalty to switch). */
 
 import { useCallback, useEffect, useState } from 'react';
 import { api } from '../api/client';
 import { useGame } from '../game/GameContext';
 import { Money, Spinner, useToast } from '../components/ui';
-import type { SponsorOffer, SponsorView } from '../types';
+import type { Sponsor, SponsorView } from '../types';
 
 export function SponsorsPage() {
   const { refresh } = useGame();
@@ -14,24 +15,17 @@ export function SponsorsPage() {
   const [busy, setBusy] = useState(false);
 
   const load = useCallback(async () => {
-    const res = await api<SponsorView>('/sponsors');
-    setView(res);
+    setView(await api<SponsorView>('/sponsors'));
   }, []);
   useEffect(() => {
     load();
   }, [load]);
 
-  async function sign(o: SponsorOffer) {
-    if (view?.activeId && view.activeId !== o.id) {
-      const ok = window.confirm(
-        `Je hebt al een hoofdsponsor. Overstappen naar ${o.name}? Je verliest de weekbijdrage van je huidige sponsor.`,
-      );
-      if (!ok) return;
-    }
+  async function run(fn: () => Promise<{ result?: string }>) {
     setBusy(true);
     try {
-      const res = await api<{ result: string }>('/sponsors/sign', { method: 'POST', body: { sponsorId: o.id } });
-      toast.show(res.result || 'Getekend!', 'ok');
+      const res = await fn();
+      toast.show(res.result || 'Gelukt', 'ok');
       await load();
       await refresh();
     } catch (e) {
@@ -41,23 +35,28 @@ export function SponsorsPage() {
     }
   }
 
-  async function cancel() {
-    if (!window.confirm('Je hoofdsponsor opzeggen? Je weekbijdrage stopt.')) return;
-    setBusy(true);
-    try {
-      const res = await api<{ result: string }>('/sponsors/cancel', { method: 'POST' });
-      toast.show(res.result || 'Opgezegd', 'ok');
-      await load();
-      await refresh();
-    } catch (e) {
-      toast.show(e instanceof Error ? e.message : 'Mislukt', 'err');
-    } finally {
-      setBusy(false);
+  function accept(s: Sponsor) {
+    if (s.conflictWith) {
+      const ok = window.confirm(
+        `Je hebt al ${s.conflictWith} in de categorie ${s.categoryLabel}. Overstappen naar ${s.name} kost een verbrekingsvergoeding van €${s.conflictPenalty}. Doorgaan?`,
+      );
+      if (!ok) return;
+      return run(() => api('/sponsors/accept', { method: 'POST', body: { sponsorId: s.id, replace: true } }));
     }
+    return run(() => api('/sponsors/accept', { method: 'POST', body: { sponsorId: s.id } }));
+  }
+
+  function refuse(s: Sponsor) {
+    return run(() => api('/sponsors/refuse', { method: 'POST', body: { sponsorId: s.id } }));
+  }
+
+  function cancel(s: Sponsor) {
+    if (!window.confirm(`Contract met ${s.name} opzeggen? Dat kost een verbrekingsvergoeding van €${s.breakPenalty}.`)) return;
+    return run(() => api('/sponsors/cancel', { method: 'POST', body: { sponsorId: s.id } }));
   }
 
   if (!view) return <Spinner />;
-  const active = view.offers.find((o) => o.id === view.activeId) ?? null;
+  const nothing = view.active.length === 0 && view.offers.length === 0 && view.available.length === 0;
 
   return (
     <div>
@@ -65,80 +64,114 @@ export function SponsorsPage() {
         <div>
           <h1>Sponsors</h1>
           <p className="muted">
-            Presteer goed en bedrijven willen investeren in jouw hok. Kies één hoofdsponsor: die betaalt
-            tekengeld, een vaste weekbijdrage en een bonus per gewonnen vlucht. Je beste duif heeft nu talent {view.bestTalent}.
+            Bedrijven kloppen pas aan als je hok hun aandacht verdient — hoe beter je duiven en resultaten,
+            hoe grotere sponsors zich melden. Je kan meerdere sponsors hebben, maar per categorie (café,
+            frituur…) telkens maar één. Je beste duif heeft nu talent {view.bestTalent}.
           </p>
         </div>
       </div>
 
-      {active ? (
-        <div className="card" style={{ borderColor: 'var(--brand-strong)', marginBottom: 18 }}>
-          <div className="row" style={{ justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
-            <div className="row" style={{ gap: 10 }}>
-              <span style={{ fontSize: '1.8rem' }}>{active.icon}</span>
-              <div>
-                <strong style={{ fontSize: '1.05rem' }}>{active.name}</strong>
-                <div className="faint">Jouw huidige hoofdsponsor</div>
-              </div>
-            </div>
-            <button className="btn ghost sm" disabled={busy} onClick={cancel}>Opzeggen</button>
-          </div>
-          <p className="muted" style={{ margin: '10px 0 0', fontStyle: 'italic' }}>"{active.tagline}"</p>
-          <div className="row" style={{ gap: 16, marginTop: 10, flexWrap: 'wrap' }}>
-            <span>Weekbijdrage: <strong><Money value={active.weeklyStipend} /></strong></span>
-            <span>Per overwinning: <strong><Money value={active.winBonus} /></strong></span>
-          </div>
-        </div>
-      ) : (
-        <div className="card muted" style={{ marginBottom: 18 }}>
-          Je hebt nog geen hoofdsponsor. Teken hieronder bij een bedrijf dat je hebt vrijgespeeld.
+      {nothing && (
+        <div className="card muted">
+          Nog geen enkele sponsor geïnteresseerd. Schrijf duiven in, win vluchten en kweek betere duiven —
+          dan komen de aanbiedingen vanzelf. 🕊️
         </div>
       )}
 
-      <div className="grid cols-2">
-        {view.offers.map((o) => (
-          <div
-            key={o.id}
-            className="card"
-            style={{ opacity: o.unlocked || o.active ? 1 : 0.6, borderColor: o.active ? 'var(--brand-strong)' : undefined }}
-          >
-            <div className="row" style={{ justifyContent: 'space-between', gap: 8 }}>
-              <div className="row" style={{ gap: 10 }}>
-                <span style={{ fontSize: '1.6rem' }}>{o.icon}</span>
-                <div>
-                  <strong>{o.name}</strong>
-                  <div className="faint" style={{ fontSize: '0.8rem' }}>Tier {o.tier}</div>
-                </div>
-              </div>
-              {o.active && <span className="badge" style={{ background: 'var(--brand-strong)', color: '#fff' }}>Actief</span>}
-            </div>
-
-            <p className="muted" style={{ margin: '8px 0', fontStyle: 'italic', fontSize: '0.9rem' }}>"{o.tagline}"</p>
-
-            <div className="table-wrap">
-              <table className="data compact">
-                <tbody>
-                  <tr><td>Tekengeld</td><td className="num"><Money value={o.signingBonus} />{o.signedBefore ? ' (al ontvangen)' : ''}</td></tr>
-                  <tr><td>Per week</td><td className="num"><Money value={o.weeklyStipend} /></td></tr>
-                  <tr><td>Per overwinning</td><td className="num"><Money value={o.winBonus} /></td></tr>
-                </tbody>
-              </table>
-            </div>
-
-            {o.unlocked ? (
-              <button
-                className={`btn ${o.active ? '' : 'accent'} block`}
-                style={{ marginTop: 10 }}
-                disabled={busy || o.active}
-                onClick={() => sign(o)}
-              >
-                {o.active ? 'Huidige sponsor' : view.activeId ? 'Overstappen' : 'Tekenen'}
-              </button>
-            ) : (
-              <div className="faint" style={{ marginTop: 10, fontSize: '0.85rem' }}>🔒 {o.requirement}</div>
-            )}
+      {view.offers.length > 0 && (
+        <>
+          <div className="page-head"><h2>📨 Nieuwe aanbiedingen</h2></div>
+          <div className="grid cols-2">
+            {view.offers.map((s) => (
+              <SponsorCard key={s.id} s={s} busy={busy} highlight
+                onAccept={() => accept(s)} onRefuse={() => refuse(s)} />
+            ))}
           </div>
-        ))}
+        </>
+      )}
+
+      {view.active.length > 0 && (
+        <>
+          <div className="page-head" style={{ marginTop: 22 }}><h2>🤝 Jouw sponsors</h2></div>
+          <div className="grid cols-2">
+            {view.active.map((s) => (
+              <SponsorCard key={s.id} s={s} busy={busy} active onCancel={() => cancel(s)} />
+            ))}
+          </div>
+        </>
+      )}
+
+      {view.available.length > 0 && (
+        <>
+          <div className="page-head" style={{ marginTop: 22 }}><h2>Beschikbaar</h2></div>
+          <p className="muted" style={{ marginTop: -6 }}>Eerder aangeboden — je kan alsnog tekenen.</p>
+          <div className="grid cols-2">
+            {view.available.map((s) => (
+              <SponsorCard key={s.id} s={s} busy={busy} onAccept={() => accept(s)} />
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+function SponsorCard({
+  s, busy, highlight, active, onAccept, onRefuse, onCancel,
+}: {
+  s: Sponsor;
+  busy: boolean;
+  highlight?: boolean;
+  active?: boolean;
+  onAccept?: () => void;
+  onRefuse?: () => void;
+  onCancel?: () => void;
+}) {
+  return (
+    <div className="card" style={{ borderColor: active ? 'var(--brand-strong)' : highlight ? 'var(--accent)' : undefined }}>
+      <div className="row" style={{ justifyContent: 'space-between', gap: 8 }}>
+        <div className="row" style={{ gap: 10 }}>
+          <span style={{ fontSize: '1.6rem' }}>{s.icon}</span>
+          <div>
+            <strong>{s.name}</strong>
+            <div className="faint" style={{ fontSize: '0.8rem' }}>{s.categoryLabel} · tier {s.tier}</div>
+          </div>
+        </div>
+        {active && <span className="badge" style={{ background: 'var(--brand-strong)', color: '#fff' }}>Actief</span>}
+        {highlight && <span className="badge" style={{ background: 'var(--accent)', color: '#fff' }}>Nieuw</span>}
+      </div>
+
+      <p className="muted" style={{ margin: '8px 0', fontStyle: 'italic', fontSize: '0.9rem' }}>"{s.tagline}"</p>
+
+      <div className="table-wrap">
+        <table className="data compact">
+          <tbody>
+            <tr><td>Tekengeld</td><td className="num"><Money value={s.signingBonus} />{s.signedBefore ? ' (al gehad)' : ''}</td></tr>
+            <tr><td>Per week</td><td className="num"><Money value={s.weeklyStipend} /></td></tr>
+            <tr><td>Per overwinning</td><td className="num"><Money value={s.winBonus} /></td></tr>
+            {active && <tr><td>Opzegboete</td><td className="num"><Money value={s.breakPenalty} /></td></tr>}
+          </tbody>
+        </table>
+      </div>
+
+      {!active && s.conflictWith && (
+        <div className="faint" style={{ marginTop: 8, fontSize: '0.82rem', color: 'var(--bad)' }}>
+          ⚠️ Concurrent van {s.conflictWith} — overstappen kost <Money value={s.conflictPenalty ?? 0} /> boete.
+        </div>
+      )}
+
+      <div className="row" style={{ gap: 8, marginTop: 10 }}>
+        {onAccept && (
+          <button className="btn accent" style={{ flex: 1 }} disabled={busy} onClick={onAccept}>
+            {s.conflictWith ? 'Overstappen' : 'Aanvaarden'}
+          </button>
+        )}
+        {onRefuse && (
+          <button className="btn ghost" disabled={busy} onClick={onRefuse}>Weigeren</button>
+        )}
+        {onCancel && (
+          <button className="btn ghost" style={{ flex: 1 }} disabled={busy} onClick={onCancel}>Opzeggen</button>
+        )}
       </div>
     </div>
   );

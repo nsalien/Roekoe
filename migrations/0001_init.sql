@@ -45,9 +45,7 @@ CREATE TABLE IF NOT EXISTS lofts (
   missions_day       TEXT NOT NULL DEFAULT '',
   streak             INTEGER NOT NULL DEFAULT 0,
   pending_event      TEXT NOT NULL DEFAULT '',
-  sponsor_id         TEXT,
-  sponsor_since      TEXT NOT NULL DEFAULT '',
-  sponsors_signed    TEXT NOT NULL DEFAULT '[]'
+  sponsorship        TEXT NOT NULL DEFAULT ''
 );
 
 CREATE TABLE IF NOT EXISTS pigeons (
