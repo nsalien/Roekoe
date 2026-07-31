@@ -6,6 +6,7 @@ import { api } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
 import { useGame } from '../game/GameContext';
 import { Money, Spinner, useToast } from '../components/ui';
+import { Tour } from '../components/Tour';
 import type { PlayerProfile } from '../types';
 
 export function ProfilePage() {
@@ -19,6 +20,7 @@ export function ProfilePage() {
   const [theme, setTheme] = useState<'light' | 'dark'>(
     typeof document !== 'undefined' && document.documentElement.dataset.theme === 'light' ? 'light' : 'dark',
   );
+  const [replayTour, setReplayTour] = useState(false);
 
   function applyTheme(t: 'light' | 'dark') {
     setTheme(t);
@@ -126,7 +128,19 @@ export function ProfilePage() {
             <button className={theme === 'light' ? 'active' : ''} onClick={() => applyTheme('light')}>☀️ Licht</button>
           </div>
         </div>
+        <hr className="sep" />
+        <div className="row" style={{ justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 }}>
+          <div>
+            <strong>🧭 Rondleiding</strong>
+            <div className="faint" style={{ fontSize: '0.85rem' }}>
+              De uitleg over het hele spel nog eens doorlopen.
+            </div>
+          </div>
+          <button className="btn ghost sm" onClick={() => setReplayTour(true)}>Start rondleiding</button>
+        </div>
       </div>
+
+      {replayTour && <Tour onClose={() => setReplayTour(false)} />}
 
       {/* Stats overview */}
       <div className="grid cols-3" style={{ marginTop: 16 }}>
