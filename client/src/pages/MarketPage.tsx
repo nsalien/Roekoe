@@ -75,7 +75,7 @@ export function MarketPage() {
         <div>
           <h1>Duivenmarkt</h1>
           <p className="muted">
-            Enkel duiven van echte spelers. Jouw kassa: <Money value={money} />
+            Koop van andere spelers of bied op de veilingen (zondagveiling &amp; opvangcentrum). Jouw kassa: <Money value={money} />
           </p>
         </div>
       </div>

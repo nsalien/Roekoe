@@ -64,12 +64,12 @@ export function BreedingPage() {
 
   return (
     <div>
-      <div className="page-head" data-tour="breed">
+      <div className="page-head">
         <h1>Kweek</h1>
       </div>
 
       <div className="grid cols-2">
-        <div className="card">
+        <div className="card" data-tour="breed">
           <h2>Nieuw koppel</h2>
           <p className="muted">
             Kost <Money value={BREED_COST} />. De jongen erven het gemiddelde van beide ouders, met wat variatie —
