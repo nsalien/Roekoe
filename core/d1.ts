@@ -260,6 +260,27 @@ export class D1Store implements Store {
     dbObj.auctions = (auctions.results as any[]).map(rowToAuction);
     dbObj.bets = (bets.results as any[]).map(rowToBet);
 
+    // Bids live in their own table (clobber-free). Attach them to each auction,
+    // overriding the legacy JSON column when present. Guarded so a database that
+    // predates the table (before ensureSchema ran) still loads.
+    try {
+      const bidRows = (await db.prepare('SELECT * FROM auction_bids').all()).results as any[];
+      if (bidRows.length > 0) {
+        const byAuction = new Map<string, { userId: string; name: string; amount: number }[]>();
+        for (const r of bidRows) {
+          const arr = byAuction.get(r.auction_id) ?? [];
+          arr.push({ userId: r.user_id, name: r.name, amount: r.amount });
+          byAuction.set(r.auction_id, arr);
+        }
+        for (const a of dbObj.auctions) {
+          const t = byAuction.get(a.id);
+          if (t) a.bids = t.sort((x, y) => y.amount - x.amount);
+        }
+      }
+    } catch {
+      // auction_bids table not present yet — fall back to the JSON column.
+    }
+
     const snapshots: Record<string, Map<string, string>> = {
       users: snapshot(dbObj.users, (u) => u.id),
       lofts: snapshot(dbObj.lofts, (l) => l.userId),
@@ -269,6 +290,7 @@ export class D1Store implements Store {
       notifications: snapshot(dbObj.notifications, (nt) => nt.id),
       trades: snapshot(dbObj.trades, (t) => t.id),
       auctions: snapshot(dbObj.auctions, (a) => a.id),
+      auctionBids: snapshot(flattenAuctionBids(dbObj.auctions), (r) => r.key),
       bets: snapshot(dbObj.bets, (bt) => bt.id),
     };
 
@@ -383,6 +405,21 @@ export class D1Store implements Store {
       stmts,
     });
 
+    // Bids as independent rows: one (auction, bidder) each, so a concurrent
+    // request closing an auction can never wipe a freshly-placed bid.
+    diff(this.snapshots.auctionBids, flattenAuctionBids(w.auctions), (r) => r.key, {
+      upsert: (r) =>
+        db.prepare(
+          'INSERT OR REPLACE INTO auction_bids (auction_id, user_id, name, amount, at) VALUES (?, ?, ?, ?, ?)',
+        ).bind(r.auctionId, r.userId, r.name, r.amount, new Date().toISOString()),
+      del: (key) => {
+        const sep = key.lastIndexOf('::');
+        return db.prepare('DELETE FROM auction_bids WHERE auction_id = ? AND user_id = ?')
+          .bind(key.slice(0, sep), key.slice(sep + 2));
+      },
+      stmts,
+    });
+
     diff(this.snapshots.bets, w.bets, (bt) => bt.id, {
       upsert: (bt) =>
         db.prepare(
@@ -476,6 +513,21 @@ export async function ensureSchema(db: D1Database): Promise<void> {
   } catch {
     // Already exists.
   }
+  // Auction bids, kept one row per (auction, bidder) so concurrent requests can
+  // never clobber each other's bids the way a single JSON column on the auction
+  // row could. This is the source of truth for who bid what.
+  try {
+    await db.exec(
+      'CREATE TABLE IF NOT EXISTS auction_bids (auction_id TEXT NOT NULL, user_id TEXT NOT NULL, name TEXT NOT NULL, amount INTEGER NOT NULL, at TEXT NOT NULL, PRIMARY KEY (auction_id, user_id))',
+    );
+  } catch {
+    // Already exists.
+  }
+  try {
+    await db.exec('CREATE INDEX IF NOT EXISTS idx_auction_bids_auction ON auction_bids (auction_id)');
+  } catch {
+    // Already exists.
+  }
   // Flight bets.
   try {
     await db.exec(
@@ -489,6 +541,21 @@ export async function ensureSchema(db: D1Database): Promise<void> {
   } catch {
     // Already exists.
   }
+}
+
+/** Flatten every auction's bids into one row per (auction, bidder). The key
+ *  `${auctionId}::${userId}` lets the per-row diff add/update/remove each bid
+ *  independently, so bids survive concurrent writes to the auction row. */
+function flattenAuctionBids(
+  auctions: Auction[],
+): { key: string; auctionId: string; userId: string; name: string; amount: number }[] {
+  const rows: { key: string; auctionId: string; userId: string; name: string; amount: number }[] = [];
+  for (const a of auctions) {
+    for (const bd of a.bids ?? []) {
+      rows.push({ key: `${a.id}::${bd.userId}`, auctionId: a.id, userId: bd.userId, name: bd.name, amount: bd.amount });
+    }
+  }
+  return rows;
 }
 
 function snapshot<T>(items: T[], key: (t: T) => string): Map<string, string> {
