@@ -85,7 +85,7 @@ export function FlightsPage() {
 
   return (
     <div>
-      <div className="page-head" data-tour="flights">
+      <div className="page-head">
         <h1>Vluchten</h1>
         <div className="pill-tabs">
           <button className={tab === 'scheduled' ? 'active' : ''} onClick={() => setTab('scheduled')}>Kalender</button>
@@ -110,8 +110,8 @@ export function FlightsPage() {
           )}
 
           {/* Live races first */}
-          {live.map((f) => (
-            <div key={f.id} className="card" style={{ borderColor: 'var(--accent)' }}>
+          {live.map((f, idx) => (
+            <div key={f.id} className="card" style={{ borderColor: 'var(--accent)' }} data-tour={idx === 0 ? 'flights' : undefined}>
               <div className="row" style={{ justifyContent: 'space-between' }}>
                 <div>
                   <div className="row" style={{ gap: 8 }}>
@@ -129,13 +129,13 @@ export function FlightsPage() {
             <div className="card muted">Geen vluchten gepland. Kom straks terug!</div>
           )}
 
-          {scheduled.map((f) => {
+          {scheduled.map((f, idx) => {
             const myEntries = f.entries.filter((e) => e.ownerId === user?.id);
             const available = state.pigeons.filter(
               (p) => p.canRace && !committed.has(p.id) && !p.breeding && p.form >= 1,
             );
             return (
-              <div key={f.id} className="card">
+              <div key={f.id} className="card" data-tour={idx === 0 && live.length === 0 ? 'flights' : undefined}>
                 <div className="row" style={{ justifyContent: 'space-between', alignItems: 'flex-start' }}>
                   <div>
                     <div className="row" style={{ gap: 8 }}>

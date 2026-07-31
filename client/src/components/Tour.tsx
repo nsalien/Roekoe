@@ -27,13 +27,31 @@ const STEPS: Step[] = [
   },
   {
     route: '/hok', selector: '[data-tour="pigeon"]',
-    title: '📊 Je duiven',
-    body: 'Elke duif heeft snelheid, conditie en oriëntatie (racen), plus energie, gezondheid, libido en ervaring. De ▲/▼-cijfers tonen wat er per dag verandert door je keuzes.',
+    title: '📊 Je duiven & hun eigenschappen',
+    body: (
+      <>
+        <ul style={{ margin: '2px 0 0', paddingLeft: 18, lineHeight: 1.4 }}>
+          <li><strong>Snelheid</strong> — sprint; telt op korte vluchten.</li>
+          <li><strong>Conditie</strong> — houdt de snelheid vast op lange vluchten.</li>
+          <li><strong>Oriëntatie</strong> — navigatie; telt op lange vluchten.</li>
+          <li><strong>⚡ Energie</strong> — "fut": daalt door vluchten, stijgt door eten.</li>
+          <li><strong>Gezondheid</strong> — laag = niet vluchtklaar.</li>
+          <li><strong>❤️ Libido</strong> — kweekdrift.</li>
+          <li><strong>Ervaring</strong> — groeit door te vliegen, maakt beter.</li>
+        </ul>
+        <div style={{ marginTop: 6 }}>De <strong>▲/▼</strong> tonen wat je keuzes per dag doen.</div>
+      </>
+    ),
+  },
+  {
+    route: '/', selector: '[data-tour="feed"]',
+    title: '🛒 Eerst: voer kopen',
+    body: 'Op het Overzicht koop je voer per type (de waarden staan per dag). Zorg dat je genoeg in voorraad hebt — een lege voorraad betekent honger.',
   },
   {
     route: '/hok', selector: '[data-tour="ration"]',
-    title: '🍽 Voer per duif',
-    body: 'Kies hier per duif haar voertype. Belangrijk: is de voorraad van dat type op, dan lijdt ze honger — haar eigenschappen dalen en ze kan zelfs sterven.',
+    title: '🍽 Daarna: voer toewijzen',
+    body: 'Kies hier per duif welk voertype ze krijgt. Is de voorraad van dat type op, dan lijdt ze honger — haar eigenschappen dalen en ze kan zelfs sterven.',
   },
   {
     route: '/hok', selector: '[data-tour="compartment"]',
@@ -44,11 +62,6 @@ const STEPS: Step[] = [
     route: '/hok', selector: '[data-tour="upgrades"]',
     title: '🏠 Hok uitbreiden',
     body: 'Hier vergroot je je hokcapaciteit (meer duiven) en koop je aparte hokken. Een duif verkopen doe je met de knop onderaan elke duif.',
-  },
-  {
-    route: '/', selector: '[data-tour="feed"]',
-    title: '🛒 Voer kopen',
-    body: 'Op het Overzicht koop je voer per type. De waarden staan per dag. Koop op tijd bij — een lege voorraad is gevaarlijk.',
   },
   {
     route: '/', selector: '[data-tour="missions"]',
@@ -194,6 +207,7 @@ export function Tour({ onClose }: { onClose: () => void }) {
       <div
         style={{
           position: 'fixed', width: popW, maxWidth: 'calc(100vw - 24px)', zIndex: 92,
+          maxHeight: 'calc(100vh - 24px)', overflowY: 'auto',
           background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r-lg)',
           boxShadow: 'var(--shadow-lg)', padding: 16,
           ...popStyle,
