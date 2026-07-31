@@ -277,6 +277,79 @@ export function DashboardPage() {
             <em> “Volgende week”</em> bovenaan om de vaste onkosten te verrekenen, ziekte/herstel/sterfte te verwerken
             en het seizoen te laten vorderen. Week {world.currentWeek}.
           </p>
+          <AdminAuctions />
+        </div>
+      )}
+    </div>
+  );
+}
+
+interface AdminAuctionRow {
+  id: string;
+  kind: 'sunday' | 'shelter';
+  pigeonName: string;
+  status: 'scheduled' | 'live' | 'completed' | 'open' | 'closed';
+  startAt: string;
+  endAt: string;
+  bidCount: number;
+  humanBidCount: number;
+  bids: { name: string; amount: number; human: boolean }[];
+  outcome: string;
+}
+
+/** Admin-only: recent auctions with the full bid list, so the spelleider can
+ *  see who bid (or if only one person did) and where a pigeon ended up. */
+function AdminAuctions() {
+  const toast = useToast();
+  const [rows, setRows] = useState<AdminAuctionRow[] | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  async function load() {
+    setBusy(true);
+    try {
+      const res = await api<{ auctions: AdminAuctionRow[] }>('/admin/auctions');
+      setRows(res.auctions);
+    } catch (e) {
+      toast.show(e instanceof Error ? e.message : 'Mislukt', 'err');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div style={{ marginTop: 12 }}>
+      <button className="btn ghost sm" disabled={busy} onClick={load}>
+        🔨 Toon recente veilingen (wie bood wat)
+      </button>
+      {rows && rows.length === 0 && <p className="muted" style={{ marginTop: 8 }}>Geen veilingen in het systeem.</p>}
+      {rows && rows.length > 0 && (
+        <div className="stack" style={{ marginTop: 10, gap: 10 }}>
+          {rows.map((a) => (
+            <div key={a.id} className="card" style={{ boxShadow: 'none', background: 'var(--surface-2)' }}>
+              <div className="row" style={{ justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
+                <strong>{a.kind === 'sunday' ? '🔨 Zondagveiling' : '🏠 Opvangcentrum'} · {a.pigeonName}</strong>
+                <span className="faint">{formatFlightTime(a.endAt)}</span>
+              </div>
+              <div className="faint" style={{ fontSize: '0.85rem', marginTop: 2 }}>
+                {a.status === 'open' ? 'Loopt nog' : 'Gesloten'} · {a.bidCount} bod(en), waarvan {a.humanBidCount} van echte spelers
+              </div>
+              {a.bids.length === 0 ? (
+                <p className="muted" style={{ margin: '6px 0 0' }}>Niemand heeft geboden.</p>
+              ) : (
+                <table className="data" style={{ marginTop: 6 }}>
+                  <tbody>
+                    {a.bids.map((b, i) => (
+                      <tr key={i}>
+                        <td>{b.human ? '🧑 ' : '🤖 '}{b.name}</td>
+                        <td className="num"><Money value={b.amount} /></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+              <div className="faint" style={{ fontSize: '0.85rem', marginTop: 6 }}>Uitslag: {a.outcome}</div>
+            </div>
+          ))}
         </div>
       )}
     </div>
