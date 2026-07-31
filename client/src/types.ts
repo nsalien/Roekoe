@@ -26,6 +26,23 @@ export interface AuthUser {
   isAdmin: boolean;
 }
 
+/** Planned per-day attribute changes from a pigeon's current care selection. */
+export interface DailyCareProjection {
+  ration: FeedRation;
+  fed: boolean;
+  compartment: boolean;
+  coachActive: boolean;
+  deltas: {
+    form: number;
+    health: number;
+    endurance: number;
+    libido: number;
+    speed: number;
+    orientation: number;
+    experience: number;
+  };
+}
+
 export interface Pigeon {
   id: string;
   ownerId: string;
@@ -54,6 +71,7 @@ export interface Pigeon {
   compartment: boolean;
   racing: boolean;
   breeding: boolean;
+  dailyCare: DailyCareProjection | null;
 }
 
 export interface Trade {

@@ -214,6 +214,13 @@ leeg te laten lopen.
 Voeding en herstel gebeuren **elke dag** automatisch (niet pas op weekeinde) —
 energie, gezondheid, conditie en libido bewegen dus dagelijks.
 
+> **Zie het per duif.** Op de **duifpagina** staat naast elke eigenschap een
+> **"/dag"-indicator** (▲ stijgt, ▼ daalt): hoeveel die eigenschap volgens je
+> **huidige keuze** (voer, apart hok, coach) morgen verandert. Zet je de duif in
+> een **apart hok**, dan zie je haar energieherstel meteen oplopen; kies je terug
+> "samen", dan zakt het weer. Wissel je van voer, dan verschuiven de cijfers naar
+> de effecten van dat voer. Zo zie je in één oogopslag welke actie welk effect heeft.
+
 **Voorraad wordt per type apart bijgehouden**, en **elke duif** krijgt een eigen
 type (in te stellen bij *Mijn hok* of op de duifpagina). Een duif eet 1/7 van
 haar weekverbruik per dag uit de voorraad van háár type. Is die voorraad op, dan
@@ -450,6 +457,9 @@ kwetsuur, ziekte, herstel, sterfte en geboorte van jongen.
   gewoon gebruiken. Bij sluiting wint de hoogste bieder, **op voorwaarde dat hij
   het bedrag nog kan betalen** (en plaats heeft). Kan hij niet, dan gaat de duif
   naar de volgende hoogste bieder aan diens bod, enzovoort.
+  - **Word je overboden, dan krijg je meteen een melding** met het nieuwe hoogste
+    bod en het minimumbedrag om er weer over te gaan — zo kan je op tijd terug
+    bieden voordat de veiling sluit.
 - **Opvangcentrum-veiling.** Op willekeurige maar regelmatige momenten (gemiddeld
   ~1 per 9 uur) duikt er een duif uit het opvangcentrum op de markt op. Het is
   geen renduif — de eigenschappen zijn matig — maar met training groeit ze en kan

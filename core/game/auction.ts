@@ -216,7 +216,16 @@ export function placeBid(db: Database, userId: string, auctionId: string, amount
   if (a.currentBidderId && a.currentBidderId !== userId) {
     const prev = db.lofts.find((l) => l.userId === a.currentBidderId);
     if (prev && !prev.isBot) {
-      notify(db, prev, '📉 Overboden', `Iemand bood meer op ${db.pigeons.find((p) => p.id === a.pigeonId)?.name ?? 'de veilingduif'}.`);
+      const pigeonName = db.pigeons.find((p) => p.id === a.pigeonId)?.name ?? 'de veilingduif';
+      const reclaim = bid + a.minIncrement;
+      const closesAt = new Date(a.endAt).toLocaleTimeString('nl-BE', {
+        hour: '2-digit', minute: '2-digit', timeZone: TZ,
+      });
+      notify(
+        db, prev, '📉 Je bent overboden!',
+        `${loft.name} bood €${bid} op ${pigeonName} — jouw bod is niet meer het hoogste. ` +
+        `Wil je de duif nog? Bied minstens €${reclaim} vóór de veiling sluit (om ${closesAt}).`,
+      );
     }
   }
   a.currentBid = bid;
