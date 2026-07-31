@@ -54,6 +54,18 @@ const STEPS: Step[] = [
     body: 'Kies hier per duif welk voertype ze krijgt. Is de voorraad van dat type op, dan lijdt ze honger — haar eigenschappen dalen en ze kan zelfs sterven.',
   },
   {
+    route: '/hok', selector: '[data-tour="ration"]',
+    title: '🥣 Welk voer wanneer?',
+    body: (
+      <ul style={{ margin: '2px 0 0', paddingLeft: 18, lineHeight: 1.4 }}>
+        <li><strong>Normaal</strong> — goedkoop; de dagelijkse basis als je op je budget let.</li>
+        <li><strong>Premium</strong> — de beste allrounder: energie + gezondheid én wat conditie.</li>
+        <li><strong>Libido-mix</strong> — geef je als je die duif wil laten <strong>broeden</strong> (tilt het libido op).</li>
+        <li><strong>Herstel</strong> — snelste energie; ideaal om een uitgeputte duif weer <strong>vluchtklaar</strong> te krijgen.</li>
+      </ul>
+    ),
+  },
+  {
     route: '/hok', selector: '[data-tour="compartment"]',
     title: '🧱 Apart hok',
     body: 'Met deze knop zet je een duif in een apart hok: beter energieherstel en minder kans op ziekte. Je koopt aparte hokken bij Uitbreidingen.',
