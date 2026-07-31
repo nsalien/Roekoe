@@ -12,6 +12,7 @@ import {
   COMMENTARY_INTERVAL_SECONDS,
   DISTANCE_WEIGHTING,
   FLIGHT_CUTOFF_MINUTES,
+  FLIGHT_FATIGUE,
   FLIGHT_RISK,
   HEALTH,
   IMPROVE,
@@ -136,6 +137,10 @@ export function startLiveFlight(flight: Flight, entries: Entry[], week: number, 
     // Real homing time: distance / speed. A ~72 km/h bird over 300 km ≈ 4 hours.
     const realSeconds = ((flight.distanceKm * 1000) / velocity) * 60;
     const durationSeconds = Math.max(MIN_FLIGHT_SECONDS, Math.round(realSeconds));
+    // Freeze the total energie this bird spends flying the full route. It is
+    // drained gradually during the race (tickFlightEnergy), so a bird pulled
+    // out mid-flight has already paid for the distance it covered.
+    const formCost = round1(FLIGHT_FATIGUE.base + flight.distanceKm / FLIGHT_FATIGUE.perKmDivisor + randFloat(0, FLIGHT_FATIGUE.jitter));
     return {
       pigeonId: e.pigeon.id,
       pigeonName: e.pigeon.name,
@@ -143,6 +148,9 @@ export function startLiveFlight(flight: Flight, entries: Entry[], week: number, 
       ownerName: e.ownerName,
       velocity,
       durationSeconds,
+      startForm: e.pigeon.form,
+      formCost,
+      formDrained: 0,
     };
   });
   flight.status = 'live';
@@ -196,9 +204,11 @@ export function finalizeFlight(flight: Flight, pigeons: Pigeon[]): SimulatedFlig
     if (s.gaveUp) { gaveUpSet.add(s.pigeonId); continue; }
     if (s.durationSeconds > total + 0.5) { timedOut.add(s.pigeonId); continue; }
     const pigeon = pigeons.find((p) => p.id === s.pigeonId);
-    const form = pigeon ? pigeon.form : 50;
+    // Use the energie the bird had at release, not the value already drained
+    // down during the flight, so the DNF chance reflects how it started out.
+    const startForm = s.startForm ?? (pigeon ? pigeon.form : 50);
     const dnfChance = clamp(
-      (FLIGHT_RISK.dnfFormThreshold - form) / FLIGHT_RISK.dnfFormThreshold,
+      (FLIGHT_RISK.dnfFormThreshold - startForm) / FLIGHT_RISK.dnfFormThreshold,
       0,
       FLIGHT_RISK.dnfMaxChance,
     );
@@ -234,12 +244,28 @@ export function finalizeFlight(flight: Flight, pigeons: Pigeon[]): SimulatedFlig
     if (rank === 1 && !isDnf) acc.wins += 1;
     payoutMap.set(s.ownerId, acc);
 
-    // Fatigue: racing drains energie. A pulled bird saved its legs (small
-    // drain); a bird that flew itself into the ground (timeout/exhausted) is
-    // wrecked.
-    const formDelta = gaveUp
-      ? -round1(3 + flight.distanceKm / 120 + randFloat(0, 2))
-      : -round1(8 + flight.distanceKm / 40 + randFloat(0, 6) + (isDnf ? 12 : 0));
+    // Fatigue: racing drains energie. Most of it is already gone — it was
+    // drained gradually while the bird flew (see tickFlightEnergy). Here we
+    // only settle what is left:
+    //  - a pulled bird (gaveUp) paid for the distance it covered, nothing more;
+    //  - a finisher tops up to the frozen full cost of the route;
+    //  - a bird that flew itself into the ground (DNF) tops up AND takes an
+    //    extra exhaustion hit.
+    // Flights that were already live before gradual draining existed have no
+    // frozen formCost — fall back to the original lump-sum drain for those.
+    const drained = s.formDrained ?? 0;
+    let formDelta: number;
+    if (s.formCost == null) {
+      formDelta = gaveUp
+        ? -round1(FLIGHT_FATIGUE.gaveUpBase + flight.distanceKm / FLIGHT_FATIGUE.gaveUpPerKmDivisor + randFloat(0, FLIGHT_FATIGUE.gaveUpJitter))
+        : -round1(FLIGHT_FATIGUE.base + flight.distanceKm / FLIGHT_FATIGUE.perKmDivisor + randFloat(0, FLIGHT_FATIGUE.jitter) + (isDnf ? FLIGHT_FATIGUE.exhaustionPenalty : 0));
+    } else if (gaveUp) {
+      formDelta = 0; // already paid gradually for the distance it flew
+    } else {
+      const remainder = Math.max(0, s.formCost - drained);
+      const exhaustion = isDnf ? FLIGHT_FATIGUE.exhaustionPenalty + randFloat(0, FLIGHT_FATIGUE.exhaustionJitter) : 0;
+      formDelta = -round1(remainder + exhaustion);
+    }
     const enduranceDelta = isDnf ? 0 : round1(0.3 + flight.distanceKm / 500 + randFloat(0, 0.4));
     const healthDelta = gaveUp ? 0 : -round1(randFloat(0, flight.distanceKm / 200) + (isDnf ? randFloat(4, 9) : 0));
     const experienceDelta = round1((isDnf ? 1 : 2) + flight.distanceKm / 100);
@@ -265,10 +291,13 @@ export function finalizeFlight(flight: Flight, pigeons: Pigeon[]): SimulatedFlig
       // Rough flights leave birds hurt. Low energie ramps up the risk; an
       // exhausted bird that flew itself to a standstill is very likely injured.
       // A bird pulled by its owner (gaveUp) is spared the strain — no injury.
-      const lowEnergie = pigeon.form < FLIGHT_RISK.lowEnergieInjuryThreshold
-        ? ((FLIGHT_RISK.lowEnergieInjuryThreshold - pigeon.form) / FLIGHT_RISK.lowEnergieInjuryThreshold) * FLIGHT_RISK.lowEnergieInjuryBonus
+      // Risk is based on the energie the bird STARTED with (its live `form` has
+      // already been drained down during the race).
+      const startForm = s.startForm ?? pigeon.form;
+      const lowEnergie = startForm < FLIGHT_RISK.lowEnergieInjuryThreshold
+        ? ((FLIGHT_RISK.lowEnergieInjuryThreshold - startForm) / FLIGHT_RISK.lowEnergieInjuryThreshold) * FLIGHT_RISK.lowEnergieInjuryBonus
         : 0;
-      let perBirdInjury = gaveUp ? 0 : injuryChance * (1 + (100 - pigeon.form) / 100) + lowEnergie;
+      let perBirdInjury = gaveUp ? 0 : injuryChance * (1 + (100 - startForm) / 100) + lowEnergie;
       if (exhausted.has(s.pigeonId)) perBirdInjury = Math.max(perBirdInjury, 0.8);
       if (!pigeon.ailment && Math.random() < clamp(perBirdInjury, 0, 0.95)) {
         injuries.push({

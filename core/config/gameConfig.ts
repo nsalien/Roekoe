@@ -84,6 +84,30 @@ export const FLIGHT_RISK = {
 } as const;
 
 /**
+ * Energie (form) spent by racing. The total cost of flying the whole route is
+ * `base + distanceKm/perKmDivisor + random(0..jitter)`, frozen when the flight
+ * goes live. That cost is drained GRADUALLY while the bird flies, in blocks of
+ * `stepMinutes`, so a bird pulled out (opgegeven) mid-race has already paid for
+ * the part it flew — you can't dodge the energy cost by quitting near the end.
+ * A bird that flies itself into the ground (DNF: exhausted or timed out) loses
+ * an extra `exhaustionPenalty + random(0..exhaustionJitter)` on top.
+ *
+ * `gaveUp*` are only used as a fallback for flights that were already live
+ * before gradual draining existed (no frozen `formCost`).
+ */
+export const FLIGHT_FATIGUE = {
+  base: 8,
+  perKmDivisor: 40,
+  jitter: 6,
+  stepMinutes: 30, // energie is deducted in blocks of this many minutes
+  exhaustionPenalty: 12,
+  exhaustionJitter: 6,
+  gaveUpBase: 3,
+  gaveUpPerKmDivisor: 120,
+  gaveUpJitter: 2,
+} as const;
+
+/**
  * Betting. From `windowHours` before a flight starts until the moment it starts,
  * players can bet money on outcomes. The game estimates each bird's chance from
  * its attributes + recent form; a stronger favourite pays a lower ratio. The

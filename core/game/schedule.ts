@@ -16,6 +16,7 @@ import {
   BOT_LOFT_CAPACITY,
   BREEDING,
   FEED_RATIONS,
+  FLIGHT_FATIGUE,
   FLIGHT_TIERS,
   FOOD_PRICE_PER_KG,
   IMPROVE_ATTR_LABEL,
@@ -579,6 +580,46 @@ export function tickDailyCare(db: Database, nowMs: number): void {
 }
 
 /**
+ * Drain each live-flight bird's energie (`form`) GRADUALLY while it flies,
+ * in blocks of `FLIGHT_FATIGUE.stepMinutes` (30 min), instead of all at once
+ * when the race finishes. The total drain per bird equals the `formCost` frozen
+ * at the start; here we deduct the share proportional to the distance already
+ * covered (rounded down to whole 30-minute blocks, and completed in full once
+ * the bird is home). `formDrained` records how much has been taken so far so we
+ * never double-count across requests.
+ *
+ * The point: a bird pulled out of a live race (gaveUp) keeps only the energie
+ * it had already spent — you can no longer dodge the whole cost by quitting
+ * near the finish. `finalizeFlight` settles whatever is left.
+ */
+export function tickFlightEnergy(db: Database, nowMs: number): void {
+  const stepSeconds = FLIGHT_FATIGUE.stepMinutes * 60;
+  for (const flight of db.flights) {
+    if (flight.status !== 'live') continue;
+    const startMs = flight.startAt ? Date.parse(flight.startAt) : NaN;
+    if (Number.isNaN(startMs)) continue;
+    const elapsed = Math.max(0, (nowMs - startMs) / 1000);
+
+    for (const s of flight.sim) {
+      if (s.gaveUp) continue; // pulled — stops spending energie
+      if (s.formCost == null) continue; // legacy flight: settled at finalize
+      const flownSeconds = Math.min(elapsed, s.durationSeconds);
+      const finished = elapsed >= s.durationSeconds;
+      // Quantise to whole 30-minute blocks while still flying; drain in full
+      // once home so the total spent matches the frozen cost exactly.
+      const countedSeconds = finished ? s.durationSeconds : Math.floor(flownSeconds / stepSeconds) * stepSeconds;
+      const fraction = clamp(countedSeconds / s.durationSeconds, 0, 1);
+      const target = round1(s.formCost * fraction);
+      const delta = target - (s.formDrained ?? 0);
+      if (delta <= 0) continue;
+      const pigeon = db.pigeons.find((p) => p.id === s.pigeonId);
+      if (pigeon) pigeon.form = round1(clamp(pigeon.form - delta, 0, 100));
+      s.formDrained = target;
+    }
+  }
+}
+
+/**
  * Hatch breeding pairs — unpredictably. Each check rolls a random chance based
  * on elapsed time and the parents' current libido + energie, so there is no
  * fixed hatch time: fitter pairs simply have a higher chance every moment.
@@ -671,5 +712,6 @@ export function advanceRealtime(
   ensureAuctions(db, nowMs);
   tickDailyCare(db, nowMs);
   tickBreedingHatch(db, nowMs);
+  tickFlightEnergy(db, nowMs);
   tickFlights(db, nowMs, weatherByFlight);
 }
