@@ -113,18 +113,25 @@ function closeAuction(db: Database, a: Auction): void {
   const sellerName = shelter ? 'Opvangcentrum' : 'Veilinghuis';
 
   // Cascade: highest bidder who can still pay AND has room wins, at their bid.
+  // A bidder who outbid everyone but can't pay / has no room at closing time is
+  // skipped — we remember why, so we can tell them instead of leaving them
+  // wondering where "their" pigeon went.
   const ordered = [...(a.bids ?? [])].sort((x, y) => y.amount - x.amount);
   let winner: Loft | undefined;
   let price = 0;
+  const skipReason = new Map<string, 'money' | 'room'>(); // userId → why they lost despite a top bid
   for (const b of ordered) {
     const loft = db.lofts.find((l) => l.userId === b.userId);
     if (!loft) continue;
     const owned = db.pigeons.filter((x) => x.ownerId === loft.userId).length;
-    if (loft.money >= b.amount && owned < loft.capacity) {
+    const canPay = loft.money >= b.amount;
+    const hasRoom = owned < loft.capacity;
+    if (canPay && hasRoom) {
       winner = loft;
       price = b.amount;
       break;
     }
+    if (!loft.isBot) skipReason.set(loft.userId, !hasRoom ? 'room' : 'money');
   }
 
   if (winner) {
@@ -146,6 +153,26 @@ function closeAuction(db: Database, a: Auction): void {
     if (shelter) awardBadge(db, winner, 'opvang');
   } else {
     db.pigeons = db.pigeons.filter((x) => x.id !== a.pigeonId); // no payable bidder
+  }
+
+  // Tell every human who bid but did NOT win what happened to the pigeon, so a
+  // closed auction is never a silent disappearance.
+  for (const b of ordered) {
+    const loft = db.lofts.find((l) => l.userId === b.userId);
+    if (!loft || loft.isBot) continue;
+    if (winner && loft.userId === winner.userId) continue; // already got the win notice
+    const reason = skipReason.get(loft.userId);
+    let body: string;
+    if (reason === 'room') {
+      body = `Je bod van €${b.amount} op ${p.name} was hoog genoeg om te winnen, maar bij het sluiten zat je hok vol — daardoor ging de duif naar iemand anders. Maak plaats of breid je hok uit voor de volgende keer.`;
+    } else if (reason === 'money') {
+      body = `Je bod van €${b.amount} op ${p.name} was hoog genoeg om te winnen, maar je had het bedrag niet meer op het moment van sluiten — daardoor ging de duif naar iemand anders. Hou voortaan genoeg geld vrij voor je bod.`;
+    } else if (winner) {
+      body = `${p.name} ging voor €${price} naar ${winner.name}. Jouw bod van €${b.amount} was niet het hoogste. Volgende keer beter!`;
+    } else {
+      body = `De veiling van ${p.name} sloot zonder geldige koper, dus jouw bod van €${b.amount} ging niet door.`;
+    }
+    notify(db, loft, '📉 Veiling verloren', body);
   }
 }
 
