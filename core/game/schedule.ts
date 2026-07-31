@@ -548,6 +548,24 @@ function runDataMigrations(db: Database): void {
     }
     db.world.dataVersion = 14;
   }
+  if ((db.world.dataVersion ?? 0) < 15) {
+    // Bots used to be generated stronger than players (quality up to 0.75 vs
+    // 0.6), which mostly lifted the racing attributes of their best birds — the
+    // ones that kept winning. Pull existing bot birds back toward the
+    // player-typical level by trimming only the part ABOVE that level (the
+    // strongest birds lose the most; average/weak birds are left alone), so
+    // their earned progress is largely kept but the unfair edge is gone.
+    const PLAYER_LEVEL = 52; // centre of a player-generated attribute
+    const trim = (a: number) => round1(clamp(a - clamp((a - PLAYER_LEVEL) * 0.5, 0, 12), 5, 100));
+    for (const p of db.pigeons) {
+      const loft = db.lofts.find((l) => l.userId === p.ownerId);
+      if (!loft?.isBot) continue;
+      p.speed = trim(p.speed);
+      p.endurance = trim(p.endurance);
+      p.orientation = trim(p.orientation);
+    }
+    db.world.dataVersion = 15;
+  }
 }
 
 /**
