@@ -219,6 +219,12 @@ export interface SimEntry {
   velocity: number; // metres per minute (realistic homing speed)
   durationSeconds: number; // compressed live race duration for this bird
   gaveUp?: boolean; // owner pulled the bird mid-race to save its energy
+  // Energie (`form`) is drained gradually WHILE the bird flies (see
+  // tickFlightEnergy), not in one lump at the finish — so pulling a bird out
+  // near the end still costs the energy it already spent getting there.
+  startForm?: number; // the bird's energie at release (for DNF/injury risk)
+  formCost?: number; // total energie spent flying the whole route (frozen)
+  formDrained?: number; // energie already deducted so far during the live race
 }
 
 /**

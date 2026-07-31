@@ -116,20 +116,29 @@ Seizoenspunten tellen op over **alle** vluchten en **alle** duiven van een hok.
 
 ## 3. Effect van een vlucht op de duif
 
-Per deelnemende duif, na afloop:
+Per deelnemende duif:
 
-| Effect | Formule |
-|---|---|
-| **Energie** (verbruik) | −(8 + afstand/40 + willekeurig 0…6) |
-| **Conditie** (opbouw) | +(0.3 + afstand/500 + willekeurig 0…0.4) |
-| **Gezondheid** | −(willekeurig 0 … afstand/200) |
-| **Ervaring** | +(2 + afstand/100) |
+| Effect | Formule | Wanneer |
+|---|---|---|
+| **Energie** (verbruik) | −(8 + afstand/40 + willekeurig 0…6) | **geleidelijk tijdens de vlucht** (zie hieronder) |
+| **Conditie** (opbouw) | +(0.3 + afstand/500 + willekeurig 0…0.4) | na afloop |
+| **Gezondheid** | −(willekeurig 0 … afstand/200) | na afloop |
+| **Ervaring** | +(2 + afstand/100) | na afloop |
 
-> **Voorbeeld.** Na een vlucht van **300 km** verliest een duif ongeveer
-> **18 energie**, wint ze ~**1 conditie** en ~**5 ervaring**, en gaat er een
-> beetje gezondheid af. Een korte regiovlucht van 60 km kost maar ~10 energie;
-> een internationale van 700 km bijna 30. Vandaar dat je duiven na een zware
-> vlucht enkele dagen moet laten recupereren (zie §4).
+**Energie loopt gaandeweg leeg, niet in één klap achteraf.** Bij de start wordt
+de totale energiekost van de rit vastgeklikt en vervolgens **per 30 minuten**
+afgetrokken, evenredig met de afgelegde afstand. Je ziet de energiebalk van je
+duif dus tijdens de wedstrijd zakken. Wie de hele vlucht uitvliegt, betaalt de
+volledige kost; wie halverwege **opgeeft** (§3.4), heeft alleen betaald voor het
+stuk dat ze al vloog — je kan de energiekost dus niet ontlopen door je duif net
+voor de finish uit de race te halen.
+
+> **Voorbeeld.** Een vlucht van **300 km** kost in totaal ongeveer **18 energie**.
+> Op een rit van ~5 uur gaat er dus zowat **1,8 energie per 30 minuten** af.
+> De duif wint na afloop ~**1 conditie** en ~**5 ervaring**, en er gaat een beetje
+> gezondheid af. Een korte regiovlucht van 60 km kost maar ~10 energie; een
+> internationale van 700 km bijna 30. Vandaar dat je duiven na een zware vlucht
+> enkele dagen moet laten recupereren (zie §4).
 
 ### 3.1 Kans op verbetering van een vaardigheid
 Elke deelnemer maakt kans om te groeien in de vaardigheid die voor die afstand
@@ -184,15 +193,19 @@ duur_wedstrijd = min(traagste duif, eerste duif + 90 min)
 
 Tijdens een **live** wedstrijd kan je een eigen duif laten **opgeven** (knop op
 de live-pagina). Ze finisht dan niet en telt als DNF — géén punten of prijs —
-**maar** ze spaart haar krachten:
+**maar** ze spaart de rest van haar krachten:
 
-- veel **lichter energieverlies** dan een duif die de hele vlucht uitvliegt of
-  uitgeput strandt;
+- ze verliest **alleen de energie die ze al vloog** tot het moment van opgeven
+  (evenredig met de afgelegde afstand); de rest van de energiekost blijft je
+  bespaard. Vroeg opgeven spaart dus veel, vlak voor de finish opgeven bijna
+  niets — je kan de kost niet meer ontlopen door laat te stoppen;
+- vanaf het moment van opgeven verliest ze **geen** energie meer;
 - **geen** gezondheidsverlies en **geen** kans op kwetsuur;
 - ze bouwt ook geen conditie op (ze heeft de rit niet afgemaakt).
 
-Handig als je merkt dat een duif toch niet gaat scoren en je haar fris wil
-houden voor de volgende vlucht, in plaats van haar leeg te laten lopen.
+Handig als je vroeg merkt dat een duif toch niet gaat scoren en je haar zoveel
+mogelijk fris wil houden voor de volgende vlucht, in plaats van haar helemaal
+leeg te laten lopen.
 
 ---
 
