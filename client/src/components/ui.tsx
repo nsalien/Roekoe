@@ -1,7 +1,7 @@
 /** Small shared presentational helpers. */
 
 import { createContext, useCallback, useContext, useState, type ReactNode } from 'react';
-import type { Sex } from '../types';
+import type { DailyCareProjection, Sex } from '../types';
 
 export function Money({ value }: { value: number }) {
   return (
@@ -26,37 +26,57 @@ export function StatBar({
   value,
   max = 100,
   variant,
-  perDay,
 }: {
   label: string;
   value: number;
   max?: number;
   variant?: 'form' | 'health';
-  /** Planned change per day from the pigeon's current care (0/undefined hides it). */
-  perDay?: number;
 }) {
   const pct = Math.max(0, Math.min(100, (value / max) * 100));
-  const d = perDay ?? 0;
-  const show = Math.abs(d) >= 0.05;
-  const up = d > 0;
   return (
     <div className="stat">
       <div className="stat-top">
         <span className="stat-label">{label}</span>
-        <span className="row" style={{ gap: 6, alignItems: 'baseline' }}>
-          {show && (
-            <span
-              title="Gepland per dag met de huidige verzorging"
-              style={{ fontSize: '0.72rem', fontWeight: 600, color: up ? 'var(--good, #2e9e5b)' : 'var(--bad)' }}
-            >
-              {up ? '▲' : '▼'} {up ? '+' : ''}{d.toFixed(1)}/dag
-            </span>
-          )}
-          <span className="stat-val">{Math.round(value)}</span>
-        </span>
+        <span className="stat-val">{Math.round(value)}</span>
       </div>
       <div className={`bar ${variant ?? ''}`}>
         <span style={{ width: `${pct}%` }} />
+      </div>
+    </div>
+  );
+}
+
+/**
+ * The positive per-day growth a pigeon's CURRENT care (voer, apart hok, coach)
+ * is planned to give each attribute. Only gains are shown — feeding and housing
+ * never hurt an attribute, so there is no "down" case. Renders nothing when the
+ * selection yields no growth (e.g. no food in stock).
+ */
+export function DailyGains({ care }: { care: DailyCareProjection | null }) {
+  if (!care) return null;
+  const items = [
+    { label: '⚡ Energie', v: care.deltas.form },
+    { label: 'Conditie', v: care.deltas.endurance },
+    { label: 'Snelheid', v: care.deltas.speed },
+    { label: 'Oriëntatie', v: care.deltas.orientation },
+    { label: 'Gezondheid', v: care.deltas.health },
+    { label: '❤️ Libido', v: care.deltas.libido },
+    { label: 'Ervaring', v: care.deltas.experience },
+  ].filter((it) => it.v >= 0.05);
+  if (items.length === 0) return null;
+  return (
+    <div style={{ marginBottom: 6 }}>
+      <div className="faint" style={{ fontSize: '0.74rem', marginBottom: 3 }}>📈 Groei per dag met deze keuze:</div>
+      <div className="row" style={{ gap: 5, flexWrap: 'wrap' }}>
+        {items.map((it) => (
+          <span
+            key={it.label}
+            className="badge"
+            style={{ background: 'var(--good-soft, #e6f6ec)', color: 'var(--good, #2e9e5b)', fontSize: '0.72rem', fontWeight: 600 }}
+          >
+            {it.label} +{it.v.toFixed(1)}
+          </span>
+        ))}
       </div>
     </div>
   );

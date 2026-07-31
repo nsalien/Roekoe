@@ -214,12 +214,13 @@ leeg te laten lopen.
 Voeding en herstel gebeuren **elke dag** automatisch (niet pas op weekeinde) —
 energie, gezondheid, conditie en libido bewegen dus dagelijks.
 
-> **Zie het per duif.** Op de **duifpagina** staat naast elke eigenschap een
-> **"/dag"-indicator** (▲ stijgt, ▼ daalt): hoeveel die eigenschap volgens je
-> **huidige keuze** (voer, apart hok, coach) morgen verandert. Zet je de duif in
-> een **apart hok**, dan zie je haar energieherstel meteen oplopen; kies je terug
-> "samen", dan zakt het weer. Wissel je van voer, dan verschuiven de cijfers naar
-> de effecten van dat voer. Zo zie je in één oogopslag welke actie welk effect heeft.
+> **Zie het per duif.** In **Mijn hok** staat bij elke duif — naast de voerkeuze
+> en de apart-hok-knop — een lijstje **"📈 Groei per dag met deze keuze"**: hoeveel
+> elke eigenschap volgens je **huidige keuze** (voer, apart hok, coach) er per dag
+> bij komt. Zet je de duif in een **apart hok**, dan zie je haar energiegroei
+> stijgen; wissel je van voer, dan verschuiven de cijfers naar de effecten van dat
+> voer. Voer en huisvesting doen een eigenschap nooit dalen, dus er staan enkel
+> plussen. Zo zie je in één oogopslag welke actie welk effect heeft.
 
 **Voorraad wordt per type apart bijgehouden**, en **elke duif** krijgt een eigen
 type (in te stellen bij *Mijn hok* of op de duifpagina). Een duif eet 1/7 van
