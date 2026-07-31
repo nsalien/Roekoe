@@ -16,7 +16,9 @@ function dayKey(ms: number): string {
   return dtf.format(new Date(ms)); // yyyy-mm-dd
 }
 
-export type MissionEvent = 'enter' | 'win' | 'podium' | 'buyfood' | 'market' | 'train' | 'care';
+export type MissionEvent =
+  | 'enter' | 'win' | 'podium' | 'buyfood' | 'market' | 'train' | 'care'
+  | 'bet' | 'brood' | 'apart';
 
 interface Template {
   key: string;
@@ -35,6 +37,9 @@ const TEMPLATES: Template[] = [
   { key: 'market', event: 'market', label: 'Koop of verkoop een duif op de markt', target: 1, money: 50, xp: 15 },
   { key: 'train', event: 'train', label: 'Train een duif', target: 1, money: 40, xp: 10 },
   { key: 'care', event: 'care', label: 'Zet een duif in de ziekenboeg', target: 1, money: 40, xp: 15 },
+  { key: 'bet', event: 'bet', label: 'Plaats een weddenschap op een vlucht', target: 1, money: 40, xp: 10 },
+  { key: 'brood', event: 'brood', label: 'Start een kweekkoppel', target: 1, money: 50, xp: 15 },
+  { key: 'apart', event: 'apart', label: 'Zet een duif in een apart hok', target: 1, money: 30, xp: 10 },
 ];
 const TEMPLATE_MAP = new Map(TEMPLATES.map((t) => [t.key, t]));
 

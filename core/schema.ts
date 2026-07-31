@@ -15,6 +15,12 @@ export interface Ailment {
   severity: Severity;
   description: string;
   sinceWeek: number;
+  // Real-time recovery bookkeeping (see tickHealing). All optional so older
+  // saved ailments keep working; they ride in the ailment's JSON column.
+  healed?: number; // recovery progress, 0..1
+  lastTickMs?: number; // last time healing progressed
+  lastUpdateMs?: number; // last doctor/physio status update
+  updates?: number; // status-update counter (for stable notification ids)
 }
 
 /** Core, mostly-genetic attributes plus the dynamic condition of a pigeon. */
@@ -167,6 +173,9 @@ export interface PlayerStats {
   cures: number;
   curesSevere: number;
   staffHired: number;
+  bets: number; // weddenschappen geplaatst
+  betsWon: number; // weddenschappen gewonnen
+  broods: number; // kweekkoppels gestart
 }
 
 export interface EarnedBadge {
@@ -367,6 +376,7 @@ export function emptyStats(): PlayerStats {
     gold: 0, silver: 0, bronze: 0,
     entries: 0, babies: 0, buys: 0, sells: 0,
     cures: 0, curesSevere: 0, staffHired: 0,
+    bets: 0, betsWon: 0, broods: 0,
   };
 }
 

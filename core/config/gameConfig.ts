@@ -601,7 +601,7 @@ export const INJURIES: AilmentTemplate[] = [
 
 /** The infirmary (ziekenboeg): isolate + treat ailing birds. */
 export const INFIRMARY = {
-  baseCapacity: 4, // starting number of infirmary beds
+  baseCapacity: 2, // starting number of infirmary beds
   medicatedFoodPerBird: 45, // weekly € per bird in the infirmary when medicated feed is on
   doctorSalary: 400, // weekly € per pigeon doctor hired
   physioSalary: 350, // weekly € per pigeon physiotherapist hired
@@ -609,12 +609,30 @@ export const INFIRMARY = {
   birdsPerPhysio: 2, // one physio treats up to this many injured birds well
 } as const;
 
-/** Buyable infirmary-bed upgrades, bought in order from the base of 4. */
+/** Buyable infirmary-bed upgrades, bought in order from the base of 2. */
 export const INFIRMARY_CAPACITY_TIERS: { capacity: number; price: number }[] = [
-  { capacity: 6, price: 1200 },
-  { capacity: 8, price: 3000 },
-  { capacity: 10, price: 6000 },
+  { capacity: 3, price: 800 },
+  { capacity: 4, price: 1200 },
+  { capacity: 5, price: 1800 },
+  { capacity: 6, price: 2400 },
 ];
+
+/**
+ * Real-time recovery from an illness/injury. Progress runs continuously (see
+ * tickHealing): `baseHoursOutside` is how long full recovery takes for a bird
+ * just resting in the loft; the infirmary + staff coverage + medicated feed each
+ * multiply the healing speed, so a player sees their care pay off. A status
+ * update from the doctor/physio is emitted every `updateHours`.
+ */
+export const HEALING = {
+  baseHoursOutside: { licht: 60, matig: 120, ernstig: 216 } as Record<Severity, number>,
+  infirmarySpeed: 2.2, // isolated + rested in the ziekenboeg
+  doctorSpeed: 1.6, // a doctor covering a sick bird
+  physioSpeed: 1.6, // a physio covering an injured bird
+  medicatedSpeed: 1.35, // medicated feed on
+  healthOnRecover: 15, // health restored when the ailment clears
+  updateHours: 12, // cadence of the doctor/physio status updates
+} as const;
 
 /** Health-system tuning. All probabilities are per weekly tick. */
 export const HEALTH = {

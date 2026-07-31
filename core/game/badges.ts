@@ -70,6 +70,7 @@ export const BADGES: BadgeDef[] = [
   { key: 'baby_50', group: 'breed', label: 'Kweekmachine', description: 'Krijg 50 jongen.', xp: 150, icon: '🥚', test: (l) => s(l).babies >= 50 },
   { key: 'baby_100', group: 'breed', label: 'Duivenfabriek', description: 'Krijg 100 jongen.', xp: 300, icon: '🏭', test: (l) => s(l).babies >= 100 },
   { key: 'tweeling', group: 'breed', label: 'Tweeling!', description: 'Krijg voor het eerst een tweeling.', xp: 25, icon: '👯', test: undefined },
+  { key: 'koppelaar', group: 'breed', label: 'Koppelaar', description: 'Start 10 kweekkoppels.', xp: 50, icon: '💕', test: (l) => s(l).broods >= 10 },
   { key: 'topfokker', group: 'breed', label: 'Topfokker', description: 'Kweek een duif met talent boven 85.', xp: 200, icon: '🧬' },
   { key: 'dynastie', group: 'breed', label: 'Dynastie', description: 'Heb 3 generaties in je hok.', xp: 150, icon: '👑' },
 
@@ -86,6 +87,8 @@ export const BADGES: BadgeDef[] = [
   { key: 'staff_1', group: 'care', label: 'Werkgever', description: 'Huur een dokter of kinesist.', xp: 25, icon: '👨‍⚕️', test: (l) => s(l).staffHired >= 1 },
   { key: 'opvang', group: 'care', label: 'Duivenredder', description: 'Adopteer een duif uit het opvangcentrum.', xp: 40, icon: '🏠' },
   { key: 'topfit', group: 'care', label: 'Topfit', description: 'Breng een duif op 100 conditie.', xp: 100, icon: '🏋️', test: (l, db) => db.pigeons.some((p) => p.ownerId === l.userId && p.endurance >= 99.5) },
+  { key: 'aparthok', group: 'care', label: 'Eigen Stek', description: 'Zet een duif in een apart hok.', xp: 15, icon: '🧱', test: (l, db) => db.pigeons.some((p) => p.ownerId === l.userId && p.compartment) },
+  { key: 'fijnproever', group: 'care', label: 'Fijnproever', description: 'Heb tegelijk duiven op alle 4 de voertypes.', xp: 50, icon: '🍽️', test: (l, db) => new Set(db.pigeons.filter((p) => p.ownerId === l.userId).map((p) => p.ration)).size >= 4 },
   { key: 'taaie_rakker', group: 'care', label: 'Taaie Rakker', description: 'Een duif overleeft 25 vluchten.', xp: 100, icon: '🦾', test: (l, db) => db.pigeons.some((p) => p.ownerId === l.userId && p.races >= 25) },
 
   // --- Milestones / wealth ---
@@ -102,6 +105,11 @@ export const BADGES: BadgeDef[] = [
   { key: 'sponsor_multi', group: 'sponsor', label: 'Goed Omringd', description: 'Heb 3 sponsors tegelijk actief.', xp: 75, icon: '📣', test: (l) => activeCount(l) >= 3 },
   { key: 'sponsor_big', group: 'sponsor', label: 'Grote Vissen', description: 'Teken bij een topsponsor (tier 3).', xp: 100, icon: '🏦', test: (l) => signedAnyTier3(l) },
   { key: 'sponsor_empire', group: 'sponsor', label: 'Sponsorimperium', description: 'Heb tegelijk sponsors in 4 verschillende categorieën.', xp: 200, icon: '👔', test: (l) => activeCategoryCount(l) >= 4 },
+
+  // --- Betting ---
+  { key: 'bet_1', group: 'fun', label: 'De Gokker', description: 'Plaats je eerste weddenschap.', xp: 15, icon: '🎲', test: (l) => s(l).bets >= 1 },
+  { key: 'bet_win_1', group: 'fun', label: 'Fortuin', description: 'Win een weddenschap.', xp: 40, icon: '💸', test: (l) => s(l).betsWon >= 1 },
+  { key: 'bet_win_10', group: 'fun', label: 'Geluksvogel', description: 'Win 10 weddenschappen.', xp: 100, icon: '🍀', test: (l) => s(l).betsWon >= 10 },
 
   // --- Fun / dark ---
   { key: 'rip_sperwer', group: 'fun', label: 'RIP 🕊️', description: 'Verlies een duif aan een sperwer.', xp: 25, icon: '🦅' },

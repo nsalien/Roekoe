@@ -14,12 +14,14 @@
 import {
   COMPARTMENT,
   DISEASES,
+  HEALING,
   HEALTH,
   INFIRMARY,
   INJURIES,
   type AilmentTemplate,
 } from '../config/gameConfig.js';
 import type { Ailment, Database, Loft, Pigeon } from '../schema.js';
+import { newId } from '../store.js';
 import { ageMortality } from './pigeon.js';
 import { awardBadge, evaluateBadges } from './badges.js';
 import { clamp, pick, pickWith, round1 } from './util.js';
@@ -55,15 +57,105 @@ export function applyAilment(p: Pigeon, a: Ailment): void {
   p.form = round1(clamp(p.form - hit * 0.5, 0, 100));
 }
 
-/** Weekly recovery chance for an ailing bird given its care. */
-export function recoveryChance(p: Pigeon, loft: Loft, covered: boolean): number {
-  if (!p.ailment) return 0;
-  const base = HEALTH.recoverInInfirmary[p.ailment.severity];
-  if (!p.inInfirmary) return round1(clamp(base * HEALTH.recoverOutsideFactor, 0, HEALTH.recoverCap));
-  let chance = base;
-  if (loft.medicatedFood) chance += HEALTH.medicatedFoodBonus;
-  if (covered) chance += p.ailment.kind === 'ziekte' ? HEALTH.doctorBonus : HEALTH.physioBonus;
-  return round1(clamp(chance, 0, HEALTH.recoverCap));
+const HOUR_MS = 3600000;
+
+/** How fast a bird's ailment heals right now, as a multiple of the base rate. */
+function healSpeed(p: Pigeon, loft: Loft, covered: boolean): number {
+  let speed = 1;
+  if (p.inInfirmary) {
+    speed *= HEALING.infirmarySpeed; // rest + isolation
+    if (loft.medicatedFood) speed *= HEALING.medicatedSpeed;
+    if (covered) speed *= p.ailment!.kind === 'ziekte' ? HEALING.doctorSpeed : HEALING.physioSpeed;
+  }
+  return speed;
+}
+
+/** A stable-id, idempotent health notification (safe under concurrent ticks). */
+function healNote(db: Database, userId: string, id: string, title: string, body: string): void {
+  const existing = db.notifications.find((n) => n.id === id);
+  const note = { id, userId, kind: 'health' as const, title, body, flightId: null, createdAt: new Date().toISOString(), read: existing?.read ?? false };
+  if (existing) Object.assign(existing, note);
+  else db.notifications.push(note);
+}
+
+function etaLabel(hours: number): string {
+  if (hours < 1) return 'minder dan een uur';
+  if (hours < 24) return `~${Math.round(hours)} uur`;
+  return `~${Math.round((hours / 24) * 10) / 10} dagen`;
+}
+
+/**
+ * Advance every ailing bird's recovery in REAL time (called each request). The
+ * infirmary, a covering doctor/physio and medicated feed speed it up, so a
+ * player sees their care matter. Every `updateHours` a status update is emitted
+ * from the doctor's/physio's perspective, with progress + an ETA to
+ * flight-ready; when progress completes the bird heals.
+ */
+export function tickHealing(db: Database, nowMs: number): void {
+  const humanIds = new Set(db.lofts.filter((l) => !l.isBot).map((l) => l.userId));
+  for (const loft of db.lofts) {
+    const birds = db.pigeons.filter((p) => p.ownerId === loft.userId);
+    const ailing = birds.filter((p) => p.ailment);
+    if (ailing.length === 0) continue;
+    const covered = coveredInInfirmary(loft, birds);
+    const human = humanIds.has(loft.userId);
+
+    for (const p of ailing) {
+      const a = p.ailment!;
+      // First time we see this ailment: start its clocks (no progress yet).
+      if (a.lastTickMs == null) {
+        a.lastTickMs = nowMs;
+        a.lastUpdateMs = nowMs;
+        a.healed = a.healed ?? 0;
+        continue;
+      }
+      const elapsedH = (nowMs - a.lastTickMs) / HOUR_MS;
+      a.lastTickMs = nowMs;
+      if (elapsedH <= 0) continue;
+
+      const speed = healSpeed(p, loft, covered.has(p.id));
+      const base = HEALING.baseHoursOutside[a.severity];
+      a.healed = clamp((a.healed ?? 0) + (elapsedH * speed) / base, 0, 1);
+
+      if (a.healed >= 1) {
+        const was = a;
+        p.ailment = null;
+        p.health = round1(clamp(p.health + HEALING.healthOnRecover, 0, 100));
+        loft.stats.cures += 1;
+        if (was.severity === 'ernstig') loft.stats.curesSevere += 1;
+        awardBadge(db, loft, 'cure_1');
+        if (was.severity === 'ernstig') awardBadge(db, loft, 'cure_severe');
+        if (human) {
+          healNote(
+            db, loft.userId, `ntf:healed:${p.id}:${was.sinceWeek}:${was.name}`,
+            `💚 ${p.name} is volledig hersteld!`,
+            `${was.kind === 'kwetsuur' ? 'De kinesist' : 'De dokter'} geeft ${p.name} weer vliegensklaar — verlost van ${was.name.toLowerCase()}. Haal ze uit de ziekenboeg om weer mee te doen.`,
+          );
+        }
+        evaluateBadges(db, loft);
+        continue;
+      }
+
+      // Periodic status update from the caregiver's perspective.
+      if (human && nowMs >= (a.lastUpdateMs ?? nowMs) + HEALING.updateHours * HOUR_MS) {
+        a.updates = (a.updates ?? 0) + 1;
+        a.lastUpdateMs = nowMs;
+        const pct = Math.round(a.healed * 100);
+        const remH = ((1 - a.healed) * base) / speed;
+        const who = a.kind === 'kwetsuur' ? 'De kinesist' : 'De dokter';
+        let advice: string;
+        if (!p.inInfirmary) advice = `Buiten de ziekenboeg gaat het traag — zet ${p.name} in de ziekenboeg voor sneller herstel.`;
+        else if (!covered.has(p.id)) advice = a.kind === 'ziekte' ? 'Met een dokter erbij zou het sneller gaan.' : 'Met een kinesist erbij zou het sneller gaan.';
+        else if (!loft.medicatedFood) advice = 'Zet medicatievoer aan om het herstel te versnellen.';
+        else advice = 'De isolatie, zorg en medicatie werpen duidelijk vruchten af.';
+        healNote(
+          db, loft.userId, `ntf:heal:${p.id}:${a.updates}`,
+          `${a.kind === 'kwetsuur' ? '🧑‍⚕️' : '🩺'} Herstel van ${p.name}: ${pct}%`,
+          `${who} over ${p.name} (${a.name}): ${pct}% hersteld, nog ${etaLabel(remH)} tot vliegensklaar. ${advice}`,
+        );
+      }
+    }
+  }
 }
 
 /** Which infirmary birds a loft's staff can properly cover (by pigeon id). */
@@ -108,25 +200,7 @@ export function runHealthWeek(db: Database, week: number): HealthEvent[] {
     const infirmaryBirds = birds.filter((p) => p.inInfirmary).length;
     loft.money -= infirmaryWeeklyCost(loft, infirmaryBirds);
 
-    // 2. Recovery for every ailing bird.
-    const covered = coveredInInfirmary(loft, birds);
-    for (const p of birds) {
-      if (!p.ailment) continue;
-      if (Math.random() < recoveryChance(p, loft, covered.has(p.id))) {
-        const was = p.ailment;
-        p.ailment = null;
-        p.health = round1(clamp(p.health + 15, 0, 100));
-        loft.stats.cures += 1;
-        if (was.severity === 'ernstig') loft.stats.curesSevere += 1;
-        awardBadge(db, loft, 'cure_1');
-        if (was.severity === 'ernstig') awardBadge(db, loft, 'cure_severe');
-        events.push({
-          pigeonId: p.id, ownerId: p.ownerId, pigeonName: p.name, type: 'recovered',
-          title: `💚 ${p.name} is hersteld`,
-          body: `${p.name} is verlost van ${was.name.toLowerCase()}. Terug fit voor de strijd! Vergeet niet ze uit de ziekenboeg te halen.`,
-        });
-      }
-    }
+    // (Recovery from illness/injury now runs in REAL time — see tickHealing.)
 
     // 3. Mortality: old age + an untreated ailment can be fatal.
     for (const p of birds) {
