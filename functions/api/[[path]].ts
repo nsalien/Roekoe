@@ -59,7 +59,7 @@ import {
 } from '../../core/game/engine.js';
 import { advanceRealtime, flightsAwaitingStart } from '../../core/game/schedule.js';
 import { fetchFlightWeather, type WeatherResult } from '../../core/game/weather.js';
-import { placeBid } from '../../core/game/auction.js';
+import { auctionKind, placeBid } from '../../core/game/auction.js';
 import { betsView, placeBet, previewBet } from '../../core/game/betting.js';
 import type { BetKind } from '../../core/schema.js';
 import { refreshDailyMissions } from '../../core/game/missions.js';
@@ -679,6 +679,47 @@ app.post('/flights/:id/giveup', async (c) => {
 });
 
 // --- Admin -----------------------------------------------------------------
+/**
+ * Diagnostics for the spelleider: recent auctions with the FULL bid list (who
+ * bid what) and the real outcome, so it's clear whether others bid or only you,
+ * and where a pigeon went (sold, or nobody could pay).
+ */
+app.get('/admin/auctions', (c) => {
+  const user = requireUser(c);
+  if (!user.isAdmin) return c.json({ error: 'Alleen de beheerder mag dit doen' }, 403);
+  const db = c.get('store').data;
+  const humanIds = new Set(db.lofts.filter((l) => !l.isBot).map((l) => l.userId));
+  const rows = [...db.auctions]
+    .sort((a, b) => b.endAt.localeCompare(a.endAt))
+    .map((a) => {
+      const p = db.pigeons.find((x) => x.id === a.pigeonId);
+      const trade = [...db.trades]
+        .filter((t) => t.pigeonId === a.pigeonId && (t.sellerName === 'Opvangcentrum' || t.sellerName === 'Veilinghuis'))
+        .sort((x, y) => (x.at < y.at ? 1 : -1))[0];
+      const bids = [...(a.bids ?? [])]
+        .sort((x, y) => y.amount - x.amount)
+        .map((b) => ({ name: b.name, amount: b.amount, human: humanIds.has(b.userId) }));
+      let outcome: string;
+      if (a.status === 'open') outcome = 'loopt nog';
+      else if (trade) outcome = `verkocht aan ${trade.buyerName} voor €${trade.price}`;
+      else if (bids.length === 0) outcome = 'gesloten zonder biedingen';
+      else outcome = 'gesloten — geen geldige koper (niemand kon betalen of had plaats), duif vervallen';
+      return {
+        id: a.id,
+        kind: auctionKind(a),
+        pigeonName: p?.name ?? trade?.pigeonName ?? '(duif niet meer in systeem)',
+        status: a.status,
+        startAt: a.startAt,
+        endAt: a.endAt,
+        bidCount: bids.length,
+        humanBidCount: bids.filter((b) => b.human).length,
+        bids,
+        outcome,
+      };
+    });
+  return c.json({ auctions: rows });
+});
+
 app.post('/admin/advance-week', async (c) => {
   const user = requireUser(c);
   if (!user.isAdmin) return c.json({ error: 'Alleen de beheerder mag dit doen' }, 403);
