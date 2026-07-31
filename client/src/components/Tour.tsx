@@ -1,195 +1,218 @@
 /**
- * One-time welcome tour. Shown once per player (remembered in localStorage,
- * per user + browser — same pattern as the infirmary intro), and replayable
- * from the profile. A concise run through everything that is easy to miss.
+ * Interactive guided tour. Walks the player through the real pages: each step
+ * navigates to the right screen, spotlights the relevant element and shows a
+ * short explanation anchored to it. Steps that target nothing show a centered
+ * card. Robust: if a target isn't found it falls back to a centered card so the
+ * tour never gets stuck.
+ *
+ * Shown once per player (localStorage, same pattern as the infirmary intro) and
+ * replayable from the profile.
  */
 
-import { useState, type ReactNode } from 'react';
+import { useEffect, useState, type CSSProperties, type ReactNode } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 
 interface Step {
-  icon: string;
+  route?: string; // navigate here first
+  selector?: string; // element to spotlight (via [data-tour="..."])
   title: string;
   body: ReactNode;
 }
 
 const STEPS: Step[] = [
   {
-    icon: '🕊️',
-    title: 'Welkom bij Roekoe!',
-    body: (
-      <>
-        Je runt een duivenhok: <strong>verzorgen → trainen → vluchten → geld & punten
-        verdienen → kopen/kweken/uitbreiden</strong>. Alles loopt in <strong>echte tijd</strong>,
-        tegen je vrienden en enkele bots. Deze korte rondleiding toont alles wat je moet
-        weten — je kan ze altijd sluiten en later opnieuw starten via je profiel.
-      </>
-    ),
+    route: '/',
+    title: '🕊️ Welkom bij Roekoe!',
+    body: 'Ik neem je in een dik minuutje mee langs de belangrijkste schermen en toon telkens waar je iets doet. Tik op Volgende — sluiten mag altijd.',
   },
   {
-    icon: '📊',
-    title: 'Eigenschappen van je duiven',
-    body: (
-      <ul className="intro-list">
-        <li><strong>Snelheid</strong> — telt vooral op korte vluchten.</li>
-        <li><strong>Conditie</strong> — houdt de snelheid vast op lange vluchten; tilt gezondheid & libido op.</li>
-        <li><strong>Oriëntatie</strong> — navigatie, telt zwaarder op lange vluchten.</li>
-        <li><strong>⚡ Energie</strong> — "fut": daalt door vluchten, stijgt door eten & rust. Laag = slechte prestaties, meer ziekte.</li>
-        <li><strong>Gezondheid</strong>, <strong>❤️ Libido</strong> (kweken) en <strong>Ervaring</strong> (groeit door te vliegen).</li>
-      </ul>
-    ),
+    route: '/hok', selector: '[data-tour="pigeon"]',
+    title: '📊 Je duiven',
+    body: 'Elke duif heeft snelheid, conditie en oriëntatie (racen), plus energie, gezondheid, libido en ervaring. De ▲/▼-cijfers tonen wat er per dag verandert door je keuzes.',
   },
   {
-    icon: '🍽',
-    title: 'Eten kopen én per duif toewijzen',
-    body: (
-      <>
-        Op het <strong>Overzicht</strong> koop je voer per type (Normaal, Premium,
-        Libido-mix, Herstel) — de waarden staan per dag. <strong>Elke duif eet van háár
-        eigen type:</strong> stel dat per duif in bij <strong>Mijn hok</strong> of op de
-        duifpagina via de voerkeuze-lijst. In Mijn hok zie je bij elke eigenschap een
-        <strong> ▲/▼ per dag</strong>: wat je keuze doet. ⚠️ Geen voorraad = <strong>honger</strong>:
-        de eigenschappen dalen en de duif kan uiteindelijk sterven. Koop dus tijdig bij.
-      </>
-    ),
+    route: '/hok', selector: '[data-tour="ration"]',
+    title: '🍽 Voer per duif',
+    body: 'Kies hier per duif haar voertype. Belangrijk: is de voorraad van dat type op, dan lijdt ze honger — haar eigenschappen dalen en ze kan zelfs sterven.',
   },
   {
-    icon: '🏁',
-    title: 'Vluchten & competitie',
-    body: (
-      <>
-        Elke dag zijn er twee vluchten (10u lang, 17u kort). Schrijf duiven in bij
-        <strong> Vluchten</strong> (tegen inschrijfgeld) en volg ze <strong>live</strong>.
-        Wie goed aankomt verdient <strong>punten</strong> (seizoensranking) en
-        <strong> prijzengeld</strong>. Energie loopt geleidelijk leeg tijdens de race; te
-        weinig energie = kans om <strong>niet thuis te raken (DNF)</strong>. Je kan een duif
-        tijdens de race laten <strong>opgeven</strong> om haar krachten te sparen.
-      </>
-    ),
+    route: '/hok', selector: '[data-tour="compartment"]',
+    title: '🧱 Apart hok',
+    body: 'Met deze knop zet je een duif in een apart hok: beter energieherstel en minder kans op ziekte. Je koopt aparte hokken bij Uitbreidingen.',
   },
   {
-    icon: '🎲',
-    title: 'Weddenschappen',
-    body: (
-      <>
-        Op de vluchtpagina kan je — tot <strong>12u voor de start</strong> — inzetten op
-        de uitkomst (winnaar, laatste, jouw top-3, en meer). <strong>Eén weddenschap per
-        vlucht</strong>; de quotering komt uit een eerlijke simulatie van de race.
-      </>
-    ),
+    route: '/hok', selector: '[data-tour="upgrades"]',
+    title: '🏠 Hok uitbreiden',
+    body: 'Hier vergroot je je hokcapaciteit (meer duiven) en koop je aparte hokken. Een duif verkopen doe je met de knop onderaan elke duif.',
   },
   {
-    icon: '🏥',
-    title: 'Ziekte, kwetsuur & de ziekenboeg',
-    body: (
-      <>
-        Duiven kunnen <strong>ziek</strong> worden of <strong>gekwetst</strong> raken
-        (vooral na zware vluchten). Zet zo'n duif in de <strong>Ziekenboeg</strong>: daar
-        is ze geïsoleerd en herstelt ze sneller. Huur een <strong>dokter</strong> (ziekte)
-        of <strong>kinesist</strong> (kwetsuur) en zet <strong>medicatievoer</strong> aan
-        voor beter herstel. Een <strong>apart hok</strong> verlaagt de kans op ziekte.
-      </>
-    ),
+    route: '/', selector: '[data-tour="feed"]',
+    title: '🛒 Voer kopen',
+    body: 'Op het Overzicht koop je voer per type. De waarden staan per dag. Koop op tijd bij — een lege voorraad is gevaarlijk.',
   },
   {
-    icon: '🏠',
-    title: 'Hok uitbreiden & aparte hokken',
-    body: (
-      <>
-        Je start met plaats voor <strong>8 duiven</strong>. Bij <strong>Mijn hok →
-        Uitbreidingen</strong> koop je meer capaciteit én <strong>aparte hokken</strong>.
-        Wijs een duif een apart hok toe met de knop <strong>🧱 Apart / Samen</strong> bij
-        die duif — dat geeft beter energieherstel en minder ziekte.
-      </>
-    ),
+    route: '/', selector: '[data-tour="missions"]',
+    title: '🎯 Dagopdrachten & dilemma’s',
+    body: 'Elke dag 3 opdrachten voor geld + XP, met een streakbonus. En let op: af en toe verschijnt zomaar een dilemma-pop-up met een keuze en gevolgen.',
   },
   {
-    icon: '🥚',
-    title: 'Kweken — waarop letten',
-    body: (
-      <>
-        Bij <strong>Kweek</strong> koppel je een doffer + een duivin (beide energie
-        <strong> ≥ 20</strong>). Hoe hoger hun <strong>energie én libido</strong>, hoe
-        sneller een jong uitkomt — het gebeurt in echte tijd, zonder vaste timer. Zorg voor
-        <strong> vrije hokruimte</strong>: een jong komt alleen als er plaats is.
-      </>
-    ),
+    route: '/vluchten', selector: '[data-tour="flights"]',
+    title: '🏁 Vluchten, competitie & weddenschappen',
+    body: 'Schrijf duiven in (2 vluchten per dag) en volg ze live. Goede aankomsten geven punten + prijzengeld. Tot 12u voor de start kan je hier ook een weddenschap plaatsen.',
   },
   {
-    icon: '🛒',
-    title: 'Markt: kopen, verkopen & veilingen',
-    body: (
-      <>
-        Op de <strong>Markt</strong> koop je duiven van andere spelers (vaste prijs) en
-        zie je <strong>veilingen</strong>: elke zondag een topduif, en op willekeurige
-        momenten <strong>opvangcentrum-duiven</strong> (goedkoop en matig, maar trainbaar!).
-        Word je overboden, dan krijg je een <strong>melding</strong> om terug te bieden.
-        Je eigen duiven verkoop je via <strong>Mijn hok → Verkoop</strong>.
-      </>
-    ),
+    route: '/markt', selector: '[data-tour="market"]',
+    title: '🛒 Markt & veilingen',
+    body: 'Koop duiven van anderen of bied op veilingen — elke zondag een topper, en soms goedkope opvangcentrum-duiven. Word je overboden, dan krijg je een melding.',
   },
   {
-    icon: '🎯',
-    title: 'Dagopdrachten & dilemma’s',
-    body: (
-      <>
-        Elke dag krijg je op het Overzicht drie <strong>dagopdrachten</strong> voor geld +
-        XP, met een <strong>streakbonus</strong> als je blijft opdagen. En let op: af en toe
-        verschijnt er zomaar een <strong>dilemma</strong> (pop-up) — een gladde koopman, een
-        hittegolf, een kwakzalver… — met een keuze en echte gevolgen.
-      </>
-    ),
+    route: '/kweek', selector: '[data-tour="breed"]',
+    title: '🥚 Kweken',
+    body: 'Koppel een doffer + duivin (beide energie ≥ 20). Hoe hoger hun energie én libido, hoe sneller een jong komt. Zorg voor vrije plaats in je hok.',
   },
   {
-    icon: '🤝',
-    title: 'Sponsors',
-    body: (
-      <>
-        Presteer goed en bedrijven <strong>bieden zichzelf aan</strong> (melding +
-        Sponsorpagina). Aanvaarden geeft <strong>tekengeld</strong>, een <strong>weekbijdrage</strong>
-        en een <strong>bonus per overwinning</strong>. Je kan meerdere sponsors hebben, maar
-        maar <strong>één per categorie</strong>.
-      </>
-    ),
+    route: '/ziekenboeg', selector: '[data-tour="infirmary"]',
+    title: '🏥 Ziekenboeg',
+    body: 'Zet zieke of gekwetste duiven hier: geïsoleerd en sneller herstel. Huur een dokter (ziekte) of kinesist (kwetsuur) en zet medicatievoer aan.',
   },
   {
-    icon: '🎖️',
-    title: 'Prestige & je profiel',
-    body: (
-      <>
-        Bij <strong>Prestaties</strong> verzamel je <strong>badges</strong> en XP (levels)
-        en staat je <strong>prijzenkast</strong> met medailles. In <strong>Profiel</strong>
-        pas je je <strong>hoknaam</strong> aan, kies je een <strong>licht of donker thema</strong>,
-        en kan je <strong>deze rondleiding opnieuw starten</strong>. Veel vliegplezier! 🕊️
-      </>
-    ),
+    route: '/sponsors', selector: '[data-tour="sponsors"]',
+    title: '🤝 Sponsors',
+    body: 'Presteer goed en bedrijven bieden zich aan: tekengeld, een weekbijdrage en een bonus per overwinning. Eén sponsor per categorie.',
+  },
+  {
+    route: '/prestaties', selector: '[data-tour="prestige"]',
+    title: '🎖️ Prestige',
+    body: 'Verzamel badges en XP (levels) en bekijk je prijzenkast met medailles.',
+  },
+  {
+    route: '/profiel', selector: '[data-tour="profile"]',
+    title: '👤 Profiel',
+    body: 'Hier pas je je hoknaam en thema (licht/donker) aan — en kan je deze rondleiding altijd opnieuw starten. Veel vliegplezier! 🕊️',
   },
 ];
 
+const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
+
 export function Tour({ onClose }: { onClose: () => void }) {
+  const nav = useNavigate();
+  const loc = useLocation();
   const [i, setI] = useState(0);
+  const [rect, setRect] = useState<DOMRect | null>(null);
   const step = STEPS[i];
+
+  // Navigate to the step's page.
+  useEffect(() => {
+    if (step.route && loc.pathname !== step.route) nav(step.route);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [i]);
+
+  // Find + measure the target element (polling until it mounts after nav).
+  useEffect(() => {
+    let cancelled = false;
+    let tries = 0;
+    setRect(null);
+    const sel = step.selector;
+    if (!sel) return; // centered step
+    function measure() {
+      if (cancelled) return;
+      const el = document.querySelector(sel!) as HTMLElement | null;
+      if (el) {
+        el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+        window.setTimeout(() => { if (!cancelled) setRect(el.getBoundingClientRect()); }, 320);
+      } else if (tries++ < 40) {
+        window.setTimeout(measure, 120);
+      } else {
+        setRect(null); // give up → centered fallback
+      }
+    }
+    const t = window.setTimeout(measure, 120);
+    return () => { cancelled = true; window.clearTimeout(t); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [i]);
+
+  // Keep the spotlight aligned on resize/scroll.
+  useEffect(() => {
+    const sel = step.selector;
+    if (!sel) return;
+    function update() {
+      const el = document.querySelector(sel!) as HTMLElement | null;
+      if (el) setRect(el.getBoundingClientRect());
+    }
+    window.addEventListener('resize', update);
+    window.addEventListener('scroll', update, true);
+    return () => {
+      window.removeEventListener('resize', update);
+      window.removeEventListener('scroll', update, true);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [i]);
+
   const first = i === 0;
   const last = i === STEPS.length - 1;
 
+  // Tooltip placement: below the target if there's room, else above; centered
+  // when there is no target.
+  const vw = typeof window !== 'undefined' ? window.innerWidth : 360;
+  const vh = typeof window !== 'undefined' ? window.innerHeight : 640;
+  const popW = Math.min(340, vw - 24);
+  let popStyle: CSSProperties;
+  if (rect) {
+    const left = clamp(rect.left + rect.width / 2 - popW / 2, 12, vw - popW - 12);
+    const spaceBelow = vh - rect.bottom;
+    if (spaceBelow > 210) {
+      popStyle = { left, top: rect.bottom + 12 };
+    } else {
+      popStyle = { left, bottom: vh - rect.top + 12 };
+    }
+  } else {
+    popStyle = { left: '50%', top: '50%', transform: 'translate(-50%, -50%)' };
+  }
+
   return (
-    <div className="modal-overlay">
-      <div className="modal">
+    <>
+      {rect ? (
+        <>
+          {/* Transparent click/scroll blocker so the highlighted element stays put. */}
+          <div style={{ position: 'fixed', inset: 0, zIndex: 90 }} />
+          {/* Spotlight ring: the big box-shadow dims everything except the hole. */}
+          <div
+            style={{
+              position: 'fixed',
+              left: rect.left - 6, top: rect.top - 6,
+              width: rect.width + 12, height: rect.height + 12,
+              borderRadius: 12, border: '2px solid var(--brand)',
+              boxShadow: '0 0 0 9999px rgba(8, 12, 22, 0.66)',
+              zIndex: 91, pointerEvents: 'none', transition: 'all 0.2s ease',
+            }}
+          />
+        </>
+      ) : (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 90, background: 'rgba(8, 12, 22, 0.66)' }} />
+      )}
+
+      <div
+        style={{
+          position: 'fixed', width: popW, maxWidth: 'calc(100vw - 24px)', zIndex: 92,
+          background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r-lg)',
+          boxShadow: 'var(--shadow-lg)', padding: 16,
+          ...popStyle,
+        }}
+      >
         <div className="row" style={{ justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
-          <span className="faint" style={{ fontSize: '0.8rem' }}>Rondleiding · {i + 1}/{STEPS.length}</span>
+          <span className="faint" style={{ fontSize: '0.78rem' }}>Rondleiding · {i + 1}/{STEPS.length}</span>
           <button className="btn ghost sm" onClick={onClose}>Sluiten ✕</button>
         </div>
+        <h2 style={{ margin: '6px 0 5px', fontSize: '1.12rem' }}>{step.title}</h2>
+        <div style={{ fontSize: '0.9rem', lineHeight: 1.45 }}>{step.body}</div>
 
-        <h2 style={{ margin: '8px 0 6px' }}>{step.icon} {step.title}</h2>
-        <div style={{ fontSize: '0.92rem', lineHeight: 1.5 }}>{step.body}</div>
-
-        {/* Progress dots */}
-        <div className="row" style={{ gap: 5, justifyContent: 'center', margin: '14px 0 12px', flexWrap: 'wrap' }}>
+        <div className="row" style={{ gap: 4, justifyContent: 'center', margin: '12px 0 10px', flexWrap: 'wrap' }}>
           {STEPS.map((_, idx) => (
             <span
               key={idx}
               onClick={() => setI(idx)}
               style={{
-                width: 7, height: 7, borderRadius: 999, cursor: 'pointer',
+                width: 6, height: 6, borderRadius: 999, cursor: 'pointer',
                 background: idx === i ? 'var(--brand)' : 'var(--surface-3)',
               }}
             />
@@ -197,14 +220,14 @@ export function Tour({ onClose }: { onClose: () => void }) {
         </div>
 
         <div className="row" style={{ justifyContent: 'space-between', gap: 8 }}>
-          <button className="btn ghost" disabled={first} onClick={() => setI((n) => n - 1)}>‹ Vorige</button>
+          <button className="btn ghost sm" disabled={first} onClick={() => setI((n) => n - 1)}>‹ Vorige</button>
           {last ? (
-            <button className="btn accent" onClick={onClose}>Klaar! 🎉</button>
+            <button className="btn accent sm" onClick={onClose}>Klaar! 🎉</button>
           ) : (
-            <button className="btn accent" onClick={() => setI((n) => n + 1)}>Volgende ›</button>
+            <button className="btn accent sm" onClick={() => setI((n) => n + 1)}>Volgende ›</button>
           )}
         </div>
       </div>
-    </div>
+    </>
   );
 }

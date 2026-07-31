@@ -74,7 +74,7 @@ export function InfirmaryPage() {
     <div>
       {showIntro && <InfirmaryIntro cfg={cfg} onClose={dismissIntro} />}
 
-      <div className="page-head">
+      <div className="page-head" data-tour="infirmary">
         <div>
           <h1>🏥 De Ziekenboeg</h1>
           <p className="muted">

@@ -134,7 +134,7 @@ export function DashboardPage() {
 
       {/* Daily missions */}
       {state.missions.length > 0 && (
-        <div className="card" style={{ marginBottom: 18 }}>
+        <div className="card" style={{ marginBottom: 18 }} data-tour="missions">
           <div className="row" style={{ justifyContent: 'space-between' }}>
             <h2 style={{ margin: 0 }}>🎯 Dagopdrachten</h2>
             <span className="chip week" title="Dagen op rij ingelogd">🔥 {state.streak} op rij</span>
@@ -176,7 +176,7 @@ export function DashboardPage() {
           )}
 
           {/* Per-type stock + who eats it + effects. */}
-          <div className="ration-cards" style={{ marginBottom: 10 }}>
+          <div className="ration-cards" style={{ marginBottom: 10 }} data-tour="feed">
             {(Object.keys(feedRations) as FeedRation[]).map((key) => {
               const r = feedRations[key];
               const stock = loft.food[key] ?? 0;
