@@ -1,12 +1,13 @@
 /** App chrome: sticky top bar with navigation, money purse and admin control. */
 
 import { NavLink, Link, Outlet } from 'react-router-dom';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useAuth } from '../auth/AuthContext';
 import { useGame } from '../game/GameContext';
 import { api } from '../api/client';
 import { useToast } from './ui';
 import { NotificationsBell } from './NotificationsBell';
+import { Tour } from './Tour';
 
 const NAV = [
   { to: '/', label: 'Overzicht', short: 'Start', icon: '🏠', end: true },
@@ -30,6 +31,18 @@ export function Layout() {
   const { state, refresh } = useGame();
   const toast = useToast();
   const [advancing, setAdvancing] = useState(false);
+
+  // One-time welcome tour, remembered per player (per browser). Closing it —
+  // even early — counts as seen, so it never returns on its own.
+  const tourKey = user?.id ? `roekoe.tourSeen.${user.id}` : null;
+  const [showTour, setShowTour] = useState(false);
+  useEffect(() => {
+    if (tourKey && state?.loft) setShowTour(!localStorage.getItem(tourKey));
+  }, [tourKey, state?.loft]);
+  function closeTour() {
+    if (tourKey) { try { localStorage.setItem(tourKey, '1'); } catch { /* private mode */ } }
+    setShowTour(false);
+  }
 
   async function advanceWeek() {
     setAdvancing(true);
@@ -110,7 +123,8 @@ export function Layout() {
       {/* Bottom tab bar — only shown on phones (see global.css). */}
       <BottomNav />
 
-      {state?.pendingEvent && <EventModal />}
+      {showTour && <Tour onClose={closeTour} />}
+      {state?.pendingEvent && !showTour && <EventModal />}
     </div>
   );
 }
