@@ -26,18 +26,34 @@ export function StatBar({
   value,
   max = 100,
   variant,
+  perDay,
 }: {
   label: string;
   value: number;
   max?: number;
   variant?: 'form' | 'health';
+  /** Planned change per day from the pigeon's current care (0/undefined hides it). */
+  perDay?: number;
 }) {
   const pct = Math.max(0, Math.min(100, (value / max) * 100));
+  const d = perDay ?? 0;
+  const show = Math.abs(d) >= 0.05;
+  const up = d > 0;
   return (
     <div className="stat">
       <div className="stat-top">
         <span className="stat-label">{label}</span>
-        <span className="stat-val">{Math.round(value)}</span>
+        <span className="row" style={{ gap: 6, alignItems: 'baseline' }}>
+          {show && (
+            <span
+              title="Gepland per dag met de huidige verzorging"
+              style={{ fontSize: '0.72rem', fontWeight: 600, color: up ? 'var(--good, #2e9e5b)' : 'var(--bad)' }}
+            >
+              {up ? '▲' : '▼'} {up ? '+' : ''}{d.toFixed(1)}/dag
+            </span>
+          )}
+          <span className="stat-val">{Math.round(value)}</span>
+        </span>
       </div>
       <div className={`bar ${variant ?? ''}`}>
         <span style={{ width: `${pct}%` }} />

@@ -10,12 +10,18 @@ import { ageInWeeks, canRace, estimateValue, talent } from './game/pigeon.js';
 import { auctionKind } from './game/auction.js';
 import { bettingOpen } from './game/betting.js';
 import { nextCapacityTier, nextInfirmaryTier, ownerName } from './game/engine.js';
+import { projectDailyCare } from './game/economy.js';
 import { flightCommentary, liveSnapshot } from './game/flight.js';
 import { BADGES, levelForXp } from './game/badges.js';
 import { round1 } from './game/util.js';
 
 export function pigeonDTO(db: Database, p: Pigeon) {
   const week = db.world.currentWeek;
+  // Planned per-day attribute changes from the current care selection — only
+  // meaningful for a real player's own bird (auction/bot birds have no plan).
+  const owner = db.lofts.find((l) => l.userId === p.ownerId);
+  const live = db.flights.some((f) => f.status === 'live' && f.entries.some((e) => e.pigeonId === p.id));
+  const dailyCare = owner && !owner.isBot ? projectDailyCare(owner, p, live) : null;
   return {
     id: p.id,
     ownerId: p.ownerId,
@@ -44,6 +50,7 @@ export function pigeonDTO(db: Database, p: Pigeon) {
     compartment: p.compartment ?? false,
     racing: db.flights.some((f) => f.status !== 'completed' && f.entries.some((e) => e.pigeonId === p.id)),
     breeding: db.breedingPairs.some((bp) => bp.sireId === p.id || bp.damId === p.id),
+    dailyCare,
   };
 }
 
