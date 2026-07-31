@@ -19,6 +19,7 @@ import {
   FLIGHT_FATIGUE,
   FLIGHT_TIERS,
   FOOD_PRICE_PER_KG,
+  INFIRMARY,
   IMPROVE_ATTR_LABEL,
   RACE_CITIES,
   REAL_SCHEDULE,
@@ -35,6 +36,7 @@ import { breed } from './breeding.js';
 import { awardBadge, awardFlightBadges, evaluateBadges } from './badges.js';
 import { ensureAuctions } from './auction.js';
 import { settleFlightBets } from './betting.js';
+import { tickHealing } from './health.js';
 import { progressMissions } from './missions.js';
 import { activeContracts } from './sponsors.js';
 import {
@@ -566,6 +568,17 @@ function runDataMigrations(db: Database): void {
     }
     db.world.dataVersion = 15;
   }
+  if ((db.world.dataVersion ?? 0) < 16) {
+    // The infirmary base is now 2 beds (was 4), with a new upgrade ladder.
+    // Bring existing lofts onto the new scheme: never-upgraded lofts drop to the
+    // new base; upgraded lofts keep their beds but capped at the new max (6).
+    for (const loft of db.lofts) {
+      loft.infirmaryCapacity = (loft.infirmaryCapacity ?? 4) <= 4
+        ? INFIRMARY.baseCapacity
+        : Math.min(loft.infirmaryCapacity, 6);
+    }
+    db.world.dataVersion = 16;
+  }
 }
 
 /**
@@ -771,5 +784,6 @@ export function advanceRealtime(
   tickDailyCare(db, nowMs);
   tickBreedingHatch(db, nowMs);
   tickFlightEnergy(db, nowMs);
+  tickHealing(db, nowMs);
   tickFlights(db, nowMs, weatherByFlight);
 }

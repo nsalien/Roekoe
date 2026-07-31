@@ -376,6 +376,8 @@ export function setPigeonCompartment(store: Store, userId: string, pigeonId: str
     const used = db.pigeons.filter((p) => p.ownerId === userId && p.compartment).length;
     if (used >= (loft.compartments ?? 0)) return 'Geen vrij apart hok — bouw er eerst een bij';
     pigeon.compartment = true;
+    progressMissions(db, loft, 'apart', 1);
+    evaluateBadges(db, loft);
     return null;
   });
 }
@@ -617,6 +619,9 @@ export function startBreeding(
       hatchAt: new Date().toISOString(),
       createdAtWeek: db.world.currentWeek,
     });
+    loft.stats.broods += 1;
+    progressMissions(db, loft, 'brood', 1);
+    evaluateBadges(db, loft);
     return null;
   });
 }

@@ -18,6 +18,7 @@ export interface Ailment {
   severity: Severity;
   description: string;
   sinceWeek: number;
+  healed?: number; // real-time recovery progress, 0..1
 }
 
 export interface AuthUser {

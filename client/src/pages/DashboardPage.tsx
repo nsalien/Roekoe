@@ -89,12 +89,12 @@ export function DashboardPage() {
         </div>
 
         <Link to="/ziekenboeg" className="tile card-hover" style={{ display: 'block', color: 'inherit' }}>
-          <div className="tile-label">Ziek / gewond</div>
+          <div className="tile-label">Ziek/gewond in je hok</div>
           <div className="tile-value" style={{ color: needCare > 0 ? 'var(--bad)' : 'var(--good)' }}>
             {needCare}
           </div>
           <div className="faint" style={{ fontSize: '0.8rem' }}>
-            {needCare > 0 ? '⚠️ actie nodig — naar ziekenboeg' : 'alles gezond 🎉'}
+            {needCare > 0 ? '⚠️ actie nodig — naar ziekenboeg' : 'niets in je hok (buiten de ziekenboeg) 🎉'}
           </div>
         </Link>
 
@@ -191,10 +191,10 @@ export function DashboardPage() {
                     {rationCounts[key]} {rationCounts[key] === 1 ? 'duif' : 'duiven'} · {perDay(r.foodPerPigeon)} kg/dag · <Money value={r.pricePerKg} />/kg
                   </div>
                   <div className="row" style={{ gap: 5, flexWrap: 'wrap', marginTop: 5 }}>
-                    <span className="chip-mini good">⚡ +{perDay(r.formRecovery)}</span>
-                    <span className="chip-mini good">❤️‍🩹 +{perDay(r.healthRecovery)}</span>
-                    {r.enduranceRecovery > 0 && <span className="chip-mini good">💪 +{perDay(r.enduranceRecovery)}</span>}
-                    {r.libidoRecovery > 0 && <span className="chip-mini good">❤️ +{perDay(r.libidoRecovery)}</span>}
+                    <span className="chip-mini good">energie +{perDay(r.formRecovery)}</span>
+                    <span className="chip-mini good">gezondheid +{perDay(r.healthRecovery)}</span>
+                    {r.enduranceRecovery > 0 && <span className="chip-mini good">conditie +{perDay(r.enduranceRecovery)}</span>}
+                    {r.libidoRecovery > 0 && <span className="chip-mini good">libido +{perDay(r.libidoRecovery)}</span>}
                   </div>
                 </div>
               );

@@ -310,6 +310,17 @@ function AilingCard({
                 </span>
               </div>
               <p className="faint" style={{ margin: '6px 0 0', fontSize: '0.83rem' }}>{a.description}</p>
+              {typeof a.healed === 'number' && (
+                <div style={{ marginTop: 8 }}>
+                  <div className="row" style={{ justifyContent: 'space-between', fontSize: '0.76rem' }}>
+                    <span className="faint">Herstel</span>
+                    <span className="stat-val">{Math.round((a.healed ?? 0) * 100)}%</span>
+                  </div>
+                  <div className="bar" style={{ height: 7, marginTop: 3 }}>
+                    <span style={{ width: `${Math.round((a.healed ?? 0) * 100)}%`, background: 'var(--good)' }} />
+                  </div>
+                </div>
+              )}
             </>
           )}
           {action === 'out' && (

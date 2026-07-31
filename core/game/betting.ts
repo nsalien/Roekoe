@@ -11,6 +11,8 @@ import { BETTING, FLIGHT_RISK } from '../config/gameConfig.js';
 import type { Bet, BetKind, Database, Flight, Pigeon } from '../schema.js';
 import { newId } from '../store.js';
 import { pigeonVelocity } from './flight.js';
+import { progressMissions } from './missions.js';
+import { evaluateBadges } from './badges.js';
 import { clamp, hashString, seededRng } from './util.js';
 
 /** When betting opens/closes for a flight. */
@@ -186,6 +188,9 @@ export function placeBet(
   };
   db.bets.push(newBet);
   if (db.bets.length > 200) db.bets = db.bets.slice(-200);
+  loft.stats.bets += 1;
+  progressMissions(db, loft, 'bet', 1);
+  evaluateBadges(db, loft);
   return newBet;
 }
 
@@ -236,6 +241,7 @@ export function settleFlightBets(db: Database, flight: Flight): void {
       const betNoteId = `ntf:bet:${b.id}`;
       if (outcome === 'won') {
         loft.money += b.potentialWin;
+        loft.stats.betsWon += 1;
         notify(db, b.userId, '🎉 Weddenschap gewonnen!', `Je won €${b.potentialWin} (inzet €${b.stake} × ${b.ratio}).`, betNoteId);
       } else if (outcome === 'void') {
         loft.money += b.stake;

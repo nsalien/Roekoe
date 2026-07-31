@@ -342,22 +342,24 @@ Een duif **in de ziekenboeg** is geïsoleerd: besmet niemand en wordt niet besme
 > dan zes keer zoveel. Lage gezondheid én lage energie maken je hok dus veel
 > kwetsbaarder; zet zieke duiven meteen in de ziekenboeg om de ketting te breken.
 
-### 5.3 Kans op herstel (wekelijks)
+### 5.3 Herstel (in echte tijd)
+Herstel loopt **continu in echte tijd** (niet meer als wekelijkse kansworp). Een
+duif die gewoon in het hok rust, geneest volledig na (bij benadering):
 ```
-basis (in ziekenboeg): licht 0.55 · matig 0.38 · ernstig 0.22
-  + medicinaal voer:  +0.18
-  + dokter (ziekte) of kinesist (kwetsuur), indien gedekt: +0.28
-  cap: 0.92
-in het gewone hok (niet geïsoleerd): basis · 0.40   (geen extra's)
+licht ~2,5 dagen · matig ~5 dagen · ernstig ~9 dagen
 ```
+Goede zorg **versnelt** dat: de ziekenboeg ×2,2, een dekkende dokter/kinesist
+×1,6, en medicinaal voer ×1,35 — die stapelen. Met alles samen (×~4,75) geneest
+een licht letsel in een halve dag, een matig in ~1 dag en een ernstig in ~2 dagen.
 
-> **Voorbeeld.** Een **matige** ziekte geneest per week met:
-> ~**15%** in het gewone hok · ~**38%** in de ziekenboeg ·
-> ~**56%** met medicinaal voer · ~**84%** met voer + dokter.
-> Investeren in verzorging halveert dus makkelijk de tijd dat een duif ziek is.
+> **Statusupdates.** Om de **12 uur** krijg je per herstellende duif een bericht
+> van de kinesist/dokter met het **herstelpercentage**, een schatting **hoe lang
+> nog** tot ze weer vliegensklaar is, en een tip (bv. "zet ze in de ziekenboeg"
+> of "zet medicatievoer aan"). In de ziekenboeg zie je bovendien een herstelbalk
+> per duif. Zo zie je meteen dat je verzorging helpt.
 
 ### 5.4 De ziekenboeg
-- Capaciteit: **4 duiven** (later uitbreidbaar).
+- Capaciteit: **2 duiven** (uitbreidbaar naar 3/4/5/6 voor €800/1200/1800/2400).
 - **Medicinaal voer**: €45/duif/week, verhoogt herstel van iedereen in de boeg.
 - **Duivendokter**: €400/week, geneest **2** zieke duiven (ziektes).
 - **Duivenkinesist**: €350/week, geneest **2** duiven (kwetsuren).
@@ -538,7 +540,7 @@ Verdiend geld kan je investeren in je hok en je duiven (bij *Mijn hok*, de
   duifpagina). Heb je minder aparte hokken dan duiven, dan zitten de rest gewoon
   samen. Een duif in een apart hok **herstelt sneller energie** en heeft een
   **kleinere kans op ziekte**.
-- **Ziekenboeg uitbreiden.** Koop extra bedden (van 4 naar 6, 8, 10) zodat je
+- **Ziekenboeg uitbreiden.** Koop extra bedden (van 2 naar 3, 4, 5 of 6) zodat je
   meer zieke duiven tegelijk kan verzorgen.
 - **Voerschema's — per duif.** Elke duif heeft eigen noden (vluchten vs. broeden),
   dus je kiest **per duif** een voerschema (bij *Mijn hok* of op de duifpagina).
