@@ -215,17 +215,17 @@ Voeding en herstel gebeuren **elke dag** automatisch (niet pas op weekeinde) —
 energie, gezondheid, conditie en libido bewegen dus dagelijks.
 
 > **Zie het per duif.** In **Mijn hok** staat bij elke duif — naast de voerkeuze
-> en de apart-hok-knop — een lijstje **"📈 Groei per dag met deze keuze"**: hoeveel
-> elke eigenschap volgens je **huidige keuze** (voer, apart hok, coach) er per dag
-> bij komt. Zet je de duif in een **apart hok**, dan zie je haar energiegroei
-> stijgen; wissel je van voer, dan verschuiven de cijfers naar de effecten van dat
-> voer. Voer en huisvesting doen een eigenschap nooit dalen, dus er staan enkel
-> plussen. Zo zie je in één oogopslag welke actie welk effect heeft.
+> en de apart-hok-knop — bij elke eigenschap een klein **▲/▼-cijfer per dag**:
+> hoeveel die eigenschap volgens je **huidige keuze** (voer, apart hok, coach)
+> morgen verandert. Een groene **▲** = stijgt, een rode **▼** = daalt. Zet je de
+> duif in een **apart hok**, dan loopt haar energiegroei op; wissel je van voer,
+> dan verschuiven de cijfers mee. Heeft je duif geen voer meer, dan zie je de
+> cijfers rood worden (▼): honger laat de eigenschappen dalen (zie hieronder).
 
 **Voorraad wordt per type apart bijgehouden**, en **elke duif** krijgt een eigen
 type (in te stellen bij *Mijn hok* of op de duifpagina). Een duif eet 1/7 van
 haar weekverbruik per dag uit de voorraad van háár type. Is die voorraad op, dan
-blijft die duif onvoerd (−energie & −gezondheid). Op het **Overzicht** koop je
+gaat die duif **honger lijden** (zie §4.1). Op het **Overzicht** koop je
 voorraad per type; er is geen algemene "alles ineens"-knop.
 
 | Type | Voer/duif/week | Prijs/kg | Effect |
@@ -238,21 +238,43 @@ voorraad per type; er is geen algemene "alles ineens"-knop.
 Iedereen start (na de overstap) met **50 kg Normaal**; alle duiven staan standaard
 op Normaal.
 
-Per dag, per duif (weekwaarden gedeeld door 7):
+Per dag, per gevoerde duif (weekwaarden gedeeld door 7):
 ```
-gevoerd:
-  Energie   += (energie_per_week / 7) · (1 + Ervaring/200)   // ervaring = sneller herstel
-  Gezondheid+= (gezondheid_per_week / 7) + Conditie/280       // goede conditie = betere gezondheid
-niet gevoerd (voorraad op):
-  Energie   −= 8/7
-  Gezondheid−= 6/7
+Energie   += (energie_per_week / 7) · (1 + Ervaring/200)   // ervaring = sneller herstel
+Gezondheid+= (gezondheid_per_week / 7) + Conditie/280       // goede conditie = betere gezondheid
 ```
 
 > **Voorbeeld.** Een hok met **6 duiven** op Normaal eet 6 kg/dag, dus je
-> startvoorraad van 80 kg is na ~**13 dagen** op. Een goed gevoerde duif met
-> ervaring 40 wint ongeveer **+2 energie per dag** (≈ +14 per week). Loopt je
-> voer leeg, dan verliest élke duif ~1 energie én ~1 gezondheid per dag — dat
-> tikt snel aan. Koop dus tijdig bij (€3/kg).
+> startvoorraad van 50 kg is na ~**8 dagen** op. Een goed gevoerde duif met
+> ervaring 40 wint ongeveer **+2 energie per dag** (≈ +14 per week). Koop dus
+> tijdig bij (€3/kg) — een lege voorraad is gevaarlijk (§4.1).
+
+### 4.0 Honger & verhongeren (voorraad op)
+
+Heeft een duif geen voorraad meer van háár voertype, dan lijdt ze **honger**, en
+dat wordt **elke dag erger**. Op honger-dag `N` verliest ze per eigenschap `N ×`
+het dagbedrag — de daling **versnelt** dus zolang er geen eten is:
+
+```
+dag N zonder eten:
+  Energie   −= 8 · N
+  Gezondheid−= 5 · N
+  Conditie  −= 3 · N
+  Libido    −= 4 · N
+sterftekans = 0                          als N < 3
+            = min(0.25 · (N−2), 0.95)    vanaf dag 3
+            = 100%                        vanaf dag 7
+```
+
+Zodra je de duif weer voer geeft (voorraad van haar type), springt de honger
+terug op 0 en herstelt ze weer normaal. Maar blijft ze zonder eten, dan gaat het
+snel bergaf en **sterft ze** — realistisch gezien houdt een duif het maar een
+paar dagen vol zonder eten. Vanaf dag 3 is er een reële kans dat ze het niet
+haalt, en na een week is het zeker. Je krijgt een melding als een duif verhongert.
+
+> **Voorbeeld.** Een duif met 85 energie die geen eten meer krijgt: dag 1 −8
+> (→77), dag 2 −16 (→61), dag 3 −24 (→37) mét ~25% sterftekans, dag 4 −32 (→5)
+> mét ~50% kans… Reken er niet op dat ze het overleeft. Koop op tijd bij.
 
 ### 4.1 Libido (dagelijkse drift)
 ```

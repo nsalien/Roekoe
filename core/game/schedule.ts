@@ -571,7 +571,21 @@ export function tickDailyCare(db: Database, nowMs: number): void {
           }
         }
       }
-      applyDayOfCare(loft, owned, livePigeonIds);
+      const { deaths } = applyDayOfCare(loft, owned, livePigeonIds);
+      for (const dead of deaths) {
+        db.pigeons = db.pigeons.filter((p) => p.id !== dead.id);
+        db.breedingPairs = db.breedingPairs.filter((bp) => bp.sireId !== dead.id && bp.damId !== dead.id);
+        for (const f of db.flights) {
+          if (f.status !== 'completed') f.entries = f.entries.filter((e) => e.pigeonId !== dead.id);
+        }
+        if (!loft.isBot) {
+          pushNotification(
+            db, loft.userId, 'health', `🕯️ ${dead.name} is verhongerd`,
+            `${dead.name} kreeg ${dead.hungerDays} dagen op rij geen eten en heeft het niet gered. Zorg dat er altijd voorraad is van het voertype van elke duif.`,
+            null,
+          );
+        }
+      }
     }
   }
   db.world.lastDailyTick = new Date(last + days * DAY_MS).toISOString();

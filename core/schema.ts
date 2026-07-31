@@ -57,6 +57,7 @@ export interface Pigeon {
   // Housing & feeding (per pigeon, since needs differ: racing vs breeding).
   ration: FeedRationKey; // this bird's own feed schedule
   compartment: boolean; // housed in its own private compartment (better rest, less disease)
+  hungerDays: number; // consecutive days with no food in stock (0 = fed); drives starvation
 }
 
 /** Everything about a player's operation that is not an individual pigeon. */

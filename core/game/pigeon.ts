@@ -82,6 +82,7 @@ export function generatePigeon(opts: GenerateOptions): Pigeon {
     coached: false,
     ration: 'normal',
     compartment: false,
+    hungerDays: 0,
   };
 }
 

@@ -151,6 +151,24 @@ export const FEED_RATIONS = {
 } as const;
 export type FeedRationKey = keyof typeof FEED_RATIONS;
 
+/**
+ * Starvation. A pigeon with no food in stock of its ration goes hungry, and the
+ * decline ACCELERATES the longer it stays unfed: on hunger day N it loses
+ * `xPerDay · N` of each attribute. Real pigeons survive only a few days without
+ * food, so death becomes a real risk from `deathAfterDays` and is guaranteed by
+ * `certainDeathDays`. Feeding it (any stock of its type) resets the hunger.
+ */
+export const STARVATION = {
+  energiePerDay: 8, // energie (form) lost per hunger-day, × the day count
+  healthPerDay: 5,
+  conditiePerDay: 3,
+  libidoPerDay: 4,
+  deathAfterDays: 3, // a death chance kicks in once a bird is this many days hungry
+  deathChancePerDay: 0.25, // added death chance per hunger-day beyond deathAfterDays
+  deathMaxChance: 0.95,
+  certainDeathDays: 7, // a bird this long without food does not survive
+} as const;
+
 /** Food (kg per type) a new player starts with. */
 export const STARTING_FOOD_STOCK = { normal: 50, premium: 0, libido: 0, herstel: 0 };
 
