@@ -218,6 +218,7 @@ export interface SimEntry {
   ownerName: string;
   velocity: number; // metres per minute (realistic homing speed)
   durationSeconds: number; // compressed live race duration for this bird
+  gaveUp?: boolean; // owner pulled the bird mid-race to save its energy
 }
 
 /**

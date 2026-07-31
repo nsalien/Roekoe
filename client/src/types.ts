@@ -114,6 +114,9 @@ export interface EconomyCosts {
   weeklyUpkeepPerPigeon: number;
   trainCost: number;
   breedCost: number;
+  betMinStake: number;
+  betMaxStake: number;
+  betWindowHours: number;
 }
 
 export interface FlightEntrant {
@@ -203,6 +206,7 @@ export interface LiveBird {
   speedKmh: number;
   progress: number;
   finished: boolean;
+  gaveUp: boolean;
   etaSeconds: number;
   liveRank: number;
 }

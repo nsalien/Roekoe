@@ -454,6 +454,19 @@ export function withdrawFlight(
   });
 }
 
+/** Pull one of your pigeons out of a live race to save its energy. */
+export function giveUpFlight(store: Store, userId: string, flightId: string, pigeonId: string): string | null {
+  return store.mutate((db) => {
+    const flight = db.flights.find((f) => f.id === flightId);
+    if (!flight || flight.status !== 'live') return 'Deze vlucht is niet bezig';
+    const entry = flight.sim.find((s) => s.pigeonId === pigeonId && s.ownerId === userId);
+    if (!entry) return 'Duif niet gevonden in deze vlucht';
+    if (entry.gaveUp) return 'Deze duif is al opgegeven';
+    entry.gaveUp = true;
+    return null;
+  });
+}
+
 /** List one of your pigeons on the market at a price. */
 export function listForSale(store: Store, userId: string, pigeonId: string, price: number): string | null {
   return store.mutate((db) => {

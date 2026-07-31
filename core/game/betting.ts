@@ -1,19 +1,19 @@
 /**
  * Betting on flights. From `windowHours` before a flight starts until the start,
- * players stake money on outcomes. The game estimates each bird's chance from
- * its attributes (via the same velocity model the race uses) plus its recent
- * form, then prices a payout ratio with a bookmaker margin: the bigger the
- * favourite, the smaller the ratio. Stakes are deducted at placement and paid
+ * players stake money on outcomes. Odds are estimated with a Monte-Carlo of the
+ * SAME model the race uses (velocity × per-bird luck, plus a did-not-finish roll
+ * from energie), so the prices track the real chances; a bookmaker margin makes
+ * every bet slightly house-favoured. Stakes are deducted at placement and paid
  * (stake × ratio) on a win. Bets are settled from the real result.
  */
 
-import { BETTING } from '../config/gameConfig.js';
+import { BETTING, FLIGHT_RISK } from '../config/gameConfig.js';
 import type { Bet, BetKind, Database, Flight, Pigeon } from '../schema.js';
 import { newId } from '../store.js';
 import { pigeonVelocity } from './flight.js';
-import { clamp } from './util.js';
+import { clamp, hashString, seededRng } from './util.js';
 
-/** When betting opens/closes for a flight (ms window before start). */
+/** When betting opens/closes for a flight. */
 export function bettingOpen(flight: Flight, nowMs: number): boolean {
   if (flight.status !== 'scheduled') return false;
   const start = Date.parse(flight.startAt);
@@ -21,64 +21,40 @@ export function bettingOpen(flight: Flight, nowMs: number): boolean {
   return nowMs >= start - BETTING.windowHours * 3600000 && nowMs < start;
 }
 
-/** Average recent placing quality of a bird (0..1, higher = better), or 0.5. */
-function recentForm(db: Database, pigeonId: string): number {
-  const rows: number[] = [];
-  for (const f of db.flights) {
-    if (f.status !== 'completed' || f.results.length < 2) continue;
-    const r = f.results.find((x) => x.pigeonId === pigeonId);
-    if (r && r.finished !== false) rows.push(1 - (r.rank - 1) / (f.results.length - 1));
-  }
-  const last = rows.slice(-5);
-  if (last.length === 0) return 0.5;
-  return last.reduce((a, b) => a + b, 0) / last.length;
+interface SimResult {
+  orders: { order: string[]; finishers: number }[];
+  owner: Map<string, string>;
+  ids: string[];
 }
 
-/** A bird's betting "strength": sharpened race velocity, nudged by recent form. */
-function strength(db: Database, p: Pigeon, distanceKm: number, week: number): number {
-  const vel = pigeonVelocity(p, distanceKm, week, 1, 1);
-  const form = recentForm(db, p.id); // 0..1
-  return Math.pow(Math.max(0.1, vel / 1000), BETTING.sharpness) * (0.7 + 0.6 * form);
-}
-
-interface Field {
-  entries: { p: Pigeon; s: number }[];
-  total: number;
-}
-
-function fieldFor(db: Database, flight: Flight): Field {
-  const entries: { p: Pigeon; s: number }[] = [];
+/**
+ * Monte-Carlo the flight: each draw samples every bird's luck and whether it
+ * finishes, ranks the finishers by (velocity × luck) and appends the non-
+ * finishers. Seeded on the flight id so preview and placement agree.
+ */
+function simulate(db: Database, flight: Flight): SimResult {
+  const base: Pigeon[] = [];
   for (const e of flight.entries) {
     const p = db.pigeons.find((x) => x.id === e.pigeonId);
-    if (p) entries.push({ p, s: strength(db, p, flight.distanceKm, flight.week) });
+    if (p) base.push(p);
   }
-  const total = entries.reduce((sum, x) => sum + x.s, 0);
-  return { entries, total };
-}
+  const owner = new Map(base.map((p) => [p.id, p.ownerId]));
+  const vel = new Map(base.map((p) => [p.id, pigeonVelocity(p, flight.distanceKm, flight.week, 1, 1)]));
+  const rng = seededRng(hashString(flight.id));
+  const orders: { order: string[]; finishers: number }[] = [];
 
-/** P(this bird finishes in the top 3), exact Plackett-Luce inclusion. */
-function pTop3(field: Field, id: string): number {
-  const me = field.entries.find((x) => x.p.id === id);
-  if (!me || field.total <= 0) return 0;
-  const si = me.s;
-  const T = field.total;
-  const others = field.entries.filter((x) => x.p.id !== id);
-  const p1 = si / T;
-  let p2 = 0;
-  for (const j of others) {
-    const denom = T - j.s;
-    if (denom > 0) p2 += (j.s / T) * (si / denom);
+  for (let it = 0; it < BETTING.simIterations; it++) {
+    const scored = base.map((p) => {
+      const luck = 0.9 + rng() * 0.2;
+      const dnfChance = clamp((FLIGHT_RISK.dnfFormThreshold - p.form) / FLIGHT_RISK.dnfFormThreshold, 0, FLIGHT_RISK.dnfMaxChance);
+      const dnf = rng() < dnfChance;
+      return { id: p.id, score: (vel.get(p.id) ?? 1) * luck, dnf };
+    });
+    const fin = scored.filter((x) => !x.dnf).sort((a, b) => b.score - a.score).map((x) => x.id);
+    const nf = scored.filter((x) => x.dnf).map((x) => x.id);
+    orders.push({ order: [...fin, ...nf], finishers: fin.length });
   }
-  let p3 = 0;
-  for (const j of others) {
-    for (const k of others) {
-      if (k.p.id === j.p.id) continue;
-      const d1 = T - j.s;
-      const d2 = T - j.s - k.s;
-      if (d1 > 0 && d2 > 0) p3 += (j.s / T) * (k.s / d1) * (si / d2);
-    }
-  }
-  return clamp(p1 + p2 + p3, 0, 1);
+  return { orders, owner, ids: base.map((p) => p.id) };
 }
 
 /** The probability of a given wager, or null if the bet is invalid. */
@@ -90,36 +66,40 @@ export function betProbability(
   pigeonId: string | null,
   rivalId: string | null,
 ): number | null {
-  const field = fieldFor(db, flight);
-  if (field.entries.length < 2 || field.total <= 0) return null;
-  const get = (id: string | null) => field.entries.find((x) => x.p.id === id);
+  const sim = simulate(db, flight);
+  const N = sim.orders.length;
+  if (sim.ids.length < 2 || N === 0) return null;
+  const has = (id: string | null): id is string => !!id && sim.ids.includes(id);
+  let count = 0;
 
   switch (kind) {
     case 'win': {
-      const m = get(pigeonId);
-      return m ? m.s / field.total : null;
+      if (!has(pigeonId)) return null;
+      for (const o of sim.orders) if (o.finishers > 0 && o.order[0] === pigeonId) count++;
+      return count / N;
     }
     case 'own_top3': {
-      const m = get(pigeonId);
-      if (!m || m.p.ownerId !== userId) return null;
-      return pTop3(field, m.p.id);
+      if (!has(pigeonId) || sim.owner.get(pigeonId) !== userId) return null;
+      for (const o of sim.orders) {
+        const k = Math.min(3, o.finishers);
+        if (o.order.slice(0, k).includes(pigeonId)) count++;
+      }
+      return count / N;
     }
     case 'last': {
-      const m = get(pigeonId);
-      if (!m) return null;
-      const invTotal = field.entries.reduce((sum, x) => sum + 1 / x.s, 0);
-      return invTotal > 0 ? 1 / m.s / invTotal : null;
+      if (!has(pigeonId)) return null;
+      for (const o of sim.orders) if (o.finishers > 0 && o.order[o.finishers - 1] === pigeonId) count++;
+      return count / N;
     }
     case 'mine_wins': {
-      const mine = field.entries.filter((x) => x.p.ownerId === userId);
-      if (mine.length === 0) return null;
-      return mine.reduce((sum, x) => sum + x.s, 0) / field.total;
+      if (!sim.ids.some((id) => sim.owner.get(id) === userId)) return null;
+      for (const o of sim.orders) if (o.finishers > 0 && sim.owner.get(o.order[0]) === userId) count++;
+      return count / N;
     }
     case 'head2head': {
-      const a = get(pigeonId);
-      const b = get(rivalId);
-      if (!a || !b || a.p.id === b.p.id) return null;
-      return a.s / (a.s + b.s);
+      if (!has(pigeonId) || !has(rivalId) || pigeonId === rivalId) return null;
+      for (const o of sim.orders) if (o.order.indexOf(pigeonId) < o.order.indexOf(rivalId)) count++;
+      return count / N;
     }
     default:
       return null;
@@ -181,12 +161,15 @@ export function placeBet(
   const flight = db.flights.find((f) => f.id === flightId);
   if (!flight) return '!Vlucht niet gevonden';
   if (!bettingOpen(flight, nowMs)) return '!Je kan niet (meer) wedden op deze vlucht';
+  if (db.bets.some((x) => x.userId === userId && x.flightId === flightId && x.status === 'open')) {
+    return '!Je hebt al een weddenschap lopen op deze vlucht';
+  }
   const loft = db.lofts.find((l) => l.userId === userId);
   if (!loft) return '!Geen hok gevonden';
   const bet = Math.round(stake);
   if (!(bet >= BETTING.minStake)) return `!Minimale inzet is €${BETTING.minStake}`;
   if (bet > BETTING.maxStake) return `!Maximale inzet is €${BETTING.maxStake}`;
-  if (loft.money < bet) return 'Je hebt niet genoeg geld voor deze inzet'.replace(/^/, '!');
+  if (loft.money < bet) return '!Je hebt niet genoeg geld voor deze inzet';
   const prob = betProbability(db, flight, kind, userId, pigeonId, rivalId);
   if (prob == null) return '!Ongeldige weddenschap';
   const ratio = ratioFor(prob);
@@ -217,7 +200,8 @@ function notify(db: Database, userId: string, title: string, body: string): void
 export function settleFlightBets(db: Database, flight: Flight): void {
   const results = flight.results;
   const rankOf = (id: string | null) => results.find((r) => r.pigeonId === id)?.rank ?? null;
-  const maxRank = results.reduce((m, r) => Math.max(m, r.rank), 0);
+  const finishers = results.filter((r) => r.finished !== false);
+  const lastFinisherRank = finishers.reduce((m, r) => Math.max(m, r.rank), 0);
 
   for (const b of db.bets) {
     if (b.status !== 'open' || b.flightId !== flight.id) continue;
@@ -232,7 +216,7 @@ export function settleFlightBets(db: Database, flight: Flight): void {
       if (!r) outcome = 'void'; // the bird withdrew — refund
       else if (b.kind === 'win') outcome = r.rank === 1 && r.finished !== false ? 'won' : 'lost';
       else if (b.kind === 'own_top3') outcome = r.rank <= 3 && r.finished !== false ? 'won' : 'lost';
-      else if (b.kind === 'last') outcome = r.rank === maxRank ? 'won' : 'lost';
+      else if (b.kind === 'last') outcome = r.finished !== false && r.rank === lastFinisherRank ? 'won' : 'lost';
       else if (b.kind === 'head2head') {
         const rr = rankOf(b.rivalId);
         if (rr == null) outcome = 'void';

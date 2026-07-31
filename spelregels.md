@@ -169,6 +169,31 @@ de lijst (zie §5).
 > (energie 30), dan wordt dat ×1.7 → **~19%**. Uitgeputte duiven laten vliegen
 > is dus vragen om blessures.
 
+### 3.3 Wedstrijddeadline (90 minuten na de eerste duif)
+
+Een wedstrijd loopt niet eindeloos door. **Zodra de eerste duif thuis is, start
+een deadline van 90 minuten.** Elke duif die daarna nog niet binnen is, wordt
+**geëlimineerd**: ze telt als *niet thuis* (DNF) — geen punten, geen prijs. Zo
+sleept een enkele trage duif de uitslag niet urenlang aan.
+
+```
+duur_wedstrijd = min(traagste duif, eerste duif + 90 min)
+```
+
+### 3.4 Zelf opgeven om energie te sparen
+
+Tijdens een **live** wedstrijd kan je een eigen duif laten **opgeven** (knop op
+de live-pagina). Ze finisht dan niet en telt als DNF — géén punten of prijs —
+**maar** ze spaart haar krachten:
+
+- veel **lichter energieverlies** dan een duif die de hele vlucht uitvliegt of
+  uitgeput strandt;
+- **geen** gezondheidsverlies en **geen** kans op kwetsuur;
+- ze bouwt ook geen conditie op (ze heeft de rit niet afgemaakt).
+
+Handig als je merkt dat een duif toch niet gaat scoren en je haar fris wil
+houden voor de volgende vlucht, in plaats van haar leeg te laten lopen.
+
 ---
 
 ## 4. Voeding & verzorging (dagelijks, echte tijd)
@@ -473,26 +498,32 @@ Verdiend geld kan je investeren in je hok en je duiven (bij *Mijn hok*, de
 ## 14. Weddenschappen
 
 Vanaf **12 uur voor de start** tot het moment dat de vlucht begint, verschijnt bij
-de vlucht een knop om te **wedden**. Zodra de vlucht start, kan je niet meer
-inzetten.
+de vlucht een knop om te **wedden**. Is het nog geen 12 uur voor de start, dan
+toont de vlucht een **aftelklok** tot de weddenschappen openen. Zodra de vlucht
+start, kan je niet meer inzetten. Je kan **maximaal één weddenschap per vlucht**
+plaatsen.
 
 Je kiest een **inzet**, een **type weddenschap** en (meestal) een **doelduif** —
 ook duiven van andere spelers. Types:
 - **Wint de vlucht** — de gekozen duif wordt eerste.
-- **Eindigt allerlaatste** — de gekozen duif komt als laatste binnen.
+- **Eindigt allerlaatste** — de gekozen duif is de **laatste die thuiskomt**.
+  Duiven die niet finishen (DNF/opgegeven) tellen hier níet als "laatste".
 - **Eigen duif in top 3** — een van jóuw duiven eindigt bij de eerste drie.
 - **Een van mijn duiven wint** — om het even welke van jouw ingeschreven duiven.
 - **Komt eerder thuis dan…** — kop-aan-kop tussen twee duiven.
 
-Het spel schat de **kans** op basis van de eigenschappen van de duif (hetzelfde
-snelheidsmodel als de vlucht) én haar recente uitslagen. Een sterke favoriet
-heeft een grote kans en dus een **lagere uitbetalingsratio**; een outsider betaalt
-meer. Vóór je bevestigt zie je de geschatte kans, de **ratio** en je **mogelijke
-winst** (inzet × ratio, met een bookmakersmarge). Je inzet wordt meteen
+Het spel schat de **kans** met een **Monte-Carlo-simulatie** van net hetzelfde
+racemodel als de echte vlucht (snelheid × geluk, plus de DNF-kans uit energie),
+duizenden keren doorgerekend. De prijzen volgen dus de echte kansen en zijn niet
+te misbruiken. Een sterke favoriet heeft een grote kans en dus een **lagere
+uitbetalingsratio**; een outsider betaalt meer. Vóór je bevestigt zie je de
+geschatte kans, de **ratio** en je **mogelijke winst** (inzet × ratio, met een
+bookmakersmarge waardoor het huis licht in het voordeel is). Je inzet wordt meteen
 afgehouden; bij winst krijg je inzet × ratio terug. Doet de doelduif niet mee
 (uitgeschreven), dan is de weddenschap vervallen en krijg je je inzet terug.
 
-Inzet: min. €10, max. €5.000.
+Het invoerveld voor je inzet wordt automatisch begrensd tot **min. €10** en
+**max. €5.000**.
 
 ---
 

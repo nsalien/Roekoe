@@ -60,6 +60,13 @@ export function FlightsPage() {
     return set;
   }, [scheduled, live, user]);
 
+  // Flights the player already has an open bet on (max one bet per flight).
+  const betFlights = useMemo(() => {
+    const set = new Set<string>();
+    for (const b of bets) if (b.status === 'open') set.add(b.flightId);
+    return set;
+  }, [bets]);
+
   async function act(fn: () => Promise<unknown>, ok?: string) {
     setBusy(true);
     try {
@@ -176,9 +183,27 @@ export function FlightsPage() {
                   <span className="faint" style={{ flexShrink: 0 }}>{f.entryCount} ingeschreven</span>
                 </div>
 
-                {f.bettingOpen && (
-                  <BetPanel flight={f} meId={user?.id} onPlaced={() => { loadBets(); refresh(); }} />
-                )}
+                {(() => {
+                  const opensAt = Date.parse(f.startAt) - state.economy.betWindowHours * 3600000;
+                  if (betFlights.has(f.id)) {
+                    return (
+                      <p className="notice" style={{ marginTop: 10, marginBottom: 0 }}>
+                        🎲 Je hebt al een weddenschap lopen op deze vlucht.
+                      </p>
+                    );
+                  }
+                  if (f.bettingOpen) {
+                    return <BetPanel flight={f} meId={user?.id} onPlaced={() => { loadBets(); refresh(); }} />;
+                  }
+                  if (now < opensAt) {
+                    return (
+                      <p className="faint" style={{ marginTop: 10, marginBottom: 0 }}>
+                        🎲 Weddenschappen openen over <strong>{countdownTo(new Date(opensAt).toISOString(), now)}</strong>.
+                      </p>
+                    );
+                  }
+                  return null;
+                })()}
               </div>
             );
           })}
@@ -230,13 +255,17 @@ function betLabel(b: BetView): string {
 
 function BetPanel({ flight, meId, onPlaced }: { flight: Flight; meId?: string; onPlaced: () => void }) {
   const toast = useToast();
+  const { state } = useGame();
+  const minStake = state?.economy.betMinStake ?? 10;
+  const maxStake = state?.economy.betMaxStake ?? 500;
   const [open, setOpen] = useState(false);
   const [kind, setKind] = useState<BetKind>('win');
   const [pigeonId, setPigeonId] = useState('');
   const [rivalId, setRivalId] = useState('');
-  const [stake, setStake] = useState(50);
+  const [stake, setStake] = useState(Math.max(50, minStake));
   const [preview, setPreview] = useState<BetPreview | null>(null);
   const [busy, setBusy] = useState(false);
+  const clampStake = (v: number) => Math.min(maxStake, Math.max(minStake, Math.round(v) || minStake));
 
   const entrants = flight.entrants;
   const mine = entrants.filter((e) => e.ownerId === meId);
@@ -276,7 +305,7 @@ function BetPanel({ flight, meId, onPlaced }: { flight: Flight; meId?: string; o
     try {
       await api('/bets', {
         method: 'POST',
-        body: { flightId: flight.id, kind, pigeonId: needsTarget ? pigeonId : null, rivalId: needsRival ? rivalId : null, stake },
+        body: { flightId: flight.id, kind, pigeonId: needsTarget ? pigeonId : null, rivalId: needsRival ? rivalId : null, stake: clampStake(stake) },
       });
       toast.show('Weddenschap geplaatst! 🎲', 'ok');
       setOpen(false);
@@ -326,8 +355,17 @@ function BetPanel({ flight, meId, onPlaced }: { flight: Flight; meId?: string; o
         </>
       )}
 
-      <label style={{ marginTop: 8 }}>Inzet</label>
-      <input type="number" min={10} value={stake} onChange={(e) => setStake(Number(e.target.value))} disabled={busy} style={{ maxWidth: 140 }} />
+      <label style={{ marginTop: 8 }}>Inzet <span className="faint">(€{minStake}–€{maxStake})</span></label>
+      <input
+        type="number"
+        min={minStake}
+        max={maxStake}
+        value={stake}
+        onChange={(e) => setStake(Number(e.target.value))}
+        onBlur={() => setStake((s) => clampStake(s))}
+        disabled={busy}
+        style={{ maxWidth: 140 }}
+      />
 
       <div className="row" style={{ justifyContent: 'space-between', marginTop: 10, gap: 8, flexWrap: 'wrap' }}>
         <span className="faint">

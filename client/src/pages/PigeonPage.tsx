@@ -240,11 +240,16 @@ export function PigeonPage() {
                     value={p.ration}
                     disabled={busy}
                     onChange={(e) => setRation(e.target.value)}
-                    style={{ flex: 1, minWidth: 120, width: 'auto' }}
+                    style={{ flex: 1, minWidth: 120, width: 'auto', ...((state.loft?.food[p.ration] ?? 0) <= 0 ? { borderColor: 'var(--bad)', color: 'var(--bad)' } : {}) }}
                   >
-                    {Object.keys(state.feedRations).map((k) => (
-                      <option key={k} value={k}>🍽 {state.feedRations[k as keyof typeof state.feedRations].label}</option>
-                    ))}
+                    {(Object.keys(state.feedRations) as (keyof typeof state.feedRations)[]).map((k) => {
+                      const kg = state.loft?.food[k] ?? 0;
+                      return (
+                        <option key={k} value={k}>
+                          {kg <= 0 ? '⚠️' : '🍽'} {state.feedRations[k].label} ({Math.round(kg)} kg)
+                        </option>
+                      );
+                    })}
                   </select>
                 )}
                 <button
@@ -256,6 +261,11 @@ export function PigeonPage() {
                   🧱 {p.compartment ? 'Apart hok' : 'Samen'}
                 </button>
               </div>
+              {state?.feedRations && (state.loft?.food[p.ration] ?? 0) <= 0 && (
+                <p className="faint" style={{ color: 'var(--bad)', fontSize: '0.82rem', margin: '6px 0 0' }}>
+                  ⚠️ Je hebt geen voorraad {state.feedRations[p.ration].label.toLowerCase()} meer. Koop bij op het dashboard, anders krijgt deze duif niets.
+                </p>
+              )}
 
               <hr className="sep" />
 

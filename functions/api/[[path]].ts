@@ -16,6 +16,7 @@ import type { User } from '../../core/schema.js';
 import { hashPassword, verifyPassword, signToken, verifyToken } from '../../core/auth.js';
 import { newId } from '../../core/store.js';
 import {
+  BETTING,
   BREEDING,
   COACH,
   FEED_RATIONS,
@@ -36,6 +37,7 @@ import {
   createLoftForUser,
   chooseEvent,
   enterFlight,
+  giveUpFlight,
   listForSale,
   refuseSponsor,
   renameLoft,
@@ -262,6 +264,9 @@ app.get('/state', (c) => {
       weeklyUpkeepPerPigeon: WEEKLY_UPKEEP_PER_PIGEON,
       trainCost: TRAINING.cost,
       breedCost: BREEDING.cost,
+      betMinStake: BETTING.minStake,
+      betMaxStake: BETTING.maxStake,
+      betWindowHours: BETTING.windowHours,
     },
     missions: loft?.missions ?? [],
     streak: loft?.streak ?? 0,
@@ -660,6 +665,15 @@ app.post('/flights/:id/withdraw', async (c) => {
   const body = await c.req.json().catch(() => ({}));
   const store = c.get('store');
   const err = withdrawFlight(store, user.id, c.req.param('id'), String(body.pigeonId ?? ''));
+  await store.persist();
+  return err ? c.json({ error: err }, 400) : c.json({ ok: true });
+});
+
+app.post('/flights/:id/giveup', async (c) => {
+  const user = requireUser(c);
+  const body = await c.req.json().catch(() => ({}));
+  const store = c.get('store');
+  const err = giveUpFlight(store, user.id, c.req.param('id'), String(body.pigeonId ?? ''));
   await store.persist();
   return err ? c.json({ error: err }, 400) : c.json({ ok: true });
 });

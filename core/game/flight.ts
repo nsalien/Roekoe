@@ -11,6 +11,7 @@ import {
   COMMENTARY,
   COMMENTARY_INTERVAL_SECONDS,
   DISTANCE_WEIGHTING,
+  FLIGHT_CUTOFF_MINUTES,
   FLIGHT_RISK,
   HEALTH,
   IMPROVE,
@@ -147,9 +148,18 @@ export function startLiveFlight(flight: Flight, entries: Entry[], week: number, 
   flight.status = 'live';
 }
 
-/** Longest bird duration = when the flight is fully over (seconds). */
+/**
+ * When the flight is over (seconds). A race ends once the first bird is home
+ * plus a cutoff window — anyone not home by then is eliminated — or when the
+ * slowest still-flying bird arrives, whichever comes first. Birds pulled by
+ * their owner (gaveUp) don't count toward the timing.
+ */
 export function flightTotalSeconds(flight: Flight): number {
-  return flight.sim.reduce((m, s) => Math.max(m, s.durationSeconds), 1);
+  const durations = flight.sim.filter((s) => !s.gaveUp).map((s) => s.durationSeconds);
+  if (durations.length === 0) return 1;
+  const first = Math.min(...durations);
+  const slowest = Math.max(...durations);
+  return Math.max(1, Math.min(slowest, first + FLIGHT_CUTOFF_MINUTES * 60));
 }
 
 /** Pick which attribute a bird gets a chance to grow in, weighted by distance. */
@@ -176,10 +186,15 @@ export function finalizeFlight(flight: Flight, pigeons: Pigeon[]): SimulatedFlig
   const w = weightsForDistance(flight.distanceKm);
   const injuryChance = HEALTH.flightInjuryBase + flight.distanceKm * HEALTH.flightInjuryPerKm;
 
-  // Decide who makes it home. A bird entered with very low energie may not
-  // finish; the exhausted ones are ranked below everyone who did come home.
-  const dnf = new Set<string>();
+  // Decide who makes it home. Three ways to NOT finish: pulled by the owner
+  // (gaveUp), timed out past the cutoff, or exhausted (very low energie).
+  const total = flightTotalSeconds(flight);
+  const exhausted = new Set<string>();
+  const timedOut = new Set<string>();
+  const gaveUpSet = new Set<string>();
   for (const s of flight.sim) {
+    if (s.gaveUp) { gaveUpSet.add(s.pigeonId); continue; }
+    if (s.durationSeconds > total + 0.5) { timedOut.add(s.pigeonId); continue; }
     const pigeon = pigeons.find((p) => p.id === s.pigeonId);
     const form = pigeon ? pigeon.form : 50;
     const dnfChance = clamp(
@@ -187,15 +202,17 @@ export function finalizeFlight(flight: Flight, pigeons: Pigeon[]): SimulatedFlig
       0,
       FLIGHT_RISK.dnfMaxChance,
     );
-    if (pigeon && Math.random() < dnfChance) dnf.add(s.pigeonId);
+    if (pigeon && Math.random() < dnfChance) exhausted.add(s.pigeonId);
   }
-  const finishers = flight.sim.filter((s) => !dnf.has(s.pigeonId)).sort((a, b) => a.durationSeconds - b.durationSeconds);
-  const nonFinishers = flight.sim.filter((s) => dnf.has(s.pigeonId));
+  const isDnfId = (id: string) => exhausted.has(id) || timedOut.has(id) || gaveUpSet.has(id);
+  const finishers = flight.sim.filter((s) => !isDnfId(s.pigeonId)).sort((a, b) => a.durationSeconds - b.durationSeconds);
+  const nonFinishers = flight.sim.filter((s) => isDnfId(s.pigeonId));
   const ordered = [...finishers, ...nonFinishers];
   const n = finishers.length;
 
   ordered.forEach((s, i) => {
-    const isDnf = dnf.has(s.pigeonId);
+    const isDnf = isDnfId(s.pigeonId);
+    const gaveUp = gaveUpSet.has(s.pigeonId);
     const rank = i + 1;
     const points = isDnf ? 0 : RANKING_POINTS[i] ?? 0;
     const prize = isDnf ? 0 : prizes[i] ?? 0;
@@ -217,10 +234,14 @@ export function finalizeFlight(flight: Flight, pigeons: Pigeon[]): SimulatedFlig
     if (rank === 1 && !isDnf) acc.wins += 1;
     payoutMap.set(s.ownerId, acc);
 
-    // Fatigue: racing drains energie; a bird that didn't make it home is wrecked.
-    const formDelta = -round1(8 + flight.distanceKm / 40 + randFloat(0, 6) + (isDnf ? 12 : 0));
+    // Fatigue: racing drains energie. A pulled bird saved its legs (small
+    // drain); a bird that flew itself into the ground (timeout/exhausted) is
+    // wrecked.
+    const formDelta = gaveUp
+      ? -round1(3 + flight.distanceKm / 120 + randFloat(0, 2))
+      : -round1(8 + flight.distanceKm / 40 + randFloat(0, 6) + (isDnf ? 12 : 0));
     const enduranceDelta = isDnf ? 0 : round1(0.3 + flight.distanceKm / 500 + randFloat(0, 0.4));
-    const healthDelta = -round1(randFloat(0, flight.distanceKm / 200) + (isDnf ? randFloat(4, 9) : 0));
+    const healthDelta = gaveUp ? 0 : -round1(randFloat(0, flight.distanceKm / 200) + (isDnf ? randFloat(4, 9) : 0));
     const experienceDelta = round1((isDnf ? 1 : 2) + flight.distanceKm / 100);
     fatigue.push({ pigeonId: s.pigeonId, formDelta, enduranceDelta, healthDelta, experienceDelta });
 
@@ -242,12 +263,13 @@ export function finalizeFlight(flight: Flight, pigeons: Pigeon[]): SimulatedFlig
       }
 
       // Rough flights leave birds hurt. Low energie ramps up the risk; an
-      // exhausted bird that didn't make it home is very likely injured.
+      // exhausted bird that flew itself to a standstill is very likely injured.
+      // A bird pulled by its owner (gaveUp) is spared the strain — no injury.
       const lowEnergie = pigeon.form < FLIGHT_RISK.lowEnergieInjuryThreshold
         ? ((FLIGHT_RISK.lowEnergieInjuryThreshold - pigeon.form) / FLIGHT_RISK.lowEnergieInjuryThreshold) * FLIGHT_RISK.lowEnergieInjuryBonus
         : 0;
-      let perBirdInjury = injuryChance * (1 + (100 - pigeon.form) / 100) + lowEnergie;
-      if (isDnf) perBirdInjury = Math.max(perBirdInjury, 0.8);
+      let perBirdInjury = gaveUp ? 0 : injuryChance * (1 + (100 - pigeon.form) / 100) + lowEnergie;
+      if (exhausted.has(s.pigeonId)) perBirdInjury = Math.max(perBirdInjury, 0.8);
       if (!pigeon.ailment && Math.random() < clamp(perBirdInjury, 0, 0.95)) {
         injuries.push({
           pigeonId: pigeon.id,
@@ -277,6 +299,7 @@ export interface LiveBird {
   speedKmh: number;
   progress: number; // 0..1
   finished: boolean;
+  gaveUp: boolean; // owner pulled it from the race
   etaSeconds: number; // seconds until this bird is home (0 if finished)
   liveRank: number;
 }
@@ -297,12 +320,13 @@ export function liveSnapshot(flight: Flight, nowMs: number): LiveSnapshot {
   const total = flightTotalSeconds(flight);
 
   const birds: LiveBird[] = flight.sim.map((s) => {
+    const gaveUp = !!s.gaveUp;
     const progress = clamp(elapsed / s.durationSeconds, 0, 1);
-    const finished = elapsed >= s.durationSeconds;
+    const finished = !gaveUp && elapsed >= s.durationSeconds;
     const kmDone = round1(flight.distanceKm * progress);
     // A realistic-looking km/h with a gentle live wobble.
     const wobble = 1 + 0.05 * Math.sin(elapsed / 6 + (hashString(s.pigeonId) % 100) / 15);
-    const speedKmh = finished ? 0 : round1(s.velocity * 0.06 * wobble);
+    const speedKmh = finished || gaveUp ? 0 : round1(s.velocity * 0.06 * wobble);
     return {
       pigeonId: s.pigeonId,
       pigeonName: s.pigeonName,
@@ -314,12 +338,15 @@ export function liveSnapshot(flight: Flight, nowMs: number): LiveSnapshot {
       speedKmh,
       progress,
       finished,
+      gaveUp,
       etaSeconds: finished ? 0 : Math.round(s.durationSeconds - elapsed),
       liveRank: 0,
     };
   });
 
   birds.sort((a, b) => {
+    // Finishers first, then still-flying by progress, pulled birds at the bottom.
+    if (a.gaveUp !== b.gaveUp) return a.gaveUp ? 1 : -1;
     if (a.finished && b.finished) return a.etaSeconds - b.etaSeconds; // both 0; stable
     if (a.finished) return -1;
     if (b.finished) return 1;

@@ -28,6 +28,11 @@ export function DashboardPage() {
   const coachedCount = pigeons.filter((p) => p.coached).length;
   const eco = state.economy;
   const weeklyFixed = eco.weeklyUpkeepBase + pigeons.length * eco.weeklyUpkeepPerPigeon + coachedCount * eco.coachSalary;
+  // How many pigeons eat each food type, and which types are running out.
+  const rationCounts = { normal: 0, premium: 0, libido: 0, herstel: 0 } as Record<FeedRation, number>;
+  for (const p of pigeons) rationCounts[p.ration] = (rationCounts[p.ration] ?? 0) + 1;
+  const weekNeed = (k: FeedRation) => feedRations[k].foodPerPigeon * rationCounts[k];
+  const hungry = (Object.keys(feedRations) as FeedRation[]).filter((k) => rationCounts[k] > 0 && (loft.food[k] ?? 0) < weekNeed(k));
 
   // Ailing birds still in the normal loft (need the player to act).
   const needCare = pigeons.filter((p) => p.ailment && !p.inInfirmary).length;
@@ -159,25 +164,32 @@ export function DashboardPage() {
             {coachedCount > 0 ? ` + ${coachedCount} coach${coachedCount === 1 ? '' : 'es'}` : ''}) — exclusief voer & ziekenboeg.
           </p>
 
-          {/* Per-type stock + effects (informational). */}
+          {hungry.length > 0 && (
+            <p className="notice err" style={{ margin: '0 0 10px' }}>
+              ⚠️ Te weinig voorraad: {hungry.map((k) => `${feedRations[k].label} (${rationCounts[k]} ${rationCounts[k] === 1 ? 'duif' : 'duiven'})`).join(', ')} — koop bij of die duiven blijven onvoerd.
+            </p>
+          )}
+
+          {/* Per-type stock + who eats it + effects. */}
           <div className="ration-cards" style={{ marginBottom: 10 }}>
             {(Object.keys(feedRations) as FeedRation[]).map((key) => {
               const r = feedRations[key];
               const stock = loft.food[key] ?? 0;
+              const low = rationCounts[key] > 0 && stock < weekNeed(key);
               return (
-                <div key={key} className="ration-card">
+                <div key={key} className="ration-card" style={low ? { borderColor: 'var(--bad)' } : undefined}>
                   <div className="row" style={{ justifyContent: 'space-between', gap: 6 }}>
                     <strong>{r.label}</strong>
-                    <span className="faint">{Math.round(stock * 10) / 10} kg</span>
+                    <span className={low ? 'bad' : 'faint'}>{Math.round(stock * 10) / 10} kg{low ? ' ⚠️' : ''}</span>
+                  </div>
+                  <div className="faint" style={{ fontSize: '0.75rem', marginTop: 1 }}>
+                    {rationCounts[key]} {rationCounts[key] === 1 ? 'duif' : 'duiven'} · {r.foodPerPigeon} kg/week · <Money value={r.pricePerKg} />/kg
                   </div>
                   <div className="row" style={{ gap: 5, flexWrap: 'wrap', marginTop: 5 }}>
                     <span className="chip-mini good">⚡ +{r.formRecovery}</span>
                     <span className="chip-mini good">❤️‍🩹 +{r.healthRecovery}</span>
                     {r.enduranceRecovery > 0 && <span className="chip-mini good">💪 +{r.enduranceRecovery}</span>}
                     {r.libidoRecovery > 0 && <span className="chip-mini good">❤️ +{r.libidoRecovery}</span>}
-                  </div>
-                  <div className="faint" style={{ marginTop: 4, fontSize: '0.75rem' }}>
-                    {r.foodPerPigeon} kg/week · <Money value={r.pricePerKg} />/kg
                   </div>
                 </div>
               );

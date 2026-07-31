@@ -70,12 +70,22 @@ export function LoftPage() {
                 disabled={busy}
                 title="Voerschema van deze duif"
                 onChange={(e) => act(() => api(`/pigeons/${p.id}/ration`, { method: 'POST', body: { ration: e.target.value } }))}
-                style={{ flex: 1, minWidth: 90, width: 'auto' }}
+                style={{ flex: 1, minWidth: 90, width: 'auto', ...((state.loft?.food[p.ration] ?? 0) <= 0 ? { borderColor: 'var(--bad)', color: 'var(--bad)' } : {}) }}
               >
-                {(Object.keys(state.feedRations) as FeedRation[]).map((k) => (
-                  <option key={k} value={k}>🍽 {state.feedRations[k].label}</option>
-                ))}
+                {(Object.keys(state.feedRations) as FeedRation[]).map((k) => {
+                  const kg = state.loft?.food[k] ?? 0;
+                  return (
+                    <option key={k} value={k}>
+                      {kg <= 0 ? '⚠️' : '🍽'} {state.feedRations[k].label} ({Math.round(kg)} kg)
+                    </option>
+                  );
+                })}
               </select>
+              {(state.loft?.food[p.ration] ?? 0) <= 0 && (
+                <span className="faint" style={{ color: 'var(--bad)', fontSize: '0.78rem', width: '100%' }}>
+                  ⚠️ Geen voorraad {state.feedRations[p.ration].label.toLowerCase()} — koop bij op het dashboard.
+                </span>
+              )}
               {!p.inInfirmary && (
                 <button
                   className={`btn sm ${p.compartment ? 'accent' : 'ghost'}`}

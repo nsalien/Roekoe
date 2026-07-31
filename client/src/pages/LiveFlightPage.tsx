@@ -5,16 +5,18 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import { api } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
 import { useGame } from '../game/GameContext';
-import { Money, Spinner, countdownTo, formatFlightTime } from '../components/ui';
+import { Money, Spinner, countdownTo, formatFlightTime, useToast } from '../components/ui';
 import type { LiveResponse } from '../types';
 
 export function LiveFlightPage() {
   const { id } = useParams();
   const { user } = useAuth();
   const { refresh } = useGame();
+  const toast = useToast();
   const nav = useNavigate();
   const [data, setData] = useState<LiveResponse | null>(null);
   const [err, setErr] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
   const wasCompleted = useRef(false);
   const feedRef = useRef<HTMLDivElement>(null);
 
@@ -48,6 +50,21 @@ export function LiveFlightPage() {
   useEffect(() => {
     if (feedRef.current) feedRef.current.scrollTop = feedRef.current.scrollHeight;
   }, [data?.commentary.length]);
+
+  async function giveUp(pigeonId: string, name: string) {
+    if (!id) return;
+    if (!window.confirm(`${name} laten opgeven? Ze finisht niet, maar spaart wel energie voor de volgende vlucht.`)) return;
+    setBusy(true);
+    try {
+      await api(`/flights/${id}/giveup`, { method: 'POST', body: { pigeonId } });
+      toast.show(`${name} geeft op en spaart haar energie 🏳️`, 'ok');
+      await load();
+    } catch (e) {
+      toast.show(e instanceof Error ? e.message : 'Mislukt', 'err');
+    } finally {
+      setBusy(false);
+    }
+  }
 
   if (err) {
     return (
@@ -120,29 +137,43 @@ export function LiveFlightPage() {
                 >
                   <div className="row" style={{ justifyContent: 'space-between', fontSize: '0.9rem' }}>
                     <span className="stat-label">
-                      <strong>{b.liveRank}.</strong> {mine ? <strong>{b.pigeonName}</strong> : b.pigeonName}
+                      <strong>{b.gaveUp ? '—' : `${b.liveRank}.`}</strong> {mine ? <strong>{b.pigeonName}</strong> : b.pigeonName}
                       {mine && <span className="badge club" style={{ marginLeft: 6 }}>jij</span>}
                       <span className="faint"> · {b.ownerName}</span>
                     </span>
                     <span className="stat-val">
-                      {b.finished ? '🏁 thuis' : `${b.speedKmh} km/u`}
+                      {b.gaveUp ? '🏳️ opgegeven' : b.finished ? '🏁 thuis' : `${b.speedKmh} km/u`}
                     </span>
                   </div>
-                  <div className="bar" style={{ height: 9 }}>
+                  <div className="bar" style={{ height: 9, opacity: b.gaveUp ? 0.4 : 1 }}>
                     <span
                       style={{
                         width: `${b.progress * 100}%`,
-                        background: b.finished
-                          ? 'var(--good)'
-                          : mine
-                            ? 'linear-gradient(90deg,var(--accent),#fdba74)'
-                            : undefined,
+                        background: b.gaveUp
+                          ? 'var(--muted)'
+                          : b.finished
+                            ? 'var(--good)'
+                            : mine
+                              ? 'linear-gradient(90deg,var(--accent),#fdba74)'
+                              : undefined,
                       }}
                     />
                   </div>
                   <div className="row" style={{ justifyContent: 'space-between' }}>
                     <span className="faint">{b.kmDone} / {b.kmTotal} km</span>
-                    <span className="faint">{b.finished ? 'binnen' : `nog ${b.kmRemaining} km`}</span>
+                    {mine && !b.finished && !b.gaveUp ? (
+                      <button
+                        className="btn ghost sm"
+                        style={{ padding: '0 8px', color: 'var(--bad)' }}
+                        disabled={busy}
+                        title="Ze finisht niet, maar spaart wel energie"
+                        onClick={() => giveUp(b.pigeonId, b.pigeonName)}
+                      >
+                        🏳️ Opgeven
+                      </button>
+                    ) : (
+                      <span className="faint">{b.gaveUp ? 'opgegeven' : b.finished ? 'binnen' : `nog ${b.kmRemaining} km`}</span>
+                    )}
                   </div>
                 </div>
               );
