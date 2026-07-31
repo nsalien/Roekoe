@@ -87,7 +87,7 @@ export function LoftPage() {
                   ⚠️ Geen voorraad {state.feedRations[p.ration].label.toLowerCase()} — koop bij op het dashboard.
                 </span>
               )}
-              {!p.inInfirmary && (
+              {!p.inInfirmary ? (
                 <button
                   className={`btn sm ${p.compartment ? 'accent' : 'ghost'}`}
                   data-tour={idx === 0 ? 'compartment' : undefined}
@@ -97,6 +97,14 @@ export function LoftPage() {
                 >
                   🧱 {p.compartment ? 'Apart' : 'Samen'}
                 </button>
+              ) : (
+                <span
+                  className="badge"
+                  title="Deze duif rust in de ziekenboeg; haar hokplek (apart/samen) geldt zolang niet."
+                  style={{ background: 'var(--brand-soft)', color: 'var(--brand-ink)', alignSelf: 'center' }}
+                >
+                  🏥 Ziekenboeg
+                </span>
               )}
             </div>
             {sellFor === p.id ? (
