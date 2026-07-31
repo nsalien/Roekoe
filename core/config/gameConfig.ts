@@ -15,8 +15,9 @@ export const RACE_AGE_WEEKS = 8;
 /** Loft capacity a new player starts with (max pigeons owned). Upgradeable. */
 export const STARTING_LOFT_CAPACITY = 8;
 
-/** Capacity a bot loft gets (bots don't buy upgrades, so give them headroom). */
-export const BOT_LOFT_CAPACITY = 20;
+/** Capacity a bot loft gets. Same base as players (8): bots don't upgrade, so
+ *  they play by the same standard limit instead of getting extra headroom. */
+export const BOT_LOFT_CAPACITY = 8;
 
 /**
  * Buyable loft-capacity upgrades. Each tier lifts the maximum number of pigeons
@@ -96,9 +97,9 @@ export const FLIGHT_RISK = {
  * before gradual draining existed (no frozen `formCost`).
  */
 export const FLIGHT_FATIGUE = {
-  base: 8,
-  perKmDivisor: 40,
-  jitter: 6,
+  base: 5,
+  perKmDivisor: 60,
+  jitter: 5,
   stepMinutes: 30, // energie is deducted in blocks of this many minutes
   exhaustionPenalty: 12,
   exhaustionJitter: 6,
@@ -144,10 +145,10 @@ export const STARTING_PIGEONS = 6;
  * buy price per kg for that type.
  */
 export const FEED_RATIONS = {
-  normal: { label: 'Normaal', foodPerPigeon: 1.0, pricePerKg: 3, formRecovery: 12, healthRecovery: 5, enduranceRecovery: 0, libidoRecovery: 0 },
-  premium: { label: 'Premium', foodPerPigeon: 1.5, pricePerKg: 6, formRecovery: 16, healthRecovery: 9, enduranceRecovery: 4, libidoRecovery: 0 },
-  libido: { label: 'Libido-mix', foodPerPigeon: 1.4, pricePerKg: 4.5, formRecovery: 10, healthRecovery: 5, enduranceRecovery: 0, libidoRecovery: 14 },
-  herstel: { label: 'Herstel', foodPerPigeon: 1.5, pricePerKg: 3, formRecovery: 24, healthRecovery: 3, enduranceRecovery: 0, libidoRecovery: 0 },
+  normal: { label: 'Normaal', foodPerPigeon: 1.0, pricePerKg: 3, formRecovery: 21, healthRecovery: 5, enduranceRecovery: 0, libidoRecovery: 0 },
+  premium: { label: 'Premium', foodPerPigeon: 1.5, pricePerKg: 6, formRecovery: 28, healthRecovery: 9, enduranceRecovery: 4, libidoRecovery: 0 },
+  libido: { label: 'Libido-mix', foodPerPigeon: 1.4, pricePerKg: 4.5, formRecovery: 18, healthRecovery: 5, enduranceRecovery: 0, libidoRecovery: 14 },
+  herstel: { label: 'Herstel', foodPerPigeon: 1.5, pricePerKg: 3, formRecovery: 42, healthRecovery: 3, enduranceRecovery: 0, libidoRecovery: 0 },
 } as const;
 export type FeedRationKey = keyof typeof FEED_RATIONS;
 
@@ -259,8 +260,9 @@ export const BREEDING = {
   maxYoung: 2,
   /** Random mutation range (+/-) applied to inherited attributes. */
   mutation: 8,
-  /** Parents must have at least this much form to breed. */
-  minParentForm: 40,
+  /** Parents must have at least this much energie to breed. Higher energie (and
+   *  libido) still make a hatch come faster — this is only the floor. */
+  minParentForm: 20,
 } as const;
 
 /** Age curve: performance multiplier by age in weeks. Interpolated. */

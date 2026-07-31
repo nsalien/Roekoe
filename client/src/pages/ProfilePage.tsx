@@ -16,6 +16,15 @@ export function ProfilePage() {
   const [name, setName] = useState('');
   const [editing, setEditing] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [theme, setTheme] = useState<'light' | 'dark'>(
+    typeof document !== 'undefined' && document.documentElement.dataset.theme === 'light' ? 'light' : 'dark',
+  );
+
+  function applyTheme(t: 'light' | 'dark') {
+    setTheme(t);
+    document.documentElement.dataset.theme = t;
+    try { localStorage.setItem('theme', t); } catch { /* storage unavailable */ }
+  }
 
   const load = useCallback(async () => {
     setProfile(await api<PlayerProfile>('/profile'));
@@ -103,8 +112,24 @@ export function ProfilePage() {
         </div>
       </div>
 
+      {/* Appearance / theme */}
+      <div className="card" style={{ marginTop: 16 }}>
+        <div className="row" style={{ justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 }}>
+          <div>
+            <strong>🎨 Weergave</strong>
+            <div className="faint" style={{ fontSize: '0.85rem' }}>
+              Kies je thema. Standaard staat alles op donker; je keuze wordt op dit toestel onthouden.
+            </div>
+          </div>
+          <div className="pill-tabs" role="group" aria-label="Thema">
+            <button className={theme === 'dark' ? 'active' : ''} onClick={() => applyTheme('dark')}>🌙 Donker</button>
+            <button className={theme === 'light' ? 'active' : ''} onClick={() => applyTheme('light')}>☀️ Licht</button>
+          </div>
+        </div>
+      </div>
+
       {/* Stats overview */}
-      <div className="grid cols-3" style={{ marginTop: 4 }}>
+      <div className="grid cols-3" style={{ marginTop: 16 }}>
         <div className="tile">
           <div className="tile-label">Rang</div>
           <div className="tile-value">{myRank ? `#${myRank.rank}` : '—'}</div>
