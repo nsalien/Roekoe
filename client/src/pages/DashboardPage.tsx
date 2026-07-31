@@ -9,6 +9,11 @@ import { Money, Spinner, countdownTo, formatFlightTime, useToast } from '../comp
 import { PigeonCard } from '../components/PigeonCard';
 import type { FeedRation } from '../types';
 
+/** Weekly config figure → per-day, rounded to 1 decimal (feed is applied 1/7 daily). */
+function perDay(weekly: number): number {
+  return Math.round((weekly / 7) * 10) / 10;
+}
+
 export function DashboardPage() {
   const { state, loading, refresh } = useGame();
   const { user } = useAuth();
@@ -183,20 +188,20 @@ export function DashboardPage() {
                     <span className={low ? 'bad' : 'faint'}>{Math.round(stock * 10) / 10} kg{low ? ' ⚠️' : ''}</span>
                   </div>
                   <div className="faint" style={{ fontSize: '0.75rem', marginTop: 1 }}>
-                    {rationCounts[key]} {rationCounts[key] === 1 ? 'duif' : 'duiven'} · {r.foodPerPigeon} kg/week · <Money value={r.pricePerKg} />/kg
+                    {rationCounts[key]} {rationCounts[key] === 1 ? 'duif' : 'duiven'} · {perDay(r.foodPerPigeon)} kg/dag · <Money value={r.pricePerKg} />/kg
                   </div>
                   <div className="row" style={{ gap: 5, flexWrap: 'wrap', marginTop: 5 }}>
-                    <span className="chip-mini good">⚡ +{r.formRecovery}</span>
-                    <span className="chip-mini good">❤️‍🩹 +{r.healthRecovery}</span>
-                    {r.enduranceRecovery > 0 && <span className="chip-mini good">💪 +{r.enduranceRecovery}</span>}
-                    {r.libidoRecovery > 0 && <span className="chip-mini good">❤️ +{r.libidoRecovery}</span>}
+                    <span className="chip-mini good">⚡ +{perDay(r.formRecovery)}</span>
+                    <span className="chip-mini good">❤️‍🩹 +{perDay(r.healthRecovery)}</span>
+                    {r.enduranceRecovery > 0 && <span className="chip-mini good">💪 +{perDay(r.enduranceRecovery)}</span>}
+                    {r.libidoRecovery > 0 && <span className="chip-mini good">❤️ +{perDay(r.libidoRecovery)}</span>}
                   </div>
                 </div>
               );
             })}
           </div>
           <p className="faint" style={{ margin: '0 0 12px', fontSize: '0.8rem' }}>
-            Waarden per duif per week (energie · gezondheid · conditie · libido). Geen voorraad van een type = die duiven blijven onvoerd (−energie & −gezondheid).
+            Waarden per duif per <strong>dag</strong> (energie · gezondheid · conditie · libido). Geen voorraad van een type = die duiven lijden honger (−energie, −gezondheid, −conditie & −libido, oplopend tot de dood).
           </p>
 
           <label>Voer bijkopen</label>

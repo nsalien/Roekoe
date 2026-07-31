@@ -528,6 +528,26 @@ function runDataMigrations(db: Database): void {
     for (const p of db.pigeons) p.ration = 'normal';
     db.world.dataVersion = 13;
   }
+  if ((db.world.dataVersion ?? 0) < 14) {
+    // Bots now play by the same 8-pigeon base as players. Bring every bot loft
+    // down to the base and drop its most recently born birds down to capacity.
+    for (const loft of db.lofts) {
+      if (!loft.isBot) continue;
+      loft.capacity = BOT_LOFT_CAPACITY;
+      const owned = db.pigeons.filter((p) => p.ownerId === loft.userId);
+      if (owned.length <= loft.capacity) continue;
+      const sorted = [...owned].sort(
+        (a, b) => b.birthWeek - a.birthWeek || b.createdAtWeek - a.createdAtWeek || (a.id < b.id ? 1 : -1),
+      );
+      const removeIds = new Set(sorted.slice(0, owned.length - loft.capacity).map((p) => p.id));
+      db.pigeons = db.pigeons.filter((p) => !removeIds.has(p.id));
+      db.breedingPairs = db.breedingPairs.filter((bp) => !removeIds.has(bp.sireId) && !removeIds.has(bp.damId));
+      for (const f of db.flights) {
+        if (f.status !== 'completed') f.entries = f.entries.filter((e) => !removeIds.has(e.pigeonId));
+      }
+    }
+    db.world.dataVersion = 14;
+  }
 }
 
 /**

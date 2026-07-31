@@ -156,24 +156,22 @@ function BottomNav() {
   const overflow = NAV.slice(PRIMARY);
   return (
     <>
+      {/* The overflow row stays open while you navigate; it only collapses when
+          you tap "Minder" (no scrim, no auto-close on a nav tap). */}
       {open && (
-        <>
-          <div className="bottomnav-scrim" onClick={() => setOpen(false)} />
-          <div className="bottomnav-sheet">
-            {overflow.map((n) => (
-              <NavLink
-                key={n.to}
-                to={n.to}
-                end={n.end}
-                className={({ isActive }) => (isActive ? 'active' : '')}
-                onClick={() => setOpen(false)}
-              >
-                <span className="ico">{n.icon}</span>
-                <span>{n.short}</span>
-              </NavLink>
-            ))}
-          </div>
-        </>
+        <div className="bottomnav-sheet">
+          {overflow.map((n) => (
+            <NavLink
+              key={n.to}
+              to={n.to}
+              end={n.end}
+              className={({ isActive }) => (isActive ? 'active' : '')}
+            >
+              <span className="ico">{n.icon}</span>
+              <span>{n.short}</span>
+            </NavLink>
+          ))}
+        </div>
       )}
       <nav className="bottomnav">
         {primary.map((n) => (
@@ -187,10 +185,10 @@ function BottomNav() {
             type="button"
             className={`morebtn ${open ? 'active' : ''}`}
             onClick={() => setOpen((o) => !o)}
-            aria-label="Meer"
+            aria-label={open ? 'Minder' : 'Meer'}
           >
-            <span className="ico">{open ? '×' : '›'}</span>
-            <span>Meer</span>
+            <span className="ico">{open ? '▾' : '›'}</span>
+            <span>{open ? 'Minder' : 'Meer'}</span>
           </button>
         )}
       </nav>

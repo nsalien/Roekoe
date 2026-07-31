@@ -151,10 +151,12 @@ export function seedWorld(store: Store): void {
         sponsorship: emptySponsorState(),
       };
       db.lofts.push(loft);
-      const count = STARTING_PIGEONS + Math.floor(Math.random() * 4);
+      // Bots start with the same headroom as players (max 8) and comparable
+      // birds — no quality edge — so they don't dominate every flight.
+      const count = STARTING_PIGEONS + Math.floor(Math.random() * 3); // 6..8
       for (let j = 0; j < count; j++) {
         db.pigeons.push(
-          generatePigeon({ ownerId: botUser.id, currentWeek: week, quality: randFloat(0.4, 0.75) }),
+          generatePigeon({ ownerId: botUser.id, currentWeek: week, quality: randFloat(0.4, 0.6) }),
         );
       }
     }
@@ -590,7 +592,7 @@ export function startBreeding(
     if (sire.sex !== 'doffer') return 'De eerste ouder moet een doffer zijn';
     if (dam.sex !== 'duivin') return 'De tweede ouder moet een duivin zijn';
     if (sire.form < BREEDING.minParentForm || dam.form < BREEDING.minParentForm)
-      return `Beide ouders hebben minstens ${BREEDING.minParentForm} energie nodig`;
+      return `Beide ouders hebben minstens ${BREEDING.minParentForm} energie nodig (meer energie + libido = sneller een jong)`;
     if (sire.ailment || dam.ailment) return 'Een zieke of gekwetste duif kan niet koppelen';
     if (sire.inInfirmary || dam.inInfirmary) return 'Een duif in de ziekenboeg kan niet koppelen';
     const alreadyBreeding = db.breedingPairs.some(

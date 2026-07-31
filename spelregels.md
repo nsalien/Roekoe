@@ -120,7 +120,7 @@ Per deelnemende duif:
 
 | Effect | Formule | Wanneer |
 |---|---|---|
-| **Energie** (verbruik) | −(8 + afstand/40 + willekeurig 0…6) | **geleidelijk tijdens de vlucht** (zie hieronder) |
+| **Energie** (verbruik) | −(5 + afstand/60 + willekeurig 0…5) | **geleidelijk tijdens de vlucht** (zie hieronder) |
 | **Conditie** (opbouw) | +(0.3 + afstand/500 + willekeurig 0…0.4) | na afloop |
 | **Gezondheid** | −(willekeurig 0 … afstand/200) | na afloop |
 | **Ervaring** | +(2 + afstand/100) | na afloop |
@@ -133,12 +133,12 @@ volledige kost; wie halverwege **opgeeft** (§3.4), heeft alleen betaald voor he
 stuk dat ze al vloog — je kan de energiekost dus niet ontlopen door je duif net
 voor de finish uit de race te halen.
 
-> **Voorbeeld.** Een vlucht van **300 km** kost in totaal ongeveer **18 energie**.
-> Op een rit van ~5 uur gaat er dus zowat **1,8 energie per 30 minuten** af.
+> **Voorbeeld.** Een vlucht van **300 km** kost in totaal ongeveer **12 energie**.
+> Op een rit van ~5 uur gaat er dus zowat **1,2 energie per 30 minuten** af.
 > De duif wint na afloop ~**1 conditie** en ~**5 ervaring**, en er gaat een beetje
-> gezondheid af. Een korte regiovlucht van 60 km kost maar ~10 energie; een
-> internationale van 700 km bijna 30. Vandaar dat je duiven na een zware vlucht
-> enkele dagen moet laten recupereren (zie §4).
+> gezondheid af. Een korte regiovlucht van 60 km kost maar ~6 energie; een
+> internationale van 700 km ~17. Met de nieuwe herstelwaarden (§4) is een duif
+> zo weer inzetbaar na een paar dagen rust — of sneller met Herstelvoer.
 
 ### 3.1 Kans op verbetering van een vaardigheid
 Elke deelnemer maakt kans om te groeien in de vaardigheid die voor die afstand
@@ -228,12 +228,14 @@ haar weekverbruik per dag uit de voorraad van háár type. Is die voorraad op, d
 gaat die duif **honger lijden** (zie §4.1). Op het **Overzicht** koop je
 voorraad per type; er is geen algemene "alles ineens"-knop.
 
-| Type | Voer/duif/week | Prijs/kg | Effect |
+De tabel toont **weekwaarden**; in het spel (Overzicht) zie je ze **per dag** (1/7).
+
+| Type | Voer/duif/week | Prijs/kg | Effect (per week) |
 |---|---|---|---|
-| Normaal | 1.0 kg | €3 | energie +12/wk, gezondheid +5/wk |
-| Premium | 1.5 kg | €6 | energie +16, gezondheid +9, **conditie +4** |
-| Libido-mix | 1.4 kg | €4.5 | energie +10, gezondheid +5, **libido +14** |
-| Herstel | 1.5 kg | €3 | **energie +24**, gezondheid +3 |
+| Normaal | 1.0 kg | €3 | energie +21, gezondheid +5 |
+| Premium | 1.5 kg | €6 | energie +28, gezondheid +9, **conditie +4** |
+| Libido-mix | 1.4 kg | €4.5 | energie +18, gezondheid +5, **libido +14** |
+| Herstel | 1.5 kg | €3 | **energie +42**, gezondheid +3 |
 
 Iedereen start (na de overstap) met **50 kg Normaal**; alle duiven staan standaard
 op Normaal.
@@ -246,8 +248,10 @@ Gezondheid+= (gezondheid_per_week / 7) + Conditie/280       // goede conditie = 
 
 > **Voorbeeld.** Een hok met **6 duiven** op Normaal eet 6 kg/dag, dus je
 > startvoorraad van 50 kg is na ~**8 dagen** op. Een goed gevoerde duif met
-> ervaring 40 wint ongeveer **+2 energie per dag** (≈ +14 per week). Koop dus
-> tijdig bij (€3/kg) — een lege voorraad is gevaarlijk (§4.1).
+> ervaring 40 wint ongeveer **+3,6 energie per dag** op Normaal (≈ +25 per week),
+> en tot **~+7/dag** op Herstelvoer. Zo herstelt een duif na een vlucht binnen
+> een paar dagen weer genoeg om opnieuw mee te doen. Koop wel tijdig bij (€3/kg)
+> — een lege voorraad is gevaarlijk (§4.1).
 
 ### 4.0 Honger & verhongeren (voorraad op)
 
@@ -382,7 +386,7 @@ Bij overlijden krijgt de eigenaar een melding.
 
 ## 7. Kweken (broeden)
 
-**Voorwaarden:** een doffer + een duivin, beide met energie ≥ **40**, geen
+**Voorwaarden:** een doffer + een duivin, beide met energie ≥ **20**, geen
 ziekte/kwetsuur, niet in de ziekenboeg, en **niet ingeschreven voor een vlucht**.
 Kost **€200** en **−15 energie** per ouder.
 
