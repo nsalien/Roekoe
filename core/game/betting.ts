@@ -189,11 +189,17 @@ export function placeBet(
   return newBet;
 }
 
-function notify(db: Database, userId: string, title: string, body: string): void {
-  db.notifications.push({
-    id: newId('ntf'), userId, kind: 'info', title, body,
-    flightId: null, createdAt: new Date().toISOString(), read: false,
-  });
+function notify(db: Database, userId: string, title: string, body: string, id?: string): void {
+  // A stable `id` keeps the notification idempotent when a bet is settled more
+  // than once (two concurrent requests finalizing the same flight).
+  const finalId = id ?? newId('ntf');
+  const existing = db.notifications.find((n) => n.id === finalId);
+  const note = {
+    id: finalId, userId, kind: 'info' as const, title, body,
+    flightId: null, createdAt: new Date().toISOString(), read: existing?.read ?? false,
+  };
+  if (existing) Object.assign(existing, note);
+  else db.notifications.push(note);
 }
 
 /** Settle every open bet on a finished flight from its results. */
@@ -227,14 +233,15 @@ export function settleFlightBets(db: Database, flight: Flight): void {
     b.status = outcome;
     b.settledAt = new Date().toISOString();
     if (loft) {
+      const betNoteId = `ntf:bet:${b.id}`;
       if (outcome === 'won') {
         loft.money += b.potentialWin;
-        notify(db, b.userId, '🎉 Weddenschap gewonnen!', `Je won €${b.potentialWin} (inzet €${b.stake} × ${b.ratio}).`);
+        notify(db, b.userId, '🎉 Weddenschap gewonnen!', `Je won €${b.potentialWin} (inzet €${b.stake} × ${b.ratio}).`, betNoteId);
       } else if (outcome === 'void') {
         loft.money += b.stake;
-        notify(db, b.userId, '↩️ Weddenschap vervallen', `De duif deed niet mee. Je inzet van €${b.stake} is terugbetaald.`);
+        notify(db, b.userId, '↩️ Weddenschap vervallen', `De duif deed niet mee. Je inzet van €${b.stake} is terugbetaald.`, betNoteId);
       } else {
-        notify(db, b.userId, '❌ Weddenschap verloren', `Je verloor je inzet van €${b.stake}.`);
+        notify(db, b.userId, '❌ Weddenschap verloren', `Je verloor je inzet van €${b.stake}.`, betNoteId);
       }
     }
   }
