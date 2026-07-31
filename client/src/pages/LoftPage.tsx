@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useGame } from '../game/GameContext';
 import { api } from '../api/client';
-import { Money, Spinner, useToast } from '../components/ui';
+import { DailyGains, Money, Spinner, useToast } from '../components/ui';
 import { PigeonCard } from '../components/PigeonCard';
 import type { FeedRation, Loft, Pigeon } from '../types';
 
@@ -97,6 +97,8 @@ export function LoftPage() {
                 </button>
               )}
             </div>
+            {/* Planned per-day growth from this pigeon's current voer/apart-hok/coach. */}
+            <DailyGains care={p.dailyCare} />
             {sellFor === p.id ? (
               <div className="row">
                 <input

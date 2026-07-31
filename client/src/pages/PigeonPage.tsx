@@ -42,7 +42,6 @@ export function PigeonPage() {
 
   if (!data) return <Spinner />;
   const { pigeon: p, sire, dam, mine, history } = data;
-  const dc = mine ? p.dailyCare : null;
 
   async function train(attr: 'speed' | 'endurance' | 'orientation') {
     setBusy(true);
@@ -137,23 +136,13 @@ export function PigeonPage() {
           </div>
 
           <hr className="sep" />
-          <StatBar label="Snelheid" value={p.speed} perDay={dc?.deltas.speed} />
-          <StatBar label="Conditie" value={p.endurance} perDay={dc?.deltas.endurance} />
-          <StatBar label="Oriëntatie" value={p.orientation} perDay={dc?.deltas.orientation} />
-          <StatBar label="⚡ Energie" value={p.form} variant="form" perDay={dc?.deltas.form} />
-          <StatBar label="Gezondheid" value={p.health} variant="health" perDay={dc?.deltas.health} />
-          <StatBar label="❤️ Libido" value={p.libido} perDay={dc?.deltas.libido} />
-          <StatBar label="Ervaring" value={p.experience} perDay={dc?.deltas.experience} />
-          {mine && dc && (
-            <p className="faint" style={{ fontSize: '0.8rem', margin: '10px 0 0' }}>
-              ▲/▼ = <strong>gepland per dag</strong> op basis van je huidige keuze
-              {' '}(voer{dc.compartment ? ', apart hok' : ''}{dc.coachActive ? ', coach' : ''}). Pas je voer,
-              apart hok of coach hieronder aan en deze cijfers veranderen mee.
-              {!dc.fed && (
-                <span style={{ color: 'var(--bad)' }}> ⚠️ Geen voorraad van dit voer — daardoor verliest ze energie & gezondheid i.p.v. bij te komen.</span>
-              )}
-            </p>
-          )}
+          <StatBar label="Snelheid" value={p.speed} />
+          <StatBar label="Conditie" value={p.endurance} />
+          <StatBar label="Oriëntatie" value={p.orientation} />
+          <StatBar label="⚡ Energie" value={p.form} variant="form" />
+          <StatBar label="Gezondheid" value={p.health} variant="health" />
+          <StatBar label="❤️ Libido" value={p.libido} />
+          <StatBar label="Ervaring" value={p.experience} />
         </div>
 
         <div>
@@ -221,7 +210,7 @@ export function PigeonPage() {
                 <div>
                   <strong>🎯 Privécoach</strong>
                   <div className="faint" style={{ fontSize: '0.85rem' }}>
-                    Geeft élke dag een <strong>vaste</strong> verbetering in snelheid, conditie én oriëntatie (tot 100) plus ervaring — puur om beter te racen, niet voor libido. Je ziet dat hierboven terug in de "/dag"-cijfers.
+                    Geeft élke dag een <strong>vaste</strong> verbetering in snelheid, conditie én oriëntatie (tot 100) plus ervaring — puur om beter te racen, niet voor libido. De groei per dag zie je in <strong>Mijn hok</strong>.
                     {state?.economy && (
                       <> Kost <Money value={state.economy.coachHireCost} /> + <Money value={state.economy.coachSalary} />/week.</>
                     )}
