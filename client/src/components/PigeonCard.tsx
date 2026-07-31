@@ -23,6 +23,9 @@ export function PigeonCard({
   children?: React.ReactNode;
   showOwner?: boolean;
 }) {
+  // Planned per-day attribute changes from this bird's current care (only set
+  // for your own birds); drives the ▲/▼ hints on the stat bars.
+  const dc = pigeon.dailyCare?.deltas;
   const inner = (
     <div className="row" style={{ alignItems: 'flex-start', flexWrap: 'nowrap', gap: 12 }}>
       <div style={{ flex: '0 0 auto' }}>
@@ -66,15 +69,15 @@ export function PigeonCard({
       )}
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '2px 12px', marginTop: 6 }}>
-        <StatBar label="Snelheid" value={pigeon.speed} />
-        <StatBar label="Conditie" value={pigeon.endurance} />
-        <StatBar label="Oriëntatie" value={pigeon.orientation} />
+        <StatBar label="Snelheid" value={pigeon.speed} perDay={dc?.speed} />
+        <StatBar label="Conditie" value={pigeon.endurance} perDay={dc?.endurance} />
+        <StatBar label="Oriëntatie" value={pigeon.orientation} perDay={dc?.orientation} />
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2px 12px', marginTop: 2 }}>
-        <StatBar label="Energie" value={pigeon.form} variant="form" />
-        <StatBar label="Gezondh." value={pigeon.health} variant="health" />
-        <StatBar label="Libido" value={pigeon.libido} />
-        <StatBar label="Ervaring" value={pigeon.experience} />
+        <StatBar label="Energie" value={pigeon.form} variant="form" perDay={dc?.form} />
+        <StatBar label="Gezondh." value={pigeon.health} variant="health" perDay={dc?.health} />
+        <StatBar label="Libido" value={pigeon.libido} perDay={dc?.libido} />
+        <StatBar label="Ervaring" value={pigeon.experience} perDay={dc?.experience} />
       </div>
 
       {children && <div style={{ marginTop: 10 }}>{children}</div>}
