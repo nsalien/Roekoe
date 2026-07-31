@@ -460,6 +460,11 @@ kwetsuur, ziekte, herstel, sterfte en geboorte van jongen.
   - **Word je overboden, dan krijg je meteen een melding** met het nieuwe hoogste
     bod en het minimumbedrag om er weer over te gaan — zo kan je op tijd terug
     bieden voordat de veiling sluit.
+  - **Bij het sluiten krijg je altijd een melding** als je meegeboden hebt maar
+    niet wint — inclusief de reden. Belangrijk: had je het hoogste bod, maar zat
+    je **hok vol** of had je op dat moment **het geld niet meer**, dan gaat de
+    duif naar een ander en zeggen we je dat. Zo verdwijnt een duif waarop je bood
+    nooit meer zonder uitleg. Hou dus plaats én genoeg geld vrij tot de veiling sluit.
 - **Opvangcentrum-veiling.** Op willekeurige maar regelmatige momenten (gemiddeld
   ~1 per 9 uur) duikt er een duif uit het opvangcentrum op de markt op. Het is
   geen renduif — de eigenschappen zijn matig — maar met training groeit ze en kan
