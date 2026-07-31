@@ -6,7 +6,6 @@ import { api } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
 import { useGame } from '../game/GameContext';
 import { Money, Spinner, useToast } from '../components/ui';
-import { Tour } from '../components/Tour';
 import type { PlayerProfile } from '../types';
 
 export function ProfilePage() {
@@ -20,7 +19,6 @@ export function ProfilePage() {
   const [theme, setTheme] = useState<'light' | 'dark'>(
     typeof document !== 'undefined' && document.documentElement.dataset.theme === 'light' ? 'light' : 'dark',
   );
-  const [replayTour, setReplayTour] = useState(false);
 
   function applyTheme(t: 'light' | 'dark') {
     setTheme(t);
@@ -115,7 +113,7 @@ export function ProfilePage() {
       </div>
 
       {/* Appearance / theme */}
-      <div className="card" style={{ marginTop: 16 }}>
+      <div className="card" style={{ marginTop: 16 }} data-tour="profile">
         <div className="row" style={{ justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 }}>
           <div>
             <strong>🎨 Weergave</strong>
@@ -136,11 +134,14 @@ export function ProfilePage() {
               De uitleg over het hele spel nog eens doorlopen.
             </div>
           </div>
-          <button className="btn ghost sm" onClick={() => setReplayTour(true)}>Start rondleiding</button>
+          <button
+            className="btn ghost sm"
+            onClick={() => window.dispatchEvent(new Event('roekoe:start-tour'))}
+          >
+            Start rondleiding
+          </button>
         </div>
       </div>
-
-      {replayTour && <Tour onClose={() => setReplayTour(false)} />}
 
       {/* Stats overview */}
       <div className="grid cols-3" style={{ marginTop: 16 }}>

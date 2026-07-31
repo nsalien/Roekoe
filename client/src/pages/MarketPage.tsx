@@ -71,7 +71,7 @@ export function MarketPage() {
 
   return (
     <div>
-      <div className="page-head">
+      <div className="page-head" data-tour="market">
         <div>
           <h1>Duivenmarkt</h1>
           <p className="muted">

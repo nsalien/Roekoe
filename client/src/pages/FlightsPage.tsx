@@ -85,7 +85,7 @@ export function FlightsPage() {
 
   return (
     <div>
-      <div className="page-head">
+      <div className="page-head" data-tour="flights">
         <h1>Vluchten</h1>
         <div className="pill-tabs">
           <button className={tab === 'scheduled' ? 'active' : ''} onClick={() => setTab('scheduled')}>Kalender</button>

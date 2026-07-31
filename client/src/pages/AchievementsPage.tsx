@@ -37,7 +37,7 @@ export function AchievementsPage() {
 
   return (
     <div>
-      <div className="page-head">
+      <div className="page-head" data-tour="prestige">
         <div>
           <h1>Prestaties</h1>
           <p className="muted">{profile.earnedCount} / {profile.totalBadges} badges behaald</p>

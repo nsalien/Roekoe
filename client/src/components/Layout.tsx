@@ -1,7 +1,7 @@
 /** App chrome: sticky top bar with navigation, money purse and admin control. */
 
 import { NavLink, Link, Outlet } from 'react-router-dom';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useAuth } from '../auth/AuthContext';
 import { useGame } from '../game/GameContext';
 import { api } from '../api/client';
@@ -33,12 +33,24 @@ export function Layout() {
   const [advancing, setAdvancing] = useState(false);
 
   // One-time welcome tour, remembered per player (per browser). Closing it —
-  // even early — counts as seen, so it never returns on its own.
+  // even early — counts as seen, so it never returns on its own. The profile
+  // page can restart it via a 'roekoe:start-tour' event (this component stays
+  // mounted while the tour navigates between pages).
   const tourKey = user?.id ? `roekoe.tourSeen.${user.id}` : null;
   const [showTour, setShowTour] = useState(false);
+  const autoStarted = useRef(false);
   useEffect(() => {
-    if (tourKey && state?.loft) setShowTour(!localStorage.getItem(tourKey));
+    if (autoStarted.current) return;
+    if (tourKey && state?.loft && !localStorage.getItem(tourKey)) {
+      autoStarted.current = true;
+      setShowTour(true);
+    }
   }, [tourKey, state?.loft]);
+  useEffect(() => {
+    const start = () => setShowTour(true);
+    window.addEventListener('roekoe:start-tour', start);
+    return () => window.removeEventListener('roekoe:start-tour', start);
+  }, []);
   function closeTour() {
     if (tourKey) { try { localStorage.setItem(tourKey, '1'); } catch { /* private mode */ } }
     setShowTour(false);

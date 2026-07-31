@@ -60,7 +60,7 @@ export function SponsorsPage() {
 
   return (
     <div>
-      <div className="page-head">
+      <div className="page-head" data-tour="sponsors">
         <div>
           <h1>Sponsors</h1>
           <p className="muted">

@@ -17,11 +17,13 @@ export function PigeonCard({
   to,
   children,
   showOwner,
+  tourId,
 }: {
   pigeon: Pigeon;
   to?: string;
   children?: React.ReactNode;
   showOwner?: boolean;
+  tourId?: string;
 }) {
   // Planned per-day attribute changes from this bird's current care (only set
   // for your own birds); drives the ▲/▼ hints on the stat bars.
@@ -59,7 +61,7 @@ export function PigeonCard({
   );
 
   return (
-    <div className="card">
+    <div className="card" data-tour={tourId}>
       {to ? (
         <Link to={to} style={{ color: 'inherit' }}>
           {inner}

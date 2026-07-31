@@ -61,13 +61,14 @@ export function LoftPage() {
       {state.loft && <LoftUpgrades loft={state.loft} busy={busy} act={act} />}
 
       <div className="grid pigeons">
-        {pigeons.map((p) => (
-          <PigeonCard key={p.id} pigeon={p} to={`/duif/${p.id}`}>
+        {pigeons.map((p, idx) => (
+          <PigeonCard key={p.id} pigeon={p} to={`/duif/${p.id}`} tourId={idx === 0 ? 'pigeon' : undefined}>
             {/* Per-pigeon feeding + private compartment */}
             <div className="row" style={{ gap: 6, marginBottom: 6, flexWrap: 'wrap' }}>
               <select
                 value={p.ration}
                 disabled={busy}
+                data-tour={idx === 0 ? 'ration' : undefined}
                 title="Voerschema van deze duif"
                 onChange={(e) => act(() => api(`/pigeons/${p.id}/ration`, { method: 'POST', body: { ration: e.target.value } }))}
                 style={{ flex: 1, minWidth: 90, width: 'auto', ...((state.loft?.food[p.ration] ?? 0) <= 0 ? { borderColor: 'var(--bad)', color: 'var(--bad)' } : {}) }}
@@ -89,6 +90,7 @@ export function LoftPage() {
               {!p.inInfirmary && (
                 <button
                   className={`btn sm ${p.compartment ? 'accent' : 'ghost'}`}
+                  data-tour={idx === 0 ? 'compartment' : undefined}
                   disabled={busy || (!p.compartment && (state.loft?.compartmentsUsed ?? 0) >= (state.loft?.compartments ?? 0))}
                   title={p.compartment ? 'Zit in een apart hok' : 'Zit samen met de anderen'}
                   onClick={() => act(() => api(`/pigeons/${p.id}/compartment`, { method: 'POST', body: { on: !p.compartment } }))}
@@ -144,7 +146,7 @@ function LoftUpgrades({
   act: (fn: () => Promise<unknown>, ok?: string) => void;
 }) {
   return (
-    <div className="card" style={{ marginBottom: 18 }}>
+    <div className="card" style={{ marginBottom: 18 }} data-tour="upgrades">
       <h2 style={{ marginTop: 0 }}>🏗️ Uitbreidingen</h2>
       <div className="grid cols-2">
         {/* Capacity */}

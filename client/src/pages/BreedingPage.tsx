@@ -64,7 +64,7 @@ export function BreedingPage() {
 
   return (
     <div>
-      <div className="page-head">
+      <div className="page-head" data-tour="breed">
         <h1>Kweek</h1>
       </div>
 
