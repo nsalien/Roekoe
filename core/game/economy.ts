@@ -5,6 +5,7 @@ import {
   COMPARTMENT,
   FEED_RATIONS,
   FOOD_ENDURANCE_CAP,
+  REST_BONUS,
   STARVATION,
   WEEKLY_UPKEEP_BASE,
   WEEKLY_UPKEEP_PER_PIGEON,
@@ -91,7 +92,17 @@ export function applyDayOfCare(loft: Loft, pigeons: Pigeon[], livePigeonIds?: Se
       const h = hashString(p.id);
       if (h % 100 < 12) target = Math.max(target, 65 + ((h >> 7) % 25));
       p.libido = round1(clamp(p.libido + (target - p.libido) * 0.04, 0, 100));
+      // Rest bonus: a fed bird resting at home (not racing) builds rest; every
+      // few such days it gets an extra energie boost. Racing resets this (see
+      // applyFlightEffects).
+      if (!livePigeonIds?.has(p.id)) {
+        p.restDays = (p.restDays ?? 0) + 1;
+        if (p.restDays % REST_BONUS.everyDays === 0) {
+          p.form = round1(clamp(p.form + REST_BONUS.energy, 0, 100));
+        }
+      }
     } else {
+      p.restDays = 0; // a hungry day breaks the rest streak
       // Hungry: decline accelerates with each consecutive unfed day.
       p.hungerDays = (p.hungerDays ?? 0) + 1;
       const d = p.hungerDays;
@@ -166,7 +177,11 @@ export function projectDailyCare(loft: Loft, p: Pigeon, live = false): DailyCare
   if (fed) {
     const formMult = 1 + (p.compartment ? COMPARTMENT.formRecoveryBonus : 0);
     const healthMult = 1 + (p.compartment ? COMPARTMENT.healthRecoveryBonus : 0);
-    form = rise(p.form, (ration.formRecovery / 7) * (1 + p.experience / 200) * formMult, 100);
+    let rawForm = (ration.formRecovery / 7) * (1 + p.experience / 200) * formMult;
+    // A rest-bonus day (fed, home) adds an extra energie boost — show it in the
+    // projected ▲ on the day it lands.
+    if (!live && ((p.restDays ?? 0) + 1) % REST_BONUS.everyDays === 0) rawForm += REST_BONUS.energy;
+    form = rise(p.form, rawForm, 100);
     health = rise(p.health, (ration.healthRecovery / 7) * healthMult + p.endurance / 280, 100);
     // Conditie from premium feed (capped at FOOD_ENDURANCE_CAP, never lowering).
     let endAfterFood = p.endurance;

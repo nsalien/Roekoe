@@ -83,6 +83,7 @@ export function generatePigeon(opts: GenerateOptions): Pigeon {
     ration: 'normal',
     compartment: false,
     hungerDays: 0,
+    restDays: 0,
   };
 }
 

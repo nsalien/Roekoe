@@ -246,6 +246,12 @@ Energie   += (energie_per_week / 7) · (1 + Ervaring/200)   // ervaring = snelle
 Gezondheid+= (gezondheid_per_week / 7) + Conditie/280       // goede conditie = betere gezondheid
 ```
 
+**Rustbonus.** Blijft een duif thuis (doet ze geen vlucht) én eet ze elke dag, dan
+bouwt ze rust op: **elke 3e zulke dag** krijgt ze **+4 energie** bovenop het gewone
+voer-herstel. De teller **reset zodra ze een vlucht doet**, en een **hongerdag**
+(geen voorraad) breekt de reeks. Zo loont het om een uitgeruste duif af en toe
+thuis te laten — maar voer blijft nodig.
+
 > **Voorbeeld.** Een hok met **6 duiven** op Normaal eet 6 kg/dag, dus je
 > startvoorraad van 50 kg is na ~**8 dagen** op. Een goed gevoerde duif met
 > ervaring 40 wint ongeveer **+3,6 energie per dag** op Normaal (≈ +25 per week),
