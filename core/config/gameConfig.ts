@@ -170,6 +170,17 @@ export const STARVATION = {
   certainDeathDays: 7, // a bird this long without food does not survive
 } as const;
 
+/**
+ * Rest bonus. A bird that stays home (does no flight) and is fed every day
+ * builds up rest: every `everyDays`-th such day it gets a one-time `energy`
+ * boost on top of its normal feeding recovery. The counter resets to 0 as soon
+ * as the bird races, and an unfed (hungry) day breaks the streak.
+ */
+export const REST_BONUS = {
+  everyDays: 3,
+  energy: 4,
+} as const;
+
 /** Food (kg per type) a new player starts with. */
 export const STARTING_FOOD_STOCK = { normal: 50, premium: 0, libido: 0, herstel: 0 };
 

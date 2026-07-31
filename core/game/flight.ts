@@ -458,6 +458,7 @@ export function applyFlightEffects(
   for (const f of sim.fatigue) {
     const p = pigeons.find((x) => x.id === f.pigeonId);
     if (!p) continue;
+    p.restDays = 0; // raced → the rest-bonus streak restarts
     p.form = round1(clamp(p.form + f.formDelta, 0, 100)); // energie
     p.endurance = round1(clamp(p.endurance + f.enduranceDelta, 0, 100)); // conditie
     p.health = round1(clamp(p.health + f.healthDelta, 0, 100));
