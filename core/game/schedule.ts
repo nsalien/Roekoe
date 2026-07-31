@@ -206,17 +206,19 @@ function pushNotification(
   title: string,
   body: string,
   flightId: string | null,
+  id?: string,
 ): void {
-  db.notifications.push({
-    id: newId('ntf'),
-    userId,
-    kind,
-    title,
-    body,
-    flightId,
-    createdAt: new Date().toISOString(),
-    read: false,
-  });
+  // A stable `id` makes the notification idempotent: if the same event is
+  // processed twice (e.g. two concurrent requests both finalize a flight), the
+  // second write replaces the first instead of creating a duplicate.
+  const finalId = id ?? newId('ntf');
+  const existing = db.notifications.find((n) => n.id === finalId);
+  const note = {
+    id: finalId, userId, kind, title, body, flightId,
+    createdAt: new Date().toISOString(), read: existing?.read ?? false,
+  };
+  if (existing) Object.assign(existing, note);
+  else db.notifications.push(note);
 }
 
 /** Keep each user's inbox to a sane size (newest first). */
@@ -256,7 +258,8 @@ function emitFlightNotifications(db: Database, flight: Flight, sim: SimulatedFli
       ? `${best.pigeonName} raakte niet thuis${many} — te weinig energie. Opbrengst: ${points} punten${money}.`
       : `${best.pigeonName} werd ${ordinal(best.rank)} van ${flight.results.length}${many} ` +
         `(${flight.fromCity} → ${flight.toCity}). Opbrengst: ${points} punten${money}.`;
-    pushNotification(db, ownerId, 'result', title, body, flight.id);
+    // Stable id per (flight, owner): a second finalize replaces, never duplicates.
+    pushNotification(db, ownerId, 'result', title, body, flight.id, `ntf:res:${flight.id}:${ownerId}`);
   }
 
   for (const imp of sim.improvements) {
@@ -269,6 +272,7 @@ function emitFlightNotifications(db: Database, flight: Flight, sim: SimulatedFli
       `📈 ${imp.pigeonName} is verbeterd!`,
       `Door mee te vliegen groeide ${imp.pigeonName} in ${label} (+${imp.gain}). Deelnemen aan vluchten bouwt conditie op!`,
       flight.id,
+      `ntf:imp:${flight.id}:${imp.pigeonId}`,
     );
   }
 
@@ -282,6 +286,7 @@ function emitFlightNotifications(db: Database, flight: Flight, sim: SimulatedFli
       `🤕 ${inj.pigeonName} raakte gekwetst`,
       `Tijdens de vlucht: ${a.name} (${a.severity}). ${a.description} Overweeg de ziekenboeg met een kinesist.`,
       flight.id,
+      `ntf:inj:${flight.id}:${inj.pigeonId}`,
     );
   }
 
@@ -336,6 +341,7 @@ export function tickFlights(db: Database, nowMs: number, weatherByFlight?: Map<s
               pushNotification(
                 db, loft.userId, 'info', '🤝 Sponsorbonus',
                 `Je sponsors belonen je overwinning met €${bonus}.`, flight.id,
+                `ntf:spon:${flight.id}:${loft.userId}`,
               );
             }
           }

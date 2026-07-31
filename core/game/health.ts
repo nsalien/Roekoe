@@ -22,7 +22,7 @@ import {
 import type { Ailment, Database, Loft, Pigeon } from '../schema.js';
 import { ageMortality } from './pigeon.js';
 import { awardBadge, evaluateBadges } from './badges.js';
-import { clamp, pick, round1 } from './util.js';
+import { clamp, pick, pickWith, round1 } from './util.js';
 
 export interface HealthEvent {
   pigeonId: string;
@@ -37,9 +37,10 @@ function makeAilment(kind: 'ziekte' | 'kwetsuur', t: AilmentTemplate, week: numb
   return { kind, name: t.name, severity: t.severity, description: t.description, sinceWeek: week };
 }
 
-/** A fresh random injury (used by flights) or disease. */
-export function randomInjury(week: number): Ailment {
-  return makeAilment('kwetsuur', pick(INJURIES), week);
+/** A fresh random injury (used by flights) or disease. Pass a seeded `rng` to
+ *  make the choice deterministic (so a re-run picks the same injury). */
+export function randomInjury(week: number, rng?: () => number): Ailment {
+  return makeAilment('kwetsuur', rng ? pickWith(rng, INJURIES) : pick(INJURIES), week);
 }
 export function randomDisease(week: number): Ailment {
   return makeAilment('ziekte', pick(DISEASES), week);

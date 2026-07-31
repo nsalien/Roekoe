@@ -171,9 +171,9 @@ export function flightTotalSeconds(flight: Flight): number {
 }
 
 /** Pick which attribute a bird gets a chance to grow in, weighted by distance. */
-function pickImproveAttr(w: { speed: number; endurance: number; orientation: number }): Improvement['attr'] {
+function pickImproveAttr(w: { speed: number; endurance: number; orientation: number }, rng: () => number): Improvement['attr'] {
   const total = w.speed + w.endurance + w.orientation;
-  let r = Math.random() * total;
+  let r = rng() * total;
   if ((r -= w.speed) < 0) return 'speed';
   if ((r -= w.endurance) < 0) return 'endurance';
   return 'orientation';
@@ -194,6 +194,13 @@ export function finalizeFlight(flight: Flight, pigeons: Pigeon[]): SimulatedFlig
   const w = weightsForDistance(flight.distanceKm);
   const injuryChance = HEALTH.flightInjuryBase + flight.distanceKm * HEALTH.flightInjuryPerKm;
 
+  // Seed all randomness on the flight id so finalizing is DETERMINISTIC: if two
+  // concurrent requests both finalize this flight (a race), they produce the
+  // exact same ranks, effects and notifications instead of contradicting each
+  // other (e.g. one says 4th, the other last).
+  const rng = seededRng(hashString(flight.id + ':finalize'));
+  const rf = (a: number, b: number) => a + (b - a) * rng();
+
   // Decide who makes it home. Three ways to NOT finish: pulled by the owner
   // (gaveUp), timed out past the cutoff, or exhausted (very low energie).
   const total = flightTotalSeconds(flight);
@@ -212,7 +219,7 @@ export function finalizeFlight(flight: Flight, pigeons: Pigeon[]): SimulatedFlig
       0,
       FLIGHT_RISK.dnfMaxChance,
     );
-    if (pigeon && Math.random() < dnfChance) exhausted.add(s.pigeonId);
+    if (pigeon && rng() < dnfChance) exhausted.add(s.pigeonId);
   }
   const isDnfId = (id: string) => exhausted.has(id) || timedOut.has(id) || gaveUpSet.has(id);
   const finishers = flight.sim.filter((s) => !isDnfId(s.pigeonId)).sort((a, b) => a.durationSeconds - b.durationSeconds);
@@ -257,17 +264,17 @@ export function finalizeFlight(flight: Flight, pigeons: Pigeon[]): SimulatedFlig
     let formDelta: number;
     if (s.formCost == null) {
       formDelta = gaveUp
-        ? -round1(FLIGHT_FATIGUE.gaveUpBase + flight.distanceKm / FLIGHT_FATIGUE.gaveUpPerKmDivisor + randFloat(0, FLIGHT_FATIGUE.gaveUpJitter))
-        : -round1(FLIGHT_FATIGUE.base + flight.distanceKm / FLIGHT_FATIGUE.perKmDivisor + randFloat(0, FLIGHT_FATIGUE.jitter) + (isDnf ? FLIGHT_FATIGUE.exhaustionPenalty : 0));
+        ? -round1(FLIGHT_FATIGUE.gaveUpBase + flight.distanceKm / FLIGHT_FATIGUE.gaveUpPerKmDivisor + rf(0, FLIGHT_FATIGUE.gaveUpJitter))
+        : -round1(FLIGHT_FATIGUE.base + flight.distanceKm / FLIGHT_FATIGUE.perKmDivisor + rf(0, FLIGHT_FATIGUE.jitter) + (isDnf ? FLIGHT_FATIGUE.exhaustionPenalty : 0));
     } else if (gaveUp) {
       formDelta = 0; // already paid gradually for the distance it flew
     } else {
       const remainder = Math.max(0, s.formCost - drained);
-      const exhaustion = isDnf ? FLIGHT_FATIGUE.exhaustionPenalty + randFloat(0, FLIGHT_FATIGUE.exhaustionJitter) : 0;
+      const exhaustion = isDnf ? FLIGHT_FATIGUE.exhaustionPenalty + rf(0, FLIGHT_FATIGUE.exhaustionJitter) : 0;
       formDelta = -round1(remainder + exhaustion);
     }
-    const enduranceDelta = isDnf ? 0 : round1(0.3 + flight.distanceKm / 500 + randFloat(0, 0.4));
-    const healthDelta = gaveUp ? 0 : -round1(randFloat(0, flight.distanceKm / 200) + (isDnf ? randFloat(4, 9) : 0));
+    const enduranceDelta = isDnf ? 0 : round1(0.3 + flight.distanceKm / 500 + rf(0, 0.4));
+    const healthDelta = gaveUp ? 0 : -round1(rf(0, flight.distanceKm / 200) + (isDnf ? rf(4, 9) : 0));
     const experienceDelta = round1((isDnf ? 1 : 2) + flight.distanceKm / 100);
     fatigue.push({ pigeonId: s.pigeonId, formDelta, enduranceDelta, healthDelta, experienceDelta });
 
@@ -276,12 +283,12 @@ export function finalizeFlight(flight: Flight, pigeons: Pigeon[]): SimulatedFlig
       // Racing builds condition (finishers only): a chance to grow in the
       // attribute that matters most for this distance.
       if (!isDnf) {
-        const attr = pickImproveAttr(w);
+        const attr = pickImproveAttr(w, rng);
         const room = clamp((IMPROVE.cap - pigeon[attr]) / IMPROVE.cap, 0, 1);
         const placeBonus = (n > 1 ? (n - i) / n : 1) * 0.3; // up to +0.3 for the winner
         const chance = clamp(IMPROVE.baseChance * (0.5 + room) + placeBonus, 0, 0.9);
-        if (pigeon[attr] < IMPROVE.cap && Math.random() < chance) {
-          const gain = round1(randFloat(IMPROVE.gainMin, IMPROVE.gainMax) * (0.4 + room));
+        if (pigeon[attr] < IMPROVE.cap && rng() < chance) {
+          const gain = round1(rf(IMPROVE.gainMin, IMPROVE.gainMax) * (0.4 + room));
           if (gain > 0) {
             improvements.push({ pigeonId: pigeon.id, ownerId: pigeon.ownerId, pigeonName: pigeon.name, attr, gain });
           }
@@ -299,12 +306,12 @@ export function finalizeFlight(flight: Flight, pigeons: Pigeon[]): SimulatedFlig
         : 0;
       let perBirdInjury = gaveUp ? 0 : injuryChance * (1 + (100 - startForm) / 100) + lowEnergie;
       if (exhausted.has(s.pigeonId)) perBirdInjury = Math.max(perBirdInjury, 0.8);
-      if (!pigeon.ailment && Math.random() < clamp(perBirdInjury, 0, 0.95)) {
+      if (!pigeon.ailment && rng() < clamp(perBirdInjury, 0, 0.95)) {
         injuries.push({
           pigeonId: pigeon.id,
           ownerId: pigeon.ownerId,
           pigeonName: pigeon.name,
-          ailment: randomInjury(flight.week),
+          ailment: randomInjury(flight.week, rng),
         });
       }
     }
