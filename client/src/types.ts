@@ -124,6 +124,7 @@ export interface Loft {
   physios: number;
   sickCount: number;
   injuredCount: number;
+  restCureAvailableAt: string | null;
 }
 
 export interface EconomyCosts {

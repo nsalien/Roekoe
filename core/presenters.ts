@@ -5,7 +5,7 @@
  */
 
 import type { Database, Flight, Loft, Notification, Pigeon, Trade } from './schema.js';
-import { compartmentCost } from './config/gameConfig.js';
+import { compartmentCost, REST_CURE } from './config/gameConfig.js';
 import { ageInWeeks, canRace, estimateValue, talent } from './game/pigeon.js';
 import { auctionKind } from './game/auction.js';
 import { bettingOpen } from './game/betting.js';
@@ -84,6 +84,14 @@ export function loftDTO(db: Database, loft: Loft) {
     physios: loft.physios,
     sickCount: infirmary.filter((p) => p.ailment?.kind === 'ziekte').length,
     injuredCount: infirmary.filter((p) => p.ailment?.kind === 'kwetsuur').length,
+    // Weekly rest-cure lock: ISO time the next cure becomes available, or null if
+    // one can be started right now (max one cure per loft per week).
+    restCureAvailableAt: (() => {
+      const last = loft.lastRestCure ? Date.parse(loft.lastRestCure) : NaN;
+      if (Number.isNaN(last)) return null;
+      const next = last + REST_CURE.cooldownDays * 86400000;
+      return next > Date.now() ? new Date(next).toISOString() : null;
+    })(),
   };
 }
 

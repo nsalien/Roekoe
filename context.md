@@ -223,7 +223,10 @@ enkel fallback).
   `lightThreshold 20`→licht (kans 0.2), `moderateThreshold 10`→matig (0.3),
   `deathThreshold 5`→sterfte (0.07). Opgegeven duiven zijn gevrijwaard; sterfte gaat
   vóór elke aandoening. Via `randomAilmentOfSeverity(kind, severity, week, rng)`.
-- **Rustkuur (`REST_CURE`):** `cost 300`, `durationHours 24`, `energy 40`.
+- **Rustkuur (`REST_CURE`):** `cost 300`, `durationHours 24`, `energy 40`,
+  `cooldownDays 7` — **max. één kuur per hok per week** (dus één duif/week), bewaakt
+  via `Loft.lastRestCure` (kolom `last_rest_cure TEXT`); `loftDTO.restCureAvailableAt`
+  toont de UI wanneer de volgende weer kan.
 - **Schema (`REAL_SCHEDULE`):** dagelijks 10:00 lange vlucht + **12:00 oefenvlucht**
   (`practice: true`) + 17:00 korte regiovlucht. Tijdzone Europe/Brussels.
 
@@ -372,7 +375,9 @@ Alles hieronder staat **live** op de deploy-branch. Data-migraties liepen door t
   wedstrijdvluchten (niet op oefenvluchten).
 - **Rustkuur** (`REST_CURE` + `startRestCure` + POST `/pigeons/:id/restcure` +
   `tickRestCures`): €300, 1 dag verplicht rusten, daarna +40 energie; kan tijdens de
-  kuur niet vliegen (`enterFlight` blokkeert op `cureUntil`). UI op `PigeonPage`.
+  kuur niet vliegen (`enterFlight` blokkeert op `cureUntil`). **Max. één per hok per
+  week** (`Loft.lastRestCure`, cooldown 7 dagen). UI op `PigeonPage` (knop vergrendeld
+  + datum via `loft.restCureAvailableAt`).
 - **Eenmalige "wat is nieuw"-melding** (`FeatureTour.tsx` + `FEATURE_NEWS`): twee
   gecentreerde infokaarten (oefenvlucht-voordeel + rustkuur) voor álle spelers, aparte
   localStorage-sleutel, na de hoofd-tour. Oefenvlucht-tekst in `FlightsPage` ingekort.

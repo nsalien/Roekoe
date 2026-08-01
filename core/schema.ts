@@ -88,6 +88,7 @@ export interface Loft {
   medicatedFood: boolean; // feed medicated food to infirmary birds (weekly cost)
   doctors: number; // hired pigeon doctors (help disease recovery)
   physios: number; // hired pigeon physiotherapists (help injury recovery)
+  lastRestCure?: string | null; // ISO time the last paid rest cure was started (max one per 7 days)
   // Prestige (badges / level).
   xp: number; // total player experience from badges
   level: number; // derived from xp (cached for the ranking)

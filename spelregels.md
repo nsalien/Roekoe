@@ -352,6 +352,9 @@ haar duifpagina:
 - Kost **€300** en duurt **één dag** (24 u, echte tijd).
 - Tijdens de kuur **rust** de duif verplicht: ze kan **niet inschrijven of vliegen**.
 - Als de kuur voorbij is, krijgt ze in één keer **+40 energie** (met een melding).
+- **Maximaal één rustkuur per week** per hok (dus ook maar **één duif per week**);
+  daarna telt een cooldown van **7 dagen** vóór de volgende kan. Zo blijft energie
+  kopen in balans.
 
 Handig als al je duiven futloos zijn en je snel iemand vluchtklaar wil krijgen
 zonder op de dagelijkse verzorging te wachten. Je kan geen kuur starten voor een

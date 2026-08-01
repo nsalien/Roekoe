@@ -94,6 +94,7 @@ export const FEATURE_NEWS: FeatureStep[] = [
           Een kuur kost <strong>€300</strong> en duurt <strong>één dag</strong>. Tijdens de kuur rust de duif
           verplicht — ze kan dan <strong>niet vliegen</strong> — en daarna krijgt ze er in één keer
           <strong> +40 energie</strong> bij. Handig om snel iemand weer vluchtklaar te krijgen.
+          Let op: <strong>maar één rustkuur per week</strong>, voor <strong>één</strong> duif.
         </div>
       </>
     ),
