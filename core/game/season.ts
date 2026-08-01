@@ -17,6 +17,7 @@ import type { Database, Loft, Pigeon, SeasonAward, WingCategory } from '../schem
 import { awardBadge } from './badges.js';
 import { ownerName } from './engine.js';
 import { seasonScore } from './pigeon.js';
+import { reviewSponsorContracts } from './sponsors.js';
 import { round1 } from './util.js';
 
 const DAY_MS = 86400000;
@@ -169,7 +170,11 @@ export function runSeasonEnd(db: Database, endedSeason: number, atMs: number): v
     );
   }
 
-  // 4. Reset all season standings and re-baseline pigeon development.
+  // 4. Sponsors review the just-ended season (before the points reset): a
+  //    sponsor may end its contract if the loft underperformed vs last season.
+  for (const loft of db.lofts) reviewSponsorContracts(db, loft, endedSeason, atMs);
+
+  // 5. Reset all season standings and re-baseline pigeon development.
   for (const loft of db.lofts) loft.seasonPoints = 0;
   for (const p of db.pigeons) {
     p.seasonPeakSpeed = 0;

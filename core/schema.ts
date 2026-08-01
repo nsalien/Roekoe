@@ -148,6 +148,10 @@ export interface ActiveSponsorship {
   since: string; // ISO timestamp the contract was signed
   weeklyStipend: number;
   winBonus: number;
+  // Season-review baseline: the loft's season points at the previous season
+  // rollover while this contract was active. The sponsor compares each new
+  // season to it and may walk away if performance drops (see season review).
+  refPoints?: number;
 }
 
 /** A refused or cancelled sponsor, eligible to re-offer later. */
