@@ -461,7 +461,20 @@ export function liveSnapshot(flight: Flight, nowMs: number): LiveSnapshot {
   const elapsed = Math.max(0, (nowMs - startMs) / 1000);
   const total = flightTotalSeconds(flight);
 
-  const birds: LiveBird[] = flight.sim.map((s) => {
+  // Rank every bird by its (frozen) finish time — pulled birds (gaveUp) last.
+  // A bird that has crossed the line always has durationSeconds <= elapsed, while
+  // a still-flying bird has durationSeconds > elapsed, so finishers automatically
+  // sit ahead of flyers. This order is stable for the whole race AND matches the
+  // final result order, so a bird no longer jumps to the back the moment others
+  // start arriving.
+  const ordered = [...flight.sim].sort((a, b) => {
+    const ag = a.gaveUp ? 1 : 0;
+    const bg = b.gaveUp ? 1 : 0;
+    if (ag !== bg) return ag - bg;
+    return a.durationSeconds - b.durationSeconds;
+  });
+
+  const birds: LiveBird[] = ordered.map((s) => {
     const gaveUp = !!s.gaveUp;
     const progress = clamp(elapsed / s.durationSeconds, 0, 1);
     const finished = !gaveUp && elapsed >= s.durationSeconds;
@@ -486,14 +499,6 @@ export function liveSnapshot(flight: Flight, nowMs: number): LiveSnapshot {
     };
   });
 
-  birds.sort((a, b) => {
-    // Finishers first, then still-flying by progress, pulled birds at the bottom.
-    if (a.gaveUp !== b.gaveUp) return a.gaveUp ? 1 : -1;
-    if (a.finished && b.finished) return a.etaSeconds - b.etaSeconds; // both 0; stable
-    if (a.finished) return -1;
-    if (b.finished) return 1;
-    return b.progress - a.progress;
-  });
   birds.forEach((b, i) => (b.liveRank = i + 1));
 
   return {

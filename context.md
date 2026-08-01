@@ -90,7 +90,10 @@ volgorde:
 Bij de start wordt de sim **bevroren**: per duif een `velocity`, `durationSeconds`,
 plus (nieuw) `startForm`, `formCost`, `formDrained` in `Flight.sim` (`SimEntry[]`).
 Live posities worden puur uit die frozen sim + de huidige tijd berekend
-(`liveSnapshot`). Energie wordt **geleidelijk** afgetrokken tijdens de vlucht
+(`liveSnapshot`). **Live-rangschikking = op bevroren finishtijd (`durationSeconds`),
+opgegeven duiven achteraan.** Zo staan aangekomen duiven vanzelf vóór nog-vliegende
+(hun duur ≤ verstreken tijd) en blijft de stand stabiel én gelijk aan de einduitslag —
+geen "springen naar laatste plaats" meer zodra er duiven binnenkomen. Energie wordt **geleidelijk** afgetrokken tijdens de vlucht
 (`tickFlightEnergy`, stappen van 30 min, evenredig met afstand), niet in één klap
 achteraf — zo levert opgeven vlak voor de finish geen gratis energie op.
 
