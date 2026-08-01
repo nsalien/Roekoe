@@ -17,6 +17,7 @@ import {
   INFIRMARY,
   INFIRMARY_CAPACITY_TIERS,
   LOFT_CAPACITY_TIERS,
+  REST_CURE,
   RENAME_COST,
   RENAME_LOFT_COST,
   STARTING_FOOD_STOCK,
@@ -382,6 +383,30 @@ export function setPigeonCompartment(store: Store, userId: string, pigeonId: str
   });
 }
 
+/**
+ * Start a paid rest cure (rustkuur) for one pigeon. It rests for a day (can't
+ * race during the cure) and then gets a big energie boost (see tickRestCures).
+ * Returns an error string or null.
+ */
+export function startRestCure(store: Store, userId: string, pigeonId: string): string | null {
+  return store.mutate((db) => {
+    const loft = db.lofts.find((l) => l.userId === userId);
+    const pigeon = db.pigeons.find((p) => p.id === pigeonId && p.ownerId === userId);
+    if (!loft || !pigeon) return 'Duif niet gevonden';
+    if (pigeon.cureUntil && Date.parse(pigeon.cureUntil) > Date.now())
+      return 'Deze duif is al op rustkuur';
+    if (pigeon.form >= 100) return 'Deze duif zit al vol energie';
+    const racing = db.flights.some(
+      (f) => f.status !== 'completed' && f.entries.some((e) => e.pigeonId === pigeonId),
+    );
+    if (racing) return 'Deze duif is ingeschreven voor een vlucht — schrijf ze eerst uit';
+    if (loft.money < REST_CURE.cost) return `Niet genoeg geld — een rustkuur kost €${REST_CURE.cost}`;
+    loft.money -= REST_CURE.cost;
+    pigeon.cureUntil = new Date(Date.now() + REST_CURE.durationHours * 3600000).toISOString();
+    return null;
+  });
+}
+
 /** Buy food of a given type for a loft. Returns an error string or null. */
 export function buyFood(store: Store, userId: string, type: string, kg: number): string | null {
   return store.mutate((db) => {
@@ -415,6 +440,8 @@ export function enterFlight(
     if (!canRace(pigeon, db.world.currentWeek))
       return 'Deze duif is niet vluchtklaar (te jong, ziek, gewond of in de ziekenboeg)';
     if (pigeon.form < 1) return 'Deze duif is volledig uitgeput — laat ze eerst wat rusten';
+    if (pigeon.cureUntil && Date.parse(pigeon.cureUntil) > Date.now())
+      return 'Deze duif is op rustkuur — ze kan pas weer vliegen als de kuur voorbij is';
     const breeding = db.breedingPairs.some((bp) => bp.sireId === pigeonId || bp.damId === pigeonId);
     if (breeding) return 'Deze duif koppelt — stop eerst het broeden voordat ze weer kan vliegen';
     if (loft.money < 0) return 'Je kassa staat negatief — verkoop eerst een duif voor je inschrijft';

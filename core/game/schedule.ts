@@ -20,6 +20,7 @@ import {
   FLIGHT_TIERS,
   FOOD_PRICE_PER_KG,
   INFIRMARY,
+  REST_CURE,
   IMPROVE_ATTR_LABEL,
   RACE_CITIES,
   REAL_SCHEDULE,
@@ -111,21 +112,22 @@ export function pickRoute(tier: FlightTier): { fromCity: string; toCity: string;
   return { fromCity: f.a.name, toCity: f.b.name, distanceKm: Math.round(f.d) };
 }
 
-function makeRealtimeFlight(templateKey: string, tier: FlightTier, startMs: number, week: number): Flight {
+function makeRealtimeFlight(templateKey: string, tier: FlightTier, startMs: number, week: number, practice = false): Flight {
   const cfg = FLIGHT_TIERS[tier];
   const route = pickRoute(tier);
   return {
     id: newId('flt'),
     week,
     templateKey,
-    name: cfg.name,
+    name: practice ? 'Oefenvlucht' : cfg.name,
     type: tier,
     distanceKm: route.distanceKm,
-    entryFee: cfg.entryFee,
+    entryFee: practice ? 0 : cfg.entryFee,
     fromCity: route.fromCity,
     toCity: route.toCity,
     startAt: new Date(startMs).toISOString(),
     status: 'scheduled',
+    practice,
     entries: [],
     sim: [],
     weather: '',
@@ -138,6 +140,7 @@ function makeRealtimeFlight(templateKey: string, tier: FlightTier, startMs: numb
 
 /** Each bot enters its 1-2 best rested birds into a freshly-created flight. */
 function botsEnterFlight(db: Database, flight: Flight): void {
+  if (flight.practice) return; // oefenvluchten zijn voor de speler, bots doen niet mee
   const week = db.world.currentWeek;
   const day = flight.startAt.slice(0, 10); // one race per bird per day
   const committed = new Set<string>(
@@ -189,7 +192,7 @@ export function ensureFlightsScheduled(db: Database, nowMs: number): void {
       // Resolve the tier: fixed, or rotate deterministically by the date.
       const tier: FlightTier = slot.tier
         ?? slot.tiers![Math.abs(hashDate(y, m, d)) % slot.tiers!.length];
-      const flight = makeRealtimeFlight(templateKey, tier, startMs, db.world.currentWeek);
+      const flight = makeRealtimeFlight(templateKey, tier, startMs, db.world.currentWeek, !!slot.practice);
       db.flights.push(flight);
       botsEnterFlight(db, flight);
     }
@@ -247,6 +250,14 @@ function emitFlightNotifications(db: Database, flight: Flight, sim: SimulatedFli
     byOwner.set(res.ownerId, arr);
   }
   for (const [ownerId, list] of byOwner) {
+    // Oefenvluchten hebben geen uitslag/prijzen — een korte, rustige melding.
+    if (flight.practice) {
+      const count = list.length;
+      const body = `${count === 1 ? list[0].pigeonName : `Je ${count} duiven`} vloog${count === 1 ? '' : 'en'} de oefenvlucht ` +
+        `(${flight.fromCity} → ${flight.toCity}) uit — een rustige training aan conditie en oriëntatie. Geen punten of prijzengeld, wel ervaring.`;
+      pushNotification(db, ownerId, 'info', `🕊️ Oefenvlucht afgerond`, body, flight.id, `ntf:res:${flight.id}:${ownerId}`);
+      continue;
+    }
     // Rank finishers first so "best" is a bird that actually came home if any did.
     list.sort((a, b) => (a.finished === false ? 1 : 0) - (b.finished === false ? 1 : 0) || a.rank - b.rank);
     const best = list[0];
@@ -262,6 +273,20 @@ function emitFlightNotifications(db: Database, flight: Flight, sim: SimulatedFli
         `(${flight.fromCity} → ${flight.toCity}). Opbrengst: ${points} punten${money}.`;
     // Stable id per (flight, owner): a second finalize replaces, never duplicates.
     pushNotification(db, ownerId, 'result', title, body, flight.id, `ntf:res:${flight.id}:${ownerId}`);
+  }
+
+  // Birds that died on the flight (flew on almost no energie).
+  for (const dead of sim.deaths) {
+    if (!humanIds.has(dead.ownerId)) continue;
+    pushNotification(
+      db,
+      dead.ownerId,
+      'health',
+      `🕯️ ${dead.pigeonName} is de vlucht niet overleefd`,
+      `${dead.pigeonName} ging met veel te weinig energie de lucht in en heeft het onderweg begeven. Laat een duif nooit met een lege tank vertrekken.`,
+      flight.id,
+      `ntf:death:${flight.id}:${dead.pigeonId}`,
+    );
   }
 
   for (const imp of sim.improvements) {
@@ -323,6 +348,16 @@ export function tickFlights(db: Database, nowMs: number, weatherByFlight?: Map<s
         const sim = finalizeFlight(flight, db.pigeons);
         applyFlightEffects(sim, db.pigeons, db.lofts);
         emitFlightNotifications(db, flight, sim);
+        // Remove birds that died on the flight and clean up their references.
+        for (const dead of sim.deaths) {
+          db.pigeons = db.pigeons.filter((p) => p.id !== dead.pigeonId);
+          db.breedingPairs = db.breedingPairs.filter((bp) => bp.sireId !== dead.pigeonId && bp.damId !== dead.pigeonId);
+          for (const f of db.flights) {
+            if (f.status !== 'completed') f.entries = f.entries.filter((e) => e.pigeonId !== dead.pigeonId);
+          }
+        }
+        // Oefenvluchten award no ranking badges, bets or win missions.
+        if (flight.practice) continue;
         awardFlightBadges(db, flight);
         settleFlightBets(db, flight);
         // Daily-mission progress for win/podium.
@@ -690,6 +725,25 @@ export function tickFlightEnergy(db: Database, nowMs: number): void {
   }
 }
 
+/** Finish paid rest cures whose day is up: grant the energie boost + notify. */
+export function tickRestCures(db: Database, nowMs: number): void {
+  const humanIds = new Set(db.lofts.filter((l) => !l.isBot).map((l) => l.userId));
+  for (const p of db.pigeons) {
+    if (!p.cureUntil) continue;
+    const done = Date.parse(p.cureUntil);
+    if (Number.isNaN(done) || nowMs < done) continue;
+    p.cureUntil = null;
+    p.form = round1(clamp(p.form + REST_CURE.energy, 0, 100));
+    if (humanIds.has(p.ownerId)) {
+      pushNotification(
+        db, p.ownerId, 'info', `🛌 ${p.name} is uitgerust`,
+        `De rustkuur zit erop: ${p.name} kreeg er ${REST_CURE.energy} energie bij en is weer inzetbaar.`,
+        null, `ntf:cure:${p.id}:${done}`,
+      );
+    }
+  }
+}
+
 /**
  * Hatch breeding pairs — unpredictably. Each check rolls a random chance based
  * on elapsed time and the parents' current libido + energie, so there is no
@@ -785,5 +839,6 @@ export function advanceRealtime(
   tickBreedingHatch(db, nowMs);
   tickFlightEnergy(db, nowMs);
   tickHealing(db, nowMs);
+  tickRestCures(db, nowMs);
   tickFlights(db, nowMs, weatherByFlight);
 }

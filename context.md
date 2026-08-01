@@ -77,8 +77,10 @@ volgorde:
 5. `tickBreedingHatch(db, nowMs)` — jongen komen uit in echte tijd.
 6. `tickFlightEnergy(db, nowMs)` — trekt vlucht-energie **geleidelijk per 30 min** af.
 7. `tickHealing(db, nowMs)` — **real-time herstel** van ziekte/kwetsuur + 12u-statusupdates.
-8. `tickFlights(db, nowMs, ...)` — laat vluchten `scheduled → live → completed`
-   overgaan (deterministische `finalizeFlight`).
+8. `tickRestCures(db, nowMs)` — laat afgelopen **rustkuren** aflopen (+40 energie, melding).
+9. `tickFlights(db, nowMs, ...)` — laat vluchten `scheduled → live → completed`
+   overgaan (deterministische `finalizeFlight`; **oefenvluchten** via
+   `finalizePracticeFlight`; dode duiven uit `sim.deaths` worden verwijderd).
 
 ### Real-time vluchten (lazy, timestamp-afgeleid)
 Bij de start wordt de sim **bevroren**: per duif een `velocity`, `durationSeconds`,
@@ -165,6 +167,9 @@ Entiteiten: `Pigeon`, `Loft`, `User`, `BreedingPair`, `Flight` (+ `SimEntry`,
 **Recent toegevoegde velden (rijden mee in bestaande kolommen/JSON — geen migratie):**
 - `Pigeon.hungerDays` — opeenvolgende dagen zonder voer (drijft verhongeren).
 - `Pigeon.restDays` — opeenvolgende gevoede rustdagen zonder vlucht (rustbonus).
+- `Pigeon.cureUntil?` — ISO-tijd waarop een betaalde **rustkuur** afloopt (eigen
+  D1-kolom `cure_until TEXT`; duif kan niet vliegen zolang de kuur loopt).
+- `Flight.practice?` — **oefenvlucht** (eigen D1-kolom `practice INTEGER DEFAULT 0`).
 - `SimEntry.gaveUp?` / `startForm?` / `formCost?` / `formDrained?` — voor opgeven
   en de geleidelijke vlucht-energie-afname.
 - `Ailment.healed?` (0..1 herstelvoortgang), `lastTickMs?`, `lastUpdateMs?`,
@@ -176,7 +181,8 @@ van waarheid voor biedingen (wordt in `a.bids` geladen; de oude JSON-kolom is
 enkel fallback).
 
 `FeedRationKey = 'normal' | 'premium' | 'libido' | 'herstel'`.
-`BetKind = 'win' | 'last' | 'own_top3' | 'mine_wins' | 'head2head'`.
+`BetKind = 'win' | 'last' | 'own_top3' | 'top3' | 'mine_wins' | 'head2head'`
+(`top3` = elke duif in top 3, zonder eigenaarscheck).
 
 ---
 
@@ -208,9 +214,18 @@ enkel fallback).
   ernstig 216; ziekenboeg ×2,2, dokter/kinesist ×1,6, medicatievoer ×1,35 (stapelen);
   `updateHours: 12` (statusupdate-cadans).
 - **Weddenschappen (`BETTING`):** window 12u, inzet €10–€5000, houseMargin 0.12,
-  simIterations 1500.
-- **Schema (`REAL_SCHEDULE`):** dagelijks 10:00 lange vlucht + 17:00 korte
-  regiovlucht. Tijdzone Europe/Brussels.
+  simIterations 1500. Wedden op **alle wedstrijdvluchten**; **niet** op oefenvluchten
+  (`bettingOpen` weigert `flight.practice`).
+- **Oefenvlucht (`PRACTICE`):** `energyCost 4`, `improveChance 0.7` /
+  `coachedImproveChance 0.92`, `weights {speed 0.15, endurance 0.45, orientation 0.4}`,
+  `gainMin 0.4`/`gainMax 1.4`, `coachedBonusGain 0.5` (extra op conditie/oriëntatie).
+- **Getrapt wedstrijdrisico bij lage startenergie (`TOURNEY_RISK`):**
+  `lightThreshold 20`→licht (kans 0.2), `moderateThreshold 10`→matig (0.3),
+  `deathThreshold 5`→sterfte (0.07). Opgegeven duiven zijn gevrijwaard; sterfte gaat
+  vóór elke aandoening. Via `randomAilmentOfSeverity(kind, severity, week, rng)`.
+- **Rustkuur (`REST_CURE`):** `cost 300`, `durationHours 24`, `energy 40`.
+- **Schema (`REAL_SCHEDULE`):** dagelijks 10:00 lange vlucht + **12:00 oefenvlucht**
+  (`practice: true`) + 17:00 korte regiovlucht. Tijdzone Europe/Brussels.
 
 ---
 
@@ -224,8 +239,11 @@ enkel fallback).
   (of "🏥 Ziekenboeg"-label als ze daar zit), verkoop, uitbreidingen. De statbalken
   tonen een **▲/▼ per dag** (groei/daling door je huidige keuze; via `pigeon.dailyCare`).
 - `PigeonPage` — één duif: stats, afstamming, historiek; training; coach; voerkeuze;
-  hernoemen. (De per-dag-▲/▼ staan in het hokoverzicht, niet hier.)
-- `FlightsPage` — kalender/uitslagen; inschrijven; weddenschap-paneel (max. 1/vlucht).
+  **rustkuur** (POST `/pigeons/:id/restcure`); hernoemen. (De per-dag-▲/▼ staan in het
+  hokoverzicht, niet hier.)
+- `FlightsPage` — kalender/uitslagen; inschrijven; weddenschap-paneel (max. 1/vlucht,
+  o.a. type **top3**). **Oefenvluchten** krijgen een eigen badge, tonen "gratis" i.p.v.
+  inschrijfgeld en hebben geen weddenschap-paneel.
 - `LiveFlightPage` — live bord; knop **🏳️ Opgeven** (spaart resterende energie).
 - `InfirmaryPage` (Ziekenboeg) — zieke/gekwetste duiven; dokter/kinesist/medicatievoer;
   **herstelbalk per duif** (`ailment.healed`).
@@ -332,6 +350,21 @@ Alles hieronder staat **live** op de deploy-branch. Data-migraties liepen door t
 **Badges & dagopdrachten**
 - Nieuwe stats `bets`/`betsWon`/`broods`; badges (De Gokker, Fortuin, Geluksvogel,
   Koppelaar, Eigen Stek, Fijnproever); missies (weddenschap, kweekkoppel, apart hok).
+
+**Laag-energie-gameplay (nieuwste)**
+- **Oefenvluchten** (`PRACTICE`, slot `noon-practice` 12:00): gratis, ~4 energie, geen
+  punten/prijzen/DNF/blessure; bouwt conditie/oriëntatie op (privécoach = grotere kans
+  + bonus). Bots doen niet mee. Aparte `finalizePracticeFlight` in `flight.ts`;
+  `botsEnterFlight`/`bettingOpen` slaan practice over; gerichte "oefenvlucht afgerond"-
+  melding (geen uitslag) in `emitFlightNotifications`.
+- **Getrapt wedstrijdrisico** bij lage startenergie (`TOURNEY_RISK`) in `finalizeFlight`:
+  <20 licht, <10 matig, <5 kans op **sterfte**. `SimulatedFlight.deaths` gevuld;
+  `tickFlights` verwijdert dode duiven (breeding/entries opgeruimd) + `🕯️`-melding.
+- **Wedcategorie `top3`** (elke duif top 3) toegevoegd; wedden nu op **alle**
+  wedstrijdvluchten (niet op oefenvluchten).
+- **Rustkuur** (`REST_CURE` + `startRestCure` + POST `/pigeons/:id/restcure` +
+  `tickRestCures`): €300, 1 dag verplicht rusten, daarna +40 energie; kan tijdens de
+  kuur niet vliegen (`enterFlight` blokkeert op `cureUntil`). UI op `PigeonPage`.
 
 ### Openstaande ideeën / balans om op te letten
 - Sterfte is nog **wekelijks** terwijl herstel real-time is (evt. op elkaar afstemmen).

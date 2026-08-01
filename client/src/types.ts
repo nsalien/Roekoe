@@ -7,7 +7,7 @@
 export type Sex = 'doffer' | 'duivin';
 export type FeedRation = 'normal' | 'premium' | 'libido' | 'herstel';
 export type FoodStock = Record<FeedRation, number>;
-export type BetKind = 'win' | 'last' | 'own_top3' | 'mine_wins' | 'head2head';
+export type BetKind = 'win' | 'last' | 'own_top3' | 'top3' | 'mine_wins' | 'head2head';
 export type FlightType = 'regional' | 'national' | 'international';
 export type FlightStatus = 'scheduled' | 'live' | 'completed';
 export type Severity = 'licht' | 'matig' | 'ernstig';
@@ -70,6 +70,8 @@ export interface Pigeon {
   coached: boolean;
   ration: FeedRation;
   compartment: boolean;
+  cureUntil: string | null;
+  onCure: boolean;
   racing: boolean;
   breeding: boolean;
   dailyCare: DailyCareProjection | null;
@@ -136,6 +138,9 @@ export interface EconomyCosts {
   betMinStake: number;
   betMaxStake: number;
   betWindowHours: number;
+  restCureCost: number;
+  restCureEnergy: number;
+  restCureHours: number;
 }
 
 export interface FlightEntrant {
@@ -204,6 +209,7 @@ export interface Flight {
   toCity: string;
   startAt: string;
   status: FlightStatus;
+  practice: boolean;
   weather: string;
   entryCount: number;
   entries: FlightEntry[];

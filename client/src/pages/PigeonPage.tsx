@@ -97,6 +97,10 @@ export function PigeonPage() {
     return run(() => api(`/pigeons/${p.id}/compartment`, { method: 'POST', body: { on } }), on ? 'In apart hok 🧱' : 'Terug bij de rest');
   }
 
+  function startRestCure() {
+    return run(() => api(`/pigeons/${p.id}/restcure`, { method: 'POST' }), 'Rustkuur gestart 🛌');
+  }
+
   function rename() {
     const name = newName.trim();
     if (name.length < 2) return;
@@ -266,6 +270,35 @@ export function PigeonPage() {
                   ⚠️ Je hebt geen voorraad {state.feedRations[p.ration].label.toLowerCase()} meer. Koop bij op het dashboard, anders krijgt deze duif niets.
                 </p>
               )}
+
+              <hr className="sep" />
+
+              {/* Rustkuur */}
+              <div className="row" style={{ justifyContent: 'space-between', gap: 10, alignItems: 'flex-start' }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <strong>🛌 Rustkuur</strong>
+                  <div className="faint" style={{ fontSize: '0.85rem' }}>
+                    {p.onCure
+                      ? <>Deze duif rust en kan niet vliegen tot <strong>{formatFlightTime(p.cureUntil ?? '')}</strong>. Daarna krijgt ze er energie bij.</>
+                      : state?.economy
+                        ? <>Een dag verplicht rusten voor <Money value={state.economy.restCureCost} />: daarna +{state.economy.restCureEnergy} energie. Ze kan tijdens de kuur niet vliegen.</>
+                        : 'Een dag rust die energie oplevert, maar geld kost.'}
+                  </div>
+                </div>
+                {p.onCure ? (
+                  <span className="badge" style={{ background: 'var(--brand-soft)', color: 'var(--brand-ink)', flexShrink: 0 }}>🛌 op rustkuur</span>
+                ) : (
+                  <button
+                    className="btn sm"
+                    style={{ flexShrink: 0 }}
+                    disabled={busy || p.form >= 100 || p.racing}
+                    title={p.form >= 100 ? 'Al vol energie' : p.racing ? 'Schrijf ze eerst uit voor haar vlucht' : 'Start een rustkuur'}
+                    onClick={() => startRestCure()}
+                  >
+                    Start rustkuur
+                  </button>
+                )}
+              </div>
 
               <hr className="sep" />
 

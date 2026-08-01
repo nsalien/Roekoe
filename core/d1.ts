@@ -113,6 +113,7 @@ function rowToPigeon(r: any): Pigeon {
     compartment: !!r.compartment,
     hungerDays: r.hunger_days ?? 0,
     restDays: r.rest_days ?? 0,
+    cureUntil: r.cure_until ?? null,
   };
 }
 function rowToBreeding(r: any): BreedingPair {
@@ -138,6 +139,7 @@ function rowToFlight(r: any): Flight {
     toCity: r.to_city ?? '',
     startAt: r.start_at ?? '',
     status: r.status,
+    practice: !!r.practice,
     entries: JSON.parse(r.entries || '[]'),
     sim: JSON.parse(r.sim || '[]'),
     weather: r.weather,
@@ -346,12 +348,12 @@ export class D1Store implements Store {
     diff(this.snapshots.pigeons, w.pigeons, (p) => p.id, {
       upsert: (p) =>
         db.prepare(
-          'INSERT OR REPLACE INTO pigeons (id, owner_id, name, sex, birth_week, speed, endurance, orientation, libido, form, health, experience, sire_id, dam_id, for_sale, price, created_at_week, retired, ailment, in_infirmary, races, ever_ailed, coached, ration, compartment, hunger_days, rest_days) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+          'INSERT OR REPLACE INTO pigeons (id, owner_id, name, sex, birth_week, speed, endurance, orientation, libido, form, health, experience, sire_id, dam_id, for_sale, price, created_at_week, retired, ailment, in_infirmary, races, ever_ailed, coached, ration, compartment, hunger_days, rest_days, cure_until) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
         ).bind(
           p.id, p.ownerId, p.name, p.sex, p.birthWeek, p.speed, p.endurance, p.orientation, p.libido, p.form, p.health,
           p.experience, p.sireId, p.damId, b(p.forSale), p.price, p.createdAtWeek, 0,
           p.ailment ? JSON.stringify(p.ailment) : '', b(p.inInfirmary), p.races, b(p.everAiled), b(p.coached),
-          p.ration ?? 'normal', b(p.compartment), p.hungerDays ?? 0, p.restDays ?? 0,
+          p.ration ?? 'normal', b(p.compartment), p.hungerDays ?? 0, p.restDays ?? 0, p.cureUntil ?? null,
         ),
       del: (id) => db.prepare('DELETE FROM pigeons WHERE id = ?').bind(id),
       stmts,
@@ -369,12 +371,12 @@ export class D1Store implements Store {
     diff(this.snapshots.flights, w.flights, (f) => f.id, {
       upsert: (f) =>
         db.prepare(
-          'INSERT OR REPLACE INTO flights (id, week, template_key, name, type, distance_km, entry_fee, from_city, to_city, start_at, status, entries, sim, weather, weather_factor, results, recap, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+          'INSERT OR REPLACE INTO flights (id, week, template_key, name, type, distance_km, entry_fee, from_city, to_city, start_at, status, entries, sim, weather, weather_factor, results, recap, created_at, practice) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
         ).bind(
           f.id, f.week, f.templateKey, f.name, f.type, f.distanceKm, f.entryFee,
           f.fromCity, f.toCity, f.startAt, f.status,
           JSON.stringify(f.entries), JSON.stringify(f.sim), f.weather, f.weatherFactor,
-          JSON.stringify(f.results), f.recap, f.createdAt,
+          JSON.stringify(f.results), f.recap, f.createdAt, b(f.practice),
         ),
       del: (id) => db.prepare('DELETE FROM flights WHERE id = ?').bind(id),
       stmts,
@@ -477,6 +479,8 @@ export async function ensureSchema(db: D1Database): Promise<void> {
     'ALTER TABLE pigeons ADD COLUMN compartment INTEGER NOT NULL DEFAULT 0',
     'ALTER TABLE pigeons ADD COLUMN hunger_days INTEGER NOT NULL DEFAULT 0',
     'ALTER TABLE pigeons ADD COLUMN rest_days INTEGER NOT NULL DEFAULT 0',
+    'ALTER TABLE pigeons ADD COLUMN cure_until TEXT',
+    "ALTER TABLE flights ADD COLUMN practice INTEGER NOT NULL DEFAULT 0",
     "ALTER TABLE world ADD COLUMN last_shelter_spawn TEXT NOT NULL DEFAULT ''",
     "ALTER TABLE auctions ADD COLUMN bids TEXT NOT NULL DEFAULT '[]'",
     "ALTER TABLE lofts ADD COLUMN food_stock TEXT NOT NULL DEFAULT ''",

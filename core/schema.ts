@@ -65,6 +65,7 @@ export interface Pigeon {
   compartment: boolean; // housed in its own private compartment (better rest, less disease)
   hungerDays: number; // consecutive days with no food in stock (0 = fed); drives starvation
   restDays: number; // consecutive fed days at home without racing; every 3rd gives an energie bonus
+  cureUntil?: string | null; // ISO time a paid rest cure completes (bird rests, can't race)
 }
 
 /** Everything about a player's operation that is not an individual pigeon. */
@@ -256,6 +257,7 @@ export interface Flight {
   toCity: string; // home base
   startAt: string; // ISO timestamp the flight is released
   status: 'scheduled' | 'live' | 'completed';
+  practice?: boolean; // oefenvlucht: no fee, no prizes/points, gentle training
   entries: FlightEntry[];
   sim: SimEntry[]; // frozen when the flight goes live
   weather: string;
@@ -302,7 +304,7 @@ export interface Auction {
 }
 
 /** The kinds of wager a player can place on a flight. */
-export type BetKind = 'win' | 'last' | 'own_top3' | 'mine_wins' | 'head2head';
+export type BetKind = 'win' | 'last' | 'own_top3' | 'top3' | 'mine_wins' | 'head2head';
 
 /** A wager on a flight outcome. Money is deducted when placed; paid on a win. */
 export interface Bet {

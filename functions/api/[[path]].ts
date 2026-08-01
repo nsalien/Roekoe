@@ -21,6 +21,7 @@ import {
   COACH,
   FEED_RATIONS,
   INFIRMARY,
+  REST_CURE,
   RENAME_COST,
   RENAME_LOFT_COST,
   TRAINING,
@@ -50,6 +51,7 @@ import {
   setPigeonCompartment,
   setPigeonRation,
   startBreeding,
+  startRestCure,
   stopBreeding,
   trainPigeon,
   unlist,
@@ -267,6 +269,9 @@ app.get('/state', (c) => {
       betMinStake: BETTING.minStake,
       betMaxStake: BETTING.maxStake,
       betWindowHours: BETTING.windowHours,
+      restCureCost: REST_CURE.cost,
+      restCureEnergy: REST_CURE.energy,
+      restCureHours: REST_CURE.durationHours,
     },
     missions: loft?.missions ?? [],
     streak: loft?.streak ?? 0,
@@ -396,6 +401,14 @@ app.post('/pigeons/:id/compartment', async (c) => {
   const body = await c.req.json().catch(() => ({}));
   const store = c.get('store');
   const err = setPigeonCompartment(store, user.id, c.req.param('id'), body.on === true);
+  await store.persist();
+  return err ? c.json({ error: err }, 400) : c.json({ ok: true });
+});
+
+app.post('/pigeons/:id/restcure', async (c) => {
+  const user = requireUser(c);
+  const store = c.get('store');
+  const err = startRestCure(store, user.id, c.req.param('id'));
   await store.persist();
   return err ? c.json({ error: err }, 400) : c.json({ ok: true });
 });
