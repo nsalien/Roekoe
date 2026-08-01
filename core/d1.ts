@@ -146,6 +146,7 @@ function rowToFlight(r: any): Flight {
     startAt: r.start_at ?? '',
     status: r.status,
     practice: !!r.practice,
+    titan: !!r.titan,
     entries: JSON.parse(r.entries || '[]'),
     sim: JSON.parse(r.sim || '[]'),
     weather: r.weather,
@@ -383,12 +384,12 @@ export class D1Store implements Store {
     diff(this.snapshots.flights, w.flights, (f) => f.id, {
       upsert: (f) =>
         db.prepare(
-          'INSERT OR REPLACE INTO flights (id, week, template_key, name, type, distance_km, entry_fee, from_city, to_city, start_at, status, entries, sim, weather, weather_factor, results, recap, created_at, practice) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+          'INSERT OR REPLACE INTO flights (id, week, template_key, name, type, distance_km, entry_fee, from_city, to_city, start_at, status, entries, sim, weather, weather_factor, results, recap, created_at, practice, titan) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
         ).bind(
           f.id, f.week, f.templateKey, f.name, f.type, f.distanceKm, f.entryFee,
           f.fromCity, f.toCity, f.startAt, f.status,
           JSON.stringify(f.entries), JSON.stringify(f.sim), f.weather, f.weatherFactor,
-          JSON.stringify(f.results), f.recap, f.createdAt, b(f.practice),
+          JSON.stringify(f.results), f.recap, f.createdAt, b(f.practice), b(f.titan),
         ),
       del: (id) => db.prepare('DELETE FROM flights WHERE id = ?').bind(id),
       stmts,
@@ -502,6 +503,7 @@ export async function ensureSchema(db: D1Database): Promise<void> {
     "ALTER TABLE world ADD COLUMN season_ends_at TEXT NOT NULL DEFAULT ''",
     'ALTER TABLE world ADD COLUMN season_week INTEGER NOT NULL DEFAULT 1',
     "ALTER TABLE flights ADD COLUMN practice INTEGER NOT NULL DEFAULT 0",
+    "ALTER TABLE flights ADD COLUMN titan INTEGER NOT NULL DEFAULT 0",
     "ALTER TABLE world ADD COLUMN last_shelter_spawn TEXT NOT NULL DEFAULT ''",
     "ALTER TABLE auctions ADD COLUMN bids TEXT NOT NULL DEFAULT '[]'",
     "ALTER TABLE lofts ADD COLUMN food_stock TEXT NOT NULL DEFAULT ''",

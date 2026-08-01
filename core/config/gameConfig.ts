@@ -722,8 +722,27 @@ export interface ScheduleSlot {
   hour: number;
   minute: number;
   practice?: boolean; // an oefenvlucht: no fee, no prizes/points, gentle training
+  titan?: boolean; // a titanenwedstrijd: money-only, one bird per loft (see TITAN)
   everyNDays?: number; // only schedule this slot every N calendar days (default: every day)
 }
+
+/**
+ * Titanenwedstrijd — a special weekend race. Each loft may enter only ONE bird.
+ * Medium-to-long distance. It awards prize money to the top 3 but NO ranking
+ * points, and it does not feed the season rankings (it is not one of the three
+ * competition tiers). Birds still train/improve from it as normal. On its day it
+ * REPLACES every other flight, so there is just this one race.
+ */
+export const TITAN = {
+  name: 'Titanenwedstrijd',
+  weekday: 6, // Saturday (0=Sun..6=Sat)
+  hour: 11,
+  minute: 0,
+  minKm: 200, // medium-to-long
+  maxKm: 600,
+  entryFee: 200,
+  prizes: [1000, 800, 600], // 1e / 2e / 3e (money only)
+} as const;
 
 export const REAL_SCHEDULE: ScheduleSlot[] = [
   // Morning: a long-distance race (national or international, rotating per day).
@@ -733,6 +752,8 @@ export const REAL_SCHEDULE: ScheduleSlot[] = [
   { key: 'noon-practice', tier: 'regional', weekday: null, hour: 12, minute: 0, practice: true, everyNDays: 2 },
   // Late afternoon: a short regional race.
   { key: 'evening-short', tier: 'regional', weekday: null, hour: 17, minute: 0 },
+  // Weekend: the TITANENWEDSTRIJD. On its day it replaces every slot above.
+  { key: 'titan', tier: 'international', weekday: TITAN.weekday, hour: TITAN.hour, minute: TITAN.minute, titan: true },
 ];
 
 /**

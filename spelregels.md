@@ -38,6 +38,14 @@ in de ziekenboeg, minstens **8 weken** oud en gezondheid > 15.
 - **10:00 — lange vlucht**: nationaal of internationaal (wisselt per dag).
 - **12:00 — oefenvlucht**: korte training, **om de 2 dagen** (zie §2.7).
 - **17:00 — korte vlucht**: regionaal.
+- **Zaterdag 11:00 — Titanenwedstrijd** (zie §2.8): die dag is er **enkel** deze
+  vlucht — ze **vervangt** alle andere vluchten van die dag.
+
+**Gaat een wedstrijd wel door?** Een **wedstrijdvlucht** (regionaal, nationaal,
+internationaal én de titanenwedstrijd) gaat **enkel door als er minstens 2
+verschillende duivenmelkers** meedoen. Doet er maar één mee, dan wordt de vlucht
+**afgelast** en krijgt iedereen zijn **inschrijfgeld terugbetaald**. Een
+**oefenvlucht** mag wél doorgaan met één deelnemer.
 
 ### 2.2 Niveaus
 | Niveau | Steden | Afstand | Inschrijfgeld |
@@ -135,6 +143,17 @@ groei       = willekeurig(0.4 … 1.4) · (0.4 + ruimte)
 ```
 Zo kan een duif zonder energie voor wedstrijden tóch elke dag beter worden. Een
 **privécoach** (§13) maakt de kans én de winst op conditie/oriëntatie groter.
+
+### 2.8 Titanenwedstrijd (zaterdag)
+Eén keer per week, in het **weekend** (zaterdag 11:00), is er een prestigieuze
+**Titanenwedstrijd**:
+- **Elke duivenmelker mag maar één duif inschrijven.**
+- **Middellange tot lange** afstand (~200–600 km).
+- Er is **inschrijfgeld** (€200) en er valt **enkel geld** te winnen — **geen**
+  rangschikkingspunten, geen medailles, en het telt **niet** mee voor de
+  ranglijsten (§15). Prijzengeld: **1e €1000, 2e €800, 3e €600**.
+- Je duif kan er, zoals bij elke vlucht, **wel op vooruitgaan** (conditie, enz.).
+- Deze wedstrijd **vervangt** die dag alle andere vluchten (er is dus maar één).
 
 ---
 

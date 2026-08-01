@@ -140,9 +140,11 @@ export function FlightsPage() {
                   <div>
                     <div className="row" style={{ gap: 8 }}>
                       <h2 style={{ margin: 0 }}>{f.name}</h2>
-                      {f.practice
-                        ? <span className="badge" style={{ background: 'var(--surface-2)' }}>🌤️ Oefenvlucht</span>
-                        : <span className={`badge ${f.type}`}>{tierLabel(f.type)}</span>}
+                      {f.titan
+                        ? <span className="badge" style={{ background: 'var(--gold-soft)', color: 'var(--gold)' }}>🏆 Titanenwedstrijd</span>
+                        : f.practice
+                          ? <span className="badge" style={{ background: 'var(--surface-2)' }}>🌤️ Oefenvlucht</span>
+                          : <span className={`badge ${f.type}`}>{tierLabel(f.type)}</span>}
                     </div>
                     <div className="faint" style={{ marginTop: 2 }}>
                       🕊️ {f.fromCity} → {f.toCity} · {f.distanceKm} km · {f.practice ? 'gratis' : <>inschrijfgeld <Money value={f.entryFee} /></>}
@@ -177,20 +179,31 @@ export function FlightsPage() {
 
                 <hr className="sep" />
                 <div className="row" style={{ justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
-                  <EnterControl
-                    disabled={busy}
-                    options={available.map((p) => ({ id: p.id, label: `${p.name} (★${p.talent}, energie ${Math.round(p.form)})` }))}
-                    onEnter={(pigeonId) => act(() => api(`/flights/${f.id}/enter`, { method: 'POST', body: { pigeonId } }), 'Ingeschreven!')}
-                  />
+                  {f.titan && myEntries.length >= 1 ? (
+                    <span className="faint">🏆 Je hebt je duif voor de titanenwedstrijd ingeschreven (max. één per hok).</span>
+                  ) : (
+                    <EnterControl
+                      disabled={busy}
+                      options={available.map((p) => ({ id: p.id, label: `${p.name} (★${p.talent}, energie ${Math.round(p.form)})` }))}
+                      onEnter={(pigeonId) => act(() => api(`/flights/${f.id}/enter`, { method: 'POST', body: { pigeonId } }), 'Ingeschreven!')}
+                    />
+                  )}
                   <span className="faint" style={{ flexShrink: 0 }}>{f.entryCount} ingeschreven</span>
                 </div>
 
+                {f.titan && (
+                  <p className="faint" style={{ marginTop: 10, marginBottom: 0 }}>
+                    🏆 De titanenwedstrijd: middellange tot lange afstand, <strong>één duif per hok</strong>. Enkel prijzengeld
+                    (€1000 / €800 / €600 voor de top 3), <strong>geen</strong> rangschikkingspunten. Je duif traint wel bij.
+                    Deze wedstrijd vervangt vandaag alle andere vluchten.
+                  </p>
+                )}
                 {f.practice && (
                   <p className="faint" style={{ marginTop: 10, marginBottom: 0 }}>
                     🌤️ Een korte training: lage energiekost, geen geldkosten, en levert geen punten of prijzen op.
                   </p>
                 )}
-                {!f.practice && (() => {
+                {!f.practice && !f.titan && (() => {
                   const opensAt = Date.parse(f.startAt) - state.economy.betWindowHours * 3600000;
                   if (betFlights.has(f.id)) {
                     return (
