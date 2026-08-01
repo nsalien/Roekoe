@@ -273,32 +273,40 @@ export function PigeonPage() {
 
               <hr className="sep" />
 
-              {/* Rustkuur */}
-              <div className="row" style={{ justifyContent: 'space-between', gap: 10, alignItems: 'flex-start' }}>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <strong>🛌 Rustkuur</strong>
-                  <div className="faint" style={{ fontSize: '0.85rem' }}>
-                    {p.onCure
-                      ? <>Deze duif rust en kan niet vliegen tot <strong>{formatFlightTime(p.cureUntil ?? '')}</strong>. Daarna krijgt ze er energie bij.</>
-                      : state?.economy
-                        ? <>Een dag verplicht rusten voor <Money value={state.economy.restCureCost} />: daarna +{state.economy.restCureEnergy} energie. Ze kan tijdens de kuur niet vliegen.</>
-                        : 'Een dag rust die energie oplevert, maar geld kost.'}
+              {/* Rustkuur — max. één per hok per week */}
+              {(() => {
+                const lockedUntil = !p.onCure ? state?.loft?.restCureAvailableAt ?? null : null;
+                const weeklyLock = !!lockedUntil;
+                return (
+                  <div className="row" style={{ justifyContent: 'space-between', gap: 10, alignItems: 'flex-start' }}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <strong>🛌 Rustkuur</strong>
+                      <div className="faint" style={{ fontSize: '0.85rem' }}>
+                        {p.onCure
+                          ? <>Deze duif rust en kan niet vliegen tot <strong>{formatFlightTime(p.cureUntil ?? '')}</strong>. Daarna krijgt ze er energie bij.</>
+                          : weeklyLock
+                            ? <>Je gebruikte je rustkuur van deze week al. Er kan er <strong>maar één per week</strong> — de volgende vanaf <strong>{formatFlightTime(lockedUntil!)}</strong>.</>
+                            : state?.economy
+                              ? <>Een dag verplicht rusten voor <Money value={state.economy.restCureCost} />: daarna +{state.economy.restCureEnergy} energie. Ze kan tijdens de kuur niet vliegen. <strong>Max. één duif per week.</strong></>
+                              : 'Een dag rust die energie oplevert, maar geld kost. Max. één per week.'}
+                      </div>
+                    </div>
+                    {p.onCure ? (
+                      <span className="badge" style={{ background: 'var(--brand-soft)', color: 'var(--brand-ink)', flexShrink: 0 }}>🛌 op rustkuur</span>
+                    ) : (
+                      <button
+                        className="btn sm"
+                        style={{ flexShrink: 0 }}
+                        disabled={busy || p.form >= 100 || p.racing || weeklyLock}
+                        title={p.form >= 100 ? 'Al vol energie' : p.racing ? 'Schrijf ze eerst uit voor haar vlucht' : weeklyLock ? 'Je rustkuur van deze week is op' : 'Start een rustkuur'}
+                        onClick={() => startRestCure()}
+                      >
+                        Start rustkuur
+                      </button>
+                    )}
                   </div>
-                </div>
-                {p.onCure ? (
-                  <span className="badge" style={{ background: 'var(--brand-soft)', color: 'var(--brand-ink)', flexShrink: 0 }}>🛌 op rustkuur</span>
-                ) : (
-                  <button
-                    className="btn sm"
-                    style={{ flexShrink: 0 }}
-                    disabled={busy || p.form >= 100 || p.racing}
-                    title={p.form >= 100 ? 'Al vol energie' : p.racing ? 'Schrijf ze eerst uit voor haar vlucht' : 'Start een rustkuur'}
-                    onClick={() => startRestCure()}
-                  >
-                    Start rustkuur
-                  </button>
-                )}
-              </div>
+                );
+              })()}
 
               <hr className="sep" />
 

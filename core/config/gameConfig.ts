@@ -738,6 +738,7 @@ export const REST_CURE = {
   cost: 300,
   durationHours: 24,
   energy: 40,
+  cooldownDays: 7, // at most one rest cure per loft per week (so one bird a week)
 } as const;
 
 // ===========================================================================

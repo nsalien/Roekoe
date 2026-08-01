@@ -56,6 +56,7 @@ function rowToLoft(r: any): Loft {
     medicatedFood: !!r.medicated_food,
     doctors: r.doctors ?? 0,
     physios: r.physios ?? 0,
+    lastRestCure: r.last_rest_cure ?? null,
     xp: r.xp ?? 0,
     level: r.level ?? 1,
     stats: r.stats ? { ...emptyStats(), ...JSON.parse(r.stats) } : emptyStats(),
@@ -332,7 +333,7 @@ export class D1Store implements Store {
     diff(this.snapshots.lofts, w.lofts, (l) => l.userId, {
       upsert: (l) =>
         db.prepare(
-          'INSERT OR REPLACE INTO lofts (user_id, name, money, food, food_stock, feed_ration, capacity, compartments, season_points, total_wins, is_bot, infirmary_capacity, medicated_food, doctors, physios, xp, level, stats, badges, missions, missions_day, streak, pending_event, sponsorship) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+          'INSERT OR REPLACE INTO lofts (user_id, name, money, food, food_stock, feed_ration, capacity, compartments, season_points, total_wins, is_bot, infirmary_capacity, medicated_food, doctors, physios, xp, level, stats, badges, missions, missions_day, streak, pending_event, sponsorship, last_rest_cure) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
         ).bind(
           l.userId, l.name, l.money, 0, JSON.stringify(l.food ?? emptyFoodStock()), l.feedRation, l.capacity, l.compartments ?? 0, l.seasonPoints, l.totalWins, b(l.isBot),
           l.infirmaryCapacity, b(l.medicatedFood), l.doctors, l.physios,
@@ -340,6 +341,7 @@ export class D1Store implements Store {
           JSON.stringify(l.missions ?? []), l.missionsDay ?? '', l.streak ?? 0,
           l.pendingEvent ? JSON.stringify(l.pendingEvent) : '',
           JSON.stringify(l.sponsorship ?? emptySponsorState()),
+          l.lastRestCure ?? null,
         ),
       del: (id) => db.prepare('DELETE FROM lofts WHERE user_id = ?').bind(id),
       stmts,
@@ -480,6 +482,7 @@ export async function ensureSchema(db: D1Database): Promise<void> {
     'ALTER TABLE pigeons ADD COLUMN hunger_days INTEGER NOT NULL DEFAULT 0',
     'ALTER TABLE pigeons ADD COLUMN rest_days INTEGER NOT NULL DEFAULT 0',
     'ALTER TABLE pigeons ADD COLUMN cure_until TEXT',
+    'ALTER TABLE lofts ADD COLUMN last_rest_cure TEXT',
     "ALTER TABLE flights ADD COLUMN practice INTEGER NOT NULL DEFAULT 0",
     "ALTER TABLE world ADD COLUMN last_shelter_spawn TEXT NOT NULL DEFAULT ''",
     "ALTER TABLE auctions ADD COLUMN bids TEXT NOT NULL DEFAULT '[]'",
