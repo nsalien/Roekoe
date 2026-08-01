@@ -32,20 +32,20 @@ export function RankingPage() {
       <div className="page-head">
         <div>
           <h1>Ranglijst</h1>
-          <p className="muted">
+          <p className="muted" data-tour="season">
             Seizoen {seasonYear} · week {seasonWeek}/{seasonWeeks}
             {seasonEndsAt && <> · {timeLeft(seasonEndsAt)}</>}
           </p>
         </div>
         <div className="pill-tabs">
           <button className={tab === 'melkers' ? 'active' : ''} onClick={() => setTab('melkers')}>Melkers</button>
-          <button className={tab === 'duiven' ? 'active' : ''} onClick={() => setTab('duiven')}>Duiven</button>
+          <button className={tab === 'duiven' ? 'active' : ''} onClick={() => setTab('duiven')} data-tour="pigeon-ranks">Duiven</button>
         </div>
       </div>
 
       {tab === 'melkers' ? (
         <>
-          <div className="card">
+          <div className="card" data-tour="ranking">
             <div className="table-wrap">
               <table className="data">
                 <thead>

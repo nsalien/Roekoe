@@ -7,8 +7,7 @@ import { useGame } from '../game/GameContext';
 import { api } from '../api/client';
 import { useToast } from './ui';
 import { NotificationsBell } from './NotificationsBell';
-import { Tour } from './Tour';
-import { FeatureTour, FEATURE_NEWS } from './FeatureTour';
+import { Tour, SEASON_NEWS_STEPS } from './Tour';
 
 const NAV = [
   { to: '/', label: 'Overzicht', short: 'Start', icon: '🏠', end: true },
@@ -52,17 +51,21 @@ export function Layout() {
     window.addEventListener('roekoe:start-tour', start);
     return () => window.removeEventListener('roekoe:start-tour', start);
   }, []);
+  // One-time "what's new" announcement — reuses the tour's spotlight mechanism
+  // with just the new steps (seizoen, ranglijst, Roekoes, Vleugels). Separate
+  // key so it also reaches players who already finished the main welcome tour.
+  // Bump the key suffix for a next announcement.
+  const newsKey = user?.id ? `roekoe.newsSeen.season1.${user.id}` : null;
+  const [showNews, setShowNews] = useState(false);
+
   function closeTour() {
     if (tourKey) { try { localStorage.setItem(tourKey, '1'); } catch { /* private mode */ } }
+    // A brand-new player just saw everything in the full tour — don't also pop
+    // the "what's new" run at them afterwards.
+    if (newsKey) { try { localStorage.setItem(newsKey, '1'); } catch { /* private mode */ } }
     setShowTour(false);
   }
 
-  // One-time "what's new" announcement (oefenvluchten + rustkuur). Separate key
-  // so it also reaches players who already finished the main welcome tour. It
-  // waits until the welcome tour is not showing, so a brand-new player sees the
-  // full tour first and then the news. Bump the key suffix for a next announcement.
-  const newsKey = user?.id ? `roekoe.newsSeen.oefenrust.${user.id}` : null;
-  const [showNews, setShowNews] = useState(false);
   useEffect(() => {
     if (newsKey && state?.loft && !showTour && !localStorage.getItem(newsKey)) {
       setShowNews(true);
@@ -153,7 +156,7 @@ export function Layout() {
       <BottomNav />
 
       {showTour && <Tour onClose={closeTour} />}
-      {showNews && !showTour && <FeatureTour steps={FEATURE_NEWS} onClose={closeNews} />}
+      {showNews && !showTour && <Tour steps={SEASON_NEWS_STEPS} onClose={closeNews} />}
       {state?.pendingEvent && !showTour && !showNews && <EventModal />}
     </div>
   );

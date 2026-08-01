@@ -45,7 +45,7 @@ export function AchievementsPage() {
         <div className="pill-tabs">
           <button className={tab === 'badges' ? 'active' : ''} onClick={() => setTab('badges')}>Badges</button>
           <button className={tab === 'trophies' ? 'active' : ''} onClick={() => setTab('trophies')}>Trofeeën</button>
-          <button className={tab === 'season' ? 'active' : ''} onClick={() => setTab('season')}>Seizoensprijzen</button>
+          <button className={tab === 'season' ? 'active' : ''} onClick={() => setTab('season')} data-tour="season-prizes">Seizoensprijzen</button>
         </div>
       </div>
 
