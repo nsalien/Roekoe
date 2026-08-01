@@ -176,9 +176,11 @@ Entiteiten: `Pigeon`, `Loft`, `User`, `BreedingPair`, `Flight` (+ `SimEntry`,
 - `Flight.practice?` — **oefenvlucht** (eigen D1-kolom `practice INTEGER DEFAULT 0`).
 - `Loft.lastRestCure?` — laatste rustkuur (kolom `last_rest_cure`); weeklimiet.
 - `Loft.awards?: SeasonAward[]` — gewonnen Roekoes/Vleugels (kolom `awards` JSON).
-- `Pigeon.seasonPeakSpeed?` / `seasonPodiums?` / `seasonStartScore?` — per-seizoen
-  duivenstats (kolommen `season_peak_speed`/`season_podiums`/`season_start_score`),
-  gereset bij seizoenswissel.
+- `Pigeon.seasonPeakSpeed?` / `seasonPodiums?` / `seasonStartScore?` /
+  `seasonPracticeGain?` — per-seizoen duivenstats (kolommen `season_peak_speed`/
+  `season_podiums`/`season_start_score`/`season_practice_gain`), gereset bij
+  seizoenswissel. `seasonPracticeGain` = groei uit oefenvluchten (afgetrokken van de
+  vooruitgangsranglijst, zodat enkel competitie telt).
 - `World.seasonStartedAt` / `seasonEndsAt` / `seasonWeek` — real-time seizoensklok
   (kolommen `season_started_at`/`season_ends_at`/`season_week`). `seasonYear` = het
   seizoensnummer; `currentWeek` blijft de monotone speelweek (leeftijden/vluchten).
@@ -244,7 +246,13 @@ enkel fallback).
   via `Loft.lastRestCure` (kolom `last_rest_cure TEXT`); `loftDTO.restCureAvailableAt`
   toont de UI wanneer de volgende weer kan.
 - **Schema (`REAL_SCHEDULE`):** dagelijks 10:00 lange vlucht + **12:00 oefenvlucht**
-  (`practice: true`) + 17:00 korte regiovlucht. Tijdzone Europe/Brussels.
+  (`practice: true`, **`everyNDays: 2`** → om de 2 dagen) + 17:00 korte regiovlucht.
+  Tijdzone Europe/Brussels. `ensureFlightsScheduled` slaat `everyNDays`-slots over als
+  `dagnummer % N !== 0` (dagnummer = dagen sinds Unix-epoch).
+- **Ranglijsten tellen enkel wedstrijdvluchten** (regionaal/nationaal/internationaal),
+  níet oefenvluchten. Snelheid/podiums negeren practice al; **vooruitgang** trekt de
+  practice-groei af via `Pigeon.seasonPracticeGain` (kolom `season_practice_gain`),
+  bijgewerkt in `tickFlights` en gereset bij seizoenswissel.
 
 ---
 

@@ -70,7 +70,9 @@ export function pigeonSeasonRankings(db: Database, limit = 10): PigeonRankings {
     .slice(0, limit);
 
   const progress = db.pigeons
-    .map((p) => base(p, round1(seasonScore(p) - (p.seasonStartScore ?? seasonScore(p)))))
+    // Only competition flights count: subtract the development gained from
+    // oefenvluchten (training flights) so they don't inflate the ranking.
+    .map((p) => base(p, round1(seasonScore(p) - (p.seasonStartScore ?? seasonScore(p)) - (p.seasonPracticeGain ?? 0))))
     .filter((r) => r.value > 0)
     .sort((a, b) => b.value - a.value)
     .slice(0, limit);
@@ -173,6 +175,7 @@ export function runSeasonEnd(db: Database, endedSeason: number, atMs: number): v
     p.seasonPeakSpeed = 0;
     p.seasonPodiums = 0;
     p.seasonStartScore = seasonScore(p);
+    p.seasonPracticeGain = 0;
   }
 }
 
@@ -193,6 +196,7 @@ export function tickSeason(db: Database, nowMs: number): void {
       p.seasonStartScore ??= seasonScore(p);
       p.seasonPeakSpeed ??= 0;
       p.seasonPodiums ??= 0;
+      p.seasonPracticeGain ??= 0;
     }
     return;
   }

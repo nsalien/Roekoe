@@ -709,13 +709,15 @@ export interface ScheduleSlot {
   hour: number;
   minute: number;
   practice?: boolean; // an oefenvlucht: no fee, no prizes/points, gentle training
+  everyNDays?: number; // only schedule this slot every N calendar days (default: every day)
 }
 
 export const REAL_SCHEDULE: ScheduleSlot[] = [
   // Morning: a long-distance race (national or international, rotating per day).
   { key: 'morning-long', tiers: ['national', 'international'], weekday: null, hour: 10, minute: 0 },
   // Noon: a short OEFENVLUCHT — free, no ranking, builds conditie/oriëntatie.
-  { key: 'noon-practice', tier: 'regional', weekday: null, hour: 12, minute: 0, practice: true },
+  // Only every other day (not daily).
+  { key: 'noon-practice', tier: 'regional', weekday: null, hour: 12, minute: 0, practice: true, everyNDays: 2 },
   // Late afternoon: a short regional race.
   { key: 'evening-short', tier: 'regional', weekday: null, hour: 17, minute: 0 },
 ];

@@ -182,8 +182,13 @@ export function ensureFlightsScheduled(db: Database, nowMs: number): void {
     const d = dayMid.getUTCDate();
     const weekday = dayMid.getUTCDay(); // 0=Sun..6=Sat
 
+    // Absolute calendar-day index (days since the Unix epoch) for "every N days"
+    // slots — deterministic and independent of the schedule horizon window.
+    const dayNumber = Math.floor(dayMid.getTime() / 86400000);
+
     for (const slot of REAL_SCHEDULE) {
       if (slot.weekday !== null && slot.weekday !== weekday) continue;
+      if (slot.everyNDays && slot.everyNDays > 1 && dayNumber % slot.everyNDays !== 0) continue;
       const startMs = wallToUtcMs(TIMEZONE, y, m, d, slot.hour, slot.minute);
       // Skip flights that are already well past their live window.
       if (startMs < nowMs - 2 * 3600 * 1000) continue;
@@ -357,8 +362,23 @@ export function tickFlights(db: Database, nowMs: number, weatherByFlight?: Map<s
             if (f.status !== 'completed') f.entries = f.entries.filter((e) => e.pigeonId !== dead.pigeonId);
           }
         }
-        // Oefenvluchten award no ranking badges, bets or win missions.
-        if (flight.practice) continue;
+        // Oefenvluchten award no ranking badges, bets or win missions — and must
+        // NOT feed the seasonal rankings. Record the development they added so it
+        // can be subtracted from the "vooruitgang" ranking (only competition
+        // flights count there).
+        if (flight.practice) {
+          for (const f of sim.fatigue) {
+            const p = db.pigeons.find((x) => x.id === f.pigeonId);
+            if (!p) continue;
+            p.seasonPracticeGain = round1((p.seasonPracticeGain ?? 0) + Math.max(0, f.enduranceDelta) + Math.max(0, f.experienceDelta));
+          }
+          for (const imp of sim.improvements) {
+            const p = db.pigeons.find((x) => x.id === imp.pigeonId);
+            if (!p) continue;
+            p.seasonPracticeGain = round1((p.seasonPracticeGain ?? 0) + imp.gain);
+          }
+          continue;
+        }
         // Per-season pigeon stats: peak speed + podium count (finishers only).
         for (const r of flight.results) {
           if (r.finished === false) continue;
