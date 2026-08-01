@@ -211,6 +211,7 @@ export interface Flight {
   startAt: string;
   status: FlightStatus;
   practice: boolean;
+  titan: boolean;
   weather: string;
   entryCount: number;
   entries: FlightEntry[];

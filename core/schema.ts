@@ -289,6 +289,7 @@ export interface Flight {
   startAt: string; // ISO timestamp the flight is released
   status: 'scheduled' | 'live' | 'completed';
   practice?: boolean; // oefenvlucht: no fee, no prizes/points, gentle training
+  titan?: boolean; // titanenwedstrijd: money-only, one bird per loft, no ranking points
   entries: FlightEntry[];
   sim: SimEntry[]; // frozen when the flight goes live
   weather: string;

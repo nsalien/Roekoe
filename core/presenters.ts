@@ -108,6 +108,7 @@ export function flightDTO(db: Database, f: Flight) {
     startAt: f.startAt,
     status: f.status,
     practice: !!f.practice,
+    titan: !!f.titan,
     weather: f.weather,
     entryCount: f.entries.length,
     entries: f.entries,

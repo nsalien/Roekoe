@@ -27,6 +27,7 @@ import {
   SCHEDULE_HORIZON_DAYS,
   STARTING_LOFT_CAPACITY,
   TIMEZONE,
+  TITAN,
   type FlightTier,
   type RaceCity,
 } from '../config/gameConfig.js';
@@ -113,22 +114,46 @@ export function pickRoute(tier: FlightTier): { fromCity: string; toCity: string;
   return { fromCity: f.a.name, toCity: f.b.name, distanceKm: Math.round(f.d) };
 }
 
-function makeRealtimeFlight(templateKey: string, tier: FlightTier, startMs: number, week: number, practice = false): Flight {
+/** Pick a random start + finish with a distance in an arbitrary [minKm, maxKm]. */
+function pickRouteInRange(minKm: number, maxKm: number): { fromCity: string; toCity: string; distanceKm: number } {
+  const pool = RACE_CITIES; // full breadth, like an international route
+  let fallback: { a: RaceCity; b: RaceCity; d: number } | null = null;
+  for (let i = 0; i < 80; i++) {
+    const a = pick(pool);
+    const b = pick(pool);
+    if (a.name === b.name) continue;
+    const d = haversineKm(a, b);
+    if (d >= minKm && d <= maxKm) return { fromCity: a.name, toCity: b.name, distanceKm: Math.round(d) };
+    if (!fallback || Math.abs(d - (minKm + maxKm) / 2) < Math.abs(fallback.d - (minKm + maxKm) / 2)) {
+      fallback = { a, b, d };
+    }
+  }
+  const f = fallback ?? { a: pool[0], b: pool[1], d: haversineKm(pool[0], pool[1]) };
+  return { fromCity: f.a.name, toCity: f.b.name, distanceKm: Math.round(f.d) };
+}
+
+function makeRealtimeFlight(
+  templateKey: string, tier: FlightTier, startMs: number, week: number, practice = false, titan = false,
+): Flight {
   const cfg = FLIGHT_TIERS[tier];
-  const route = pickRoute(tier);
+  // A titanenwedstrijd draws a medium-to-long route of its own and always carries
+  // the same title + entry fee; its tier is derived from the distance for display.
+  const route = titan ? pickRouteInRange(TITAN.minKm, TITAN.maxKm) : pickRoute(tier);
+  const effectiveTier: FlightTier = titan ? (route.distanceKm >= 300 ? 'international' : 'national') : tier;
   return {
     id: newId('flt'),
     week,
     templateKey,
-    name: practice ? 'Oefenvlucht' : cfg.name,
-    type: tier,
+    name: titan ? TITAN.name : practice ? 'Oefenvlucht' : cfg.name,
+    type: effectiveTier,
     distanceKm: route.distanceKm,
-    entryFee: practice ? 0 : cfg.entryFee,
+    entryFee: titan ? TITAN.entryFee : practice ? 0 : cfg.entryFee,
     fromCity: route.fromCity,
     toCity: route.toCity,
     startAt: new Date(startMs).toISOString(),
     status: 'scheduled',
     practice,
+    titan,
     entries: [],
     sim: [],
     weather: '',
@@ -155,7 +180,8 @@ function botsEnterFlight(db: Database, flight: Flight): void {
     const eligible = db.pigeons
       .filter((p) => p.ownerId === loft.userId && canRace(p, week) && p.form > 45 && !committed.has(p.id))
       .sort((a, b) => talent(b) + b.form - (talent(a) + a.form));
-    const n = 1 + Math.floor(Math.random() * 2); // 1-2 birds
+    // A titanenwedstrijd allows only ONE bird per loft; otherwise 1-2.
+    const n = flight.titan ? 1 : 1 + Math.floor(Math.random() * 2);
     for (const p of eligible.slice(0, n)) {
       if (loft.money < flight.entryFee) break;
       flight.entries.push({ pigeonId: p.id, ownerId: loft.userId });
@@ -185,9 +211,12 @@ export function ensureFlightsScheduled(db: Database, nowMs: number): void {
     // Absolute calendar-day index (days since the Unix epoch) for "every N days"
     // slots — deterministic and independent of the schedule horizon window.
     const dayNumber = Math.floor(dayMid.getTime() / 86400000);
+    // On a titanenwedstrijd day, that race replaces every other flight.
+    const titanDay = REAL_SCHEDULE.some((s) => s.titan && s.weekday === weekday);
 
     for (const slot of REAL_SCHEDULE) {
       if (slot.weekday !== null && slot.weekday !== weekday) continue;
+      if (titanDay && !slot.titan) continue; // titan replaces everything else that day
       if (slot.everyNDays && slot.everyNDays > 1 && dayNumber % slot.everyNDays !== 0) continue;
       const startMs = wallToUtcMs(TIMEZONE, y, m, d, slot.hour, slot.minute);
       // Skip flights that are already well past their live window.
@@ -198,7 +227,7 @@ export function ensureFlightsScheduled(db: Database, nowMs: number): void {
       // Resolve the tier: fixed, or rotate deterministically by the date.
       const tier: FlightTier = slot.tier
         ?? slot.tiers![Math.abs(hashDate(y, m, d)) % slot.tiers!.length];
-      const flight = makeRealtimeFlight(templateKey, tier, startMs, db.world.currentWeek, !!slot.practice);
+      const flight = makeRealtimeFlight(templateKey, tier, startMs, db.world.currentWeek, !!slot.practice, !!slot.titan);
       db.flights.push(flight);
       botsEnterFlight(db, flight);
     }
@@ -338,11 +367,34 @@ export function tickFlights(db: Database, nowMs: number, weatherByFlight?: Map<s
         if (!pigeon) continue;
         entries.push({ pigeon, ownerName: ownerName(db, pigeon.ownerId) });
       }
-      if (entries.length === 0) {
+      // A competition flight needs at least two different breeders — otherwise it
+      // is called off and everyone's entry fee is refunded. Training flights
+      // (oefenvluchten) may run with a single participant.
+      const distinctOwners = new Set(flight.entries.map((e) => e.ownerId)).size;
+      const tooFewRivals = !flight.practice && distinctOwners < 2;
+      if (entries.length === 0 || tooFewRivals) {
         flight.status = 'completed';
-        flight.weather = 'Afgelast (geen deelnemers)';
+        flight.weather = entries.length === 0 ? 'Afgelast (geen deelnemers)' : 'Afgelast (te weinig deelnemers)';
         flight.results = [];
         flight.recap = generateRecap(flight);
+        // Refund the entry fee to every entrant (one fee per entered bird).
+        if (flight.entryFee > 0) {
+          for (const e of flight.entries) {
+            const loft = db.lofts.find((l) => l.userId === e.ownerId);
+            if (loft) loft.money += flight.entryFee;
+          }
+          for (const ownerId of new Set(flight.entries.map((e) => e.ownerId))) {
+            const loft = db.lofts.find((l) => l.userId === ownerId);
+            if (loft && !loft.isBot) {
+              const count = flight.entries.filter((e) => e.ownerId === ownerId).length;
+              pushNotification(
+                db, ownerId, 'info', `🚫 ${flight.name} afgelast`,
+                `Te weinig deelnemers voor de ${flight.name.toLowerCase()} (${flight.fromCity} → ${flight.toCity}). Je inschrijfgeld (€${flight.entryFee * count}) is terugbetaald.`,
+                flight.id, `ntf:cancel:${flight.id}:${ownerId}`,
+              );
+            }
+          }
+        }
         continue;
       }
       startLiveFlight(flight, entries, flight.week, weatherByFlight?.get(flight.id));
@@ -362,11 +414,13 @@ export function tickFlights(db: Database, nowMs: number, weatherByFlight?: Map<s
             if (f.status !== 'completed') f.entries = f.entries.filter((e) => e.pigeonId !== dead.pigeonId);
           }
         }
-        // Oefenvluchten award no ranking badges, bets or win missions — and must
-        // NOT feed the seasonal rankings. Record the development they added so it
-        // can be subtracted from the "vooruitgang" ranking (only competition
-        // flights count there).
-        if (flight.practice) {
+        // Neither oefenvluchten nor de titanenwedstrijd feed the seasonal rankings
+        // (only regionale/nationale/internationale wedstrijden do). They award no
+        // ranking badges, bets, win/podium missions or peak/podium stats. Prize
+        // money for the titan is already paid via applyFlightEffects above. Record
+        // the development they added so it can be subtracted from the "vooruitgang"
+        // ranking (birds still improve for real — only the ranking excludes it).
+        if (flight.practice || flight.titan) {
           for (const f of sim.fatigue) {
             const p = db.pigeons.find((x) => x.id === f.pigeonId);
             if (!p) continue;

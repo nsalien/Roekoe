@@ -178,6 +178,7 @@ Entiteiten: `Pigeon`, `Loft`, `User`, `BreedingPair`, `Flight` (+ `SimEntry`,
 - `Pigeon.cureUntil?` — ISO-tijd waarop een betaalde **rustkuur** afloopt (eigen
   D1-kolom `cure_until TEXT`; duif kan niet vliegen zolang de kuur loopt).
 - `Flight.practice?` — **oefenvlucht** (eigen D1-kolom `practice INTEGER DEFAULT 0`).
+- `Flight.titan?` — **titanenwedstrijd** (eigen D1-kolom `titan INTEGER DEFAULT 0`).
 - `Loft.lastRestCure?` — laatste rustkuur (kolom `last_rest_cure`); weeklimiet.
 - `Loft.awards?: SeasonAward[]` — gewonnen Roekoes/Vleugels (kolom `awards` JSON).
 - `Pigeon.seasonPeakSpeed?` / `seasonPodiums?` / `seasonStartScore?` /
@@ -250,9 +251,20 @@ enkel fallback).
   via `Loft.lastRestCure` (kolom `last_rest_cure TEXT`); `loftDTO.restCureAvailableAt`
   toont de UI wanneer de volgende weer kan.
 - **Schema (`REAL_SCHEDULE`):** dagelijks 10:00 lange vlucht + **12:00 oefenvlucht**
-  (`practice: true`, **`everyNDays: 2`** → om de 2 dagen) + 17:00 korte regiovlucht.
-  Tijdzone Europe/Brussels. `ensureFlightsScheduled` slaat `everyNDays`-slots over als
-  `dagnummer % N !== 0` (dagnummer = dagen sinds Unix-epoch).
+  (`practice: true`, **`everyNDays: 2`** → om de 2 dagen) + 17:00 korte regiovlucht +
+  **zaterdag 11:00 Titanenwedstrijd** (`titan: true`). Tijdzone Europe/Brussels.
+  `ensureFlightsScheduled` slaat `everyNDays`-slots over als `dagnummer % N !== 0`
+  (dagnummer = dagen sinds Unix-epoch); op een **titan-dag** worden alle níet-titan-slots
+  overgeslagen (de titan vervangt alles die dag).
+- **Titanenwedstrijd (`TITAN`):** `weekday 6` (zaterdag), `hour 11`, afstand 200–600 km,
+  `entryFee 200`, `prizes [1000,800,600]`. **Enkel geld**, geen punten/medailles/wins,
+  telt niet mee voor de ranglijsten (behandeld als niet-competitie, net als practice, in
+  `tickFlights`); **max. 1 duif per hok** (`enterFlight` + bots 1 vogel); geen wedden
+  (`bettingOpen`). Prijzengeld via `finalizeFlight` (`flight.titan` → `TITAN.prizes`,
+  0 punten, 0 wins). Duiven verbeteren wél normaal.
+- **Wedstrijd-annulering:** een niet-oefenvlucht met **< 2 verschillende eigenaars**
+  bij de start wordt afgelast (`tickFlights`), inschrijfgeld **terugbetaald** per
+  ingeschreven duif + melding. Oefenvluchten mogen solo doorgaan.
 - **Ranglijsten tellen enkel wedstrijdvluchten** (regionaal/nationaal/internationaal),
   níet oefenvluchten. Snelheid/podiums negeren practice al; **vooruitgang** trekt de
   practice-groei af via `Pigeon.seasonPracticeGain` (kolom `season_practice_gain`),

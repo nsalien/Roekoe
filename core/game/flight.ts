@@ -22,6 +22,7 @@ import {
   PRIZE_MONEY,
   RANKING_POINTS,
   type Severity,
+  TITAN,
   TOURNEY_RISK,
 } from '../config/gameConfig.js';
 import type { Ailment, Flight, FlightResult, Loft, Pigeon } from '../schema.js';
@@ -194,7 +195,8 @@ function pickImproveAttr(w: { speed: number; endurance: number; orientation: num
  */
 export function finalizeFlight(flight: Flight, pigeons: Pigeon[]): SimulatedFlight {
   if (flight.practice) return finalizePracticeFlight(flight, pigeons);
-  const prizes = PRIZE_MONEY[flight.type];
+  // A titanenwedstrijd pays its own money prizes and NO ranking points.
+  const prizes = flight.titan ? TITAN.prizes : PRIZE_MONEY[flight.type];
   const results: FlightResult[] = [];
   const payoutMap = new Map<string, { prize: number; points: number; wins: number }>();
   const fatigue: SimulatedFlight['fatigue'] = [];
@@ -241,7 +243,8 @@ export function finalizeFlight(flight: Flight, pigeons: Pigeon[]): SimulatedFlig
     const isDnf = isDnfId(s.pigeonId);
     const gaveUp = gaveUpSet.has(s.pigeonId);
     const rank = i + 1;
-    const points = isDnf ? 0 : RANKING_POINTS[i] ?? 0;
+    // De titanenwedstrijd geeft geen rangschikkingspunten (enkel prijzengeld).
+    const points = isDnf || flight.titan ? 0 : RANKING_POINTS[i] ?? 0;
     const prize = isDnf ? 0 : prizes[i] ?? 0;
     results.push({
       pigeonId: s.pigeonId,
@@ -258,7 +261,8 @@ export function finalizeFlight(flight: Flight, pigeons: Pigeon[]): SimulatedFlig
     const acc = payoutMap.get(s.ownerId) ?? { prize: 0, points: 0, wins: 0 };
     acc.prize += prize;
     acc.points += points;
-    if (rank === 1 && !isDnf) acc.wins += 1;
+    // A titan win is money-only — it does not count as a competition win.
+    if (rank === 1 && !isDnf && !flight.titan) acc.wins += 1;
     payoutMap.set(s.ownerId, acc);
 
     // Fatigue: racing drains energie. Most of it is already gone — it was

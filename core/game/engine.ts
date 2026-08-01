@@ -447,6 +447,9 @@ export function enterFlight(
     if (breeding) return 'Deze duif koppelt — stop eerst het broeden voordat ze weer kan vliegen';
     if (loft.money < 0) return 'Je kassa staat negatief — verkoop eerst een duif voor je inschrijft';
     if (flight.entries.some((e) => e.pigeonId === pigeonId)) return 'Duif is al ingeschreven';
+    // The titanenwedstrijd allows only one bird per loft.
+    if (flight.titan && flight.entries.some((e) => e.ownerId === userId))
+      return 'In de titanenwedstrijd mag je maar één duif inschrijven';
     // A pigeon may race at most once per day.
     const day = flight.startAt.slice(0, 10);
     const racingElsewhere = db.flights.some(
