@@ -19,6 +19,35 @@ interface Step {
   body: ReactNode;
 }
 
+// --- Season / ranking / prizes steps (shared by the full tour and the
+//     one-time "what's new" run below). ---
+const SEASON_STEP: Step = {
+  route: '/ranglijst', selector: '[data-tour="season"]',
+  title: '📅 Seizoenen',
+  body: 'Een seizoen duurt 4 weken (in echte tijd). Hier lees je in welke week je zit en hoe lang het seizoen nog duurt. Op het einde volgt de prijsuitreiking en start alles opnieuw — de ranglijst gaat terug op nul.',
+};
+const ROEKOE_STEP: Step = {
+  route: '/ranglijst', selector: '[data-tour="ranking"]',
+  title: '🏆 Ranglijst & de Roekoe',
+  body: 'De hokken worden gerangschikt op seizoenspunten. De top 3 winnen op het einde de Gouden, Zilveren en Bronzen Roekoe (€2000 / €1500 / €1000). Ook de bots dingen mee.',
+};
+const VLEUGEL_STEP: Step = {
+  route: '/ranglijst', selector: '[data-tour="pigeon-ranks"]',
+  title: '🪽 Duivenranglijsten & de Vleugel',
+  body: (
+    <>
+      Onder <strong>Duiven</strong> vind je drie ranglijsten: <strong>snelste</strong> pieksnelheid,
+      <strong> meeste podiums</strong> en <strong>meeste vooruitgang</strong> dit seizoen. De top 3 van elke lijst
+      winnen de Gouden, Zilveren en Bronzen Vleugel (€1000 / €750 / €500 voor de eigenaar).
+    </>
+  ),
+};
+const PRIZES_STEP: Step = {
+  route: '/prestaties', selector: '[data-tour="season-prizes"]',
+  title: '🎖️ Je seizoensprijzen',
+  body: 'Al je gewonnen Roekoes en Vleugels worden hier bewaard — met de tellingen goud/zilver/brons en een erelijst per seizoen.',
+};
+
 const STEPS: Step[] = [
   {
     route: '/',
@@ -83,7 +112,12 @@ const STEPS: Step[] = [
   {
     route: '/vluchten', selector: '[data-tour="flights"]',
     title: '🏁 Vluchten, competitie & weddenschappen',
-    body: 'Schrijf duiven in (2 vluchten per dag) en volg ze live. Goede aankomsten geven punten + prijzengeld. Tot 12u voor de start kan je hier ook een weddenschap plaatsen.',
+    body: 'Schrijf duiven in en volg ze live. Goede aankomsten geven punten + prijzengeld. Elke middag om 12u is er ook een gratis oefenvlucht: die kost amper energie en bouwt vooral conditie & oriëntatie op — ideaal voor futloze duiven. Tot 12u voor de start van een wedstrijd kan je een weddenschap plaatsen.',
+  },
+  {
+    route: '/hok',
+    title: '🛌 Rustkuur',
+    body: 'Zit een duif zonder energie? Geef haar via haar duifpagina een betaalde rustkuur: één dag verplicht rusten voor €300, en daarna krijgt ze er +40 energie bij. Let op: maar één rustkuur per week (voor één duif).',
   },
   {
     route: '/markt', selector: '[data-tour="market"]',
@@ -105,11 +139,15 @@ const STEPS: Step[] = [
     title: '🤝 Sponsors',
     body: 'Presteer goed en bedrijven bieden zich aan: tekengeld, een weekbijdrage en een bonus per overwinning. Eén sponsor per categorie.',
   },
+  SEASON_STEP,
+  ROEKOE_STEP,
+  VLEUGEL_STEP,
   {
     route: '/prestaties', selector: '[data-tour="prestige"]',
     title: '🎖️ Prestige',
     body: 'Verzamel badges en XP (levels) en bekijk je prijzenkast met medailles.',
   },
+  PRIZES_STEP,
   {
     route: '/profiel', selector: '[data-tour="profile"]',
     title: '👤 Profiel',
@@ -117,14 +155,31 @@ const STEPS: Step[] = [
   },
 ];
 
+/**
+ * A short, one-time "what's new" run reusing the same spotlight mechanism as the
+ * full tour. Shown once to every player when big features land; the same steps
+ * are also part of the full tour (replayable from the profile).
+ */
+export const SEASON_NEWS_STEPS: Step[] = [
+  {
+    route: '/',
+    title: '✨ Nieuw in Roekoe!',
+    body: 'Er is wat veranderd: echte seizoenen, een vernieuwde ranglijst en nieuwe seizoenstrofeeën — de Roekoe en de Vleugel. Ik loods je er even door. Je kan deze rondleiding later altijd opnieuw starten via je profiel.',
+  },
+  SEASON_STEP,
+  ROEKOE_STEP,
+  VLEUGEL_STEP,
+  PRIZES_STEP,
+];
+
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
 
-export function Tour({ onClose }: { onClose: () => void }) {
+export function Tour({ onClose, steps = STEPS }: { onClose: () => void; steps?: Step[] }) {
   const nav = useNavigate();
   const loc = useLocation();
   const [i, setI] = useState(0);
   const [rect, setRect] = useState<DOMRect | null>(null);
-  const step = STEPS[i];
+  const step = steps[i];
 
   // Navigate to the step's page.
   useEffect(() => {
@@ -174,7 +229,7 @@ export function Tour({ onClose }: { onClose: () => void }) {
   }, [i]);
 
   const first = i === 0;
-  const last = i === STEPS.length - 1;
+  const last = i === steps.length - 1;
 
   // Tooltip placement: below the target if there's room, else above; centered
   // when there is no target.
@@ -226,14 +281,14 @@ export function Tour({ onClose }: { onClose: () => void }) {
         }}
       >
         <div className="row" style={{ justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
-          <span className="faint" style={{ fontSize: '0.78rem' }}>Rondleiding · {i + 1}/{STEPS.length}</span>
+          <span className="faint" style={{ fontSize: '0.78rem' }}>Rondleiding · {i + 1}/{steps.length}</span>
           <button className="btn ghost sm" onClick={onClose}>Sluiten ✕</button>
         </div>
         <h2 style={{ margin: '6px 0 5px', fontSize: '1.12rem' }}>{step.title}</h2>
         <div style={{ fontSize: '0.9rem', lineHeight: 1.45 }}>{step.body}</div>
 
         <div className="row" style={{ gap: 4, justifyContent: 'center', margin: '12px 0 10px', flexWrap: 'wrap' }}>
-          {STEPS.map((_, idx) => (
+          {steps.map((_, idx) => (
             <span
               key={idx}
               onClick={() => setI(idx)}
