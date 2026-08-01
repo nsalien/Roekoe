@@ -237,8 +237,8 @@ enkel fallback).
   vóór elke aandoening. Via `randomAilmentOfSeverity(kind, severity, week, rng)`.
 - **Seizoen (`SEASON`):** `weeks 4`, `weekDays 7` → 28 echte dagen/seizoen,
   real-time (`tickSeason`). `SEASON_AWARDS`: roekoe `[2000,1500,1000]`,
-  vleugel `[1000,750,500]`. Prijzen enkel voor spelers (bots staan in de ranglijst
-  maar winnen niets). `advanceWeek` doet **geen** seizoensrollover meer.
+  vleugel `[1000,750,500]`. **Bots dingen mee en kunnen ook winnen** (geld erbij,
+  geen melding). `advanceWeek` doet **geen** seizoensrollover meer.
 - **Rustkuur (`REST_CURE`):** `cost 300`, `durationHours 24`, `energy 40`,
   `cooldownDays 7` — **max. één kuur per hok per week** (dus één duif/week), bewaakt
   via `Loft.lastRestCure` (kolom `last_rest_cure TEXT`); `loftDTO.restCureAvailableAt`
@@ -407,14 +407,14 @@ Alles hieronder staat **live** op de deploy-branch. Data-migraties liepen door t
 - **Real-time seizoen** (`core/game/season.ts`, `SEASON` 4 weken × 7 dagen): `tickSeason`
   zet `world.seasonWeek`/`seasonEndsAt` en houdt op het einde de **prijsuitreiking**
   (`runSeasonEnd`) → ranglijst reset, seizoen++. `advanceWeek` rolt het seizoen niet meer.
-- **De Gouden/Zilveren/Bronzen Roekoe** — top-3 melkers (€2000/1500/1000) + badge
-  `season_champion` voor #1. Bewaard in `Loft.awards`.
+- **De Gouden/Zilveren/Bronzen Roekoe** — top-3 hokken (€2000/1500/1000) + badge
+  `season_champion` voor #1. Bewaard in `Loft.awards`. Bots dingen mee.
 - **Drie duivenranglijsten** (`pigeonSeasonRankings`, in `/state.pigeonRankings`):
   snelste pieksnelheid (km/u), meeste podiums, meeste vooruitgang (`seasonScore`-delta).
-- **De Gouden/Zilveren/Bronzen Vleugel** — top-3 (speler)duiven per ranglijst
-  (€1000/750/500 naar de eigenaar). Bewaard in `Loft.awards`.
+- **De Gouden/Zilveren/Bronzen Vleugel** — top-3 duiven per ranglijst
+  (€1000/750/500 naar de eigenaar, ook bots). Bewaard in `Loft.awards`.
 - Prestige-tab **Seizoensprijzen**; ranglijst-tabs **Melkers/Duiven**; kop toont
-  seizoensweek + resttijd. Prijzen alleen voor spelers; bots vullen enkel de ranglijst.
+  seizoensweek + resttijd. Bots dingen mee (geld erbij, geen melding).
 - **Migratie v17**: de duivenranglijsten worden **geseed uit vlucht­historie**
   (beste ooit-snelheid → `seasonPeakSpeed`; elke top-3-finish → `seasonPodiums`;
   oefenvluchten tellen niet). Vooruitgang kan niet gereconstrueerd worden en start

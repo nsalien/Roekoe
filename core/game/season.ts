@@ -116,11 +116,10 @@ export function runSeasonEnd(db: Database, endedSeason: number, atMs: number): v
     }
   };
 
-  // 1. Melker standings → Roekoes. The prize is a players' competition: bots
-  //    appear in the ranking for context but never occupy a podium spot, so the
-  //    Gouden/Zilveren/Bronzen Roekoe always go to the three best players.
+  // 1. Melker standings → Roekoes. Bots race for the prize money just like
+  //    players (they need income too); they simply get no notification.
   const standings = db.lofts
-    .filter((l) => !l.isBot && l.seasonPoints > 0)
+    .filter((l) => l.seasonPoints > 0)
     .sort((a, b) => b.seasonPoints - a.seasonPoints || b.totalWins - a.totalWins);
   for (let i = 0; i < 3; i++) {
     const loft = standings[i];
@@ -132,9 +131,9 @@ export function runSeasonEnd(db: Database, endedSeason: number, atMs: number): v
     if (i === 0) awardBadge(db, loft, 'season_champion');
   }
 
-  // 2. Pigeon rankings → Vleugels (top-3 PLAYER-owned pigeon of each ranking;
-  //    bot pigeons appear in the ranking but win no prize). Ranked over every
-  //    player pigeon, not just the displayed top-10.
+  // 2. Pigeon rankings → Vleugels (top-3 of each ranking, over every pigeon;
+  //    bot-owned birds can win too). Ranked over the whole field, not just the
+  //    displayed top-10.
   const rankings = pigeonSeasonRankings(db, db.pigeons.length || 1);
   const cats: { key: WingCategory; rows: PigeonRankRow[] }[] = [
     { key: 'speed', rows: rankings.fastest },
@@ -142,8 +141,8 @@ export function runSeasonEnd(db: Database, endedSeason: number, atMs: number): v
     { key: 'progress', rows: rankings.progress },
   ];
   for (const { key, rows } of cats) {
-    const owned = rows.filter((r) => !r.isBot && r.value > 0).slice(0, 3);
-    owned.forEach((row, i) => {
+    const top = rows.filter((r) => r.value > 0).slice(0, 3);
+    top.forEach((row, i) => {
       const loft = db.lofts.find((l) => l.userId === row.ownerId);
       if (!loft) return;
       give(loft, {

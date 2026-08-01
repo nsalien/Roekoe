@@ -653,9 +653,9 @@ voorbij is, wordt de **prijsuitreiking** gehouden, start een nieuw seizoen op
 > gewoon door; de ranglijst toont voortaan de **seizoensweek** (1–4).
 
 ### 15.2 Melkerranglijst → de Roekoe
-De ranglijst rangschikt alle hokken op **seizoenspunten** (bots staan erbij voor
-de context, maar dingen niet mee voor de prijzen). Bij de prijsuitreiking winnen
-de **top 3 spelers**:
+De ranglijst rangschikt alle hokken op **seizoenspunten**. **Bots dingen gewoon
+mee** en kunnen ook winnen — zij hebben het prijzengeld ook nodig. Bij de
+prijsuitreiking winnen de **top 3 hokken**:
 
 | Plaats | Prijs | Prijzengeld |
 |---|---|---|
@@ -675,8 +675,8 @@ allemaal voor het **lopende seizoen**:
   (snelheid + conditie + oriëntatie + libido + ervaring, t.o.v. de stand bij
   seizoensstart).
 
-Bij de prijsuitreiking winnen de **top 3 (speler)duiven** van **elke** ranglijst
-een **Vleugel** — het prijzengeld gaat naar de **eigenaar**:
+Bij de prijsuitreiking winnen de **top 3 duiven** van **elke** ranglijst een
+**Vleugel** — het prijzengeld gaat naar de **eigenaar** (ook bots kunnen winnen):
 
 | Plaats | Prijs | Prijzengeld |
 |---|---|---|
