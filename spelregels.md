@@ -573,6 +573,14 @@ kwetsuur, ziekte, herstel, sterfte en geboorte van jongen.
     schaalt met je prestaties intussen: beter gepresteerd → een rijker aanbod,
     minder goed → een magerder aanbod. Het tekengeld krijg je maar één keer per
     sponsor. Ook een opgezegd contract kan later opnieuw aangeboden worden.
+  - **Een sponsor kan zélf opstappen na een seizoen.** Bij de seizoenswissel (§15)
+    vergelijkt elke sponsor je seizoenspunten met die van het **vorige** seizoen.
+    Zakken ze tot **onder 60%** daarvan, dan vindt de sponsor dat je niet meer zo
+    goed presteert en **beëindigt hij het contract** — zonder verbrekingsvergoeding
+    voor jou (het is de sponsor die vertrekt). Het eerste seizoen na tekenen dient
+    enkel als ijkpunt (geen oordeel), en een seizoen met heel weinig punten (< 20)
+    telt niet mee als maatstaf. Klim je later weer, dan kan die sponsor opnieuw
+    aankloppen.
   - Er zijn eigen **sponsorbadges** (Prestaties): je eerste contract, tekenen bij
     een topsponsor (tier 3), 3 sponsors tegelijk, en een "sponsorimperium" met
     sponsors in 4 verschillende categorieën tegelijk.

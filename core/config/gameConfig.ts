@@ -516,6 +516,19 @@ export const SPONSOR_REOFFER_COOLDOWN_HOURS = 72;
 export const SPONSOR_REOFFER_MULT_MIN = 0.7;
 export const SPONSOR_REOFFER_MULT_MAX = 1.5;
 
+/**
+ * Season review of active sponsor contracts. At each season rollover a sponsor
+ * compares the loft's just-ended season points to the previous season's. If they
+ * dropped below `keepRatio` of that reference, the sponsor ends the contract
+ * (no break penalty for the player — the sponsor is the one walking away). Only
+ * judged once the reference season had at least `minReviewPoints` points, so a
+ * loft that never really got going isn't punished for noise.
+ */
+export const SPONSOR_REVIEW = {
+  keepRatio: 0.6, // this season must be >= 60% of last season's points
+  minReviewPoints: 20,
+} as const;
+
 export const SPONSORS: SponsorDef[] = [
   // Tier 1 — first real milestones (a first win, loyal participation).
   {

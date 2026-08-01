@@ -18,6 +18,7 @@ import {
   SPONSOR_REOFFER_COOLDOWN_HOURS,
   SPONSOR_REOFFER_MULT_MAX,
   SPONSOR_REOFFER_MULT_MIN,
+  SPONSOR_REVIEW,
   type SponsorDef,
 } from '../config/gameConfig.js';
 import type {
@@ -60,6 +61,7 @@ function state(loft: Loft): SponsorState {
       since: (typeof a === 'object' && a?.since) || '',
       weeklyStipend: typeof a?.weeklyStipend === 'number' ? a.weeklyStipend : def.weeklyStipend,
       winBonus: typeof a?.winBonus === 'number' ? a.winBonus : def.winBonus,
+      refPoints: typeof a?.refPoints === 'number' ? a.refPoints : undefined,
     });
   }
   const offers: SponsorOffer[] = [];
@@ -280,6 +282,50 @@ export function applyCancelSponsor(db: Database, loft: Loft, sponsorId: string):
   notify(db, loft, `🤝 Contract met ${def?.name ?? 'sponsor'} beëindigd`,
     `Je zegde het sponsorcontract op. Verbrekingsvergoeding €${penalty} betaald.`);
   return `Contract met ${def?.name ?? 'de sponsor'} stopgezet (boete €${penalty}).`;
+}
+
+/**
+ * Season review: at each rollover a sponsor compares the loft's just-ended season
+ * points to the previous season's (its stored `refPoints`). If they fell below
+ * `keepRatio` of that reference, the sponsor ends the contract itself — no break
+ * penalty for the player — and drops back into the re-offer pool (it may return
+ * once the loft climbs back up). The first review after signing only records the
+ * baseline. Call this at a season rollover, BEFORE season points are reset.
+ */
+export function reviewSponsorContracts(db: Database, loft: Loft, endedSeason: number, nowMs: number): void {
+  if (loft.isBot) return;
+  const st = state(loft);
+  if (st.active.length === 0) return;
+  const current = loft.seasonPoints;
+  const perf = perfScore(loft, ownedBestTalent(db, loft.userId));
+  const keep: ActiveSponsorship[] = [];
+
+  for (const c of st.active) {
+    const def = BY_ID.get(c.id);
+    // First rollover for this contract → just establish the baseline, no verdict.
+    if (c.refPoints == null) { c.refPoints = current; keep.push(c); continue; }
+    const underperforming =
+      c.refPoints >= SPONSOR_REVIEW.minReviewPoints &&
+      current < c.refPoints * SPONSOR_REVIEW.keepRatio;
+    if (underperforming && def) {
+      st.declined = st.declined.filter((d) => d.id !== c.id);
+      st.declined.push({ id: c.id, at: new Date(nowMs).toISOString(), perf });
+      const noteId = `ntf:sponsorend:${loft.userId}:${c.id}:${endedSeason}`;
+      const existing = db.notifications.find((n) => n.id === noteId);
+      const note = {
+        id: noteId, userId: loft.userId, kind: 'info' as const,
+        title: `${def.icon} ${def.name} beëindigt het contract`,
+        body: `${def.name} vindt dat je prestaties gezakt zijn tegenover vorig seizoen (${current} punten dit seizoen, ${c.refPoints} vorig seizoen) en trekt zich terug — geen verbrekingsvergoeding voor jou. Presteer je weer sterk, dan kloppen ze misschien opnieuw aan.`,
+        flightId: null, createdAt: new Date(nowMs).toISOString(), read: existing?.read ?? false,
+      };
+      if (existing) Object.assign(existing, note); else db.notifications.push(note);
+      continue; // contract dropped
+    }
+    // Kept: roll the reference forward to this season for next time.
+    c.refPoints = current;
+    keep.push(c);
+  }
+  st.active = keep;
 }
 
 function sponsorDTO(def: SponsorDef, terms: OfferTerms, signed: boolean) {

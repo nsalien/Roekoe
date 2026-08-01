@@ -80,7 +80,8 @@ volgorde:
 8. `tickRestCures(db, nowMs)` — laat afgelopen **rustkuren** aflopen (+40 energie, melding).
 9. `tickSeason(db, nowMs)` — **real-time seizoensklok** (`core/game/season.ts`): zet
    `world.seasonWeek`/`seasonEndsAt`, en bij het einde van week 4 → `runSeasonEnd`
-   (prijsuitreiking Roekoes + Vleugels, geld + meldingen, ranglijst reset, seizoen++).
+   (prijsuitreiking Roekoes + Vleugels, **sponsorreview** via `reviewSponsorContracts`,
+   geld + meldingen, ranglijst reset, seizoen++).
 10. `tickFlights(db, nowMs, ...)` — laat vluchten `scheduled → live → completed`
    overgaan (deterministische `finalizeFlight`; **oefenvluchten** via
    `finalizePracticeFlight`; dode duiven uit `sim.deaths` worden verwijderd; werkt
@@ -432,6 +433,12 @@ Alles hieronder staat **live** op de deploy-branch. Data-migraties liepen door t
   (€1000/750/500 naar de eigenaar, ook bots). Bewaard in `Loft.awards`.
 - Prestige-tab **Seizoensprijzen**; ranglijst-tabs **Melkers/Duiven**; kop toont
   seizoensweek + resttijd. Bots dingen mee (geld erbij, geen melding).
+- **Sponsors kunnen zélf opstappen na een seizoen** (`reviewSponsorContracts` in
+  `sponsors.ts`, aangeroepen in `runSeasonEnd` vóór de puntenreset): elke actieve
+  sponsor vergelijkt de seizoenspunten met vorig seizoen (`ActiveSponsorship.refPoints`,
+  rijdt mee in de `sponsorship`-JSON — geen nieuwe kolom). Onder `SPONSOR_REVIEW.keepRatio`
+  (0.6) → contract eindigt zonder boete, sponsor naar `declined` (kan later heraanbieden).
+  Eerste seizoen na tekenen = enkel ijkpunt; `minReviewPoints` (20) dempt ruis.
 - **Migratie v17**: de duivenranglijsten worden **geseed uit vlucht­historie**
   (beste ooit-snelheid → `seasonPeakSpeed`; elke top-3-finish → `seasonPodiums`;
   oefenvluchten tellen niet). Vooruitgang kan niet gereconstrueerd worden en start
