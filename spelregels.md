@@ -36,7 +36,7 @@ in de ziekenboeg, minstens **8 weken** oud en gezondheid > 15.
 
 ### 2.1 Kalender (Brussel-tijd)
 - **10:00 — lange vlucht**: nationaal of internationaal (wisselt per dag).
-- **12:00 — oefenvlucht**: korte training (zie §2.7).
+- **12:00 — oefenvlucht**: korte training, **om de 2 dagen** (zie §2.7).
 - **17:00 — korte vlucht**: regionaal.
 
 ### 2.2 Niveaus
@@ -113,10 +113,13 @@ Gerangschikt op finishtijd (snelste eerst).
 **Punten** (top 20): 100, 80, 65, 55, 47, 40, 34, 29, 25, 21, 18, 15, 13, 11, 9, 7, 5, 3, 2, 1.
 Seizoenspunten tellen op over **alle** vluchten en **alle** duiven van een hok.
 
-### 2.7 Oefenvluchten (elke middag om 12:00)
+### 2.7 Oefenvluchten (om de 2 dagen, rond 12:00)
 Een **oefenvlucht** is een korte training, geen wedstrijd:
 - **Gratis** inschrijven — geen inschrijfgeld.
 - **Geen** prijzengeld, **geen** seizoenspunten, **geen** overwinningen/medailles.
+- **Telt niet mee voor de ranglijsten** (§15): enkel nationale, regionale en
+  internationale **wedstrijdvluchten** tellen daar. Ook de opgebouwde conditie/
+  oriëntatie van een oefenvlucht telt **niet** mee voor de vooruitgangsranglijst.
 - Verbruikt **heel weinig** energie (in totaal ~**4**, ook geleidelijk afgetrokken).
 - Bots doen **niet** mee; je kan er **niet** op wedden.
 - Iedereen komt thuis: **geen** DNF, **geen** kwetsuur- of sterfterisico.
@@ -653,9 +656,10 @@ voorbij is, wordt de **prijsuitreiking** gehouden, start een nieuw seizoen op
 > gewoon door; de ranglijst toont voortaan de **seizoensweek** (1–4).
 
 ### 15.2 Melkerranglijst → de Roekoe
-De ranglijst rangschikt alle hokken op **seizoenspunten**. **Bots dingen gewoon
-mee** en kunnen ook winnen — zij hebben het prijzengeld ook nodig. Bij de
-prijsuitreiking winnen de **top 3 hokken**:
+De ranglijst rangschikt alle hokken op **seizoenspunten** (enkel wedstrijdvluchten
+geven punten; oefenvluchten niet). **Bots dingen gewoon mee** en kunnen ook winnen —
+zij hebben het prijzengeld ook nodig. Bij de prijsuitreiking winnen de **top 3
+hokken**:
 
 | Plaats | Prijs | Prijzengeld |
 |---|---|---|
@@ -667,7 +671,8 @@ De winnaar krijgt ook de badge **Seizoenskampioen**.
 
 ### 15.3 Duivenranglijsten → de Vleugel
 Naast de melkers zijn er **drie ranglijsten van individuele duiven** (top 10),
-allemaal voor het **lopende seizoen**:
+allemaal voor het **lopende seizoen**. **Alleen wedstrijdvluchten** (regionaal,
+nationaal, internationaal) tellen mee — **oefenvluchten niet**:
 - **⚡ Snelste duiven** — hoogste **pieksnelheid** ooit gehaald dit seizoen (niet
   het gemiddelde), in km/u.
 - **🎖️ Meeste podiums** — aantal top-3-plaatsen dit seizoen.

@@ -119,6 +119,7 @@ function rowToPigeon(r: any): Pigeon {
     seasonPeakSpeed: r.season_peak_speed ?? 0,
     seasonPodiums: r.season_podiums ?? 0,
     seasonStartScore: r.season_start_score ?? undefined,
+    seasonPracticeGain: r.season_practice_gain ?? 0,
   };
 }
 function rowToBreeding(r: any): BreedingPair {
@@ -358,13 +359,13 @@ export class D1Store implements Store {
     diff(this.snapshots.pigeons, w.pigeons, (p) => p.id, {
       upsert: (p) =>
         db.prepare(
-          'INSERT OR REPLACE INTO pigeons (id, owner_id, name, sex, birth_week, speed, endurance, orientation, libido, form, health, experience, sire_id, dam_id, for_sale, price, created_at_week, retired, ailment, in_infirmary, races, ever_ailed, coached, ration, compartment, hunger_days, rest_days, cure_until, season_peak_speed, season_podiums, season_start_score) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+          'INSERT OR REPLACE INTO pigeons (id, owner_id, name, sex, birth_week, speed, endurance, orientation, libido, form, health, experience, sire_id, dam_id, for_sale, price, created_at_week, retired, ailment, in_infirmary, races, ever_ailed, coached, ration, compartment, hunger_days, rest_days, cure_until, season_peak_speed, season_podiums, season_start_score, season_practice_gain) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
         ).bind(
           p.id, p.ownerId, p.name, p.sex, p.birthWeek, p.speed, p.endurance, p.orientation, p.libido, p.form, p.health,
           p.experience, p.sireId, p.damId, b(p.forSale), p.price, p.createdAtWeek, 0,
           p.ailment ? JSON.stringify(p.ailment) : '', b(p.inInfirmary), p.races, b(p.everAiled), b(p.coached),
           p.ration ?? 'normal', b(p.compartment), p.hungerDays ?? 0, p.restDays ?? 0, p.cureUntil ?? null,
-          p.seasonPeakSpeed ?? 0, p.seasonPodiums ?? 0, p.seasonStartScore ?? null,
+          p.seasonPeakSpeed ?? 0, p.seasonPodiums ?? 0, p.seasonStartScore ?? null, p.seasonPracticeGain ?? 0,
         ),
       del: (id) => db.prepare('DELETE FROM pigeons WHERE id = ?').bind(id),
       stmts,
@@ -495,6 +496,7 @@ export async function ensureSchema(db: D1Database): Promise<void> {
     'ALTER TABLE pigeons ADD COLUMN season_peak_speed REAL NOT NULL DEFAULT 0',
     'ALTER TABLE pigeons ADD COLUMN season_podiums INTEGER NOT NULL DEFAULT 0',
     'ALTER TABLE pigeons ADD COLUMN season_start_score REAL',
+    'ALTER TABLE pigeons ADD COLUMN season_practice_gain REAL NOT NULL DEFAULT 0',
     "ALTER TABLE lofts ADD COLUMN awards TEXT NOT NULL DEFAULT '[]'",
     "ALTER TABLE world ADD COLUMN season_started_at TEXT NOT NULL DEFAULT ''",
     "ALTER TABLE world ADD COLUMN season_ends_at TEXT NOT NULL DEFAULT ''",

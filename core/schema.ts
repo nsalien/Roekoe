@@ -70,6 +70,7 @@ export interface Pigeon {
   seasonPeakSpeed?: number; // highest race velocity (m/min) reached this season
   seasonPodiums?: number; // number of top-3 finishes this season
   seasonStartScore?: number; // development score at the season's start (progress baseline)
+  seasonPracticeGain?: number; // score gained from practice flights this season (excluded from the ranking)
 }
 
 /** Everything about a player's operation that is not an individual pigeon. */
