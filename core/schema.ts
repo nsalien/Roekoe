@@ -66,6 +66,10 @@ export interface Pigeon {
   hungerDays: number; // consecutive days with no food in stock (0 = fed); drives starvation
   restDays: number; // consecutive fed days at home without racing; every 3rd gives an energie bonus
   cureUntil?: string | null; // ISO time a paid rest cure completes (bird rests, can't race)
+  // Per-season pigeon stats (reset at each season rollover — see season.ts).
+  seasonPeakSpeed?: number; // highest race velocity (m/min) reached this season
+  seasonPodiums?: number; // number of top-3 finishes this season
+  seasonStartScore?: number; // development score at the season's start (progress baseline)
 }
 
 /** Everything about a player's operation that is not an individual pigeon. */
@@ -101,6 +105,27 @@ export interface Loft {
   pendingEvent: EventCard | null; // an unresolved dilemma awaiting the player
   // Sponsoring: companies that offer to back the loft once it performs well.
   sponsorship: SponsorState;
+  // Season prizes won at each rollover (Roekoes + Vleugels) — see season.ts.
+  awards?: SeasonAward[];
+}
+
+/** Which of the three pigeon rankings a Gouden Vleugel was won in. */
+export type WingCategory = 'speed' | 'podium' | 'progress';
+
+/**
+ * A prize won at a season's prijsuitreiking, kept in the owner's prestige.
+ *  - `roekoe`: finished 1st/2nd/3rd in the melker standings (season points).
+ *  - `vleugel`: owned a pigeon that finished top-3 in a pigeon ranking.
+ */
+export interface SeasonAward {
+  kind: 'roekoe' | 'vleugel';
+  rank: number; // 1, 2 or 3
+  season: number; // season number this was won in
+  at: string; // ISO timestamp
+  reward: number; // coins paid out
+  category?: WingCategory; // only for 'vleugel'
+  pigeonName?: string; // only for 'vleugel'
+  value?: number; // the metric at award time (points / km-h / podiums / progress)
 }
 
 /** The money terms of a sponsor deal (they scale with performance over time). */
@@ -340,8 +365,8 @@ export interface Notification {
 
 /** Global world state. */
 export interface World {
-  currentWeek: number;
-  seasonYear: number;
+  currentWeek: number; // monotonic game-week counter (drives ages/flights/ailments)
+  seasonYear: number; // the current SEASON number (real-time, see season.ts)
   seeded: boolean;
   /** One-time data migrations applied (funny names, purge old flights, ...). */
   dataVersion: number;
@@ -349,6 +374,12 @@ export interface World {
   lastDailyTick: string;
   /** ISO timestamp a shelter (opvangcentrum) auction was last spawned. */
   lastShelterSpawn: string;
+  /** ISO timestamp the current season started (real time). */
+  seasonStartedAt: string;
+  /** ISO timestamp the current season ends (real time). */
+  seasonEndsAt: string;
+  /** Week within the current season (1..SEASON.weeks), derived from real time. */
+  seasonWeek: number;
 }
 
 /** The full database document persisted to disk. */
@@ -385,7 +416,7 @@ export function emptyStats(): PlayerStats {
 
 export function emptyDatabase(): Database {
   return {
-    world: { currentWeek: 1, seasonYear: 1, seeded: false, dataVersion: 0, lastDailyTick: '', lastShelterSpawn: '' },
+    world: { currentWeek: 1, seasonYear: 1, seeded: false, dataVersion: 0, lastDailyTick: '', lastShelterSpawn: '', seasonStartedAt: '', seasonEndsAt: '', seasonWeek: 1 },
     users: [],
     lofts: [],
     pigeons: [],

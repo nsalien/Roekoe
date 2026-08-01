@@ -111,8 +111,8 @@ export function Layout() {
           </nav>
           <div className="topbar-right">
             {state && (
-              <span className="chip week" title="Speelweek">
-                {state.world.currentWeek === 0 ? '' : `Week ${state.world.currentWeek}`}
+              <span className="chip week" title="Seizoensweek">
+                {`Week ${state.world.seasonWeek}/4`}
               </span>
             )}
             {state?.loft && (
@@ -129,7 +129,7 @@ export function Layout() {
         <div className="container subhead-inner">
           <div className="row" style={{ gap: 10 }}>
             <span className="muted">
-              {state && <>Seizoen {state.world.seasonYear} · week {state.world.currentWeek}</>}
+              {state && <>Seizoen {state.world.seasonYear} · week {state.world.seasonWeek}/4</>}
             </span>
             {state?.isAdmin && (
               <button className="btn accent sm" onClick={advanceWeek} disabled={advancing}>

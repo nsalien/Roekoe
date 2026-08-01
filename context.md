@@ -78,9 +78,13 @@ volgorde:
 6. `tickFlightEnergy(db, nowMs)` — trekt vlucht-energie **geleidelijk per 30 min** af.
 7. `tickHealing(db, nowMs)` — **real-time herstel** van ziekte/kwetsuur + 12u-statusupdates.
 8. `tickRestCures(db, nowMs)` — laat afgelopen **rustkuren** aflopen (+40 energie, melding).
-9. `tickFlights(db, nowMs, ...)` — laat vluchten `scheduled → live → completed`
+9. `tickSeason(db, nowMs)` — **real-time seizoensklok** (`core/game/season.ts`): zet
+   `world.seasonWeek`/`seasonEndsAt`, en bij het einde van week 4 → `runSeasonEnd`
+   (prijsuitreiking Roekoes + Vleugels, geld + meldingen, ranglijst reset, seizoen++).
+10. `tickFlights(db, nowMs, ...)` — laat vluchten `scheduled → live → completed`
    overgaan (deterministische `finalizeFlight`; **oefenvluchten** via
-   `finalizePracticeFlight`; dode duiven uit `sim.deaths` worden verwijderd).
+   `finalizePracticeFlight`; dode duiven uit `sim.deaths` worden verwijderd; werkt
+   ook per-seizoen duivenstatistieken bij: `seasonPeakSpeed`, `seasonPodiums`).
 
 ### Real-time vluchten (lazy, timestamp-afgeleid)
 Bij de start wordt de sim **bevroren**: per duif een `velocity`, `durationSeconds`,
@@ -170,6 +174,14 @@ Entiteiten: `Pigeon`, `Loft`, `User`, `BreedingPair`, `Flight` (+ `SimEntry`,
 - `Pigeon.cureUntil?` — ISO-tijd waarop een betaalde **rustkuur** afloopt (eigen
   D1-kolom `cure_until TEXT`; duif kan niet vliegen zolang de kuur loopt).
 - `Flight.practice?` — **oefenvlucht** (eigen D1-kolom `practice INTEGER DEFAULT 0`).
+- `Loft.lastRestCure?` — laatste rustkuur (kolom `last_rest_cure`); weeklimiet.
+- `Loft.awards?: SeasonAward[]` — gewonnen Roekoes/Vleugels (kolom `awards` JSON).
+- `Pigeon.seasonPeakSpeed?` / `seasonPodiums?` / `seasonStartScore?` — per-seizoen
+  duivenstats (kolommen `season_peak_speed`/`season_podiums`/`season_start_score`),
+  gereset bij seizoenswissel.
+- `World.seasonStartedAt` / `seasonEndsAt` / `seasonWeek` — real-time seizoensklok
+  (kolommen `season_started_at`/`season_ends_at`/`season_week`). `seasonYear` = het
+  seizoensnummer; `currentWeek` blijft de monotone speelweek (leeftijden/vluchten).
 - `SimEntry.gaveUp?` / `startForm?` / `formCost?` / `formDrained?` — voor opgeven
   en de geleidelijke vlucht-energie-afname.
 - `Ailment.healed?` (0..1 herstelvoortgang), `lastTickMs?`, `lastUpdateMs?`,
@@ -223,6 +235,10 @@ enkel fallback).
   `lightThreshold 20`→licht (kans 0.2), `moderateThreshold 10`→matig (0.3),
   `deathThreshold 5`→sterfte (0.07). Opgegeven duiven zijn gevrijwaard; sterfte gaat
   vóór elke aandoening. Via `randomAilmentOfSeverity(kind, severity, week, rng)`.
+- **Seizoen (`SEASON`):** `weeks 4`, `weekDays 7` → 28 echte dagen/seizoen,
+  real-time (`tickSeason`). `SEASON_AWARDS`: roekoe `[2000,1500,1000]`,
+  vleugel `[1000,750,500]`. Prijzen enkel voor spelers (bots staan in de ranglijst
+  maar winnen niets). `advanceWeek` doet **geen** seizoensrollover meer.
 - **Rustkuur (`REST_CURE`):** `cost 300`, `durationHours 24`, `energy 40`,
   `cooldownDays 7` — **max. één kuur per hok per week** (dus één duif/week), bewaakt
   via `Loft.lastRestCure` (kolom `last_rest_cure TEXT`); `loftDTO.restCureAvailableAt`
@@ -251,8 +267,13 @@ enkel fallback).
 - `InfirmaryPage` (Ziekenboeg) — zieke/gekwetste duiven; dokter/kinesist/medicatievoer;
   **herstelbalk per duif** (`ailment.healed`).
 - `ProfilePage` — hoknaam, **thema-toggle (donker/licht)**, **"Start rondleiding"**.
+- `RankingPage` — tabs **Melkers** (seizoenspunten) + **Duiven** (drie ranglijsten:
+  snelste pieksnelheid, meeste podiums, meeste vooruitgang — via `state.pigeonRankings`).
+  Kop toont "Seizoen X · week Y/4 · nog Z dagen".
+- `AchievementsPage` (Prestaties) — tabs Badges · Trofeeën · **Seizoensprijzen**
+  (Roekoes + Vleugels: tellingen goud/zilver/brons + erelijst uit `profile.awards`).
 - Verder: `MarketPage` (koop van spelers + veilingen; opvangcentrum), `BreedingPage`,
-  `SponsorsPage`, `RankingPage`, `AchievementsPage` (Prestaties/badges), `LoginPage`.
+  `SponsorsPage`, `LoginPage`.
 
 **Rondleiding (`components/Tour.tsx`):** interactieve spotlight-tour die per stap
 naar de juiste pagina navigeert en het relevante element highlight via
@@ -381,6 +402,19 @@ Alles hieronder staat **live** op de deploy-branch. Data-migraties liepen door t
 - **Eenmalige "wat is nieuw"-melding** (`FeatureTour.tsx` + `FEATURE_NEWS`): twee
   gecentreerde infokaarten (oefenvlucht-voordeel + rustkuur) voor álle spelers, aparte
   localStorage-sleutel, na de hoofd-tour. Oefenvlucht-tekst in `FlightsPage` ingekort.
+
+**Seizoenen, prijzen & duivenranglijsten (nieuwste)**
+- **Real-time seizoen** (`core/game/season.ts`, `SEASON` 4 weken × 7 dagen): `tickSeason`
+  zet `world.seasonWeek`/`seasonEndsAt` en houdt op het einde de **prijsuitreiking**
+  (`runSeasonEnd`) → ranglijst reset, seizoen++. `advanceWeek` rolt het seizoen niet meer.
+- **De Gouden/Zilveren/Bronzen Roekoe** — top-3 melkers (€2000/1500/1000) + badge
+  `season_champion` voor #1. Bewaard in `Loft.awards`.
+- **Drie duivenranglijsten** (`pigeonSeasonRankings`, in `/state.pigeonRankings`):
+  snelste pieksnelheid (km/u), meeste podiums, meeste vooruitgang (`seasonScore`-delta).
+- **De Gouden/Zilveren/Bronzen Vleugel** — top-3 (speler)duiven per ranglijst
+  (€1000/750/500 naar de eigenaar). Bewaard in `Loft.awards`.
+- Prestige-tab **Seizoensprijzen**; ranglijst-tabs **Melkers/Duiven**; kop toont
+  seizoensweek + resttijd. Prijzen alleen voor spelers; bots vullen enkel de ranglijst.
 
 ### Openstaande ideeën / balans om op te letten
 - Sterfte is nog **wekelijks** terwijl herstel real-time is (evt. op elkaar afstemmen).

@@ -291,6 +291,19 @@ export interface Trophy {
   rank: number;
 }
 
+export type WingCategory = 'speed' | 'podium' | 'progress';
+
+export interface SeasonAward {
+  kind: 'roekoe' | 'vleugel';
+  rank: number;
+  season: number;
+  at: string;
+  reward: number;
+  category?: WingCategory;
+  pigeonName?: string;
+  value?: number;
+}
+
 export interface PlayerProfile {
   level: number;
   xp: number;
@@ -301,12 +314,33 @@ export interface PlayerProfile {
   badges: BadgeItem[];
   medals: { gold: number; silver: number; bronze: number };
   trophies: Trophy[];
+  roekoes: { gold: number; silver: number; bronze: number };
+  vleugels: { gold: number; silver: number; bronze: number };
+  awards: SeasonAward[];
 }
 
 export interface World {
   currentWeek: number;
   seasonYear: number;
   seeded: boolean;
+  seasonStartedAt: string;
+  seasonEndsAt: string;
+  seasonWeek: number;
+}
+
+export interface PigeonRankRow {
+  pigeonId: string;
+  name: string;
+  ownerId: string;
+  ownerName: string;
+  isBot: boolean;
+  value: number;
+}
+
+export interface PigeonRankings {
+  fastest: PigeonRankRow[];
+  podiums: PigeonRankRow[];
+  progress: PigeonRankRow[];
 }
 
 export interface FeedRationInfo {
@@ -326,6 +360,7 @@ export interface GameState {
   pigeons: Pigeon[];
   scheduledFlights: Flight[];
   rankings: RankingRow[];
+  pigeonRankings: PigeonRankings;
   feedRations: Record<FeedRation, FeedRationInfo>;
   infirmary: InfirmaryConfig;
   economy: EconomyCosts;

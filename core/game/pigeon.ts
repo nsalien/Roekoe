@@ -92,6 +92,17 @@ export function talent(pigeon: Pigeon): number {
   return round1((pigeon.speed + pigeon.endurance + pigeon.orientation) / 3);
 }
 
+/**
+ * A pigeon's overall development score — the sum of every attribute it can grow
+ * through racing, training and breeding. Used to measure a bird's progress over
+ * a season (current score minus its score at the season's start).
+ */
+export function seasonScore(pigeon: Pigeon): number {
+  return round1(
+    pigeon.speed + pigeon.endurance + pigeon.orientation + pigeon.libido + pigeon.experience,
+  );
+}
+
 /** A suggested market value in coins based on talent, age and condition. */
 export function estimateValue(pigeon: Pigeon, currentWeek: number): number {
   const t = talent(pigeon);

@@ -60,6 +60,7 @@ import {
   withdrawFlight,
 } from '../../core/game/engine.js';
 import { advanceRealtime, flightsAwaitingStart } from '../../core/game/schedule.js';
+import { pigeonSeasonRankings } from '../../core/game/season.js';
 import { fetchFlightWeather, type WeatherResult } from '../../core/game/weather.js';
 import { auctionKind, placeBid } from '../../core/game/auction.js';
 import { betsView, placeBet, previewBet } from '../../core/game/betting.js';
@@ -255,6 +256,7 @@ app.get('/state', (c) => {
     pigeons,
     scheduledFlights: upcoming,
     rankings: rankingRows(db),
+    pigeonRankings: pigeonSeasonRankings(db),
     feedRations: FEED_RATIONS,
     infirmary: INFIRMARY,
     economy: {
