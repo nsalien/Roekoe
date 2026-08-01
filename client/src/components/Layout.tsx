@@ -8,6 +8,7 @@ import { api } from '../api/client';
 import { useToast } from './ui';
 import { NotificationsBell } from './NotificationsBell';
 import { Tour } from './Tour';
+import { FeatureTour, FEATURE_NEWS } from './FeatureTour';
 
 const NAV = [
   { to: '/', label: 'Overzicht', short: 'Start', icon: '🏠', end: true },
@@ -54,6 +55,22 @@ export function Layout() {
   function closeTour() {
     if (tourKey) { try { localStorage.setItem(tourKey, '1'); } catch { /* private mode */ } }
     setShowTour(false);
+  }
+
+  // One-time "what's new" announcement (oefenvluchten + rustkuur). Separate key
+  // so it also reaches players who already finished the main welcome tour. It
+  // waits until the welcome tour is not showing, so a brand-new player sees the
+  // full tour first and then the news. Bump the key suffix for a next announcement.
+  const newsKey = user?.id ? `roekoe.newsSeen.oefenrust.${user.id}` : null;
+  const [showNews, setShowNews] = useState(false);
+  useEffect(() => {
+    if (newsKey && state?.loft && !showTour && !localStorage.getItem(newsKey)) {
+      setShowNews(true);
+    }
+  }, [newsKey, state?.loft, showTour]);
+  function closeNews() {
+    if (newsKey) { try { localStorage.setItem(newsKey, '1'); } catch { /* private mode */ } }
+    setShowNews(false);
   }
 
   async function advanceWeek() {
@@ -136,7 +153,8 @@ export function Layout() {
       <BottomNav />
 
       {showTour && <Tour onClose={closeTour} />}
-      {state?.pendingEvent && !showTour && <EventModal />}
+      {showNews && !showTour && <FeatureTour steps={FEATURE_NEWS} onClose={closeNews} />}
+      {state?.pendingEvent && !showTour && !showNews && <EventModal />}
     </div>
   );
 }
