@@ -38,6 +38,7 @@ import { awardBadge, awardFlightBadges, evaluateBadges } from './badges.js';
 import { ensureAuctions } from './auction.js';
 import { settleFlightBets } from './betting.js';
 import { tickHealing } from './health.js';
+import { tickSeason } from './season.js';
 import { progressMissions } from './missions.js';
 import { activeContracts } from './sponsors.js';
 import {
@@ -358,6 +359,14 @@ export function tickFlights(db: Database, nowMs: number, weatherByFlight?: Map<s
         }
         // Oefenvluchten award no ranking badges, bets or win missions.
         if (flight.practice) continue;
+        // Per-season pigeon stats: peak speed + podium count (finishers only).
+        for (const r of flight.results) {
+          if (r.finished === false) continue;
+          const p = db.pigeons.find((x) => x.id === r.pigeonId);
+          if (!p) continue;
+          if (r.velocity > (p.seasonPeakSpeed ?? 0)) p.seasonPeakSpeed = r.velocity;
+          if (r.rank <= 3) p.seasonPodiums = (p.seasonPodiums ?? 0) + 1;
+        }
         awardFlightBadges(db, flight);
         settleFlightBets(db, flight);
         // Daily-mission progress for win/podium.
@@ -840,5 +849,6 @@ export function advanceRealtime(
   tickFlightEnergy(db, nowMs);
   tickHealing(db, nowMs);
   tickRestCures(db, nowMs);
+  tickSeason(db, nowMs);
   tickFlights(db, nowMs, weatherByFlight);
 }

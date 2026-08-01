@@ -640,6 +640,57 @@ afgehouden; bij winst krijg je inzet × ratio terug. Doet de doelduif niet mee
 Het invoerveld voor je inzet wordt automatisch begrensd tot **min. €10** en
 **max. €5.000**.
 
+## 15. Seizoenen, ranglijst & prijzen
+
+### 15.1 Seizoensklok (echte tijd)
+Een **seizoen duurt 4 weken**, elke week **7 echte dagen** (dus 28 dagen per
+seizoen). De weekteller in de ranglijst (**"Seizoen X · week Y/4"**) loopt
+automatisch mee met de echte tijd — je hoeft niets te doen. Zodra de vierde week
+voorbij is, wordt de **prijsuitreiking** gehouden, start een nieuw seizoen op
+**week 1** en **reset de ranglijst** (alle seizoenspunten terug op 0).
+
+> De interne "speelweek" (die leeftijden en aandoeningen bijhoudt) loopt apart
+> gewoon door; de ranglijst toont voortaan de **seizoensweek** (1–4).
+
+### 15.2 Melkerranglijst → de Roekoe
+De ranglijst rangschikt alle hokken op **seizoenspunten** (bots staan erbij voor
+de context, maar dingen niet mee voor de prijzen). Bij de prijsuitreiking winnen
+de **top 3 spelers**:
+
+| Plaats | Prijs | Prijzengeld |
+|---|---|---|
+| 1e | **de Gouden Roekoe** | €2.000 |
+| 2e | **de Zilveren Roekoe** | €1.500 |
+| 3e | **de Bronzen Roekoe** | €1.000 |
+
+De winnaar krijgt ook de badge **Seizoenskampioen**.
+
+### 15.3 Duivenranglijsten → de Vleugel
+Naast de melkers zijn er **drie ranglijsten van individuele duiven** (top 10),
+allemaal voor het **lopende seizoen**:
+- **⚡ Snelste duiven** — hoogste **pieksnelheid** ooit gehaald dit seizoen (niet
+  het gemiddelde), in km/u.
+- **🎖️ Meeste podiums** — aantal top-3-plaatsen dit seizoen.
+- **📈 Meeste vooruitgang** — grootste **algemene groei** dit seizoen
+  (snelheid + conditie + oriëntatie + libido + ervaring, t.o.v. de stand bij
+  seizoensstart).
+
+Bij de prijsuitreiking winnen de **top 3 (speler)duiven** van **elke** ranglijst
+een **Vleugel** — het prijzengeld gaat naar de **eigenaar**:
+
+| Plaats | Prijs | Prijzengeld |
+|---|---|---|
+| 1e | **de Gouden Vleugel** | €1.000 |
+| 2e | **de Zilveren Vleugel** | €750 |
+| 3e | **de Bronzen Vleugel** | €500 |
+
+Eén duif kan in meerdere ranglijsten top-3 halen en zo meerdere Vleugels winnen.
+
+### 15.4 Prestige
+Roekoes en Vleugels worden bewaard bij **Prestaties → Seizoensprijzen**: hoeveel
+gouden/zilveren/bronzen van elk je verzamelde, plus een erelijst per seizoen. De
+prijsuitreiking komt ook binnen als **melding**.
+
 ---
 
 *Alle getallen hierboven zijn de tuning-constanten; pas ze aan in

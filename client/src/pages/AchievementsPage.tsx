@@ -5,7 +5,7 @@ import { Link } from 'react-router-dom';
 import { api } from '../api/client';
 import { useGame } from '../game/GameContext';
 import { Spinner, formatFlightTime } from '../components/ui';
-import type { BadgeGroup, BadgeItem, PlayerProfile } from '../types';
+import type { BadgeGroup, BadgeItem, PlayerProfile, SeasonAward, WingCategory } from '../types';
 
 const GROUP_LABEL: Record<BadgeGroup, string> = {
   race: '🏁 Vluchtoverwinningen',
@@ -22,7 +22,7 @@ const GROUP_ORDER: BadgeGroup[] = ['race', 'podium', 'breed', 'market', 'care', 
 export function AchievementsPage() {
   const { state } = useGame();
   const [profile, setProfile] = useState<PlayerProfile | null>(null);
-  const [tab, setTab] = useState<'badges' | 'trophies'>('badges');
+  const [tab, setTab] = useState<'badges' | 'trophies' | 'season'>('badges');
 
   const load = useCallback(async () => {
     setProfile(await api<PlayerProfile>('/profile'));
@@ -45,6 +45,7 @@ export function AchievementsPage() {
         <div className="pill-tabs">
           <button className={tab === 'badges' ? 'active' : ''} onClick={() => setTab('badges')}>Badges</button>
           <button className={tab === 'trophies' ? 'active' : ''} onClick={() => setTab('trophies')}>Trofeeën</button>
+          <button className={tab === 'season' ? 'active' : ''} onClick={() => setTab('season')}>Seizoensprijzen</button>
         </div>
       </div>
 
@@ -64,10 +65,84 @@ export function AchievementsPage() {
 
       {tab === 'badges' ? (
         <BadgesView badges={profile.badges} />
-      ) : (
+      ) : tab === 'trophies' ? (
         <TrophiesView profile={profile} />
+      ) : (
+        <SeasonPrizesView profile={profile} />
       )}
     </div>
+  );
+}
+
+const WING_CAT_LABEL: Record<WingCategory, string> = {
+  speed: 'snelste duif',
+  podium: 'meeste podiums',
+  progress: 'meeste vooruitgang',
+};
+
+function SeasonPrizesView({ profile }: { profile: PlayerProfile }) {
+  const { roekoes, vleugels, awards } = profile;
+  const medal = (rank: number) => (rank === 1 ? '🥇' : rank === 2 ? '🥈' : '🥉');
+  const roekoeName = (rank: number) => (rank === 1 ? 'Gouden' : rank === 2 ? 'Zilveren' : 'Bronzen') + ' Roekoe';
+  const wingName = (rank: number) => (rank === 1 ? 'Gouden' : rank === 2 ? 'Zilveren' : 'Bronzen') + ' Vleugel';
+
+  return (
+    <>
+      <div className="page-head" style={{ marginTop: 18 }}>
+        <h2 style={{ margin: 0 }}>🏆 Roekoes</h2>
+        <span className="faint">voor de top-3 melkers van een seizoen</span>
+      </div>
+      <div className="grid cols-3" style={{ marginTop: 10 }}>
+        <div className="tile"><div className="tile-label">🥇 Goud</div><div className="tile-value">{roekoes.gold}</div></div>
+        <div className="tile"><div className="tile-label">🥈 Zilver</div><div className="tile-value">{roekoes.silver}</div></div>
+        <div className="tile"><div className="tile-label">🥉 Brons</div><div className="tile-value">{roekoes.bronze}</div></div>
+      </div>
+
+      <div className="page-head" style={{ marginTop: 22 }}>
+        <h2 style={{ margin: 0 }}>🪽 Vleugels</h2>
+        <span className="faint">voor top-3-duiven in de duivenrangschikkingen</span>
+      </div>
+      <div className="grid cols-3" style={{ marginTop: 10 }}>
+        <div className="tile"><div className="tile-label">🥇 Goud</div><div className="tile-value">{vleugels.gold}</div></div>
+        <div className="tile"><div className="tile-label">🥈 Zilver</div><div className="tile-value">{vleugels.silver}</div></div>
+        <div className="tile"><div className="tile-label">🥉 Brons</div><div className="tile-value">{vleugels.bronze}</div></div>
+      </div>
+
+      <div className="page-head" style={{ marginTop: 22 }}>
+        <h2>Erelijst</h2>
+      </div>
+      {awards.length === 0 ? (
+        <div className="card muted">
+          Nog geen seizoensprijzen. Eindig bij de beste melkers of laat een duif uitblinken — de prijzen worden
+          uitgereikt zodra het seizoen afloopt.
+        </div>
+      ) : (
+        <div className="card">
+          <div className="table-wrap">
+            <table className="data">
+              <thead>
+                <tr><th></th><th>Prijs</th><th>Waarvoor</th><th className="num">Seizoen</th><th className="num">Prijzengeld</th></tr>
+              </thead>
+              <tbody>
+                {awards.map((a: SeasonAward, i) => (
+                  <tr key={a.kind + a.season + i}>
+                    <td style={{ fontSize: '1.1rem' }}>{medal(a.rank)}</td>
+                    <td>{a.kind === 'roekoe' ? roekoeName(a.rank) : wingName(a.rank)}</td>
+                    <td className="faint">
+                      {a.kind === 'roekoe'
+                        ? `${a.value} seizoenspunten`
+                        : `${a.pigeonName} · ${WING_CAT_LABEL[a.category ?? 'speed']}`}
+                    </td>
+                    <td className="num">{a.season}</td>
+                    <td className="num">€{a.reward}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+    </>
   );
 }
 

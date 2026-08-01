@@ -9,6 +9,29 @@
 
 export const WEEKS_PER_YEAR = 52;
 
+/**
+ * Seizoenen lopen in ECHTE tijd. Een seizoen duurt `weeks` weken, een week
+ * `weekDays` echte dagen. Wanneer de laatste week voorbij is, wordt de
+ * prijsuitreiking gehouden en start een nieuw seizoen (ranglijst reset). Zie
+ * `core/game/season.ts`.
+ */
+export const SEASON = {
+  weeks: 4, // weken per seizoen
+  weekDays: 7, // echte dagen per week
+} as const;
+
+/**
+ * Seizoensprijzen (uitbetaald aan de eigenaar bij de prijsuitreiking).
+ *  - `roekoe`: de top-3 duivenmelkers op seizoenspunten (de Gouden/Zilveren/
+ *    Bronzen Roekoe).
+ *  - `vleugel`: de top-3 duiven in elk van de drie duivenrangschikkingen
+ *    (de Gouden/Zilveren/Bronzen Vleugel).
+ */
+export const SEASON_AWARDS = {
+  roekoe: [2000, 1500, 1000], // 1e / 2e / 3e melker
+  vleugel: [1000, 750, 500], // 1e / 2e / 3e per duivenrangschikking
+} as const;
+
 /** A pigeon can be entered into flights once it reaches this age (in weeks). */
 export const RACE_AGE_WEEKS = 8;
 

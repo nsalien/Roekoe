@@ -295,6 +295,19 @@ export function playerProfile(db: Database, userId: string) {
   }
   trophies.sort((a, b) => (a.startAt < b.startAt ? 1 : -1));
 
+  // Season prizes (Roekoes + Vleugels), newest first, with per-rank tallies.
+  const awards = [...(loft.awards ?? [])].sort((a, b) => (a.at < b.at ? 1 : -1));
+  const tally = (kind: 'roekoe' | 'vleugel') => {
+    const t = { gold: 0, silver: 0, bronze: 0 };
+    for (const a of awards) {
+      if (a.kind !== kind) continue;
+      if (a.rank === 1) t.gold += 1;
+      else if (a.rank === 2) t.silver += 1;
+      else if (a.rank === 3) t.bronze += 1;
+    }
+    return t;
+  };
+
   return {
     level: lvl.level,
     xp: loft.xp,
@@ -305,5 +318,8 @@ export function playerProfile(db: Database, userId: string) {
     badges,
     medals,
     trophies: trophies.slice(0, 60),
+    roekoes: tally('roekoe'),
+    vleugels: tally('vleugel'),
+    awards: awards.slice(0, 60),
   };
 }

@@ -66,6 +66,7 @@ function rowToLoft(r: any): Loft {
     streak: r.streak ?? 0,
     pendingEvent: r.pending_event ? JSON.parse(r.pending_event) : null,
     sponsorship: parseSponsorship(r),
+    awards: r.awards ? JSON.parse(r.awards) : [],
   };
 }
 
@@ -115,6 +116,9 @@ function rowToPigeon(r: any): Pigeon {
     hungerDays: r.hunger_days ?? 0,
     restDays: r.rest_days ?? 0,
     cureUntil: r.cure_until ?? null,
+    seasonPeakSpeed: r.season_peak_speed ?? 0,
+    seasonPodiums: r.season_podiums ?? 0,
+    seasonStartScore: r.season_start_score ?? undefined,
   };
 }
 function rowToBreeding(r: any): BreedingPair {
@@ -240,6 +244,9 @@ export class D1Store implements Store {
         dataVersion: worldRow.data_version ?? 0,
         lastDailyTick: worldRow.last_daily_tick ?? '',
         lastShelterSpawn: worldRow.last_shelter_spawn ?? '',
+        seasonStartedAt: worldRow.season_started_at ?? '',
+        seasonEndsAt: worldRow.season_ends_at ?? '',
+        seasonWeek: worldRow.season_week ?? 1,
       };
     }
 
@@ -311,13 +318,13 @@ export class D1Store implements Store {
     const wd = w.world;
     if (!this.worldExisted) {
       stmts.push(
-        db.prepare('INSERT INTO world (id, current_week, season_year, seeded, data_version, last_daily_tick, last_shelter_spawn, version) VALUES (1, ?, ?, ?, ?, ?, ?, 1)')
-          .bind(wd.currentWeek, wd.seasonYear, b(wd.seeded), wd.dataVersion ?? 0, wd.lastDailyTick ?? '', wd.lastShelterSpawn ?? ''),
+        db.prepare('INSERT INTO world (id, current_week, season_year, seeded, data_version, last_daily_tick, last_shelter_spawn, season_started_at, season_ends_at, season_week, version) VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)')
+          .bind(wd.currentWeek, wd.seasonYear, b(wd.seeded), wd.dataVersion ?? 0, wd.lastDailyTick ?? '', wd.lastShelterSpawn ?? '', wd.seasonStartedAt ?? '', wd.seasonEndsAt ?? '', wd.seasonWeek ?? 1),
       );
     } else {
       stmts.push(
-        db.prepare('UPDATE world SET current_week = ?, season_year = ?, seeded = ?, data_version = ?, last_daily_tick = ?, last_shelter_spawn = ?, version = version + 1 WHERE id = 1')
-          .bind(wd.currentWeek, wd.seasonYear, b(wd.seeded), wd.dataVersion ?? 0, wd.lastDailyTick ?? '', wd.lastShelterSpawn ?? ''),
+        db.prepare('UPDATE world SET current_week = ?, season_year = ?, seeded = ?, data_version = ?, last_daily_tick = ?, last_shelter_spawn = ?, season_started_at = ?, season_ends_at = ?, season_week = ?, version = version + 1 WHERE id = 1')
+          .bind(wd.currentWeek, wd.seasonYear, b(wd.seeded), wd.dataVersion ?? 0, wd.lastDailyTick ?? '', wd.lastShelterSpawn ?? '', wd.seasonStartedAt ?? '', wd.seasonEndsAt ?? '', wd.seasonWeek ?? 1),
       );
     }
 
@@ -333,7 +340,7 @@ export class D1Store implements Store {
     diff(this.snapshots.lofts, w.lofts, (l) => l.userId, {
       upsert: (l) =>
         db.prepare(
-          'INSERT OR REPLACE INTO lofts (user_id, name, money, food, food_stock, feed_ration, capacity, compartments, season_points, total_wins, is_bot, infirmary_capacity, medicated_food, doctors, physios, xp, level, stats, badges, missions, missions_day, streak, pending_event, sponsorship, last_rest_cure) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+          'INSERT OR REPLACE INTO lofts (user_id, name, money, food, food_stock, feed_ration, capacity, compartments, season_points, total_wins, is_bot, infirmary_capacity, medicated_food, doctors, physios, xp, level, stats, badges, missions, missions_day, streak, pending_event, sponsorship, last_rest_cure, awards) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
         ).bind(
           l.userId, l.name, l.money, 0, JSON.stringify(l.food ?? emptyFoodStock()), l.feedRation, l.capacity, l.compartments ?? 0, l.seasonPoints, l.totalWins, b(l.isBot),
           l.infirmaryCapacity, b(l.medicatedFood), l.doctors, l.physios,
@@ -342,6 +349,7 @@ export class D1Store implements Store {
           l.pendingEvent ? JSON.stringify(l.pendingEvent) : '',
           JSON.stringify(l.sponsorship ?? emptySponsorState()),
           l.lastRestCure ?? null,
+          JSON.stringify(l.awards ?? []),
         ),
       del: (id) => db.prepare('DELETE FROM lofts WHERE user_id = ?').bind(id),
       stmts,
@@ -350,12 +358,13 @@ export class D1Store implements Store {
     diff(this.snapshots.pigeons, w.pigeons, (p) => p.id, {
       upsert: (p) =>
         db.prepare(
-          'INSERT OR REPLACE INTO pigeons (id, owner_id, name, sex, birth_week, speed, endurance, orientation, libido, form, health, experience, sire_id, dam_id, for_sale, price, created_at_week, retired, ailment, in_infirmary, races, ever_ailed, coached, ration, compartment, hunger_days, rest_days, cure_until) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+          'INSERT OR REPLACE INTO pigeons (id, owner_id, name, sex, birth_week, speed, endurance, orientation, libido, form, health, experience, sire_id, dam_id, for_sale, price, created_at_week, retired, ailment, in_infirmary, races, ever_ailed, coached, ration, compartment, hunger_days, rest_days, cure_until, season_peak_speed, season_podiums, season_start_score) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
         ).bind(
           p.id, p.ownerId, p.name, p.sex, p.birthWeek, p.speed, p.endurance, p.orientation, p.libido, p.form, p.health,
           p.experience, p.sireId, p.damId, b(p.forSale), p.price, p.createdAtWeek, 0,
           p.ailment ? JSON.stringify(p.ailment) : '', b(p.inInfirmary), p.races, b(p.everAiled), b(p.coached),
           p.ration ?? 'normal', b(p.compartment), p.hungerDays ?? 0, p.restDays ?? 0, p.cureUntil ?? null,
+          p.seasonPeakSpeed ?? 0, p.seasonPodiums ?? 0, p.seasonStartScore ?? null,
         ),
       del: (id) => db.prepare('DELETE FROM pigeons WHERE id = ?').bind(id),
       stmts,
@@ -483,6 +492,13 @@ export async function ensureSchema(db: D1Database): Promise<void> {
     'ALTER TABLE pigeons ADD COLUMN rest_days INTEGER NOT NULL DEFAULT 0',
     'ALTER TABLE pigeons ADD COLUMN cure_until TEXT',
     'ALTER TABLE lofts ADD COLUMN last_rest_cure TEXT',
+    'ALTER TABLE pigeons ADD COLUMN season_peak_speed REAL NOT NULL DEFAULT 0',
+    'ALTER TABLE pigeons ADD COLUMN season_podiums INTEGER NOT NULL DEFAULT 0',
+    'ALTER TABLE pigeons ADD COLUMN season_start_score REAL',
+    "ALTER TABLE lofts ADD COLUMN awards TEXT NOT NULL DEFAULT '[]'",
+    "ALTER TABLE world ADD COLUMN season_started_at TEXT NOT NULL DEFAULT ''",
+    "ALTER TABLE world ADD COLUMN season_ends_at TEXT NOT NULL DEFAULT ''",
+    'ALTER TABLE world ADD COLUMN season_week INTEGER NOT NULL DEFAULT 1',
     "ALTER TABLE flights ADD COLUMN practice INTEGER NOT NULL DEFAULT 0",
     "ALTER TABLE world ADD COLUMN last_shelter_spawn TEXT NOT NULL DEFAULT ''",
     "ALTER TABLE auctions ADD COLUMN bids TEXT NOT NULL DEFAULT '[]'",

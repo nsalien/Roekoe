@@ -25,7 +25,6 @@ import {
   STARTING_MONEY,
   STARTING_PIGEONS,
   TRAINING,
-  WEEKS_PER_YEAR,
   compartmentCost,
   type FeedRationKey,
 } from '../config/gameConfig.js';
@@ -224,19 +223,9 @@ export function advanceWeek(store: Store): WeekSummary {
     }
     // (Breeding hatches in real time now — see tickBreedingHatch.)
 
-    // Advance the calendar and prepare the new week.
+    // Advance the game-week counter (drives ages/ailments/flight weeks). The
+    // SEASON timeline + its rollover run in real time (see season.ts), not here.
     db.world.currentWeek += 1;
-    const newWeek = db.world.currentWeek;
-    if (newWeek % WEEKS_PER_YEAR === 1) {
-      // Season rollover: crown the champion, then reset season points.
-      db.world.seasonYear += 1;
-      const champion = [...db.lofts].sort(
-        (a, b) => b.seasonPoints - a.seasonPoints || b.totalWins - a.totalWins,
-      )[0];
-      if (champion && champion.seasonPoints > 0) awardBadge(db, champion, 'season_champion');
-      for (const loft of db.lofts) loft.seasonPoints = 0;
-      summary.seasonRolledOver = true;
-    }
 
     return summary;
   });
