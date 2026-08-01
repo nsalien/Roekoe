@@ -623,6 +623,28 @@ function runDataMigrations(db: Database): void {
     }
     db.world.dataVersion = 16;
   }
+  if ((db.world.dataVersion ?? 0) < 17) {
+    // Seed the (new) pigeon season rankings from past race history so they are
+    // not empty on launch: a bird's best-ever race velocity becomes its season
+    // peak speed, and every past top-3 finish counts toward its podium tally.
+    // Practice flights don't count. Progress can't be reconstructed (no historic
+    // attribute snapshots), so it just starts fresh from here.
+    const peak = new Map<string, number>();
+    const podium = new Map<string, number>();
+    for (const f of db.flights) {
+      if (f.status !== 'completed' || f.practice) continue;
+      for (const r of f.results) {
+        if (r.finished === false) continue;
+        if (r.velocity > (peak.get(r.pigeonId) ?? 0)) peak.set(r.pigeonId, r.velocity);
+        if (r.rank <= 3) podium.set(r.pigeonId, (podium.get(r.pigeonId) ?? 0) + 1);
+      }
+    }
+    for (const p of db.pigeons) {
+      p.seasonPeakSpeed = peak.get(p.id) ?? 0;
+      p.seasonPodiums = podium.get(p.id) ?? 0;
+    }
+    db.world.dataVersion = 17;
+  }
 }
 
 /**

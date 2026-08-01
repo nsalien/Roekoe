@@ -66,7 +66,7 @@ Bij nieuwe gedeelde-staat-features: hou hier rekening mee.
 `core/game/schedule.ts` → `advanceRealtime(db, nowMs, weatherByFlight)` roept in
 volgorde:
 1. `runDataMigrations(db)` — eenmalige datafixes, **gated op `world.dataVersion`**
-   (staat nu op **16**; nieuwe migratie = nieuw `if ((db.world.dataVersion ?? 0) < N)`
+   (staat nu op **17**; nieuwe migratie = nieuw `if ((db.world.dataVersion ?? 0) < N)`
    blok + `db.world.dataVersion = N`).
 2. `ensureFlightsScheduled(db, nowMs)` — plant vluchten volgens `REAL_SCHEDULE`.
 3. `ensureAuctions(db, nowMs)` — zondagsveiling + willekeurige opvangcentrum-veilingen
@@ -344,7 +344,7 @@ Voor engine-logica: snelle integratietests met **tsx** vanuit de repo-root
 ## 8. Belangrijkste wijzigingen deze sessie (achtergrond)
 
 Alles hieronder staat **live** op de deploy-branch. Data-migraties liepen door tot
-**`dataVersion = 16`**.
+**`dataVersion = 17`**.
 
 **Vluchten & energie**
 - Vlucht-energie wordt **geleidelijk per 30 min** afgetrokken (`tickFlightEnergy`),
@@ -415,6 +415,10 @@ Alles hieronder staat **live** op de deploy-branch. Data-migraties liepen door t
   (€1000/750/500 naar de eigenaar). Bewaard in `Loft.awards`.
 - Prestige-tab **Seizoensprijzen**; ranglijst-tabs **Melkers/Duiven**; kop toont
   seizoensweek + resttijd. Prijzen alleen voor spelers; bots vullen enkel de ranglijst.
+- **Migratie v17**: de duivenranglijsten worden **geseed uit vlucht­historie**
+  (beste ooit-snelheid → `seasonPeakSpeed`; elke top-3-finish → `seasonPodiums`;
+  oefenvluchten tellen niet). Vooruitgang kan niet gereconstrueerd worden en start
+  vers vanaf de seizoensverankering.
 
 ### Openstaande ideeën / balans om op te letten
 - Sterfte is nog **wekelijks** terwijl herstel real-time is (evt. op elkaar afstemmen).
