@@ -48,6 +48,18 @@ export function randomDisease(week: number): Ailment {
   return makeAilment('ziekte', pick(DISEASES), week);
 }
 
+/** A random ailment of a given kind + severity (deterministic with a seeded rng). */
+export function randomAilmentOfSeverity(
+  kind: 'ziekte' | 'kwetsuur',
+  severity: AilmentTemplate['severity'],
+  week: number,
+  rng?: () => number,
+): Ailment {
+  const pool = (kind === 'ziekte' ? DISEASES : INJURIES).filter((t) => t.severity === severity);
+  const list = pool.length > 0 ? pool : kind === 'ziekte' ? DISEASES : INJURIES;
+  return makeAilment(kind, rng ? pickWith(rng, list) : pick(list), week);
+}
+
 /** Give a pigeon an ailment and apply its onset hit to condition. */
 export function applyAilment(p: Pigeon, a: Ailment): void {
   p.ailment = a;

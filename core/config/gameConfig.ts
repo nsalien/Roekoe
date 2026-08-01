@@ -685,14 +685,60 @@ export interface ScheduleSlot {
   weekday: number | null; // 0=Sunday .. 6=Saturday
   hour: number;
   minute: number;
+  practice?: boolean; // an oefenvlucht: no fee, no prizes/points, gentle training
 }
 
 export const REAL_SCHEDULE: ScheduleSlot[] = [
   // Morning: a long-distance race (national or international, rotating per day).
   { key: 'morning-long', tiers: ['national', 'international'], weekday: null, hour: 10, minute: 0 },
+  // Noon: a short OEFENVLUCHT — free, no ranking, builds conditie/oriëntatie.
+  { key: 'noon-practice', tier: 'regional', weekday: null, hour: 12, minute: 0, practice: true },
   // Late afternoon: a short regional race.
   { key: 'evening-short', tier: 'regional', weekday: null, hour: 17, minute: 0 },
 ];
+
+/**
+ * Oefenvlucht (practice flight). Costs almost no energie, has no entry fee and
+ * awards no money or ranking points. Its purpose is TRAINING: a high chance to
+ * grow — mostly conditie/oriëntatie, less snelheid — and a private coach makes
+ * those gains more likely. Gentle: no DNF, injury or death.
+ */
+export const PRACTICE = {
+  energyCost: 4, // total energie spent over the whole practice flight
+  improveChance: 0.7, // chance a bird gains something
+  coachedImproveChance: 0.92, // higher with a private coach
+  weights: { speed: 0.15, endurance: 0.45, orientation: 0.4 }, // conditie/oriëntatie-heavy
+  gainMin: 0.4,
+  gainMax: 1.4,
+  coachedBonusGain: 0.5, // extra gain on conditie/oriëntatie for a coached bird
+} as const;
+
+/**
+ * Tournament-flight risk from flying on low energie (energie = `form`). Graded by
+ * the energie the bird STARTED the race with:
+ *  - under 20: a chance of a LICHT letsel/ziekte;
+ *  - under 10: a chance of a MATIG (or lighter) letsel/ziekte;
+ *  - under 5: a small chance of DEATH (or any of the above).
+ * Above 20 there is only the small "rough flight" base injury chance (HEALTH).
+ */
+export const TOURNEY_RISK = {
+  lightThreshold: 20,
+  moderateThreshold: 10,
+  deathThreshold: 5,
+  lightChance: 0.2,
+  moderateChance: 0.3,
+  deathChance: 0.07,
+} as const;
+
+/**
+ * Rustkuur (rest cure). Pay money to actively recover a tired bird: it rests for
+ * `durationHours` (can't race during the cure) and then gets a big energie boost.
+ */
+export const REST_CURE = {
+  cost: 300,
+  durationHours: 24,
+  energy: 40,
+} as const;
 
 // ===========================================================================
 // Funny Dutch pigeon names

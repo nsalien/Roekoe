@@ -140,10 +140,12 @@ export function FlightsPage() {
                   <div>
                     <div className="row" style={{ gap: 8 }}>
                       <h2 style={{ margin: 0 }}>{f.name}</h2>
-                      <span className={`badge ${f.type}`}>{tierLabel(f.type)}</span>
+                      {f.practice
+                        ? <span className="badge" style={{ background: 'var(--surface-2)' }}>🌤️ Oefenvlucht</span>
+                        : <span className={`badge ${f.type}`}>{tierLabel(f.type)}</span>}
                     </div>
                     <div className="faint" style={{ marginTop: 2 }}>
-                      🕊️ {f.fromCity} → {f.toCity} · {f.distanceKm} km · inschrijfgeld <Money value={f.entryFee} />
+                      🕊️ {f.fromCity} → {f.toCity} · {f.distanceKm} km · {f.practice ? 'gratis · bouwt conditie & oriëntatie op' : <>inschrijfgeld <Money value={f.entryFee} /></>}
                     </div>
                   </div>
                   <div style={{ textAlign: 'right' }}>
@@ -183,7 +185,12 @@ export function FlightsPage() {
                   <span className="faint" style={{ flexShrink: 0 }}>{f.entryCount} ingeschreven</span>
                 </div>
 
-                {(() => {
+                {f.practice && (
+                  <p className="faint" style={{ marginTop: 10, marginBottom: 0 }}>
+                    🌤️ Een korte training: kost amper energie en geen geld, en levert geen punten of prijzen op. Duiven bouwen vooral conditie en oriëntatie op — met een privécoach lukt dat nog beter.
+                  </p>
+                )}
+                {!f.practice && (() => {
                   const opensAt = Date.parse(f.startAt) - state.economy.betWindowHours * 3600000;
                   if (betFlights.has(f.id)) {
                     return (
@@ -242,6 +249,7 @@ const KIND_LABELS: Record<BetKind, string> = {
   win: 'Wint de vlucht',
   last: 'Eindigt allerlaatste',
   own_top3: 'Eigen duif in top 3',
+  top3: 'Duif in top 3',
   mine_wins: 'Een van mijn duiven wint',
   head2head: 'Komt eerder thuis dan…',
 };
@@ -323,7 +331,7 @@ function BetPanel({ flight, meId, onPlaced }: { flight: Flight; meId?: string; o
     );
   }
 
-  const availableKinds: BetKind[] = ['win', 'last', 'head2head', ...(mine.length > 0 ? (['own_top3', 'mine_wins'] as BetKind[]) : [])];
+  const availableKinds: BetKind[] = ['win', 'top3', 'last', 'head2head', ...(mine.length > 0 ? (['own_top3', 'mine_wins'] as BetKind[]) : [])];
 
   return (
     <div className="card" style={{ marginTop: 10, background: 'var(--surface-2)', boxShadow: 'none' }}>

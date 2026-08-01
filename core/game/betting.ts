@@ -18,6 +18,7 @@ import { clamp, hashString, seededRng } from './util.js';
 /** When betting opens/closes for a flight. */
 export function bettingOpen(flight: Flight, nowMs: number): boolean {
   if (flight.status !== 'scheduled') return false;
+  if (flight.practice) return false; // oefenvluchten: geen inzet, geen prijzen
   const start = Date.parse(flight.startAt);
   if (Number.isNaN(start)) return false;
   return nowMs >= start - BETTING.windowHours * 3600000 && nowMs < start;
@@ -88,6 +89,14 @@ export function betProbability(
       }
       return count / N;
     }
+    case 'top3': {
+      if (!has(pigeonId)) return null;
+      for (const o of sim.orders) {
+        const k = Math.min(3, o.finishers);
+        if (o.order.slice(0, k).includes(pigeonId)) count++;
+      }
+      return count / N;
+    }
     case 'last': {
       if (!has(pigeonId)) return null;
       for (const o of sim.orders) if (o.finishers > 0 && o.order[o.finishers - 1] === pigeonId) count++;
@@ -118,6 +127,7 @@ const KIND_LABEL: Record<BetKind, string> = {
   win: 'wint de vlucht',
   last: 'eindigt allerlaatste',
   own_top3: 'eindigt in de top 3',
+  top3: 'eindigt in de top 3',
   mine_wins: 'een van jouw duiven wint',
   head2head: 'komt eerder thuis dan',
 };
@@ -226,7 +236,7 @@ export function settleFlightBets(db: Database, flight: Flight): void {
       const r = results.find((x) => x.pigeonId === b.pigeonId);
       if (!r) outcome = 'void'; // the bird withdrew — refund
       else if (b.kind === 'win') outcome = r.rank === 1 && r.finished !== false ? 'won' : 'lost';
-      else if (b.kind === 'own_top3') outcome = r.rank <= 3 && r.finished !== false ? 'won' : 'lost';
+      else if (b.kind === 'own_top3' || b.kind === 'top3') outcome = r.rank <= 3 && r.finished !== false ? 'won' : 'lost';
       else if (b.kind === 'last') outcome = r.finished !== false && r.rank === lastFinisherRank ? 'won' : 'lost';
       else if (b.kind === 'head2head') {
         const rr = rankOf(b.rivalId);

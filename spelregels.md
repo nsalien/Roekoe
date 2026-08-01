@@ -34,8 +34,9 @@ in de ziekenboeg, minstens **8 weken** oud en gezondheid > 15.
 
 ## 2. Vluchten
 
-### 2.1 Kalender (max. 2 per dag, Brussel-tijd)
+### 2.1 Kalender (Brussel-tijd)
 - **10:00 — lange vlucht**: nationaal of internationaal (wisselt per dag).
+- **12:00 — oefenvlucht**: korte training (zie §2.7).
 - **17:00 — korte vlucht**: regionaal.
 
 ### 2.2 Niveaus
@@ -112,6 +113,26 @@ Gerangschikt op finishtijd (snelste eerst).
 **Punten** (top 20): 100, 80, 65, 55, 47, 40, 34, 29, 25, 21, 18, 15, 13, 11, 9, 7, 5, 3, 2, 1.
 Seizoenspunten tellen op over **alle** vluchten en **alle** duiven van een hok.
 
+### 2.7 Oefenvluchten (elke middag om 12:00)
+Een **oefenvlucht** is een korte training, geen wedstrijd:
+- **Gratis** inschrijven — geen inschrijfgeld.
+- **Geen** prijzengeld, **geen** seizoenspunten, **geen** overwinningen/medailles.
+- Verbruikt **heel weinig** energie (in totaal ~**4**, ook geleidelijk afgetrokken).
+- Bots doen **niet** mee; je kan er **niet** op wedden.
+- Iedereen komt thuis: **geen** DNF, **geen** kwetsuur- of sterfterisico.
+
+De bedoeling is **conditie en oriëntatie opbouwen** (en in mindere mate snelheid).
+Na afloop maakt elke duif kans om te groeien in één vaardigheid — gewogen naar
+**oriëntatie/conditie** (snelheid 0.15 / conditie 0.45 / oriëntatie 0.40):
+```
+kans        = 0.70              (zonder coach)
+            = 0.92              (met privécoach)
+groei       = willekeurig(0.4 … 1.4) · (0.4 + ruimte)
+              + 0.5 extra bij een gecoachte duif op conditie/oriëntatie
+```
+Zo kan een duif zonder energie voor wedstrijden tóch elke dag beter worden. Een
+**privécoach** (§13) maakt de kans én de winst op conditie/oriëntatie groter.
+
 ---
 
 ## 3. Effect van een vlucht op de duif
@@ -177,6 +198,19 @@ de lijst (zie §5).
 > 490·0.00018 ≈ **11%** bij volle energie. Vliegt de duif op haar tandvlees
 > (energie 30), dan wordt dat ×1.7 → **~19%**. Uitgeputte duiven laten vliegen
 > is dus vragen om blessures.
+
+**Getrapt risico op een wedstrijdvlucht bij lage energie.** Naast de gewone
+blessurekans gelden er extra gevaren, bepaald door de energie waarmee de duif
+**vertrekt** (een duif die je zelf **opgeeft** loopt deze risico's níet):
+
+| Startenergie | Risico |
+|---|---|
+| **onder 20** | kans (~20%) op een **licht** letsel of lichte ziekte |
+| **onder 10** | kans (~30%) op een **matig** letsel of matige ziekte (of het bovenstaande) |
+| **onder 5** | kleine kans (~7%) op **sterfte** — of anders alles hierboven |
+
+Sterfte gaat vóór alle andere aandoeningen: sterft de duif, dan verlaat ze het
+hok (met een melding). Oefenvluchten (§2.7) kennen deze risico's **niet**.
 
 ### 3.3 Wedstrijddeadline (90 minuten na de eerste duif)
 
@@ -311,6 +345,17 @@ herstel/sterfte en het seizoen worden ook dan verwerkt (zie §5, §6).
 Onkosten kunnen je kassa **onder €0** duwen. Sta je negatief, dan **kan je niet
 meer inschrijven** voor vluchten: eerst een duif verkopen om terug uit het rood
 te geraken.
+
+### 4.3 Rustkuur (energie kopen met tijd)
+Naast wachten en Herstelvoer kan je een duif een **betaalde rustkuur** geven op
+haar duifpagina:
+- Kost **€300** en duurt **één dag** (24 u, echte tijd).
+- Tijdens de kuur **rust** de duif verplicht: ze kan **niet inschrijven of vliegen**.
+- Als de kuur voorbij is, krijgt ze in één keer **+40 energie** (met een melding).
+
+Handig als al je duiven futloos zijn en je snel iemand vluchtklaar wil krijgen
+zonder op de dagelijkse verzorging te wachten. Je kan geen kuur starten voor een
+duif die al ingeschreven staat of al vol energie zit.
 
 ---
 
@@ -566,9 +611,13 @@ toont de vlucht een **aftelklok** tot de weddenschappen openen. Zodra de vlucht
 start, kan je niet meer inzetten. Je kan **maximaal één weddenschap per vlucht**
 plaatsen.
 
+Je kan wedden op **alle wedstrijdvluchten** (regionaal, nationaal én
+internationaal). Op **oefenvluchten** (§2.7) kan je niet wedden.
+
 Je kiest een **inzet**, een **type weddenschap** en (meestal) een **doelduif** —
 ook duiven van andere spelers. Types:
 - **Wint de vlucht** — de gekozen duif wordt eerste.
+- **Duif in top 3** — de gekozen duif (van jou of een ander) eindigt bij de eerste drie.
 - **Eindigt allerlaatste** — de gekozen duif is de **laatste die thuiskomt**.
   Duiven die niet finishen (DNF/opgegeven) tellen hier níet als "laatste".
 - **Eigen duif in top 3** — een van jóuw duiven eindigt bij de eerste drie.
