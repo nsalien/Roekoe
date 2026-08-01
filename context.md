@@ -257,6 +257,14 @@ naar de juiste pagina navigeert en het relevante element highlight via
 draait vanuit `Layout` (blijft gemonteerd tijdens navigatie); de profielknop start
 hem via `window.dispatchEvent(new Event('roekoe:start-tour'))`.
 
+**"Wat is nieuw"-melding (`components/FeatureTour.tsx`):** aparte, eenmalige reeks
+gecentreerde infokaarten (zelfde stijl als de Tour-popup, zonder navigatie/spotlight)
+om álle spelers over nieuwe functies te informeren — ook wie de hoofd-tour al zag.
+Eigen localStorage-sleutel `roekoe.newsSeen.oefenrust.<id>`; toont pas als de hoofd-tour
+niet open is (nieuwe speler ziet eerst de volledige tour). Huidige inhoud (`FEATURE_NEWS`):
+scherm 1 = voordeel van **oefenvluchten**, scherm 2 = **rustkuur**. Bump de sleutel-suffix
+voor een volgende aankondiging.
+
 **Thema:** `data-theme` op `<html>` (default **dark**, gezet door inline script in
 `index.html` vóór paint). CSS gebruikt `:root[data-theme='dark']` en
 `[data-theme='dark'] …` (geen `prefers-color-scheme` meer). Toggle in Profiel.
@@ -365,6 +373,9 @@ Alles hieronder staat **live** op de deploy-branch. Data-migraties liepen door t
 - **Rustkuur** (`REST_CURE` + `startRestCure` + POST `/pigeons/:id/restcure` +
   `tickRestCures`): €300, 1 dag verplicht rusten, daarna +40 energie; kan tijdens de
   kuur niet vliegen (`enterFlight` blokkeert op `cureUntil`). UI op `PigeonPage`.
+- **Eenmalige "wat is nieuw"-melding** (`FeatureTour.tsx` + `FEATURE_NEWS`): twee
+  gecentreerde infokaarten (oefenvlucht-voordeel + rustkuur) voor álle spelers, aparte
+  localStorage-sleutel, na de hoofd-tour. Oefenvlucht-tekst in `FlightsPage` ingekort.
 
 ### Openstaande ideeën / balans om op te letten
 - Sterfte is nog **wekelijks** terwijl herstel real-time is (evt. op elkaar afstemmen).

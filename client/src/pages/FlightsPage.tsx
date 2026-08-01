@@ -145,7 +145,7 @@ export function FlightsPage() {
                         : <span className={`badge ${f.type}`}>{tierLabel(f.type)}</span>}
                     </div>
                     <div className="faint" style={{ marginTop: 2 }}>
-                      🕊️ {f.fromCity} → {f.toCity} · {f.distanceKm} km · {f.practice ? 'gratis · bouwt conditie & oriëntatie op' : <>inschrijfgeld <Money value={f.entryFee} /></>}
+                      🕊️ {f.fromCity} → {f.toCity} · {f.distanceKm} km · {f.practice ? 'gratis' : <>inschrijfgeld <Money value={f.entryFee} /></>}
                     </div>
                   </div>
                   <div style={{ textAlign: 'right' }}>
@@ -187,7 +187,7 @@ export function FlightsPage() {
 
                 {f.practice && (
                   <p className="faint" style={{ marginTop: 10, marginBottom: 0 }}>
-                    🌤️ Een korte training: kost amper energie en geen geld, en levert geen punten of prijzen op. Duiven bouwen vooral conditie en oriëntatie op — met een privécoach lukt dat nog beter.
+                    🌤️ Een korte training: lage energiekost, geen geldkosten, en levert geen punten of prijzen op.
                   </p>
                 )}
                 {!f.practice && (() => {
