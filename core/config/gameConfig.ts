@@ -125,16 +125,16 @@ export const FLIGHT_RISK = {
  * before gradual draining existed (no frozen `formCost`).
  */
 export const FLIGHT_FATIGUE = {
-  base: 5,
-  perKmDivisor: 60,
-  jitter: 5,
+  base: 10,
+  perKmDivisor: 30,
+  jitter: 10,
   experienceReliefSpread: 0.5, // total swing across ervaring 0→100 (±25% around ervaring 50)
   stepMinutes: 30, // energie is deducted in blocks of this many minutes
-  exhaustionPenalty: 12,
-  exhaustionJitter: 6,
-  gaveUpBase: 3,
-  gaveUpPerKmDivisor: 120,
-  gaveUpJitter: 2,
+  exhaustionPenalty: 24,
+  exhaustionJitter: 12,
+  gaveUpBase: 6,
+  gaveUpPerKmDivisor: 60,
+  gaveUpJitter: 4,
 } as const;
 
 /**
@@ -791,7 +791,7 @@ export const REAL_SCHEDULE: ScheduleSlot[] = [
  * those gains more likely. Gentle: no DNF, injury or death.
  */
 export const PRACTICE = {
-  energyCost: 4, // total energie spent over the whole practice flight
+  energyCost: 8, // total energie spent over the whole practice flight
   improveChance: 0.7, // chance a bird gains something
   coachedImproveChance: 0.92, // higher with a private coach
   weights: { speed: 0.15, endurance: 0.45, orientation: 0.4 }, // conditie/oriëntatie-heavy

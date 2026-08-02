@@ -144,7 +144,7 @@ Een **oefenvlucht** is een korte training, geen wedstrijd:
 - **Telt niet mee voor de ranglijsten** (§15): enkel nationale, regionale en
   internationale **wedstrijdvluchten** tellen daar. Ook de opgebouwde conditie/
   oriëntatie van een oefenvlucht telt **niet** mee voor de vooruitgangsranglijst.
-- Verbruikt **heel weinig** energie (in totaal ~**4**, ook geleidelijk afgetrokken).
+- Verbruikt **weinig** energie (in totaal ~**8**, ook geleidelijk afgetrokken).
 - Bots doen **niet** mee; je kan er **niet** op wedden.
 - Iedereen komt thuis: **geen** DNF, **geen** kwetsuur- of sterfterisico.
 
@@ -179,7 +179,7 @@ Per deelnemende duif:
 
 | Effect | Formule | Wanneer |
 |---|---|---|
-| **Energie** (verbruik) | −((5 + afstand/60) · ervaringsfactor + willekeurig 0…5) | **geleidelijk tijdens de vlucht** (zie hieronder) |
+| **Energie** (verbruik) | −((10 + afstand/30) · ervaringsfactor + willekeurig 0…10) | **geleidelijk tijdens de vlucht** (zie hieronder) |
 | **Conditie** (opbouw) | +(0.3 + afstand/500 + willekeurig 0…0.4) | na afloop |
 | **Gezondheid** | −(willekeurig 0 … afstand/200) | na afloop |
 | **Ervaring** | +(2 + afstand/100) | na afloop |
@@ -195,7 +195,7 @@ ervaringsfactor = 1 − (ervaring/100 − 0.5) · 0.5
   ervaring 100 → ×0.75   (25% minder verbruik)
 ```
 Jonge, pas gekweekte duiven (ervaring 0) betalen dus een toeslag; doorwinterde
-vliegers besparen. De willekeurige spreiding (0…5) komt er los bovenop.
+vliegers besparen. De willekeurige spreiding (0…10) komt er los bovenop.
 
 **Energie loopt gaandeweg leeg, niet in één klap achteraf.** Bij de start wordt
 de totale energiekost van de rit vastgeklikt en vervolgens **per 30 minuten**
@@ -205,25 +205,25 @@ volledige kost; wie halverwege **opgeeft** (§3.4), heeft alleen betaald voor he
 stuk dat ze al vloog — je kan de energiekost dus niet ontlopen door je duif net
 voor de finish uit de race te halen.
 
-**Gemiddeld verbruik per afstand** (inclusief de gemiddelde spreiding +2,5):
+**Gemiddeld verbruik per afstand** (inclusief de gemiddelde spreiding +5):
 
 | Afstand | Onervaren (erv. 0) | Gemiddeld (erv. 50) | Ervaren (erv. 100) |
 |---|---|---|---|
-| 0–100 km | ~9,8 | ~8,3 | ~6,9 |
-| 100–200 km | ~11,9 | ~10,0 | ~8,1 |
-| 200–300 km | ~14,0 | ~11,7 | ~9,4 |
-| 300–600 km | ~18,1 | ~15,0 | ~11,9 |
+| 0–100 km | ~19,6 | ~16,7 | ~13,8 |
+| 100–200 km | ~23,8 | ~20,0 | ~16,3 |
+| 200–300 km | ~27,9 | ~23,3 | ~18,8 |
+| 300–600 km | ~36,3 | ~30,0 | ~23,8 |
 
 > **Voorbeeld.** Een vlucht van **300 km** kost een gemiddelde duif ongeveer
-> **12 energie**. Op een rit van ~5 uur gaat er dus zowat **1,2 energie per 30
-> minuten** af. Een ervaren duif (ervaring 100) doet diezelfde vlucht met ~**9,4**
-> energie, een groentje (ervaring 0) met ~**14**. De duif wint na afloop ~**1
-> conditie** en ~**5 ervaring**, en er gaat een beetje gezondheid af. Met de nieuwe
-> herstelwaarden (§4) is een duif zo weer inzetbaar na een paar dagen rust — of
-> sneller met Herstelvoer.
+> **23 energie**. Op een rit van ~5 uur gaat er dus zowat **2,3 energie per 30
+> minuten** af. Een ervaren duif (ervaring 100) doet diezelfde vlucht met ~**19**
+> energie, een groentje (ervaring 0) met ~**28**. De duif wint na afloop ~**1
+> conditie** en ~**5 ervaring**, en er gaat een beetje gezondheid af. Met de
+> herstelwaarden (§4) heeft een duif na zo'n rit dus duidelijk meer rust (of
+> Herstelvoer) nodig voor ze weer inzetbaar is.
 >
 > **Let op:** een duif die **niet thuis raakt** (uitputting/tijdslimiet, §3.3)
-> verliest er nog eens **12 + willekeurig 0…6** energie bovenop.
+> verliest er nog eens **24 + willekeurig 0…12** energie bovenop.
 
 ### 3.1 Kans op verbetering van een vaardigheid
 Elke deelnemer maakt kans om te groeien in de vaardigheid die voor die afstand
