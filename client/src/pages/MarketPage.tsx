@@ -170,14 +170,11 @@ export function MarketPage() {
       </div>
 
       {/* Bid on any other player's pigeon — listed or not. */}
-      <div className="page-head" style={{ marginTop: 26 }}>
+      <div className="page-head" style={{ marginTop: 26 }} data-tour="market-bid">
         <div>
           <h2>🕊️ Bied op duiven van andere spelers</h2>
           <p className="muted">
-            Ook duiven die niet te koop staan. Kies eerst een speler, dan een van zijn duiven en je bedrag.
-            Je ziet enkel de <strong>algemene score (★ talent)</strong> — de precieze eigenschappen blijven
-            geheim, dus vorm je een idee via de <Link to="/ranglijst">ranglijst</Link> of vluchtresultaten.
-            Je bod blijft geldig tot de eigenaar het aanvaardt of weigert; je kan het altijd intrekken.
+            Kies een speler, vervolgens een van zijn duiven en bepaal je bedrag.
           </p>
         </div>
       </div>

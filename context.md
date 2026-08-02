@@ -348,19 +348,22 @@ Entiteiten: `Pigeon`, `Loft`, `User`, `BreedingPair`, `Flight` (+ `SimEntry`,
 **Rondleiding (`components/Tour.tsx`):** interactieve spotlight-tour die per stap
 naar de juiste pagina navigeert en het relevante element highlight via
 `[data-tour="..."]`-ankers. `Tour` neemt een optionele **`steps`-prop** (default =
-volledige `STEPS`). De volledige tour dekt o.a. oefenvluchten, rustkuur, **seizoen,
-ranglijst (Roekoe), duivenranglijsten (Vleugel)** en de prestige-seizoensprijzen.
-Eenmalig per speler (localStorage `roekoe.tourSeen.<id>`), draait vanuit `Layout`
-(blijft gemonteerd tijdens navigatie); de profielknop herhaalt hem via
-`window.dispatchEvent(new Event('roekoe:start-tour'))`.
+volledige `STEPS`). De volledige tour dekt o.a. oefenvluchten, rustkuur, markt +
+**"🕊️ Bied op andermans duiven"** (anker `[data-tour="market-bid"]`: speler→duif→
+bedrag + verborgen eigenschappen), **seizoen, ranglijst (Roekoe), duivenranglijsten
+(Vleugel)** en de prestige-seizoensprijzen. Eenmalig per speler (localStorage
+`roekoe.tourSeen.<id>`), draait vanuit `Layout` (blijft gemonteerd tijdens navigatie);
+de profielknop herhaalt hem via `window.dispatchEvent(new Event('roekoe:start-tour'))`.
 
-**"Wat is nieuw"-melding:** dezelfde `Tour` maar met een **subset** stappen
-(`SEASON_NEWS_STEPS`: intro + seizoen/ranglijst/Roekoe/Vleugel/seizoensprijzen), dus
-óók visueel met navigatie + spotlight. Eigen localStorage-sleutel
-`roekoe.newsSeen.season1.<id>`; toont pas als de hoofd-tour niet open is. `closeTour`
-zet ook de news-sleutel, zodat een nieuwe speler die de volledige tour afrondt niet
-nog eens de news krijgt. Bump de sleutel-suffix voor een volgende aankondiging. (De
-oude `FeatureTour` met gecentreerde kaarten is verwijderd — alles zit nu in `Tour`.)
+**"Wat is nieuw"-melding:** dezelfde `Tour` maar met een **subset** stappen. Actueel
+= **`BID_NEWS_STEPS`** (privé-biedingen: intro + hoe bieden (speler→duif→bedrag) +
+"je koopt deels blind" (enkel ★talent zichtbaar) + biedingen op je eigen duiven).
+Eigen localStorage-sleutel `roekoe.newsSeen.privatebids.<id>`; toont pas als de
+hoofd-tour niet open is. `closeTour` zet ook de news-sleutel, zodat een nieuwe speler
+die de volledige tour afrondt niet nog eens de news krijgt. Bump de sleutel-suffix +
+wissel de `steps`-set (import in `Layout`) voor een volgende aankondiging. De vorige
+set `SEASON_NEWS_STEPS` blijft in `Tour.tsx` als referentie. (De oude `FeatureTour`
+met gecentreerde kaarten is verwijderd — alles zit nu in `Tour`.)
 
 **Thema:** `data-theme` op `<html>` (default **dark**, gezet door inline script in
 `index.html` vóór paint). CSS gebruikt `:root[data-theme='dark']` en
