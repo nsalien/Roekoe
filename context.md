@@ -296,6 +296,12 @@ enkel fallback).
   Kop toont "Seizoen X · week Y/4 · nog Z dagen".
 - `AchievementsPage` (Prestaties) — tabs Badges · Trofeeën · **Seizoensprijzen**
   (Roekoes + Vleugels: tellingen goud/zilver/brons + erelijst uit `profile.awards`).
+- `AdminPage` (`/beheer`, **enkel admins**) — uitbreidbare **beheerconsole** (tabs).
+  Eerste tool **Vlucht-analyse**: per duif van een afgeronde vlucht de volledige
+  snelheidsontleding (eigenschappen + weging + energie/gezondheid/ervaring/leeftijd-
+  factoren + berekende vs. echte snelheid + residu ≈ geluk). Nav-link + route enkel
+  bij `state.isAdmin`; API's `GET /admin/flights` en `GET /admin/flight-analysis/:id`
+  checken `user.isAdmin` (403 anders). Kern: `velocityBreakdown()` in `flight.ts`.
 - Verder: `MarketPage` (koop van spelers + veilingen; opvangcentrum), `BreedingPage`,
   `SponsorsPage`, `LoginPage`.
 

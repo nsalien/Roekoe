@@ -32,7 +32,7 @@ import { randomWeather, type WeatherResult } from './weather.js';
 import { clamp, hashString, interpolate, pickWith, randFloat, round1, seededRng } from './util.js';
 
 /** Attribute weighting for a given distance (interpolated short<->long). */
-function weightsForDistance(distanceKm: number) {
+export function weightsForDistance(distanceKm: number) {
   const { shortKm, longKm, short, long } = DISTANCE_WEIGHTING;
   const t = clamp((distanceKm - shortKm) / (longKm - shortKm), 0, 1);
   return {
@@ -92,6 +92,55 @@ export function pigeonVelocity(
     weatherFactor *
     luck;
   return round1(velocity);
+}
+
+/** Every factor that goes into a pigeon's velocity, for diagnostics (admin). */
+export interface VelocityBreakdown {
+  weights: { speed: number; endurance: number; orientation: number };
+  baseAttr: number; // weighted attribute score
+  base: number; // 700 + baseAttr*9
+  formFactor: number; // energie multiplier
+  healthFactor: number;
+  experienceFactor: number;
+  ageFactor: number;
+  weatherFactor: number;
+  velocityNoLuck: number; // base × all factors (luck = 1)
+}
+
+const round3 = (n: number) => Math.round(n * 1000) / 1000;
+
+/**
+ * Decompose a pigeon's velocity into its contributing factors. Pass `formValue`
+ * to use the energie the bird had at race time (its frozen `startForm`) instead
+ * of its current energie. Used by the admin flight-analysis tool.
+ */
+export function velocityBreakdown(
+  pigeon: Pigeon,
+  distanceKm: number,
+  currentWeek: number,
+  weatherFactor: number,
+  formValue?: number,
+): VelocityBreakdown {
+  const w = weightsForDistance(distanceKm);
+  const baseAttr = w.speed * pigeon.speed + w.endurance * pigeon.endurance + w.orientation * pigeon.orientation;
+  const form = formValue ?? pigeon.form;
+  const formFactor = interpolate([{ x: 0, y: 0.55 }, { x: 50, y: 0.9 }, { x: 100, y: 1.1 }], form);
+  const healthFactor = interpolate([{ x: 0, y: 0.4 }, { x: 50, y: 0.85 }, { x: 100, y: 1.0 }], pigeon.health);
+  const experienceFactor = 1 + clamp(pigeon.experience, 0, 100) / 300;
+  const ageFactor = ageMultiplier(pigeon, currentWeek);
+  const base = 700 + baseAttr * 9;
+  const velocityNoLuck = base * formFactor * healthFactor * experienceFactor * ageFactor * weatherFactor;
+  return {
+    weights: { speed: round3(w.speed), endurance: round3(w.endurance), orientation: round3(w.orientation) },
+    baseAttr: round1(baseAttr),
+    base: round1(base),
+    formFactor: round3(formFactor),
+    healthFactor: round3(healthFactor),
+    experienceFactor: round3(experienceFactor),
+    ageFactor: round3(ageFactor),
+    weatherFactor: round3(weatherFactor),
+    velocityNoLuck: round1(velocityNoLuck),
+  };
 }
 
 export interface Improvement {

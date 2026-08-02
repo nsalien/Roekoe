@@ -18,6 +18,7 @@ import { SponsorsPage } from './pages/SponsorsPage';
 import { AchievementsPage } from './pages/AchievementsPage';
 import { ProfilePage } from './pages/ProfilePage';
 import { RankingPage } from './pages/RankingPage';
+import { AdminPage } from './pages/AdminPage';
 
 export function App() {
   const { user, loading } = useAuth();
@@ -47,6 +48,7 @@ export function App() {
         <Route path="/prestaties" element={<AchievementsPage />} />
         <Route path="/profiel" element={<ProfilePage />} />
         <Route path="/ranglijst" element={<RankingPage />} />
+        <Route path="/beheer" element={<AdminPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
     </Routes>

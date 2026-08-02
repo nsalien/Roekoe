@@ -61,6 +61,9 @@ import {
 } from '../../core/game/engine.js';
 import { advanceRealtime, flightsAwaitingStart } from '../../core/game/schedule.js';
 import { pigeonSeasonRankings } from '../../core/game/season.js';
+import { velocityBreakdown, weightsForDistance } from '../../core/game/flight.js';
+import { ageInWeeks } from '../../core/game/pigeon.js';
+import { ownerName } from '../../core/game/engine.js';
 import { fetchFlightWeather, type WeatherResult } from '../../core/game/weather.js';
 import { auctionKind, placeBid } from '../../core/game/auction.js';
 import { betsView, placeBet, previewBet } from '../../core/game/betting.js';
@@ -742,6 +745,91 @@ app.post('/admin/advance-week', async (c) => {
   const summary = advanceWeek(store);
   await store.persist();
   return c.json({ summary, world: store.data.world });
+});
+
+// --- Admin console: diagnostics ------------------------------------------
+
+/** Recent completed flights, for the admin flight-analysis picker. */
+app.get('/admin/flights', (c) => {
+  const user = requireUser(c);
+  if (!user.isAdmin) return c.json({ error: 'Alleen de beheerder mag dit doen' }, 403);
+  const db = c.get('store').data;
+  const flights = db.flights
+    .filter((f) => f.status === 'completed' && f.results.length > 0)
+    .sort((a, b) => (a.startAt < b.startAt ? 1 : -1))
+    .slice(0, 60)
+    .map((f) => ({
+      id: f.id, name: f.name, fromCity: f.fromCity, toCity: f.toCity,
+      distanceKm: f.distanceKm, startAt: f.startAt, entrants: f.results.length,
+      practice: !!f.practice, titan: !!f.titan,
+    }));
+  return c.json({ flights });
+});
+
+/**
+ * Full velocity breakdown per participating pigeon of a flight: the attributes,
+ * the distance weighting, and every multiplier (energie/gezondheid/ervaring/
+ * leeftijd/weer) that produced its race speed. Energie is the value the bird had
+ * AT RELEASE (frozen `startForm`); the other attributes are read from the bird's
+ * current state, so they can differ slightly if it has trained/aged since.
+ */
+app.get('/admin/flight-analysis/:id', (c) => {
+  const user = requireUser(c);
+  if (!user.isAdmin) return c.json({ error: 'Alleen de beheerder mag dit doen' }, 403);
+  const db = c.get('store').data;
+  const f = db.flights.find((x) => x.id === c.req.param('id'));
+  if (!f) return c.json({ error: 'Vlucht niet gevonden' }, 404);
+
+  const week = f.week;
+  const wf = f.weatherFactor ?? 1;
+  const resultOf = new Map(f.results.map((r) => [r.pigeonId, r]));
+  const source: any[] = f.sim.length
+    ? f.sim
+    : f.entries.map((e) => ({ pigeonId: e.pigeonId, ownerId: e.ownerId, velocity: null, startForm: null, ownerName: ownerName(db, e.ownerId) }));
+
+  const rows = source.map((s) => {
+    const p = db.pigeons.find((x) => x.id === s.pigeonId);
+    const res = resultOf.get(s.pigeonId);
+    const raceForm: number | null = s.startForm ?? p?.form ?? null;
+    const breakdown = p ? velocityBreakdown(p, f.distanceKm, week, wf, raceForm ?? undefined) : null;
+    const frozenVelocity: number | null = s.velocity ?? res?.velocity ?? null;
+    // Frozen velocity ÷ recomputed (luck=1) ≈ the per-bird luck draw (×0.9–1.1),
+    // plus any attribute drift since the race.
+    const residual = breakdown && frozenVelocity && breakdown.velocityNoLuck
+      ? Math.round((frozenVelocity / breakdown.velocityNoLuck) * 1000) / 1000
+      : null;
+    return {
+      pigeonId: s.pigeonId,
+      name: p?.name ?? s.pigeonName ?? 'duif',
+      ownerName: s.ownerName ?? ownerName(db, s.ownerId),
+      mine: s.ownerId === user.id,
+      exists: !!p,
+      speed: p?.speed ?? null,
+      endurance: p?.endurance ?? null,
+      orientation: p?.orientation ?? null,
+      raceForm,
+      currentForm: p?.form ?? null,
+      health: p?.health ?? null,
+      experience: p?.experience ?? null,
+      ageWeeks: p ? ageInWeeks(p, week) : null,
+      breakdown,
+      frozenVelocity,
+      residual,
+      rank: res?.rank ?? null,
+      finished: res ? res.finished !== false : null,
+      timeSeconds: res?.timeSeconds ?? null,
+    };
+  }).sort((a, b) => (a.rank ?? 9999) - (b.rank ?? 9999));
+
+  return c.json({
+    flight: {
+      id: f.id, name: f.name, fromCity: f.fromCity, toCity: f.toCity, distanceKm: f.distanceKm,
+      startAt: f.startAt, weather: f.weather, weatherFactor: wf, status: f.status,
+      practice: !!f.practice, titan: !!f.titan, week,
+    },
+    weights: weightsForDistance(f.distanceKm),
+    rows,
+  });
 });
 
 export const onRequest = handle(app);
