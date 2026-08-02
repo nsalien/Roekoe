@@ -196,11 +196,27 @@ export function PigeonPage() {
               <h2>Training</h2>
               <p className="muted">
                 {state?.economy && <>Kost <Money value={state.economy.trainCost} /> en wat energie, </>}geeft een kleine blijvende verbetering.
+                Elke eigenschap kan <strong>1× per week</strong> getraind worden.
               </p>
               <div className="stack" style={{ marginTop: 8 }}>
-                <button className="btn" disabled={busy} onClick={() => train('speed')}>Train snelheid</button>
-                <button className="btn" disabled={busy} onClick={() => train('endurance')}>Train conditie</button>
-                <button className="btn" disabled={busy} onClick={() => train('orientation')}>Train oriëntatie</button>
+                {([
+                  ['speed', 'snelheid'],
+                  ['endurance', 'conditie'],
+                  ['orientation', 'oriëntatie'],
+                ] as const).map(([attr, label]) => {
+                  const until = p.trainAvailableAt[attr];
+                  return (
+                    <button
+                      key={attr}
+                      className="btn"
+                      disabled={busy || !!until}
+                      title={until ? `Deze week al getraind — opnieuw vanaf ${formatFlightTime(until)}` : undefined}
+                      onClick={() => train(attr)}
+                    >
+                      {until ? `🔒 ${label.charAt(0).toUpperCase() + label.slice(1)} — weer vanaf ${formatFlightTime(until)}` : `Train ${label}`}
+                    </button>
+                  );
+                })}
               </div>
             </div>
           )}

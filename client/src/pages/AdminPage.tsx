@@ -17,7 +17,7 @@ interface AdminFlight {
 }
 interface Breakdown {
   weights: { speed: number; endurance: number; orientation: number };
-  baseAttr: number; base: number;
+  baseAttr: number; base: number; effectiveForm: number;
   formFactor: number; healthFactor: number; experienceFactor: number; ageFactor: number; weatherFactor: number;
   velocityNoLuck: number;
 }
@@ -118,10 +118,12 @@ function FlightAnalysis() {
               </div>
             </div>
             <p className="faint" style={{ fontSize: '0.82rem', marginBottom: 0 }}>
-              De eigenschappen komen uit de <em>huidige</em> staat van de duif; <strong>energie</strong> is de waarde bij
-              de start van de vlucht. <strong>v (berekend)</strong> = basis × alle factoren (zonder geluk);
-              <strong> v (echt)</strong> is de bevroren racesnelheid. <strong>Residu</strong> ≈ het geluk (×0.9–1.1) van die duif
-              (plus eventuele eigenschap-drift sinds de vlucht). De rangschikking volgt de echte snelheid.
+              De eigenschappen komen uit de <em>huidige</em> staat van de duif; <strong>En*</strong> is de energie bij de
+              start van de vlucht. <strong>En(eff)</strong> = de energie ná ervarings-dosering (een ervaren duif presteert
+              alsof ze meer energie heeft); <strong>En×</strong> wordt daaruit berekend en weegt zwaarder op langere
+              vluchten. <strong>v (ber.)</strong> = basis × alle factoren (zonder geluk); <strong>v (echt)</strong> is de
+              bevroren racesnelheid. <strong>Residu</strong> ≈ het geluk (×0.9–1.1) van die duif (plus eigenschap-drift
+              sinds de vlucht). De rangschikking volgt de echte snelheid.
             </p>
           </div>
 
@@ -134,7 +136,7 @@ function FlightAnalysis() {
                     <th className="num">Snel</th><th className="num">Cond</th><th className="num">Oriÿ</th>
                     <th className="num">En*</th><th className="num">Gez</th><th className="num">Erv</th><th className="num">Lft</th>
                     <th className="num">Basis</th>
-                    <th className="num">En×</th><th className="num">Gez×</th><th className="num">Erv×</th><th className="num">Lft×</th>
+                    <th className="num">En(eff)</th><th className="num">En×</th><th className="num">Gez×</th><th className="num">Erv×</th><th className="num">Lft×</th>
                     <th className="num">v (ber.)</th><th className="num">v (echt)</th><th className="num">Residu</th>
                   </tr>
                 </thead>
@@ -158,6 +160,7 @@ function FlightAnalysis() {
                         <td className="num">{num(r.experience)}</td>
                         <td className="num">{num(r.ageWeeks)}</td>
                         <td className="num">{b ? b.baseAttr.toFixed(1) : '—'}</td>
+                        <td className="num">{b ? b.effectiveForm.toFixed(0) : '—'}</td>
                         <td className="num">{b ? b.formFactor.toFixed(2) : '—'}</td>
                         <td className="num">{b ? b.healthFactor.toFixed(2) : '—'}</td>
                         <td className="num">{b ? b.experienceFactor.toFixed(2) : '—'}</td>

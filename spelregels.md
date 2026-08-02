@@ -62,13 +62,19 @@ Per duif, bevroren bij de start:
 
 ```
 gewicht(afstand): t = clamp((afstand − 100) / 600, 0, 1)
-  gewicht.snelheid   = 0.55 + (0.20 − 0.55)·t
-  gewicht.conditie   = 0.20 + (0.45 − 0.20)·t
-  gewicht.oriëntatie = 0.25 + (0.35 − 0.25)·t
+  gewicht.snelheid   = 0.65 + (0.20 − 0.65)·t
+  gewicht.conditie   = 0.13 + (0.45 − 0.13)·t
+  gewicht.oriëntatie = 0.22 + (0.35 − 0.22)·t
 
 basisscore = gewicht.snelheid·Snelheid + gewicht.conditie·Conditie + gewicht.oriëntatie·Oriëntatie
 
-energiefactor  = interp(Energie):  0→0.55, 50→0.90, 100→1.10
+# Energie doseren met ervaring:
+effectieve_energie = Energie + (Ervaring/100)·(100 − Energie)·0.35
+# Energiefactor is afstandsafhankelijk (kort mild, lang streng), op de effectieve energie:
+energiefactor_kort = interp: 0→0.80, 50→0.95, 100→1.05
+energiefactor_lang = interp: 0→0.45, 50→0.85, 100→1.20
+energiefactor      = energiefactor_kort + (energiefactor_lang − energiefactor_kort)·t
+
 gezondheidsf.  = interp(Gezond.):  0→0.40, 50→0.85, 100→1.00
 ervaringfactor = 1 + Ervaring/300           (tot +33%)
 leeftijdfactor = leeftijdscurve (zie §6)
@@ -78,8 +84,18 @@ geluk          = willekeurig 0.90 … 1.10
 snelheid = (700 + basisscore·9) · energiefactor · gezondheidsf. · ervaringfactor · leeftijdfactor · weerfactor · geluk
 ```
 
-**Alle drie de vaardigheden tellen dus mee** (snelheid vooral kort, conditie &
-oriëntatie vooral lang), net als gezondheid, energie en ervaring.
+**Alle drie de vaardigheden tellen mee**, met **snelheid als sprint-eigenschap die
+op korte vluchten het zwaarst weegt** (0.65) en conditie & oriëntatie die op lange
+vluchten belangrijker worden.
+
+**Energie werkt afstandsafhankelijk:** op een **korte** vlucht wordt een futloze
+duif maar licht afgestraft (ze kan er nog goed presteren); vanaf **middellange tot
+lange** afstand weegt weinig energie veel zwaarder door.
+
+**Ervaring laat energie doseren:** een ervaren duif presteert alsof ze méér energie
+heeft (tot 35% van haar energietekort wordt "goedgemaakt"). Bij gelijke andere
+eigenschappen kan een **ervaren duif met weinig energie** dus **beter scoren dan een
+onervaren duif met veel energie**. Ervaring helpt daardoor extra op lange vluchten.
 
 > **Voorbeeld.** Een sterke duif (snelheid 80, conditie 70, oriëntatie 65,
 > energie 90, gezondheid 85, ervaring 40) op een vlucht van **300 km**:
@@ -514,6 +530,10 @@ Kost **€120**, verbruikt **15 energie**, en geeft een kleine blijvende
 verbetering (~+1.2, tot max **90**) aan snelheid, conditie of oriëntatie, plus
 **+4 ervaring**. Vereist voldoende energie. Je kan een duif **enkel trainen als
 ze thuis is** — niet zolang ze voor een vlucht ingeschreven staat.
+
+**Elke eigenschap kan maar 1× per week getraind worden** (aparte teller per
+categorie: snelheid, conditie, oriëntatie). Na een trainingsbeurt is die
+eigenschap **7 dagen** geblokkeerd; de andere twee kan je intussen wél trainen.
 
 > **Voorbeeld.** Eén trainingsbeurt tilt bv. snelheid van 78 naar ~79 en kost
 > €120 + 15 energie. Kleine stapjes dus: trainen is een trage, betrouwbare manier

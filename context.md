@@ -181,6 +181,8 @@ Entiteiten: `Pigeon`, `Loft`, `User`, `BreedingPair`, `Flight` (+ `SimEntry`,
 - `Flight.titan?` — **titanenwedstrijd** (eigen D1-kolom `titan INTEGER DEFAULT 0`).
 - `Loft.lastRestCure?` — laatste rustkuur (kolom `last_rest_cure`); weeklimiet.
 - `Loft.awards?: SeasonAward[]` — gewonnen Roekoes/Vleugels (kolom `awards` JSON).
+- `Pigeon.trainedAt?` — laatste trainingstijd per categorie (kolom `trained_at` JSON),
+  voor de 1×/week-limiet per eigenschap.
 - `Pigeon.seasonPeakSpeed?` / `seasonPodiums?` / `seasonStartScore?` /
   `seasonPracticeGain?` — per-seizoen duivenstats (kolommen `season_peak_speed`/
   `season_podiums`/`season_start_score`/`season_practice_gain`), gereset bij
@@ -222,6 +224,16 @@ enkel fallback).
   uitputtingsstraf. `stepMinutes: 30`.
 - **Caps:** training tot **90**, voeding-conditie tot **92** (`FOOD_ENDURANCE_CAP`),
   coach tot **100** (`COACH.attributeCap`).
+- **Snelheidsmodel (`DISTANCE_WEIGHTING` + `ENERGIE_IMPACT`):** korte-vlucht­weging
+  snelheid **0.65** / conditie 0.13 / oriëntatie 0.22 (was 0.55/0.20/0.25); lang
+  0.20/0.45/0.35. Energiefactor is **afstandsafhankelijk** (kort `0.80→1.05`, lang
+  `0.45→1.20`, geblend op `t`) en werkt op de **effectieve energie** = `energie +
+  (ervaring/100)·(100−energie)·0.35` (ervaring laat energie **doseren**). Zie
+  `pigeonVelocity` + `velocityBreakdown` in `flight.ts`.
+- **Training (`TRAINING`):** €120, −15 energie, +~1.2 eigenschap (cap 90), +4 ervaring.
+  **`cooldownDays: 7`** — elke categorie (snelheid/conditie/oriëntatie) max. 1×/week,
+  per-duif bijgehouden in `Pigeon.trainedAt` (kolom `trained_at` JSON);
+  `pigeonDTO.trainAvailableAt` vergrendelt de knoppen op `PigeonPage`.
 - **Vluchtrisico (`FLIGHT_RISK`):** onder ~22 energie DNF-kans; onder ~25 extra
   blessurekans. **`FLIGHT_CUTOFF_MINUTES = 90`.**
 - **Kweken (`BREEDING`):** ouders minstens **20** energie (`minParentForm`, was 40);

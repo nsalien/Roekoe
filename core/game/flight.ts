@@ -11,6 +11,7 @@ import {
   COMMENTARY,
   COMMENTARY_INTERVAL_SECONDS,
   DISTANCE_WEIGHTING,
+  ENERGIE_IMPACT,
   FLIGHT_CUTOFF_MINUTES,
   FLIGHT_FATIGUE,
   FLIGHT_RISK,
@@ -30,6 +31,25 @@ import { ageMultiplier } from './pigeon.js';
 import { applyAilment, randomAilmentOfSeverity, randomInjury } from './health.js';
 import { randomWeather, type WeatherResult } from './weather.js';
 import { clamp, hashString, interpolate, pickWith, randFloat, round1, seededRng } from './util.js';
+
+/** How far along the short→long scale a distance sits (0 = short, 1 = long). */
+function distanceT(distanceKm: number): number {
+  const { shortKm, longKm } = DISTANCE_WEIGHTING;
+  return clamp((distanceKm - shortKm) / (longKm - shortKm), 0, 1);
+}
+
+/**
+ * The energie multiplier for a bird, blended by distance and softened by
+ * ervaring (energie dosing). Returns the multiplier plus the "effective energie"
+ * the bird races on (its own energie, raised by how well experience lets it dose).
+ */
+function energieFactor(form: number, experience: number, t: number): { factor: number; effectiveForm: number } {
+  const exp = clamp(experience, 0, 100);
+  const effectiveForm = clamp(form + (exp / 100) * (100 - form) * ENERGIE_IMPACT.dosingFactor, 0, 100);
+  const short = interpolate(ENERGIE_IMPACT.short, effectiveForm);
+  const long = interpolate(ENERGIE_IMPACT.long, effectiveForm);
+  return { factor: short + (long - short) * t, effectiveForm };
+}
 
 /** Attribute weighting for a given distance (interpolated short<->long). */
 export function weightsForDistance(distanceKm: number) {
@@ -62,14 +82,9 @@ export function pigeonVelocity(
   const baseAttr =
     w.speed * pigeon.speed + w.endurance * pigeon.endurance + w.orientation * pigeon.orientation;
 
-  const formFactor = interpolate(
-    [
-      { x: 0, y: 0.55 },
-      { x: 50, y: 0.9 },
-      { x: 100, y: 1.1 },
-    ],
-    pigeon.form,
-  );
+  // Energie impact grows with distance; ervaring lets the bird dose it (see
+  // energieFactor). Short flights are forgiving to a tired bird.
+  const { factor: formFactor } = energieFactor(pigeon.form, pigeon.experience, distanceT(distanceKm));
   const healthFactor = interpolate(
     [
       { x: 0, y: 0.4 },
@@ -99,7 +114,8 @@ export interface VelocityBreakdown {
   weights: { speed: number; endurance: number; orientation: number };
   baseAttr: number; // weighted attribute score
   base: number; // 700 + baseAttr*9
-  formFactor: number; // energie multiplier
+  effectiveForm: number; // energie after ervaring-dosing (what the factor uses)
+  formFactor: number; // energie multiplier (distance-blended)
   healthFactor: number;
   experienceFactor: number;
   ageFactor: number;
@@ -124,7 +140,7 @@ export function velocityBreakdown(
   const w = weightsForDistance(distanceKm);
   const baseAttr = w.speed * pigeon.speed + w.endurance * pigeon.endurance + w.orientation * pigeon.orientation;
   const form = formValue ?? pigeon.form;
-  const formFactor = interpolate([{ x: 0, y: 0.55 }, { x: 50, y: 0.9 }, { x: 100, y: 1.1 }], form);
+  const { factor: formFactor, effectiveForm } = energieFactor(form, pigeon.experience, distanceT(distanceKm));
   const healthFactor = interpolate([{ x: 0, y: 0.4 }, { x: 50, y: 0.85 }, { x: 100, y: 1.0 }], pigeon.health);
   const experienceFactor = 1 + clamp(pigeon.experience, 0, 100) / 300;
   const ageFactor = ageMultiplier(pigeon, currentWeek);
@@ -134,6 +150,7 @@ export function velocityBreakdown(
     weights: { speed: round3(w.speed), endurance: round3(w.endurance), orientation: round3(w.orientation) },
     baseAttr: round1(baseAttr),
     base: round1(base),
+    effectiveForm: round1(effectiveForm),
     formFactor: round3(formFactor),
     healthFactor: round3(healthFactor),
     experienceFactor: round3(experienceFactor),

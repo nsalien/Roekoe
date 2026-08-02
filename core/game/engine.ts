@@ -600,11 +600,20 @@ export function trainPigeon(
     if (pigeon.form < TRAINING.formCost + 5) return 'Deze duif heeft te weinig energie om te trainen';
     if (pigeon[attr] >= TRAINING.attributeCap)
       return `Deze eigenschap kan niet verder getraind worden (max ${TRAINING.attributeCap})`;
+    // Each attribute can be trained at most once per week.
+    const lastTrained = pigeon.trainedAt?.[attr];
+    if (lastTrained && Date.now() - Date.parse(lastTrained) < TRAINING.cooldownDays * 86400000) {
+      const nextDate = new Date(Date.parse(lastTrained) + TRAINING.cooldownDays * 86400000)
+        .toLocaleDateString('nl-BE', { timeZone: 'Europe/Brussels', day: 'numeric', month: 'long' });
+      const label = attr === 'speed' ? 'snelheid' : attr === 'endurance' ? 'conditie' : 'oriëntatie';
+      return `${label.charAt(0).toUpperCase() + label.slice(1)} is deze week al getraind — opnieuw vanaf ${nextDate}`;
+    }
     loft.money -= TRAINING.cost;
     const gain = TRAINING.attributeGain * randFloat(0.7, 1.3);
     pigeon[attr] = round1(clamp(pigeon[attr] + gain, 0, TRAINING.attributeCap));
     pigeon.form = round1(clamp(pigeon.form - TRAINING.formCost, 0, 100));
     pigeon.experience = round1(clamp(pigeon.experience + TRAINING.experienceGain, 0, 100));
+    pigeon.trainedAt = { ...pigeon.trainedAt, [attr]: new Date().toISOString() };
     progressMissions(db, loft, 'train', 1);
     return null;
   });

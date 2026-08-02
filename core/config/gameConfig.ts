@@ -228,6 +228,7 @@ export const TRAINING = {
   attributeCap: 90, // training alone cannot push an attribute past this
   experienceGain: 4,
   restWeeks: 0,
+  cooldownDays: 7, // each attribute (snelheid/conditie/oriëntatie) once per week
 } as const;
 
 /**
@@ -276,9 +277,29 @@ export const RANKING_POINTS: number[] = [
 export const DISTANCE_WEIGHTING = {
   shortKm: 100,
   longKm: 700,
-  short: { speed: 0.55, endurance: 0.2, orientation: 0.25 },
+  // Short flights are a sprint: snelheid dominates. Long flights reward conditie
+  // + oriëntatie. (Weights per column always sum to 1.)
+  short: { speed: 0.65, endurance: 0.13, orientation: 0.22 },
   long: { speed: 0.2, endurance: 0.45, orientation: 0.35 },
 } as const;
+
+/**
+ * How energie (`form`) scales performance, blended by distance. On a SHORT flight
+ * a tired bird still does fine (mild curve); from medium to LONG the impact of low
+ * energie grows a lot (harsh curve). Experience lets a bird DOSE its energie: a
+ * seasoned bird performs as if it had more energie than it really does, so with
+ * equal other attributes an experienced low-energie bird can beat an inexperienced
+ * high-energie one.
+ */
+export const ENERGIE_IMPACT: {
+  short: { x: number; y: number }[];
+  long: { x: number; y: number }[];
+  dosingFactor: number;
+} = {
+  short: [{ x: 0, y: 0.8 }, { x: 50, y: 0.95 }, { x: 100, y: 1.05 }],
+  long: [{ x: 0, y: 0.45 }, { x: 50, y: 0.85 }, { x: 100, y: 1.2 }],
+  dosingFactor: 0.35, // at ervaring 100, recovers 35% of the (100 − energie) gap
+};
 
 /** Breeding settings. */
 export const BREEDING = {
