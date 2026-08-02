@@ -547,11 +547,18 @@ app.post('/breeding/:id/stop', async (c) => {
 app.get('/market', (c) => {
   const user = requireUser(c);
   const db = c.get('store').data;
+  const botIds = new Set(db.lofts.filter((l) => l.isBot).map((l) => l.userId));
   const listings = db.pigeons
     .filter((p) => p.forSale && p.ownerId !== user.id)
     .map((p) => pigeonDTO(db, p))
     .sort((a, b) => (a.price ?? 0) - (b.price ?? 0));
-  return c.json({ listings, trades: recentTrades(db), auctions: auctionsDTO(db) });
+  // Every other real player's pigeon that is NOT already listed — you can make a
+  // private offer on these (see offers.ts). For-sale ones are in `listings`.
+  const biddable = db.pigeons
+    .filter((p) => p.ownerId !== user.id && !botIds.has(p.ownerId) && !p.forSale)
+    .map((p) => pigeonDTO(db, p))
+    .sort((a, b) => b.talent - a.talent);
+  return c.json({ listings, biddable, trades: recentTrades(db), auctions: auctionsDTO(db) });
 });
 
 app.post('/auction/bid', async (c) => {

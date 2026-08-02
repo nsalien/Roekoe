@@ -7,7 +7,7 @@ import { useGame } from '../game/GameContext';
 import { Money, Spinner, countdownTo, useToast } from '../components/ui';
 import { PigeonCard } from '../components/PigeonCard';
 import { PigeonAvatar } from '../components/PigeonAvatar';
-import type { AuctionInfo, Pigeon, Trade } from '../types';
+import type { AuctionInfo, OfferView, Pigeon, Trade } from '../types';
 
 /** A short "x min geleden" style relative time. */
 function ago(iso: string): string {
@@ -24,13 +24,15 @@ export function MarketPage() {
   const { state, refresh } = useGame();
   const toast = useToast();
   const [listings, setListings] = useState<Pigeon[] | null>(null);
+  const [biddable, setBiddable] = useState<Pigeon[]>([]);
   const [trades, setTrades] = useState<Trade[]>([]);
   const [auctions, setAuctions] = useState<AuctionInfo[]>([]);
   const [busy, setBusy] = useState(false);
 
   const load = useCallback(async () => {
-    const res = await api<{ listings: Pigeon[]; trades: Trade[]; auctions: AuctionInfo[] }>('/market');
+    const res = await api<{ listings: Pigeon[]; biddable: Pigeon[]; trades: Trade[]; auctions: AuctionInfo[] }>('/market');
     setListings(res.listings);
+    setBiddable(res.biddable ?? []);
     setTrades(res.trades ?? []);
     setAuctions(res.auctions ?? []);
   }, []);
@@ -167,6 +169,31 @@ export function MarketPage() {
         ))}
       </div>
 
+      {/* Bid on any other player's pigeon — listed or not. */}
+      <div className="page-head" style={{ marginTop: 26 }}>
+        <div>
+          <h2>🕊️ Bied op duiven van andere spelers</h2>
+          <p className="muted">Ook duiven die niet te koop staan. Je bod blijft geldig tot de eigenaar het aanvaardt of weigert; je kan het altijd intrekken.</p>
+        </div>
+      </div>
+      {biddable.length === 0 ? (
+        <div className="card muted">Geen duiven van andere spelers om op te bieden.</div>
+      ) : (
+        <div className="grid pigeons">
+          {biddable.map((p) => (
+            <PigeonCard key={p.id} pigeon={p} showOwner>
+              <BidControl
+                myOffer={sent.find((o) => o.pigeonId === p.id) ?? null}
+                busy={busy}
+                money={money}
+                onBid={(amount) => offerAct(() => api(`/pigeons/${p.id}/offer`, { method: 'POST', body: { amount } }), 'Bod uitgebracht! 🤝')}
+                onWithdraw={(id) => offerAct(() => api(`/offers/${id}/withdraw`, { method: 'POST' }), 'Bod ingetrokken')}
+              />
+            </PigeonCard>
+          ))}
+        </div>
+      )}
+
       {/* Buy/sell history */}
       <div className="page-head" style={{ marginTop: 26 }}>
         <h2>Verkoopgeschiedenis</h2>
@@ -201,6 +228,48 @@ export function MarketPage() {
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+function BidControl({
+  myOffer, busy, money, onBid, onWithdraw,
+}: {
+  myOffer: OfferView | null;
+  busy: boolean;
+  money: number;
+  onBid: (amount: number) => void;
+  onWithdraw: (offerId: string) => void;
+}) {
+  const [amount, setAmount] = useState(0);
+  if (myOffer) {
+    return (
+      <div className="stack" style={{ gap: 4 }}>
+        <span className="faint" style={{ textAlign: 'center' }}>
+          Jouw bod: <strong><Money value={myOffer.amount} /></strong> · wacht op antwoord
+        </span>
+        <button className="btn ghost block" disabled={busy} onClick={() => onWithdraw(myOffer.id)}>Trek bod in</button>
+      </div>
+    );
+  }
+  return (
+    <div className="row" style={{ gap: 6 }}>
+      <input
+        type="number"
+        min={1}
+        value={amount || ''}
+        placeholder="bedrag"
+        onChange={(e) => setAmount(Number(e.target.value))}
+        style={{ flex: 1, minWidth: 0 }}
+      />
+      <button
+        className="btn accent"
+        style={{ flexShrink: 0 }}
+        disabled={busy || !(amount > 0) || amount > money}
+        onClick={() => onBid(amount)}
+      >
+        Bied
+      </button>
     </div>
   );
 }

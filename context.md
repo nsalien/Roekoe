@@ -332,9 +332,10 @@ Entiteiten: `Pigeon`, `Loft`, `User`, `BreedingPair`, `Flight` (+ `SimEntry`,
   bij `state.isAdmin`; API's `GET /admin/flights` en `GET /admin/flight-analysis/:id`
   checken `user.isAdmin` (403 anders). Kern: `velocityBreakdown()` in `flight.ts`.
 - `MarketPage` (Markt) — koop van spelers + veilingen (zondag/opvangcentrum) + de
-  **privé-biedingen**: "Biedingen op jouw duiven" (accepteer/weiger) en "Jouw
-  uitgebrachte biedingen" (intrekken). Nav-badge op **Markt** = aantal ontvangen
-  biedingen (`state.offers.received`).
+  **privé-biedingen**: "Biedingen op jouw duiven" (accepteer/weiger), "Jouw
+  uitgebrachte biedingen" (intrekken), én een **bladersectie "🕊️ Bied op duiven van
+  andere spelers"** (alle niet-te-koop duiven van echte spelers, met een bod-veldje
+  per duif; `/market` levert `biddable`). Nav-badge op **Markt** = ontvangen biedingen.
 - `PigeonPage` bij andermans (niet-bot) duif: kaart **"Bied op deze duif"** (bod
   uitbrengen / lopend bod intrekken).
 - Verder: `BreedingPage`, `SponsorsPage`, `LoginPage`.
