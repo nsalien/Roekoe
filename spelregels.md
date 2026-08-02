@@ -23,7 +23,7 @@ Elke duif (0–100 per waarde):
 | **Energie** | dynamisch | "Fut". Daalt door vluchten, stijgt door rust + eten. Lage energie = slechtere prestaties, meer kans op ziekte/blessure, minder kans op broeden. |
 | **Gezondheid** | dynamisch | Algemene gezondheid. Vermenigvuldigt de vluchtsnelheid; laag = niet vluchtklaar. |
 | **Libido** | dynamisch | Broeddrift. Volgt conditie + energie (met een frisse minderheid als uitzondering). |
-| **Ervaring** | groeit | Zelfvertrouwen. Betere prestaties + sneller energieherstel. Groeit door te vliegen. |
+| **Ervaring** | groeit | Zelfvertrouwen. Betere prestaties, sneller energieherstel én **minder energieverbruik per vlucht**. Groeit door te vliegen. |
 
 Een duif is **vluchtklaar** als: niet gepensioneerd, geen ziekte/kwetsuur, niet
 in de ziekenboeg, minstens **8 weken** oud en gezondheid > 15.
@@ -179,10 +179,23 @@ Per deelnemende duif:
 
 | Effect | Formule | Wanneer |
 |---|---|---|
-| **Energie** (verbruik) | −(5 + afstand/60 + willekeurig 0…5) | **geleidelijk tijdens de vlucht** (zie hieronder) |
+| **Energie** (verbruik) | −((5 + afstand/60) · ervaringsfactor + willekeurig 0…5) | **geleidelijk tijdens de vlucht** (zie hieronder) |
 | **Conditie** (opbouw) | +(0.3 + afstand/500 + willekeurig 0…0.4) | na afloop |
 | **Gezondheid** | −(willekeurig 0 … afstand/200) | na afloop |
 | **Ervaring** | +(2 + afstand/100) | na afloop |
+
+**Ervaring bepaalt mee hoeveel energie een vlucht kost.** Een ervaren duif vliegt
+efficiënter en verbruikt **minder**; een onervaren duif verbruikt **meer**. De
+ervaringsfactor draait rond **ervaring 50** (factor ×1,0) en zwenkt **±25%** aan de
+uiteinden:
+```
+ervaringsfactor = 1 − (ervaring/100 − 0.5) · 0.5
+  ervaring 0   → ×1.25   (25% meer verbruik)
+  ervaring 50  → ×1.00
+  ervaring 100 → ×0.75   (25% minder verbruik)
+```
+Jonge, pas gekweekte duiven (ervaring 0) betalen dus een toeslag; doorwinterde
+vliegers besparen. De willekeurige spreiding (0…5) komt er los bovenop.
 
 **Energie loopt gaandeweg leeg, niet in één klap achteraf.** Bij de start wordt
 de totale energiekost van de rit vastgeklikt en vervolgens **per 30 minuten**
@@ -192,12 +205,25 @@ volledige kost; wie halverwege **opgeeft** (§3.4), heeft alleen betaald voor he
 stuk dat ze al vloog — je kan de energiekost dus niet ontlopen door je duif net
 voor de finish uit de race te halen.
 
-> **Voorbeeld.** Een vlucht van **300 km** kost in totaal ongeveer **12 energie**.
-> Op een rit van ~5 uur gaat er dus zowat **1,2 energie per 30 minuten** af.
-> De duif wint na afloop ~**1 conditie** en ~**5 ervaring**, en er gaat een beetje
-> gezondheid af. Een korte regiovlucht van 60 km kost maar ~6 energie; een
-> internationale van 700 km ~17. Met de nieuwe herstelwaarden (§4) is een duif
-> zo weer inzetbaar na een paar dagen rust — of sneller met Herstelvoer.
+**Gemiddeld verbruik per afstand** (inclusief de gemiddelde spreiding +2,5):
+
+| Afstand | Onervaren (erv. 0) | Gemiddeld (erv. 50) | Ervaren (erv. 100) |
+|---|---|---|---|
+| 0–100 km | ~9,8 | ~8,3 | ~6,9 |
+| 100–200 km | ~11,9 | ~10,0 | ~8,1 |
+| 200–300 km | ~14,0 | ~11,7 | ~9,4 |
+| 300–600 km | ~18,1 | ~15,0 | ~11,9 |
+
+> **Voorbeeld.** Een vlucht van **300 km** kost een gemiddelde duif ongeveer
+> **12 energie**. Op een rit van ~5 uur gaat er dus zowat **1,2 energie per 30
+> minuten** af. Een ervaren duif (ervaring 100) doet diezelfde vlucht met ~**9,4**
+> energie, een groentje (ervaring 0) met ~**14**. De duif wint na afloop ~**1
+> conditie** en ~**5 ervaring**, en er gaat een beetje gezondheid af. Met de nieuwe
+> herstelwaarden (§4) is een duif zo weer inzetbaar na een paar dagen rust — of
+> sneller met Herstelvoer.
+>
+> **Let op:** een duif die **niet thuis raakt** (uitputting/tijdslimiet, §3.3)
+> verliest er nog eens **12 + willekeurig 0…6** energie bovenop.
 
 ### 3.1 Kans op verbetering van een vaardigheid
 Elke deelnemer maakt kans om te groeien in de vaardigheid die voor die afstand
