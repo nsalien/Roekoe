@@ -236,8 +236,8 @@ Entiteiten: `Pigeon`, `Loft`, `User`, `BreedingPair`, `Flight` (+ `SimEntry`,
 - **Honger (`STARVATION`)** — geen voorraad = versnellende daling (energie 8·N,
   gezondheid 5·N, conditie 3·N, libido 4·N per honger-dag N); sterftekans vanaf
   dag 3, zeker vanaf dag 7.
-- **Vlucht-energiekost (`FLIGHT_FATIGUE`)** — totaal = `(5 + afstand/60)·ervaringsfactor
-  + rand(0..5)`, bevroren bij start, **per 30 min** geleidelijk afgetrokken; DNF krijgt
+- **Vlucht-energiekost (`FLIGHT_FATIGUE`)** — totaal = `(10 + afstand/30)·ervaringsfactor
+  + rand(0..10)`, bevroren bij start, **per 30 min** geleidelijk afgetrokken; DNF krijgt
   extra uitputtingsstraf. `stepMinutes: 30`. **Ervaringsfactor** = `1 − (ervaring/100 −
   0.5)·experienceReliefSpread` (spread 0.5 → draaipunt ervaring 50 = ×1.0, ervaring 0 =
   ×1.25 méér verbruik, ervaring 100 = ×0.75 minder). Onervaren duiven verbruiken dus
@@ -464,7 +464,7 @@ Alles hieronder staat **live** op de deploy-branch. Data-migraties liepen door t
   Koppelaar, Eigen Stek, Fijnproever); missies (weddenschap, kweekkoppel, apart hok).
 
 **Laag-energie-gameplay (nieuwste)**
-- **Oefenvluchten** (`PRACTICE`, slot `noon-practice` 12:00): gratis, ~4 energie, geen
+- **Oefenvluchten** (`PRACTICE`, slot `noon-practice` 12:00): gratis, ~8 energie, geen
   punten/prijzen/DNF/blessure; bouwt conditie/oriëntatie op (privécoach = grotere kans
   + bonus). Bots doen niet mee. Aparte `finalizePracticeFlight` in `flight.ts`;
   `botsEnterFlight`/`bettingOpen` slaan practice over; gerichte "oefenvlucht afgerond"-
