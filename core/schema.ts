@@ -314,6 +314,26 @@ export interface Trade {
   at: string; // ISO timestamp
 }
 
+/**
+ * A private offer from one player to buy another player's pigeon — even one that
+ * is not listed for sale. Money is NOT escrowed; it is checked when the owner
+ * accepts. The offer stays valid until the owner accepts/rejects or the bidder
+ * withdraws it.
+ */
+export interface PigeonOffer {
+  id: string;
+  pigeonId: string;
+  pigeonName: string;
+  fromUserId: string; // the bidder
+  fromUserName: string;
+  toUserId: string; // the owner at offer time
+  toUserName: string;
+  amount: number;
+  status: 'pending' | 'accepted' | 'rejected' | 'withdrawn';
+  createdAt: string;
+  resolvedAt: string | null;
+}
+
 /** A weekly auction of a special top pigeon. */
 /** One player's standing bid in an auction (money is NOT escrowed). */
 export interface AuctionBid {
@@ -402,6 +422,7 @@ export interface Database {
   trades: Trade[];
   auctions: Auction[];
   bets: Bet[];
+  offers: PigeonOffer[];
 }
 
 export function emptyFoodStock(): FoodStock {
@@ -434,5 +455,6 @@ export function emptyDatabase(): Database {
     trades: [],
     auctions: [],
     bets: [],
+    offers: [],
   };
 }

@@ -109,7 +109,11 @@ export function Layout() {
           </Link>
           <nav className="nav">
             {navItems.map((n) => {
-              const offers = n.to === '/sponsors' ? state?.loft?.sponsorOfferCount ?? 0 : 0;
+              const offers = n.to === '/sponsors'
+                ? state?.loft?.sponsorOfferCount ?? 0
+                : n.to === '/markt'
+                  ? state?.offers?.received.length ?? 0
+                  : 0;
               return (
                 <NavLink key={n.to} to={n.to} end={n.end} className={({ isActive }) => (isActive ? 'active' : '')}>
                   {n.label}

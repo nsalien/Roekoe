@@ -67,6 +67,7 @@ import { ownerName } from '../../core/game/engine.js';
 import { fetchFlightWeather, type WeatherResult } from '../../core/game/weather.js';
 import { auctionKind, placeBid } from '../../core/game/auction.js';
 import { betsView, placeBet, previewBet } from '../../core/game/betting.js';
+import { makeOffer, withdrawOffer, respondOffer, offersFor } from '../../core/game/offers.js';
 import type { BetKind } from '../../core/schema.js';
 import { refreshDailyMissions } from '../../core/game/missions.js';
 import { evaluateSponsorOffers, sponsorView } from '../../core/game/sponsors.js';
@@ -282,6 +283,7 @@ app.get('/state', (c) => {
     streak: loft?.streak ?? 0,
     pendingEvent: loft?.pendingEvent ?? null,
     unreadNotifications: notificationsFor(db, user.id).unread,
+    offers: offersFor(db, user.id),
   });
 });
 
@@ -586,6 +588,33 @@ app.post('/market/buy', async (c) => {
   const body = await c.req.json().catch(() => ({}));
   const store = c.get('store');
   const err = buyPigeon(store, user.id, String(body.pigeonId ?? ''));
+  await store.persist();
+  return err ? c.json({ error: err }, 400) : c.json({ ok: true });
+});
+
+// --- Private pigeon offers (bid on another player's bird) ------------------
+app.post('/pigeons/:id/offer', async (c) => {
+  const user = requireUser(c);
+  const body = await c.req.json().catch(() => ({}));
+  const store = c.get('store');
+  const err = makeOffer(store.data, user.id, c.req.param('id'), Number(body.amount) || 0);
+  await store.persist();
+  return err ? c.json({ error: err }, 400) : c.json({ ok: true });
+});
+
+app.post('/offers/:id/withdraw', async (c) => {
+  const user = requireUser(c);
+  const store = c.get('store');
+  const err = withdrawOffer(store.data, user.id, c.req.param('id'));
+  await store.persist();
+  return err ? c.json({ error: err }, 400) : c.json({ ok: true });
+});
+
+app.post('/offers/:id/respond', async (c) => {
+  const user = requireUser(c);
+  const body = await c.req.json().catch(() => ({}));
+  const store = c.get('store');
+  const err = respondOffer(store.data, user.id, c.req.param('id'), body.accept === true);
   await store.persist();
   return err ? c.json({ error: err }, 400) : c.json({ ok: true });
 });

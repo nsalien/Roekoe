@@ -555,6 +555,23 @@ eigenschap **7 dagen** geblokkeerd; de andere twee kan je intussen wél trainen.
 - Elke duif toont haar eigenaar; je koopt niet je eigen duiven en je hok mag niet
   vol zitten.
 
+### 9.1 Privé-biedingen (bieden op een duif die niet te koop staat)
+Je kan een **bod** uitbrengen op de duif van **een andere speler**, ook al staat
+die **niet te koop** (via de knop **"Bied op deze duif"** op haar duifpagina):
+- Je geld wordt **niet** vastgehouden; het wordt pas gecontroleerd wanneer de
+  eigenaar aanvaardt (heb je dan te weinig geld of geen plaats, dan vervalt het bod).
+- De eigenaar ziet het bod **bij de Markt** (niet via de belknop) — met een teller
+  bij het **Markt**-menu — en kan het **aanvaarden of weigeren**.
+- Zolang de eigenaar niet reageert, **blijft je bod geldig**. Je kan het altijd zelf
+  **intrekken** (dan vervalt het).
+- Je hebt **één lopend bod per duif** (een nieuw bod past het bedrag aan).
+- Bij **aanvaarden** verhuist de duif zoals bij een gewone verkoop; andere lopende
+  biedingen op die duif vervallen. Je krijgt een melding bij aanvaarden/weigeren.
+
+De **veilingen** (§12) hebben daarnaast een **anti-snipe**: een bod in de **laatste
+5 minuten** schuift de sluitingstijd terug naar **5 minuten**, zodat anderen nog
+kunnen terugbieden.
+
 ---
 
 ## 10. Namen

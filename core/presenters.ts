@@ -26,6 +26,7 @@ export function pigeonDTO(db: Database, p: Pigeon) {
     id: p.id,
     ownerId: p.ownerId,
     ownerName: ownerName(db, p.ownerId),
+    ownerIsBot: owner?.isBot ?? false,
     name: p.name,
     sex: p.sex,
     ageWeeks: ageInWeeks(p, week),

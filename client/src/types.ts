@@ -48,6 +48,7 @@ export interface Pigeon {
   id: string;
   ownerId: string;
   ownerName: string;
+  ownerIsBot: boolean;
   name: string;
   sex: Sex;
   ageWeeks: number;
@@ -355,6 +356,16 @@ export interface FeedRationInfo {
   libidoRecovery: number;
 }
 
+export interface OfferView {
+  id: string;
+  pigeonId: string;
+  pigeonName: string;
+  fromUserName: string;
+  toUserName: string;
+  amount: number;
+  createdAt: string;
+}
+
 export interface GameState {
   world: World;
   isAdmin: boolean;
@@ -363,6 +374,7 @@ export interface GameState {
   scheduledFlights: Flight[];
   rankings: RankingRow[];
   pigeonRankings: PigeonRankings;
+  offers: { received: OfferView[]; sent: OfferView[] };
   feedRations: Record<FeedRation, FeedRationInfo>;
   infirmary: InfirmaryConfig;
   economy: EconomyCosts;
