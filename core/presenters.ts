@@ -15,13 +15,20 @@ import { flightCommentary, liveSnapshot } from './game/flight.js';
 import { BADGES, levelForXp } from './game/badges.js';
 import { round1 } from './game/util.js';
 
-export function pigeonDTO(db: Database, p: Pigeon) {
+/**
+ * DTO for a pigeon. If `viewerId` is given and is NOT the owner, the bird's
+ * individual attributes are WITHHELD (sent as null) — a player only sees what is
+ * publicly known about someone else's pigeon: its general score (talent) and
+ * estimated value, plus what races/rankings reveal. Own birds (or no viewer)
+ * are fully revealed.
+ */
+export function pigeonDTO(db: Database, p: Pigeon, viewerId?: string) {
   const week = db.world.currentWeek;
-  // Planned per-day attribute changes from the current care selection — only
-  // meaningful for a real player's own bird (auction/bot birds have no plan).
   const owner = db.lofts.find((l) => l.userId === p.ownerId);
+  const revealed = viewerId === undefined || p.ownerId === viewerId;
   const live = db.flights.some((f) => f.status === 'live' && f.entries.some((e) => e.pigeonId === p.id));
-  const dailyCare = owner && !owner.isBot ? projectDailyCare(owner, p, live) : null;
+  const dailyCare = revealed && owner && !owner.isBot ? projectDailyCare(owner, p, live) : null;
+  const hide = <T,>(v: T): T | null => (revealed ? v : null);
   return {
     id: p.id,
     ownerId: p.ownerId,
@@ -30,30 +37,32 @@ export function pigeonDTO(db: Database, p: Pigeon) {
     name: p.name,
     sex: p.sex,
     ageWeeks: ageInWeeks(p, week),
-    speed: p.speed,
-    endurance: p.endurance,
-    orientation: p.orientation,
-    libido: p.libido,
-    form: p.form,
-    health: p.health,
-    experience: p.experience,
-    talent: talent(p),
+    revealed,
+    // Withheld for other players' pigeons (only the general score is public).
+    speed: hide(p.speed),
+    endurance: hide(p.endurance),
+    orientation: hide(p.orientation),
+    libido: hide(p.libido),
+    form: hide(p.form),
+    health: hide(p.health),
+    experience: hide(p.experience),
+    talent: talent(p), // the "algemene score" — publicly known (via weddenschappen/ranglijst)
     value: estimateValue(p, week),
     canRace: canRace(p, week),
     forSale: p.forSale,
     price: p.price,
     sireId: p.sireId,
     damId: p.damId,
-    ailment: p.ailment,
-    inInfirmary: p.inInfirmary,
-    coached: p.coached ?? false,
-    ration: p.ration ?? 'normal',
-    compartment: p.compartment ?? false,
-    cureUntil: p.cureUntil ?? null,
-    onCure: !!p.cureUntil && Date.parse(p.cureUntil) > Date.now(),
-    // Per-attribute training cooldown: ISO time each becomes trainable again, or
-    // null if it can be trained right now (each attribute is once/week).
+    ailment: revealed ? p.ailment : null,
+    inInfirmary: revealed ? p.inInfirmary : false,
+    coached: revealed ? (p.coached ?? false) : false,
+    ration: revealed ? (p.ration ?? 'normal') : 'normal',
+    compartment: revealed ? (p.compartment ?? false) : false,
+    cureUntil: revealed ? (p.cureUntil ?? null) : null,
+    onCure: revealed ? (!!p.cureUntil && Date.parse(p.cureUntil) > Date.now()) : false,
+    // Per-attribute training cooldown (own birds only).
     trainAvailableAt: (() => {
+      if (!revealed) return { speed: null, endurance: null, orientation: null };
       const now = Date.now();
       const cd = TRAINING.cooldownDays * 86400000;
       const next = (a: 'speed' | 'endurance' | 'orientation') => {
@@ -65,7 +74,7 @@ export function pigeonDTO(db: Database, p: Pigeon) {
       return { speed: next('speed'), endurance: next('endurance'), orientation: next('orientation') };
     })(),
     racing: db.flights.some((f) => f.status !== 'completed' && f.entries.some((e) => e.pigeonId === p.id)),
-    breeding: db.breedingPairs.some((bp) => bp.sireId === p.id || bp.damId === p.id),
+    breeding: revealed && db.breedingPairs.some((bp) => bp.sireId === p.id || bp.damId === p.id),
     dailyCare,
   };
 }
@@ -189,7 +198,7 @@ export function tradeDTO(t: Trade) {
 }
 
 /** All currently-open auctions for the market page (Sunday first, then shelter). */
-export function auctionsDTO(db: Database) {
+export function auctionsDTO(db: Database, viewerId?: string) {
   return db.auctions
     .filter((a) => a.status === 'open')
     .map((a) => {
@@ -199,7 +208,7 @@ export function auctionsDTO(db: Database) {
         id: a.id,
         kind,
         sellerName: kind === 'shelter' ? 'Opvangcentrum' : 'Veilinghuis',
-        pigeon: p ? pigeonDTO(db, p) : null,
+        pigeon: p ? pigeonDTO(db, p, viewerId) : null,
         startAt: a.startAt,
         endAt: a.endAt,
         currentBid: a.currentBid,

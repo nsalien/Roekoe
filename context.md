@@ -133,7 +133,7 @@ Roekoe/
 │   ├── store.ts                 Store-interface + in-memory basis + newId()
 │   ├── d1.ts                    D1-persistentie (load/snapshot/diff/ensureSchema, auction_bids)
 │   ├── auth.ts                  wachtwoord-hash + JWT via Web Crypto
-│   ├── presenters.ts            entiteit → client-DTO (pigeonDTO bevat dailyCare-projectie)
+│   ├── presenters.ts            entiteit → client-DTO (pigeonDTO(db,p,viewerId?) → dailyCare + info-hiding)
 │   └── game/
 │       ├── engine.ts            speler-acties (buy/train/enter/giveUpFlight/breed/…)
 │       ├── schedule.ts          advanceRealtime + data-migraties + alle ticks
@@ -333,11 +333,16 @@ Entiteiten: `Pigeon`, `Loft`, `User`, `BreedingPair`, `Flight` (+ `SimEntry`,
   checken `user.isAdmin` (403 anders). Kern: `velocityBreakdown()` in `flight.ts`.
 - `MarketPage` (Markt) — koop van spelers + veilingen (zondag/opvangcentrum) + de
   **privé-biedingen**: "Biedingen op jouw duiven" (accepteer/weiger), "Jouw
-  uitgebrachte biedingen" (intrekken), én een **bladersectie "🕊️ Bied op duiven van
-  andere spelers"** (alle niet-te-koop duiven van echte spelers, met een bod-veldje
-  per duif; `/market` levert `biddable`). Nav-badge op **Markt** = ontvangen biedingen.
+  uitgebrachte biedingen" (intrekken), én een **getrapte kiezer `BidCascade`**
+  ("🕊️ Bied op duiven van andere spelers"): stap 1 **kies een speler**, stap 2 **kies
+  een duif** van die speler (dropdown toont enkel naam · ★talent · geslacht), stap 3
+  **bedrag** → Bied. De bieder ziet **enkel de algemene score** (★talent), niet de
+  precieze eigenschappen — verwijzing naar ranglijst/vluchtresultaten. `/market` levert
+  `biddable` (alle niet-te-koop duiven van echte spelers, elk met `revealed:false`).
+  Nav-badge op **Markt** = ontvangen biedingen.
 - `PigeonPage` bij andermans (niet-bot) duif: kaart **"Bied op deze duif"** (bod
-  uitbrengen / lopend bod intrekken).
+  uitbrengen / lopend bod intrekken). Statbalken verborgen (`revealed:false`) →
+  enkel ★talent + "eigenschappen onbekend"-melding.
 - Verder: `BreedingPage`, `SponsorsPage`, `LoginPage`.
 
 **Rondleiding (`components/Tour.tsx`):** interactieve spotlight-tour die per stap
@@ -528,6 +533,18 @@ Alles hieronder staat **live** op de deploy-branch. Data-migraties liepen door t
     + nav-badge; uitkomsten (aanvaard/geweigerd/vervallen) gaan wél als bel-melding naar
     de bieder. Endpoints: `POST /pigeons/:id/offer`, `/offers/:id/withdraw`,
     `/offers/:id/respond`. In `/state.offers`. `pigeonDTO.ownerIsBot` toegevoegd.
+- **Info-hiding bij bieden (nieuwste):** `pigeonDTO(db, p, viewerId?)` verbergt de
+  **privé-eigenschappen** van andermans duiven. `revealed = viewerId===undefined ||
+  p.ownerId===viewerId`; is `revealed` false dan worden `speed/endurance/orientation/
+  libido/form/health/experience` (+ ailment/inInfirmary/coached/ration/compartment/
+  cureUntil/onCure/breeding/trainAvailableAt/dailyCare) **op null/false** gezet.
+  **Publiek blijven**: `talent` (algemene score, ook via weddenschappen/ranglijst),
+  `value`, `canRace`, `forSale`, `price`, `sex`, `ageWeeks`, `racing`. Het verbergen
+  gebeurt **server-side** zodat privéwaarden niet over de lijn gaan. Alle API-calls
+  geven nu `user.id` mee aan `pigeonDTO`/`auctionsDTO` (`/state`, `/pigeons/:id`,
+  `/market`). Client: `Pigeon.revealed:boolean`, de 7 statvelden zijn `number|null`;
+  `PigeonCard`/`PigeonPage` tonen bij `!revealed` enkel ★talent + een slot-melding.
+  De **Markt-biedkiezer `BidCascade`** dwingt de flow speler→duif→bedrag af.
 
 ### Openstaande ideeën / balans om op te letten
 - Sterfte is nog **wekelijks** terwijl herstel real-time is (evt. op elkaar afstemmen).

@@ -558,8 +558,16 @@ eigenschap **7 dagen** geblokkeerd; de andere twee kan je intussen wél trainen.
 ### 9.1 Privé-biedingen (bieden op een duif die niet te koop staat)
 Je kan een **bod** uitbrengen op de duif van **een andere speler**, ook al staat
 die **niet te koop**. Dat kan op **twee plaatsen**: op de **Markt** onder
-**"🕊️ Bied op duiven van andere spelers"** (bladeren door alle spelersduiven met
-een bod-veldje), of via de knop **"Bied op deze duif"** op de duifpagina zelf:
+**"🕊️ Bied op duiven van andere spelers"**, of via de knop **"Bied op deze duif"**
+op de duifpagina zelf. Op de Markt gaat het **stap voor stap**: (1) kies eerst de
+**speler** op wie je wilt bieden, (2) kies daarna een **duif** van die speler, en
+(3) geef je **bedrag** in.
+
+**Je ziet niet alle eigenschappen van andermans duiven.** Enkel de **algemene
+score (★ talent)** is bekend — de precieze snelheid, conditie, oriëntatie, energie,
+gezondheid, libido en ervaring blijven **geheim**. Je weet dus niet *exact* wat je
+koopt, maar je kan wel een idee vormen via de **algemene score**, de
+**duivenranglijst** of de **resultaten van specifieke vluchten**.
 - Je geld wordt **niet** vastgehouden; het wordt pas gecontroleerd wanneer de
   eigenaar aanvaardt (heb je dan te weinig geld of geen plaats, dan vervalt het bod).
 - De eigenaar ziet het bod **bij de Markt** (niet via de belknop) — met een teller

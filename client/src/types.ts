@@ -52,13 +52,17 @@ export interface Pigeon {
   name: string;
   sex: Sex;
   ageWeeks: number;
-  speed: number;
-  endurance: number;
-  orientation: number;
-  libido: number;
-  form: number;
-  health: number;
-  experience: number;
+  // Individual attributes are only revealed for your OWN pigeons; for other
+  // players' birds these are null (see `revealed`). The general score (talent)
+  // is always public.
+  revealed: boolean;
+  speed: number | null;
+  endurance: number | null;
+  orientation: number | null;
+  libido: number | null;
+  form: number | null;
+  health: number | null;
+  experience: number | null;
   talent: number;
   value: number;
   canRace: boolean;

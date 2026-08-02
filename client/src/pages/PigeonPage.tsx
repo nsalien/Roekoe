@@ -141,13 +141,23 @@ export function PigeonPage() {
           </div>
 
           <hr className="sep" />
-          <StatBar label="Snelheid" value={p.speed} />
-          <StatBar label="Conditie" value={p.endurance} />
-          <StatBar label="Oriëntatie" value={p.orientation} />
-          <StatBar label="⚡ Energie" value={p.form} variant="form" />
-          <StatBar label="Gezondheid" value={p.health} variant="health" />
-          <StatBar label="❤️ Libido" value={p.libido} />
-          <StatBar label="Ervaring" value={p.experience} />
+          {p.revealed ? (
+            <>
+              <StatBar label="Snelheid" value={p.speed ?? 0} />
+              <StatBar label="Conditie" value={p.endurance ?? 0} />
+              <StatBar label="Oriëntatie" value={p.orientation ?? 0} />
+              <StatBar label="⚡ Energie" value={p.form ?? 0} variant="form" />
+              <StatBar label="Gezondheid" value={p.health ?? 0} variant="health" />
+              <StatBar label="❤️ Libido" value={p.libido ?? 0} />
+              <StatBar label="Ervaring" value={p.experience ?? 0} />
+            </>
+          ) : (
+            <p className="muted" style={{ margin: 0 }}>
+              🔒 De precieze eigenschappen van andermans duiven zijn niet zichtbaar. Enkel de
+              algemene score (★ talent {p.talent}) is gekend. Bekijk de <Link to="/ranglijst">ranglijst</Link>{' '}
+              of specifieke vluchtresultaten om een idee te vormen voor je een bod doet.
+            </p>
+          )}
         </div>
 
         <div>
@@ -363,8 +373,8 @@ export function PigeonPage() {
                       <button
                         className="btn sm"
                         style={{ flexShrink: 0 }}
-                        disabled={busy || p.form >= 100 || p.racing || weeklyLock}
-                        title={p.form >= 100 ? 'Al vol energie' : p.racing ? 'Schrijf ze eerst uit voor haar vlucht' : weeklyLock ? 'Je rustkuur van deze week is op' : 'Start een rustkuur'}
+                        disabled={busy || (p.form ?? 0) >= 100 || p.racing || weeklyLock}
+                        title={(p.form ?? 0) >= 100 ? 'Al vol energie' : p.racing ? 'Schrijf ze eerst uit voor haar vlucht' : weeklyLock ? 'Je rustkuur van deze week is op' : 'Start een rustkuur'}
                         onClick={() => startRestCure()}
                       >
                         Start rustkuur

@@ -18,7 +18,7 @@ export function LoftPage() {
   const [price, setPrice] = useState(0);
 
   if (loading || !state) return <Spinner />;
-  const pigeons = [...state.pigeons].sort((a, b) => b[sort] - a[sort]);
+  const pigeons = [...state.pigeons].sort((a, b) => (b[sort] ?? 0) - (a[sort] ?? 0));
 
   async function act(fn: () => Promise<unknown>, ok?: string) {
     setBusy(true);

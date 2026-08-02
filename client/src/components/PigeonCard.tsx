@@ -70,17 +70,27 @@ export function PigeonCard({
         inner
       )}
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '2px 12px', marginTop: 6 }}>
-        <StatBar label="Snelheid" value={pigeon.speed} perDay={dc?.speed} />
-        <StatBar label="Conditie" value={pigeon.endurance} perDay={dc?.endurance} />
-        <StatBar label="Oriëntatie" value={pigeon.orientation} perDay={dc?.orientation} />
-      </div>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2px 12px', marginTop: 2 }}>
-        <StatBar label="Energie" value={pigeon.form} variant="form" perDay={dc?.form} />
-        <StatBar label="Gezondh." value={pigeon.health} variant="health" perDay={dc?.health} />
-        <StatBar label="Libido" value={pigeon.libido} perDay={dc?.libido} />
-        <StatBar label="Ervaring" value={pigeon.experience} perDay={dc?.experience} />
-      </div>
+      {pigeon.revealed ? (
+        <>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '2px 12px', marginTop: 6 }}>
+            <StatBar label="Snelheid" value={pigeon.speed ?? 0} perDay={dc?.speed} />
+            <StatBar label="Conditie" value={pigeon.endurance ?? 0} perDay={dc?.endurance} />
+            <StatBar label="Oriëntatie" value={pigeon.orientation ?? 0} perDay={dc?.orientation} />
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2px 12px', marginTop: 2 }}>
+            <StatBar label="Energie" value={pigeon.form ?? 0} variant="form" perDay={dc?.form} />
+            <StatBar label="Gezondh." value={pigeon.health ?? 0} variant="health" perDay={dc?.health} />
+            <StatBar label="Libido" value={pigeon.libido ?? 0} perDay={dc?.libido} />
+            <StatBar label="Ervaring" value={pigeon.experience ?? 0} perDay={dc?.experience} />
+          </div>
+        </>
+      ) : (
+        <div className="faint" style={{ marginTop: 8, fontSize: '0.85rem', lineHeight: 1.4 }}>
+          🔒 De precieze eigenschappen van andermans duiven zijn niet zichtbaar. Enkel de
+          algemene score (★ {pigeon.talent}) is gekend. Bekijk de ranglijst of vluchtresultaten
+          voor meer info.
+        </div>
+      )}
 
       {children && <div style={{ marginTop: 10 }}>{children}</div>}
     </div>
