@@ -741,7 +741,7 @@ export const TITAN = {
   minKm: 200, // medium-to-long
   maxKm: 600,
   entryFee: 200,
-  prizes: [1000, 800, 600], // 1e / 2e / 3e (money only)
+  prizes: [1400, 1200, 1000], // 1e / 2e / 3e (money only)
 } as const;
 
 export const REAL_SCHEDULE: ScheduleSlot[] = [
