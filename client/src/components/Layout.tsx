@@ -9,7 +9,9 @@ import { useToast } from './ui';
 import { NotificationsBell } from './NotificationsBell';
 import { Tour, SEASON_NEWS_STEPS } from './Tour';
 
-const NAV = [
+interface NavItem { to: string; label: string; short: string; icon: string; end?: boolean }
+
+const NAV: NavItem[] = [
   { to: '/', label: 'Overzicht', short: 'Start', icon: '🏠', end: true },
   { to: '/hok', label: 'Mijn hok', short: 'Hok', icon: '🕊️' },
   { to: '/vluchten', label: 'Vluchten', short: 'Vlucht', icon: '🏁' },
@@ -21,6 +23,9 @@ const NAV = [
   { to: '/ranglijst', label: 'Rang', short: 'Rang', icon: '🏆' },
   { to: '/profiel', label: 'Profiel', short: 'Profiel', icon: '👤' },
 ];
+
+// Only admins see the beheer-console link.
+const ADMIN_NAV: NavItem = { to: '/beheer', label: 'Beheer', short: 'Beheer', icon: '🛠️' };
 
 // On phones the bottom bar shows the first PRIMARY items; the rest hide behind
 // a "› Meer" button so the bar has room to grow with new sections.
@@ -93,6 +98,7 @@ export function Layout() {
   }
 
   const initial = (user?.username ?? '?').charAt(0).toUpperCase();
+  const navItems = state?.isAdmin ? [...NAV, ADMIN_NAV] : NAV;
 
   return (
     <div className="app">
@@ -102,7 +108,7 @@ export function Layout() {
             <span className="logo">🕊️</span> Roekoe
           </Link>
           <nav className="nav">
-            {NAV.map((n) => {
+            {navItems.map((n) => {
               const offers = n.to === '/sponsors' ? state?.loft?.sponsorOfferCount ?? 0 : 0;
               return (
                 <NavLink key={n.to} to={n.to} end={n.end} className={({ isActive }) => (isActive ? 'active' : '')}>
@@ -153,7 +159,7 @@ export function Layout() {
       </main>
 
       {/* Bottom tab bar — only shown on phones (see global.css). */}
-      <BottomNav />
+      <BottomNav items={navItems} />
 
       {showTour && <Tour onClose={closeTour} />}
       {showNews && !showTour && <Tour steps={SEASON_NEWS_STEPS} onClose={closeNews} />}
@@ -197,10 +203,10 @@ function EventModal() {
   );
 }
 
-function BottomNav() {
+function BottomNav({ items }: { items: NavItem[] }) {
   const [open, setOpen] = useState(false);
-  const primary = NAV.slice(0, PRIMARY);
-  const overflow = NAV.slice(PRIMARY);
+  const primary = items.slice(0, PRIMARY);
+  const overflow = items.slice(PRIMARY);
   return (
     <>
       {/* The overflow row stays open while you navigate; it only collapses when
