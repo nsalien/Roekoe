@@ -240,6 +240,14 @@ export function placeBid(db: Database, userId: string, auctionId: string, amount
   a.bids = (a.bids ?? []).filter((b) => b.userId !== userId);
   a.bids.push({ userId, name: loft.name, amount: bid });
 
+  // Anti-snipe: a bid in the final 5 minutes pushes the close time back to 5
+  // minutes from now, so the others still have time to bid back.
+  const nowMs = Date.now();
+  const antiSnipeMs = 5 * 60 * 1000;
+  if (Date.parse(a.endAt) - nowMs < antiSnipeMs) {
+    a.endAt = new Date(nowMs + antiSnipeMs).toISOString();
+  }
+
   if (a.currentBidderId && a.currentBidderId !== userId) {
     const prev = db.lofts.find((l) => l.userId === a.currentBidderId);
     if (prev && !prev.isBot) {

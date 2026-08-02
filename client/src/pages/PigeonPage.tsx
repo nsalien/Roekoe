@@ -25,6 +25,7 @@ export function PigeonPage() {
   const [busy, setBusy] = useState(false);
   const [renaming, setRenaming] = useState(false);
   const [newName, setNewName] = useState('');
+  const [offerAmount, setOfferAmount] = useState(0);
 
   async function load() {
     if (!id) return;
@@ -229,6 +230,46 @@ export function PigeonPage() {
               </div>
             </div>
           )}
+
+          {!mine && !p.ownerIsBot && (() => {
+            const myOffer = (state?.offers?.sent ?? []).find((o) => o.pigeonId === p.id);
+            return (
+              <div className="card">
+                <h2>🤝 Bied op deze duif</h2>
+                <p className="faint" style={{ fontSize: '0.85rem', marginTop: 0 }}>
+                  Je kan {p.ownerName} een bod doen, ook al staat {p.name} niet te koop. Het bod blijft geldig tot
+                  {' '}{p.ownerName} het aanvaardt of weigert; je kan het altijd intrekken via de <strong>Markt</strong>.
+                </p>
+                {myOffer ? (
+                  <div className="row" style={{ justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
+                    <span className="notice" style={{ margin: 0 }}>
+                      Je hebt een lopend bod van <strong><Money value={myOffer.amount} /></strong> — wacht op antwoord.
+                    </span>
+                    <button className="btn ghost sm" disabled={busy}
+                      onClick={() => run(() => api(`/offers/${myOffer.id}/withdraw`, { method: 'POST' }), 'Bod ingetrokken')}>
+                      Trek in
+                    </button>
+                  </div>
+                ) : (
+                  <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
+                    <input
+                      type="number"
+                      min={1}
+                      value={offerAmount || ''}
+                      placeholder="bedrag"
+                      onChange={(e) => setOfferAmount(Number(e.target.value))}
+                      style={{ maxWidth: 140 }}
+                    />
+                    <button className="btn accent" disabled={busy || !(offerAmount > 0) || offerAmount > (state?.loft?.money ?? 0)}
+                      onClick={() => run(() => api(`/pigeons/${p.id}/offer`, { method: 'POST', body: { amount: offerAmount } }), 'Bod uitgebracht! 🤝').then(() => setOfferAmount(0))}>
+                      Bied <Money value={offerAmount || 0} />
+                    </button>
+                    <span className="faint" style={{ alignSelf: 'center' }}>je kassa: <Money value={state?.loft?.money ?? 0} /></span>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
 
           {mine && (
             <div className="card">

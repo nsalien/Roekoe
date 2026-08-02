@@ -66,8 +66,23 @@ export function MarketPage() {
     }
   }
 
+  async function offerAct(fn: () => Promise<unknown>, ok?: string) {
+    setBusy(true);
+    try {
+      await fn();
+      await refresh();
+      if (ok) toast.show(ok, 'ok');
+    } catch (e) {
+      toast.show(e instanceof Error ? e.message : 'Mislukt', 'err');
+    } finally {
+      setBusy(false);
+    }
+  }
+
   if (!listings) return <Spinner />;
   const money = state?.loft?.money ?? 0;
+  const received = state?.offers?.received ?? [];
+  const sent = state?.offers?.sent ?? [];
 
   return (
     <div>
@@ -79,6 +94,54 @@ export function MarketPage() {
           </p>
         </div>
       </div>
+
+      {received.length > 0 && (
+        <div className="card" style={{ borderColor: 'var(--brand)', marginBottom: 16 }}>
+          <h2 style={{ marginTop: 0 }}>🤝 Biedingen op jouw duiven</h2>
+          <div className="stack" style={{ gap: 6 }}>
+            {received.map((o) => (
+              <div key={o.id} className="row" style={{ justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
+                <span>
+                  <strong>{o.fromUserName}</strong> biedt <strong><Money value={o.amount} /></strong> op{' '}
+                  <Link to={`/duif/${o.pigeonId}`} style={{ color: 'inherit' }}>{o.pigeonName}</Link>
+                  <span className="faint"> · {ago(o.createdAt)}</span>
+                </span>
+                <span className="row" style={{ gap: 6, flexShrink: 0 }}>
+                  <button className="btn accent sm" disabled={busy}
+                    onClick={() => offerAct(() => api(`/offers/${o.id}/respond`, { method: 'POST', body: { accept: true } }), `${o.pigeonName} verkocht!`)}>
+                    Accepteer
+                  </button>
+                  <button className="btn ghost sm" disabled={busy}
+                    onClick={() => offerAct(() => api(`/offers/${o.id}/respond`, { method: 'POST', body: { accept: false } }))}>
+                    Weiger
+                  </button>
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {sent.length > 0 && (
+        <div className="card" style={{ marginBottom: 16 }}>
+          <h2 style={{ marginTop: 0 }}>Jouw uitgebrachte biedingen</h2>
+          <div className="stack" style={{ gap: 6 }}>
+            {sent.map((o) => (
+              <div key={o.id} className="row" style={{ justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
+                <span>
+                  Je biedt <strong><Money value={o.amount} /></strong> op{' '}
+                  <Link to={`/duif/${o.pigeonId}`} style={{ color: 'inherit' }}>{o.pigeonName}</Link>
+                  <span className="faint"> · van {o.toUserName}, wacht op antwoord</span>
+                </span>
+                <button className="btn ghost sm" disabled={busy} style={{ flexShrink: 0 }}
+                  onClick={() => offerAct(() => api(`/offers/${o.id}/withdraw`, { method: 'POST' }), 'Bod ingetrokken')}>
+                  Trek in
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {auctions.filter((a) => a.pigeon).map((a) => (
         <AuctionCard key={a.id} auction={a} money={money} busy={busy} onBid={bid} />

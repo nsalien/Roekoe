@@ -70,7 +70,9 @@ volgorde:
    blok + `db.world.dataVersion = N`).
 2. `ensureFlightsScheduled(db, nowMs)` — plant vluchten volgens `REAL_SCHEDULE`.
 3. `ensureAuctions(db, nowMs)` — zondagsveiling + willekeurige opvangcentrum-veilingen
-   (+ **verlies-meldingen** bij sluiting aan wie meebood maar niet wint).
+   (+ **verlies-meldingen** bij sluiting aan wie meebood maar niet wint). Bieden via
+   `placeBid` (auction.ts): een bod in de **laatste 5 min** schuift `endAt` naar
+   **nu + 5 min** (anti-snipe), zodat anderen nog kunnen terugbieden.
 4. `tickDailyCare(db, nowMs)` — **dagelijkse** voeding/herstel/**honger**/**rustbonus**
    (echte tijd, per 24u vanaf `world.lastDailyTick`; inhaalslag tot 30 dagen).
    Verhongerde duiven worden hier verwijderd. **Rekent ook alle vaste onkosten dagelijks
@@ -164,7 +166,7 @@ Roekoe/
 
 Entiteiten: `Pigeon`, `Loft`, `User`, `BreedingPair`, `Flight` (+ `SimEntry`,
 `FlightEntry`, `FlightResult`), `Trade`, `Auction` (+ `AuctionBid`), `Bet`,
-`Notification`, `SponsorState`/`SponsorOffer`/`ActiveSponsorship`,
+`PigeonOffer`, `Notification`, `SponsorState`/`SponsorOffer`/`ActiveSponsorship`,
 `DailyMission`, `EventCard`, `PlayerStats`/`EarnedBadge`, `World`, `Database`.
 
 **Naamgevingsvalstrikken (onthouden!):**
@@ -199,9 +201,13 @@ Entiteiten: `Pigeon`, `Loft`, `User`, `BreedingPair`, `Flight` (+ `SimEntry`,
   `updates?` — voor real-time herstel + 12u-statusupdates.
 - `PlayerStats.bets` / `betsWon` / `broods` — voor nieuwe badges/missies.
 
-**Aparte D1-tabel:** `auction_bids (auction_id, user_id, name, amount, at)` — bron
-van waarheid voor biedingen (wordt in `a.bids` geladen; de oude JSON-kolom is
-enkel fallback).
+**Aparte D1-tabellen:**
+- `auction_bids (auction_id, user_id, name, amount, at)` — bron van waarheid voor
+  veilingbiedingen (in `a.bids` geladen; de oude JSON-kolom is enkel fallback).
+- `offers (id, pigeon_id, pigeon_name, from_user_id, from_user_name, to_user_id,
+  to_user_name, amount, status, created_at, resolved_at)` — **privé-biedingen** op
+  duiven van andere spelers (zie §8). `db.offers` bevat enkel **openstaande** (pending)
+  biedingen; afgehandelde worden verwijderd (de verkoop leeft voort in `db.trades`).
 
 `FeedRationKey = 'normal' | 'premium' | 'libido' | 'herstel'`.
 `BetKind = 'win' | 'last' | 'own_top3' | 'top3' | 'mine_wins' | 'head2head'`
@@ -325,8 +331,13 @@ enkel fallback).
   factoren + berekende vs. echte snelheid + residu ≈ geluk). Nav-link + route enkel
   bij `state.isAdmin`; API's `GET /admin/flights` en `GET /admin/flight-analysis/:id`
   checken `user.isAdmin` (403 anders). Kern: `velocityBreakdown()` in `flight.ts`.
-- Verder: `MarketPage` (koop van spelers + veilingen; opvangcentrum), `BreedingPage`,
-  `SponsorsPage`, `LoginPage`.
+- `MarketPage` (Markt) — koop van spelers + veilingen (zondag/opvangcentrum) + de
+  **privé-biedingen**: "Biedingen op jouw duiven" (accepteer/weiger) en "Jouw
+  uitgebrachte biedingen" (intrekken). Nav-badge op **Markt** = aantal ontvangen
+  biedingen (`state.offers.received`).
+- `PigeonPage` bij andermans (niet-bot) duif: kaart **"Bied op deze duif"** (bod
+  uitbrengen / lopend bod intrekken).
+- Verder: `BreedingPage`, `SponsorsPage`, `LoginPage`.
 
 **Rondleiding (`components/Tour.tsx`):** interactieve spotlight-tour die per stap
 naar de juiste pagina navigeert en het relevante element highlight via
@@ -486,6 +497,36 @@ Alles hieronder staat **live** op de deploy-branch. Data-migraties liepen door t
   (beste ooit-snelheid → `seasonPeakSpeed`; elke top-3-finish → `seasonPodiums`;
   oefenvluchten tellen niet). Vooruitgang kan niet gereconstrueerd worden en start
   vers vanaf de seizoensverankering.
+
+**Economie-herbalans (recent)**
+- **Vaste kosten dagelijks** (niet meer wekelijks bij "Volgende week"): `DAILY_UPKEEP_*`,
+  `COACH.dailySalary 36`, ziekenboeg dokter 57 / kinesist 50 / medicatie 6 — in
+  `tickDailyCare` via `economy.dailyRunningCost`; sponsorbijdrage dagelijks (weekbedrag/7).
+- Dagopdrachten/streak verlaagd (~€750/week i.p.v. ~€1750). Weddenschap max €500.
+  Regionaal prijzengeld verdubbeld. Titan inschrijfgeld €100.
+- **Snelheidsmodel**: korte-vluchtweging snelheid 0.65; energiefactor afstandsafhankelijk;
+  ervaring "doseert" energie (`ENERGIE_IMPACT`). Training 1×/week per categorie
+  (`Pigeon.trainedAt`).
+- **Rustkuur = niets doen**: `onRestCure()` blokkeert vluchten/training/koppelen (zit in
+  `canRace` + expliciete checks).
+- **Aging-gat (bekend, nog niet opgelost):** leeftijd = `currentWeek − birthWeek`, en
+  `currentWeek` gaat enkel omhoog via admin "Volgende week". Er is **geen real-time
+  veroudering** → duiven verouderen amper en gekweekte jongen (leeftijd 0) bereiken de
+  race-leeftijd (8 wkn) niet zonder week-advance. Effect leeftijd = snelheidscurve
+  (`AGE_CURVE`) + marktwaarde + sterftekans. Kandidaat om real-time te maken.
+
+**Privé-biedingen + veiling-anti-snipe (nieuwste)**
+- **Anti-snipe**: bod in laatste 5 min → `endAt` naar nu+5 min (`placeBid` in auction.ts).
+- **`PigeonOffer`** (`core/game/offers.ts`): bied op eender welke (niet-bot) spelersduif,
+  ook als die niet te koop staat. Geld niet in escrow; gecheckt bij aanvaarden.
+  - `makeOffer` (1 lopend bod per bieder+duif, updatet bedrag), `withdrawOffer`,
+    `respondOffer(accept)` (aanvaarden = transfer via `db.trades` + badges/missies,
+    weigeren/vervallen = melding aan bieder). Andere biedingen op dezelfde duif vervallen
+    bij verkoop. `offersFor(db, userId)` → `{received, sent}` (enkel geldige pending).
+  - **Melding bewust NIET via de bel** voor een nieuw ontvangen bod → staat in de **Markt**
+    + nav-badge; uitkomsten (aanvaard/geweigerd/vervallen) gaan wél als bel-melding naar
+    de bieder. Endpoints: `POST /pigeons/:id/offer`, `/offers/:id/withdraw`,
+    `/offers/:id/respond`. In `/state.offers`. `pigeonDTO.ownerIsBot` toegevoegd.
 
 ### Openstaande ideeën / balans om op te letten
 - Sterfte is nog **wekelijks** terwijl herstel real-time is (evt. op elkaar afstemmen).

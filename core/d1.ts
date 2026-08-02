@@ -21,6 +21,7 @@ import type {
   Loft,
   Notification,
   Pigeon,
+  PigeonOffer,
   SponsorState,
   Trade,
   User,
@@ -204,6 +205,21 @@ function rowToBet(r: any): Bet {
     settledAt: r.settled_at ?? null,
   };
 }
+function rowToOffer(r: any): PigeonOffer {
+  return {
+    id: r.id,
+    pigeonId: r.pigeon_id,
+    pigeonName: r.pigeon_name,
+    fromUserId: r.from_user_id,
+    fromUserName: r.from_user_name,
+    toUserId: r.to_user_id,
+    toUserName: r.to_user_name,
+    amount: r.amount,
+    status: r.status,
+    createdAt: r.created_at,
+    resolvedAt: r.resolved_at ?? null,
+  };
+}
 function rowToTrade(r: any): Trade {
   return {
     id: r.id,
@@ -296,6 +312,13 @@ export class D1Store implements Store {
       // auction_bids table not present yet — fall back to the JSON column.
     }
 
+    // Private pigeon offers (guarded for databases predating the table).
+    try {
+      dbObj.offers = ((await db.prepare('SELECT * FROM offers').all()).results as any[]).map(rowToOffer);
+    } catch {
+      dbObj.offers = [];
+    }
+
     const snapshots: Record<string, Map<string, string>> = {
       users: snapshot(dbObj.users, (u) => u.id),
       lofts: snapshot(dbObj.lofts, (l) => l.userId),
@@ -307,6 +330,7 @@ export class D1Store implements Store {
       auctions: snapshot(dbObj.auctions, (a) => a.id),
       auctionBids: snapshot(flattenAuctionBids(dbObj.auctions), (r) => r.key),
       bets: snapshot(dbObj.bets, (bt) => bt.id),
+      offers: snapshot(dbObj.offers, (o) => o.id),
     };
 
     return new D1Store(db, dbObj, snapshots, worldExisted);
@@ -448,6 +472,15 @@ export class D1Store implements Store {
       stmts,
     });
 
+    diff(this.snapshots.offers, w.offers, (o) => o.id, {
+      upsert: (o) =>
+        db.prepare(
+          'INSERT OR REPLACE INTO offers (id, pigeon_id, pigeon_name, from_user_id, from_user_name, to_user_id, to_user_name, amount, status, created_at, resolved_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        ).bind(o.id, o.pigeonId, o.pigeonName, o.fromUserId, o.fromUserName, o.toUserId, o.toUserName, o.amount, o.status, o.createdAt, o.resolvedAt),
+      del: (id) => db.prepare('DELETE FROM offers WHERE id = ?').bind(id),
+      stmts,
+    });
+
     if (stmts.length > 0) await db.batch(stmts);
   }
 }
@@ -572,6 +605,14 @@ export async function ensureSchema(db: D1Database): Promise<void> {
   }
   try {
     await db.exec('CREATE INDEX IF NOT EXISTS idx_bets_user ON bets (user_id)');
+  } catch {
+    // Already exists.
+  }
+  // Private pigeon offers (bid on another player's bird, listed or not).
+  try {
+    await db.exec(
+      'CREATE TABLE IF NOT EXISTS offers (id TEXT PRIMARY KEY, pigeon_id TEXT NOT NULL, pigeon_name TEXT NOT NULL, from_user_id TEXT NOT NULL, from_user_name TEXT NOT NULL, to_user_id TEXT NOT NULL, to_user_name TEXT NOT NULL, amount INTEGER NOT NULL, status TEXT NOT NULL, created_at TEXT NOT NULL, resolved_at TEXT)',
+    );
   } catch {
     // Already exists.
   }
