@@ -236,9 +236,13 @@ Entiteiten: `Pigeon`, `Loft`, `User`, `BreedingPair`, `Flight` (+ `SimEntry`,
 - **Honger (`STARVATION`)** — geen voorraad = versnellende daling (energie 8·N,
   gezondheid 5·N, conditie 3·N, libido 4·N per honger-dag N); sterftekans vanaf
   dag 3, zeker vanaf dag 7.
-- **Vlucht-energiekost (`FLIGHT_FATIGUE`)** — totaal = `5 + afstand/60 + rand(0..5)`,
-  bevroren bij start, **per 30 min** geleidelijk afgetrokken; DNF krijgt extra
-  uitputtingsstraf. `stepMinutes: 30`.
+- **Vlucht-energiekost (`FLIGHT_FATIGUE`)** — totaal = `(5 + afstand/60)·ervaringsfactor
+  + rand(0..5)`, bevroren bij start, **per 30 min** geleidelijk afgetrokken; DNF krijgt
+  extra uitputtingsstraf. `stepMinutes: 30`. **Ervaringsfactor** = `1 − (ervaring/100 −
+  0.5)·experienceReliefSpread` (spread 0.5 → draaipunt ervaring 50 = ×1.0, ervaring 0 =
+  ×1.25 méér verbruik, ervaring 100 = ×0.75 minder). Onervaren duiven verbruiken dus
+  meer, ervaren minder. NB: dit staat los van de ervaring-**dosering** in het snelheids­
+  model (`ENERGIE_IMPACT`), die enkel de *prestatie* raakt, niet het verbruik.
 - **Caps:** training tot **90**, voeding-conditie tot **92** (`FOOD_ENDURANCE_CAP`),
   coach tot **100** (`COACH.attributeCap`).
 - **Snelheidsmodel (`DISTANCE_WEIGHTING` + `ENERGIE_IMPACT`):** korte-vlucht­weging

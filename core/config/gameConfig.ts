@@ -108,13 +108,18 @@ export const FLIGHT_RISK = {
 } as const;
 
 /**
- * Energie (form) spent by racing. The total cost of flying the whole route is
- * `base + distanceKm/perKmDivisor + random(0..jitter)`, frozen when the flight
- * goes live. That cost is drained GRADUALLY while the bird flies, in blocks of
- * `stepMinutes`, so a bird pulled out (opgegeven) mid-race has already paid for
- * the part it flew — you can't dodge the energy cost by quitting near the end.
- * A bird that flies itself into the ground (DNF: exhausted or timed out) loses
- * an extra `exhaustionPenalty + random(0..exhaustionJitter)` on top.
+ * Energie (form) spent by racing. The distance-dependent part of the cost is
+ * `(base + distanceKm/perKmDivisor) · ervaringsfactor`, plus `random(0..jitter)`,
+ * frozen when the flight goes live. That cost is drained GRADUALLY while the bird
+ * flies, in blocks of `stepMinutes`, so a bird pulled out (opgegeven) mid-race has
+ * already paid for the part it flew — you can't dodge the energy cost by quitting
+ * near the end. A bird that flies itself into the ground (DNF: exhausted or timed
+ * out) loses an extra `exhaustionPenalty + random(0..exhaustionJitter)` on top.
+ *
+ * Ervaring lowers the drain: an experienced bird flies more efficiently and burns
+ * less energie, an inexperienced one burns more. The factor pivots around
+ * ervaring 50 (factor 1.0) and swings by `experienceReliefSpread/2` at the
+ * extremes — with 0.5 that is ±25%: ervaring 0 → ×1.25, ervaring 100 → ×0.75.
  *
  * `gaveUp*` are only used as a fallback for flights that were already live
  * before gradual draining existed (no frozen `formCost`).
@@ -123,6 +128,7 @@ export const FLIGHT_FATIGUE = {
   base: 5,
   perKmDivisor: 60,
   jitter: 5,
+  experienceReliefSpread: 0.5, // total swing across ervaring 0→100 (±25% around ervaring 50)
   stepMinutes: 30, // energie is deducted in blocks of this many minutes
   exhaustionPenalty: 12,
   exhaustionJitter: 6,

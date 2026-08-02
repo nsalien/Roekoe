@@ -213,9 +213,12 @@ export function startLiveFlight(flight: Flight, entries: Entry[], week: number, 
     // drained gradually during the race (tickFlightEnergy), so a bird pulled
     // out mid-flight has already paid for the distance it covered. An oefenvlucht
     // costs almost nothing.
+    // Ervaring makes flying more efficient: an experienced bird burns less
+    // energie, an inexperienced one burns more (pivot at ervaring 50 = ×1.0).
+    const expRelief = 1 - (clamp(e.pigeon.experience, 0, 100) / 100 - 0.5) * FLIGHT_FATIGUE.experienceReliefSpread;
     const formCost = flight.practice
       ? PRACTICE.energyCost
-      : round1(FLIGHT_FATIGUE.base + flight.distanceKm / FLIGHT_FATIGUE.perKmDivisor + randFloat(0, FLIGHT_FATIGUE.jitter));
+      : round1((FLIGHT_FATIGUE.base + flight.distanceKm / FLIGHT_FATIGUE.perKmDivisor) * expRelief + randFloat(0, FLIGHT_FATIGUE.jitter));
     return {
       pigeonId: e.pigeon.id,
       pigeonName: e.pigeon.name,
