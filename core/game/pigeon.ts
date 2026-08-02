@@ -22,9 +22,15 @@ export function canRace(pigeon: Pigeon, currentWeek: number): boolean {
   return (
     !pigeon.ailment &&
     !pigeon.inInfirmary &&
+    !onRestCure(pigeon) &&
     ageInWeeks(pigeon, currentWeek) >= RACE_AGE_WEEKS &&
     pigeon.health > 15
   );
+}
+
+/** Whether a paid rest cure is still running (bird rests, can do nothing). */
+export function onRestCure(pigeon: Pigeon, nowMs: number = Date.now()): boolean {
+  return !!pigeon.cureUntil && Date.parse(pigeon.cureUntil) > nowMs;
 }
 
 /** Performance multiplier from the age curve (0..1). */

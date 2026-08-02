@@ -37,7 +37,7 @@ import { progressMissions } from './missions.js';
 import { resolveEvent as resolveEventCard } from './events.js';
 import { applyAcceptSponsor, applyCancelSponsor, applyRefuseSponsor } from './sponsors.js';
 import { runHealthWeek } from './health.js';
-import { canRace, generatePigeon } from './pigeon.js';
+import { canRace, generatePigeon, onRestCure } from './pigeon.js';
 import { clamp, randFloat, round1 } from './util.js';
 
 export const NPC_OWNER_ID = 'npc_market';
@@ -414,11 +414,11 @@ export function enterFlight(
     const loft = db.lofts.find((l) => l.userId === userId);
     const pigeon = db.pigeons.find((p) => p.id === pigeonId);
     if (!loft || !pigeon || pigeon.ownerId !== userId) return 'Duif niet gevonden';
+    if (onRestCure(pigeon))
+      return 'Deze duif is op rustkuur — ze kan pas weer vliegen als de kuur voorbij is';
     if (!canRace(pigeon, db.world.currentWeek))
       return 'Deze duif is niet vluchtklaar (te jong, ziek, gewond of in de ziekenboeg)';
     if (pigeon.form < 1) return 'Deze duif is volledig uitgeput — laat ze eerst wat rusten';
-    if (pigeon.cureUntil && Date.parse(pigeon.cureUntil) > Date.now())
-      return 'Deze duif is op rustkuur — ze kan pas weer vliegen als de kuur voorbij is';
     const breeding = db.breedingPairs.some((bp) => bp.sireId === pigeonId || bp.damId === pigeonId);
     if (breeding) return 'Deze duif koppelt — stop eerst het broeden voordat ze weer kan vliegen';
     if (loft.money < 0) return 'Je kassa staat negatief — verkoop eerst een duif voor je inschrijft';
@@ -568,6 +568,7 @@ export function trainPigeon(
     const pigeon = db.pigeons.find((p) => p.id === pigeonId && p.ownerId === userId);
     if (!loft || !pigeon) return 'Duif niet gevonden';
     if (pigeon.ailment || pigeon.inInfirmary) return 'Een zieke, gekwetste of herstellende duif kan niet trainen';
+    if (onRestCure(pigeon)) return 'Deze duif is op rustkuur — ze kan pas weer trainen als de kuur voorbij is';
     const racing = db.flights.some(
       (f) => f.status !== 'completed' && f.entries.some((e) => e.pigeonId === pigeonId),
     );
@@ -613,6 +614,7 @@ export function startBreeding(
       return `Beide ouders hebben minstens ${BREEDING.minParentForm} energie nodig (meer energie + libido = sneller een jong)`;
     if (sire.ailment || dam.ailment) return 'Een zieke of gekwetste duif kan niet koppelen';
     if (sire.inInfirmary || dam.inInfirmary) return 'Een duif in de ziekenboeg kan niet koppelen';
+    if (onRestCure(sire) || onRestCure(dam)) return 'Een duif op rustkuur kan niet koppelen';
     const alreadyBreeding = db.breedingPairs.some(
       (bp) => bp.sireId === sireId || bp.damId === sireId || bp.sireId === damId || bp.damId === damId,
     );

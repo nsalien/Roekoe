@@ -182,7 +182,16 @@ export function PigeonPage() {
             </div>
           )}
 
-          {mine && !p.ailment && !p.inInfirmary && p.racing && (
+          {mine && !p.ailment && !p.inInfirmary && p.onCure && (
+            <div className="card">
+              <h2>Training</h2>
+              <p className="muted">
+                🛌 Deze duif is op rustkuur. Ze kan niets doen (geen vluchten, geen training) tot de kuur voorbij is.
+              </p>
+            </div>
+          )}
+
+          {mine && !p.ailment && !p.inInfirmary && !p.onCure && p.racing && (
             <div className="card">
               <h2>Training</h2>
               <p className="muted">
@@ -191,7 +200,7 @@ export function PigeonPage() {
             </div>
           )}
 
-          {mine && !p.ailment && !p.inInfirmary && !p.racing && (
+          {mine && !p.ailment && !p.inInfirmary && !p.onCure && !p.racing && (
             <div className="card">
               <h2>Training</h2>
               <p className="muted">

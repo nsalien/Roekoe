@@ -25,7 +25,7 @@ export function BreedingPage() {
 
   if (loading || !state) return <Spinner />;
   const BREED_COST = state.economy.breedCost;
-  const eligible = (p: (typeof state.pigeons)[number]) => !p.ailment && !p.inInfirmary && !p.breeding && !p.racing;
+  const eligible = (p: (typeof state.pigeons)[number]) => !p.ailment && !p.inInfirmary && !p.breeding && !p.racing && !p.onCure;
   const doffers = state.pigeons.filter((p) => p.sex === 'doffer' && eligible(p));
   const duivinnen = state.pigeons.filter((p) => p.sex === 'duivin' && eligible(p));
   const sire = doffers.find((p) => p.id === sireId);
