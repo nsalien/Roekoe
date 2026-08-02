@@ -194,7 +194,7 @@ export function FlightsPage() {
                 {f.titan && (
                   <p className="faint" style={{ marginTop: 10, marginBottom: 0 }}>
                     🏆 De titanenwedstrijd: middellange tot lange afstand, <strong>één duif per hok</strong>. Enkel prijzengeld
-                    (€1000 / €800 / €600 voor de top 3), <strong>geen</strong> rangschikkingspunten. Je duif traint wel bij.
+                    (€1400 / €1200 / €1000 voor de top 3), <strong>geen</strong> rangschikkingspunten. Je duif traint wel bij.
                     Deze wedstrijd vervangt vandaag alle andere vluchten.
                   </p>
                 )}

@@ -257,7 +257,7 @@ enkel fallback).
   (dagnummer = dagen sinds Unix-epoch); op een **titan-dag** worden alle níet-titan-slots
   overgeslagen (de titan vervangt alles die dag).
 - **Titanenwedstrijd (`TITAN`):** `weekday 6` (zaterdag), `hour 11`, afstand 200–600 km,
-  `entryFee 200`, `prizes [1000,800,600]`. **Enkel geld**, geen punten/medailles/wins,
+  `entryFee 200`, `prizes [1400,1200,1000]`. **Enkel geld**, geen punten/medailles/wins,
   telt niet mee voor de ranglijsten (behandeld als niet-competitie, net als practice, in
   `tickFlights`); **max. 1 duif per hok** (`enterFlight` + bots 1 vogel); geen wedden
   (`bettingOpen`). Prijzengeld via `finalizeFlight` (`flight.titan` → `TITAN.prizes`,

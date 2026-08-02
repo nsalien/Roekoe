@@ -151,7 +151,7 @@ Eén keer per week, in het **weekend** (zaterdag 11:00), is er een prestigieuze
 - **Middellange tot lange** afstand (~200–600 km).
 - Er is **inschrijfgeld** (€200) en er valt **enkel geld** te winnen — **geen**
   rangschikkingspunten, geen medailles, en het telt **niet** mee voor de
-  ranglijsten (§15). Prijzengeld: **1e €1000, 2e €800, 3e €600**.
+  ranglijsten (§15). Prijzengeld: **1e €1400, 2e €1200, 3e €1000**.
 - Je duif kan er, zoals bij elke vlucht, **wel op vooruitgaan** (conditie, enz.).
 - Deze wedstrijd **vervangt** die dag alle andere vluchten (er is dus maar één).
 
