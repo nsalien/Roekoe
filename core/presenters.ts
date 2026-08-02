@@ -5,7 +5,7 @@
  */
 
 import type { Database, Flight, Loft, Notification, Pigeon, Trade } from './schema.js';
-import { compartmentCost, REST_CURE } from './config/gameConfig.js';
+import { compartmentCost, REST_CURE, TRAINING } from './config/gameConfig.js';
 import { ageInWeeks, canRace, estimateValue, talent } from './game/pigeon.js';
 import { auctionKind } from './game/auction.js';
 import { bettingOpen } from './game/betting.js';
@@ -50,6 +50,19 @@ export function pigeonDTO(db: Database, p: Pigeon) {
     compartment: p.compartment ?? false,
     cureUntil: p.cureUntil ?? null,
     onCure: !!p.cureUntil && Date.parse(p.cureUntil) > Date.now(),
+    // Per-attribute training cooldown: ISO time each becomes trainable again, or
+    // null if it can be trained right now (each attribute is once/week).
+    trainAvailableAt: (() => {
+      const now = Date.now();
+      const cd = TRAINING.cooldownDays * 86400000;
+      const next = (a: 'speed' | 'endurance' | 'orientation') => {
+        const last = p.trainedAt?.[a];
+        if (!last) return null;
+        const n = Date.parse(last) + cd;
+        return n > now ? new Date(n).toISOString() : null;
+      };
+      return { speed: next('speed'), endurance: next('endurance'), orientation: next('orientation') };
+    })(),
     racing: db.flights.some((f) => f.status !== 'completed' && f.entries.some((e) => e.pigeonId === p.id)),
     breeding: db.breedingPairs.some((bp) => bp.sireId === p.id || bp.damId === p.id),
     dailyCare,

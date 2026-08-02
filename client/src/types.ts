@@ -72,6 +72,7 @@ export interface Pigeon {
   compartment: boolean;
   cureUntil: string | null;
   onCure: boolean;
+  trainAvailableAt: { speed: string | null; endurance: string | null; orientation: string | null };
   racing: boolean;
   breeding: boolean;
   dailyCare: DailyCareProjection | null;
