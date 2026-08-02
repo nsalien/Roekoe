@@ -452,9 +452,11 @@ Alles hieronder staat **live** op de deploy-branch. Data-migraties liepen door t
   wedstrijdvluchten (niet op oefenvluchten).
 - **Rustkuur** (`REST_CURE` + `startRestCure` + POST `/pigeons/:id/restcure` +
   `tickRestCures`): €300, 1 dag verplicht rusten, daarna +40 energie; kan tijdens de
-  kuur niet vliegen (`enterFlight` blokkeert op `cureUntil`). **Max. één per hok per
-  week** (`Loft.lastRestCure`, cooldown 7 dagen). UI op `PigeonPage` (knop vergrendeld
-  + datum via `loft.restCureAvailableAt`).
+  kuur **niets** doen: geen vluchten, training of koppelen. Bewaakt via
+  `onRestCure(pigeon)` in `pigeon.ts` — zit in `canRace` (dus uit de vlucht-selectie
+  én DTO) + expliciete checks in `enterFlight`/`trainPigeon`/`startBreeding`; client
+  filtert ook op `p.onCure` (Flights/Breeding/Pigeon-training). **Max. één per hok per
+  week** (`Loft.lastRestCure`, cooldown 7 dagen). UI op `PigeonPage`.
 - **Eenmalige "wat is nieuw"-melding**: eerst gecentreerde kaarten (oefenvlucht +
   rustkuur), later vervangen door de **spotlight-`Tour` met `SEASON_NEWS_STEPS`**
   (seizoen/ranglijst/Roekoe/Vleugel/seizoensprijzen). Al die onderwerpen zitten nu

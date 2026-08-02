@@ -393,7 +393,8 @@ te geraken.
 Naast wachten en Herstelvoer kan je een duif een **betaalde rustkuur** geven op
 haar duifpagina:
 - Kost **€300** en duurt **één dag** (24 u, echte tijd).
-- Tijdens de kuur **rust** de duif verplicht: ze kan **niet inschrijven of vliegen**.
+- Tijdens de kuur **rust** de duif volledig: ze kan **niets** doen — **geen
+  vluchten, geen training, geen koppelen** — tot de 24 u om zijn.
 - Als de kuur voorbij is, krijgt ze in één keer **+40 energie** (met een melding).
 - **Maximaal één rustkuur per week** per hok (dus ook maar **één duif per week**);
   daarna telt een cooldown van **7 dagen** vóór de volgende kan. Zo blijft energie
