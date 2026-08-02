@@ -130,7 +130,7 @@ Rugwind versnelt, tegenwind + regen vertragen. Zonder netwerk: willekeurig weer.
 Gerangschikt op finishtijd (snelste eerst).
 
 **Prijzengeld** (index 0 = winnaar):
-- Regionaal: 300, 180, 110, 70, 45, 30, 20, 12
+- Regionaal: 600, 360, 220, 140, 90, 60, 40, 24
 - Nationaal: 900, 550, 350, 220, 140, 90, 60, 40, 25, 15
 - Internationaal: 2200, 1300, 800, 500, 320, 200, 130, 85, 55, 35, 25, 15
 
@@ -165,7 +165,7 @@ Eén keer per week, in het **weekend** (zaterdag 11:00), is er een prestigieuze
 **Titanenwedstrijd**:
 - **Elke duivenmelker mag maar één duif inschrijven.**
 - **Middellange tot lange** afstand (~200–600 km).
-- Er is **inschrijfgeld** (€200) en er valt **enkel geld** te winnen — **geen**
+- Er is **inschrijfgeld** (€100) en er valt **enkel geld** te winnen — **geen**
   rangschikkingspunten, geen medailles, en het telt **niet** mee voor de
   ranglijsten (§15). Prijzengeld: **1e €1400, 2e €1200, 3e €1000**.
 - Je duif kan er, zoals bij elke vlucht, **wel op vooruitgaan** (conditie, enz.).
@@ -372,13 +372,18 @@ energie tóch een hoog libido.
 > (conditie 90, energie 90) mikt op 90. Ongeveer **1 op de 8** duiven is van
 > nature "fris" en houdt libido 65–89, ook al is de energie laag.
 
-### 4.2 Wekelijkse onkosten
-Bij "Volgende week" (spelleider) wordt aangerekend:
+### 4.2 Vaste onkosten (dagelijks, automatisch)
+Alle terugkerende kosten worden **elke dag automatisch** afgerekend (niet meer
+wekelijks/handmatig):
 ```
-onkosten = 150 + 15 · aantal_duiven
+onkosten/dag = 22 + 2 · aantal_duiven
+             + 36 · aantal_gecoachte_duiven          (coach, §13)
+             + 57 · dokters + 50 · kinesisten        (ziekenboegstaf, §5)
+             + 6  · duiven_in_boeg (met medicatievoer)
 ```
-Daarbovenop komen coachsalarissen (§13) en de ziekenboegkosten (§5). Ziekte/
-herstel/sterfte en het seizoen worden ook dan verwerkt (zie §5, §6).
+Ook **sponsorbijdragen** worden dagelijks uitbetaald (weekbedrag ÷ 7). Voer wordt
+apart uit je voorraad verbruikt (§4). Ziekte/sterfte-rondes en de seizoenswissel
+lopen los daarvan (§5, §6, §15).
 
 Onkosten kunnen je kassa **onder €0** duwen. Sta je negatief, dan **kan je niet
 meer inschrijven** voor vluchten: eerst een duif verkopen om terug uit het rood
@@ -446,9 +451,9 @@ een licht letsel in een halve dag, een matig in ~1 dag en een ernstig in ~2 dage
 
 ### 5.4 De ziekenboeg
 - Capaciteit: **2 duiven** (uitbreidbaar naar 3/4/5/6 voor €800/1200/1800/2400).
-- **Medicinaal voer**: €45/duif/week, verhoogt herstel van iedereen in de boeg.
-- **Duivendokter**: €400/week, geneest **2** zieke duiven (ziektes).
-- **Duivenkinesist**: €350/week, geneest **2** duiven (kwetsuren).
+- **Medicinaal voer**: €6/duif/dag, verhoogt herstel van iedereen in de boeg.
+- **Duivendokter**: €57/dag, geneest **2** zieke duiven (ziektes).
+- **Duivenkinesist**: €50/dag, geneest **2** duiven (kwetsuren).
 - Dekking gaat eerst naar de ernstigste gevallen.
 - Zieke/gekwetste duiven en duiven in de ziekenboeg kunnen niet vliegen, trainen
   of broeden.
@@ -568,9 +573,10 @@ kwetsuur, ziekte, herstel, sterfte en geboorte van jongen.
 ## 12. Dagopdrachten, gebeurtenissen, veilingen & sponsors
 
 - **Dagopdrachten.** Elke dag krijg je 3 kleine opdrachten (bv. een duif
-  inschrijven, een vlucht winnen, voer kopen, trainen). Voltooien geeft geld +
-  XP. Elke dag dat je speelt verhoogt je **streak** met een groeiende dagbonus
-  (€10 + €5 per streakdag, tot €120).
+  inschrijven, een vlucht winnen, voer kopen, trainen). Voltooien geeft geld
+  (~€15–60 per opdracht) + XP. Elke dag dat je speelt verhoogt je **streak** met
+  een groeiende dagbonus (€5 + €2 per streakdag, tot €25). Samen leveren bonus +
+  opdrachten zo ongeveer **€750 per week** op — een basisinkomen, geen hoofdbron.
 - **Gebeurtenissen (dilemma's).** Nu en dan (~1 op 3 dagen) verschijnt een
   keuzekaartje: een koopman die je beste duif wil kopen, een verdwaalde duif, een
   griepgolf, een gulle frituursponsor, een kwakzalver, een hittegolf, een
@@ -650,7 +656,8 @@ Verdiend geld kan je investeren in je hok en je duiven (bij *Mijn hok*, de
   dagelijks in **snelheid, conditie én oriëntatie** plus ervaring, puur om beter
   te racen — **nooit libido**. Een coach werkt niet terwijl de duif effectief aan
   het vliegen is (een lopende vlucht); ingeschreven-maar-nog-niet-gestart mag wel.
-  Kost veel bij het inhuren én een weeksalaris zolang hij aanblijft.
+  Kost **€4000** bij het inhuren én een **dagsalaris van €36** zolang hij aanblijft
+  (dagelijks automatisch afgerekend).
 - **Trainingsplafonds.** Zelf **trainen** komt tot **90**, **premiumvoer** bouwt
   conditie tot **92**, en enkel een **coach** duwt een race-eigenschap helemaal
   tot **100**. Voer verlaagt nooit een al hoger opgebouwde waarde.
@@ -688,7 +695,7 @@ afgehouden; bij winst krijg je inzet × ratio terug. Doet de doelduif niet mee
 (uitgeschreven), dan is de weddenschap vervallen en krijg je je inzet terug.
 
 Het invoerveld voor je inzet wordt automatisch begrensd tot **min. €10** en
-**max. €5.000**.
+**max. €500** (om te vermijden dat één gelukkige weddenschap de economie ontwricht).
 
 ## 15. Seizoenen, ranglijst & prijzen
 

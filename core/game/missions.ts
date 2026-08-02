@@ -30,16 +30,16 @@ interface Template {
 }
 
 const TEMPLATES: Template[] = [
-  { key: 'enter', event: 'enter', label: 'Schrijf 2 duiven in voor een vlucht', target: 2, money: 60, xp: 15 },
-  { key: 'win', event: 'win', label: 'Win een vlucht', target: 1, money: 120, xp: 30 },
-  { key: 'podium', event: 'podium', label: 'Behaal een podiumplaats', target: 1, money: 60, xp: 15 },
-  { key: 'buyfood', event: 'buyfood', label: 'Koop voer bij', target: 1, money: 30, xp: 10 },
-  { key: 'market', event: 'market', label: 'Koop of verkoop een duif op de markt', target: 1, money: 50, xp: 15 },
-  { key: 'train', event: 'train', label: 'Train een duif', target: 1, money: 40, xp: 10 },
-  { key: 'care', event: 'care', label: 'Zet een duif in de ziekenboeg', target: 1, money: 40, xp: 15 },
-  { key: 'bet', event: 'bet', label: 'Plaats een weddenschap op een vlucht', target: 1, money: 40, xp: 10 },
-  { key: 'brood', event: 'brood', label: 'Start een kweekkoppel', target: 1, money: 50, xp: 15 },
-  { key: 'apart', event: 'apart', label: 'Zet een duif in een apart hok', target: 1, money: 30, xp: 10 },
+  { key: 'enter', event: 'enter', label: 'Schrijf 2 duiven in voor een vlucht', target: 2, money: 30, xp: 15 },
+  { key: 'win', event: 'win', label: 'Win een vlucht', target: 1, money: 60, xp: 30 },
+  { key: 'podium', event: 'podium', label: 'Behaal een podiumplaats', target: 1, money: 30, xp: 15 },
+  { key: 'buyfood', event: 'buyfood', label: 'Koop voer bij', target: 1, money: 15, xp: 10 },
+  { key: 'market', event: 'market', label: 'Koop of verkoop een duif op de markt', target: 1, money: 25, xp: 15 },
+  { key: 'train', event: 'train', label: 'Train een duif', target: 1, money: 20, xp: 10 },
+  { key: 'care', event: 'care', label: 'Zet een duif in de ziekenboeg', target: 1, money: 20, xp: 15 },
+  { key: 'bet', event: 'bet', label: 'Plaats een weddenschap op een vlucht', target: 1, money: 20, xp: 10 },
+  { key: 'brood', event: 'brood', label: 'Start een kweekkoppel', target: 1, money: 25, xp: 15 },
+  { key: 'apart', event: 'apart', label: 'Zet een duif in een apart hok', target: 1, money: 15, xp: 10 },
 ];
 const TEMPLATE_MAP = new Map(TEMPLATES.map((t) => [t.key, t]));
 
@@ -73,7 +73,7 @@ export function refreshDailyMissions(db: Database, loft: Loft, nowMs: number): b
   }));
   loft.missionsDay = today;
 
-  const bonus = Math.min(120, 10 + loft.streak * 5);
+  const bonus = Math.min(25, 5 + loft.streak * 2);
   loft.money += bonus;
   grantXp(db, loft, 5);
   db.notifications.push({

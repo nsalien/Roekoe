@@ -1,14 +1,16 @@
-/** Economy: daily feeding + condition recovery, and the weekly upkeep charge. */
+/** Economy: daily feeding + condition recovery. (Recurring costs are charged
+ *  daily in schedule.tickDailyCare.) */
 
 import {
   COACH,
   COMPARTMENT,
+  DAILY_UPKEEP_BASE,
+  DAILY_UPKEEP_PER_PIGEON,
   FEED_RATIONS,
   FOOD_ENDURANCE_CAP,
+  INFIRMARY,
   REST_BONUS,
   STARVATION,
-  WEEKLY_UPKEEP_BASE,
-  WEEKLY_UPKEEP_PER_PIGEON,
 } from '../config/gameConfig.js';
 import type { Loft, Pigeon } from '../schema.js';
 import { clamp, hashString, round1 } from './util.js';
@@ -225,8 +227,15 @@ export function projectDailyCare(loft: Loft, p: Pigeon, live = false): DailyCare
 }
 
 /** Charge a loft its weekly maintenance overhead (money). */
-export function chargeWeeklyUpkeep(loft: Loft, activeCount: number): number {
-  const upkeep = WEEKLY_UPKEEP_BASE + activeCount * WEEKLY_UPKEEP_PER_PIGEON;
-  loft.money -= upkeep;
-  return upkeep;
+/**
+ * The recurring costs charged to a loft for ONE day: fixed upkeep + coach
+ * salaries + infirmary staff/medicated feed. (Deducted in schedule.tickDailyCare;
+ * sponsor stipends are paid there too.) Returned so callers can total it up.
+ */
+export function dailyRunningCost(loft: Loft, pigeonCount: number, coachedCount: number, infirmaryBirds: number): number {
+  const upkeep = DAILY_UPKEEP_BASE + pigeonCount * DAILY_UPKEEP_PER_PIGEON;
+  const coaches = coachedCount * COACH.dailySalary;
+  const staff = loft.doctors * INFIRMARY.doctorSalary + loft.physios * INFIRMARY.physioSalary;
+  const feed = loft.medicatedFood ? infirmaryBirds * INFIRMARY.medicatedFoodPerBird : 0;
+  return upkeep + coaches + staff + feed;
 }

@@ -25,8 +25,8 @@ import {
   RENAME_COST,
   RENAME_LOFT_COST,
   TRAINING,
-  WEEKLY_UPKEEP_BASE,
-  WEEKLY_UPKEEP_PER_PIGEON,
+  DAILY_UPKEEP_BASE,
+  DAILY_UPKEEP_PER_PIGEON,
 } from '../../core/config/gameConfig.js';
 import {
   acceptSponsor,
@@ -266,9 +266,9 @@ app.get('/state', (c) => {
       renameCost: RENAME_COST,
       renameLoftCost: RENAME_LOFT_COST,
       coachHireCost: COACH.hireCost,
-      coachSalary: COACH.weeklySalary,
-      weeklyUpkeepBase: WEEKLY_UPKEEP_BASE,
-      weeklyUpkeepPerPigeon: WEEKLY_UPKEEP_PER_PIGEON,
+      coachSalary: COACH.dailySalary,
+      dailyUpkeepBase: DAILY_UPKEEP_BASE,
+      dailyUpkeepPerPigeon: DAILY_UPKEEP_PER_PIGEON,
       trainCost: TRAINING.cost,
       breedCost: BREEDING.cost,
       betMinStake: BETTING.minStake,

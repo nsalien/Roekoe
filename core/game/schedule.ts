@@ -33,7 +33,7 @@ import {
 } from '../config/gameConfig.js';
 import type { Database, Flight, FlightResult } from '../schema.js';
 import { newId } from '../store.js';
-import { applyDayOfCare } from './economy.js';
+import { applyDayOfCare, dailyRunningCost } from './economy.js';
 import { breed } from './breeding.js';
 import { awardBadge, awardFlightBadges, evaluateBadges } from './badges.js';
 import { ensureAuctions } from './auction.js';
@@ -782,6 +782,17 @@ export function tickDailyCare(db: Database, nowMs: number): void {
             null,
           );
         }
+      }
+      // Recurring costs are charged DAILY (fixed upkeep + coach + infirmary staff/
+      // medicated feed); sponsors likewise pay their stipend daily (weekly ÷ 7).
+      // No per-day notification — it would spam the inbox.
+      const alive = db.pigeons.filter((p) => p.ownerId === loft.userId);
+      if (alive.length > 0) {
+        const coachedCount = alive.filter((p) => p.coached).length;
+        const infirmaryBirds = alive.filter((p) => p.inInfirmary).length;
+        loft.money -= dailyRunningCost(loft, alive.length, coachedCount, infirmaryBirds);
+        const stipend = activeContracts(loft).reduce((s, c) => s + c.contract.weeklyStipend, 0);
+        if (stipend > 0) loft.money += Math.round(stipend / 7);
       }
     }
   }

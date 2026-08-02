@@ -232,7 +232,7 @@ export function PigeonPage() {
                   <div className="faint" style={{ fontSize: '0.85rem' }}>
                     Geeft élke dag een <strong>vaste</strong> verbetering in snelheid, conditie én oriëntatie (tot 100) plus ervaring — puur om beter te racen, niet voor libido. De groei per dag zie je in <strong>Mijn hok</strong>.
                     {state?.economy && (
-                      <> Kost <Money value={state.economy.coachHireCost} /> + <Money value={state.economy.coachSalary} />/week.</>
+                      <> Kost <Money value={state.economy.coachHireCost} /> + <Money value={state.economy.coachSalary} />/dag.</>
                     )}
                   </div>
                 </div>
