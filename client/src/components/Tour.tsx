@@ -125,6 +125,19 @@ const STEPS: Step[] = [
     body: 'Koop duiven van anderen of bied op veilingen — elke zondag een topper, en soms goedkope opvangcentrum-duiven. Word je overboden, dan krijg je een melding.',
   },
   {
+    route: '/markt', selector: '[data-tour="market-bid"]',
+    title: '🕊️ Bied op andermans duiven',
+    body: (
+      <>
+        Je kan nu ook een <strong>bod</strong> doen op een duif die <strong>niet te koop</strong> staat.
+        Kies eerst een <strong>speler</strong>, dan een van zijn <strong>duiven</strong> en bepaal je <strong>bedrag</strong>.
+        Van andermans duiven zie je enkel de <strong>algemene score (★ talent)</strong> — de precieze eigenschappen blijven
+        geheim, dus vorm je een idee via de <strong>duivenranglijst</strong> of vluchtresultaten. Je bod blijft geldig tot de
+        eigenaar het aanvaardt of weigert (je ziet dat bij de Markt, niet via de bel); je kan het altijd zelf intrekken.
+      </>
+    ),
+  },
+  {
     route: '/kweek', selector: '[data-tour="breed"]',
     title: '🥚 Kweken',
     body: 'Koppel een doffer + duivin (beide energie ≥ 20). Hoe hoger hun energie én libido, hoe sneller een jong komt. Zorg voor vrije plaats in je hok.',
@@ -170,6 +183,45 @@ export const SEASON_NEWS_STEPS: Step[] = [
   ROEKOE_STEP,
   VLEUGEL_STEP,
   PRIZES_STEP,
+];
+
+/**
+ * One-time "what's new" run for the private-bids feature: bid on any player's
+ * pigeon (also ones that aren't for sale) with hidden attributes.
+ */
+export const BID_NEWS_STEPS: Step[] = [
+  {
+    route: '/',
+    title: '✨ Nieuw: bieden op andermans duiven',
+    body: 'Je kan nu een bod uitbrengen op de duif van een andere speler — ook als die niet te koop staat. Even kort wat er verandert. Je kan deze rondleiding later altijd opnieuw starten via je profiel.',
+  },
+  {
+    route: '/markt', selector: '[data-tour="market-bid"]',
+    title: '🕊️ Zo doe je een bod',
+    body: (
+      <>
+        Op de <strong>Markt</strong> kies je eerst een <strong>speler</strong>, dan een van zijn <strong>duiven</strong> en
+        bepaal je je <strong>bedrag</strong>. Je bod blijft geldig tot de eigenaar het aanvaardt of weigert; je kan het
+        altijd zelf intrekken. Ook op de duifpagina zelf staat een knop <strong>“Bied op deze duif”</strong>.
+      </>
+    ),
+  },
+  {
+    route: '/markt', selector: '[data-tour="market-bid"]',
+    title: '🔒 Je koopt (deels) blind',
+    body: (
+      <>
+        Van andermans duiven zie je enkel de <strong>algemene score (★ talent)</strong> — de precieze snelheid, conditie,
+        oriëntatie enz. blijven <strong>geheim</strong>. Je weet dus niet exact wat je koopt, maar je kan een idee vormen via
+        de <strong>duivenranglijst</strong> en de <strong>resultaten van specifieke vluchten</strong>.
+      </>
+    ),
+  },
+  {
+    route: '/markt', selector: '[data-tour="market"]',
+    title: '🔔 Biedingen op jóuw duiven',
+    body: 'Krijg je een bod, dan zie je dat bovenaan de Markt (met een teller bij het Markt-menu, los van de belmeldingen) en kies je zelf: aanvaarden of weigeren.',
+  },
 ];
 
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
