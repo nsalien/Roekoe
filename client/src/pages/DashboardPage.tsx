@@ -29,7 +29,7 @@ export function DashboardPage() {
   const myRank = rankings.find((r) => r.userId === user?.id);
   const topPigeons = pigeons.slice(0, 3);
   const now = Date.now();
-  const avgForm = pigeons.length ? Math.round(pigeons.reduce((s, p) => s + p.form, 0) / pigeons.length) : 0;
+  const avgForm = pigeons.length ? Math.round(pigeons.reduce((s, p) => s + (p.form ?? 0), 0) / pigeons.length) : 0;
   const coachedCount = pigeons.filter((p) => p.coached).length;
   const eco = state.economy;
   const dailyFixed = eco.dailyUpkeepBase + pigeons.length * eco.dailyUpkeepPerPigeon + coachedCount * eco.coachSalary;

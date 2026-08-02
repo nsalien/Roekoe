@@ -132,7 +132,7 @@ export function FlightsPage() {
           {scheduled.map((f, idx) => {
             const myEntries = f.entries.filter((e) => e.ownerId === user?.id);
             const available = state.pigeons.filter(
-              (p) => p.canRace && !committed.has(p.id) && !p.breeding && p.form >= 1,
+              (p) => p.canRace && !committed.has(p.id) && !p.breeding && (p.form ?? 0) >= 1,
             );
             return (
               <div key={f.id} className="card" data-tour={idx === 0 && live.length === 0 ? 'flights' : undefined}>
@@ -184,7 +184,7 @@ export function FlightsPage() {
                   ) : (
                     <EnterControl
                       disabled={busy}
-                      options={available.map((p) => ({ id: p.id, label: `${p.name} (★${p.talent}, energie ${Math.round(p.form)})` }))}
+                      options={available.map((p) => ({ id: p.id, label: `${p.name} (★${p.talent}, energie ${Math.round(p.form ?? 0)})` }))}
                       onEnter={(pigeonId) => act(() => api(`/flights/${f.id}/enter`, { method: 'POST', body: { pigeonId } }), 'Ingeschreven!')}
                     />
                   )}

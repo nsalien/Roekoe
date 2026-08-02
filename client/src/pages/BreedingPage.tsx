@@ -82,7 +82,7 @@ export function BreedingPage() {
             <select value={sireId} onChange={(e) => setSireId(e.target.value)}>
               <option value="">— kies een doffer —</option>
               {doffers.map((p) => (
-                <option key={p.id} value={p.id}>{p.name} (★{p.talent} · ❤{Math.round(p.libido)} · ⚡{Math.round(p.form)})</option>
+                <option key={p.id} value={p.id}>{p.name} (★{p.talent} · ❤{Math.round(p.libido ?? 0)} · ⚡{Math.round(p.form ?? 0)})</option>
               ))}
             </select>
           </div>
@@ -91,7 +91,7 @@ export function BreedingPage() {
             <select value={damId} onChange={(e) => setDamId(e.target.value)}>
               <option value="">— kies een duivin —</option>
               {duivinnen.map((p) => (
-                <option key={p.id} value={p.id}>{p.name} (★{p.talent} · ❤{Math.round(p.libido)} · ⚡{Math.round(p.form)})</option>
+                <option key={p.id} value={p.id}>{p.name} (★{p.talent} · ❤{Math.round(p.libido ?? 0)} · ⚡{Math.round(p.form ?? 0)})</option>
               ))}
             </select>
           </div>

@@ -173,26 +173,22 @@ export function MarketPage() {
       <div className="page-head" style={{ marginTop: 26 }}>
         <div>
           <h2>🕊️ Bied op duiven van andere spelers</h2>
-          <p className="muted">Ook duiven die niet te koop staan. Je bod blijft geldig tot de eigenaar het aanvaardt of weigert; je kan het altijd intrekken.</p>
+          <p className="muted">
+            Ook duiven die niet te koop staan. Kies eerst een speler, dan een van zijn duiven en je bedrag.
+            Je ziet enkel de <strong>algemene score (★ talent)</strong> — de precieze eigenschappen blijven
+            geheim, dus vorm je een idee via de <Link to="/ranglijst">ranglijst</Link> of vluchtresultaten.
+            Je bod blijft geldig tot de eigenaar het aanvaardt of weigert; je kan het altijd intrekken.
+          </p>
         </div>
       </div>
-      {biddable.length === 0 ? (
-        <div className="card muted">Geen duiven van andere spelers om op te bieden.</div>
-      ) : (
-        <div className="grid pigeons">
-          {biddable.map((p) => (
-            <PigeonCard key={p.id} pigeon={p} showOwner>
-              <BidControl
-                myOffer={sent.find((o) => o.pigeonId === p.id) ?? null}
-                busy={busy}
-                money={money}
-                onBid={(amount) => offerAct(() => api(`/pigeons/${p.id}/offer`, { method: 'POST', body: { amount } }), 'Bod uitgebracht! 🤝')}
-                onWithdraw={(id) => offerAct(() => api(`/offers/${id}/withdraw`, { method: 'POST' }), 'Bod ingetrokken')}
-              />
-            </PigeonCard>
-          ))}
-        </div>
-      )}
+      <BidCascade
+        biddable={biddable}
+        sent={sent}
+        busy={busy}
+        money={money}
+        onBid={(pigeonId, amount) => offerAct(() => api(`/pigeons/${pigeonId}/offer`, { method: 'POST', body: { amount } }), 'Bod uitgebracht! 🤝')}
+        onWithdraw={(id) => offerAct(() => api(`/offers/${id}/withdraw`, { method: 'POST' }), 'Bod ingetrokken')}
+      />
 
       {/* Buy/sell history */}
       <div className="page-head" style={{ marginTop: 26 }}>
@@ -232,44 +228,122 @@ export function MarketPage() {
   );
 }
 
-function BidControl({
-  myOffer, busy, money, onBid, onWithdraw,
+/**
+ * Player → pigeon → amount cascade for bidding on another player's bird.
+ * Only the general score (talent) is shown for the chosen pigeon; the precise
+ * attributes are withheld server-side (revealed=false), so the bidder never
+ * knows exactly what they buy.
+ */
+function BidCascade({
+  biddable, sent, busy, money, onBid, onWithdraw,
 }: {
-  myOffer: OfferView | null;
+  biddable: Pigeon[];
+  sent: OfferView[];
   busy: boolean;
   money: number;
-  onBid: (amount: number) => void;
+  onBid: (pigeonId: string, amount: number) => void;
   onWithdraw: (offerId: string) => void;
 }) {
+  const [ownerId, setOwnerId] = useState('');
+  const [pigeonId, setPigeonId] = useState('');
   const [amount, setAmount] = useState(0);
-  if (myOffer) {
-    return (
-      <div className="stack" style={{ gap: 4 }}>
-        <span className="faint" style={{ textAlign: 'center' }}>
-          Jouw bod: <strong><Money value={myOffer.amount} /></strong> · wacht op antwoord
-        </span>
-        <button className="btn ghost block" disabled={busy} onClick={() => onWithdraw(myOffer.id)}>Trek bod in</button>
-      </div>
-    );
+
+  // Distinct owners of biddable pigeons, alphabetical.
+  const owners = Array.from(
+    new Map(biddable.map((p) => [p.ownerId, p.ownerName])).entries(),
+  ).sort((a, b) => a[1].localeCompare(b[1]));
+
+  const ownerPigeons = biddable
+    .filter((p) => p.ownerId === ownerId)
+    .sort((a, b) => b.talent - a.talent);
+  const selected = ownerPigeons.find((p) => p.id === pigeonId) ?? null;
+  const myOffer = selected ? sent.find((o) => o.pigeonId === selected.id) ?? null : null;
+
+  if (biddable.length === 0) {
+    return <div className="card muted">Geen duiven van andere spelers om op te bieden.</div>;
   }
+
   return (
-    <div className="row" style={{ gap: 6 }}>
-      <input
-        type="number"
-        min={1}
-        value={amount || ''}
-        placeholder="bedrag"
-        onChange={(e) => setAmount(Number(e.target.value))}
-        style={{ flex: 1, minWidth: 0 }}
-      />
-      <button
-        className="btn accent"
-        style={{ flexShrink: 0 }}
-        disabled={busy || !(amount > 0) || amount > money}
-        onClick={() => onBid(amount)}
-      >
-        Bied
-      </button>
+    <div className="card">
+      <div className="field">
+        <label>1. Kies een speler</label>
+        <select
+          value={ownerId}
+          disabled={busy}
+          onChange={(e) => { setOwnerId(e.target.value); setPigeonId(''); setAmount(0); }}
+        >
+          <option value="">— kies een speler —</option>
+          {owners.map(([id, name]) => (
+            <option key={id} value={id}>{name}</option>
+          ))}
+        </select>
+      </div>
+
+      {ownerId && (
+        <div className="field">
+          <label>2. Kies een duif</label>
+          <select
+            value={pigeonId}
+            disabled={busy}
+            onChange={(e) => { setPigeonId(e.target.value); setAmount(0); }}
+          >
+            <option value="">— kies een duif —</option>
+            {ownerPigeons.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.name} · ★{p.talent} · {p.sex}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
+
+      {selected && (
+        <>
+          <div className="row" style={{ gap: 12, alignItems: 'center', margin: '10px 0' }}>
+            <PigeonAvatar pigeon={selected} size={64} />
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <Link to={`/duif/${selected.id}`} style={{ color: 'inherit' }}>
+                <strong style={{ fontSize: '1.05rem' }}>{selected.name}</strong>
+              </Link>
+              <div className="faint">★ talent {selected.talent} · {selected.sex} · {selected.ageWeeks} wk</div>
+              <div className="faint" style={{ fontSize: '0.82rem', marginTop: 2 }}>
+                🔒 Precieze eigenschappen onbekend — bekijk de <Link to="/ranglijst">ranglijst</Link> of vluchtresultaten.
+              </div>
+            </div>
+          </div>
+
+          {myOffer ? (
+            <div className="stack" style={{ gap: 4 }}>
+              <span className="faint">
+                Jouw bod: <strong><Money value={myOffer.amount} /></strong> · wacht op antwoord van {selected.ownerName}.
+              </span>
+              <button className="btn ghost block" disabled={busy} onClick={() => onWithdraw(myOffer.id)}>Trek bod in</button>
+            </div>
+          ) : (
+            <div className="field">
+              <label>3. Jouw bod</label>
+              <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
+                <input
+                  type="number"
+                  min={1}
+                  value={amount || ''}
+                  placeholder="bedrag"
+                  onChange={(e) => setAmount(Number(e.target.value))}
+                  style={{ maxWidth: 160 }}
+                />
+                <button
+                  className="btn accent"
+                  disabled={busy || !(amount > 0) || amount > money}
+                  onClick={() => { onBid(selected.id, amount); setAmount(0); }}
+                >
+                  Bied <Money value={amount || 0} />
+                </button>
+                <span className="faint" style={{ alignSelf: 'center' }}>je kassa: <Money value={money} /></span>
+              </div>
+            </div>
+          )}
+        </>
+      )}
     </div>
   );
 }
