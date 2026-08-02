@@ -132,9 +132,9 @@ export interface EconomyCosts {
   renameCost: number;
   renameLoftCost: number;
   coachHireCost: number;
-  coachSalary: number;
-  weeklyUpkeepBase: number;
-  weeklyUpkeepPerPigeon: number;
+  coachSalary: number; // per day (recurring costs are charged daily)
+  dailyUpkeepBase: number;
+  dailyUpkeepPerPigeon: number;
   trainCost: number;
   breedCost: number;
   betMinStake: number;

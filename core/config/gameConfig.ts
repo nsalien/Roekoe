@@ -80,7 +80,7 @@ export function compartmentCost(owned: number): number {
  */
 export const COACH = {
   hireCost: 4000, // one-time, per pigeon
-  weeklySalary: 250, // per coached pigeon, charged at "volgende week"
+  dailySalary: 36, // per coached pigeon, charged automatically each day
   dailyGain: 0.35, // per racing attribute, per day
   experienceDailyGain: 0.5,
   attributeCap: 100, // coaches can push all the way to the maximum
@@ -140,7 +140,7 @@ export const FLIGHT_FATIGUE = {
 export const BETTING = {
   windowHours: 12, // bets open this many hours before the start
   minStake: 10,
-  maxStake: 5000,
+  maxStake: 500,
   houseMargin: 0.12,
   minRatio: 1.05,
   maxRatio: 25,
@@ -210,11 +210,12 @@ export const STARTING_FOOD_STOCK = { normal: 50, premium: 0, libido: 0, herstel:
 /** Price of one kg of pigeon food when buying from the supply store. */
 export const FOOD_PRICE_PER_KG = 3;
 
-/** Fixed weekly overhead per player (loft maintenance, bedding, etc.). */
-export const WEEKLY_UPKEEP_BASE = 150;
+/** Fixed DAILY overhead per player (loft maintenance, bedding, etc.), charged
+ *  automatically each real day in tickDailyCare. */
+export const DAILY_UPKEEP_BASE = 22;
 
-/** Extra weekly upkeep charged per pigeon owned. */
-export const WEEKLY_UPKEEP_PER_PIGEON = 15;
+/** Extra daily upkeep charged per pigeon owned. */
+export const DAILY_UPKEEP_PER_PIGEON = 2;
 
 /**
  * Training options. Training costs money and a bit of the pigeon's form now,
@@ -259,7 +260,7 @@ export const FLIGHT_TEMPLATES: FlightTemplate[] = [
 export type FlightTier = 'regional' | 'national' | 'international';
 
 export const PRIZE_MONEY: Record<FlightTier, number[]> = {
-  regional: [300, 180, 110, 70, 45, 30, 20, 12],
+  regional: [600, 360, 220, 140, 90, 60, 40, 24],
   national: [900, 550, 350, 220, 140, 90, 60, 40, 25, 15],
   international: [2200, 1300, 800, 500, 320, 200, 130, 85, 55, 35, 25, 15],
 };
@@ -659,9 +660,9 @@ export const INJURIES: AilmentTemplate[] = [
 /** The infirmary (ziekenboeg): isolate + treat ailing birds. */
 export const INFIRMARY = {
   baseCapacity: 2, // starting number of infirmary beds
-  medicatedFoodPerBird: 45, // weekly € per bird in the infirmary when medicated feed is on
-  doctorSalary: 400, // weekly € per pigeon doctor hired
-  physioSalary: 350, // weekly € per pigeon physiotherapist hired
+  medicatedFoodPerBird: 6, // daily € per bird in the infirmary when medicated feed is on
+  doctorSalary: 57, // daily € per pigeon doctor hired
+  physioSalary: 50, // daily € per pigeon physiotherapist hired
   birdsPerDoctor: 2, // one doctor treats up to this many sick birds well
   birdsPerPhysio: 2, // one physio treats up to this many injured birds well
 } as const;
@@ -761,7 +762,7 @@ export const TITAN = {
   minute: 0,
   minKm: 200, // medium-to-long
   maxKm: 600,
-  entryFee: 200,
+  entryFee: 100,
   prizes: [1400, 1200, 1000], // 1e / 2e / 3e (money only)
 } as const;
 

@@ -32,7 +32,7 @@ export function DashboardPage() {
   const avgForm = pigeons.length ? Math.round(pigeons.reduce((s, p) => s + p.form, 0) / pigeons.length) : 0;
   const coachedCount = pigeons.filter((p) => p.coached).length;
   const eco = state.economy;
-  const weeklyFixed = eco.weeklyUpkeepBase + pigeons.length * eco.weeklyUpkeepPerPigeon + coachedCount * eco.coachSalary;
+  const dailyFixed = eco.dailyUpkeepBase + pigeons.length * eco.dailyUpkeepPerPigeon + coachedCount * eco.coachSalary;
   // How many pigeons eat each food type, and which types are running out.
   const rationCounts = { normal: 0, premium: 0, libido: 0, herstel: 0 } as Record<FeedRation, number>;
   for (const p of pigeons) rationCounts[p.ration] = (rationCounts[p.ration] ?? 0) + 1;
@@ -165,8 +165,9 @@ export function DashboardPage() {
             Gemiddelde energie <strong>{avgForm}</strong>. Voedsel wordt <strong>per type apart</strong> beheerd — elke duif eet van haar eigen type (in te stellen bij <strong>Mijn hok</strong>).
           </p>
           <p className="faint" style={{ marginBottom: 10, fontSize: '0.82rem' }}>
-            Vaste weekkost: <strong><Money value={weeklyFixed} /></strong> (onderhoud
-            {coachedCount > 0 ? ` + ${coachedCount} coach${coachedCount === 1 ? '' : 'es'}` : ''}) — exclusief voer & ziekenboeg.
+            Vaste dagkost: <strong><Money value={dailyFixed} /></strong> (onderhoud
+            {coachedCount > 0 ? ` + ${coachedCount} coach${coachedCount === 1 ? '' : 'es'}` : ''}) — automatisch dagelijks
+            afgerekend, exclusief voer & ziekenboegstaf.
           </p>
 
           {hungry.length > 0 && (
@@ -278,9 +279,9 @@ export function DashboardPage() {
         <div className="card" style={{ marginTop: 18, borderStyle: 'dashed' }}>
           <strong>Beheerder</strong>
           <p className="muted" style={{ margin: '4px 0 0' }}>
-            Jij bent de spelleider. Vluchten, voeding (dagelijks) en broedsels lopen vanzelf in echte tijd. Gebruik
-            <em> “Volgende week”</em> bovenaan om de vaste onkosten te verrekenen, ziekte/herstel/sterfte te verwerken
-            en het seizoen te laten vorderen. Week {world.currentWeek}.
+            Jij bent de spelleider. Vluchten, voeding, <strong>vaste onkosten</strong> (onderhoud, coach, ziekenboegstaf)
+            en broedsels lopen nu <strong>dagelijks vanzelf</strong> in echte tijd; ook seizoenen vorderen automatisch.
+            <em> “Volgende week”</em> bovenaan verwerkt enkel nog ziekte/sterfte-rondes. Week {world.currentWeek}.
           </p>
           <AdminAuctions />
         </div>

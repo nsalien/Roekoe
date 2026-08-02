@@ -33,10 +33,9 @@ import { emptySponsorState, emptyStats } from '../schema.js';
 import { newId, type Store } from '../store.js';
 import { awardBadge, evaluateBadges } from './badges.js';
 import { botTakeWeeklyActions } from './bots.js';
-import { chargeWeeklyUpkeep } from './economy.js';
 import { progressMissions } from './missions.js';
 import { resolveEvent as resolveEventCard } from './events.js';
-import { activeContracts, applyAcceptSponsor, applyCancelSponsor, applyRefuseSponsor } from './sponsors.js';
+import { applyAcceptSponsor, applyCancelSponsor, applyRefuseSponsor } from './sponsors.js';
 import { runHealthWeek } from './health.js';
 import { canRace, generatePigeon } from './pigeon.js';
 import { clamp, randFloat, round1 } from './util.js';
@@ -188,33 +187,10 @@ export function advanceWeek(store: Store): WeekSummary {
       botTakeWeeklyActions(loft, owned, FOOD_PRICE_PER_KG);
     }
 
-    // 2. Weekly maintenance charge (food + condition recovery run daily, in
-    //    real time — see tickDailyCare).
-    for (const loft of db.lofts) {
-      const activeCount = db.pigeons.filter((p) => p.ownerId === loft.userId).length;
-      chargeWeeklyUpkeep(loft, activeCount);
-    }
+    // Recurring costs (upkeep, coach, infirmary staff) and sponsor stipends are
+    // now charged/paid AUTOMATICALLY EACH DAY in schedule.tickDailyCare — not here.
 
-    // 2c. Sponsors pay their weekly stipend to the lofts they back.
-    for (const loft of db.lofts) {
-      const contracts = activeContracts(loft);
-      if (contracts.length === 0) continue;
-      const total = contracts.reduce((s, c) => s + c.contract.weeklyStipend, 0);
-      loft.money += total;
-      if (!loft.isBot) {
-        const who = contracts.length === 1 ? contracts[0].def.name : `${contracts.length} sponsors`;
-        notify(db, loft.userId, 'info', '🤝 Sponsorbijdrage',
-          `${who} stortten samen €${total} weekbijdrage.`);
-      }
-    }
-
-    // 2d. Private coaches draw a weekly salary per coached pigeon.
-    for (const loft of db.lofts) {
-      const coached = db.pigeons.filter((p) => p.ownerId === loft.userId && p.coached).length;
-      if (coached > 0) loft.money -= coached * COACH.weeklySalary;
-    }
-
-    // 2b. Health: disease onset/spread, recovery, and mortality. Notify humans.
+    // Health: disease onset/spread, recovery, and mortality. Notify humans.
     const humanIds = new Set(db.lofts.filter((l) => !l.isBot).map((l) => l.userId));
     for (const ev of runHealthWeek(db, week)) {
       if (humanIds.has(ev.ownerId)) {

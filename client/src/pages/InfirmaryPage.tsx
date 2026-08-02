@@ -52,7 +52,7 @@ export function InfirmaryPage() {
 
   const medFoodCost = loft.medicatedFood ? loft.infirmaryCount * cfg.medicatedFoodPerBird : 0;
   const staffCost = loft.doctors * cfg.doctorSalary + loft.physios * cfg.physioSalary;
-  const weeklyCost = medFoodCost + staffCost;
+  const dailyCost = medFoodCost + staffCost;
 
   async function act(fn: () => Promise<unknown>, ok?: string) {
     setBusy(true);
@@ -93,7 +93,7 @@ export function InfirmaryPage() {
             <div className="row" style={{ justifyContent: 'space-between', gap: 10 }}>
               <div>
                 <strong>💊 Medicinaal voer</strong>
-                <div className="faint">Verhoogt de herstelkans van élke duif in de boeg. <Money value={cfg.medicatedFoodPerBird} />/duif per week.</div>
+                <div className="faint">Verhoogt de herstelkans van élke duif in de boeg. <Money value={cfg.medicatedFoodPerBird} />/duif per dag.</div>
               </div>
               <button
                 className={`btn sm ${loft.medicatedFood ? 'accent' : 'ghost'}`}
@@ -112,7 +112,7 @@ export function InfirmaryPage() {
               <div>
                 <strong>🩺 Duivendokter</strong>
                 <div className="faint">
-                  Geneest ziektes. 1 dokter behandelt {cfg.birdsPerDoctor} zieke duiven. <Money value={cfg.doctorSalary} />/week.
+                  Geneest ziektes. 1 dokter behandelt {cfg.birdsPerDoctor} zieke duiven. <Money value={cfg.doctorSalary} />/dag.
                 </div>
                 <div className="faint">Dekt nu {loft.doctors * cfg.birdsPerDoctor} zieke duiven.</div>
               </div>
@@ -126,7 +126,7 @@ export function InfirmaryPage() {
               <div>
                 <strong>🦴 Duivenkinesist</strong>
                 <div className="faint">
-                  Geneest kwetsuren zoals een verstuikte vleugel. 1 kinesist behandelt {cfg.birdsPerPhysio} duiven. <Money value={cfg.physioSalary} />/week.
+                  Geneest kwetsuren zoals een verstuikte vleugel. 1 kinesist behandelt {cfg.birdsPerPhysio} duiven. <Money value={cfg.physioSalary} />/dag.
                 </div>
                 <div className="faint">Dekt nu {loft.physios * cfg.birdsPerPhysio} gekwetste duiven.</div>
               </div>
@@ -161,11 +161,11 @@ export function InfirmaryPage() {
 
         <hr className="sep" />
         <div className="row" style={{ justifyContent: 'space-between' }}>
-          <span className="muted">Wekelijkse kost ziekenboeg</span>
-          <strong><Money value={weeklyCost} /></strong>
+          <span className="muted">Dagelijkse kost ziekenboeg</span>
+          <strong><Money value={dailyCost} /></strong>
         </div>
         <p className="faint" style={{ margin: '6px 0 0', fontSize: '0.8rem' }}>
-          De kosten worden elke week afgehouden bij “Volgende week”. Zonder behandeling herstelt een duif traag en riskeert ze te bezwijken — vooral bij ernstige aandoeningen.
+          De kosten worden <strong>dagelijks automatisch</strong> afgehouden. Zonder behandeling herstelt een duif traag en riskeert ze te bezwijken — vooral bij ernstige aandoeningen.
         </p>
       </div>
 

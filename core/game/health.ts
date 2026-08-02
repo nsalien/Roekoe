@@ -189,16 +189,10 @@ function severityRank(s: Ailment['severity']): number {
   return s === 'ernstig' ? 3 : s === 'matig' ? 2 : 1;
 }
 
-/** Total weekly infirmary running cost for a loft (staff + medicated feed). */
-export function infirmaryWeeklyCost(loft: Loft, infirmaryBirds: number): number {
-  const staff = loft.doctors * INFIRMARY.doctorSalary + loft.physios * INFIRMARY.physioSalary;
-  const feed = loft.medicatedFood ? infirmaryBirds * INFIRMARY.medicatedFoodPerBird : 0;
-  return staff + feed;
-}
-
 /**
  * Run one week of health for the whole world (mutates it). Returns the events
  * (illness, injury recovery, deaths) for the engine to notify players about.
+ * (Infirmary running costs are charged daily now — see schedule.tickDailyCare.)
  */
 export function runHealthWeek(db: Database, week: number): HealthEvent[] {
   const events: HealthEvent[] = [];
@@ -207,10 +201,6 @@ export function runHealthWeek(db: Database, week: number): HealthEvent[] {
   for (const loft of db.lofts) {
     const birds = db.pigeons.filter((p) => p.ownerId === loft.userId);
     if (birds.length === 0) continue;
-
-    // 1. Charge the infirmary's running costs.
-    const infirmaryBirds = birds.filter((p) => p.inInfirmary).length;
-    loft.money -= infirmaryWeeklyCost(loft, infirmaryBirds);
 
     // (Recovery from illness/injury now runs in REAL time — see tickHealing.)
 

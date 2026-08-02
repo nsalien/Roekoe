@@ -73,7 +73,9 @@ volgorde:
    (+ **verlies-meldingen** bij sluiting aan wie meebood maar niet wint).
 4. `tickDailyCare(db, nowMs)` — **dagelijkse** voeding/herstel/**honger**/**rustbonus**
    (echte tijd, per 24u vanaf `world.lastDailyTick`; inhaalslag tot 30 dagen).
-   Verhongerde duiven worden hier verwijderd.
+   Verhongerde duiven worden hier verwijderd. **Rekent ook alle vaste onkosten dagelijks
+   af** (`dailyRunningCost`: onderhoud + coach + ziekenboegstaf/medicatie) en betaalt
+   **sponsorbijdragen dagelijks** (weekbedrag ÷ 7). `advanceWeek` doet dit **niet** meer.
 5. `tickBreedingHatch(db, nowMs)` — jongen komen uit in echte tijd.
 6. `tickFlightEnergy(db, nowMs)` — trekt vlucht-energie **geleidelijk per 30 min** af.
 7. `tickHealing(db, nowMs)` — **real-time herstel** van ziekte/kwetsuur + 12u-statusupdates.
@@ -211,6 +213,15 @@ enkel fallback).
 
 - **Start:** €5000, 6 duiven, hokcapaciteit 8. **Bots ook 8** (`BOT_LOFT_CAPACITY`,
   was 20), met speler-kwaliteit (0.4–0.6). Startvoorraad 50 kg normaal.
+- **Vaste onkosten = DAGELIJKS** (geen weekkost meer): `DAILY_UPKEEP_BASE 22` +
+  `DAILY_UPKEEP_PER_PIGEON 2`, `COACH.dailySalary 36`, `INFIRMARY.doctorSalary 57` /
+  `physioSalary 50` / `medicatedFoodPerBird 6`. Aangerekend in `tickDailyCare` via
+  `economy.dailyRunningCost`; sponsorbijdrage dagelijks (weekbedrag ÷ 7).
+- **Dagopdrachten/streak verlaagd** (missions.ts): opdrachtgeld ~gehalveerd (15–60),
+  streakbonus `min(25, 5 + streak·2)` → samen ~€750/week i.p.v. ~€1750.
+- **Weddenschap max inzet €500** (`BETTING.maxStake`, was 5000).
+- **Prijzengeld regionaal verdubbeld** (`PRIZE_MONEY.regional` `[600,360,220,140,90,60,40,24]`);
+  inschrijfgeld ongewijzigd (€20). **Titan inschrijfgeld €100** (was 200).
 - **Voeding (`FEED_RATIONS`)** — herstelwaarden zijn WEKELIJKS, 1/7 per dag (UI toont
   per dag): Normaal energie **+21**/wk, Premium **+28** (+conditie/gezondheid),
   Libido-mix **+18** (+libido), Herstel **+42** (veel energie).
@@ -244,7 +255,7 @@ enkel fallback).
 - **Herstel (`HEALING`)** — real-time: `baseHoursOutside` licht 60 / matig 120 /
   ernstig 216; ziekenboeg ×2,2, dokter/kinesist ×1,6, medicatievoer ×1,35 (stapelen);
   `updateHours: 12` (statusupdate-cadans).
-- **Weddenschappen (`BETTING`):** window 12u, inzet €10–€5000, houseMargin 0.12,
+- **Weddenschappen (`BETTING`):** window 12u, inzet €10–€500, houseMargin 0.12,
   simIterations 1500. Wedden op **alle wedstrijdvluchten**; **niet** op oefenvluchten
   (`bettingOpen` weigert `flight.practice`).
 - **Oefenvlucht (`PRACTICE`):** `energyCost 4`, `improveChance 0.7` /
@@ -269,7 +280,7 @@ enkel fallback).
   (dagnummer = dagen sinds Unix-epoch); op een **titan-dag** worden alle níet-titan-slots
   overgeslagen (de titan vervangt alles die dag).
 - **Titanenwedstrijd (`TITAN`):** `weekday 6` (zaterdag), `hour 11`, afstand 200–600 km,
-  `entryFee 200`, `prizes [1400,1200,1000]`. **Enkel geld**, geen punten/medailles/wins,
+  `entryFee 100`, `prizes [1400,1200,1000]`. **Enkel geld**, geen punten/medailles/wins,
   telt niet mee voor de ranglijsten (behandeld als niet-competitie, net als practice, in
   `tickFlights`); **max. 1 duif per hok** (`enterFlight` + bots 1 vogel); geen wedden
   (`bettingOpen`). Prijzengeld via `finalizeFlight` (`flight.titan` → `TITAN.prizes`,
