@@ -57,11 +57,20 @@ function brusselsWeekday(ms: number): number {
   return ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].indexOf(wd);
 }
 
-function notify(db: Database, loft: Loft, title: string, body: string): void {
-  db.notifications.push({
-    id: newId('ntf'), userId: loft.userId, kind: 'info', title, body,
-    flightId: null, createdAt: new Date().toISOString(), read: false,
-  });
+/**
+ * Push a notification. When a stable `id` is given the write is idempotent: if
+ * the same event is processed again (e.g. two concurrent requests both close the
+ * same auction), the second write replaces the first instead of duplicating it.
+ */
+function notify(db: Database, loft: Loft, title: string, body: string, id?: string): void {
+  const finalId = id ?? newId('ntf');
+  const existing = db.notifications.find((n) => n.id === finalId);
+  const note = {
+    id: finalId, userId: loft.userId, kind: 'info' as const, title, body,
+    flightId: null, createdAt: new Date().toISOString(), read: existing?.read ?? false,
+  };
+  if (existing) Object.assign(existing, note);
+  else db.notifications.push(note);
 }
 
 /** Put a top pigeon under the Sunday hammer and tell every player. */
@@ -138,18 +147,25 @@ function closeAuction(db: Database, a: Auction): void {
     winner.money -= price;
     p.ownerId = winner.userId;
     p.forSale = false;
-    db.trades.push({
-      id: newId('trd'), pigeonId: p.id, pigeonName: p.name,
+    // Stable trade id keyed on the auction: two concurrent requests that both
+    // close this auction produce the SAME trade row (INSERT OR REPLACE), so the
+    // sale is recorded exactly once instead of appearing twice in the history.
+    const tradeId = `trd_auc_${a.id}`;
+    const existing = db.trades.find((t) => t.id === tradeId);
+    const trade = {
+      id: tradeId, pigeonId: p.id, pigeonName: p.name,
       sellerId, sellerName,
       buyerId: winner.userId, buyerName: winner.name, price,
       at: new Date().toISOString(),
-    });
+    };
+    if (existing) Object.assign(existing, trade);
+    else db.trades.push(trade);
     winner.stats.buys += 1;
     const title = shelter ? '🏠 Opvangduif geadopteerd!' : '🔨 Veiling gewonnen!';
     const body = shelter
       ? `${p.name} komt uit het opvangcentrum naar jouw hok, voor €${price}. Met wat training komt die er wel.`
       : `${p.name} is voor jou, voor €${price}. Veel vliegplezier!`;
-    notify(db, winner, title, body);
+    notify(db, winner, title, body, `ntf:auc:win:${a.id}`);
     if (shelter) awardBadge(db, winner, 'opvang');
   } else {
     db.pigeons = db.pigeons.filter((x) => x.id !== a.pigeonId); // no payable bidder
@@ -172,7 +188,7 @@ function closeAuction(db: Database, a: Auction): void {
     } else {
       body = `De veiling van ${p.name} sloot zonder geldige koper, dus jouw bod van €${b.amount} ging niet door.`;
     }
-    notify(db, loft, '📉 Veiling verloren', body);
+    notify(db, loft, '📉 Veiling verloren', body, `ntf:auc:loss:${a.id}:${loft.userId}`);
   }
 }
 

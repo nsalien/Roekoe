@@ -78,7 +78,18 @@ een live vlucht) kan door gelijktijdige verzoeken wél overschreven worden. Daar
 - **Vluchtafhandeling is deterministisch** (seeded op vlucht-id) en meldingen
   hebben **stabiele id's**, zodat een dubbele afhandeling identieke output geeft
   en geen dubbele/tegenstrijdige meldingen.
-Bij nieuwe gedeelde-staat-features: hou hier rekening mee.
+- **Veiling-sluiting (`closeAuction`) is idempotent:** `ensureAuctions` draait bij
+  élk verzoek, dus wanneer een veiling sluit kunnen meerdere gelijktijdige verzoeken
+  ze allemaal afhandelen. Geld/eigenaar komen goed (absolute last-write-wins), maar
+  de **verkoop-trade** en de **win/verlies-meldingen** worden toegevoegd, niet
+  overschreven → zonder stabiele id gaf dat **dubbele entries in de
+  verkoopgeschiedenis**. Opgelost met **stabiele id's**: trade-id `trd_auc_<auctionId>`
+  en meldingen `ntf:auc:win:<auctionId>` / `ntf:auc:loss:<auctionId>:<userId>`
+  (INSERT OR REPLACE → precies één rij). `auction.ts::notify` accepteert nu een
+  optionele stabiele id en dedupliceert net als `schedule.ts::pushNotification`.
+Bij nieuwe gedeelde-staat-features: hou hier rekening mee — **elke append (trade,
+melding) die tijdens `advanceRealtime` kan gebeuren, hoort een stabiele id te
+krijgen.**
 
 ### `advanceRealtime()` — draait bij élk verzoek
 `core/game/schedule.ts` → `advanceRealtime(db, nowMs, weatherByFlight)` roept in
@@ -456,6 +467,12 @@ Alles hieronder staat **live** op de deploy-branch. Data-migraties liepen door t
 - **Verlies-meldingen** bij sluiting (reden: hok vol / geld weg / niet hoogste /
   geen koper) + verrijkte overboden-melding.
 - Admin-diagnose **`GET /admin/auctions`** + dashboardknop "Toon recente veilingen".
+- **Dubbele verkoop-entries bij veilingwinst opgelost** (`auction.ts`): omdat
+  `ensureAuctions` bij élk verzoek draait, sloten meerdere gelijktijdige verzoeken
+  dezelfde veiling en pushten elk een trade/melding met een willekeurige id → de
+  duif stond dubbel in de verkoopgeschiedenis. Nu **stabiele id's**: trade
+  `trd_auc_<auctionId>` + meldingen `ntf:auc:win:<auctionId>` /
+  `ntf:auc:loss:<auctionId>:<userId>` (INSERT OR REPLACE dedupt tot één rij). Zie §2.
 
 **Verzorging & balans**
 - **Per-dag-projectie** `projectDailyCare` → ▲/▼-cijfers in het hokoverzicht.
