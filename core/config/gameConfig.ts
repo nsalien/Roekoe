@@ -483,17 +483,24 @@ export const FLIGHT_TIERS: Record<FlightTier, TierConfig> = {
  * because a new owner can always train them up.
  */
 export const AUCTION = {
-  /** Rescue-centre auctions: mean hours between appearances (memoryless). */
-  shelterMeanIntervalHours: 9,
-  /** How long a rescue-centre auction stays open, in hours. */
-  shelterWindowHours: 6,
+  /** Rescue-centre auctions: mean hours between appearances (memoryless). ~60h
+   *  gives roughly 2–3 per week instead of several a day. */
+  shelterMeanIntervalHours: 60,
+  /** How long a rescue-centre auction stays open, in hours. Longer window so a
+   *  once-a-day player still catches the (now rarer) auction. */
+  shelterWindowHours: 24,
   /** Never run more than this many rescue auctions at once. */
-  shelterMaxConcurrent: 2,
+  shelterMaxConcurrent: 1,
   /** Opening bid for a rescue-centre bird. */
   shelterStartBid: 25,
   /** Quality range for rescue birds (they are no racers). */
   shelterQualityMin: 0.05,
   shelterQualityMax: 0.35,
+  /** Now and then a rescue bird is a cut above — still no Sunday-topper, just a
+   *  decent project. Chance + its (higher) quality range. */
+  shelterBetterChance: 0.22,
+  shelterBetterQualityMin: 0.45,
+  shelterBetterQualityMax: 0.68,
 } as const;
 
 /**

@@ -489,6 +489,14 @@ Alles hieronder staat **live** op de deploy-branch. Data-migraties liepen door t
   duif stond dubbel in de verkoopgeschiedenis. Nu **stabiele id's**: trade
   `trd_auc_<auctionId>` + meldingen `ntf:auc:win:<auctionId>` /
   `ntf:auc:loss:<auctionId>:<userId>` (INSERT OR REPLACE dedupt tot één rij). Zie §2.
+- **Opvangcentrum-veilingen minder frequent + betere spreiding** (`AUCTION` +
+  `auction.ts`): `shelterMeanIntervalHours 9→60` (≈2–3/week i.p.v. meerdere/dag),
+  `shelterMaxConcurrent 2→1`, `shelterWindowHours 6→24`. Kwaliteit meestal laag
+  (`0.05–0.35`), maar met **`shelterBetterChance 0.22`** af en toe een **degelijke —
+  geen top — duif** (`0.45–0.68`; de zondagstopper blijft `0.82–0.98`).
+- **Zichtbaarheid eigenschappen**: te-koop-duiven (markt) én veilingduiven tonen nu
+  **alle** eigenschappen; enkel een rechtstreeks bod op een **niet-te-koop** duif blijft
+  blind (`revealed = … || p.forSale`; `auctionsDTO` → `pigeonDTO` zonder viewer). Zie §8 info-hiding.
 
 **Verzorging & balans**
 - **Per-dag-projectie** `projectDailyCare` → ▲/▼-cijfers in het hokoverzicht.
@@ -593,7 +601,11 @@ Alles hieronder staat **live** op de deploy-branch. Data-migraties liepen door t
     `/offers/:id/respond`. In `/state.offers`. `pigeonDTO.ownerIsBot` toegevoegd.
 - **Info-hiding bij bieden (nieuwste):** `pigeonDTO(db, p, viewerId?)` verbergt de
   **privé-eigenschappen** van andermans duiven. `revealed = viewerId===undefined ||
-  p.ownerId===viewerId`; is `revealed` false dan worden `speed/endurance/orientation/
+  p.ownerId===viewerId || p.forSale` — **een duif die te koop staat op de markt is
+  dus volledig zichtbaar** (koper moet zien wat hij koopt), net als **veilingduiven**
+  (`auctionsDTO` roept `pigeonDTO(db, p)` zónder viewer → altijd revealed). Enkel een
+  duif die **niet** te koop staat blijft verborgen wanneer een ander ze bekijkt om een
+  **rechtstreeks bod** te doen. Is `revealed` false dan worden `speed/endurance/orientation/
   libido/form/health/experience` (+ ailment/inInfirmary/coached/ration/compartment/
   cureUntil/onCure/breeding/trainAvailableAt/dailyCare) **op null/false** gezet.
   **Publiek blijven**: `talent` (algemene score, ook via weddenschappen/ranglijst),

@@ -25,7 +25,11 @@ import { round1 } from './game/util.js';
 export function pigeonDTO(db: Database, p: Pigeon, viewerId?: string) {
   const week = db.world.currentWeek;
   const owner = db.lofts.find((l) => l.userId === p.ownerId);
-  const revealed = viewerId === undefined || p.ownerId === viewerId;
+  // Attributes are public when: there is no specific viewer (server-internal),
+  // the viewer owns the bird, OR the bird is openly listed for sale on the market
+  // (a buyer must see what they're buying). Only a bird that is NOT for sale, when
+  // viewed by someone else (to make a private/direct offer), hides its attributes.
+  const revealed = viewerId === undefined || p.ownerId === viewerId || p.forSale;
   const live = db.flights.some((f) => f.status === 'live' && f.entries.some((e) => e.pigeonId === p.id));
   const dailyCare = revealed && owner && !owner.isBot ? projectDailyCare(owner, p, live) : null;
   const hide = <T,>(v: T): T | null => (revealed ? v : null);
@@ -208,7 +212,8 @@ export function auctionsDTO(db: Database, viewerId?: string) {
         id: a.id,
         kind,
         sellerName: kind === 'shelter' ? 'Opvangcentrum' : 'Veilinghuis',
-        pigeon: p ? pigeonDTO(db, p, viewerId) : null,
+        // Auction birds are always fully revealed — you must see what you bid on.
+        pigeon: p ? pigeonDTO(db, p) : null,
         startAt: a.startAt,
         endAt: a.endAt,
         currentBid: a.currentBid,
