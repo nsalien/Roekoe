@@ -72,12 +72,12 @@ export function PigeonCard({
 
       {pigeon.revealed ? (
         <>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '2px 12px', marginTop: 6 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: '2px 12px', marginTop: 6 }}>
             <StatBar label="Snelheid" value={pigeon.speed ?? 0} perDay={dc?.speed} />
             <StatBar label="Conditie" value={pigeon.endurance ?? 0} perDay={dc?.endurance} />
             <StatBar label="Oriëntatie" value={pigeon.orientation ?? 0} perDay={dc?.orientation} />
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2px 12px', marginTop: 2 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: '2px 12px', marginTop: 2 }}>
             <StatBar label="Energie" value={pigeon.form ?? 0} variant="form" perDay={dc?.form} />
             <StatBar label="Gezondh." value={pigeon.health ?? 0} variant="health" perDay={dc?.health} />
             <StatBar label="Libido" value={pigeon.libido ?? 0} perDay={dc?.libido} />
