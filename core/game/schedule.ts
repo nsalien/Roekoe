@@ -826,6 +826,34 @@ function runDataMigrations(db: Database): void {
     }
     db.world.dataVersion = 19;
   }
+  if ((db.world.dataVersion ?? 0) < 20) {
+    // The distance windows were widened (regional 0–200, national 200–500,
+    // international 400–1200 km). Flights that were already on the calendar were
+    // routed under the old, narrower windows, so many now sit OUTSIDE their tier's
+    // current range. Re-route each still-SCHEDULED flight whose distance falls
+    // outside its tier window so the calendar matches the new distances. Left
+    // untouched: live/completed flights (their sim is frozen on the old distance),
+    // titans (their own fixed range), and flights someone already has bets on (the
+    // odds were computed for the current distance — don't move the goalposts).
+    const betFlightIds = new Set(db.bets.map((b) => b.flightId));
+    for (const f of db.flights) {
+      if (f.status !== 'scheduled' || f.titan || betFlightIds.has(f.id)) continue;
+      const tier: FlightTier =
+        f.type === 'regional' || f.type === 'national' || f.type === 'international'
+          ? f.type
+          : f.distanceKm >= 400 ? 'international' : f.distanceKm >= 200 ? 'national' : 'regional';
+      const { minKm, maxKm } = FLIGHT_TIERS[tier];
+      if (f.distanceKm >= minKm && f.distanceKm <= maxKm) continue; // already in range
+      const route = pickRoute(tier);
+      f.type = tier;
+      f.name = f.practice ? 'Oefenvlucht' : FLIGHT_TIERS[tier].name;
+      f.entryFee = f.practice ? 0 : FLIGHT_TIERS[tier].entryFee;
+      f.fromCity = route.fromCity;
+      f.toCity = route.toCity;
+      f.distanceKm = route.distanceKm;
+    }
+    db.world.dataVersion = 20;
+  }
 }
 
 /**
