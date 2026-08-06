@@ -268,9 +268,13 @@ input:focus, select:focus { outline: none; border-color: var(--brand); box-shado
 [data-theme='dark'] .badge.sex-duivin { background: #351226; color: #f7a8cf; }
 
 /* --- Stat bars ------------------------------------------------------------ */
-.stat { margin-bottom: 9px; }
-.stat-top { display: flex; justify-content: space-between; font-size: 0.78rem; margin-bottom: 4px; }
-.stat-label { color: var(--text-soft); font-weight: 600; }
+/* min-width:0 lets a stat shrink to its grid/flex track (e.g. the 1fr·1fr·1fr
+   stat grid on a pigeon card); without it the label+value min-content would push
+   the track — and the whole card — wider than a narrow phone screen. The top row
+   may wrap the value under the label when a column gets very tight. */
+.stat { margin-bottom: 9px; min-width: 0; }
+.stat-top { display: flex; justify-content: space-between; align-items: baseline; gap: 4px 8px; flex-wrap: wrap; font-size: 0.78rem; margin-bottom: 4px; }
+.stat-label { color: var(--text-soft); font-weight: 600; min-width: 0; }
 .stat-val { font-weight: 800; font-variant-numeric: tabular-nums; }
 .bar { height: 7px; border-radius: 999px; background: var(--surface-3); overflow: hidden; }
 .bar > span { display: block; height: 100%; border-radius: 999px; background: var(--brand); transition: width 0.4s ease; }

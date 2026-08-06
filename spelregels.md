@@ -688,10 +688,12 @@ kwetsuur, ziekte, herstel, sterfte en geboorte van jongen.
   in veel categorieën (café, frituur, bakkerij, slagerij, brouwerij, dierenwinkel,
   landbouw, bank, verzekering, bouw, telecom, loterij, racingteam…) verspreid over
   **vier tiers** — van een buurtcafé tot echte prestige-partners die enkel de absolute
-  top binnenhaalt. Ze komen **niet allemaal tegelijk**: ook al haal je meerdere drempels,
-  er meldt zich telkens maar **één nieuwe sponsor tegelijk** (met wat tijd ertussen), zodat
-  je ze **geleidelijk verdient** naarmate je beter presteert in plaats van een stortvloed
-  aan aanbiedingen ineens.
+  top binnenhaalt. **Sponsors verdien je op de vlucht.** Een aanbod komt **enkel ná een
+  goede competitievlucht** — wanneer een van je duiven op het **podium** eindigt of
+  **wint** — en dan nog **op een willekeurig moment** (het is een kans, groter bij een
+  overwinning dan bij een derde plaats). Ze verschijnen dus **nooit zomaar** en **nooit
+  allemaal tegelijk**: er meldt zich hoogstens **één nieuwe sponsor per keer**. Presteer
+  je goed, dan komen de suitors vanzelf langs; presteer je niet, dan blijft het stil.
   - Aanvaarden geeft eenmalig **tekengeld**, daarna elke week een **weekbijdrage**
     (bij "Volgende week") en een **bonus per gewonnen vlucht**.
   - Je kan **meerdere sponsors tegelijk** hebben, maar **per categorie** (café,

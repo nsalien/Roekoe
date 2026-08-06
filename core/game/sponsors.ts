@@ -174,19 +174,17 @@ function notify(db: Database, loft: Loft, title: string, body: string): void {
 }
 
 /**
- * Make new sponsor offers as a loft earns them — but strictly one at a time.
- *
- * Even when a loft already meets several sponsors' thresholds (a strong loft, or
- * the moment new sponsors are introduced), we never dump them all at once: at most
- * ONE new offer is created per `SPONSOR_OFFER_SPACING_HOURS`. The very first
- * qualifying offer fires immediately (no `lastOfferAt` yet); after that each
- * further offer is spaced out, so sponsors trickle in with performance instead of
- * arriving as a burst of suitors. Lowest tier first (SPONSORS is tier-ordered), so
- * the modest local sponsors come before the big prestige ones.
- *
- * A never-seen sponsor offers at its base terms; a refused/cancelled one may
- * re-offer once its own cooldown has passed, with terms rescaled to the loft's
- * performance since. Returns true if an offer was created (so the caller persists).
+ * Try to make ONE new sponsor offer. This is called from tickFlights right after a
+ * loft's bird did well in a competition flight (and only by chance), never on a
+ * timer — sponsors scout birds that just performed, they don't appear out of thin
+ * air. It emits at most one offer per call and enforces two guards so a good streak
+ * can't summon a wall of suitors:
+ *  - `SPONSOR_MAX_PENDING_OFFERS`: never pile up more than the cap of pending offers;
+ *  - `SPONSOR_OFFER_SPACING_HOURS`: a short floor between offers.
+ * Lowest tier first (SPONSORS is tier-ordered), so modest local sponsors come before
+ * the big prestige ones. A never-seen sponsor offers at its base terms; a
+ * refused/cancelled one may re-offer once its own cooldown has passed, with terms
+ * rescaled to the loft's performance since. Returns true if an offer was created.
  */
 export function evaluateSponsorOffers(db: Database, loft: Loft, nowMs: number): boolean {
   if (loft.isBot) return false;
