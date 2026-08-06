@@ -70,7 +70,7 @@ import { betsView, placeBet, previewBet } from '../../core/game/betting.js';
 import { makeOffer, withdrawOffer, respondOffer, offersFor } from '../../core/game/offers.js';
 import type { BetKind } from '../../core/schema.js';
 import { refreshDailyMissions } from '../../core/game/missions.js';
-import { evaluateSponsorOffers, sponsorView } from '../../core/game/sponsors.js';
+import { sponsorView } from '../../core/game/sponsors.js';
 import {
   auctionsDTO,
   flightDTO,
@@ -139,13 +139,13 @@ app.use('*', async (c, next) => {
       const user = store.data.users.find((u) => u.id === payload.sub);
       if (user) {
         c.set('user', user);
-        // Per-user: roll over daily missions/streak (and maybe a dilemma), and
-        // let sponsors make new offers when the loft has earned their interest.
-        // Skipped on light routes so /auth/me stays cheap.
+        // Per-user: roll over daily missions/streak (and maybe a dilemma).
+        // Sponsor offers are NOT made here — they only appear after a good
+        // competition result (see tickFlights). Skipped on light routes so
+        // /auth/me stays cheap.
         const loft = store.data.lofts.find((l) => l.userId === user.id);
         if (loft && !light) {
-          let dirty = refreshDailyMissions(store.data, loft, nowMs);
-          if (evaluateSponsorOffers(store.data, loft, nowMs)) dirty = true;
+          const dirty = refreshDailyMissions(store.data, loft, nowMs);
           if (dirty) await store.persist();
         }
       }

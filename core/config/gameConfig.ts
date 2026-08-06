@@ -620,14 +620,25 @@ export const SPONSOR_REOFFER_MULT_MIN = 0.7;
 export const SPONSOR_REOFFER_MULT_MAX = 1.5;
 
 /**
- * Sponsors trickle in — they are NOT all dumped at once. Even if a loft already
- * meets several sponsors' thresholds (e.g. right after new sponsors are added, or
- * for a strong established loft), only ONE new offer is made per this many real
- * hours. The first-ever qualifying offer still fires immediately; after that each
- * further offer is spaced out, so a player earns sponsors gradually and never gets
- * a burst of four suitors at once. Tune this to make sponsors arrive faster/slower.
+ * Sponsors are earned on the wing: an offer is only ever made right after one of a
+ * loft's birds does WELL in a real competition flight (a podium or a win), and even
+ * then only by chance (see below) — never on a timer and never all at once. These
+ * are the odds that a good result draws a new suitor:
+ *  - a win (1st) has `winChance`;
+ *  - a mere podium (2nd/3rd) has the smaller `podiumChance`.
+ * At most one offer is created per flight, and the cap below still holds.
  */
-export const SPONSOR_OFFER_SPACING_HOURS = 20;
+export const SPONSOR_OFFER_ON_PERFORMANCE = {
+  winChance: 0.5,
+  podiumChance: 0.25,
+} as const;
+
+/**
+ * A short floor between two sponsor offers, so a lucky streak of back-to-back
+ * podiums can't hand you several suitors within minutes. The performance trigger
+ * above is the real gate; this just spaces things out a little.
+ */
+export const SPONSOR_OFFER_SPACING_HOURS = 6;
 
 /**
  * Hard cap on how many sponsor offers can be pending at once. Together with the
@@ -705,9 +716,9 @@ export const SPONSORS: SponsorDef[] = [
   },
 
   // --- Extra variëteit: nieuwe categorieën, rivalen en een prestige-tier 4 ---
-  // Deze worden NOOIT allemaal tegelijk aangeboden: evaluateSponsorOffers biedt er
-  // maar één per SPONSOR_OFFER_SPACING_HOURS aan (zie sponsors.ts), zodat een speler
-  // ze geleidelijk verdient i.p.v. in één klap.
+  // Geen enkele sponsor wordt zomaar aangeboden: een aanbod komt enkel (en met kans)
+  // ná een goede competitievlucht (podium/overwinning), één tegelijk — zie
+  // evaluateSponsorOffers + SPONSOR_OFFER_ON_PERFORMANCE in sponsors.ts/schedule.ts.
   // Tier 1 — laagdrempelige buurtsponsors in nieuwe categorieën.
   {
     id: 'den_beenhouwer', name: 'Slagerij Den Beenhouwer', icon: '🥩', tier: 1,

@@ -25,6 +25,7 @@ import {
   RACE_CITIES,
   REAL_SCHEDULE,
   SCHEDULE_HORIZON_DAYS,
+  SPONSOR_OFFER_ON_PERFORMANCE,
   STARTING_LOFT_CAPACITY,
   TIMEZONE,
   TITAN,
@@ -41,7 +42,7 @@ import { settleFlightBets } from './betting.js';
 import { tickHealing } from './health.js';
 import { tickSeason } from './season.js';
 import { progressMissions } from './missions.js';
-import { activeContracts } from './sponsors.js';
+import { activeContracts, evaluateSponsorOffers } from './sponsors.js';
 import {
   applyFlightEffects,
   finalizeFlight,
@@ -55,7 +56,7 @@ import type { WeatherResult } from './weather.js';
 import { generatePigeonName, isLegacyName, isWrongGenderName } from './names.js';
 import { canRace, talent } from './pigeon.js';
 import { NPC_OWNER_ID, ownerName } from './engine.js';
-import { bell, clamp, hashString, haversineKm, pick, randFloat, round1 } from './util.js';
+import { bell, clamp, hashString, haversineKm, pick, randFloat, round1, seededRng } from './util.js';
 
 // --- Time-zone helpers -----------------------------------------------------
 
@@ -520,6 +521,16 @@ export function tickFlights(db: Database, nowMs: number, weatherByFlight?: Map<s
               );
             }
           }
+          // A good result may draw a NEW sponsor — but only by chance, and only one
+          // at a time (evaluateSponsorOffers respects the cap + spacing). Sponsors
+          // never appear on a timer; they scout birds that just performed well.
+          const chance = wins > 0
+            ? SPONSOR_OFFER_ON_PERFORMANCE.winChance
+            : podiums > 0 ? SPONSOR_OFFER_ON_PERFORMANCE.podiumChance : 0;
+          if (chance > 0) {
+            const rng = seededRng(hashString(`spon-offer:${flight.id}:${ownerId}`));
+            if (rng() < chance) evaluateSponsorOffers(db, loft, nowMs);
+          }
         }
       }
     }
@@ -800,6 +811,20 @@ function runDataMigrations(db: Database): void {
       if (arr && arr.length) p.raceLog = arr.slice(-RACE_LOG_CAP);
     }
     db.world.dataVersion = 18;
+  }
+  if ((db.world.dataVersion ?? 0) < 19) {
+    // Sponsor offers used to appear on a timer/threshold basis, which handed
+    // players a whole wall of simultaneous offers. Offers now only come after a
+    // good competition result (see tickFlights). Wipe any pending offers banked
+    // under the old model so nobody starts with a burst; active contracts and the
+    // signed/declined history stay intact, and future offers are earned on the wing.
+    for (const l of db.lofts) {
+      const sp = l.sponsorship as { offers?: unknown[]; lastOfferAt?: string } | undefined;
+      if (!sp) continue;
+      if (Array.isArray(sp.offers)) sp.offers = [];
+      sp.lastOfferAt = undefined;
+    }
+    db.world.dataVersion = 19;
   }
 }
 

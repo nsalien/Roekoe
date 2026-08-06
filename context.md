@@ -95,8 +95,9 @@ krijgen.**
 `core/game/schedule.ts` → `advanceRealtime(db, nowMs, weatherByFlight)` roept in
 volgorde:
 1. `runDataMigrations(db)` — eenmalige datafixes, **gated op `world.dataVersion`**
-   (staat nu op **18**; nieuwe migratie = nieuw `if ((db.world.dataVersion ?? 0) < N)`
-   blok + `db.world.dataVersion = N`). v18 backfilt `Pigeon.raceLog` uit bestaande
+   (staat nu op **19**; nieuwe migratie = nieuw `if ((db.world.dataVersion ?? 0) < N)`
+   blok + `db.world.dataVersion = N`). v19 wist oude openstaande sponsoraanbiedingen;
+   v18 backfilt `Pigeon.raceLog` uit bestaande
    vluchthistorie vóór de eerste prune (zie §Performance).
 2. `ensureFlightsScheduled(db, nowMs)` — plant vluchten volgens `REAL_SCHEDULE`.
 3. `ensureAuctions(db, nowMs)` — zondagsveiling + willekeurige opvangcentrum-veilingen
@@ -518,7 +519,7 @@ Voor engine-logica: snelle integratietests met **tsx** vanuit de repo-root
 ## 8. Belangrijkste wijzigingen deze sessie (achtergrond)
 
 Alles hieronder staat **live** op de deploy-branch. Data-migraties liepen door tot
-**`dataVersion = 17`**.
+**`dataVersion = 19`**.
 
 **Vluchten & energie**
 - Vlucht-energie wordt **geleidelijk per 30 min** afgetrokken (`tickFlightEnergy`),
@@ -739,17 +740,22 @@ polls niet telkens de hele wereld herladen. **Structureel:** selectief laden i.p
   (📜, **3-keuze**: geld / oude kampioen / jonge belofte — `generatePigeon` met
   `birthWeek` voor leeftijd), `scout` (🔎, prospect op proef), `poacher` (🦅, incl.
   **sterftekans**), `charity` (🎗️). Client-modal rendert opties generiek → 3-keuze werkt.
-- **Meer sponsors mét throttle** (`SPONSORS` + `evaluateSponsorOffers`): nieuwe
-  categorieën (slagerij, brouwerij, dierenwinkel, bouw, verzekering, telecom, loterij),
-  extra rivalen (café/racing) en een **tier 4**; gebruikt ook de `seasonPoints`-drempel.
-  Om de **burst** te vermijden die ontstond toen ze meteen allemaal werden aangeboden
-  aan wie de drempels al haalde: `evaluateSponsorOffers` biedt nu **hoogstens één nieuw
-  aanbod per `SPONSOR_OFFER_SPACING_HOURS` (20 u)** aan (eerste verdiende aanbod meteen,
-  daarna gespreid; laagste tier eerst want SPONSORS is tier-geordend). `SponsorState`
-  kreeg `lastOfferAt`. Bovendien een **cap** `SPONSOR_MAX_PENDING_OFFERS (2)`: `state()`
-  trimt een te grote stapel openstaande aanbiedingen op het lezen (self-heal voor
-  spelers die de burst al opgeslagen hadden) — de gedropte sponsors blijven geldig en
-  sijpelen later terug. Geverifieerd met tsx (5 evaluaties op t=0 → 1 aanbod; max 2).
+- **Meer sponsors, aangeboden op vluchtprestatie** (`SPONSORS` + `evaluateSponsorOffers`):
+  nieuwe categorieën (slagerij, brouwerij, dierenwinkel, bouw, verzekering, telecom,
+  loterij), extra rivalen (café/racing) en een **tier 4**; gebruikt ook `seasonPoints`.
+  **Belangrijk (2 iteraties):** aanbiedingen komen NIET meer per request op basis van
+  drempels/tijd — dat gaf een **wal van aanbiedingen tegelijk**. Nu:
+  - **Trigger = goede competitievlucht.** In `tickFlights`, per eigenaar met een podium/
+    win in een echte wedstrijd, met kans `SPONSOR_OFFER_ON_PERFORMANCE` (win 0.5 / podium
+    0.25, seeded op `flight.id+ownerId`) → `evaluateSponsorOffers`. Practice/titan tellen
+    niet (staan vóór het `continue`). De per-request-call in `[[path]].ts` is **weg**.
+  - **evaluateSponsorOffers** emit hoogstens **één** aanbod (laagste tier eerst), met twee
+    floors: cap `SPONSOR_MAX_PENDING_OFFERS (2)` + `SPONSOR_OFFER_SPACING_HOURS (6 u)`.
+    `SponsorState.lastOfferAt` bewaakt de spacing; `state()` trimt een te grote stapel op
+    het lezen (self-heal).
+  - **Migratie v19**: bestaande openstaande aanbiedingen (uit het oude model) worden
+    **gewist** voor alle hokken (actieve contracten + signed/declined blijven), zodat
+    niemand nog met een wal zit; nieuwe komen enkel via vluchtprestatie. **dataVersion → 19.**
 - **Duif-card-breedte (echte fix)**: de horizontale overflow op de **duifpagina** kwam
   van grid-items met default `min-width:auto` + een **niet-afbreekbare** brede knop
   (`.btn` is `white-space:nowrap`, bv. "🔒 Oriëntatie — weer vanaf <datum>"): die zette
@@ -759,8 +765,14 @@ polls niet telkens de hele wereld herladen. **Structureel:** selectief laden i.p
   breken af) + `.grid.cols-2` → 1 kolom onder 820px. `PigeonPage`-naamblok kreeg
   `flex:1; min-width:0; overflow-wrap:anywhere`. (Enkel de kolom naar 1fr zetten was niet
   genoeg — vandaar dat het eerst erger leek.)
+- **Card-breedte deel 2 (statgrid)**: de **3-koloms statgrid** in `PigeonCard` (inline
+  `1fr 1fr 1fr`, dus NIET de `.grid`-class) liep nog over op smalle schermen — "Oriëntatie"
+  viel rechts weg. Fix in `global.css`: `.stat { min-width: 0 }` (items krimpen tot de
+  1fr-track) + `.stat-top { flex-wrap: wrap }` (waarde wipt onder het label bij een krappe
+  kolom). Geldt ook voor de 2-koloms statblokken.
 - **Schemawijziging**: `SponsorState.lastOfferAt?` (rijdt mee in de `sponsorship`-JSON,
-  geen kolom/migratie). Verder enkel config/logica/CSS.
+  geen kolom nodig). Datamigratie **v19** wist openstaande sponsoraanbiedingen. Verder
+  config/logica/CSS.
 
 ---
 
