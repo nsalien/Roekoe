@@ -40,6 +40,18 @@ export function MarketPage() {
     load();
   }, [load, state?.world.currentWeek]);
 
+  // While any auction is in its final minutes, gently poll the board so other
+  // players' bids and anti-snipe extensions appear without a manual refresh.
+  useEffect(() => {
+    const soon = auctions.some((a) => {
+      const r = Date.parse(a.endAt) - Date.now();
+      return r > 0 && r <= 6 * 60 * 1000;
+    });
+    if (!soon) return;
+    const t = setInterval(() => void load(), 15000);
+    return () => clearInterval(t);
+  }, [auctions, load]);
+
   async function buy(p: Pigeon) {
     setBusy(true);
     try {
@@ -67,6 +79,13 @@ export function MarketPage() {
       setBusy(false);
     }
   }
+
+  // When an auction's countdown reaches zero, reload the board so the closed
+  // auction settles/disappears and any winnings show up — no manual refresh.
+  const onAuctionExpire = useCallback(() => {
+    void load();
+    void refresh();
+  }, [load, refresh]);
 
   async function offerAct(fn: () => Promise<unknown>, ok?: string) {
     setBusy(true);
@@ -146,7 +165,7 @@ export function MarketPage() {
       )}
 
       {auctions.filter((a) => a.pigeon).map((a) => (
-        <AuctionCard key={a.id} auction={a} money={money} busy={busy} onBid={bid} />
+        <AuctionCard key={a.id} auction={a} money={money} busy={busy} onBid={bid} onExpire={onAuctionExpire} />
       ))}
 
       {listings.length === 0 && (
@@ -350,11 +369,13 @@ function AuctionCard({
   money,
   busy,
   onBid,
+  onExpire,
 }: {
   auction: AuctionInfo;
   money: number;
   busy: boolean;
   onBid: (auctionId: string, amount: number) => void;
+  onExpire: () => void;
 }) {
   const p = auction.pigeon!;
   const shelter = auction.kind === 'shelter';
@@ -363,6 +384,32 @@ function AuctionCard({
   useEffect(() => {
     setAmount((a) => Math.max(a, auction.minNextBid));
   }, [auction.minNextBid]);
+
+  // Live-ticking countdown so no manual refresh is needed. We self-schedule the
+  // next tick from the time left: coarse (30 s) when the close is far off, then
+  // once per second in the final 5 minutes for a smooth real-time countdown.
+  // When the auction closes we ask the parent to reload so it disappears/settles.
+  const [nowMs, setNowMs] = useState(() => Date.now());
+  useEffect(() => {
+    const endMs = Date.parse(auction.endAt);
+    let timer: ReturnType<typeof setTimeout>;
+    let expired = false;
+    const tick = () => {
+      const now = Date.now();
+      setNowMs(now);
+      const remaining = endMs - now;
+      if (remaining <= 0) {
+        if (!expired) { expired = true; onExpire(); }
+        return; // stop ticking once closed
+      }
+      timer = setTimeout(tick, remaining <= 5 * 60 * 1000 ? 1000 : 30000);
+    };
+    tick();
+    return () => clearTimeout(timer);
+  }, [auction.endAt, onExpire]);
+
+  const remainingMs = Date.parse(auction.endAt) - nowMs;
+  const closingSoon = remainingMs > 0 && remainingMs <= 5 * 60 * 1000;
 
   const accent = shelter ? 'var(--good)' : 'var(--accent)';
   return (
@@ -374,7 +421,9 @@ function AuctionCard({
           </span>
           <strong>{shelter ? 'Duif zoekt een baasje' : 'Topduif onder de hamer'}</strong>
         </div>
-        <span className="faint">sluit {countdownTo(auction.endAt)}</span>
+        <span className="faint" style={closingSoon ? { color: 'var(--accent)', fontWeight: 700, fontVariantNumeric: 'tabular-nums' } : undefined}>
+          {remainingMs <= 0 ? '🔨 sluit nu…' : <>{closingSoon ? '⏳ ' : ''}sluit {countdownTo(auction.endAt, nowMs)}</>}
+        </span>
       </div>
 
       {shelter && (

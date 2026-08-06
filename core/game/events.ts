@@ -7,8 +7,8 @@
 import type { Database, EventCard, Loft, Pigeon } from '../schema.js';
 import { newId } from '../store.js';
 import { estimateValue, generatePigeon } from './pigeon.js';
-import { applyAilment, randomDisease } from './health.js';
-import { clamp, pick, randFloat, round1 } from './util.js';
+import { applyAilment, randomAilmentOfSeverity, randomDisease, randomInjury } from './health.js';
+import { clamp, pick, randFloat, randInt, round1 } from './util.js';
 
 function owendBy(db: Database, loft: Loft): Pigeon[] {
   return db.pigeons.filter((p) => p.ownerId === loft.userId);
@@ -17,7 +17,8 @@ function owendBy(db: Database, loft: Loft): Pigeon[] {
 /** Build a random dilemma for a loft, or null if none fits right now. */
 export function makeEvent(db: Database, loft: Loft, week: number): EventCard | null {
   const owned = owendBy(db, loft);
-  const eligible = ['stray', 'flu', 'gamble', 'sponsor', 'quack', 'heatwave', 'event'];
+  const eligible = ['stray', 'flu', 'gamble', 'sponsor', 'quack', 'heatwave', 'event', 'doping', 'inheritance'];
+  if (owned.length > 0) eligible.push('scout', 'charity', 'poacher');
   if (owned.length > 3) eligible.push('merchant');
   const kind = pick(eligible);
 
@@ -68,6 +69,42 @@ export function makeEvent(db: Database, loft: Loft, week: number): EventCard | n
         text: 'Het wordt bloedheet dit weekend. Investeer je in extra water en schaduw voor je hok?',
         options: [{ label: 'Water & schaduw (€80)' }, { label: 'Niets doen (risico)' }],
       };
+    case 'doping':
+      return {
+        key: 'doping', icon: '💉', title: 'De dokter met de zwarte tas',
+        text: 'Een gladde "sportarts" fluistert dat hij iets speciaals heeft: je hele hok knalt er een week bovenop. Maar als er een dopingcontrole komt, hangt er een boete én een zieke duif aan vast. "Niemand die het weet, melker… meestal."',
+        options: [{ label: 'Toedienen (€200)' }, { label: 'Poten op de grond houden' }],
+      };
+    case 'inheritance':
+      return {
+        key: 'inheritance', icon: '📜', title: 'Erfenis van een oude melker',
+        text: 'Een overleden dorpsgenoot liet jou iets na — maar je mag maar één ding kiezen: zijn spaarpot, zijn laatste kampioen (sterke genen, maar op leeftijd), of zijn jonge belofte (goedkoop gehouden, niemand weet wat erin zit). Kiezen is verliezen.',
+        options: [{ label: 'De spaarpot (€600)' }, { label: 'De oude kampioen' }, { label: 'De jonge belofte' }],
+      };
+    case 'scout': {
+      const best = [...owned].sort((a, b) => estimateValue(b, week) - estimateValue(a, week))[0];
+      return {
+        key: 'scout', icon: '🔎', title: 'Talentenjager aan de deur',
+        text: `Een scout wil ${best.name} een week meenemen naar een topmelker "om te leren". Ze komt beter terug… of helemaal op de toppen van haar tenen. Durf je je pronkstuk te riskeren?`,
+        options: [{ label: `${best.name} meegeven (risico)` }, { label: 'Thuishouden' }],
+        data: { pigeonId: best.id },
+      };
+    }
+    case 'poacher':
+      return {
+        key: 'poacher', icon: '🦅', title: 'Sperwer in de buurt',
+        text: 'Er cirkelt een sperwer boven het dorp. Span je (dure) beschermnetten, of hoop je dat je duiven binnenblijven? Een aanval kan heel lelijk aflopen — tot een dode duif toe.',
+        options: [{ label: 'Beschermnetten (€120)' }, { label: 'Niets doen (risico)' }],
+      };
+    case 'charity': {
+      const best = [...owned].sort((a, b) => estimateValue(b, week) - estimateValue(a, week))[0];
+      return {
+        key: 'charity', icon: '🎗️', title: 'Liefdadigheidsvlucht',
+        text: `De gemeente vraagt je pronkstuk ${best.name} voor een goede-doel-vlucht. Het levert €400 en veel sympathie op, maar ze komt bekaf terug — en een ongeluk zit in een klein hoekje.`,
+        options: [{ label: `${best.name} laten vliegen (€400)` }, { label: 'Bedanken' }],
+        data: { pigeonId: best.id },
+      };
+    }
     default: // 'event'
       return {
         key: 'event', icon: '🎪', title: 'De gemeente vraagt je duiven',
@@ -196,6 +233,102 @@ export function resolveEvent(db: Database, loft: Loft, choice: number, week: num
       const tired = [...owned].sort(() => Math.random() - 0.5).slice(0, Math.min(3, owned.length));
       for (const p of tired) p.form = round1(clamp(p.form - 12, 0, 100));
       return `Leuk feest! €250 verdiend, maar ${tired.length} duif/duiven zijn nu bekaf.`;
+    }
+    case 'doping': {
+      if (choice !== 0) return 'Je houdt het netjes — geen duistere spuitjes in jouw hok.';
+      if (loft.money < 200) return 'Niet genoeg geld.';
+      loft.money -= 200;
+      if (Math.random() < 0.55) {
+        for (const p of owned) {
+          p.form = round1(clamp(p.form + 12, 0, 100));
+          p.health = round1(clamp(p.health + 8, 0, 100));
+        }
+        return 'Het spul werkt — je hok knettert van de energie. Niemand die iets vroeg…';
+      }
+      loft.money -= 150; // fine
+      const healthy = owned.filter((p) => !p.ailment);
+      if (healthy.length > 0) {
+        const victim = pick(healthy);
+        applyAilment(victim, randomAilmentOfSeverity('ziekte', 'ernstig', week));
+        notify(db, loft, '💉 Betrapt', `Er kwam een controle: boete €150 en ${victim.name} werd flink ziek van de rommel.`);
+        return `Mis! Dopingcontrole: boete €150 en ${victim.name} is er ernstig ziek van geworden.`;
+      }
+      return 'Er kwam een controle — boete €150. Zuur, en niets aan overgehouden.';
+    }
+    case 'inheritance': {
+      if (choice === 0) {
+        loft.money += 600;
+        return 'Je koos de spaarpot: €600 rijker.';
+      }
+      if (owned.length >= loft.capacity) return 'Je hok zit vol — je kan geen duif plaatsen, dus de erfenis gaat aan je neus voorbij.';
+      if (choice === 1) {
+        // Old champion: strong genes but old (frail, low value, higher mortality).
+        const p = generatePigeon({ ownerId: loft.userId, currentWeek: week, quality: randFloat(0.82, 0.96), birthWeek: week - randInt(280, 430) });
+        db.pigeons.push(p);
+        notify(db, loft, '🏆 Een oude kampioen', `${p.name} — ooit een topper, nu op leeftijd — verhuist naar jouw hok.`);
+        return `Je koos de oude kampioen: ${p.name}. Sterke genen, maar tel wel haar jaren.`;
+      }
+      // Young prospect: unknown quality.
+      const lucky = Math.random() < 0.45;
+      const p = generatePigeon({ ownerId: loft.userId, currentWeek: week, quality: lucky ? randFloat(0.7, 0.9) : randFloat(0.2, 0.45), birthWeek: week - randInt(8, 20) });
+      db.pigeons.push(p);
+      notify(db, loft, lucky ? '🌟 Een ruwe diamant' : '🐣 Een gewone jong', `Uit de erfenis kwam ${p.name}.`);
+      return lucky ? `De jonge belofte ${p.name} blijkt veel in haar mars te hebben!` : `De jonge belofte ${p.name} is voorlopig maar gewoontjes.`;
+    }
+    case 'scout': {
+      if (choice !== 0) return 'Je houdt je duif liever veilig thuis.';
+      const idx = db.pigeons.findIndex((p) => p.id === d.pigeonId && p.ownerId === loft.userId);
+      if (idx === -1) return 'De duif is er niet meer.';
+      const p = db.pigeons[idx];
+      if (Math.random() < 0.5) {
+        p.speed = round1(clamp(p.speed + randFloat(2, 5), 0, 100));
+        p.endurance = round1(clamp(p.endurance + randFloat(2, 5), 0, 100));
+        p.experience = round1(clamp(p.experience + randFloat(4, 8), 0, 100));
+        notify(db, loft, '🔎 Wat een vooruitgang', `${p.name} kwam sterker terug van bij de topmelker.`);
+        return `${p.name} leerde bij en is merkbaar beter geworden!`;
+      }
+      p.form = round1(clamp(p.form - randFloat(20, 35), 0, 100));
+      if (Math.random() < 0.5 && !p.ailment) {
+        applyAilment(p, randomInjury(week));
+        notify(db, loft, '🔎 Slecht nieuws', `${p.name} kwam afgepeigerd én gekwetst terug van "de stage".`);
+        return `Pech — ${p.name} raakte gekwetst tijdens het "leren".`;
+      }
+      return `${p.name} kwam doodmoe terug — een week verspild.`;
+    }
+    case 'poacher': {
+      if (choice === 0) {
+        if (loft.money < 120) return 'Niet genoeg geld voor netten.';
+        loft.money -= 120;
+        return 'Beschermnetten gespannen — de sperwer vist achter het net.';
+      }
+      if (Math.random() < 0.45 && owned.length > 0) {
+        const victim = pick(owned);
+        if (Math.random() < 0.2) {
+          const name = victim.name;
+          const vidx = db.pigeons.findIndex((p) => p.id === victim.id);
+          if (vidx !== -1) db.pigeons.splice(vidx, 1);
+          notify(db, loft, '🦅 Gegrepen', `De sperwer sloeg toe: ${name} is niet meer.`);
+          return `Drama — ${name} werd door de sperwer gegrepen.`;
+        }
+        if (!victim.ailment) applyAilment(victim, randomAilmentOfSeverity('kwetsuur', 'ernstig', week));
+        notify(db, loft, '🦅 Aangevallen', `${victim.name} ontsnapte ternauwernood, maar is er ernstig aan toe.`);
+        return `${victim.name} raakte zwaargewond bij een sperweraanval.`;
+      }
+      return 'De sperwer trok verder — je duiven bleven ongedeerd. Geluk gehad.';
+    }
+    case 'charity': {
+      if (choice !== 0) return 'Je slaat de uitnodiging af.';
+      const idx = db.pigeons.findIndex((p) => p.id === d.pigeonId && p.ownerId === loft.userId);
+      if (idx === -1) return 'De duif is er niet meer.';
+      const p = db.pigeons[idx];
+      loft.money += 400;
+      p.form = round1(clamp(p.form - 18, 0, 100));
+      if (Math.random() < 0.2 && !p.ailment) {
+        applyAilment(p, randomInjury(week));
+        notify(db, loft, '🎗️ Kleine tegenslag', `${p.name} liep bij de liefdadigheidsvlucht een blessure op — maar het goede doel is dankbaar.`);
+        return `€400 opgehaald voor het goede doel, maar ${p.name} kwam gekwetst terug.`;
+      }
+      return `€400 opgehaald voor het goede doel! ${p.name} is bekaf maar ongedeerd.`;
     }
     default:
       return 'Afgehandeld.';

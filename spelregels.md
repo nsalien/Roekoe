@@ -50,12 +50,18 @@ verschillende duivenmelkers** meedoen. Doet er maar één mee, dan wordt de vluc
 ### 2.2 Niveaus
 | Niveau | Steden | Afstand | Inschrijfgeld |
 |---|---|---|---|
-| Regionaal | twee Vlaamse steden | 30–160 km | €20 |
-| Nationaal | twee Belgische steden | 60–290 km | €40 |
-| Internationaal | BE, NL, FR, GB, LU, DE | 180–950 km | €80 |
+| Regionaal | twee Vlaamse steden | 0–200 km | €20 |
+| Nationaal | België + buurlanden (BE, NL, FR, LU, DE) | 200–500 km | €40 |
+| Internationaal | tot de **grote fond** (BE, NL, FR, GB, LU, DE, ES) | 400–1200 km | €80 |
 
 Start- en aankomststad worden **willekeurig** gekozen binnen het niveau; de
-afstand wordt berekend uit de coördinaten (Haversine).
+afstand wordt berekend uit de coördinaten (Haversine). De niveaus overlappen
+bewust een stukje, zodat er **veel meer variatie** in afstand zit dan vroeger:
+een regiovlucht kan kort of bijna 200 km zijn, een nationale tot 500 km, en de
+internationale vluchten reiken van ~400 km tot de klassieke **grote-fond­
+losplaatsen** in het diepe zuiden (Bordeaux, Toulouse, Perpignan, **Barcelona**),
+tot ~1200 km ver. Grotere afstand = zwaardere vlucht: meer energieverbruik (§3)
+en meer gewicht op conditie en oriëntatie (§2.3).
 
 ### 2.3 Vluchtsnelheid (m/min)
 Per duif, bevroren bij de start:
@@ -113,6 +119,12 @@ seconden = (afstand_km · 1000 / snelheid_m_per_min) · 60
 duur     = max(300, afgerond(seconden))
 ```
 Een vlucht duurt dus echt zo lang als de duiven erover doen (minimum 5 min).
+
+**Live-bord.** Tijdens de vlucht zie je per duif de afgelegde afstand en haar
+**snelheid in km/u**. Dat is de **echte, effectieve snelheid** — berekend uit haar
+eigenschappen, vorm-van-de-dag en het weer op het stuk dat ze op dat moment vliegt,
+geen opsmuk. Om het rustig leesbaar te houden **verspringt het cijfer om de ~5
+minuten** in plaats van elke seconde te flikkeren.
 
 ### 2.5 Weer
 Het echte windbeeld op de startplaats (Open-Meteo) wordt omgezet naar een factor:
@@ -205,22 +217,28 @@ volledige kost; wie halverwege **opgeeft** (§3.4), heeft alleen betaald voor he
 stuk dat ze al vloog — je kan de energiekost dus niet ontlopen door je duif net
 voor de finish uit de race te halen.
 
-**Gemiddeld verbruik per afstand** (inclusief de gemiddelde spreiding +5):
+**Gemiddeld verbruik per afstand** (energie, inclusief de gemiddelde spreiding +5).
+Nu de vluchten veel verder kunnen reiken (§2.2), loont ervaring — en een goede
+energie­planning — nog meer op de lange fond:
 
 | Afstand | Onervaren (erv. 0) | Gemiddeld (erv. 50) | Ervaren (erv. 100) |
 |---|---|---|---|
-| 0–100 km | ~19,6 | ~16,7 | ~13,8 |
-| 100–200 km | ~23,8 | ~20,0 | ~16,3 |
-| 200–300 km | ~27,9 | ~23,3 | ~18,8 |
-| 300–600 km | ~36,3 | ~30,0 | ~23,8 |
+| 100 km (regio) | ~21,7 | ~18,3 | ~15,0 |
+| 200 km (regio/nationaal) | ~25,8 | ~21,7 | ~17,5 |
+| 300 km (nationaal) | ~30,0 | ~25,0 | ~20,0 |
+| 500 km (nationaal/intl.) | ~38,3 | ~31,7 | ~25,0 |
+| 700 km (internationaal) | ~46,7 | ~38,3 | ~30,0 |
+| 1000 km (grote fond) | ~59,2 | ~48,3 | ~37,5 |
 
 > **Voorbeeld.** Een vlucht van **300 km** kost een gemiddelde duif ongeveer
-> **23 energie**. Op een rit van ~5 uur gaat er dus zowat **2,3 energie per 30
-> minuten** af. Een ervaren duif (ervaring 100) doet diezelfde vlucht met ~**19**
-> energie, een groentje (ervaring 0) met ~**28**. De duif wint na afloop ~**1
-> conditie** en ~**5 ervaring**, en er gaat een beetje gezondheid af. Met de
-> herstelwaarden (§4) heeft een duif na zo'n rit dus duidelijk meer rust (of
-> Herstelvoer) nodig voor ze weer inzetbaar is.
+> **25 energie**. Op een rit van ~5 uur gaat er dus zowat **2,5 energie per 30
+> minuten** af. Een ervaren duif (ervaring 100) doet diezelfde vlucht met ~**20**
+> energie, een groentje (ervaring 0) met ~**30**. Op een **grote-fondvlucht van
+> 1000 km** loopt dat op tot ~**48** energie gemiddeld — en tot ~**59** voor een
+> onervaren duif: zo'n rit legt een lege duif zowat helemaal plat. De duif wint na
+> afloop conditie en ervaring, maar heeft daarna duidelijk meer rust (of
+> Herstelvoer, §4) nodig voor ze weer inzetbaar is. Zet dus je meest ervaren,
+> best uitgeruste duiven op de verste vluchten.
 >
 > **Let op:** een duif die **niet thuis raakt** (uitputting/tijdslimiet, §3.3)
 > verliest er nog eens **24 + willekeurig 0…12** energie bovenop.
@@ -606,7 +624,9 @@ koopt, maar je kan wel een idee vormen via de **algemene score**, de
 
 De **veilingen** (§12) hebben daarnaast een **anti-snipe**: een bod in de **laatste
 5 minuten** schuift de sluitingstijd terug naar **5 minuten**, zodat anderen nog
-kunnen terugbieden.
+kunnen terugbieden. In die slotfase telt de resterende tijd **live** af — de
+countdown loopt vanzelf verder en de laatste biedingen verschijnen **zonder dat je
+de pagina hoeft te vernieuwen**.
 
 ---
 
@@ -632,10 +652,15 @@ kwetsuur, ziekte, herstel, sterfte en geboorte van jongen.
   een groeiende dagbonus (€5 + €2 per streakdag, tot €25). Samen leveren bonus +
   opdrachten zo ongeveer **€750 per week** op — een basisinkomen, geen hoofdbron.
 - **Gebeurtenissen (dilemma's).** Nu en dan (~1 op 3 dagen) verschijnt een
-  keuzekaartje: een koopman die je beste duif wil kopen, een verdwaalde duif, een
-  griepgolf, een gulle frituursponsor, een kwakzalver, een hittegolf, een
-  dorpsfeest of een "kat in een zak". Elke keuze heeft gevolgen — soms winst,
-  soms risico.
+  keuzekaartje dat je écht doet twijfelen: een koopman die je beste duif wil kopen,
+  een verdwaalde duif, een griepgolf, een gulle frituursponsor, een kwakzalver, een
+  hittegolf, een dorpsfeest, een "kat in een zak", een **dubieuze sportarts** (een
+  dikke boost voor je hele hok… of een boete en een zieke duif), een **erfenis**
+  waarbij je moet kiezen tussen geld, een oude kampioen of een jonge belofte, een
+  **talentenjager** die je pronkstuk een week op proef wil (sterker terug… of net
+  op), een **sperwer** in de buurt (van niets doen tot een dode duif) of een
+  **liefdadigheidsvlucht** met je ace. Elke keuze heeft gevolgen — soms winst,
+  soms flink risico.
 - **Zondagveiling.** Elke **zondag van 11:00 tot 20:00** (Brussel) gaat een
   topduif onder de hamer op de markt. Je moet het geld dat je biedt op dat moment
   ook echt hebben, maar het wordt **niet vastgehouden** — je kan het intussen nog
@@ -659,7 +684,11 @@ kwetsuur, ziekte, herstel, sterfte en geboorte van jongen.
   getalenteerde duif, seizoenspunten, niveau of gouden medailles), **biedt** die
   sponsor zich aan: er verschijnt een melding én een aanbod op de sponsorpagina
   dat je **aanvaardt of weigert**. Hoe beter je duiven en prestaties, hoe grotere
-  sponsors zich melden en hoe groter het aanbod.
+  sponsors zich melden en hoe groter het aanbod. Er is een brede waaier aan sponsors
+  in veel categorieën (café, frituur, bakkerij, slagerij, brouwerij, dierenwinkel,
+  landbouw, bank, verzekering, bouw, telecom, loterij, racingteam…) verspreid over
+  **vier tiers** — van een buurtcafé tot echte prestige-partners die enkel de
+  absolute top binnenhaalt.
   - Aanvaarden geeft eenmalig **tekengeld**, daarna elke week een **weekbijdrage**
     (bij "Volgende week") en een **bonus per gewonnen vlucht**.
   - Je kan **meerdere sponsors tegelijk** hebben, maar **per categorie** (café,
@@ -707,11 +736,23 @@ Verdiend geld kan je investeren in je hok en je duiven (bij *Mijn hok*, de
   energie- en gezondheidsherstel én bouwt langzaam conditie op) en **Libido-mix**
   (verhoogt de voortplantingsdrang). Ze verbruiken meer voer.
 - **Privécoach.** Huur een coach voor één specifieke duif. Die traint haar
-  dagelijks in **snelheid, conditie én oriëntatie** plus ervaring, puur om beter
-  te racen — **nooit libido**. Een coach werkt niet terwijl de duif effectief aan
+  **elke dag** in **snelheid, conditie én oriëntatie** plus ervaring, puur om beter
+  te racen — **nooit libido**. **Geen instapkost meer** — enkel een **dagsalaris van
+  €80** per gecoachte duif zolang hij aanblijft (dagelijks automatisch afgerekend).
+  De dagelijkse winst hangt af van de **eigen ontwikkeling van de duif** en wordt
+  **kleiner naarmate een eigenschap richting 100 kruipt**:
+  ```
+  winst per dag = 1,1 · (100 − huidige_waarde) / 100   (per race-eigenschap)
+                + 0,5 ervaring/dag
+  ```
+  Zo ontwikkelt een coach een **jonge of zwakke** duif snel (~**+0,55/dag** rond
+  waarde 50) maar **perfectioneert** hij een sterke duif slechts traag (~**+0,11/dag**
+  rond waarde 90) — een uitgetrainde duif blijft dus een echte prestatie. Enkel de
+  coach duwt een race-eigenschap helemaal tot **100** (zelf trainen stopt bij 90,
+  premiumvoer-conditie bij 92). Een coach werkt niet terwijl de duif effectief aan
   het vliegen is (een lopende vlucht); ingeschreven-maar-nog-niet-gestart mag wel.
-  Kost **€4000** bij het inhuren én een **dagsalaris van €36** zolang hij aanblijft
-  (dagelijks automatisch afgerekend).
+  De concrete winst per dag voor élke duif zie je op de **duifpagina** (onder de
+  coach-knop) en als per-dag ▲ in *Mijn hok*.
 - **Trainingsplafonds.** Zelf **trainen** komt tot **90**, **premiumvoer** bouwt
   conditie tot **92**, en enkel een **coach** duwt een race-eigenschap helemaal
   tot **100**. Voer verlaagt nooit een al hoger opgebouwde waarde.

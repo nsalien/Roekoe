@@ -93,8 +93,10 @@ function wallToUtcMs(tz: string, y: number, m: number, d: number, hh: number, mm
 /** The pool of cities a tier draws its start/finish from. */
 function tierPool(tier: FlightTier): RaceCity[] {
   if (tier === 'regional') return RACE_CITIES.filter((c) => c.flanders);
-  if (tier === 'national') return RACE_CITIES.filter((c) => c.country === 'BE');
-  return RACE_CITIES; // international: anywhere
+  // National = "greater region": BE + continental neighbours, so routes can reach
+  // up to ~500 km, but no Channel crossing (GB) and no deep-south grote-fond points.
+  if (tier === 'national') return RACE_CITIES.filter((c) => !c.intlOnly && c.country !== 'GB' && c.country !== 'ES');
+  return RACE_CITIES; // international: anywhere, including the grote-fond release points
 }
 
 /** Pick a random start + finish for a tier, within its distance window. */

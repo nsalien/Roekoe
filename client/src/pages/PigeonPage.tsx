@@ -118,8 +118,8 @@ export function PigeonPage() {
         <div className="card">
           <div className="row" style={{ gap: 14, alignItems: 'center' }}>
             <PigeonAvatar pigeon={p} size={120} />
-            <div>
-              <h1 style={{ marginBottom: 6 }}>{p.name}</h1>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <h1 style={{ marginBottom: 6, overflowWrap: 'anywhere' }}>{p.name}</h1>
               <div className="row" style={{ gap: 6, flexWrap: 'wrap' }}>
                 <SexBadge sex={p.sex} />
                 <span className="badge bot">★ talent {p.talent}</span>
@@ -287,14 +287,32 @@ export function PigeonPage() {
 
               {/* Private coach */}
               <div className="row" style={{ justifyContent: 'space-between', gap: 10, alignItems: 'flex-start' }}>
-                <div>
+                <div style={{ flex: 1, minWidth: 0 }}>
                   <strong>🎯 Privécoach</strong>
                   <div className="faint" style={{ fontSize: '0.85rem' }}>
-                    Geeft élke dag een <strong>vaste</strong> verbetering in snelheid, conditie én oriëntatie (tot 100) plus ervaring — puur om beter te racen, niet voor libido. De groei per dag zie je in <strong>Mijn hok</strong>.
+                    Traint deze duif élke dag in snelheid, conditie én oriëntatie (tot 100) plus ervaring — puur om beter te racen, niet voor libido.
                     {state?.economy && (
                       <> Geen instapkost — enkel <Money value={state.economy.coachSalary} />/dag zolang de coach aan het werk is.</>
                     )}
                   </div>
+                  {state?.economy && p.revealed && (() => {
+                    const eco = state.economy;
+                    const gain = (attr: number | null) =>
+                      Math.round(eco.coachMaxDailyGain * Math.max(0, (eco.coachAttributeCap - (attr ?? 0)) / eco.coachAttributeCap) * 100) / 100;
+                    const gs = gain(p.speed);
+                    const ge = gain(p.endurance);
+                    const go = gain(p.orientation);
+                    return (
+                      <div className="notice" style={{ margin: '8px 0 0', fontSize: '0.82rem', lineHeight: 1.5 }}>
+                        <strong>Voor {p.name} nu:</strong> per dag ± snelheid <strong>+{gs.toFixed(2)}</strong>, conditie{' '}
+                        <strong>+{ge.toFixed(2)}</strong>, oriëntatie <strong>+{go.toFixed(2)}</strong>, ervaring{' '}
+                        <strong>+{eco.coachExpDailyGain.toFixed(2)}</strong>.
+                        <br />
+                        De winst wordt <strong>kleiner naarmate een eigenschap richting 100 gaat</strong>: een jonge/zwakke
+                        duif ontwikkelt snel, een sterke duif verfijnt traag. Zo blijft een uitgetrainde duif een echte prestatie.
+                      </div>
+                    );
+                  })()}
                 </div>
                 {p.coached ? (
                   <button className="btn ghost sm" style={{ flexShrink: 0 }} disabled={busy} onClick={() => setCoach(false)}>Ontslaan</button>

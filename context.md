@@ -621,7 +621,7 @@ Alles hieronder staat **live** op de deploy-branch. Data-migraties liepen door t
 
 **Economie-herbalans (recent)**
 - **Vaste kosten dagelijks** (niet meer wekelijks bij "Volgende week"): `DAILY_UPKEEP_*`,
-  `COACH.dailySalary 36`, ziekenboeg dokter 57 / kinesist 50 / medicatie 6 — in
+  `COACH.dailySalary 80`, ziekenboeg dokter 57 / kinesist 50 / medicatie 6 — in
   `tickDailyCare` via `economy.dailyRunningCost`; sponsorbijdrage dagelijks (weekbedrag/7).
 - Dagopdrachten/streak verlaagd (~€750/week i.p.v. ~€1750). Weddenschap max €500.
   Regionaal prijzengeld verdubbeld. Titan inschrijfgeld €100.
@@ -709,6 +709,43 @@ polls niet telkens de hele wereld herladen. **Structureel:** selectief laden i.p
 - **Trofee-showcase** toont enkel podia van **nu-bezeten** duiven (uit `raceLog`);
   medailletellingen (`loft.stats`) blijven wél volledig. Verkochte/overleden duiven
   vallen uit de trofeeënlijst (niet uit de tellingen).
+
+**Afstand, coach, live-bord, veilingen, dilemma's & sponsors (deze sessie)**
+- **Bredere afstandsvensters** (`FLIGHT_TIERS` in gameConfig): regionaal **0–200 km**,
+  nationaal **200–500 km**, internationaal **400–1200 km** (was 30–160 / 60–290 / 180–950).
+  `tierPool` (schedule.ts): nationaal = BE + buurlanden (geen GB/ES, geen `intlOnly`);
+  internationaal = alles incl. de nieuwe **grote-fond­losplaatsen**. Nieuwe steden in
+  `RACE_CITIES` (Berlijn + `intlOnly`: Lyon, Bordeaux, Toulouse, Marseille, Perpignan,
+  **Barcelona**), nieuw land **`ES`** in `Country`. `pickRoute` filtert nog altijd op
+  `[minKm,maxKm]`, dus de pools hoeven enkel genoeg in-window-paren te bevatten
+  (geverifieerd: regio max ~183 km, nationaal ruim 200–500, internationaal tot ~1150).
+- **Energieverbruik-tabel** in `spelregels.md` §3 herrekend voor de nieuwe afstanden
+  (formule ongewijzigd: `(10 + km/30)·ervaringsfactor + rand(0..10)`); geverifieerd met tsx.
+- **Privécoach-doc gelijkgetrokken met de code** (§13 spelregels + coach-UI): geen
+  instapkost, **€80/dag**, afnemende groei `1,1·(100−attr)/100` per race-eigenschap
+  (+0,5 ervaring/dag), cap 100. De **duifpagina** toont nu de **concrete per-dag-winst
+  voor déze duif** (o.b.v. haar eigen eigenschappen) onder de coach-knop; economy-DTO
+  kreeg `coachMaxDailyGain`/`coachAttributeCap`/`coachExpDailyGain`.
+- **Live-vlucht km/u = echte effectieve snelheid** (`liveSnapshot` in flight.ts): de
+  cosmetische ±5%-wobble is weg; de km/u wordt **op een 5-minutenraster** bemonsterd
+  (`SPEED_STEP_SECONDS = 300`), dus stabiel tussen polls, geen nep-jitter. Posities
+  blijven continu. Lage perf-impact (pure berekening, geen extra werk).
+- **Veiling-countdown live** (`AuctionCard` in MarketPage): zelf-plannende tick (30 s
+  ver weg, **1 s in de laatste 5 min**), `countdownTo(endAt, nowMs)`; bij het sluiten
+  `onExpire → load()+refresh()`. MarketPage pollt bovendien elke 15 s zolang een veiling
+  in haar **slotfase (<6 min)** zit → andermans biedingen + anti-snipe-verlenging
+  verschijnen zonder handmatige refresh.
+- **Meer dilemma's** (`events.ts`): `doping` (💉, boost of boete+ziekte), `inheritance`
+  (📜, **3-keuze**: geld / oude kampioen / jonge belofte — `generatePigeon` met
+  `birthWeek` voor leeftijd), `scout` (🔎, prospect op proef), `poacher` (🦅, incl.
+  **sterftekans**), `charity` (🎗️). Client-modal rendert opties generiek → 3-keuze werkt.
+- **Meer sponsors** (`SPONSORS`): nieuwe categorieën (slagerij, brouwerij, dierenwinkel,
+  bouw, verzekering, telecom, loterij), extra rivalen (café/racing) en een **nieuwe tier 4**;
+  gebruikt nu ook de `seasonPoints`-drempel. Volledig data-driven — DTO's/`sponsorView`
+  slikken elke tier.
+- **Duif-card-breedte**: `.grid.cols-2` valt onder 820px naar één kolom (voorheen bleef de
+  330px-min-track breder dan smalle schermen → horizontale overflow op de duifpagina).
+- Geen datamigratie nodig (enkel config/logica, geen schemawijziging).
 
 ---
 

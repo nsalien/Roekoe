@@ -319,6 +319,10 @@ hr.sep { border: none; border-top: 1px solid var(--border); margin: 16px 0; }
      inset, so the last content is always fully scrollable above the bar. */
   .page { padding-top: 20px; padding-bottom: calc(96px + env(safe-area-inset-bottom, 0px)); }
   .grid.pigeons { grid-template-columns: 1fr; }
+  /* Stack the two-column layout on narrow screens. Without this the 330px min
+     track (auto-fit minmax) stays wider than the viewport, so cards like the
+     pigeon detail overflow horizontally instead of fitting the screen width. */
+  .grid.cols-2 { grid-template-columns: 1fr; }
 
   .bottomnav {
     display: flex;
