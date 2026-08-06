@@ -1053,7 +1053,10 @@ export const EPITHETS = {
 } as const;
 
 // ===========================================================================
-// Live race commentary (dark-ish Flemish humour). {name}/{name2} get filled in.
+// Live race commentary (dark-ish Flemish humour). The feed reports REAL events
+// from the frozen pace profiles — overtakes and their cause — so it tells you
+// something useful, not just jokes. {name} = the bird acting, {name2} = the one
+// it passes, {km} = a rough detour distance (for a strayed bird).
 // ===========================================================================
 export const COMMENTARY = {
   start: [
@@ -1061,32 +1064,62 @@ export const COMMENTARY = {
     'Lossing! De hemel kleurt grijs van de duiven.',
     'En ze zijn vertrokken, zat van de vrijheid.',
   ],
-  leading: [
-    '{name} vliegt op kop alsof de frituur zo sluit.',
-    '{name} leidt de dans en kijkt geen één keer om.',
-    '{name} voorop — de rest mag de veren opeten.',
-    '{name} ruikt de overwinning (of is dat de mestkar?).',
+  // A clean pass, no obvious cause.
+  overtake: [
+    '{name} steekt {name2} voorbij en pakt de plek.',
+    '{name} duikt onder {name2} door — plaats gewonnen.',
+    '{name} wringt zich langs {name2}.',
+    '{name} laat {name2} achter zich en schuift op.',
   ],
-  lagging: [
-    '{name} bengelt achteraan en overweegt een tussenstop bij de frietkot.',
-    '{name} vliegt met de handrem op.',
-    '{name} is even geland om op een standbeeld te schijten.',
-    '{name} twijfelt of dit wel de juiste kant is.',
-    '{name} had misschien beter niet zo veel gegeten voor de start.',
+  // {name} passes {name2} because {name} is accelerating.
+  overtakeSurge: [
+    '{name} zet een tussensprint in en wipt over {name2}.',
+    '{name} versnelt fors en steekt {name2} voorbij.',
+    '{name} vindt een tweede adem en rondt {name2}.',
+    '{name} schakelt een tandje bij en gaat over {name2} heen.',
   ],
-  incident: [
-    'Een sperwer cirkelt boven de groep… iedereen doet plots héél hard zijn best.',
-    '{name} scheert rakelings langs een hoogspanningskabel. Spannend!',
-    '{name} pikt onderweg nog een frietje mee — multitasken heet dat.',
-    'Een kat kijkt hongerig omhoog. {name} versnelt wijselijk.',
-    '{name} vliegt door een zwerm muggen. Gratis eiwitten.',
+  // {name} passes {name2} because {name2} is fading / running out of legs.
+  overtakeTired: [
+    '{name2} zakt weg door vermoeidheid — {name} gaat er moeiteloos over.',
+    '{name2} verliest tempo, {name} glipt voorbij.',
+    '{name2} vliegt plots met de handrem op; {name} neemt de plek over.',
+    '{name2} raakt op, {name} profiteert en steekt voorbij.',
   ],
-  midrace: [
-    '{name} haalt {name2} in! Wat een duel!',
-    '{name} en {name2} vechten om elke meter.',
-    'Halverwege, en {name} ruikt de thuishaven.',
-    '{name} vliegt op routine, sigaar in de snavel.',
-    '{name} laat {name2} het vuile werk in de wind opknappen.',
+  // {name} passes {name2} because {name2} strayed off course (~{km} km detour).
+  overtakeLost: [
+    '{name2} is van koers (~{km} km omweg) — {name} steekt zonder moeite voorbij.',
+    '{name2} dwaalt af en verliest ~{km} km; {name} pikt de plaats in.',
+    '{name2} zoekt de weg kwijt, {name} gaat er vlotjes over.',
+  ],
+  // A pass that takes over the lead of the race.
+  leadChange: [
+    '{name} grijpt de kop! {name2} moet lossen.',
+    'Nieuwe leider: {name} gaat over {name2} heen.',
+    '{name} neemt de leiding over van {name2}.',
+    'Wissel aan de kop — {name} kopt {name2} eraf.',
+  ],
+  // A bird wanders off course (~{km} km extra) and slides down the field.
+  stray: [
+    '{name} twijfelt aan de route en draait een lus — een omweg van ~{km} km, en zakt weg in de stand.',
+    '{name} raakt van koers en vliegt ~{km} km te veel. Kostbare minuten verspeeld.',
+    '{name} verliest het noorden, ~{km} km omweg, en valt terug.',
+  ],
+  // A bird collapses from exhaustion mid-flight (a DNF you can see happen).
+  dnfExhausted: [
+    '{name} valt stil — de tank is leeg. Ze geraakt niet meer thuis.',
+    '{name} strijkt onderweg neer, doodop. Einde vlucht.',
+    '{name} kan niet meer, uitgeput langs de kant. Geen finish.',
+  ],
+  // A bird pulls up injured mid-flight.
+  dnfInjury: [
+    '{name} grijpt naar een vleugel — kramp! Ze moet opgeven.',
+    '{name} plooit door met een blessure en staakt de vlucht.',
+    '{name} loopt een kwetsuur op en komt niet verder.',
+  ],
+  // The owner pulls the bird from the race.
+  pulled: [
+    'De melker roept {name} terug — energie sparen voor de volgende keer.',
+    '{name} wordt uit de wedstrijd gehaald en spaart haar krachten.',
   ],
   finish: [
     '{name} valt in! Klok gedrukt!',

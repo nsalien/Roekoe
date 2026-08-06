@@ -126,6 +126,22 @@ eigenschappen, vorm-van-de-dag en het weer op het stuk dat ze op dat moment vlie
 geen opsmuk. Om het rustig leesbaar te houden **verspringt het cijfer om de ~5
 minuten** in plaats van elke seconde te flikkeren.
 
+**📻 Live verslag.** Het verslag naast het bord is geen willekeurige grap meer: het
+meldt de **échte gebeurtenissen** uit de vlucht, afgeleid uit hoe de duiven vliegen.
+Vooral **wie wie voorbijsteekt** — en, als de reden duidelijk is, **waaróm**:
+- een duif **versnelt** / zet een tussensprint in en gaat erover;
+- een duif **zakt weg** (verliest tempo) en wordt ingehaald;
+- een duif **raakt van koers** en maakt een omweg (met een ruwe **~X km te veel**),
+  waardoor ze fors terugvalt;
+- een duif **valt stil door uitputting** (leeg) of krijgt **kramp/blessure** en geeft
+  onderweg op;
+- de melker **roept een duif terug** (opgeven);
+- **koploperwissels** en de aankomsten.
+
+Twee gelijkwaardige duiven die telkens van plaats wisselen worden even **gedempt**
+(niet elke 10 min dezelfde ruil), behalve bij een koploperwissel of een verdwaalde
+duif — die zijn altijd het vermelden waard.
+
 ### 2.5 Weer
 Het echte windbeeld op de startplaats (Open-Meteo) wordt omgezet naar een factor:
 ```
