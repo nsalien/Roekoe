@@ -308,6 +308,10 @@ export interface SimEntry {
   dnfAtSeconds?: number | null; // it gave out mid-flight at this elapsed time (never finishes)
   dnfKind?: 'exhausted' | 'injury' | null; // why it gave out, for finalize effects
   gaveUpAtSeconds?: number; // elapsed seconds when the owner pulled it (freezes its position)
+  // A wandering-off-course stretch (low orientation). Recorded at release so the
+  // live report can explain a bird sliding down the standings. `atSeconds` = when
+  // it strays; `detourKm` = roughly the extra ground the detour costs it.
+  lost?: { atSeconds: number; detourKm: number } | null;
 }
 
 /**

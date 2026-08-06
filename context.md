@@ -168,6 +168,25 @@ winkans maar haalt geregeld top-5 (van 6). Balansknoppen in `FLIGHT_DYNAMICS`
 `lost*`). Energie wordt nog steeds **geleidelijk** afgetrokken (`tickFlightEnergy`, per
 30 min); opgeven spaart de resterende energie.
 
+**Live verslag = échte gebeurtenissen (`flightCommentary` in `flight.ts`).** Het
+📻-verslag naast het live-bord is geen willekeurige grap meer maar wordt **afgeleid
+uit het bevroren `sim`**: het bemonstert het veld elke `COMMENTARY_INTERVAL_SECONDS`
+(10 min) via `raceProgress` en meldt **wie wie voorbijsteekt** (positiewissels tussen
+twee nog-vliegende duiven), met de **reden** waar die duidelijk is: overtaker
+versnelt (`curMult`>1.15 → `overtakeSurge`), ingehaalde zakt weg (`curMult`<0.8 →
+`overtakeTired`), ingehaalde is **verdwaald** (`SimEntry.lost` actief →
+`overtakeLost`, met ~detourKm), of een **koploperwissel** (`leadChange`). Plus
+eigen-oorzaak-lijnen op hun tijdstip: **van koers** (`stray`, ~X km omweg),
+**uitputting**-DNF (`dnfExhausted`), **kramp/blessure**-DNF (`dnfInjury`), **opgeven**
+(`pulled`) en aankomsten (`finish`). Een blijvend heen-en-weer wisselend paar wordt
+**gedempt** (pair-cooldown van 3 intervallen), behalve bij een koploperwissel of
+verdwaalde duif. Volledig **deterministisch** (geseed op `flight.id`) → stabiel over
+polls, groeit monotoon (elke regel vast tijdstip, gefilterd op `elapsed`). Legacy-
+vluchten zonder pace-profiel vallen netjes terug op enkel start-/finish-lijnen.
+Tekstpools in `gameConfig.COMMENTARY` (categorieën `overtake`/`overtakeSurge`/
+`overtakeTired`/`overtakeLost`/`leadChange`/`stray`/`dnfExhausted`/`dnfInjury`/
+`pulled`/`start`/`finish`).
+
 **Verbeteren schaalt met (zwakte × prestatie)** (`IMPROVE`, `finalizeFlight`): de kans
 dat een duif door een vlucht een eigenschap verbetert = `base·(0.4+room)·(0.5+zwakte·
 weaknessWeight)·(0.6+plaats·0.8)`, met een grotere *gain* voor zwakkere duiven
@@ -279,6 +298,9 @@ Entiteiten: `Pigeon`, `Loft`, `User`, `BreedingPair`, `Flight` (+ `SimEntry`,
   seizoensnummer; `currentWeek` blijft de monotone speelweek (leeftijden/vluchten).
 - `SimEntry.gaveUp?` / `startForm?` / `formCost?` / `formDrained?` — voor opgeven
   en de geleidelijke vlucht-energie-afname.
+- `SimEntry.lost?: { atSeconds, detourKm } | null` — een **verdwaal-stuk** (lage
+  oriëntatie), bij de start bevroren zodat het **live verslag** de reden kan noemen
+  (van koers, ~detourKm km omweg). Rijdt mee in de `sim`-JSON (geen migratie).
 - `Ailment.healed?` (0..1 herstelvoortgang), `lastTickMs?`, `lastUpdateMs?`,
   `updates?` — voor real-time herstel + 12u-statusupdates.
 - `PlayerStats.bets` / `betsWon` / `broods` — voor nieuwe badges/missies.
@@ -416,6 +438,7 @@ Entiteiten: `Pigeon`, `Loft`, `User`, `BreedingPair`, `Flight` (+ `SimEntry`,
   o.a. type **top3**). **Oefenvluchten** krijgen een eigen badge, tonen "gratis" i.p.v.
   inschrijfgeld en hebben geen weddenschap-paneel.
 - `LiveFlightPage` — live bord; knop **🏳️ Opgeven** (spaart resterende energie).
+  Het **📻 Live verslag** meldt nu échte gebeurtenissen (voorbijsteken + reden), zie §2.
 - `InfirmaryPage` (Ziekenboeg) — zieke/gekwetste duiven; dokter/kinesist/medicatievoer;
   **herstelbalk per duif** (`ailment.healed`).
 - `ProfilePage` — hoknaam, **thema-toggle (donker/licht)**, **"Start rondleiding"**.
@@ -527,6 +550,11 @@ Alles hieronder staat **live** op de deploy-branch. Data-migraties liepen door t
 - `finalizeFlight` is **deterministisch** (seeded op vlucht-id) → geen
   tegenstrijdige uitslagen bij gelijktijdige afhandeling; resultaat-/verbeter-/
   blessure-/sponsor-/weddenschapsmeldingen hebben **stabiele id's** (dedupe).
+- **Live verslag toont nu echte info i.p.v. enkel grappen** (`flightCommentary`):
+  wie wie **voorbijsteekt**, met de reden als die duidelijk is (versnellen / wegzakken
+  / **verdwaald ~X km omweg** / uitputting / kramp / opgeven) + koploperwissels en
+  aankomsten. Afgeleid uit het bevroren `sim` (positiesampling per 10 min), gedempt
+  voor oscillerende paren, deterministisch. Nieuw veld `SimEntry.lost`. Zie §2.
 
 **Veilingen**
 - Biedingen in aparte tabel **`auction_bids`** → geen verloren biedingen meer.

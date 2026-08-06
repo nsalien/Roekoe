@@ -215,7 +215,7 @@ function profileDuration(distanceKm: number, velocity: number, segMult: number[]
  */
 function buildPaceProfile(
   flightId: string, pigeon: Pigeon, distanceKm: number, week: number, weatherFactor: number, practice: boolean,
-): { velocity: number; segMult: number[]; durationSeconds: number; dnfAtSeconds: number | null; dnfKind: SimEntry['dnfKind'] } {
+): { velocity: number; segMult: number[]; durationSeconds: number; dnfAtSeconds: number | null; dnfKind: SimEntry['dnfKind']; lost: SimEntry['lost'] } {
   const FD = FLIGHT_DYNAMICS;
   // Seed on the flight id + bird so every flight is a different race, yet the same
   // flight always rebuilds the identical profile (deterministic: live == final,
@@ -257,6 +257,7 @@ function buildPaceProfile(
 
   // Getting lost: low orientation raises the chance; a stretch is flown slowly
   // (wandering off course → real time loss, dramatic drop in the standings).
+  let lost: SimEntry['lost'] = null;
   if (!practice) {
     const lostChance = clamp(
       FD.lostBaseChance + Math.max(0, FD.lostOrientationRef - pigeon.orientation) * FD.lostOrientationK,
@@ -265,8 +266,22 @@ function buildPaceProfile(
     if (rng() < lostChance) {
       const span = Math.round(rf(FD.lostSpanMin, FD.lostSpanMax));
       const startSeg = Math.floor(rng() * Math.max(1, N - span));
+      const endSeg = Math.min(N, startSeg + span);
       const slow = rf(FD.lostSlowMin, FD.lostSlowMax);
-      for (let i = startSeg; i < Math.min(N, startSeg + span); i++) segMult[i] = clamp(segMult[i] * slow, 0.05, 2);
+      for (let i = startSeg; i < endSeg; i++) segMult[i] = clamp(segMult[i] * slow, 0.05, 2);
+      // Record it for the live report: WHEN the bird strays (cumulative time to the
+      // start of the wandering stretch, using the now-final segMult) and roughly how
+      // much extra ground the detour costs — the distance it could have covered in
+      // the time the slow stretch eats up. That gives an honest "~X km te veel".
+      const segDistM = (distanceKm * 1000) / N;
+      let atSecs = 0;
+      for (let i = 0; i < startSeg; i++) {
+        const segSpeed = Math.max(FD.minSegSpeed, velocity * segMult[i]);
+        atSecs += (segDistM / segSpeed) * 60;
+      }
+      const strayKm = (distanceKm / N) * (endSeg - startSeg);
+      const detourKm = Math.max(1, Math.round(strayKm * (1 / slow - 1)));
+      lost = { atSeconds: Math.round(atSecs), detourKm };
     }
   }
 
@@ -284,7 +299,7 @@ function buildPaceProfile(
     if (dnfKind) dnfAtSeconds = Math.round(durationSeconds * rf(FD.dnfEarliestFrac, FD.dnfLatestFrac));
   }
 
-  return { velocity, segMult, durationSeconds, dnfAtSeconds, dnfKind };
+  return { velocity, segMult, durationSeconds, dnfAtSeconds, dnfKind, lost };
 }
 
 /** How far home a bird is at `elapsed` seconds, from its frozen pace profile.
@@ -349,6 +364,7 @@ export function startLiveFlight(flight: Flight, entries: Entry[], week: number, 
       segMult: prof.segMult,
       dnfAtSeconds: prof.dnfAtSeconds,
       dnfKind: prof.dnfKind,
+      lost: prof.lost,
       startForm: e.pigeon.form,
       formCost,
       formDrained: 0,
@@ -743,43 +759,148 @@ export interface CommentLine {
   text: string;
 }
 
-/** Deterministic, growing commentary feed for a live/completed flight. */
+/** One snapshot of the field at an elapsed time, ranked like liveSnapshot. */
+interface RankRow {
+  s: SimEntry;
+  kmDone: number;
+  curMult: number; // pace multiplier of the segment it's flying now
+  finished: boolean;
+  stopped: boolean; // pulled by owner or gave out mid-flight
+}
+
+/**
+ * Deterministic, growing commentary feed for a live/completed flight.
+ *
+ * The feed reports REAL race events derived from the frozen pace profiles rather
+ * than random flavour: who overtakes whom (sampled from the actual positions),
+ * plus the reason when it is clear — a bird surging ahead, a rival fading, one
+ * straying off course (with the rough extra distance), giving out from exhaustion,
+ * cramping up, or being pulled by its owner. Seeded on the flight id so it is
+ * stable across polls, and grows monotonically (each line has a fixed time).
+ */
 export function flightCommentary(flight: Flight, nowMs: number): CommentLine[] {
   if (flight.sim.length === 0) return [];
   const startMs = Date.parse(flight.startAt);
   const elapsed = Math.max(0, (nowMs - startMs) / 1000);
   const total = flightTotalSeconds(flight);
+  const dist = flight.distanceKm;
   const rng = seededRng(hashString(flight.id));
+  const pick = <T>(pool: readonly T[]): T => pickWith(rng, pool);
+  const fill = (tpl: string, a: string, b?: string, km?: number) =>
+    tpl.replace('{name}', a).replace('{name2}', b ?? '').replace('{km}', String(km ?? ''));
 
-  // Likely leaders/laggards by velocity, to make comments feel plausible.
-  const byVel = [...flight.sim].sort((a, b) => b.velocity - a.velocity);
-  const fast = byVel.slice(0, Math.max(1, Math.ceil(byVel.length / 3))).map((s) => s.pigeonName);
-  const slow = byVel.slice(-Math.max(1, Math.ceil(byVel.length / 3))).map((s) => s.pigeonName);
-  const all = flight.sim.map((s) => s.pigeonName);
+  // Rank the field exactly like liveSnapshot at an arbitrary elapsed time.
+  const rankAt = (t: number): RankRow[] =>
+    flight.sim
+      .map((s) => {
+        const { kmDone, finished, stopped, curMult } = raceProgress(s, dist, t);
+        return { s, kmDone, curMult, finished, stopped: stopped || !!s.gaveUp };
+      })
+      .sort((a, b) => {
+        if (a.stopped !== b.stopped) return a.stopped ? 1 : -1;
+        const af = a.finished ? 0 : 1, bf = b.finished ? 0 : 1;
+        if (af !== bf) return af - bf;
+        if (a.finished && b.finished) return a.s.durationSeconds - b.s.durationSeconds;
+        return b.kmDone - a.kmDone;
+      });
 
   const lines: CommentLine[] = [];
-  const fill = (tpl: string, pool: string[]) => {
-    const n1 = pickWith(rng, pool);
-    let n2 = pickWith(rng, all);
-    let guard = 0;
-    while (n2 === n1 && guard++ < 5) n2 = pickWith(rng, all);
-    return tpl.replace('{name}', n1).replace('{name2}', n2);
-  };
 
-  // One line at the start, then a fresh update every 10 real minutes.
-  lines.push({ atSeconds: 0, text: pickWith(rng, COMMENTARY.start) });
-  for (let at = COMMENTARY_INTERVAL_SECONDS; at < total; at += COMMENTARY_INTERVAL_SECONDS) {
-    const r = rng();
-    let text: string;
-    if (r < 0.3) text = fill(pickWith(rng, COMMENTARY.leading), fast);
-    else if (r < 0.55) text = fill(pickWith(rng, COMMENTARY.lagging), slow);
-    else if (r < 0.75) text = fill(pickWith(rng, COMMENTARY.midrace), all);
-    else text = fill(pickWith(rng, COMMENTARY.incident), all);
-    lines.push({ atSeconds: at, text });
+  // Scene-setter + an opening standings line so the reader knows the order.
+  lines.push({ atSeconds: 0, text: pick(COMMENTARY.start) });
+  const opening = rankAt(1);
+  if (opening.length >= 2) {
+    const names = opening.slice(0, 3).map((r) => r.s.pigeonName);
+    const tail = names.length >= 3 ? ` en ${names[2]}` : '';
+    lines.push({ atSeconds: 1, text: `Vroege stand: ${names[0]} op kop, gevolgd door ${names[1]}${tail}.` });
   }
-  // Finishers: a line as each bird comes home.
-  for (const s of byVel) {
-    lines.push({ atSeconds: s.durationSeconds, text: fill(pickWith(rng, COMMENTARY.finish), [s.pigeonName]) });
+
+  // Overtaking: sample the field every interval and report the notable places
+  // that changed hands between two still-airborne birds (a bird flowing past a
+  // stopped/finished rival isn't a duel — those get their own event lines below).
+  const airborne = (r: RankRow) => !r.finished && !r.stopped;
+  // Cooldown so two evenly-matched birds that keep trading places aren't reported
+  // every single interval (pure oscillation reads as padding). A pair is muted for
+  // a few intervals after a pass — unless the pass has a real cause (a lead change
+  // or a rival going off course), which is always worth a line.
+  const PAIR_COOLDOWN = 3;
+  const pairMutedUntil = new Map<string, number>();
+  const pairKey = (x: string, y: string) => (x < y ? `${x}|${y}` : `${y}|${x}`);
+  let prev = rankAt(1);
+  let interval = 0;
+  for (let t = COMMENTARY_INTERVAL_SECONDS; t <= total; t += COMMENTARY_INTERVAL_SECONDS) {
+    interval++;
+    const now = rankAt(t);
+    const prevIdx = new Map(prev.map((r, i) => [r.s.pigeonId, i]));
+    const nowIdx = new Map(now.map((r, i) => [r.s.pigeonId, i]));
+    const rowNow = new Map(now.map((r) => [r.s.pigeonId, r]));
+    const wasAirborne = new Map(prev.map((r) => [r.s.pigeonId, airborne(r)]));
+
+    // For each riser, the single biggest scalp it took this interval.
+    type Pass = { a: RankRow; b: RankRow; climb: number };
+    const passes: Pass[] = [];
+    for (const a of now) {
+      if (!airborne(a) || !wasAirborne.get(a.s.pigeonId)) continue;
+      const aNow = nowIdx.get(a.s.pigeonId)!, aPrev = prevIdx.get(a.s.pigeonId)!;
+      if (aNow >= aPrev) continue; // didn't move up
+      let scalp: RankRow | null = null, scalpPrev = -1;
+      for (const b of now) {
+        if (b === a || !airborne(b) || !wasAirborne.get(b.s.pigeonId)) continue;
+        const bNow = nowIdx.get(b.s.pigeonId)!, bPrev = prevIdx.get(b.s.pigeonId)!;
+        if (bPrev < aPrev && bNow > aNow && bPrev > scalpPrev) { scalp = b; scalpPrev = bPrev; }
+      }
+      if (scalp) passes.push({ a, b: scalp, climb: aPrev - aNow });
+    }
+
+    // Keep the two most significant, no bird reused within the interval.
+    passes.sort((x, y) => y.climb - x.climb || x.a.s.pigeonId.localeCompare(y.a.s.pigeonId));
+    const used = new Set<string>();
+    let emitted = 0;
+    for (const p of passes) {
+      if (emitted >= 2) break;
+      if (used.has(p.a.s.pigeonId) || used.has(p.b.s.pigeonId)) continue;
+      const A = rowNow.get(p.a.s.pigeonId)!, B = rowNow.get(p.b.s.pigeonId)!;
+      const bLost = B.s.lost && t >= B.s.lost.atSeconds && B.curMult < 0.95;
+      const isLead = nowIdx.get(A.s.pigeonId) === 0;
+      const key = pairKey(A.s.pigeonId, B.s.pigeonId);
+      const strongCause = isLead || bLost;
+      if (!strongCause && interval < (pairMutedUntil.get(key) ?? 0)) continue;
+      used.add(p.a.s.pigeonId); used.add(p.b.s.pigeonId);
+      pairMutedUntil.set(key, interval + PAIR_COOLDOWN);
+      emitted++;
+      let text: string;
+      if (isLead) {
+        text = fill(pick(COMMENTARY.leadChange), A.s.pigeonName, B.s.pigeonName);
+      } else if (bLost) {
+        text = fill(pick(COMMENTARY.overtakeLost), A.s.pigeonName, B.s.pigeonName, B.s.lost!.detourKm);
+      } else if (B.curMult < 0.8) {
+        text = fill(pick(COMMENTARY.overtakeTired), A.s.pigeonName, B.s.pigeonName);
+      } else if (A.curMult > 1.15) {
+        text = fill(pick(COMMENTARY.overtakeSurge), A.s.pigeonName, B.s.pigeonName);
+      } else {
+        text = fill(pick(COMMENTARY.overtake), A.s.pigeonName, B.s.pigeonName);
+      }
+      lines.push({ atSeconds: t, text });
+    }
+    prev = now;
+  }
+
+  // Event lines with a clear cause, at the moment they happen.
+  for (const s of flight.sim) {
+    if (s.lost) lines.push({ atSeconds: s.lost.atSeconds, text: fill(pick(COMMENTARY.stray), s.pigeonName, undefined, s.lost.detourKm) });
+    if (s.dnfAtSeconds != null) {
+      const pool = s.dnfKind === 'injury' ? COMMENTARY.dnfInjury : COMMENTARY.dnfExhausted;
+      lines.push({ atSeconds: s.dnfAtSeconds, text: fill(pick(pool), s.pigeonName) });
+    }
+    if (s.gaveUp && s.gaveUpAtSeconds != null) {
+      lines.push({ atSeconds: s.gaveUpAtSeconds, text: fill(pick(COMMENTARY.pulled), s.pigeonName) });
+    }
+  }
+
+  // Finishers: a line as each bird that actually makes it home clocks in.
+  for (const s of flight.sim) {
+    if (s.gaveUp || s.dnfAtSeconds != null || s.durationSeconds > total + 0.5) continue;
+    lines.push({ atSeconds: s.durationSeconds, text: fill(pick(COMMENTARY.finish), s.pigeonName) });
   }
 
   return lines
