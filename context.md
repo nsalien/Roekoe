@@ -765,11 +765,14 @@ polls niet telkens de hele wereld herladen. **Structureel:** selectief laden i.p
   breken af) + `.grid.cols-2` → 1 kolom onder 820px. `PigeonPage`-naamblok kreeg
   `flex:1; min-width:0; overflow-wrap:anywhere`. (Enkel de kolom naar 1fr zetten was niet
   genoeg — vandaar dat het eerst erger leek.)
-- **Card-breedte deel 2 (statgrid)**: de **3-koloms statgrid** in `PigeonCard` (inline
-  `1fr 1fr 1fr`, dus NIET de `.grid`-class) liep nog over op smalle schermen — "Oriëntatie"
-  viel rechts weg. Fix in `global.css`: `.stat { min-width: 0 }` (items krimpen tot de
-  1fr-track) + `.stat-top { flex-wrap: wrap }` (waarde wipt onder het label bij een krappe
-  kolom). Geldt ook voor de 2-koloms statblokken.
+- **Card-breedte deel 2+3 (statgrid)**: de **statgrid** in `PigeonCard` (inline grid, NIET
+  de `.grid`-class) liep over op smalle schermen zodra álle drie de bovenste stats een
+  `+delta` kregen — "Oriëntatie …" viel dan rechts weg. `global.css`: `.stat { min-width: 0 }`
+  + `.stat-top { flex-wrap: wrap }`. **Definitief kogelvrij** gemaakt door de inline
+  kolomdefinities van `1fr 1fr 1fr` / `1fr 1fr` naar **`repeat(3|2, minmax(0, 1fr))`** te
+  zetten: `minmax(0,1fr)` dwingt het track-minimum op 0 (los van item-`min-width`), dus de
+  kolommen zijn altijd exacte breuken van de kaart en de inhoud breekt binnen de cel af.
+  (Was zichtbaar hardnekkig door **browsercache** — geen service worker; harde refresh nodig.)
 - **Schemawijziging**: `SponsorState.lastOfferAt?` (rijdt mee in de `sponsorship`-JSON,
   geen kolom nodig). Datamigratie **v19** wist openstaande sponsoraanbiedingen. Verder
   config/logica/CSS.
