@@ -474,6 +474,9 @@ export function giveUpFlight(store: Store, userId: string, flightId: string, pig
     if (!entry) return 'Duif niet gevonden in deze vlucht';
     if (entry.gaveUp) return 'Deze duif is al opgegeven';
     entry.gaveUp = true;
+    // Freeze where it was when pulled, so the live board shows it stop there.
+    const startMs = flight.startAt ? Date.parse(flight.startAt) : NaN;
+    if (!Number.isNaN(startMs)) entry.gaveUpAtSeconds = Math.max(0, (Date.now() - startMs) / 1000);
     return null;
   });
 }

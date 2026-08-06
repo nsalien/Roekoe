@@ -13,6 +13,7 @@ import {
   DISTANCE_WEIGHTING,
   ENERGIE_IMPACT,
   FLIGHT_CUTOFF_MINUTES,
+  FLIGHT_DYNAMICS,
   FLIGHT_FATIGUE,
   FLIGHT_RISK,
   HEALTH,
@@ -26,7 +27,7 @@ import {
   TITAN,
   TOURNEY_RISK,
 } from '../config/gameConfig.js';
-import type { Ailment, Flight, FlightResult, Loft, Pigeon } from '../schema.js';
+import type { Ailment, Flight, FlightResult, Loft, Pigeon, SimEntry } from '../schema.js';
 import { ageMultiplier } from './pigeon.js';
 import { applyAilment, randomAilmentOfSeverity, randomInjury } from './health.js';
 import { randomWeather, type WeatherResult } from './weather.js';
@@ -194,21 +195,140 @@ export interface SimulatedFlight {
   deaths: { pigeonId: string; ownerId: string; pigeonName: string }[];
 }
 
+/** Total time (s) to fly `distanceKm` given a per-segment speed profile. */
+function profileDuration(distanceKm: number, velocity: number, segMult: number[]): number {
+  const segDistM = (distanceKm * 1000) / segMult.length;
+  let secs = 0;
+  for (const m of segMult) {
+    const segSpeed = Math.max(FLIGHT_DYNAMICS.minSegSpeed, velocity * m);
+    secs += (segDistM / segSpeed) * 60;
+  }
+  return secs;
+}
+
 /**
- * Start a scheduled flight: apply the weather, freeze each pigeon's velocity and
- * its REAL homing duration, and flip the flight to `live`. Positions are derived
- * from this frozen `sim` for the rest of the race.
+ * Build one bird's frozen pace profile: its effective (form-of-the-day + weather)
+ * velocity, a sequence of per-segment speed multipliers (so it speeds up/slows
+ * down and overtakes others), an optional getting-lost stretch, and — for real
+ * races — whether it gives out mid-flight (a DNF you can watch happen). Seeded on
+ * the flight id + pigeon id, so it is deterministic and live == final.
+ */
+function buildPaceProfile(
+  flightId: string, pigeon: Pigeon, distanceKm: number, week: number, weatherFactor: number, practice: boolean,
+): { velocity: number; segMult: number[]; durationSeconds: number; dnfAtSeconds: number | null; dnfKind: SimEntry['dnfKind'] } {
+  const FD = FLIGHT_DYNAMICS;
+  // Seed on the flight id + bird so every flight is a different race, yet the same
+  // flight always rebuilds the identical profile (deterministic: live == final,
+  // and a concurrent re-finalize can't diverge).
+  const rng = seededRng(hashString('prof:' + flightId + ':' + pigeon.id));
+  const rf = (a: number, b: number) => a + (b - a) * rng();
+
+  // Attribute-driven baseline (weather handled per-bird below, so pass 1.0).
+  const baseVel = pigeonVelocity(pigeon, distanceKm, week, 1, 1);
+
+  // Form of the day: everyday swing, plus rarer great / off days for upsets.
+  let dayFactor = 1 + (rng() * 2 - 1) * FD.dayNoise;
+  if (rng() < FD.bigDayChance) dayFactor *= rf(FD.bigDayMin, FD.bigDayMax);
+  else if (rng() < FD.offDayChance) dayFactor *= rf(FD.offDayMin, FD.offDayMax);
+
+  // Weather affects birds differently: rough weather (factor<1) hurts some more;
+  // a tailwind (factor>1) helps some more.
+  const rough = Math.max(0, 1 - weatherFactor);
+  const tail = Math.max(0, weatherFactor - 1);
+  const sensitivity = 0.5 + rng() * FD.weatherSpread;
+  const weatherMult = clamp(1 - rough * sensitivity + tail * (0.5 + rng()), 0.4, 1.35);
+
+  const velocity = round1(Math.max(FD.minSegSpeed, baseVel * dayFactor * weatherMult));
+
+  // Per-segment pacing: the source of live overtaking.
+  const N = FD.segments;
+  const segMult: number[] = [];
+  for (let i = 0; i < N; i++) {
+    let m = 1 + (rng() * 2 - 1) * FD.segSpread;
+    if (rng() < FD.surgeChance) m *= rf(FD.surgeMin, FD.surgeMax);
+    segMult.push(clamp(m, 0.1, 2));
+  }
+  // Normalise so the pacing does NOT change the finish time (Σ 1/m = N): the
+  // segments only reshuffle positions mid-race, they don't make a race random.
+  // The finish order is set by `velocity` (attributes + form-of-day + weather)
+  // and the getting-lost penalty applied AFTER this.
+  const invAvg = segMult.reduce((sum, m) => sum + 1 / m, 0) / N;
+  for (let i = 0; i < N; i++) segMult[i] = segMult[i] * invAvg;
+
+  // Getting lost: low orientation raises the chance; a stretch is flown slowly
+  // (wandering off course → real time loss, dramatic drop in the standings).
+  if (!practice) {
+    const lostChance = clamp(
+      FD.lostBaseChance + Math.max(0, FD.lostOrientationRef - pigeon.orientation) * FD.lostOrientationK,
+      0, FD.lostMaxChance,
+    );
+    if (rng() < lostChance) {
+      const span = Math.round(rf(FD.lostSpanMin, FD.lostSpanMax));
+      const startSeg = Math.floor(rng() * Math.max(1, N - span));
+      const slow = rf(FD.lostSlowMin, FD.lostSlowMax);
+      for (let i = startSeg; i < Math.min(N, startSeg + span); i++) segMult[i] = clamp(segMult[i] * slow, 0.05, 2);
+    }
+  }
+
+  const durationSeconds = Math.max(MIN_FLIGHT_SECONDS, Math.round(profileDuration(distanceKm, velocity, segMult)));
+
+  // Giving out mid-flight (only real races). Exhaustion scales with low start
+  // energie; a small injury chance rises in rough weather.
+  let dnfAtSeconds: number | null = null;
+  let dnfKind: SimEntry['dnfKind'] = null;
+  if (!practice) {
+    const exhaustChance = clamp((FLIGHT_RISK.dnfFormThreshold - pigeon.form) / FLIGHT_RISK.dnfFormThreshold, 0, FLIGHT_RISK.dnfMaxChance);
+    const injuryChance = FD.injuryDnfBase + rough * FD.injuryDnfWeatherBonus;
+    if (rng() < exhaustChance) dnfKind = 'exhausted';
+    else if (rng() < injuryChance) dnfKind = 'injury';
+    if (dnfKind) dnfAtSeconds = Math.round(durationSeconds * rf(FD.dnfEarliestFrac, FD.dnfLatestFrac));
+  }
+
+  return { velocity, segMult, durationSeconds, dnfAtSeconds, dnfKind };
+}
+
+/** How far home a bird is at `elapsed` seconds, from its frozen pace profile.
+ *  Stops (freezes) at a mid-flight DNF or the moment its owner pulled it. */
+function raceProgress(s: SimEntry, distanceKm: number, elapsed: number): {
+  kmDone: number; finished: boolean; stopped: boolean; curMult: number;
+} {
+  const seg = s.segMult;
+  const stopAt = s.gaveUpAtSeconds ?? (s.dnfAtSeconds ?? Infinity);
+  const tEff = Math.min(Math.max(0, elapsed), stopAt);
+  if (!seg || seg.length === 0) {
+    // Legacy flight (pre-profile): constant velocity fallback.
+    const prog = clamp(tEff / s.durationSeconds, 0, 1);
+    return { kmDone: round1(distanceKm * prog), finished: !s.gaveUp && elapsed >= s.durationSeconds, stopped: false, curMult: 1 };
+  }
+  const N = seg.length;
+  const segDistM = (distanceKm * 1000) / N;
+  let tAcc = 0, kmM = 0, curMult = seg[N - 1];
+  for (let i = 0; i < N; i++) {
+    const segSpeed = Math.max(FLIGHT_DYNAMICS.minSegSpeed, s.velocity * seg[i]);
+    const segTime = (segDistM / segSpeed) * 60;
+    if (tEff >= tAcc + segTime) { kmM += segDistM; tAcc += segTime; continue; }
+    kmM += segDistM * clamp((tEff - tAcc) / segTime, 0, 1);
+    curMult = seg[i];
+    break;
+  }
+  const kmDone = round1(Math.min(distanceKm, kmM / 1000));
+  const stopped = !!s.gaveUp || (s.dnfAtSeconds != null && elapsed >= s.dnfAtSeconds);
+  const finished = !stopped && elapsed >= s.durationSeconds;
+  return { kmDone, finished, stopped, curMult };
+}
+
+/**
+ * Start a scheduled flight: apply the weather, freeze each pigeon's VARYING pace
+ * profile (see buildPaceProfile) and its resulting homing duration, and flip the
+ * flight to `live`. Positions for the rest of the race are derived from this
+ * frozen `sim`, so birds overtake and the final result matches the live board.
  */
 export function startLiveFlight(flight: Flight, entries: Entry[], week: number, weather?: WeatherResult): void {
   const w = weather ?? randomWeather();
   flight.weather = w.label;
   flight.weatherFactor = w.factor;
   flight.sim = entries.map((e) => {
-    const luck = randFloat(0.9, 1.1);
-    const velocity = pigeonVelocity(e.pigeon, flight.distanceKm, week, w.factor, luck);
-    // Real homing time: distance / speed. A ~72 km/h bird over 300 km ≈ 4 hours.
-    const realSeconds = ((flight.distanceKm * 1000) / velocity) * 60;
-    const durationSeconds = Math.max(MIN_FLIGHT_SECONDS, Math.round(realSeconds));
+    const prof = buildPaceProfile(flight.id, e.pigeon, flight.distanceKm, week, w.factor, !!flight.practice);
     // Freeze the total energie this bird spends flying the full route. It is
     // drained gradually during the race (tickFlightEnergy), so a bird pulled
     // out mid-flight has already paid for the distance it covered. An oefenvlucht
@@ -224,8 +344,11 @@ export function startLiveFlight(flight: Flight, entries: Entry[], week: number, 
       pigeonName: e.pigeon.name,
       ownerId: e.pigeon.ownerId,
       ownerName: e.ownerName,
-      velocity,
-      durationSeconds,
+      velocity: prof.velocity,
+      durationSeconds: prof.durationSeconds,
+      segMult: prof.segMult,
+      dnfAtSeconds: prof.dnfAtSeconds,
+      dnfKind: prof.dnfKind,
       startForm: e.pigeon.form,
       formCost,
       formDrained: 0,
@@ -241,8 +364,15 @@ export function startLiveFlight(flight: Flight, entries: Entry[], week: number, 
  * their owner (gaveUp) don't count toward the timing.
  */
 export function flightTotalSeconds(flight: Flight): number {
-  const durations = flight.sim.filter((s) => !s.gaveUp).map((s) => s.durationSeconds);
-  if (durations.length === 0) return 1;
+  // Only birds that actually finish set the clock: a pulled bird (gaveUp) or one
+  // that gives out mid-flight (dnfAtSeconds) never comes home.
+  const durations = flight.sim.filter((s) => !s.gaveUp && s.dnfAtSeconds == null).map((s) => s.durationSeconds);
+  if (durations.length === 0) {
+    // Nobody finishes — fall back to the slowest scheduled duration so the race
+    // still ends in bounded time.
+    const all = flight.sim.map((s) => s.durationSeconds);
+    return all.length ? Math.max(1, Math.min(...all)) : 1;
+  }
   const first = Math.min(...durations);
   const slowest = Math.max(...durations);
   return Math.max(1, Math.min(slowest, first + FLIGHT_CUTOFF_MINUTES * 60));
@@ -282,29 +412,30 @@ export function finalizeFlight(flight: Flight, pigeons: Pigeon[]): SimulatedFlig
   const rng = seededRng(hashString(flight.id + ':finalize'));
   const rf = (a: number, b: number) => a + (b - a) * rng();
 
-  // Decide who makes it home. Three ways to NOT finish: pulled by the owner
-  // (gaveUp), timed out past the cutoff, or exhausted (very low energie).
+  // Who makes it home. Ways to NOT finish, all decided at RELEASE (frozen in the
+  // sim) so the live board and this result always agree: pulled by the owner
+  // (gaveUp), gave out mid-flight (dnfAtSeconds — exhaustion or injury), or timed
+  // out past the cutoff. `exhausted` = the DNFs that leave a bird strung out
+  // (everything except a clean injury), which raises its injury risk below.
   const total = flightTotalSeconds(flight);
-  const exhausted = new Set<string>();
-  const timedOut = new Set<string>();
   const gaveUpSet = new Set<string>();
+  const timedOut = new Set<string>();
+  const gaveOut = new Set<string>();
+  const exhausted = new Set<string>();
   for (const s of flight.sim) {
     if (s.gaveUp) { gaveUpSet.add(s.pigeonId); continue; }
-    if (s.durationSeconds > total + 0.5) { timedOut.add(s.pigeonId); continue; }
-    const pigeon = pigeons.find((p) => p.id === s.pigeonId);
-    // Use the energie the bird had at release, not the value already drained
-    // down during the flight, so the DNF chance reflects how it started out.
-    const startForm = s.startForm ?? (pigeon ? pigeon.form : 50);
-    const dnfChance = clamp(
-      (FLIGHT_RISK.dnfFormThreshold - startForm) / FLIGHT_RISK.dnfFormThreshold,
-      0,
-      FLIGHT_RISK.dnfMaxChance,
-    );
-    if (pigeon && rng() < dnfChance) exhausted.add(s.pigeonId);
+    if (s.dnfAtSeconds != null) {
+      gaveOut.add(s.pigeonId);
+      if (s.dnfKind !== 'injury') exhausted.add(s.pigeonId);
+      continue;
+    }
+    if (s.durationSeconds > total + 0.5) { timedOut.add(s.pigeonId); exhausted.add(s.pigeonId); }
   }
-  const isDnfId = (id: string) => exhausted.has(id) || timedOut.has(id) || gaveUpSet.has(id);
+  const isDnfId = (id: string) => gaveUpSet.has(id) || timedOut.has(id) || gaveOut.has(id);
+  // How far a non-finisher actually got (for ordering the tail of the field).
+  const reachedKm = (s: SimEntry) => raceProgress(s, flight.distanceKm, s.dnfAtSeconds ?? total).kmDone;
   const finishers = flight.sim.filter((s) => !isDnfId(s.pigeonId)).sort((a, b) => a.durationSeconds - b.durationSeconds);
-  const nonFinishers = flight.sim.filter((s) => isDnfId(s.pigeonId));
+  const nonFinishers = flight.sim.filter((s) => isDnfId(s.pigeonId)).sort((a, b) => reachedKm(b) - reachedKm(a));
   const ordered = [...finishers, ...nonFinishers];
   const n = finishers.length;
 
@@ -320,7 +451,9 @@ export function finalizeFlight(flight: Flight, pigeons: Pigeon[]): SimulatedFlig
       pigeonName: s.pigeonName,
       ownerId: s.ownerId,
       ownerName: s.ownerName,
-      velocity: isDnf ? 0 : s.velocity,
+      // Realized average speed over the whole route (reflects the varied pacing),
+      // so the km/h shown matches the finish time.
+      velocity: isDnf ? 0 : round1(((flight.distanceKm * 1000) / s.durationSeconds) * 60),
       timeSeconds: isDnf ? 0 : s.durationSeconds,
       rank,
       points,
@@ -404,6 +537,8 @@ export function finalizeFlight(flight: Flight, pigeons: Pigeon[]): SimulatedFlig
         : 0;
       let perBirdInjury = gaveUp ? 0 : injuryChance * (1 + (100 - startForm) / 100) + lowEnergie;
       if (exhausted.has(s.pigeonId)) perBirdInjury = Math.max(perBirdInjury, 0.8);
+      // A bird that gave out from an injury mid-flight is (almost) certainly hurt.
+      if (gaveOut.has(s.pigeonId) && s.dnfKind === 'injury') perBirdInjury = Math.max(perBirdInjury, 0.95);
       let hurt = false;
       if (!died && !pigeon.ailment && rng() < clamp(perBirdInjury, 0, 0.95)) {
         injuries.push({
@@ -528,51 +663,57 @@ export interface LiveSnapshot {
   birds: LiveBird[];
 }
 
-/** Compute the live positions of every bird from the frozen sim + elapsed time. */
+/** Compute the live positions of every bird from the frozen pace profile + time.
+ *  Standings are ranked by distance actually covered, so birds overtake each other
+ *  as the race unfolds; at the finish this collapses to the final order (finishers
+ *  by time, the rest by how far they got). */
 export function liveSnapshot(flight: Flight, nowMs: number): LiveSnapshot {
   const startMs = Date.parse(flight.startAt);
   const elapsed = Math.max(0, (nowMs - startMs) / 1000);
   const total = flightTotalSeconds(flight);
+  const dist = flight.distanceKm;
+  // Freeze the board at the finish once the race is over (its replay must show the
+  // final standings): a bird past the cutoff (durationSeconds > total) then stays a
+  // non-finisher, exactly as finalizeFlight records it.
+  const view = Math.min(elapsed, total);
 
-  // Rank every bird by its (frozen) finish time — pulled birds (gaveUp) last.
-  // A bird that has crossed the line always has durationSeconds <= elapsed, while
-  // a still-flying bird has durationSeconds > elapsed, so finishers automatically
-  // sit ahead of flyers. This order is stable for the whole race AND matches the
-  // final result order, so a bird no longer jumps to the back the moment others
-  // start arriving.
-  const ordered = [...flight.sim].sort((a, b) => {
-    const ag = a.gaveUp ? 1 : 0;
-    const bg = b.gaveUp ? 1 : 0;
-    if (ag !== bg) return ag - bg;
-    return a.durationSeconds - b.durationSeconds;
-  });
-
-  const birds: LiveBird[] = ordered.map((s) => {
+  const rows = flight.sim.map((s) => {
     const gaveUp = !!s.gaveUp;
-    const progress = clamp(elapsed / s.durationSeconds, 0, 1);
-    const finished = !gaveUp && elapsed >= s.durationSeconds;
-    const kmDone = round1(flight.distanceKm * progress);
-    // A realistic-looking km/h with a gentle live wobble.
+    const { kmDone, finished, stopped, curMult } = raceProgress(s, dist, view);
+    const moving = !finished && !gaveUp && !stopped;
+    // Live km/h from the CURRENT segment (so the number visibly rises and falls),
+    // with a gentle wobble.
     const wobble = 1 + 0.05 * Math.sin(elapsed / 6 + (hashString(s.pigeonId) % 100) / 15);
-    const speedKmh = finished || gaveUp ? 0 : round1(s.velocity * 0.06 * wobble);
-    return {
+    const speedKmh = moving ? round1(s.velocity * curMult * 0.06 * wobble) : 0;
+    const bird: LiveBird = {
       pigeonId: s.pigeonId,
       pigeonName: s.pigeonName,
       ownerId: s.ownerId,
       ownerName: s.ownerName,
       kmDone,
-      kmTotal: flight.distanceKm,
-      kmRemaining: round1(Math.max(0, flight.distanceKm - kmDone)),
+      kmTotal: dist,
+      kmRemaining: round1(Math.max(0, dist - kmDone)),
       speedKmh,
-      progress,
+      progress: clamp(kmDone / dist, 0, 1),
       finished,
-      gaveUp,
-      etaSeconds: finished ? 0 : Math.round(s.durationSeconds - elapsed),
+      gaveUp: gaveUp || stopped, // a bird that gave out is shown as out of the race
+      etaSeconds: finished || !moving ? 0 : Math.round(Math.max(0, s.durationSeconds - elapsed)),
       liveRank: 0,
     };
+    return { bird, finishTime: s.durationSeconds, out: gaveUp || stopped };
   });
 
-  birds.forEach((b, i) => (b.liveRank = i + 1));
+  // Rank: pulled/stopped birds last; then finishers ahead of flyers; finishers by
+  // actual finish time; flyers by distance covered (furthest = leading → live
+  // overtaking). At the finish this equals finalizeFlight's ordering.
+  rows.sort((a, b) => {
+    if (a.out !== b.out) return a.out ? 1 : -1;
+    const af = a.bird.finished ? 0 : 1, bf = b.bird.finished ? 0 : 1;
+    if (af !== bf) return af - bf;
+    if (a.bird.finished && b.bird.finished) return a.finishTime - b.finishTime;
+    return b.bird.kmDone - a.bird.kmDone;
+  });
+  const birds = rows.map((r, i) => { r.bird.liveRank = i + 1; return r.bird; });
 
   return {
     status: flight.status,
