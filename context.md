@@ -96,10 +96,11 @@ krijgen.**
 volgorde:
 1. `runDataMigrations(db)` — eenmalige datafixes, **gated op `world.dataVersion`**
    (staat nu op **20**; nieuwe migratie = nieuw `if ((db.world.dataVersion ?? 0) < N)`
-   blok + `db.world.dataVersion = N`). v20 **her-routeert bestaande geplande vluchten**
-   waarvan de afstand buiten het (verbrede) tier-venster valt (regio 0–200 / nat 200–500 /
-   intl 400–1200 km) via `pickRoute`; live/afgewerkte vluchten, titans en vluchten met een
-   lopende weddenschap blijven ongemoeid. v19 wist oude openstaande sponsoraanbiedingen;
+   blok + `db.world.dataVersion = N`). v20 corrigeert enkel geplande vluchten **met een
+   echte-speler-inschrijving** waarvan de afstand buiten het (verbrede) tier-venster valt
+   (regio 0–200 / nat 200–500 / intl 400–1200 km) via `pickRoute`; alle andere geplande
+   vluchten **behouden hun oorspronkelijke lengte**, live/afgewerkte vluchten en titans
+   blijven ongemoeid. v19 wist oude openstaande sponsoraanbiedingen;
    v18 backfilt `Pigeon.raceLog` uit bestaande
    vluchthistorie vóór de eerste prune (zie §Performance).
 2. `ensureFlightsScheduled(db, nowMs)` — plant vluchten volgens `REAL_SCHEDULE`.
@@ -751,12 +752,13 @@ polls niet telkens de hele wereld herladen. **Structureel:** selectief laden i.p
   **Barcelona**), nieuw land **`ES`** in `Country`. `pickRoute` filtert nog altijd op
   `[minKm,maxKm]`, dus de pools hoeven enkel genoeg in-window-paren te bevatten
   (geverifieerd: regio max ~183 km, nationaal ruim 200–500, internationaal tot ~1150).
-  **Migratie v20**: bestaande **geplande** vluchten die nog onder de oude, smallere
-  vensters geplaatst waren en nu buiten hun tier-venster vallen, worden **her-routeerd**
-  via `pickRoute` (afstand terug in het venster; `type`/naam/inschrijfgeld herzet).
-  Live/afgewerkte vluchten (bevroren `sim`), titans (eigen bereik) en vluchten met een
-  lopende weddenschap blijven ongemoeid. Geverifieerd: `pickRoute` levert 100% in-window
-  afstanden per tier.
+  **Migratie v20**: bestaande **geplande** vluchten behouden hun **oorspronkelijke
+  lengte** — we schudden de kalender niet door elkaar. Enkel een geplande vlucht met een
+  **echte-speler-inschrijving** waarvan de afstand buiten haar tier-venster valt, wordt
+  **her-routeerd** via `pickRoute` (afstand terug in het venster; `type`/naam/inschrijfgeld
+  herzet). Bot-only/lege geplande vluchten, live/afgewerkte vluchten (bevroren `sim`) en
+  titans blijven ongemoeid; nieuwe vluchten krijgen sowieso de nieuwe afstanden.
+  Geverifieerd: `pickRoute` levert 100% in-window afstanden per tier.
 - **Energieverbruik-tabel** in `spelregels.md` §3 herrekend voor de nieuwe afstanden
   (formule ongewijzigd: `(10 + km/30)·ervaringsfactor + rand(0..10)`); geverifieerd met tsx.
 - **Privécoach-doc gelijkgetrokken met de code** (§13 spelregels + coach-UI): geen

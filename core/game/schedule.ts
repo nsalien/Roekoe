@@ -828,16 +828,17 @@ function runDataMigrations(db: Database): void {
   }
   if ((db.world.dataVersion ?? 0) < 20) {
     // The distance windows were widened (regional 0–200, national 200–500,
-    // international 400–1200 km). Flights that were already on the calendar were
-    // routed under the old, narrower windows, so many now sit OUTSIDE their tier's
-    // current range. Re-route each still-SCHEDULED flight whose distance falls
-    // outside its tier window so the calendar matches the new distances. Left
-    // untouched: live/completed flights (their sim is frozen on the old distance),
-    // titans (their own fixed range), and flights someone already has bets on (the
-    // odds were computed for the current distance — don't move the goalposts).
-    const betFlightIds = new Set(db.bets.map((b) => b.flightId));
+    // international 400–1200 km). Flights already on the calendar keep their
+    // ORIGINAL length — we don't reshuffle the whole calendar. We only correct a
+    // still-SCHEDULED flight whose distance sits outside its tier's new window AND
+    // that a REAL player has already entered a pigeon in (those are the ones that
+    // matter). Bot-only or empty scheduled flights, live/completed flights (their
+    // sim is frozen on the old distance) and titans (their own fixed range) are
+    // left exactly as they are; new flights are routed with the new distances.
+    const humanIds = new Set(db.lofts.filter((l) => !l.isBot).map((l) => l.userId));
     for (const f of db.flights) {
-      if (f.status !== 'scheduled' || f.titan || betFlightIds.has(f.id)) continue;
+      if (f.status !== 'scheduled' || f.titan) continue;
+      if (!f.entries.some((e) => humanIds.has(e.ownerId))) continue; // no real-player bird entered
       const tier: FlightTier =
         f.type === 'regional' || f.type === 'national' || f.type === 'international'
           ? f.type
