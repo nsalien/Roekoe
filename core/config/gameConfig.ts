@@ -86,8 +86,13 @@ export const COACH = {
   // €57/day) because that growth is permanent; no barrier to start, but €60/day
   // per bird is a real recurring choice that scales with how many you coach.
   hireCost: 0, // deprecated: coaching has no one-time cost anymore
-  dailySalary: 60, // per coached pigeon, charged automatically each day
-  dailyGain: 0.35, // per racing attribute, per day
+  dailySalary: 80, // per coached pigeon, charged automatically each day
+  // Daily attribute gain DIMINISHES as the bird nears the cap:
+  //   gain(attr) = maxDailyGain · (attributeCap − attr) / attributeCap
+  // So a coach quickly develops a weak/young bird (~+0.55/day around 50) but only
+  // slowly perfects a strong one (~+0.11/day around 90) — a maxed bird stays a
+  // real achievement, and training/racing keep mattering at the low end.
+  maxDailyGain: 1.1, // gain per racing attribute at attribute 0 (scaled down by room)
   experienceDailyGain: 0.5,
   attributeCap: 100, // coaches can push all the way to the maximum
 } as const;
