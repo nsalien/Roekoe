@@ -108,6 +108,50 @@ export const FLIGHT_RISK = {
 } as const;
 
 /**
+ * What makes a live race unpredictable and worth watching. At release each bird
+ * gets a FROZEN but VARYING pace profile (a sequence of per-segment speed
+ * multipliers) plus a form-of-the-day, weather sensitivity and possible events
+ * (getting lost, giving out mid-flight). Positions are derived from this profile
+ * over time, so birds genuinely overtake each other and an off day can sink a
+ * favourite — while attributes still set the baseline, so the best usually win.
+ * All of it is seeded on the flight id, so it stays deterministic (live == final).
+ */
+export const FLIGHT_DYNAMICS = {
+  // Per-segment pacing is NORMALISED so it does not change a bird's finish time —
+  // it only makes birds speed up/slow down and trade places DURING the race
+  // (overtaking) while the final order still follows attributes + the (moderated)
+  // upset sources below. So segSpread/surge can be lively without making results
+  // random.
+  segments: 10, // route split into this many speed segments
+  segSpread: 0.28, // each segment's pace varies uniformly ±this (visual overtaking)
+  surgeChance: 0.16, // chance a segment is an extra surge/lull on top of the spread
+  surgeMin: 0.5, surgeMax: 1.6, // strongest lull / surge when it hits
+  // Form of the day: a small everyday swing, plus RARE great/off days — the main
+  // "a favourite can flop / an outsider can shine" lever. Kept modest so the best
+  // birds still usually win.
+  dayNoise: 0.06, // ±6% everyday variation
+  bigDayChance: 0.08, bigDayMin: 1.08, bigDayMax: 1.2, // a great day
+  offDayChance: 0.1, offDayMin: 0.8, offDayMax: 0.92, // an off day
+  // Weather: rough weather (rain/wind) hurts some birds more than others, so bad
+  // weather makes a race more of a lottery; good weather rewards the best.
+  weatherSpread: 0.7, // per-bird sensitivity spread
+  // Getting lost: low orientation raises the chance; a stretch is flown slowly
+  // (off course), costing real time and dropping the bird — occasionally out.
+  lostBaseChance: 0.04,
+  lostOrientationRef: 62, // at/above this orientation, lost chance stays at base
+  lostOrientationK: 0.005, // extra chance per orientation point below the ref
+  lostMaxChance: 0.24,
+  lostSlowMin: 0.35, lostSlowMax: 0.65, // pace during the wandering stretch
+  lostSpanMin: 1, lostSpanMax: 2, // how many segments the wandering lasts
+  // Giving out mid-flight (a DNF you can SEE happen live). Exhaustion scales with
+  // low start-energie (FLIGHT_RISK); a small injury chance rises in rough weather.
+  injuryDnfBase: 0.015,
+  injuryDnfWeatherBonus: 0.05, // extra injury-DNF chance in the worst weather
+  dnfEarliestFrac: 0.3, dnfLatestFrac: 0.85, // when in its run a bird gives out
+  minSegSpeed: 60, // m/min floor so a very slow segment can't blow up the time
+} as const;
+
+/**
  * Energie (form) spent by racing. The distance-dependent part of the cost is
  * `(base + distanceKm/perKmDivisor) · ervaringsfactor`, plus `random(0..jitter)`,
  * frozen when the flight goes live. That cost is drained GRADUALLY while the bird

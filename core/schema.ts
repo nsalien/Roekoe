@@ -299,6 +299,14 @@ export interface SimEntry {
   startForm?: number; // the bird's energie at release (for DNF/injury risk)
   formCost?: number; // total energie spent flying the whole route (frozen)
   formDrained?: number; // energie already deducted so far during the live race
+  // Dynamic pacing (see FLIGHT_DYNAMICS). The bird flies the route in segments,
+  // each at `velocity * segMult[i]`, so its position vs time is a piecewise curve
+  // — birds speed up, slow down and overtake. Frozen at release; live positions
+  // and the final result are both derived from it (so they always agree).
+  segMult?: number[]; // per-segment speed multipliers (mean ~1)
+  dnfAtSeconds?: number | null; // it gave out mid-flight at this elapsed time (never finishes)
+  dnfKind?: 'exhausted' | 'injury' | null; // why it gave out, for finalize effects
+  gaveUpAtSeconds?: number; // elapsed seconds when the owner pulled it (freezes its position)
 }
 
 /**

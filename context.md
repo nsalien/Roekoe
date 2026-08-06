@@ -130,14 +130,37 @@ volgorde:
 
 ### Real-time vluchten (lazy, timestamp-afgeleid)
 Bij de start wordt de sim **bevroren**: per duif een `velocity`, `durationSeconds`,
-plus (nieuw) `startForm`, `formCost`, `formDrained` in `Flight.sim` (`SimEntry[]`).
-Live posities worden puur uit die frozen sim + de huidige tijd berekend
-(`liveSnapshot`). **Live-rangschikking = op bevroren finishtijd (`durationSeconds`),
-opgegeven duiven achteraan.** Zo staan aangekomen duiven vanzelf vóór nog-vliegende
-(hun duur ≤ verstreken tijd) en blijft de stand stabiel én gelijk aan de einduitslag —
-geen "springen naar laatste plaats" meer zodra er duiven binnenkomen. Energie wordt **geleidelijk** afgetrokken tijdens de vlucht
-(`tickFlightEnergy`, stappen van 30 min, evenredig met afstand), niet in één klap
-achteraf — zo levert opgeven vlak voor de finish geen gratis energie op.
+plus `startForm`, `formCost`, `formDrained` in `Flight.sim` (`SimEntry[]`).
+
+**Dynamische, onvoorspelbare vluchten (`FLIGHT_DYNAMICS`, nieuwste — `flight.ts`).**
+Vroeger bevroor de sim één constante `velocity`/`durationSeconds` per duif en
+rangschikte `liveSnapshot` op die vaste finishtijd → de stand lag vanaf seconde 0
+vast (niet spannend). Nu krijgt elke duif bij de start een **bevroren maar
+variërend pace-profiel** (`buildPaceProfile`, geseed op `flightId+pigeonId` → elke
+vlucht uniek, tóch deterministisch):
+- **`segMult[]`** — per-segment snelheidsmultiplicatoren. **Genormaliseerd** (`Σ 1/m = N`)
+  zodat de pacing de **finishtijd niet verandert** — het zorgt enkel voor **inhalen
+  tijdens de vlucht** (duiven versnellen/vertragen en wisselen van plaats), niet voor
+  willekeurige uitslagen.
+- **Vorm van de dag** (`dayNoise` ±6% + zeldzame `bigDay`/`offDay`) — een topper kan
+  eens floppen, een outsider eens uitblinken.
+- **Weer per duif** (`weatherSpread`) — ruw weer (regen/wind) treft de ene duif harder
+  dan de andere → slecht weer = meer loterij, goed weer = de beste wint.
+- **Verdwalen** (`lost*`, kans ↑ bij lage oriëntatie) — een stuk traag gevlogen →
+  echt tijdverlies, forse val in de stand, soms buiten de tijd.
+- **Onderweg opgeven** (`dnfAtSeconds`/`dnfKind`) — uitputting (lage start-energie via
+  `FLIGHT_RISK`) of blessure (kans ↑ bij ruw weer): de duif stopt zichtbaar midden in
+  de vlucht en finisht niet.
+Live posities komen uit `raceProgress(sim, distance, elapsed)` (stukje-per-stukje
+afstand); **live-rangschikking = op afgelegde afstand** (verst = leider), aangekomen
+duiven vooraan (op finishtijd), opgegeven/uitgevallen achteraan. `liveSnapshot`
+**bevriest de stand op `total`** zodra de race klaar is, zodat de replay de eindstand
+toont. `finalizeFlight` bepaalt DNF **uit ditzelfde bevroren profiel** (opgegeven +
+verdwaald-te-traag/getimeoutet + onderweg-opgegeven), dus **live-einde == einduitslag**.
+Getest: beste duif wint meestal (~65–70% goed weer, ~50% ruw), maar met echte upsets;
+attributen blijven dus bepalend, zonder voorspelbaar te zijn. Balansknoppen staan in
+`FLIGHT_DYNAMICS`. Energie wordt nog steeds **geleidelijk** afgetrokken
+(`tickFlightEnergy`, per 30 min); opgeven spaart de resterende energie.
 
 ### `ensureSchema()` (in `core/d1.ts`)
 Idempotente **runtime**-schema-upgrades: `ALTER TABLE … ADD COLUMN` en
