@@ -42,7 +42,7 @@ export function LiveFlightPage() {
     const t = setInterval(() => {
       if (wasCompleted.current) return;
       load();
-    }, 8000);
+    }, 20000);
     return () => clearInterval(t);
   }, [load]);
 
