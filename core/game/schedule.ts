@@ -31,7 +31,7 @@ import {
   type FlightTier,
   type RaceCity,
 } from '../config/gameConfig.js';
-import type { Database, Flight, FlightResult } from '../schema.js';
+import type { Database, Flight, FlightResult, RaceLogEntry } from '../schema.js';
 import { newId } from '../store.js';
 import { applyDayOfCare, dailyRunningCost } from './economy.js';
 import { breed } from './breeding.js';
@@ -355,6 +355,56 @@ function emitFlightNotifications(db: Database, flight: Flight, sim: SimulatedFli
   trimNotifications(db);
 }
 
+/** How many race-log lines to keep per bird (newest first). Bounds the JSON. */
+const RACE_LOG_CAP = 40;
+
+/** Keep completed flights for this long; older ones are pruned (their per-bird
+ *  placings already live durably in each pigeon's `raceLog`). */
+const FLIGHT_RETENTION_MS = 2 * 86400000; // 2 days
+
+/**
+ * Record each finisher's placing on its pigeon, so the bird's race history and
+ * its owner's trophies survive the pruning of the flight row itself. Idempotent
+ * per flight: a second finalize (concurrent requests) replaces the line instead
+ * of duplicating it. Dead birds are already removed from `db.pigeons`, so they
+ * are naturally skipped.
+ */
+function logRaceResults(db: Database, flight: Flight): void {
+  for (const r of flight.results) {
+    const p = db.pigeons.find((x) => x.id === r.pigeonId);
+    if (!p) continue;
+    const log = p.raceLog ?? [];
+    const entry: RaceLogEntry = {
+      flightId: flight.id, name: flight.name, fromCity: flight.fromCity, toCity: flight.toCity,
+      distanceKm: flight.distanceKm, startAt: flight.startAt, ownerId: r.ownerId,
+      rank: r.rank, total: flight.results.length, points: r.points, prize: r.prize,
+      velocity: r.velocity, finished: r.finished, practice: !!flight.practice, titan: !!flight.titan,
+    };
+    const idx = log.findIndex((e) => e.flightId === flight.id);
+    if (idx >= 0) log[idx] = entry;
+    else log.push(entry);
+    if (log.length > RACE_LOG_CAP) log.splice(0, log.length - RACE_LOG_CAP);
+    p.raceLog = log;
+  }
+}
+
+/**
+ * Drop completed flights older than the retention window. This is the main fix
+ * for the day-long D1 outages: the flights table was never pruned, so every
+ * request re-read thousands of fat flight rows (blowing the free-tier "rows
+ * read" quota). Scheduled/live flights are always kept; per-bird placings are
+ * preserved in `raceLog` before this runs.
+ */
+export function pruneOldFlights(db: Database, nowMs: number): void {
+  const cutoff = nowMs - FLIGHT_RETENTION_MS;
+  db.flights = db.flights.filter((f) => {
+    if (f.status !== 'completed') return true;
+    const t = f.startAt ? Date.parse(f.startAt) : NaN;
+    if (Number.isNaN(t)) return true; // keep anything we can't date, to be safe
+    return t >= cutoff;
+  });
+}
+
 /** Start flights whose time has come and finalize flights that are over. */
 export function tickFlights(db: Database, nowMs: number, weatherByFlight?: Map<string, WeatherResult>): void {
   for (const flight of db.flights) {
@@ -414,6 +464,9 @@ export function tickFlights(db: Database, nowMs: number, weatherByFlight?: Map<s
             if (f.status !== 'completed') f.entries = f.entries.filter((e) => e.pigeonId !== dead.pigeonId);
           }
         }
+        // Durably record each surviving bird's placing before the flight can be
+        // pruned (covers race, practice and titan flights).
+        logRaceResults(db, flight);
         // Neither oefenvluchten nor de titanenwedstrijd feed the seasonal rankings
         // (only regionale/nationale/internationale wedstrijden do). They award no
         // ranking badges, bets, win/podium missions or peak/podium stats. Prize
@@ -719,6 +772,33 @@ function runDataMigrations(db: Database): void {
     }
     db.world.dataVersion = 17;
   }
+  if ((db.world.dataVersion ?? 0) < 18) {
+    // Old completed flights are about to become prunable (2-day retention). Move
+    // each bird's placings into its durable `raceLog` first, so no race history
+    // or trophy is lost when the flights table is trimmed. Oldest→newest so the
+    // per-bird cap keeps the most recent races.
+    const byPigeon = new Map<string, RaceLogEntry[]>();
+    const completed = db.flights
+      .filter((f) => f.status === 'completed')
+      .sort((a, b) => (a.startAt < b.startAt ? -1 : 1));
+    for (const f of completed) {
+      for (const r of f.results) {
+        const arr = byPigeon.get(r.pigeonId) ?? [];
+        arr.push({
+          flightId: f.id, name: f.name, fromCity: f.fromCity, toCity: f.toCity,
+          distanceKm: f.distanceKm, startAt: f.startAt, ownerId: r.ownerId,
+          rank: r.rank, total: f.results.length, points: r.points, prize: r.prize,
+          velocity: r.velocity, finished: r.finished, practice: !!f.practice, titan: !!f.titan,
+        });
+        byPigeon.set(r.pigeonId, arr);
+      }
+    }
+    for (const p of db.pigeons) {
+      const arr = byPigeon.get(p.id);
+      if (arr && arr.length) p.raceLog = arr.slice(-RACE_LOG_CAP);
+    }
+    db.world.dataVersion = 18;
+  }
 }
 
 /**
@@ -958,4 +1038,5 @@ export function advanceRealtime(
   tickRestCures(db, nowMs);
   tickSeason(db, nowMs);
   tickFlights(db, nowMs, weatherByFlight);
+  pruneOldFlights(db, nowMs);
 }

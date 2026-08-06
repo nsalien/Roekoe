@@ -48,7 +48,7 @@ export function FlightsPage() {
 
   // Reload periodically so flights flip to live / completed without a manual refresh.
   useEffect(() => {
-    const t = setInterval(() => load(), 15000);
+    const t = setInterval(() => load(), 40000);
     return () => clearInterval(t);
   }, [load]);
 

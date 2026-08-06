@@ -73,6 +73,35 @@ export interface Pigeon {
   seasonPodiums?: number; // number of top-3 finishes this season
   seasonStartScore?: number; // development score at the season's start (progress baseline)
   seasonPracticeGain?: number; // score gained from practice flights this season (excluded from the ranking)
+  // Durable, capped log of this bird's flight placings. Written at finalize so a
+  // pigeon's race history + its owner's trophies survive the pruning of old
+  // flights (the flights table itself only keeps the last couple of days). Rides
+  // in the `race_log` JSON column — no per-field schema change.
+  raceLog?: RaceLogEntry[];
+}
+
+/**
+ * One line of a pigeon's durable race history: its placing in a flight, kept on
+ * the bird so it outlives the (pruned) flight row. `ownerId` is who owned the
+ * bird at flight time, so trophies stay attributed to the right player even
+ * after the bird is sold.
+ */
+export interface RaceLogEntry {
+  flightId: string;
+  name: string;
+  fromCity: string;
+  toCity: string;
+  distanceKm: number;
+  startAt: string;
+  ownerId: string;
+  rank: number;
+  total: number;
+  points: number;
+  prize: number;
+  velocity: number;
+  finished: boolean;
+  practice?: boolean;
+  titan?: boolean;
 }
 
 /** Everything about a player's operation that is not an individual pigeon. */

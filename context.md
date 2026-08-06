@@ -95,8 +95,9 @@ krijgen.**
 `core/game/schedule.ts` → `advanceRealtime(db, nowMs, weatherByFlight)` roept in
 volgorde:
 1. `runDataMigrations(db)` — eenmalige datafixes, **gated op `world.dataVersion`**
-   (staat nu op **17**; nieuwe migratie = nieuw `if ((db.world.dataVersion ?? 0) < N)`
-   blok + `db.world.dataVersion = N`).
+   (staat nu op **18**; nieuwe migratie = nieuw `if ((db.world.dataVersion ?? 0) < N)`
+   blok + `db.world.dataVersion = N`). v18 backfilt `Pigeon.raceLog` uit bestaande
+   vluchthistorie vóór de eerste prune (zie §Performance).
 2. `ensureFlightsScheduled(db, nowMs)` — plant vluchten volgens `REAL_SCHEDULE`.
 3. `ensureAuctions(db, nowMs)` — zondagsveiling + willekeurige opvangcentrum-veilingen
    (+ **verlies-meldingen** bij sluiting aan wie meebood maar niet wint). Bieden via
@@ -119,6 +120,13 @@ volgorde:
    overgaan (deterministische `finalizeFlight`; **oefenvluchten** via
    `finalizePracticeFlight`; dode duiven uit `sim.deaths` worden verwijderd; werkt
    ook per-seizoen duivenstatistieken bij: `seasonPeakSpeed`, `seasonPodiums`).
+   **Bij afronding schrijft `logRaceResults` elke plaatsing durably naar
+   `Pigeon.raceLog`** (idempotent per vlucht), zodat historiek/trofeeën de prune
+   overleven.
+11. `pruneOldFlights(db, nowMs)` — **verwijdert afgewerkte vluchten ouder dan 2
+   dagen** (scheduled/live blijven altijd). Dé fix tegen de dag-lange D1-storingen:
+   de vluchtentabel groeide oneindig en werd bij élk verzoek volledig ingelezen →
+   gratis-plan "rows read"-limiet op → 503 voor iedereen tot de reset. Zie §Performance.
 
 ### Real-time vluchten (lazy, timestamp-afgeleid)
 Bij de start wordt de sim **bevroren**: per duif een `velocity`, `durationSeconds`,
@@ -221,6 +229,14 @@ Entiteiten: `Pigeon`, `Loft`, `User`, `BreedingPair`, `Flight` (+ `SimEntry`,
   `season_podiums`/`season_start_score`/`season_practice_gain`), gereset bij
   seizoenswissel. `seasonPracticeGain` = groei uit oefenvluchten (afgetrokken van de
   vooruitgangsranglijst, zodat enkel competitie telt).
+- `Pigeon.raceLog?: RaceLogEntry[]` — **durable, afgetopte vluchthistorie op de duif**
+  (kolom `race_log` JSON, cap **40** nieuwste). Bevat per afgewerkte vlucht de
+  plaatsing (`rank`/`total`/`points`/`prize`/`velocity`/`finished` + `ownerId` op
+  vluchtmoment + `practice`/`titan`-vlaggen). Geschreven door `logRaceResults` bij
+  afronding; gelezen door `pigeonRaceHistory` (duif-historiek) en `playerProfile`
+  (trofeeën). Zo overleven historiek + trofeeën het **wissen van oude vluchtrijen**
+  (2-daagse retentie). Medaille-**tellingen** komen uit `loft.stats.gold/silver/bronze`
+  (blijvend). Zie §Performance.
 - `World.seasonStartedAt` / `seasonEndsAt` / `seasonWeek` — real-time seizoensklok
   (kolommen `season_started_at`/`season_ends_at`/`season_week`). `seasonYear` = het
   seizoensnummer; `currentWeek` blijft de monotone speelweek (leeftijden/vluchten).
@@ -588,11 +604,50 @@ Alles hieronder staat **live** op de deploy-branch. Data-migraties liepen door t
   `PigeonCard`/`PigeonPage` tonen bij `!revealed` enkel ★talent + een slot-melding.
   De **Markt-biedkiezer `BidCascade`** dwingt de flow speler→duif→bedrag af.
 
+### Performance & stabiliteit (503-fix — belangrijk)
+**Symptoom:** spelers kregen vaak **503**, werden willekeurig uitgelogd, en soms een
+**hele dag** niet kunnen inloggen. **Oorzaak (geverifieerd):** niet te veel spelers,
+maar een **niet-performante hot path**. Elk verzoek laadt de **hele wereld** (`d1.ts`
+doet 11× `SELECT *`) en draaide `advanceRealtime` + `persist`. De **vluchtentabel werd
+nooit opgeruimd** (≈3 vette vluchtrijen/dag, met `sim`/`results`-JSON) → per verzoek
+werden duizenden rijen gelezen. D1 rekent **rows read** af; op het **gratis plan**
+(5M rijen/dag) raakte dat op bij normaal spelen → D1 gaf fouten → Cloudflare **503**
+voor élk verzoek (ook inloggen) tot de **dagelijkse reset**. (Schrijf-limiet zat maar
+rond ~7k/dag, dus het waren de **reads**.) We blijven op het **free plan**; het spel
+moet gewoon efficiënt zijn.
+
+**Wat is gefixt (deze sessie):**
+1. **Vluchtretentie 2 dagen** — `pruneOldFlights` (schedule.ts) wist afgewerkte
+   vluchten > 2 dagen; scheduled/live blijven. Snijdt de dominante leeskost weg.
+2. **Durable `Pigeon.raceLog`** (kolom `race_log`, cap 40) — `logRaceResults` schrijft
+   elke plaatsing bij afronding; `pigeonRaceHistory` + `playerProfile.trophies` lezen
+   eruit; **medailletellingen uit `loft.stats`**. Zo blijven **stand-per-vlucht +
+   punten/geld/medailles** behouden ná de prune. Migratie **v18** backfilt uit
+   bestaande vluchten vóór de eerste prune (geen historieverlies bij deploy).
+3. **`world`-rij enkel schrijven bij wijziging** (`d1.ts`, snapshot-diff) — pure polls
+   schrijven 0 rijen; geen hot-row-lock meer op `world` (id=1).
+4. **Auth/health zijn "light" routes** — `functions/api/[[path]].ts` slaat
+   `advanceRealtime` + de tick-`persist` over voor `/api/auth/*` en `/api/health`, zodat
+   **inloggen blijft werken** ook als de spelstate zwaar is. De handlers persisten zelf.
+5. **Client logt niet meer uit bij 5xx** — `AuthContext` wist het token **enkel bij
+   401** (niet bij 503/netwerkfout) → geen willekeurige uitlogs/lock-outs meer.
+6. **Rustiger pollen** — LiveFlightPage 8s→**20s**, FlightsPage 15s→**40s**.
+
+**Nog beschikbare hefbomen als de reads op zware live-vlucht-dagen toch krap zijn**
+(niet gedaan, want free plan + wilde eerst de oorzaak wegnemen): retentie van
+`notifications`/`trades`/`bets` verlagen; `advanceRealtime` throttlen (bv. max. 1×/20s
+via een `world.lastAdvance`-guard); of `/state` kort cachen (Cache API) zodat snelle
+polls niet telkens de hele wereld herladen. **Structureel:** selectief laden i.p.v.
+"laad de hele wereld", maar dat raakt het `D1Store`-model — apart en bewust doen.
+
 ### Openstaande ideeën / balans om op te letten
 - Sterfte is nog **wekelijks** terwijl herstel real-time is (evt. op elkaar afstemmen).
 - Ziekenboeg-**kosten** (salarissen/medicatievoer) zijn nog wekelijks.
 - Weddenschappen als geldbron; rustbonus + sneller herstel + goedkopere vluchten
   samen → hou in de gaten of energie niet te makkelijk wordt.
+- **Trofee-showcase** toont enkel podia van **nu-bezeten** duiven (uit `raceLog`);
+  medailletellingen (`loft.stats`) blijven wél volledig. Verkochte/overleden duiven
+  vallen uit de trofeeënlijst (niet uit de tellingen).
 
 ---
 

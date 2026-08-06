@@ -230,38 +230,29 @@ export function recentTrades(db: Database, limit = 30) {
     .map(tradeDTO);
 }
 
-/** Every completed flight a pigeon took part in, with its placing. Newest first. */
+/**
+ * A pigeon's race placings, newest first. Sourced from the bird's durable
+ * `raceLog` (not the flights table), so history survives the pruning of old
+ * flights. `raceLog` is written at finalize; older races are backfilled by
+ * migration v18.
+ */
 export function pigeonRaceHistory(db: Database, pigeonId: string) {
-  const rows: {
-    flightId: string;
-    name: string;
-    fromCity: string;
-    toCity: string;
-    distanceKm: number;
-    startAt: string;
-    rank: number;
-    total: number;
-    points: number;
-    prize: number;
-  }[] = [];
-  for (const f of db.flights) {
-    if (f.status !== 'completed') continue;
-    const r = f.results.find((x) => x.pigeonId === pigeonId);
-    if (!r) continue;
-    rows.push({
-      flightId: f.id,
-      name: f.name,
-      fromCity: f.fromCity,
-      toCity: f.toCity,
-      distanceKm: f.distanceKm,
-      startAt: f.startAt,
-      rank: r.rank,
-      total: f.results.length,
-      points: r.points,
-      prize: r.prize,
-    });
-  }
-  return rows.sort((a, b) => (a.startAt < b.startAt ? 1 : -1));
+  const p = db.pigeons.find((x) => x.id === pigeonId);
+  const log = p?.raceLog ?? [];
+  return log
+    .map((e) => ({
+      flightId: e.flightId,
+      name: e.name,
+      fromCity: e.fromCity,
+      toCity: e.toCity,
+      distanceKm: e.distanceKm,
+      startAt: e.startAt,
+      rank: e.rank,
+      total: e.total,
+      points: e.points,
+      prize: e.prize,
+    }))
+    .sort((a, b) => (a.startAt < b.startAt ? 1 : -1));
 }
 
 /** Season ranking rows sorted by points, humans and bots together. */
@@ -297,24 +288,34 @@ export function playerProfile(db: Database, userId: string) {
     earnedAt: earned.get(def.key) ?? null,
   }));
 
+  // Medal COUNTS come from the durable lifetime counters on the loft (kept up to
+  // date at finalize by awardFlightBadges), so they survive flight pruning and
+  // stay correct even for birds later sold or lost. Competition only (practice/
+  // titan never touch these counters).
+  const medals = {
+    gold: loft.stats.gold ?? 0,
+    silver: loft.stats.silver ?? 0,
+    bronze: loft.stats.bronze ?? 0,
+  };
+  // The trophy SHOWCASE is rebuilt from the durable per-bird raceLog of the
+  // pigeons this player currently owns (attributed by owner-at-flight-time, so a
+  // bought bird's earlier placings stay with its previous owner). Competition
+  // podiums only. Recent flights beyond retention live here, not in the flights
+  // table.
   const trophies: {
     flightId: string; name: string; fromCity: string; toCity: string;
     startAt: string; pigeonName: string; rank: number;
   }[] = [];
-  // Count medals from the same source as the list, so they always agree.
-  const medals = { gold: 0, silver: 0, bronze: 0 };
-  for (const f of db.flights) {
-    if (f.status !== 'completed') continue;
-    for (const r of f.results) {
-      if (r.ownerId === userId && r.rank <= 3 && r.finished !== false) {
-        if (r.rank === 1) medals.gold += 1;
-        else if (r.rank === 2) medals.silver += 1;
-        else medals.bronze += 1;
-        trophies.push({
-          flightId: f.id, name: f.name, fromCity: f.fromCity, toCity: f.toCity,
-          startAt: f.startAt, pigeonName: r.pigeonName, rank: r.rank,
-        });
-      }
+  for (const p of db.pigeons) {
+    if (p.ownerId !== userId) continue;
+    for (const e of p.raceLog ?? []) {
+      if (e.ownerId !== userId) continue;
+      if (e.practice || e.titan) continue;
+      if (e.rank > 3 || e.finished === false) continue;
+      trophies.push({
+        flightId: e.flightId, name: e.name, fromCity: e.fromCity, toCity: e.toCity,
+        startAt: e.startAt, pigeonName: p.name, rank: e.rank,
+      });
     }
   }
   trophies.sort((a, b) => (a.startAt < b.startAt ? 1 : -1));

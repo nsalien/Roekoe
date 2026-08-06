@@ -1,7 +1,7 @@
 /** Auth state: current user, login/register/logout, restored from a stored token. */
 
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
-import { api, getToken, setToken } from '../api/client';
+import { api, ApiError, getToken, setToken } from '../api/client';
 import type { AuthUser } from '../types';
 
 interface AuthContextValue {
@@ -26,7 +26,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     api<AuthUser>('/auth/me')
       .then(setUser)
-      .catch(() => setToken(null))
+      .catch((e) => {
+        // Only drop the token when the server says it is invalid (401). A
+        // transient 5xx / network error must NOT log the player out — otherwise
+        // a brief server hiccup wipes their session and they can't get back in.
+        if (e instanceof ApiError && e.status === 401) setToken(null);
+      })
       .finally(() => setLoading(false));
   }, []);
 

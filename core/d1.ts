@@ -122,6 +122,7 @@ function rowToPigeon(r: any): Pigeon {
     seasonStartScore: r.season_start_score ?? undefined,
     seasonPracticeGain: r.season_practice_gain ?? 0,
     trainedAt: r.trained_at ? JSON.parse(r.trained_at) : undefined,
+    raceLog: r.race_log ? JSON.parse(r.race_log) : undefined,
   };
 }
 function rowToBreeding(r: any): BreedingPair {
@@ -240,6 +241,7 @@ export class D1Store implements Store {
     private readonly world: Database,
     private readonly snapshots: Record<string, Map<string, string>>,
     private readonly worldExisted: boolean,
+    private readonly worldSnapshot: string,
   ) {}
 
   get data(): Database {
@@ -333,7 +335,7 @@ export class D1Store implements Store {
       offers: snapshot(dbObj.offers, (o) => o.id),
     };
 
-    return new D1Store(db, dbObj, snapshots, worldExisted);
+    return new D1Store(db, dbObj, snapshots, worldExisted, JSON.stringify(dbObj.world));
   }
 
   /** Write back only what changed. */
@@ -348,7 +350,10 @@ export class D1Store implements Store {
         db.prepare('INSERT INTO world (id, current_week, season_year, seeded, data_version, last_daily_tick, last_shelter_spawn, season_started_at, season_ends_at, season_week, version) VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)')
           .bind(wd.currentWeek, wd.seasonYear, b(wd.seeded), wd.dataVersion ?? 0, wd.lastDailyTick ?? '', wd.lastShelterSpawn ?? '', wd.seasonStartedAt ?? '', wd.seasonEndsAt ?? '', wd.seasonWeek ?? 1),
       );
-    } else {
+    } else if (JSON.stringify(wd) !== this.worldSnapshot) {
+      // Only write the world row when something in it actually changed. Previously
+      // this ran on EVERY request (even read-only polls), burning the write quota
+      // and making `world` (id=1) a hot row that concurrent requests locked on.
       stmts.push(
         db.prepare('UPDATE world SET current_week = ?, season_year = ?, seeded = ?, data_version = ?, last_daily_tick = ?, last_shelter_spawn = ?, season_started_at = ?, season_ends_at = ?, season_week = ?, version = version + 1 WHERE id = 1')
           .bind(wd.currentWeek, wd.seasonYear, b(wd.seeded), wd.dataVersion ?? 0, wd.lastDailyTick ?? '', wd.lastShelterSpawn ?? '', wd.seasonStartedAt ?? '', wd.seasonEndsAt ?? '', wd.seasonWeek ?? 1),
@@ -385,7 +390,7 @@ export class D1Store implements Store {
     diff(this.snapshots.pigeons, w.pigeons, (p) => p.id, {
       upsert: (p) =>
         db.prepare(
-          'INSERT OR REPLACE INTO pigeons (id, owner_id, name, sex, birth_week, speed, endurance, orientation, libido, form, health, experience, sire_id, dam_id, for_sale, price, created_at_week, retired, ailment, in_infirmary, races, ever_ailed, coached, ration, compartment, hunger_days, rest_days, cure_until, season_peak_speed, season_podiums, season_start_score, season_practice_gain, trained_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+          'INSERT OR REPLACE INTO pigeons (id, owner_id, name, sex, birth_week, speed, endurance, orientation, libido, form, health, experience, sire_id, dam_id, for_sale, price, created_at_week, retired, ailment, in_infirmary, races, ever_ailed, coached, ration, compartment, hunger_days, rest_days, cure_until, season_peak_speed, season_podiums, season_start_score, season_practice_gain, trained_at, race_log) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
         ).bind(
           p.id, p.ownerId, p.name, p.sex, p.birthWeek, p.speed, p.endurance, p.orientation, p.libido, p.form, p.health,
           p.experience, p.sireId, p.damId, b(p.forSale), p.price, p.createdAtWeek, 0,
@@ -393,6 +398,7 @@ export class D1Store implements Store {
           p.ration ?? 'normal', b(p.compartment), p.hungerDays ?? 0, p.restDays ?? 0, p.cureUntil ?? null,
           p.seasonPeakSpeed ?? 0, p.seasonPodiums ?? 0, p.seasonStartScore ?? null, p.seasonPracticeGain ?? 0,
           p.trainedAt ? JSON.stringify(p.trainedAt) : null,
+          p.raceLog && p.raceLog.length ? JSON.stringify(p.raceLog) : null,
         ),
       del: (id) => db.prepare('DELETE FROM pigeons WHERE id = ?').bind(id),
       stmts,
@@ -534,6 +540,7 @@ export async function ensureSchema(db: D1Database): Promise<void> {
     'ALTER TABLE pigeons ADD COLUMN season_start_score REAL',
     'ALTER TABLE pigeons ADD COLUMN season_practice_gain REAL NOT NULL DEFAULT 0',
     'ALTER TABLE pigeons ADD COLUMN trained_at TEXT',
+    'ALTER TABLE pigeons ADD COLUMN race_log TEXT',
     "ALTER TABLE lofts ADD COLUMN awards TEXT NOT NULL DEFAULT '[]'",
     "ALTER TABLE world ADD COLUMN season_started_at TEXT NOT NULL DEFAULT ''",
     "ALTER TABLE world ADD COLUMN season_ends_at TEXT NOT NULL DEFAULT ''",

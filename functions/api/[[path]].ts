@@ -111,17 +111,25 @@ app.use('*', async (c, next) => {
     await store.persist();
     store = await D1Store.load(c.env.DB); // fresh snapshots for any later write
   }
-  // Real-time flight lifecycle + one-time data migrations. Persist any changes.
+  // Auth + health are "light" routes: they must keep working even when the game
+  // state is heavy, so they skip the real-time engine (flight lifecycle, ticks,
+  // migrations) and its write. Their own handlers still persist what they change.
   const nowMs = Date.now();
-  // Fetch real weather for any flight about to start, so it's frozen against
-  // actual conditions in the release region (falls back to a random sky).
-  const due = flightsAwaitingStart(store.data, nowMs);
-  const weatherByFlight = new Map<string, WeatherResult>();
-  for (const f of due) {
-    weatherByFlight.set(f.id, await fetchFlightWeather(f.fromCity, f.toCity));
+  const path = c.req.path;
+  const light = path.startsWith('/api/auth/') || path === '/api/health';
+
+  if (!light) {
+    // Real-time flight lifecycle + one-time data migrations. Persist any changes.
+    // Fetch real weather for any flight about to start, so it's frozen against
+    // actual conditions in the release region (falls back to a random sky).
+    const due = flightsAwaitingStart(store.data, nowMs);
+    const weatherByFlight = new Map<string, WeatherResult>();
+    for (const f of due) {
+      weatherByFlight.set(f.id, await fetchFlightWeather(f.fromCity, f.toCity));
+    }
+    advanceRealtime(store.data, nowMs, weatherByFlight);
+    await store.persist();
   }
-  advanceRealtime(store.data, nowMs, weatherByFlight);
-  await store.persist();
   c.set('store', store);
 
   const auth = c.req.header('Authorization');
@@ -133,8 +141,9 @@ app.use('*', async (c, next) => {
         c.set('user', user);
         // Per-user: roll over daily missions/streak (and maybe a dilemma), and
         // let sponsors make new offers when the loft has earned their interest.
+        // Skipped on light routes so /auth/me stays cheap.
         const loft = store.data.lofts.find((l) => l.userId === user.id);
-        if (loft) {
+        if (loft && !light) {
           let dirty = refreshDailyMissions(store.data, loft, nowMs);
           if (evaluateSponsorOffers(store.data, loft, nowMs)) dirty = true;
           if (dirty) await store.persist();
