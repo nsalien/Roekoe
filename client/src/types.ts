@@ -138,6 +138,9 @@ export interface EconomyCosts {
   renameLoftCost: number;
   coachHireCost: number;
   coachSalary: number; // per day (recurring costs are charged daily)
+  coachMaxDailyGain: number; // gain per racing attribute at attribute 0 (scales down near the cap)
+  coachAttributeCap: number; // coach can push racing attributes up to this
+  coachExpDailyGain: number; // flat ervaring gained per day while coached
   dailyUpkeepBase: number;
   dailyUpkeepPerPigeon: number;
   trainCost: number;

@@ -683,15 +683,21 @@ export function liveSnapshot(flight: Flight, nowMs: number): LiveSnapshot {
   // final standings): a bird past the cutoff (durationSeconds > total) then stays a
   // non-finisher, exactly as finalizeFlight records it.
   const view = Math.min(elapsed, total);
+  // The displayed km/h is the bird's REAL effective speed on the segment it is
+  // flying (frozen velocity × the current pace multiplier × 0.06 to go m/min→km/h)
+  // — not a cosmetic number. To keep it steady instead of flickering on every
+  // poll, we sample the segment on a 5-minute grid: the value only steps when the
+  // race genuinely moves into a new 5-minute block. No random wobble.
+  const SPEED_STEP_SECONDS = 300;
+  const speedView = Math.min(Math.floor(view / SPEED_STEP_SECONDS) * SPEED_STEP_SECONDS, total);
 
   const rows = flight.sim.map((s) => {
     const gaveUp = !!s.gaveUp;
-    const { kmDone, finished, stopped, curMult } = raceProgress(s, dist, view);
+    const { kmDone, finished, stopped } = raceProgress(s, dist, view);
     const moving = !finished && !gaveUp && !stopped;
-    // Live km/h from the CURRENT segment (so the number visibly rises and falls),
-    // with a gentle wobble.
-    const wobble = 1 + 0.05 * Math.sin(elapsed / 6 + (hashString(s.pigeonId) % 100) / 15);
-    const speedKmh = moving ? round1(s.velocity * curMult * 0.06 * wobble) : 0;
+    // Effective speed sampled on the 5-minute grid (honest, stable between polls).
+    const { curMult: speedMult } = raceProgress(s, dist, speedView);
+    const speedKmh = moving ? round1(s.velocity * speedMult * 0.06) : 0;
     const bird: LiveBird = {
       pigeonId: s.pigeonId,
       pigeonName: s.pigeonName,

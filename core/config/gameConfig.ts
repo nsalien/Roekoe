@@ -83,7 +83,7 @@ export const COACH = {
   // pigeon it lifts snelheid + conditie + oriëntatie by ~1 point/day (all three)
   // plus ervaring, all the way to 100 (training alone caps at ~92) — a strong,
   // permanent edge. Priced a touch above the infirmary staff (physio €50, dokter
-  // €57/day) because that growth is permanent; no barrier to start, but €60/day
+  // €57/day) because that growth is permanent; no barrier to start, but €80/day
   // per bird is a real recurring choice that scales with how many you coach.
   hireCost: 0, // deprecated: coaching has no one-time cost anymore
   dailySalary: 80, // per coached pigeon, charged automatically each day
@@ -435,7 +435,7 @@ export const COMMENTARY_INTERVAL_SECONDS = 600;
 /** How many days of flights are kept on the calendar ahead of "now". */
 export const SCHEDULE_HORIZON_DAYS = 4;
 
-export type Country = 'BE' | 'NL' | 'FR' | 'GB' | 'LU' | 'DE';
+export type Country = 'BE' | 'NL' | 'FR' | 'GB' | 'LU' | 'DE' | 'ES';
 
 /** A racing city, with coordinates used for distance + real weather. */
 export interface RaceCity {
@@ -444,12 +444,15 @@ export interface RaceCity {
   lon: number;
   country: Country;
   flanders?: boolean; // true for cities in Vlaanderen (regional races)
+  intlOnly?: boolean; // grote-fond release points, only used for international routes
 }
 
 /**
  * Cities used to build flights. Regional races pick two Flemish cities,
- * national races two Belgian cities, international races any two across the
- * six countries. Routes (start + finish) are randomised per flight.
+ * national races two "greater region" cities (BE + neighbours, no Channel
+ * crossing, no far-south release points), international races any two —
+ * including the deep-south grote-fond release points (Barcelona, Perpignan…).
+ * Routes (start + finish) are randomised per flight within the tier's window.
  */
 export const RACE_CITIES: RaceCity[] = [
   // Vlaanderen (BE, regional pool)
@@ -510,6 +513,15 @@ export const RACE_CITIES: RaceCity[] = [
   { name: 'Düsseldorf', lat: 51.23, lon: 6.78, country: 'DE' },
   { name: 'Trier', lat: 49.75, lon: 6.64, country: 'DE' },
   { name: 'Frankfurt', lat: 50.11, lon: 8.68, country: 'DE' },
+  { name: 'Berlijn', lat: 52.52, lon: 13.4, country: 'DE' },
+  // Grote-fond release points (deep south) — international routes only. These are
+  // the classic long-distance races (Barcelona, Perpignan, …), 900–1200 km away.
+  { name: 'Lyon', lat: 45.76, lon: 4.84, country: 'FR', intlOnly: true },
+  { name: 'Bordeaux', lat: 44.84, lon: -0.58, country: 'FR', intlOnly: true },
+  { name: 'Toulouse', lat: 43.6, lon: 1.44, country: 'FR', intlOnly: true },
+  { name: 'Marseille', lat: 43.3, lon: 5.37, country: 'FR', intlOnly: true },
+  { name: 'Perpignan', lat: 42.7, lon: 2.9, country: 'FR', intlOnly: true },
+  { name: 'Barcelona', lat: 41.39, lon: 2.17, country: 'ES', intlOnly: true },
 ];
 
 /** Coordinates by city name (derived), for weather lookups. */
@@ -527,9 +539,9 @@ export interface TierConfig {
 }
 
 export const FLIGHT_TIERS: Record<FlightTier, TierConfig> = {
-  regional: { label: 'Regionaal', name: 'Regiovlucht', entryFee: 20, minKm: 30, maxKm: 160 },
-  national: { label: 'Nationaal', name: 'Nationale vlucht', entryFee: 40, minKm: 60, maxKm: 290 },
-  international: { label: 'Internationaal', name: 'Internationale vlucht', entryFee: 80, minKm: 180, maxKm: 950 },
+  regional: { label: 'Regionaal', name: 'Regiovlucht', entryFee: 20, minKm: 0, maxKm: 200 },
+  national: { label: 'Nationaal', name: 'Nationale vlucht', entryFee: 40, minKm: 200, maxKm: 500 },
+  international: { label: 'Internationaal', name: 'Internationale vlucht', entryFee: 80, minKm: 400, maxKm: 1200 },
 };
 
 /**
@@ -580,7 +592,7 @@ export interface SponsorDef {
   icon: string;
   tagline: string;
   tier: number;
-  category: string; // competition group: café, frituur, bakkerij, landbouw, bank, racing …
+  category: string; // competition group: café, frituur, bakkerij, landbouw, bank, racing, slagerij, brouwerij, dierenwinkel, bouw, verzekering, telecom, loterij …
   categoryLabel: string; // human label for the category
   /** Interest thresholds — the sponsor offers once ALL listed are met. */
   req: {
@@ -671,6 +683,66 @@ export const SPONSORS: SponsorDef[] = [
     category: 'racing', categoryLabel: 'Racingteam',
     tagline: 'Alleen echte winnaars dragen ons logo. Jij hoort er nu bij.',
     req: { gold: 12 }, signingBonus: 1500, weeklyStipend: 260, winBonus: 55, breakPenalty: 1100,
+  },
+
+  // --- Extra variëteit: nieuwe categorieën, rivalen en een prestige-tier 4 ---
+  // Tier 1 — laagdrempelige buurtsponsors in nieuwe categorieën.
+  {
+    id: 'den_beenhouwer', name: 'Slagerij Den Beenhouwer', icon: '🥩', tier: 1,
+    category: 'slagerij', categoryLabel: 'Slagerij',
+    tagline: 'Sterke duiven, sterke worst. Elke deelnemer is er bij ons eentje.',
+    req: { entries: 6 }, signingBonus: 250, weeklyStipend: 50, winBonus: 14, breakPenalty: 180,
+  },
+  {
+    id: 'het_schuim', name: "Brouwerij 't Schuim", icon: '🍺', tier: 1,
+    category: 'brouwerij', categoryLabel: 'Brouwerij',
+    tagline: 'Een pint op elke thuiskomst — proost, melker!',
+    req: { level: 3 }, signingBonus: 350, weeklyStipend: 70, winBonus: 16, breakPenalty: 260,
+  },
+  // Tier 2 — een goede duif, seizoenspunten, een rivaal-café.
+  {
+    id: 'de_pluim', name: 'Dierenspeciaalzaak De Pluim', icon: '🐾', tier: 2,
+    category: 'dierenwinkel', categoryLabel: 'Dierenwinkel',
+    tagline: 'Wij kennen onze beestjes — en die van u zijn iets speciaals.',
+    req: { bestTalent: 65 }, signingBonus: 400, weeklyStipend: 80, winBonus: 18, breakPenalty: 300,
+  },
+  {
+    id: 'van_steen', name: 'Bouwbedrijf Van Steen', icon: '🧱', tier: 2,
+    category: 'bouw', categoryLabel: 'Bouw',
+    tagline: 'Wij bouwen aan uw hok én aan uw palmares.',
+    req: { seasonPoints: 120 }, signingBonus: 550, weeklyStipend: 110, winBonus: 24, breakPenalty: 420,
+  },
+  // Tier 3 — grote spelers, extra rivalen (verzekering, café).
+  {
+    id: 'zeker_vast', name: 'Verzekeringen Zeker & Vast', icon: '🛡️', tier: 3,
+    category: 'verzekering', categoryLabel: 'Verzekering',
+    tagline: 'Zoveel vluchten, zoveel vertrouwen. Wij dekken uw duiven graag.',
+    req: { entries: 40 }, signingBonus: 900, weeklyStipend: 170, winBonus: 32, breakPenalty: 700,
+  },
+  {
+    id: 'duivenkoning', name: 'Café De Duivenkoning', icon: '👑', tier: 3,
+    category: 'cafe', categoryLabel: 'Café',
+    tagline: 'Twaalf overwinningen! Aan onze toog zit voortaan een koning.',
+    req: { totalWins: 12 }, signingBonus: 1200, weeklyStipend: 200, winBonus: 40, breakPenalty: 900,
+  },
+  // Tier 4 — prestige. Alleen de absolute top haalt deze binnen.
+  {
+    id: 'vleugelnet', name: 'Telecom Vleugelnet', icon: '📡', tier: 4,
+    category: 'telecom', categoryLabel: 'Telecom',
+    tagline: 'Het snelste netwerk zoekt het snelste hok. Dat ben jij.',
+    req: { level: 10 }, signingBonus: 2000, weeklyStipend: 320, winBonus: 60, breakPenalty: 1500,
+  },
+  {
+    id: 'gouden_ring', name: 'Nationale Loterij — De Gouden Ring', icon: '🎰', tier: 4,
+    category: 'loterij', categoryLabel: 'Loterij',
+    tagline: 'Driehonderd punten? Jij weet wat winnen is. Speel met ons mee.',
+    req: { seasonPoints: 300 }, signingBonus: 3000, weeklyStipend: 300, winBonus: 50, breakPenalty: 1800,
+  },
+  {
+    id: 'turbo_motors', name: 'Formule Duif Racing', icon: '🏆', tier: 4,
+    category: 'racing', categoryLabel: 'Racingteam',
+    tagline: 'Twintig gouden medailles. Laat dat andere team maar zitten — dit is de grote liga.',
+    req: { gold: 20 }, signingBonus: 2500, weeklyStipend: 400, winBonus: 70, breakPenalty: 2000,
   },
 ];
 
