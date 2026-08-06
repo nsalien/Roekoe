@@ -739,15 +739,28 @@ polls niet telkens de hele wereld herladen. **Structureel:** selectief laden i.p
   (📜, **3-keuze**: geld / oude kampioen / jonge belofte — `generatePigeon` met
   `birthWeek` voor leeftijd), `scout` (🔎, prospect op proef), `poacher` (🦅, incl.
   **sterftekans**), `charity` (🎗️). Client-modal rendert opties generiek → 3-keuze werkt.
-- **Sponsors ONGEWIJZIGD gelaten** (bewust teruggedraaid): extra sponsors toevoegen
-  laat `evaluateSponsorOffers` ze **allemaal tegelijk** aanbieden aan wie de drempels
-  al haalt (burst van aanbiedingen bij bestaande spelers) — ongewenst. De catalogus
-  blijft de originele 8. `state()` filtert onbekende sponsor-id's weg, dus zulke
-  aanbiedingen verdwijnen vanzelf. Wil je later méér sponsors, throttle dan eerst het
-  aantal gelijktijdige nieuwe aanbiedingen in `evaluateSponsorOffers`.
-- **Duif-card-breedte**: `.grid.cols-2` valt onder 820px naar één kolom (voorheen bleef de
-  330px-min-track breder dan smalle schermen → horizontale overflow op de duifpagina).
-- Geen datamigratie nodig (enkel config/logica, geen schemawijziging).
+- **Meer sponsors mét throttle** (`SPONSORS` + `evaluateSponsorOffers`): nieuwe
+  categorieën (slagerij, brouwerij, dierenwinkel, bouw, verzekering, telecom, loterij),
+  extra rivalen (café/racing) en een **tier 4**; gebruikt ook de `seasonPoints`-drempel.
+  Om de **burst** te vermijden die ontstond toen ze meteen allemaal werden aangeboden
+  aan wie de drempels al haalde: `evaluateSponsorOffers` biedt nu **hoogstens één nieuw
+  aanbod per `SPONSOR_OFFER_SPACING_HOURS` (20 u)** aan (eerste verdiende aanbod meteen,
+  daarna gespreid; laagste tier eerst want SPONSORS is tier-geordend). `SponsorState`
+  kreeg `lastOfferAt`. Bovendien een **cap** `SPONSOR_MAX_PENDING_OFFERS (2)`: `state()`
+  trimt een te grote stapel openstaande aanbiedingen op het lezen (self-heal voor
+  spelers die de burst al opgeslagen hadden) — de gedropte sponsors blijven geldig en
+  sijpelen later terug. Geverifieerd met tsx (5 evaluaties op t=0 → 1 aanbod; max 2).
+- **Duif-card-breedte (echte fix)**: de horizontale overflow op de **duifpagina** kwam
+  van grid-items met default `min-width:auto` + een **niet-afbreekbare** brede knop
+  (`.btn` is `white-space:nowrap`, bv. "🔒 Oriëntatie — weer vanaf <datum>"): die zette
+  de min-content-breedte van de kolom breder dan het scherm, waardoor in één kolom álle
+  rijen (ook de statbalken) meeliepen. Opgelost in `global.css`: `.grid > * { min-width: 0 }`
+  (items mogen krimpen) + `.btn.block { white-space: normal }` (volle-breedte-knoppen
+  breken af) + `.grid.cols-2` → 1 kolom onder 820px. `PigeonPage`-naamblok kreeg
+  `flex:1; min-width:0; overflow-wrap:anywhere`. (Enkel de kolom naar 1fr zetten was niet
+  genoeg — vandaar dat het eerst erger leek.)
+- **Schemawijziging**: `SponsorState.lastOfferAt?` (rijdt mee in de `sponsorship`-JSON,
+  geen kolom/migratie). Verder enkel config/logica/CSS.
 
 ---
 

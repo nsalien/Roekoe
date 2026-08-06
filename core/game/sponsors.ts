@@ -15,6 +15,8 @@
 
 import {
   SPONSORS,
+  SPONSOR_MAX_PENDING_OFFERS,
+  SPONSOR_OFFER_SPACING_HOURS,
   SPONSOR_REOFFER_COOLDOWN_HOURS,
   SPONSOR_REOFFER_MULT_MAX,
   SPONSOR_REOFFER_MULT_MIN,
@@ -82,8 +84,17 @@ function state(loft: Loft): SponsorState {
     .filter((d: any) => d && BY_ID.has(d.id))
     .map((d: any) => ({ id: d.id, at: d.at ?? '', perf: typeof d.perf === 'number' ? d.perf : 0 }));
   const signed = (Array.isArray(raw.signed) ? raw.signed : []).filter((id: any) => typeof id === 'string');
+  const lastOfferAt = typeof raw.lastOfferAt === 'string' ? raw.lastOfferAt : undefined;
 
-  const st: SponsorState = { active, offers, declined, signed };
+  // Cap pending offers so a legacy burst (offers banked before the cap existed)
+  // never resurfaces as a wall of suitors. Keep the lowest-tier ones; the rest are
+  // simply dropped and remain eligible, so they trickle back later (spaced).
+  if (offers.length > SPONSOR_MAX_PENDING_OFFERS) {
+    offers.sort((a, b) => (BY_ID.get(a.id)?.tier ?? 99) - (BY_ID.get(b.id)?.tier ?? 99));
+    offers.length = SPONSOR_MAX_PENDING_OFFERS;
+  }
+
+  const st: SponsorState = { active, offers, declined, signed, lastOfferAt };
   loft.sponsorship = st;
   return st;
 }
@@ -163,18 +174,38 @@ function notify(db: Database, loft: Loft, title: string, body: string): void {
 }
 
 /**
- * Make new offers for any qualifying sponsor. A sponsor that has never been
- * seen offers at its base terms; one that was refused/cancelled may re-offer
- * once the cooldown has passed, with terms rescaled to the loft's performance
- * since. Returns true if any offer was created (so the caller can persist).
+ * Make new sponsor offers as a loft earns them — but strictly one at a time.
+ *
+ * Even when a loft already meets several sponsors' thresholds (a strong loft, or
+ * the moment new sponsors are introduced), we never dump them all at once: at most
+ * ONE new offer is created per `SPONSOR_OFFER_SPACING_HOURS`. The very first
+ * qualifying offer fires immediately (no `lastOfferAt` yet); after that each
+ * further offer is spaced out, so sponsors trickle in with performance instead of
+ * arriving as a burst of suitors. Lowest tier first (SPONSORS is tier-ordered), so
+ * the modest local sponsors come before the big prestige ones.
+ *
+ * A never-seen sponsor offers at its base terms; a refused/cancelled one may
+ * re-offer once its own cooldown has passed, with terms rescaled to the loft's
+ * performance since. Returns true if an offer was created (so the caller persists).
  */
 export function evaluateSponsorOffers(db: Database, loft: Loft, nowMs: number): boolean {
   if (loft.isBot) return false;
   const st = state(loft);
+
+  // Never pile up more than the cap of pending offers at once.
+  if (st.offers.length >= SPONSOR_MAX_PENDING_OFFERS) return false;
+
+  // Space out offers: only make a new one if enough time passed since the last.
+  if (st.lastOfferAt) {
+    const sinceH = (nowMs - Date.parse(st.lastOfferAt)) / 3600000;
+    if (!(sinceH >= SPONSOR_OFFER_SPACING_HOURS)) return false; // still spacing out
+  }
+
   const best = ownedBestTalent(db, loft.userId);
   const perf = perfScore(loft, best);
-  let added = false;
 
+  // Find the first qualifying candidate (never-seen, or a declined one whose
+  // re-offer cooldown has elapsed). SPONSORS is tier-ordered → gentle ramp-up.
   for (const def of SPONSORS) {
     if (st.active.some((a) => a.id === def.id)) continue;
     if (st.offers.some((o) => o.id === def.id)) continue;
@@ -192,16 +223,16 @@ export function evaluateSponsorOffers(db: Database, loft: Loft, nowMs: number): 
       const richer = terms.weeklyStipend >= def.weeklyStipend;
       notify(db, loft, `${def.icon} ${def.name} klopt opnieuw aan`,
         `${richer ? 'Je duiven presteerden goed — het aanbod is er beter op geworden.' : 'Een nieuw, wat bescheidener aanbod.'} Bekijk het op de sponsorpagina.`);
-      added = true;
     } else {
       const terms = scaledTerms(def, 1);
       st.offers.push({ id: def.id, at: new Date(nowMs).toISOString(), ...terms });
       notify(db, loft, `${def.icon} Sponsoraanbod: ${def.name}`,
         `${def.tagline} Bekijk en beslis op de sponsorpagina.`);
-      added = true;
     }
+    st.lastOfferAt = new Date(nowMs).toISOString();
+    return true; // exactly one offer per call — the rest trickle in later
   }
-  return added;
+  return false;
 }
 
 /** The active sponsor in the same category as `def`, if any (a competitor). */

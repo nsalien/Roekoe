@@ -198,6 +198,12 @@ span.bad { color: var(--bad); font-weight: 700; }
 .card-hover:hover { box-shadow: var(--shadow-md); border-color: var(--border-strong); }
 
 .grid { display: grid; gap: 16px; }
+/* Grid items default to min-width:auto, which lets a wide, unbreakable child
+   (e.g. a long "🔒 … — weer vanaf <datum>" button, whose text is nowrap) blow the
+   track wider than the viewport — dragging every row (stat bars included) into a
+   horizontal overflow. Letting items shrink to 0 keeps the track at the container
+   width; children then wrap/scroll inside instead of pushing the page wider. */
+.grid > * { min-width: 0; }
 .grid.cols-2 { grid-template-columns: repeat(auto-fit, minmax(330px, 1fr)); }
 .grid.cols-3 { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
 .grid.pigeons { grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); }
@@ -230,7 +236,10 @@ span.bad { color: var(--bad); font-weight: 700; }
 .btn.ghost:hover { background: var(--brand-soft); }
 .btn.danger { background: var(--bad); }
 .btn.sm { padding: 6px 11px; font-size: 0.83rem; border-radius: 7px; }
-.btn.block { width: 100%; }
+/* Full-width buttons may hold long labels (e.g. a locked training button with a
+   date). Allow them to wrap instead of forcing the container wider than the
+   screen — inline .btn stays nowrap. */
+.btn.block { width: 100%; white-space: normal; }
 
 /* --- Forms ---------------------------------------------------------------- */
 label { display: block; font-weight: 600; font-size: 0.85rem; margin-bottom: 6px; color: var(--text-soft); }
