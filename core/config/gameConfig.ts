@@ -592,7 +592,7 @@ export interface SponsorDef {
   icon: string;
   tagline: string;
   tier: number;
-  category: string; // competition group: café, frituur, bakkerij, landbouw, bank, racing …
+  category: string; // competition group: café, frituur, bakkerij, landbouw, bank, racing, slagerij, brouwerij, dierenwinkel, bouw, verzekering, telecom, loterij …
   categoryLabel: string; // human label for the category
   /** Interest thresholds — the sponsor offers once ALL listed are met. */
   req: {
@@ -618,6 +618,25 @@ export interface SponsorDef {
 export const SPONSOR_REOFFER_COOLDOWN_HOURS = 72;
 export const SPONSOR_REOFFER_MULT_MIN = 0.7;
 export const SPONSOR_REOFFER_MULT_MAX = 1.5;
+
+/**
+ * Sponsors trickle in — they are NOT all dumped at once. Even if a loft already
+ * meets several sponsors' thresholds (e.g. right after new sponsors are added, or
+ * for a strong established loft), only ONE new offer is made per this many real
+ * hours. The first-ever qualifying offer still fires immediately; after that each
+ * further offer is spaced out, so a player earns sponsors gradually and never gets
+ * a burst of four suitors at once. Tune this to make sponsors arrive faster/slower.
+ */
+export const SPONSOR_OFFER_SPACING_HOURS = 20;
+
+/**
+ * Hard cap on how many sponsor offers can be pending at once. Together with the
+ * spacing above this keeps the sponsor page calm: a player weighs at most a couple
+ * of suitors, never a wall of them. Also self-heals any loft that already banked a
+ * burst of offers before this cap existed — the excess is trimmed on read and the
+ * dropped sponsors simply trickle back later.
+ */
+export const SPONSOR_MAX_PENDING_OFFERS = 2;
 
 /**
  * Season review of active sponsor contracts. At each season rollover a sponsor
@@ -683,6 +702,69 @@ export const SPONSORS: SponsorDef[] = [
     category: 'racing', categoryLabel: 'Racingteam',
     tagline: 'Alleen echte winnaars dragen ons logo. Jij hoort er nu bij.',
     req: { gold: 12 }, signingBonus: 1500, weeklyStipend: 260, winBonus: 55, breakPenalty: 1100,
+  },
+
+  // --- Extra variëteit: nieuwe categorieën, rivalen en een prestige-tier 4 ---
+  // Deze worden NOOIT allemaal tegelijk aangeboden: evaluateSponsorOffers biedt er
+  // maar één per SPONSOR_OFFER_SPACING_HOURS aan (zie sponsors.ts), zodat een speler
+  // ze geleidelijk verdient i.p.v. in één klap.
+  // Tier 1 — laagdrempelige buurtsponsors in nieuwe categorieën.
+  {
+    id: 'den_beenhouwer', name: 'Slagerij Den Beenhouwer', icon: '🥩', tier: 1,
+    category: 'slagerij', categoryLabel: 'Slagerij',
+    tagline: 'Sterke duiven, sterke worst. Elke deelnemer is er bij ons eentje.',
+    req: { entries: 6 }, signingBonus: 250, weeklyStipend: 50, winBonus: 14, breakPenalty: 180,
+  },
+  {
+    id: 'het_schuim', name: "Brouwerij 't Schuim", icon: '🍺', tier: 1,
+    category: 'brouwerij', categoryLabel: 'Brouwerij',
+    tagline: 'Een pint op elke thuiskomst — proost, melker!',
+    req: { level: 3 }, signingBonus: 350, weeklyStipend: 70, winBonus: 16, breakPenalty: 260,
+  },
+  // Tier 2 — een goede duif, seizoenspunten, een rivaal-café.
+  {
+    id: 'de_pluim', name: 'Dierenspeciaalzaak De Pluim', icon: '🐾', tier: 2,
+    category: 'dierenwinkel', categoryLabel: 'Dierenwinkel',
+    tagline: 'Wij kennen onze beestjes — en die van u zijn iets speciaals.',
+    req: { bestTalent: 65 }, signingBonus: 400, weeklyStipend: 80, winBonus: 18, breakPenalty: 300,
+  },
+  {
+    id: 'van_steen', name: 'Bouwbedrijf Van Steen', icon: '🧱', tier: 2,
+    category: 'bouw', categoryLabel: 'Bouw',
+    tagline: 'Wij bouwen aan uw hok én aan uw palmares.',
+    req: { seasonPoints: 120 }, signingBonus: 550, weeklyStipend: 110, winBonus: 24, breakPenalty: 420,
+  },
+  // Tier 3 — grote spelers, extra rivalen (verzekering, café).
+  {
+    id: 'zeker_vast', name: 'Verzekeringen Zeker & Vast', icon: '🛡️', tier: 3,
+    category: 'verzekering', categoryLabel: 'Verzekering',
+    tagline: 'Zoveel vluchten, zoveel vertrouwen. Wij dekken uw duiven graag.',
+    req: { entries: 40 }, signingBonus: 900, weeklyStipend: 170, winBonus: 32, breakPenalty: 700,
+  },
+  {
+    id: 'duivenkoning', name: 'Café De Duivenkoning', icon: '👑', tier: 3,
+    category: 'cafe', categoryLabel: 'Café',
+    tagline: 'Twaalf overwinningen! Aan onze toog zit voortaan een koning.',
+    req: { totalWins: 12 }, signingBonus: 1200, weeklyStipend: 200, winBonus: 40, breakPenalty: 900,
+  },
+  // Tier 4 — prestige. Alleen de absolute top haalt deze binnen.
+  {
+    id: 'vleugelnet', name: 'Telecom Vleugelnet', icon: '📡', tier: 4,
+    category: 'telecom', categoryLabel: 'Telecom',
+    tagline: 'Het snelste netwerk zoekt het snelste hok. Dat ben jij.',
+    req: { level: 10 }, signingBonus: 2000, weeklyStipend: 320, winBonus: 60, breakPenalty: 1500,
+  },
+  {
+    id: 'gouden_ring', name: 'Nationale Loterij — De Gouden Ring', icon: '🎰', tier: 4,
+    category: 'loterij', categoryLabel: 'Loterij',
+    tagline: 'Driehonderd punten? Jij weet wat winnen is. Speel met ons mee.',
+    req: { seasonPoints: 300 }, signingBonus: 3000, weeklyStipend: 300, winBonus: 50, breakPenalty: 1800,
+  },
+  {
+    id: 'turbo_motors', name: 'Formule Duif Racing', icon: '🏆', tier: 4,
+    category: 'racing', categoryLabel: 'Racingteam',
+    tagline: 'Twintig gouden medailles. Laat dat andere team maar zitten — dit is de grote liga.',
+    req: { gold: 20 }, signingBonus: 2500, weeklyStipend: 400, winBonus: 70, breakPenalty: 2000,
   },
 ];
 
