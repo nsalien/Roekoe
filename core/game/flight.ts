@@ -497,14 +497,21 @@ export function finalizeFlight(flight: Flight, pigeons: Pigeon[]): SimulatedFlig
     const pigeon = pigeons.find((p) => p.id === s.pigeonId);
     if (pigeon) {
       // Racing builds condition (finishers only): a chance to grow in the
-      // attribute that matters most for this distance.
+      // attribute that matters most for this distance. The WORSE the bird is
+      // overall AND the BETTER it placed, the more likely it improves — and the
+      // more it gains — so a lesser bird that punches above its weight catches up.
       if (!isDnf) {
         const attr = pickImproveAttr(w, rng);
         const room = clamp((IMPROVE.cap - pigeon[attr]) / IMPROVE.cap, 0, 1);
-        const placeBonus = (n > 1 ? (n - i) / n : 1) * 0.3; // up to +0.3 for the winner
-        const chance = clamp(IMPROVE.baseChance * (0.5 + room) + placeBonus, 0, 0.9);
+        const avgAttr = (pigeon.speed + pigeon.endurance + pigeon.orientation) / 3;
+        const weakness = clamp(1 - avgAttr / 100, 0, 1); // weaker bird → larger
+        const placeFactor = n > 1 ? (n - i) / n : 1; // winner ~1 → last finisher ~1/n
+        const chance = clamp(
+          IMPROVE.baseChance * (0.4 + room) * (0.5 + weakness * IMPROVE.weaknessWeight) * (0.6 + placeFactor * 0.8),
+          0, IMPROVE.maxChance,
+        );
         if (pigeon[attr] < IMPROVE.cap && rng() < chance) {
-          const gain = round1(rf(IMPROVE.gainMin, IMPROVE.gainMax) * (0.4 + room));
+          const gain = round1(rf(IMPROVE.gainMin, IMPROVE.gainMax) * (0.4 + room) * (1 + weakness * IMPROVE.weaknessGainSpread));
           if (gain > 0) {
             improvements.push({ pigeonId: pigeon.id, ownerId: pigeon.ownerId, pigeonName: pigeon.name, attr, gain });
           }
