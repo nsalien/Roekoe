@@ -739,10 +739,12 @@ polls niet telkens de hele wereld herladen. **Structureel:** selectief laden i.p
   (📜, **3-keuze**: geld / oude kampioen / jonge belofte — `generatePigeon` met
   `birthWeek` voor leeftijd), `scout` (🔎, prospect op proef), `poacher` (🦅, incl.
   **sterftekans**), `charity` (🎗️). Client-modal rendert opties generiek → 3-keuze werkt.
-- **Meer sponsors** (`SPONSORS`): nieuwe categorieën (slagerij, brouwerij, dierenwinkel,
-  bouw, verzekering, telecom, loterij), extra rivalen (café/racing) en een **nieuwe tier 4**;
-  gebruikt nu ook de `seasonPoints`-drempel. Volledig data-driven — DTO's/`sponsorView`
-  slikken elke tier.
+- **Sponsors ONGEWIJZIGD gelaten** (bewust teruggedraaid): extra sponsors toevoegen
+  laat `evaluateSponsorOffers` ze **allemaal tegelijk** aanbieden aan wie de drempels
+  al haalt (burst van aanbiedingen bij bestaande spelers) — ongewenst. De catalogus
+  blijft de originele 8. `state()` filtert onbekende sponsor-id's weg, dus zulke
+  aanbiedingen verdwijnen vanzelf. Wil je later méér sponsors, throttle dan eerst het
+  aantal gelijktijdige nieuwe aanbiedingen in `evaluateSponsorOffers`.
 - **Duif-card-breedte**: `.grid.cols-2` valt onder 820px naar één kolom (voorheen bleef de
   330px-min-track breder dan smalle schermen → horizontale overflow op de duifpagina).
 - Geen datamigratie nodig (enkel config/logica, geen schemawijziging).
