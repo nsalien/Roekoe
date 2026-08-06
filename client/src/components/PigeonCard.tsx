@@ -3,7 +3,7 @@
 import { Link } from 'react-router-dom';
 import type { Pigeon } from '../types';
 import { PigeonAvatar } from './PigeonAvatar';
-import { SexBadge, StatBar } from './ui';
+import { PigeonStats, SexBadge } from './ui';
 
 function ageLabel(weeks: number): string {
   const years = Math.floor(weeks / 52);
@@ -25,9 +25,6 @@ export function PigeonCard({
   showOwner?: boolean;
   tourId?: string;
 }) {
-  // Planned per-day attribute changes from this bird's current care (only set
-  // for your own birds); drives the ▲/▼ hints on the stat bars.
-  const dc = pigeon.dailyCare?.deltas;
   const inner = (
     <div className="row" style={{ alignItems: 'flex-start', flexWrap: 'nowrap', gap: 12 }}>
       <div style={{ flex: '0 0 auto' }}>
@@ -71,19 +68,9 @@ export function PigeonCard({
       )}
 
       {pigeon.revealed ? (
-        <>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: '2px 12px', marginTop: 6 }}>
-            <StatBar label="Snelheid" value={pigeon.speed ?? 0} perDay={dc?.speed} />
-            <StatBar label="Conditie" value={pigeon.endurance ?? 0} perDay={dc?.endurance} />
-            <StatBar label="Oriëntatie" value={pigeon.orientation ?? 0} perDay={dc?.orientation} />
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: '2px 12px', marginTop: 2 }}>
-            <StatBar label="Energie" value={pigeon.form ?? 0} variant="form" perDay={dc?.form} />
-            <StatBar label="Gezondh." value={pigeon.health ?? 0} variant="health" perDay={dc?.health} />
-            <StatBar label="Libido" value={pigeon.libido ?? 0} perDay={dc?.libido} />
-            <StatBar label="Ervaring" value={pigeon.experience ?? 0} perDay={dc?.experience} />
-          </div>
-        </>
+        <div style={{ marginTop: 6 }}>
+          <PigeonStats pigeon={pigeon} showPerDay />
+        </div>
       ) : (
         <div className="faint" style={{ marginTop: 8, fontSize: '0.85rem', lineHeight: 1.4 }}>
           🔒 De precieze eigenschappen van andermans duiven zijn niet zichtbaar. Enkel de

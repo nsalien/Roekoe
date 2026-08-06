@@ -1,7 +1,7 @@
 /** Small shared presentational helpers. */
 
 import { createContext, useCallback, useContext, useState, type ReactNode } from 'react';
-import type { Sex } from '../types';
+import type { Pigeon, Sex } from '../types';
 
 export function Money({ value }: { value: number }) {
   return (
@@ -21,12 +21,20 @@ export function Spinner() {
   return <div className="spinner" aria-label="Laden" />;
 }
 
+/** Fill colour for a "threshold" stat: green > 70, orange 30–70, red < 30. */
+function thresholdColor(value: number): string {
+  if (value > 70) return 'var(--good)';
+  if (value >= 30) return 'var(--warn)';
+  return 'var(--bad)';
+}
+
 export function StatBar({
   label,
   value,
   max = 100,
   variant,
   perDay,
+  threshold,
 }: {
   label: string;
   value: number;
@@ -35,6 +43,9 @@ export function StatBar({
   /** Planned change per day from the pigeon's current care. Positive shows a
    *  green ▲, negative (hunger) a red ▼. Undefined/≈0 shows nothing. */
   perDay?: number;
+  /** Colour the bar by value: green > 70, orange 30–70, red < 30 (used for
+   *  Energie and Gezondheid, where the level is a health signal). */
+  threshold?: boolean;
 }) {
   const pct = Math.max(0, Math.min(100, (value / max) * 100));
   const d = perDay ?? 0;
@@ -56,8 +67,35 @@ export function StatBar({
           <span className="stat-val">{Math.round(value)}</span>
         </span>
       </div>
-      <div className={`bar ${variant ?? ''}`}>
-        <span style={{ width: `${pct}%` }} />
+      <div className={`bar ${threshold ? '' : (variant ?? '')}`}>
+        <span style={{ width: `${pct}%`, ...(threshold ? { background: thresholdColor(value) } : {}) }} />
+      </div>
+    </div>
+  );
+}
+
+/**
+ * The full attribute panel for a pigeon, in ONE consistent layout used
+ * everywhere a bird's stats are shown: Energie full-width on top (threshold
+ * colour), then Gezondheid + Libido, Snelheid + Conditie, Oriëntatie + Ervaring
+ * in pairs. `showPerDay` adds the ▲/▼ per-day care hints (loft overview only).
+ */
+export function PigeonStats({ pigeon, showPerDay }: { pigeon: Pigeon; showPerDay?: boolean }) {
+  const dc = showPerDay ? pigeon.dailyCare?.deltas : undefined;
+  return (
+    <div className="stat-stack">
+      <StatBar label="⚡ Energie" value={pigeon.form ?? 0} threshold perDay={dc?.form} />
+      <div className="stat-pair">
+        <StatBar label="Gezondheid" value={pigeon.health ?? 0} threshold perDay={dc?.health} />
+        <StatBar label="Libido" value={pigeon.libido ?? 0} perDay={dc?.libido} />
+      </div>
+      <div className="stat-pair">
+        <StatBar label="Snelheid" value={pigeon.speed ?? 0} perDay={dc?.speed} />
+        <StatBar label="Conditie" value={pigeon.endurance ?? 0} perDay={dc?.endurance} />
+      </div>
+      <div className="stat-pair">
+        <StatBar label="Oriëntatie" value={pigeon.orientation ?? 0} perDay={dc?.orientation} />
+        <StatBar label="Ervaring" value={pigeon.experience ?? 0} perDay={dc?.experience} />
       </div>
     </div>
   );

@@ -5,7 +5,7 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import { api } from '../api/client';
 import { useGame } from '../game/GameContext';
 import { PigeonAvatar } from '../components/PigeonAvatar';
-import { Money, SexBadge, Spinner, StatBar, formatFlightTime, useToast } from '../components/ui';
+import { Money, PigeonStats, SexBadge, Spinner, formatFlightTime, useToast } from '../components/ui';
 import type { Pigeon, RaceHistoryRow } from '../types';
 
 interface PigeonDetail {
@@ -142,15 +142,7 @@ export function PigeonPage() {
 
           <hr className="sep" />
           {p.revealed ? (
-            <>
-              <StatBar label="Snelheid" value={p.speed ?? 0} />
-              <StatBar label="Conditie" value={p.endurance ?? 0} />
-              <StatBar label="Oriëntatie" value={p.orientation ?? 0} />
-              <StatBar label="⚡ Energie" value={p.form ?? 0} variant="form" />
-              <StatBar label="Gezondheid" value={p.health ?? 0} variant="health" />
-              <StatBar label="❤️ Libido" value={p.libido ?? 0} />
-              <StatBar label="Ervaring" value={p.experience ?? 0} />
-            </>
+            <PigeonStats pigeon={p} />
           ) : (
             <p className="muted" style={{ margin: 0 }}>
               🔒 De precieze eigenschappen van andermans duiven zijn niet zichtbaar. Enkel de
