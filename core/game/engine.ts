@@ -295,8 +295,8 @@ export function setCoach(store: Store, userId: string, pigeonId: string, on: boo
       return null;
     }
     if (pigeon.coached) return 'Deze duif heeft al een coach';
-    if (loft.money < COACH.hireCost) return `Niet genoeg geld (een coach kost €${COACH.hireCost})`;
-    loft.money -= COACH.hireCost;
+    // No upfront cost anymore — a coach is a purely daily recurring expense
+    // (COACH.dailySalary), charged automatically in tickDailyCare.
     pigeon.coached = true;
     return null;
   });

@@ -157,10 +157,23 @@ duiven vooraan (op finishtijd), opgegeven/uitgevallen achteraan. `liveSnapshot`
 **bevriest de stand op `total`** zodra de race klaar is, zodat de replay de eindstand
 toont. `finalizeFlight` bepaalt DNF **uit ditzelfde bevroren profiel** (opgegeven +
 verdwaald-te-traag/getimeoutet + onderweg-opgegeven), dus **live-einde == einduitslag**.
-Getest: beste duif wint meestal (~65–70% goed weer, ~50% ruw), maar met echte upsets;
-attributen blijven dus bepalend, zonder voorspelbaar te zijn. Balansknoppen staan in
-`FLIGHT_DYNAMICS`. Energie wordt nog steeds **geleidelijk** afgetrokken
-(`tickFlightEnergy`, per 30 min); opgeven spaart de resterende energie.
+**Élke duif kan presteren, geordend op kwaliteit** (afgesteld op `dayNoise`/tails,
+±17%): getest op een veld van 6 (beste→slechtste) over alle weertypes gaf ~ win /
+top-3 / niet-laatste / laatste: beste **40% / 76% / 94% / 6%**, slechtste **2% / 12% /
+60% / 40%**, monotoon aflopend ertussen. Dus: de beste is het **waarschijnlijkst**
+(niet zeker) en wordt **zeer zelden laatste**; de slechtste heeft een **heel kleine**
+winkans maar haalt geregeld top-5 (van 6). Balansknoppen in `FLIGHT_DYNAMICS`
+(`dayNoise` breder = meer upsets; `segSpread` = zichtbaarder inhalen; `weatherSpread`;
+`lost*`). Energie wordt nog steeds **geleidelijk** afgetrokken (`tickFlightEnergy`, per
+30 min); opgeven spaart de resterende energie.
+
+**Verbeteren schaalt met (zwakte × prestatie)** (`IMPROVE`, `finalizeFlight`): de kans
+dat een duif door een vlucht een eigenschap verbetert = `base·(0.4+room)·(0.5+zwakte·
+weaknessWeight)·(0.6+plaats·0.8)`, met een grotere *gain* voor zwakkere duiven
+(`weaknessGainSpread`). Dus **hoe slechter de duif én hoe beter haar prestatie, hoe
+groter de groei** — een mindere duif die goed presteert loopt in; een topduif dicht bij
+de cap wint amper nog bij. (Alleen finishers; oefenvluchten hebben hun eigen, mildere
+regeling.)
 
 ### `ensureSchema()` (in `core/d1.ts`)
 Idempotente **runtime**-schema-upgrades: `ALTER TABLE … ADD COLUMN` en
@@ -288,9 +301,15 @@ Entiteiten: `Pigeon`, `Loft`, `User`, `BreedingPair`, `Flight` (+ `SimEntry`,
 - **Start:** €5000, 6 duiven, hokcapaciteit 8. **Bots ook 8** (`BOT_LOFT_CAPACITY`,
   was 20), met speler-kwaliteit (0.4–0.6). Startvoorraad 50 kg normaal.
 - **Vaste onkosten = DAGELIJKS** (geen weekkost meer): `DAILY_UPKEEP_BASE 22` +
-  `DAILY_UPKEEP_PER_PIGEON 2`, `COACH.dailySalary 36`, `INFIRMARY.doctorSalary 57` /
+  `DAILY_UPKEEP_PER_PIGEON 2`, `COACH.dailySalary 60`, `INFIRMARY.doctorSalary 57` /
   `physioSalary 50` / `medicatedFoodPerBird 6`. Aangerekend in `tickDailyCare` via
   `economy.dailyRunningCost`; sponsorbijdrage dagelijks (weekbedrag ÷ 7).
+- **Privécoach = puur dagelijkse kost** (`COACH.hireCost 0`, was €4000 eenmalig):
+  geen instapdrempel meer, enkel `COACH.dailySalary` **€60/dag per gecoachte duif**
+  zolang de coach werkt (`setCoach` rekent niets meer af bij inhuren). Voordeel:
+  ~1 attribuutpunt/dag (snelheid+conditie+oriëntatie) + ervaring, tot **cap 100**
+  (training stopt op ~92) — permanent, dus iets duurder dan ziekenboegstaf. Knop:
+  `COACH.dailySalary`.
 - **Dagopdrachten/streak verlaagd** (missions.ts): opdrachtgeld ~gehalveerd (15–60),
   streakbonus `min(25, 5 + streak·2)` → samen ~€750/week i.p.v. ~€1750.
 - **Weddenschap max inzet €500** (`BETTING.maxStake`, was 5000).

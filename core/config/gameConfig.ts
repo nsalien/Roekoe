@@ -79,8 +79,14 @@ export function compartmentCost(owned: number): number {
  * bird past the normal training ceiling.
  */
 export const COACH = {
-  hireCost: 4000, // one-time, per pigeon
-  dailySalary: 36, // per coached pigeon, charged automatically each day
+  // A private coach is now a PURELY DAILY cost — no upfront hire fee. Per coached
+  // pigeon it lifts snelheid + conditie + oriëntatie by ~1 point/day (all three)
+  // plus ervaring, all the way to 100 (training alone caps at ~92) — a strong,
+  // permanent edge. Priced a touch above the infirmary staff (physio €50, dokter
+  // €57/day) because that growth is permanent; no barrier to start, but €60/day
+  // per bird is a real recurring choice that scales with how many you coach.
+  hireCost: 0, // deprecated: coaching has no one-time cost anymore
+  dailySalary: 60, // per coached pigeon, charged automatically each day
   dailyGain: 0.35, // per racing attribute, per day
   experienceDailyGain: 0.5,
   attributeCap: 100, // coaches can push all the way to the maximum
@@ -126,15 +132,16 @@ export const FLIGHT_DYNAMICS = {
   segSpread: 0.28, // each segment's pace varies uniformly ±this (visual overtaking)
   surgeChance: 0.16, // chance a segment is an extra surge/lull on top of the spread
   surgeMin: 0.5, surgeMax: 1.6, // strongest lull / surge when it hits
-  // Form of the day: a small everyday swing, plus RARE great/off days — the main
-  // "a favourite can flop / an outsider can shine" lever. Kept modest so the best
-  // birds still usually win.
-  dayNoise: 0.06, // ±6% everyday variation
-  bigDayChance: 0.08, bigDayMin: 1.08, bigDayMax: 1.2, // a great day
-  offDayChance: 0.1, offDayMin: 0.8, offDayMax: 0.92, // an off day
+  // Form of the day: the main "any bird can place" lever. A meaningful everyday
+  // swing plus great/off days, so a favourite can land mid-pack and an outsider
+  // can reach the top — while the CENTRE of each bird's spread still tracks its
+  // attributes, so the best is still the most LIKELY to win (just not certain).
+  dayNoise: 0.17, // ±17% everyday variation
+  bigDayChance: 0.14, bigDayMin: 1.12, bigDayMax: 1.36, // a great day
+  offDayChance: 0.16, offDayMin: 0.64, offDayMax: 0.86, // an off day
   // Weather: rough weather (rain/wind) hurts some birds more than others, so bad
   // weather makes a race more of a lottery; good weather rewards the best.
-  weatherSpread: 0.7, // per-bird sensitivity spread
+  weatherSpread: 0.8, // per-bird sensitivity spread
   // Getting lost: low orientation raises the chance; a stretch is flown slowly
   // (off course), costing real time and dropping the bird — occasionally out.
   lostBaseChance: 0.04,
@@ -672,6 +679,14 @@ export const IMPROVE = {
   baseChance: 0.4,
   gainMin: 0.4,
   gainMax: 1.6,
+  // Racing improves a bird MORE when it is weaker overall AND when it performed
+  // better in the race — both are multiplicative factors, so a lesser bird that
+  // punches above its weight learns the most (it catches up), while a top bird
+  // near the cap gains little. See finalizeFlight:
+  //   chance ≈ base·(0.4+room)·(0.5+weakness·weaknessWeight)·(0.6+place·0.8)
+  weaknessWeight: 1.5, // how strongly being a weaker bird raises the improve chance
+  maxChance: 0.92, // ceiling on the per-race improve chance
+  weaknessGainSpread: 0.8, // a weaker bird also gains MORE per improvement
 } as const;
 
 /** Dutch labels for the three trainable/improvable attributes. */
