@@ -95,13 +95,15 @@ function createSundayAuction(db: Database, key: string, startMs: number, endMs: 
   }
 }
 
-/** Put a low-quality rescue bird up for auction, opening at €25. */
+/** Put a rescue bird up for auction, opening at €25. Usually a low-quality
+ *  project; now and then (shelterBetterChance) a decent — but not top — bird. */
 function createShelterAuction(db: Database, nowMs: number): void {
   const week = db.world.currentWeek;
-  const p = generatePigeon({
-    ownerId: SHELTER_ID, currentWeek: week,
-    quality: randFloat(AUCTION.shelterQualityMin, AUCTION.shelterQualityMax),
-  });
+  const better = Math.random() < AUCTION.shelterBetterChance;
+  const quality = better
+    ? randFloat(AUCTION.shelterBetterQualityMin, AUCTION.shelterBetterQualityMax)
+    : randFloat(AUCTION.shelterQualityMin, AUCTION.shelterQualityMax);
+  const p = generatePigeon({ ownerId: SHELTER_ID, currentWeek: week, quality });
   p.forSale = false;
   db.pigeons.push(p);
   db.auctions.push({
