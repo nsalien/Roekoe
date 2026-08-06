@@ -684,11 +684,7 @@ kwetsuur, ziekte, herstel, sterfte en geboorte van jongen.
   getalenteerde duif, seizoenspunten, niveau of gouden medailles), **biedt** die
   sponsor zich aan: er verschijnt een melding én een aanbod op de sponsorpagina
   dat je **aanvaardt of weigert**. Hoe beter je duiven en prestaties, hoe grotere
-  sponsors zich melden en hoe groter het aanbod. Er is een brede waaier aan sponsors
-  in veel categorieën (café, frituur, bakkerij, slagerij, brouwerij, dierenwinkel,
-  landbouw, bank, verzekering, bouw, telecom, loterij, racingteam…) verspreid over
-  **vier tiers** — van een buurtcafé tot echte prestige-partners die enkel de
-  absolute top binnenhaalt.
+  sponsors zich melden en hoe groter het aanbod.
   - Aanvaarden geeft eenmalig **tekengeld**, daarna elke week een **weekbijdrage**
     (bij "Volgende week") en een **bonus per gewonnen vlucht**.
   - Je kan **meerdere sponsors tegelijk** hebben, maar **per categorie** (café,
