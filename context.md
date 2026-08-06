@@ -301,15 +301,22 @@ Entiteiten: `Pigeon`, `Loft`, `User`, `BreedingPair`, `Flight` (+ `SimEntry`,
 - **Start:** €5000, 6 duiven, hokcapaciteit 8. **Bots ook 8** (`BOT_LOFT_CAPACITY`,
   was 20), met speler-kwaliteit (0.4–0.6). Startvoorraad 50 kg normaal.
 - **Vaste onkosten = DAGELIJKS** (geen weekkost meer): `DAILY_UPKEEP_BASE 22` +
-  `DAILY_UPKEEP_PER_PIGEON 2`, `COACH.dailySalary 60`, `INFIRMARY.doctorSalary 57` /
+  `DAILY_UPKEEP_PER_PIGEON 2`, `COACH.dailySalary 80`, `INFIRMARY.doctorSalary 57` /
   `physioSalary 50` / `medicatedFoodPerBird 6`. Aangerekend in `tickDailyCare` via
   `economy.dailyRunningCost`; sponsorbijdrage dagelijks (weekbedrag ÷ 7).
-- **Privécoach = puur dagelijkse kost** (`COACH.hireCost 0`, was €4000 eenmalig):
-  geen instapdrempel meer, enkel `COACH.dailySalary` **€60/dag per gecoachte duif**
-  zolang de coach werkt (`setCoach` rekent niets meer af bij inhuren). Voordeel:
-  ~1 attribuutpunt/dag (snelheid+conditie+oriëntatie) + ervaring, tot **cap 100**
-  (training stopt op ~92) — permanent, dus iets duurder dan ziekenboegstaf. Knop:
-  `COACH.dailySalary`.
+- **Privécoach = puur dagelijkse kost met afnemende groei** (`COACH`): geen
+  instapdrempel (`hireCost 0`, was €4000), enkel **€80/dag per gecoachte duif**
+  (`dailySalary`, was €60) zolang de coach werkt; `setCoach` rekent niets af bij
+  inhuren. Groei **schaalt met de resterende ruimte**:
+  `coachDailyGain(attr) = COACH.maxDailyGain (1.1) · (100 − attr)/100` per
+  eigenschap (snelheid/conditie/oriëntatie), + `experienceDailyGain 0.5`. Dus ~+0,55/dag
+  rond attribuut 50, ~+0,33 rond 70, ~+0,11 rond 90 — en door de afronding op 1
+  decimaal **stalt de groei rond ~95** (de allerlaatste punten tot 96 komen enkel via
+  racen; 100 is praktisch onbereikbaar). Zo is de coach top om een duif **op te
+  bouwen**, maar blijft een elite-duif een lange investering (≈150 dagen + ~€12k om één
+  eigenschap 50→90 te tillen). Werkt enkel als de duif **gevoerd, gezond en thuis** is
+  (niet ziek/in ziekenboeg/onderweg). Knoppen: `COACH.dailySalary` / `maxDailyGain`.
+  Helper `economy.coachDailyGain`; per-dag ▲ zichtbaar in Mijn hok.
 - **Dagopdrachten/streak verlaagd** (missions.ts): opdrachtgeld ~gehalveerd (15–60),
   streakbonus `min(25, 5 + streak·2)` → samen ~€750/week i.p.v. ~€1750.
 - **Weddenschap max inzet €500** (`BETTING.maxStake`, was 5000).

@@ -15,6 +15,17 @@ import {
 import type { Loft, Pigeon } from '../schema.js';
 import { clamp, hashString, round1 } from './util.js';
 
+/**
+ * A private coach's daily gain for ONE racing attribute, diminishing as the bird
+ * nears the cap: `maxDailyGain · (cap − attr)/cap`. So a coach develops a weak
+ * bird fast (~+0.55/day around 50) but only slowly perfects a strong one
+ * (~+0.11/day around 90) — reaching 100 stays a real, expensive grind.
+ */
+export function coachDailyGain(attr: number): number {
+  const room = clamp((COACH.attributeCap - attr) / COACH.attributeCap, 0, 1);
+  return COACH.maxDailyGain * room; // callers round when storing (1 decimal)
+}
+
 /** A bird that starved to death during a day of care. */
 export interface StarvationDeath {
   id: string;
@@ -82,11 +93,12 @@ export function applyDayOfCare(loft: Loft, pigeons: Pigeon[], livePigeonIds?: Se
       }
       if (ration.libidoRecovery) p.libido = round1(clamp(p.libido + ration.libidoRecovery / 7, 0, 100));
       // A hired coach drills every racing attribute (never libido) — but not
-      // while the bird is actually away racing (a live flight).
+      // while the bird is actually away racing (a live flight). The gain shrinks
+      // as each attribute nears the cap (see coachDailyGain).
       if (p.coached && !p.ailment && !p.inInfirmary && !livePigeonIds?.has(p.id)) {
-        p.speed = round1(clamp(p.speed + COACH.dailyGain, 0, COACH.attributeCap));
-        p.endurance = round1(clamp(p.endurance + COACH.dailyGain, 0, COACH.attributeCap));
-        p.orientation = round1(clamp(p.orientation + COACH.dailyGain, 0, COACH.attributeCap));
+        p.speed = round1(clamp(p.speed + coachDailyGain(p.speed), 0, COACH.attributeCap));
+        p.endurance = round1(clamp(p.endurance + coachDailyGain(p.endurance), 0, COACH.attributeCap));
+        p.orientation = round1(clamp(p.orientation + coachDailyGain(p.orientation), 0, COACH.attributeCap));
         p.experience = round1(clamp(p.experience + COACH.experienceDailyGain, 0, 100));
       }
       // Libido drifts toward conditie + energie; a frisky minority stays high.
@@ -195,9 +207,9 @@ export function projectDailyCare(loft: Loft, p: Pigeon, live = false): DailyCare
     }
     if (ration.libidoRecovery) libidoFromFeed = ration.libidoRecovery / 7;
     if (coachActive) {
-      speed = rise(p.speed, COACH.dailyGain, COACH.attributeCap);
-      orientation = rise(p.orientation, COACH.dailyGain, COACH.attributeCap);
-      enduranceRaw += clamp(COACH.attributeCap - endAfterFood, 0, COACH.dailyGain);
+      speed = rise(p.speed, coachDailyGain(p.speed), COACH.attributeCap);
+      orientation = rise(p.orientation, coachDailyGain(p.orientation), COACH.attributeCap);
+      enduranceRaw += clamp(COACH.attributeCap - endAfterFood, 0, coachDailyGain(endAfterFood));
       experience = rise(p.experience, COACH.experienceDailyGain, 100);
     }
     endurance = round1(enduranceRaw);
