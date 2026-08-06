@@ -100,10 +100,13 @@ function tierPool(tier: FlightTier): RaceCity[] {
   return RACE_CITIES; // international: anywhere, including the grote-fond release points
 }
 
-/** Pick a random start + finish for a tier, within its distance window. */
-export function pickRoute(tier: FlightTier): { fromCity: string; toCity: string; distanceKm: number } {
+/** Pick a random start + finish for a tier, within its distance window. The
+ *  window defaults to the tier's current config, but can be overridden (e.g. a
+ *  legacy migration routing existing flights into the OLD, narrower windows). */
+export function pickRoute(tier: FlightTier, minKmOverride?: number, maxKmOverride?: number): { fromCity: string; toCity: string; distanceKm: number } {
   const pool = tierPool(tier);
-  const { minKm, maxKm } = FLIGHT_TIERS[tier];
+  const minKm = minKmOverride ?? FLIGHT_TIERS[tier].minKm;
+  const maxKm = maxKmOverride ?? FLIGHT_TIERS[tier].maxKm;
   let fallback: { a: RaceCity; b: RaceCity; d: number } | null = null;
   for (let i = 0; i < 60; i++) {
     const a = pick(pool);
@@ -854,6 +857,39 @@ function runDataMigrations(db: Database): void {
       f.distanceKm = route.distanceKm;
     }
     db.world.dataVersion = 20;
+  }
+  if ((db.world.dataVersion ?? 0) < 21) {
+    // Existing scheduled flights should keep the OLD, shorter distances (roughly
+    // "like it used to be" — an exact match isn't needed); only flights scheduled
+    // from here on use the widened windows. Re-route every still-scheduled non-titan
+    // flight whose distance now sits outside its tier's LEGACY window back into that
+    // window, so the current calendar reads like the old distances. Flights already
+    // within the legacy range keep their length; live/completed flights (frozen sim)
+    // and titans (own range) are left untouched. New flights created afterwards get
+    // the new distances via makeRealtimeFlight. (v20 may have pushed some flights
+    // into the new windows; this brings the current calendar back.)
+    const legacy: Record<FlightTier, { minKm: number; maxKm: number }> = {
+      regional: { minKm: 30, maxKm: 160 },
+      national: { minKm: 60, maxKm: 290 },
+      international: { minKm: 180, maxKm: 950 },
+    };
+    for (const f of db.flights) {
+      if (f.status !== 'scheduled' || f.titan) continue;
+      const tier: FlightTier =
+        f.type === 'regional' || f.type === 'national' || f.type === 'international'
+          ? f.type
+          : f.distanceKm >= 400 ? 'international' : f.distanceKm >= 200 ? 'national' : 'regional';
+      const win = legacy[tier];
+      if (f.distanceKm >= win.minKm && f.distanceKm <= win.maxKm) continue; // already old-range
+      const route = pickRoute(tier, win.minKm, win.maxKm);
+      f.type = tier;
+      f.name = f.practice ? 'Oefenvlucht' : FLIGHT_TIERS[tier].name;
+      f.entryFee = f.practice ? 0 : FLIGHT_TIERS[tier].entryFee;
+      f.fromCity = route.fromCity;
+      f.toCity = route.toCity;
+      f.distanceKm = route.distanceKm;
+    }
+    db.world.dataVersion = 21;
   }
 }
 

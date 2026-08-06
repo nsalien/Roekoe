@@ -95,12 +95,13 @@ krijgen.**
 `core/game/schedule.ts` → `advanceRealtime(db, nowMs, weatherByFlight)` roept in
 volgorde:
 1. `runDataMigrations(db)` — eenmalige datafixes, **gated op `world.dataVersion`**
-   (staat nu op **20**; nieuwe migratie = nieuw `if ((db.world.dataVersion ?? 0) < N)`
-   blok + `db.world.dataVersion = N`). v20 corrigeert enkel geplande vluchten **met een
-   echte-speler-inschrijving** waarvan de afstand buiten het (verbrede) tier-venster valt
-   (regio 0–200 / nat 200–500 / intl 400–1200 km) via `pickRoute`; alle andere geplande
-   vluchten **behouden hun oorspronkelijke lengte**, live/afgewerkte vluchten en titans
-   blijven ongemoeid. v19 wist oude openstaande sponsoraanbiedingen;
+   (staat nu op **21**; nieuwe migratie = nieuw `if ((db.world.dataVersion ?? 0) < N)`
+   blok + `db.world.dataVersion = N`). v21 zet **bestaande geplande vluchten terug naar de
+   OUDE, kortere afstanden** (regio 30–160 / nat 60–290 / intl 180–950 km): elke nog-
+   geplande niet-titan-vlucht buiten haar legacy-venster wordt her-routeerd via
+   `pickRoute(tier, min, max)`; enkel **nieuwe** vluchten (nadien) krijgen de verbrede
+   afstanden. v20 (voorloper) routeerde geplande vluchten net de andere kant op — v21 haalt
+   de huidige kalender terug. v19 wist oude openstaande sponsoraanbiedingen;
    v18 backfilt `Pigeon.raceLog` uit bestaande
    vluchthistorie vóór de eerste prune (zie §Performance).
 2. `ensureFlightsScheduled(db, nowMs)` — plant vluchten volgens `REAL_SCHEDULE`.
@@ -546,7 +547,7 @@ Voor engine-logica: snelle integratietests met **tsx** vanuit de repo-root
 ## 8. Belangrijkste wijzigingen deze sessie (achtergrond)
 
 Alles hieronder staat **live** op de deploy-branch. Data-migraties liepen door tot
-**`dataVersion = 20`**.
+**`dataVersion = 21`**.
 
 **Vluchten & energie**
 - Vlucht-energie wordt **geleidelijk per 30 min** afgetrokken (`tickFlightEnergy`),
@@ -752,13 +753,16 @@ polls niet telkens de hele wereld herladen. **Structureel:** selectief laden i.p
   **Barcelona**), nieuw land **`ES`** in `Country`. `pickRoute` filtert nog altijd op
   `[minKm,maxKm]`, dus de pools hoeven enkel genoeg in-window-paren te bevatten
   (geverifieerd: regio max ~183 km, nationaal ruim 200–500, internationaal tot ~1150).
-  **Migratie v20**: bestaande **geplande** vluchten behouden hun **oorspronkelijke
-  lengte** — we schudden de kalender niet door elkaar. Enkel een geplande vlucht met een
-  **echte-speler-inschrijving** waarvan de afstand buiten haar tier-venster valt, wordt
-  **her-routeerd** via `pickRoute` (afstand terug in het venster; `type`/naam/inschrijfgeld
-  herzet). Bot-only/lege geplande vluchten, live/afgewerkte vluchten (bevroren `sim`) en
-  titans blijven ongemoeid; nieuwe vluchten krijgen sowieso de nieuwe afstanden.
-  Geverifieerd: `pickRoute` levert 100% in-window afstanden per tier.
+  **Migratie v21** (huidige regel): bestaande **geplande** vluchten horen bij de **OUDE,
+  kortere afstanden** (regio 30–160 / nat 60–290 / intl 180–950 km); enkel **nieuwe**
+  vluchten (nadien geplant) gebruiken de verbrede vensters. Elke nog-geplande niet-titan-
+  vlucht buiten haar legacy-venster wordt her-routeerd via `pickRoute(tier, min, max)`
+  (overrides toegevoegd aan `pickRoute`); vluchten al in het oude bereik houden hun lengte,
+  live/afgewerkte vluchten (bevroren `sim`) en titans blijven ongemoeid. **v20** was een
+  voorloper die geplande vluchten juist naar de nieuwe vensters duwde — v21 haalt de huidige
+  kalender terug (draait op elke wereld, ook die al op v20 stond). Geverifieerd met tsx:
+  legacy-vensters 100% haalbaar per tier-pool, en `pickRoute` zonder override levert nog
+  steeds de nieuwe afstanden.
 - **Energieverbruik-tabel** in `spelregels.md` §3 herrekend voor de nieuwe afstanden
   (formule ongewijzigd: `(10 + km/30)·ervaringsfactor + rand(0..10)`); geverifieerd met tsx.
 - **Privécoach-doc gelijkgetrokken met de code** (§13 spelregels + coach-UI): geen
