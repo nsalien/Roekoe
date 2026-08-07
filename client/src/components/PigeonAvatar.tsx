@@ -1,7 +1,8 @@
 /**
- * A little procedurally-tinted SVG pigeon. Its plumage colour is derived from
- * the pigeon's id (so each bird looks consistent), the belly tint hints at sex,
- * and a subtle golden ring appears for high-talent birds. Purely decorative.
+ * A pigeon's avatar. When the bird has a BREED (ras) with a photo, we show that
+ * photo — the same artwork as roekoe.org/wiki/breeds — in a round frame. A
+ * subtle golden ring appears for high-talent birds. If no breed photo is known
+ * (older data), we fall back to a little procedurally-tinted SVG pigeon.
  */
 
 import type { Pigeon, Sex } from '../types';
@@ -12,18 +13,54 @@ function hashHue(id: string): number {
   return h;
 }
 
-export function PigeonAvatar({
-  pigeon,
-  size = 84,
-}: {
-  pigeon: Pick<Pigeon, 'id' | 'sex' | 'talent'>;
-  size?: number;
-}) {
+type AvatarPigeon = Pick<Pigeon, 'id' | 'sex' | 'talent'> & { breed?: Pigeon['breed'] };
+
+export function PigeonAvatar({ pigeon, size = 84 }: { pigeon: AvatarPigeon; size?: number }) {
+  const elite = pigeon.talent >= 75;
+  const image = pigeon.breed?.image;
+
+  if (image) {
+    // Legendary/rare breeds get a warmer frame so the prize photos stand out.
+    const rarity = pigeon.breed?.rarity;
+    const ring =
+      rarity === 'legendarisch'
+        ? '#f59e0b'
+        : rarity === 'zeldzaam'
+          ? '#a855f7'
+          : elite
+            ? '#f59e0b'
+            : 'var(--line, rgba(0,0,0,0.12))';
+    const ringWidth = rarity === 'legendarisch' || rarity === 'zeldzaam' || elite ? 2.5 : 1.5;
+    return (
+      <div
+        style={{
+          width: size,
+          height: size,
+          borderRadius: '50%',
+          overflow: 'hidden',
+          flexShrink: 0,
+          background: 'var(--surface-2, #eee)',
+          border: `${ringWidth}px solid ${ring}`,
+          boxSizing: 'border-box',
+        }}
+      >
+        <img
+          src={`/pigeon-images/${image}`}
+          width={size}
+          height={size}
+          alt={pigeon.breed?.name ?? 'Duif'}
+          loading="lazy"
+          style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+        />
+      </div>
+    );
+  }
+
+  // Fallback: the old procedural SVG pigeon.
   const hue = hashHue(pigeon.id);
   const body = `hsl(${hue}, 28%, 62%)`;
   const bodyDark = `hsl(${hue}, 30%, 45%)`;
   const belly: Record<Sex, string> = { doffer: 'hsl(205, 55%, 78%)', duivin: 'hsl(335, 55%, 82%)' };
-  const elite = pigeon.talent >= 75;
 
   return (
     <svg viewBox="0 0 100 100" width={size} height={size} role="img" aria-label={`Duif`}>

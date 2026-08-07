@@ -95,7 +95,7 @@ krijgen.**
 `core/game/schedule.ts` → `advanceRealtime(db, nowMs, weatherByFlight)` roept in
 volgorde:
 1. `runDataMigrations(db)` — eenmalige datafixes, **gated op `world.dataVersion`**
-   (staat nu op **22**; nieuwe migratie = nieuw `if ((db.world.dataVersion ?? 0) < N)`
+   (staat nu op **23**; nieuwe migratie = nieuw `if ((db.world.dataVersion ?? 0) < N)`
    blok + `db.world.dataVersion = N`). v21 zet **bestaande geplande vluchten terug naar de
    OUDE, kortere afstanden** (regio 30–160 / nat 60–290 / intl 180–950 km): elke nog-
    geplande niet-titan-vlucht buiten haar legacy-venster wordt her-routeerd via
@@ -278,6 +278,11 @@ Entiteiten: `Pigeon`, `Loft`, `User`, `BreedingPair`, `Flight` (+ `SimEntry`,
 - `Loft.food` is een **`FoodStock` = Record<FeedRationKey, number>** (kg per type).
 
 **Recent toegevoegde velden (rijden mee in bestaande kolommen/JSON — geen migratie):**
+- `Pigeon.breed?` — **ras** (breed-id, kolom `breed TEXT`; zie §Rassen). Puur
+  cosmetisch: bepaalt de **foto** + een kleine **prijstoeslag** via de rarity, géén
+  effect op eigenschappen/prestaties. Toegewezen via gewogen loting bij ontstaan
+  (`rollBreed` in `pigeon.ts`); geërfd bij kweek (zelfde ras behouden, anders `mixed`).
+  Migratie **v23** backfilt bestaande duiven.
 - `Pigeon.hungerDays` — opeenvolgende dagen zonder voer (drijft verhongeren).
 - `Pigeon.restDays` — opeenvolgende gevoede rustdagen zonder vlucht (rustbonus).
 - `Pigeon.cureUntil?` — ISO-tijd waarop een betaalde **rustkuur** afloopt (eigen
@@ -550,7 +555,27 @@ Voor engine-logica: snelle integratietests met **tsx** vanuit de repo-root
 ## 8. Belangrijkste wijzigingen deze sessie (achtergrond)
 
 Alles hieronder staat **live** op de deploy-branch. Data-migraties liepen door tot
-**`dataVersion = 22`**.
+**`dataVersion = 23`**.
+
+**Rassen (breeds) — nieuwste**
+- Elke duif heeft een **ras** (`Pigeon.breed`, kolom `breed`): bepaalt de **foto** +
+  een kleine **prijstoeslag** via de rarity, verder **puur cosmetisch** (geen effect
+  op eigenschappen/prestaties). Config in `gameConfig.ts` (`PIGEON_BREEDS`,
+  `BREED_RARITY`, `MIXED_BREED_ID`, `DEFAULT_BREED_ID`) — namen/gewichten/foto's
+  gespiegeld van **roekoe.org/wiki/breeds**. 11 rollbare rassen (Algemeen/Ongewoon/
+  Zeldzaam/Legendarisch) + `mixed` (Gemengd).
+- **Toewijzing** via gewogen loting `rollBreed()` in `pigeon.ts` — zit in
+  `generatePigeon`, dus alle bronnen (kweek/bots/veiling/opvangcentrum/events) krijgen
+  automatisch een ras. **Kweek** (`breeding.ts::inheritBreed`): 2× hetzelfde ras →
+  behouden, verschillend → `mixed`. **Prijs**: `estimateValue` × `breedPriceMult`
+  (Ongewoon +8 %, Zeldzaam +20 %, Legendarisch +40 %).
+- **Foto's** in `client/public/pigeon-images/` (`pigeon.png` + `1.png`…`10.png`).
+  `PigeonAvatar` toont de rasfoto (rond kader, warmere rand voor zeldzaam/legendarisch),
+  met de oude SVG als fallback. `PigeonPage` toont een **ras-badge** (naam · zeldzaamheid).
+  DTO: `pigeonDTO.breed = { id, name, rarity, rarityLabel, image }` (publiek, ook voor
+  andermans duiven — de foto is zichtbaar). Migratie **v23** backfilt bestaande duiven.
+- **Persistentie**: `ensureSchema` voegt kolom `breed TEXT` toe; `rowToPigeon` +
+  pigeon-`INSERT` uitgebreid.
 
 **Vluchten & energie**
 - Vlucht-energie wordt **geleidelijk per 30 min** afgetrokken (`tickFlightEnergy`),

@@ -1,10 +1,46 @@
 /** Pigeon creation, ageing and derived helpers. */
 
-import { AGE_CURVE, MORTALITY_CURVE, RACE_AGE_WEEKS } from '../config/gameConfig.js';
+import {
+  AGE_CURVE,
+  BREED_RARITY,
+  DEFAULT_BREED_ID,
+  MORTALITY_CURVE,
+  PIGEON_BREEDS,
+  RACE_AGE_WEEKS,
+  type BreedDef,
+} from '../config/gameConfig.js';
 import type { Pigeon, Sex } from '../schema.js';
 import { newId } from '../store.js';
 import { generatePigeonName } from './names.js';
 import { bell, clamp, interpolate, randInt, round1 } from './util.js';
+
+/** Look up a breed by id, falling back to the default (Stadsduif) breed. */
+export function breedInfo(breedId: string | undefined): BreedDef {
+  return (
+    PIGEON_BREEDS.find((b) => b.id === breedId) ??
+    PIGEON_BREEDS.find((b) => b.id === DEFAULT_BREED_ID)!
+  );
+}
+
+/** Price premium for a breed's rarity (1.0 for common/mixed). */
+export function breedPriceMult(breedId: string | undefined): number {
+  return BREED_RARITY[breedInfo(breedId).rarity].priceMult;
+}
+
+/**
+ * Roll a random breed by weight (mirrors roekoe.org/wiki/breeds). The `mixed`
+ * breed has weight 0 so it is never rolled here — it only arises from crossing
+ * two different breeds. `rng` defaults to Math.random.
+ */
+export function rollBreed(rng: () => number = Math.random): string {
+  const total = PIGEON_BREEDS.reduce((s, b) => s + b.weight, 0);
+  let r = rng() * total;
+  for (const b of PIGEON_BREEDS) {
+    r -= b.weight;
+    if (r < 0) return b.id;
+  }
+  return DEFAULT_BREED_ID;
+}
 
 const ageCurvePoints = AGE_CURVE.map((p) => ({ x: p.weeks, y: p.multiplier }));
 const mortalityPoints = MORTALITY_CURVE.map((p) => ({ x: p.weeks, y: p.p }));
@@ -46,6 +82,8 @@ export interface GenerateOptions {
   sex?: Sex;
   name?: string;
   birthWeek?: number;
+  /** Force a specific breed; otherwise one is rolled by weight. */
+  breed?: string;
 }
 
 /** Create a fresh pigeon with rolled attributes. */
@@ -85,6 +123,7 @@ export function generatePigeon(opts: GenerateOptions): Pigeon {
     inInfirmary: false,
     races: 0,
     everAiled: false,
+    breed: opts.breed ?? rollBreed(),
     coached: false,
     ration: 'normal',
     compartment: false,
@@ -115,5 +154,7 @@ export function estimateValue(pigeon: Pigeon, currentWeek: number): number {
   const base = Math.pow(t / 50, 2.2) * 800; // talent scales value steeply
   const ageFactor = ageMultiplier(pigeon, currentWeek);
   const expFactor = 1 + pigeon.experience / 200;
-  return Math.max(50, Math.round((base * (0.6 + 0.4 * ageFactor) * expFactor) / 10) * 10);
+  // A rarer breed fetches a small premium (cosmetic only — attributes unchanged).
+  const breedFactor = breedPriceMult(pigeon.breed);
+  return Math.max(50, Math.round((base * (0.6 + 0.4 * ageFactor) * expFactor * breedFactor) / 10) * 10);
 }

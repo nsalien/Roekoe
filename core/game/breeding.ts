@@ -1,10 +1,21 @@
 /** Breeding: pairing pigeons and producing young that inherit attributes. */
 
-import { BREEDING } from '../config/gameConfig.js';
+import { BREEDING, DEFAULT_BREED_ID, MIXED_BREED_ID } from '../config/gameConfig.js';
 import type { Pigeon } from '../schema.js';
 import { newId } from '../store.js';
 import { generatePigeonName } from './names.js';
 import { clamp, randFloat, round1 } from './util.js';
+
+/**
+ * A youngster's breed: it inherits the parents' breed only when BOTH parents
+ * are the same breed; two different breeds produce a `mixed` (Gemengd) bird.
+ * (A mixed parent bred with anything but another identical mixed → mixed again.)
+ */
+function inheritBreed(sire: Pigeon, dam: Pigeon): string {
+  const s = sire.breed ?? DEFAULT_BREED_ID;
+  const d = dam.breed ?? DEFAULT_BREED_ID;
+  return s === d ? s : MIXED_BREED_ID;
+}
 
 /** Inherit one attribute: average of parents plus a random mutation. */
 function inherit(a: number, b: number): number {
@@ -36,6 +47,7 @@ export function breed(sire: Pigeon, dam: Pigeon, ownerId: string, hatchWeek: num
   const count = Math.random() < secondChance ? 2 : 1;
 
   const young: Pigeon[] = [];
+  const childBreed = inheritBreed(sire, dam);
   for (let i = 0; i < count; i++) {
     const speed = inherit(sire.speed, dam.speed);
     const endurance = inherit(sire.endurance, dam.endurance);
@@ -64,6 +76,7 @@ export function breed(sire: Pigeon, dam: Pigeon, ownerId: string, hatchWeek: num
       inInfirmary: false,
       races: 0,
       everAiled: false,
+      breed: childBreed,
       coached: false,
       ration: 'normal',
       compartment: false,

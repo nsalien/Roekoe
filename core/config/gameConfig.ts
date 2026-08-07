@@ -807,6 +807,62 @@ export const IMPROVE_ATTR_LABEL: Record<'speed' | 'endurance' | 'orientation', s
 };
 
 // ===========================================================================
+// Breeds (rassen) — purely cosmetic, but rarer breeds fetch a higher price
+// ===========================================================================
+//
+// Every pigeon has a BREED. It only changes the photo shown for the bird and,
+// via its rarity, a small price premium — it has NO effect on attributes or
+// race performance. Breeds are rolled by WEIGHT when a bird is created (the
+// weights + names + photos mirror roekoe.org/wiki/breeds). Breeding two birds
+// of the SAME breed keeps that breed; two DIFFERENT breeds yield a `mixed`
+// (Gemengd) bird. Photos live in client/public/pigeon-images/ (`image` field).
+
+export type BreedRarity = 'algemeen' | 'ongewoon' | 'zeldzaam' | 'legendarisch' | 'gemengd';
+
+export interface BreedDef {
+  id: string; // stable slug stored on the pigeon
+  name: string; // display name
+  rarity: BreedRarity;
+  weight: number; // roll weight (0 = never rolled randomly, e.g. mixed)
+  image: string; // filename under /pigeon-images/
+}
+
+/** Dutch labels + a small price premium per rarity tier. */
+export const BREED_RARITY: Record<BreedRarity, { label: string; priceMult: number }> = {
+  algemeen: { label: 'Algemeen', priceMult: 1.0 },
+  ongewoon: { label: 'Ongewoon', priceMult: 1.08 },
+  zeldzaam: { label: 'Zeldzaam', priceMult: 1.2 },
+  legendarisch: { label: 'Legendarisch', priceMult: 1.4 },
+  gemengd: { label: 'Gemengd', priceMult: 1.0 },
+};
+
+/**
+ * The rollable breeds (weights straight from roekoe.org/wiki/breeds) plus the
+ * special non-rollable `mixed` breed used for cross-breed young. `De Stadsduif`
+ * and `mixed` share the default `pigeon.png` photo (the site has no dedicated
+ * image for either).
+ */
+export const PIGEON_BREEDS: BreedDef[] = [
+  { id: 'stadsduif', name: 'De Stadsduif', rarity: 'algemeen', weight: 130, image: 'pigeon.png' },
+  { id: 'blauwe-geschelpte', name: 'Blauwe Geschelpte', rarity: 'algemeen', weight: 90, image: '1.png' },
+  { id: 'blauwe-band', name: 'Blauwe Band', rarity: 'algemeen', weight: 90, image: '2.png' },
+  { id: 'vale', name: 'Vale', rarity: 'ongewoon', weight: 30, image: '3.png' },
+  { id: 'rode', name: 'Rode', rarity: 'algemeen', weight: 80, image: '4.png' },
+  { id: 'bruine', name: 'Bruine', rarity: 'ongewoon', weight: 50, image: '5.png' },
+  { id: 'witte', name: 'Witte', rarity: 'ongewoon', weight: 50, image: '6.png' },
+  { id: 'schimmel', name: 'Schimmel', rarity: 'algemeen', weight: 80, image: '7.png' },
+  { id: 'bonte', name: 'Bonte', rarity: 'legendarisch', weight: 5, image: '8.png' },
+  { id: 'golden-ace', name: 'Golden Ace', rarity: 'legendarisch', weight: 5, image: '9.png' },
+  { id: 'meulemans', name: 'Meulemans', rarity: 'zeldzaam', weight: 15, image: '10.png' },
+  { id: 'mixed', name: 'Gemengd', rarity: 'gemengd', weight: 0, image: 'pigeon.png' },
+];
+
+/** Breed used when two different breeds are crossed. */
+export const MIXED_BREED_ID = 'mixed';
+/** Default breed id (fallback for legacy birds without one). */
+export const DEFAULT_BREED_ID = 'stadsduif';
+
+// ===========================================================================
 // Health: disease, injury, the infirmary and mortality
 // ===========================================================================
 

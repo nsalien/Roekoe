@@ -111,6 +111,7 @@ function rowToPigeon(r: any): Pigeon {
     inInfirmary: !!r.in_infirmary,
     races: r.races ?? 0,
     everAiled: !!r.ever_ailed,
+    breed: r.breed ?? undefined,
     coached: !!r.coached,
     ration: r.ration ?? 'normal',
     compartment: !!r.compartment,
@@ -390,11 +391,11 @@ export class D1Store implements Store {
     diff(this.snapshots.pigeons, w.pigeons, (p) => p.id, {
       upsert: (p) =>
         db.prepare(
-          'INSERT OR REPLACE INTO pigeons (id, owner_id, name, sex, birth_week, speed, endurance, orientation, libido, form, health, experience, sire_id, dam_id, for_sale, price, created_at_week, retired, ailment, in_infirmary, races, ever_ailed, coached, ration, compartment, hunger_days, rest_days, cure_until, season_peak_speed, season_podiums, season_start_score, season_practice_gain, trained_at, race_log) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+          'INSERT OR REPLACE INTO pigeons (id, owner_id, name, sex, birth_week, speed, endurance, orientation, libido, form, health, experience, sire_id, dam_id, for_sale, price, created_at_week, retired, ailment, in_infirmary, races, ever_ailed, breed, coached, ration, compartment, hunger_days, rest_days, cure_until, season_peak_speed, season_podiums, season_start_score, season_practice_gain, trained_at, race_log) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
         ).bind(
           p.id, p.ownerId, p.name, p.sex, p.birthWeek, p.speed, p.endurance, p.orientation, p.libido, p.form, p.health,
           p.experience, p.sireId, p.damId, b(p.forSale), p.price, p.createdAtWeek, 0,
-          p.ailment ? JSON.stringify(p.ailment) : '', b(p.inInfirmary), p.races, b(p.everAiled), b(p.coached),
+          p.ailment ? JSON.stringify(p.ailment) : '', b(p.inInfirmary), p.races, b(p.everAiled), p.breed ?? null, b(p.coached),
           p.ration ?? 'normal', b(p.compartment), p.hungerDays ?? 0, p.restDays ?? 0, p.cureUntil ?? null,
           p.seasonPeakSpeed ?? 0, p.seasonPodiums ?? 0, p.seasonStartScore ?? null, p.seasonPracticeGain ?? 0,
           p.trainedAt ? JSON.stringify(p.trainedAt) : null,
@@ -541,6 +542,7 @@ export async function ensureSchema(db: D1Database): Promise<void> {
     'ALTER TABLE pigeons ADD COLUMN season_practice_gain REAL NOT NULL DEFAULT 0',
     'ALTER TABLE pigeons ADD COLUMN trained_at TEXT',
     'ALTER TABLE pigeons ADD COLUMN race_log TEXT',
+    'ALTER TABLE pigeons ADD COLUMN breed TEXT',
     "ALTER TABLE lofts ADD COLUMN awards TEXT NOT NULL DEFAULT '[]'",
     "ALTER TABLE world ADD COLUMN season_started_at TEXT NOT NULL DEFAULT ''",
     "ALTER TABLE world ADD COLUMN season_ends_at TEXT NOT NULL DEFAULT ''",

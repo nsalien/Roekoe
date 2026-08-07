@@ -5,6 +5,15 @@
  */
 
 export type Sex = 'doffer' | 'duivin';
+export type BreedRarity = 'algemeen' | 'ongewoon' | 'zeldzaam' | 'legendarisch' | 'gemengd';
+
+export interface PigeonBreed {
+  id: string;
+  name: string;
+  rarity: BreedRarity;
+  rarityLabel: string;
+  image: string; // filename under /pigeon-images/
+}
 export type FeedRation = 'normal' | 'premium' | 'libido' | 'herstel';
 export type FoodStock = Record<FeedRation, number>;
 export type BetKind = 'win' | 'last' | 'own_top3' | 'top3' | 'mine_wins' | 'head2head';
@@ -64,6 +73,8 @@ export interface Pigeon {
   health: number | null;
   experience: number | null;
   talent: number;
+  // Breed (ras): cosmetic photo + rarity. Public for every bird.
+  breed: PigeonBreed;
   value: number;
   canRace: boolean;
   forSale: boolean;

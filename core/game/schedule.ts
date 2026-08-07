@@ -54,7 +54,7 @@ import {
 } from './flight.js';
 import type { WeatherResult } from './weather.js';
 import { generatePigeonName, isLegacyName, isWrongGenderName } from './names.js';
-import { canRace, talent } from './pigeon.js';
+import { canRace, rollBreed, talent } from './pigeon.js';
 import { NPC_OWNER_ID, ownerName } from './engine.js';
 import { bell, clamp, hashString, haversineKm, pick, randFloat, round1, seededRng } from './util.js';
 
@@ -909,6 +909,15 @@ function runDataMigrations(db: Database): void {
       f.distanceKm = route.distanceKm;
     }
     db.world.dataVersion = 22;
+  }
+  if ((db.world.dataVersion ?? 0) < 23) {
+    // Breeds (rassen): assign a weighted-random breed to every existing pigeon
+    // that doesn't have one yet, so old birds get a photo + rarity just like new
+    // ones. Purely cosmetic (plus a small price premium) — no attributes change.
+    for (const p of db.pigeons) {
+      if (!p.breed) p.breed = rollBreed();
+    }
+    db.world.dataVersion = 23;
   }
 }
 
