@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useGame } from '../game/GameContext';
 import { useAuth } from '../auth/AuthContext';
-import { Spinner } from '../components/ui';
+import { Spinner, nextPlayWeek, timeUntil } from '../components/ui';
 import type { PigeonRankRow } from '../types';
 
 /** Days/hours remaining until an ISO instant, as a short Dutch string. */
@@ -24,8 +24,9 @@ export function RankingPage() {
   const [tab, setTab] = useState<'melkers' | 'duiven'>('melkers');
   if (loading || !state) return <Spinner />;
 
-  const { seasonYear, seasonWeek, seasonEndsAt } = state.world;
+  const { seasonYear, seasonWeek, seasonEndsAt, seasonStartedAt } = state.world;
   const seasonWeeks = 4;
+  const nw = seasonStartedAt ? nextPlayWeek(seasonStartedAt, seasonWeek, seasonWeeks) : null;
 
   return (
     <div>
@@ -36,6 +37,13 @@ export function RankingPage() {
             Seizoen {seasonYear} · week {seasonWeek}/{seasonWeeks}
             {seasonEndsAt && <> · {timeLeft(seasonEndsAt)}</>}
           </p>
+          {nw && (
+            <p className="faint" style={{ margin: '2px 0 0', fontSize: '0.85rem' }}>
+              📅 {nw.isNewSeason
+                ? <>Nieuw seizoen (week 1) {timeUntil(nw.at)}</>
+                : <>Volgende speelweek (week {nw.weekNum}) {timeUntil(nw.at)}</>}
+            </p>
+          )}
         </div>
         <div className="pill-tabs">
           <button className={tab === 'melkers' ? 'active' : ''} onClick={() => setTab('melkers')}>Melkers</button>

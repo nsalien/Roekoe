@@ -437,7 +437,9 @@ Entiteiten: `Pigeon`, `Loft`, `User`, `BreedingPair`, `Flight` (+ `SimEntry`,
 
 ## 6. Client-pagina's (`client/src/pages/`)
 
-- `DashboardPage` — home. Voorraad per voertype (kopen), voer-effecten **per dag** in
+- `DashboardPage` — home. **Seizoen-sectie** onder de stat-tegels: "Seizoen X · week
+  Y/4" + badge met **dagen tot de volgende speelweek** (`nextPlayWeek`+`timeUntil` in
+  `ui.tsx`; week 4 → "nieuw seizoen"). Voorraad per voertype (kopen), voer-effecten **per dag** in
   **tekst** (energie/gezondheid/conditie/libido). Tegel "**Ziek/gewond in je hok**"
   (ziekenboeg telt niet mee). Dagopdrachten. Beheerder-kaart (admin): "Volgende week"
   + "Toon recente veilingen" (biedgeschiedenis).
@@ -457,7 +459,8 @@ Entiteiten: `Pigeon`, `Loft`, `User`, `BreedingPair`, `Flight` (+ `SimEntry`,
 - `ProfilePage` — hoknaam, **thema-toggle (donker/licht)**, **"Start rondleiding"**.
 - `RankingPage` — tabs **Melkers** (seizoenspunten) + **Duiven** (drie ranglijsten:
   snelste pieksnelheid, meeste podiums, meeste vooruitgang — via `state.pigeonRankings`).
-  Kop toont "Seizoen X · week Y/4 · nog Z dagen".
+  Kop toont "Seizoen X · week Y/4 · nog Z dagen" (tot seizoenseinde) + een tweede regel
+  met **dagen tot de volgende speelweek** (`nextPlayWeek`+`timeUntil`).
 - `AchievementsPage` (Prestaties) — tabs Badges · Trofeeën · **Seizoensprijzen**
   (Roekoes + Vleugels: tellingen goud/zilver/brons + erelijst uit `profile.awards`).
 - `AdminPage` (`/beheer`, **enkel admins**) — uitbreidbare **beheerconsole** (tabs).
