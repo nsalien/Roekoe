@@ -11,13 +11,14 @@ const GROUP_LABEL: Record<BadgeGroup, string> = {
   race: '🏁 Vluchtoverwinningen',
   podium: '🎖️ Podium & prestaties',
   breed: '🥚 Kweek',
+  collection: '🕊️ Rassen',
   market: '🛒 Markt',
   care: '💊 Verzorging',
   milestone: '📈 Mijlpalen',
   sponsor: '🤝 Sponsors',
   fun: '☠️ Speciaal',
 };
-const GROUP_ORDER: BadgeGroup[] = ['race', 'podium', 'breed', 'market', 'care', 'milestone', 'sponsor', 'fun'];
+const GROUP_ORDER: BadgeGroup[] = ['race', 'podium', 'breed', 'collection', 'market', 'care', 'milestone', 'sponsor', 'fun'];
 
 export function AchievementsPage() {
   const { state } = useGame();

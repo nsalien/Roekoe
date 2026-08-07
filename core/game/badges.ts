@@ -7,13 +7,21 @@
  * badges are awarded imperatively where the event happens.
  */
 
-import { EPITHETS, SPONSORS } from '../config/gameConfig.js';
-import type { Database, Flight, Loft } from '../schema.js';
+import {
+  BREED_RARITY,
+  DEFAULT_BREED_ID,
+  EPITHETS,
+  MIXED_BREED_ID,
+  PIGEON_BREEDS,
+  SPONSORS,
+  type BreedRarity,
+} from '../config/gameConfig.js';
+import type { Database, Flight, Loft, Pigeon } from '../schema.js';
 import { newId } from '../store.js';
 
 export interface BadgeDef {
   key: string;
-  group: 'race' | 'podium' | 'breed' | 'market' | 'care' | 'milestone' | 'sponsor' | 'fun';
+  group: 'race' | 'podium' | 'breed' | 'market' | 'care' | 'milestone' | 'sponsor' | 'fun' | 'collection';
   label: string;
   description: string;
   xp: number;
@@ -37,6 +45,52 @@ function activeCategoryCount(l: Loft): number {
   }
   return cats.size;
 }
+
+// --- Breed collection helpers (rassen). Breed is cosmetic, but collecting the
+//     breeds + rarities is a prestige goal in its own right. ---
+const BREED_BY_ID = new Map(PIGEON_BREEDS.map((b) => [b.id, b]));
+const breedOf = (p: Pigeon) => BREED_BY_ID.get(p.breed ?? DEFAULT_BREED_ID) ?? BREED_BY_ID.get(DEFAULT_BREED_ID)!;
+const myPigeons = (l: Loft, db: Database): Pigeon[] => db.pigeons.filter((p) => p.ownerId === l.userId);
+const ownsBreed = (l: Loft, db: Database, id: string) => myPigeons(l, db).some((p) => (p.breed ?? DEFAULT_BREED_ID) === id);
+const ownsRarity = (l: Loft, db: Database, r: BreedRarity) => myPigeons(l, db).some((p) => breedOf(p).rarity === r);
+
+/** The rollable, named breeds (everything except the cross-bred `mixed`). */
+const COLLECTIBLE_BREEDS = PIGEON_BREEDS.filter((b) => b.id !== MIXED_BREED_ID);
+
+/** XP for a per-breed "own one" badge, scaled by how rare the breed is. */
+const BREED_BADGE_XP: Record<BreedRarity, number> = {
+  algemeen: 10, ongewoon: 20, zeldzaam: 60, legendarisch: 100, gemengd: 30,
+};
+
+/** One "own a <breed>" badge per named breed. */
+const BREED_OWN_BADGES: BadgeDef[] = COLLECTIBLE_BREEDS.map((b) => ({
+  key: `breed_own_${b.id}`,
+  group: 'collection' as const,
+  label: b.name,
+  description: `Bezit een duif van het ras ${b.name} (${BREED_RARITY[b.rarity].label}).`,
+  xp: BREED_BADGE_XP[b.rarity],
+  icon: '🕊️',
+  test: (l: Loft, db: Database) => ownsBreed(l, db, b.id),
+}));
+
+/** One "own a bird of this rarity" badge per rarity tier. */
+const RARITY_OWN_BADGES: BadgeDef[] = [
+  { key: 'rarity_ongewoon', group: 'collection', label: 'Ongewone vondst', description: 'Bezit een duif van een Ongewoon ras.', xp: 25, icon: '🔎', test: (l, db) => ownsRarity(l, db, 'ongewoon') },
+  { key: 'rarity_zeldzaam', group: 'collection', label: 'Zeldzame parel', description: 'Bezit een duif van een Zeldzaam ras (Meulemans).', xp: 90, icon: '💎', test: (l, db) => ownsRarity(l, db, 'zeldzaam') },
+  { key: 'rarity_legendarisch', group: 'collection', label: 'Levende legende', description: 'Bezit een duif van een Legendarisch ras (Bonte of Golden Ace).', xp: 175, icon: '🌟', test: (l, db) => ownsRarity(l, db, 'legendarisch') },
+  { key: 'rarity_gemengd', group: 'collection', label: 'Mengelmoes', description: 'Bezit een Gemengde duif — kweek twee verschillende rassen samen.', xp: 40, icon: '🧬', test: (l, db) => ownsRarity(l, db, 'gemengd') },
+];
+
+/** Capstone: own a bird of every named breed at the same time. */
+const ALL_BREEDS_BADGE: BadgeDef = {
+  key: 'breed_collector_all',
+  group: 'collection',
+  label: 'Rassenverzamelaar',
+  description: `Bezit tegelijk een duif van elk van de ${COLLECTIBLE_BREEDS.length} rassen.`,
+  xp: 500,
+  icon: '🏆',
+  test: (l, db) => COLLECTIBLE_BREEDS.every((b) => ownsBreed(l, db, b.id)),
+};
 
 export const BADGES: BadgeDef[] = [
   // --- Race wins ---
@@ -115,6 +169,11 @@ export const BADGES: BadgeDef[] = [
   { key: 'rip_sperwer', group: 'fun', label: 'RIP 🕊️', description: 'Verlies een duif aan een sperwer.', xp: 25, icon: '🦅' },
   { key: 'vredig', group: 'fun', label: 'Vredig Heengegaan', description: 'Een duif sterft van ouderdom.', xp: 25, icon: '🕯️' },
   { key: 'kerngezond', group: 'fun', label: 'Kerngezond Hok', description: 'Al je duiven tegelijk 100% gezond (min. 4).', xp: 75, icon: '💚', test: (l, db) => { const mine = db.pigeons.filter((p) => p.ownerId === l.userId); return mine.length >= 4 && mine.every((p) => p.health >= 100); } },
+
+  // --- Breed collection (rassen): own each breed, each rarity, and them all ---
+  ...RARITY_OWN_BADGES,
+  ...BREED_OWN_BADGES,
+  ALL_BREEDS_BADGE,
 ];
 
 export const BADGE_MAP = new Map(BADGES.map((b) => [b.key, b]));

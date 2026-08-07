@@ -577,6 +577,16 @@ Alles hieronder staat **live** op de deploy-branch. Data-migraties liepen door t
   andermans duiven — de foto is zichtbaar). Migratie **v23** backfilt bestaande duiven.
 - **Persistentie**: `ensureSchema` voegt kolom `breed TEXT` toe; `rowToPigeon` +
   pigeon-`INSERT` uitgebreid.
+- **Verzamelbadges** (`badges.ts`, nieuwe groep **`collection`** — 🕊️ Rassen):
+  één "bezit dit ras"-badge **per ras** (`breed_own_<id>`, XP ∝ rarity), één badge
+  **per zeldzaamheid** (`rarity_ongewoon`/`_zeldzaam`/`_legendarisch`/`_gemengd`)
+  en de kapstok **`breed_collector_all`** (bezit tegelijk elk ras, +500 XP).
+  Programmatisch gegenereerd uit `PIGEON_BREEDS` via `test`-helpers (`ownsBreed`/
+  `ownsRarity`); opgepikt door `evaluateBadges` (kopen/kweken/offers/vluchten/tick).
+  Client: `BadgeGroup` + `GROUP_LABEL`/`GROUP_ORDER` in `AchievementsPage` uitgebreid.
+- **Eerste-login-melding + tour**: `BREED_NEWS_STEPS` (eenmalig, sleutel
+  `roekoe.newsSeen.breeds.<id>`) + gedeelde `BREED_STEP` in de volledige tour
+  (herhaalbaar vanaf profiel), verankerd op `[data-tour="pigeon"]`.
 
 **Vluchten & energie**
 - Vlucht-energie wordt **geleidelijk per 30 min** afgetrokken (`tickFlightEnergy`),

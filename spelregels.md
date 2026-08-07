@@ -908,6 +908,17 @@ verschillende rassen**, dan wordt het jong een **Gemengd** ras (zonder
 prijstoeslag). Zo kan je door gericht te koppelen een zeldzaam ras zuiver
 houden, of net mengen.
 
+### 16.3 Verzamelbadges (Prestaties → Rassen)
+Rassen verzamelen is een eigen prestige-doel. In **Prestaties** vind je onder
+**🕊️ Rassen** badges voor:
+- **Elk ras** — één badge per ras (bezit een duif van dat ras). Hoe zeldzamer
+  het ras, hoe meer XP de badge oplevert.
+- **Elke zeldzaamheid** — een badge voor het bezitten van een **Ongewone**, een
+  **Zeldzame** (Meulemans) en een **Legendarische** duif (Bonte of Golden Ace),
+  plus **Mengelmoes** voor een zelf-gekweekte **Gemengde** duif.
+- **Alle rassen** — de kapstok-badge **Rassenverzamelaar**: bezit **tegelijk**
+  een duif van **elk** ras (+500 XP).
+
 ---
 
 *Alle getallen hierboven zijn de tuning-constanten; pas ze aan in
