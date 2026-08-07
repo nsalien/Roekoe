@@ -492,7 +492,8 @@ export function tickFlights(db: Database, nowMs: number, weatherByFlight?: Map<s
           }
           continue;
         }
-        // Per-season pigeon stats: peak speed + podium count (finishers only).
+        // Per-season pigeon stats: best average flight speed (r.velocity = route
+        // average, despite the seasonPeakSpeed field name) + podium count (finishers only).
         for (const r of flight.results) {
           if (r.finished === false) continue;
           const p = db.pigeons.find((x) => x.id === r.pigeonId);
@@ -768,8 +769,9 @@ function runDataMigrations(db: Database): void {
   }
   if ((db.world.dataVersion ?? 0) < 17) {
     // Seed the (new) pigeon season rankings from past race history so they are
-    // not empty on launch: a bird's best-ever race velocity becomes its season
-    // peak speed, and every past top-3 finish counts toward its podium tally.
+    // not empty on launch: a bird's best-ever race velocity (route average)
+    // becomes its seasonPeakSpeed, and every past top-3 finish counts toward its
+    // podium tally.
     // Practice flights don't count. Progress can't be reconstructed (no historic
     // attribute snapshots), so it just starts fresh from here.
     const peak = new Map<string, number>();

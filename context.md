@@ -458,7 +458,7 @@ Entiteiten: `Pigeon`, `Loft`, `User`, `BreedingPair`, `Flight` (+ `SimEntry`,
   **herstelbalk per duif** (`ailment.healed`).
 - `ProfilePage` — hoknaam, **thema-toggle (donker/licht)**, **"Start rondleiding"**.
 - `RankingPage` — tabs **Melkers** (seizoenspunten) + **Duiven** (drie ranglijsten:
-  snelste pieksnelheid, meeste podiums, meeste vooruitgang — via `state.pigeonRankings`).
+  hoogste gemiddelde vluchtsnelheid, meeste podiums, meeste vooruitgang — via `state.pigeonRankings`).
   Kop toont "Seizoen X · week Y/4 · nog Z dagen" (tot seizoenseinde) + een tweede regel
   met **dagen tot de volgende speelweek** (`nextPlayWeek`+`timeUntil`).
 - `AchievementsPage` (Prestaties) — tabs Badges · Trofeeën · **Seizoensprijzen**
@@ -679,7 +679,9 @@ Alles hieronder staat **live** op de deploy-branch. Data-migraties liepen door t
 - **De Gouden/Zilveren/Bronzen Roekoe** — top-3 hokken (€2000/1500/1000) + badge
   `season_champion` voor #1. Bewaard in `Loft.awards`. Bots dingen mee.
 - **Drie duivenranglijsten** (`pigeonSeasonRankings`, in `/state.pigeonRankings`):
-  snelste pieksnelheid (km/u), meeste podiums, meeste vooruitgang (`seasonScore`-delta).
+  hoogste gemiddelde vluchtsnelheid (km/u; `seasonPeakSpeed` = beste rit­gemiddelde
+  `r.velocity`, ondanks de veldnaam géén momentane piek), meeste podiums, meeste
+  vooruitgang (`seasonScore`-delta).
 - **De Gouden/Zilveren/Bronzen Vleugel** — top-3 duiven per ranglijst
   (€1000/750/500 naar de eigenaar, ook bots). Bewaard in `Loft.awards`.
 - Prestige-tab **Seizoensprijzen**; ranglijst-tabs **Melkers/Duiven**; kop toont
