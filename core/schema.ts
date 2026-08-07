@@ -58,6 +58,11 @@ export interface Pigeon {
   // Career counters (for badges).
   races: number; // flights this bird has finished
   everAiled: boolean; // has ever been ill or injured (for "Comeback" badge)
+  // Breed (ras): cosmetic only. Sets the photo shown for the bird and, via its
+  // rarity, a small price premium — no effect on attributes or performance. See
+  // PIGEON_BREEDS. Optional so legacy birds keep working (they default to the
+  // Stadsduif); a migration backfills a rolled breed onto existing pigeons.
+  breed?: string; // breed id (see config PIGEON_BREEDS)
   // Development.
   coached: boolean; // has a hired private coach improving its racing attributes
   // Last time each attribute was trained (ISO). Each may be trained once/week.

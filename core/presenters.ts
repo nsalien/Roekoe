@@ -5,8 +5,8 @@
  */
 
 import type { Database, Flight, Loft, Notification, Pigeon, Trade } from './schema.js';
-import { compartmentCost, REST_CURE, TRAINING } from './config/gameConfig.js';
-import { ageInWeeks, canRace, estimateValue, talent } from './game/pigeon.js';
+import { BREED_RARITY, compartmentCost, REST_CURE, TRAINING } from './config/gameConfig.js';
+import { ageInWeeks, breedInfo, canRace, estimateValue, talent } from './game/pigeon.js';
 import { auctionKind } from './game/auction.js';
 import { bettingOpen } from './game/betting.js';
 import { nextCapacityTier, nextInfirmaryTier, ownerName } from './game/engine.js';
@@ -51,6 +51,12 @@ export function pigeonDTO(db: Database, p: Pigeon, viewerId?: string) {
     health: hide(p.health),
     experience: hide(p.experience),
     talent: talent(p), // the "algemene score" — publicly known (via weddenschappen/ranglijst)
+    // Breed (ras) is PUBLIC — its photo is shown for everyone's birds. Cosmetic
+    // only; rarity gives a small price premium (already folded into `value`).
+    breed: (() => {
+      const b = breedInfo(p.breed);
+      return { id: b.id, name: b.name, rarity: b.rarity, rarityLabel: BREED_RARITY[b.rarity].label, image: b.image };
+    })(),
     value: estimateValue(p, week),
     canRace: canRace(p, week),
     forSale: p.forSale,

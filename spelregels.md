@@ -868,5 +868,47 @@ prijsuitreiking komt ook binnen als **melding**.
 
 ---
 
+## 16. Rassen (breeds)
+
+Elke duif heeft een **ras**. Het ras bepaalt de **foto** van de duif en heeft
+een **zeldzaamheid**; verder is het **puur cosmetisch** — het verandert **niets**
+aan de eigenschappen of de prestaties. Wel maakt een zeldzamer ras de duif een
+**beetje duurder** (hogere geschatte marktwaarde), ook al blijven de
+eigenschappen identiek. Je ziet het ras (naam + zeldzaamheid) wanneer je op een
+duif klikt.
+
+### 16.1 Toewijzing (bij nieuwe duiven)
+Elke nieuwe duif — of ze nu gekweekt, geadopteerd, gekocht, geveild of via een
+gebeurtenis binnenkomt — krijgt bij haar ontstaan een ras toegewezen volgens
+onderstaande **kansen** (gewogen loting). Bestaande duiven kregen eenmalig een
+ras via dezelfde loting.
+
+| Ras | Zeldzaamheid | Kans | Prijstoeslag |
+|---|---|---|---|
+| De Stadsduif | Algemeen | 20,8 % | — |
+| Blauwe Geschelpte | Algemeen | 14,4 % | — |
+| Blauwe Band | Algemeen | 14,4 % | — |
+| Rode | Algemeen | 12,8 % | — |
+| Schimmel | Algemeen | 12,8 % | — |
+| Bruine | Ongewoon | 8,0 % | +8 % |
+| Witte | Ongewoon | 8,0 % | +8 % |
+| Vale | Ongewoon | 4,8 % | +8 % |
+| Meulemans | Zeldzaam | 2,4 % | +20 % |
+| Bonte | Legendarisch | 0,8 % | +40 % |
+| Golden Ace | Legendarisch | 0,8 % | +40 % |
+
+De kansen komen rechtstreeks van de gewichten op
+[roekoe.org/wiki/breeds](https://roekoe.org/wiki/breeds); dezelfde foto's worden
+in het spel gebruikt.
+
+### 16.2 Kweken: ras van het jong
+Bij het **broeden** erft een jong het ras van zijn ouders **enkel als beide
+ouders hetzelfde ras hebben** — dan behoudt het jong dat ras. Kweek je **twee
+verschillende rassen**, dan wordt het jong een **Gemengd** ras (zonder
+prijstoeslag). Zo kan je door gericht te koppelen een zeldzaam ras zuiver
+houden, of net mengen.
+
+---
+
 *Alle getallen hierboven zijn de tuning-constanten; pas ze aan in
 `core/config/gameConfig.ts` om het spel te herbalanceren.*

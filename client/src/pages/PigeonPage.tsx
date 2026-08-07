@@ -123,6 +123,7 @@ export function PigeonPage() {
               <div className="row" style={{ gap: 6, flexWrap: 'wrap' }}>
                 <SexBadge sex={p.sex} />
                 <span className="badge bot">★ talent {p.talent}</span>
+                <BreedBadge breed={p.breed} />
                 {p.forSale && <span className="badge sale">te koop · <Money value={p.price ?? 0} /></span>}
                 {p.ailment && (
                   <span className="badge" style={{ background: p.ailment.kind === 'ziekte' ? 'var(--bad-soft)' : 'var(--gold-soft)', color: p.ailment.kind === 'ziekte' ? 'var(--bad)' : 'var(--gold)' }}>
@@ -475,6 +476,23 @@ export function PigeonPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+function BreedBadge({ breed }: { breed: Pigeon['breed'] }) {
+  // A little colour per rarity so rarer breeds pop.
+  const style: Record<string, { bg: string; fg: string }> = {
+    legendarisch: { bg: 'var(--gold-soft)', fg: 'var(--gold)' },
+    zeldzaam: { bg: 'rgba(168,85,247,0.16)', fg: '#a855f7' },
+    ongewoon: { bg: 'var(--brand-soft)', fg: 'var(--brand-ink)' },
+    algemeen: { bg: 'var(--surface-2)', fg: 'var(--ink-soft, inherit)' },
+    gemengd: { bg: 'var(--surface-2)', fg: 'var(--ink-soft, inherit)' },
+  };
+  const s = style[breed.rarity] ?? style.algemeen;
+  return (
+    <span className="badge" style={{ background: s.bg, color: s.fg }} title={`Ras: ${breed.name} · ${breed.rarityLabel}`}>
+      🕊️ {breed.name} · {breed.rarityLabel}
+    </span>
   );
 }
 
