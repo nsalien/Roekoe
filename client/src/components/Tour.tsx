@@ -47,6 +47,25 @@ const PRIZES_STEP: Step = {
   title: '🎖️ Je seizoensprijzen',
   body: 'Al je gewonnen Roekoes en Vleugels worden hier bewaard — met de tellingen goud/zilver/brons en een erelijst per seizoen.',
 };
+// Breed (ras) intro — shared by the full tour and the one-time news run below.
+const BREED_STEP: Step = {
+  route: '/hok', selector: '[data-tour="pigeon"]',
+  title: '🕊️ Rassen',
+  body: (
+    <>
+      Elke duif heeft een <strong>ras</strong>: dat bepaalt haar <strong>foto</strong> (klik op een duif om
+      naam + zeldzaamheid te zien). Het ras is <strong>puur cosmetisch</strong> — het verandert <strong>niets</strong> aan
+      de eigenschappen of prestaties — maar een <strong>zeldzamer ras maakt de duif een beetje meer waard</strong>.
+      Nieuwe duiven krijgen willekeurig een ras: meestal een gewoon (Algemeen ~75%), soms een Ongewoon (~21%),
+      zelden een <strong>Zeldzaam</strong> (Meulemans, ~2%) of <strong>Legendarisch</strong> (Bonte / Golden Ace, ~1%).
+      <br />
+      <span style={{ display: 'inline-block', marginTop: 4 }}>
+        <strong>Kweek</strong> je twee duiven van hetzelfde ras, dan houdt het jong dat ras; twee verschillende rassen
+        geven een <strong>Gemengd</strong> jong.
+      </span>
+    </>
+  ),
+};
 
 const STEPS: Step[] = [
   {
@@ -72,6 +91,7 @@ const STEPS: Step[] = [
       </>
     ),
   },
+  BREED_STEP,
   {
     route: '/', selector: '[data-tour="feed"]',
     title: '🛒 Eerst: voer kopen',
@@ -221,6 +241,33 @@ export const BID_NEWS_STEPS: Step[] = [
     route: '/markt', selector: '[data-tour="market"]',
     title: '🔔 Biedingen op jóuw duiven',
     body: 'Krijg je een bod, dan zie je dat bovenaan de Markt (met een teller bij het Markt-menu, los van de belmeldingen) en kies je zelf: aanvaarden of weigeren.',
+  },
+];
+
+/**
+ * One-time "what's new" run for pigeon breeds (rassen): every bird now has a
+ * breed that sets its photo + rarity (cosmetic; rarer = a bit more valuable).
+ */
+export const BREED_NEWS_STEPS: Step[] = [
+  {
+    route: '/',
+    title: '✨ Nieuw: duivenrassen!',
+    body: 'Al je duiven hebben nu een echt ras — met een eigen foto en een zeldzaamheid. Even kort wat dat betekent. Je kan deze rondleiding later altijd opnieuw starten via je profiel.',
+  },
+  BREED_STEP,
+  {
+    route: '/hok', selector: '[data-tour="pigeon"]',
+    title: '⭐ Zeldzaamheid & waarde',
+    body: (
+      <>
+        Rassen gaan van <strong>Algemeen</strong> over <strong>Ongewoon</strong> en <strong>Zeldzaam</strong> tot
+        <strong> Legendarisch</strong>. Hoe zeldzamer, hoe minder vaak zo'n duif voorkomt — en hoe wat
+        <strong> duurder</strong> ze is (Ongewoon +8%, Zeldzaam +20%, Legendarisch +40%). <strong>Belangrijk:</strong> het
+        ras verandert <strong>niets</strong> aan de snelheid, conditie of andere eigenschappen — het is puur voor de foto,
+        de verzameldrang en de marktwaarde. De <strong>Golden Ace</strong> en de <strong>Bonte</strong> zijn de
+        allerzeldzaamste (elk ~0,8% kans).
+      </>
+    ),
   },
 ];
 

@@ -483,7 +483,8 @@ Entiteiten: `Pigeon`, `Loft`, `User`, `BreedingPair`, `Flight` (+ `SimEntry`,
 **Rondleiding (`components/Tour.tsx`):** interactieve spotlight-tour die per stap
 naar de juiste pagina navigeert en het relevante element highlight via
 `[data-tour="..."]`-ankers. `Tour` neemt een optionele **`steps`-prop** (default =
-volledige `STEPS`). De volledige tour dekt o.a. oefenvluchten, rustkuur, markt +
+volledige `STEPS`). De volledige tour dekt o.a. **rassen** (`BREED_STEP`, anker
+`[data-tour="pigeon"]`: foto/zeldzaamheid/kans/kweek), oefenvluchten, rustkuur, markt +
 **"🕊️ Bied op andermans duiven"** (anker `[data-tour="market-bid"]`: speler→duif→
 bedrag + verborgen eigenschappen), **seizoen, ranglijst (Roekoe), duivenranglijsten
 (Vleugel)** en de prestige-seizoensprijzen. Eenmalig per speler (localStorage
@@ -491,13 +492,13 @@ bedrag + verborgen eigenschappen), **seizoen, ranglijst (Roekoe), duivenranglijs
 de profielknop herhaalt hem via `window.dispatchEvent(new Event('roekoe:start-tour'))`.
 
 **"Wat is nieuw"-melding:** dezelfde `Tour` maar met een **subset** stappen. Actueel
-= **`BID_NEWS_STEPS`** (privé-biedingen: intro + hoe bieden (speler→duif→bedrag) +
-"je koopt deels blind" (enkel ★talent zichtbaar) + biedingen op je eigen duiven).
-Eigen localStorage-sleutel `roekoe.newsSeen.privatebids.<id>`; toont pas als de
-hoofd-tour niet open is. `closeTour` zet ook de news-sleutel, zodat een nieuwe speler
-die de volledige tour afrondt niet nog eens de news krijgt. Bump de sleutel-suffix +
-wissel de `steps`-set (import in `Layout`) voor een volgende aankondiging. De vorige
-set `SEASON_NEWS_STEPS` blijft in `Tour.tsx` als referentie. (De oude `FeatureTour`
+= **`BREED_NEWS_STEPS`** (rassen: intro + wat een ras is (foto/cosmetisch/waarde) +
+zeldzaamheid & kansen + kweekregel). Eigen localStorage-sleutel
+`roekoe.newsSeen.breeds.<id>`; toont pas als de hoofd-tour niet open is. `closeTour`
+zet ook de news-sleutel, zodat een nieuwe speler die de volledige tour afrondt niet
+nog eens de news krijgt. Bump de sleutel-suffix + wissel de `steps`-set (import in
+`Layout`) voor een volgende aankondiging. De vorige sets `BID_NEWS_STEPS` en
+`SEASON_NEWS_STEPS` blijven in `Tour.tsx` als referentie. (De oude `FeatureTour`
 met gecentreerde kaarten is verwijderd — alles zit nu in `Tour`.)
 
 **Thema:** `data-theme` op `<html>` (default **dark**, gezet door inline script in

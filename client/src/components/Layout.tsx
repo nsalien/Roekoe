@@ -7,7 +7,7 @@ import { useGame } from '../game/GameContext';
 import { api } from '../api/client';
 import { useToast } from './ui';
 import { NotificationsBell } from './NotificationsBell';
-import { Tour, BID_NEWS_STEPS } from './Tour';
+import { Tour, BREED_NEWS_STEPS } from './Tour';
 
 interface NavItem { to: string; label: string; short: string; icon: string; end?: boolean }
 
@@ -57,10 +57,10 @@ export function Layout() {
     return () => window.removeEventListener('roekoe:start-tour', start);
   }, []);
   // One-time "what's new" announcement — reuses the tour's spotlight mechanism
-  // with just the new steps (currently: private bids on other players' pigeons).
-  // Separate key so it also reaches players who already finished the main
-  // welcome tour. Bump the key suffix for a next announcement.
-  const newsKey = user?.id ? `roekoe.newsSeen.privatebids.${user.id}` : null;
+  // with just the new steps (currently: pigeon breeds / rassen). Separate key so
+  // it also reaches players who already finished the main welcome tour or an
+  // earlier announcement. Bump the key suffix for a next announcement.
+  const newsKey = user?.id ? `roekoe.newsSeen.breeds.${user.id}` : null;
   const [showNews, setShowNews] = useState(false);
 
   function closeTour() {
@@ -166,7 +166,7 @@ export function Layout() {
       <BottomNav items={navItems} />
 
       {showTour && <Tour onClose={closeTour} />}
-      {showNews && !showTour && <Tour steps={BID_NEWS_STEPS} onClose={closeNews} />}
+      {showNews && !showTour && <Tour steps={BREED_NEWS_STEPS} onClose={closeNews} />}
       {state?.pendingEvent && !showTour && !showNews && <EventModal />}
     </div>
   );
