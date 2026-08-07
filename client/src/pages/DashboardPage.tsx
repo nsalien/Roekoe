@@ -5,7 +5,7 @@ import { Link } from 'react-router-dom';
 import { useGame } from '../game/GameContext';
 import { useAuth } from '../auth/AuthContext';
 import { api } from '../api/client';
-import { Money, Spinner, countdownTo, formatFlightTime, useToast } from '../components/ui';
+import { Money, Spinner, countdownTo, formatFlightTime, nextPlayWeek, timeUntil, useToast } from '../components/ui';
 import { PigeonCard } from '../components/PigeonCard';
 import type { FeedRation } from '../types';
 
@@ -131,6 +131,32 @@ export function DashboardPage() {
           </div>
         )}
       </div>
+
+      {/* Season / next play-week */}
+      {world.seasonStartedAt && (() => {
+        const nw = nextPlayWeek(world.seasonStartedAt, world.seasonWeek);
+        return (
+          <div className="card" style={{ marginBottom: 18 }}>
+            <div className="row" style={{ justifyContent: 'space-between', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+              <div>
+                <strong>📅 Seizoen {world.seasonYear} · week {world.seasonWeek}/4</strong>
+                <div className="faint" style={{ fontSize: '0.85rem' }}>
+                  {nw.isNewSeason
+                    ? <>Einde van het seizoen en prijsuitreiking — daarna start week 1 van seizoen {world.seasonYear + 1}.</>
+                    : <>Elke speelweek duurt 7 dagen. Op het einde van week 4 volgt de prijsuitreiking.</>}
+                </div>
+              </div>
+              <span
+                className="badge"
+                style={{ background: 'var(--brand-soft)', color: 'var(--brand-ink)', whiteSpace: 'nowrap' }}
+                title={nw.isNewSeason ? 'Tot het nieuwe seizoen' : `Tot speelweek ${nw.weekNum}`}
+              >
+                {nw.isNewSeason ? '🎉 Nieuw seizoen' : `⏭️ Week ${nw.weekNum}`} · {timeUntil(nw.at)}
+              </span>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Daily missions */}
       {state.missions.length > 0 && (

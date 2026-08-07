@@ -156,6 +156,31 @@ export function countdownTo(iso: string, nowMs: number = Date.now()): string {
   return `over ${sec}s`;
 }
 
+/** Short "nog X dagen/uur" until an ISO instant (or "binnenkort" once passed). */
+export function timeUntil(iso: string): string {
+  const ms = Date.parse(iso) - Date.now();
+  if (!Number.isFinite(ms) || ms <= 0) return 'binnenkort';
+  const days = Math.floor(ms / 86400000);
+  const hours = Math.floor((ms % 86400000) / 3600000);
+  if (days >= 1) return `nog ${days} dag${days === 1 ? '' : 'en'}`;
+  if (hours >= 1) return `nog ${hours} uur`;
+  return 'nog minder dan een uur';
+}
+
+/**
+ * The next play-week boundary. A season is 4 play-weeks of 7 real days each; the
+ * current week runs from `seasonStartedAt + (seasonWeek-1)·7d` to `+ seasonWeek·7d`
+ * (mirrors season.ts: `seasonWeek = floor((now-start)/WEEK_MS)+1`). At week 4 the
+ * next boundary is the season rollover (a brand-new season, week 1).
+ */
+export function nextPlayWeek(seasonStartedAt: string, seasonWeek: number, seasonWeeks = 4) {
+  const WEEK_MS = 7 * 86400000;
+  const at = new Date(Date.parse(seasonStartedAt) + seasonWeek * WEEK_MS).toISOString();
+  const isNewSeason = seasonWeek >= seasonWeeks;
+  const weekNum = isNewSeason ? 1 : seasonWeek + 1;
+  return { at, weekNum, isNewSeason };
+}
+
 /* --- Toast system --------------------------------------------------------- */
 interface ToastValue {
   show: (message: string, kind?: 'ok' | 'err') => void;
