@@ -289,7 +289,7 @@ export interface RankingRow {
   rank: number;
 }
 
-export type BadgeGroup = 'race' | 'podium' | 'breed' | 'market' | 'care' | 'milestone' | 'sponsor' | 'fun';
+export type BadgeGroup = 'race' | 'podium' | 'breed' | 'market' | 'care' | 'milestone' | 'sponsor' | 'fun' | 'collection';
 
 export interface BadgeItem {
   key: string;
