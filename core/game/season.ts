@@ -35,7 +35,7 @@ export interface PigeonRankRow {
 }
 
 export interface PigeonRankings {
-  fastest: PigeonRankRow[]; // highest peak speed this season (km/h)
+  fastest: PigeonRankRow[]; // best average flight speed this season (km/h) — the top per-race route average, not an instantaneous peak
   podiums: PigeonRankRow[]; // most top-3 finishes this season
   progress: PigeonRankRow[]; // biggest overall development this season
 }

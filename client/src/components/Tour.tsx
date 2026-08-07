@@ -36,7 +36,7 @@ const VLEUGEL_STEP: Step = {
   title: '🪽 Duivenranglijsten & de Vleugel',
   body: (
     <>
-      Onder <strong>Duiven</strong> vind je drie ranglijsten: <strong>snelste</strong> pieksnelheid,
+      Onder <strong>Duiven</strong> vind je drie ranglijsten: <strong>hoogste gemiddelde snelheid</strong>,
       <strong> meeste podiums</strong> en <strong>meeste vooruitgang</strong> dit seizoen. De top 3 van elke lijst
       winnen de Gouden, Zilveren en Bronzen Vleugel (€1000 / €750 / €500 voor de eigenaar).
     </>

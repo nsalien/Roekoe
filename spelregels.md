@@ -843,8 +843,12 @@ De winnaar krijgt ook de badge **Seizoenskampioen**.
 Naast de melkers zijn er **drie ranglijsten van individuele duiven** (top 10),
 allemaal voor het **lopende seizoen**. **Alleen wedstrijdvluchten** (regionaal,
 nationaal, internationaal) tellen mee — **oefenvluchten niet**:
-- **⚡ Snelste duiven** — hoogste **pieksnelheid** ooit gehaald dit seizoen (niet
-  het gemiddelde), in km/u.
+- **⚡ Snelste duiven** — hoogste **gemiddelde vluchtsnelheid** dit seizoen, in
+  km/u. Dit is het beste **rit­gemiddelde** (afgelegde afstand ÷ vluchttijd) van
+  één wedstrijd — **niet** de momentane pieksnelheid die je live tijdens een
+  vlucht ziet. De live km/u schommelt (de duif versnelt en vertraagt onderweg) en
+  ligt op snelle stukken hoger dan haar gemiddelde; deze ranglijst rekent met dat
+  gemiddelde, dus een korte live-piek verschijnt hier niet als zodanig.
 - **🎖️ Meeste podiums** — aantal top-3-plaatsen dit seizoen.
 - **📈 Meeste vooruitgang** — grootste **algemene groei** dit seizoen
   (snelheid + conditie + oriëntatie + libido + ervaring, t.o.v. de stand bij

@@ -88,7 +88,7 @@ export function RankingPage() {
         <div className="stack">
           <PigeonRankCard
             title="⚡ Snelste duiven"
-            subtitle="Hoogste pieksnelheid dit seizoen"
+            subtitle="Hoogste gemiddelde vluchtsnelheid dit seizoen"
             unit="km/u"
             rows={state.pigeonRankings.fastest}
             meId={user?.id}
