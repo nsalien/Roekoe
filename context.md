@@ -95,13 +95,16 @@ krijgen.**
 `core/game/schedule.ts` → `advanceRealtime(db, nowMs, weatherByFlight)` roept in
 volgorde:
 1. `runDataMigrations(db)` — eenmalige datafixes, **gated op `world.dataVersion`**
-   (staat nu op **21**; nieuwe migratie = nieuw `if ((db.world.dataVersion ?? 0) < N)`
+   (staat nu op **22**; nieuwe migratie = nieuw `if ((db.world.dataVersion ?? 0) < N)`
    blok + `db.world.dataVersion = N`). v21 zet **bestaande geplande vluchten terug naar de
    OUDE, kortere afstanden** (regio 30–160 / nat 60–290 / intl 180–950 km): elke nog-
    geplande niet-titan-vlucht buiten haar legacy-venster wordt her-routeerd via
    `pickRoute(tier, min, max)`; enkel **nieuwe** vluchten (nadien) krijgen de verbrede
    afstanden. v20 (voorloper) routeerde geplande vluchten net de andere kant op — v21 haalt
-   de huidige kalender terug. v19 wist oude openstaande sponsoraanbiedingen;
+   de huidige kalender terug. v22 is een **eenmalige** ingreep: de aankomende
+   internationale ochtendvlucht (`morning-long`, 10:00) wordt ingekort naar een
+   **300–400 km**-route (blijft internationaal, enkel korter) — enkel als ze nog
+   `scheduled` is en rond nu start. v19 wist oude openstaande sponsoraanbiedingen;
    v18 backfilt `Pigeon.raceLog` uit bestaande
    vluchthistorie vóór de eerste prune (zie §Performance).
 2. `ensureFlightsScheduled(db, nowMs)` — plant vluchten volgens `REAL_SCHEDULE`.
@@ -547,7 +550,7 @@ Voor engine-logica: snelle integratietests met **tsx** vanuit de repo-root
 ## 8. Belangrijkste wijzigingen deze sessie (achtergrond)
 
 Alles hieronder staat **live** op de deploy-branch. Data-migraties liepen door tot
-**`dataVersion = 21`**.
+**`dataVersion = 22`**.
 
 **Vluchten & energie**
 - Vlucht-energie wordt **geleidelijk per 30 min** afgetrokken (`tickFlightEnergy`),
