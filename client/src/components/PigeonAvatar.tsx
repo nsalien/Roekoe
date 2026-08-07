@@ -42,15 +42,20 @@ export function PigeonAvatar({ pigeon, size = 84 }: { pigeon: AvatarPigeon; size
           background: 'var(--surface-2, #eee)',
           border: `${ringWidth}px solid ${ring}`,
           boxSizing: 'border-box',
+          // A little inner padding so the WHOLE bird (tail + feet) stays inside
+          // the circle — the photos are near full-bleed squares, so a plain
+          // circular crop would clip the extremities.
+          padding: '10%',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
         }}
       >
         <img
           src={`/pigeon-images/${image}`}
-          width={size}
-          height={size}
           alt={pigeon.breed?.name ?? 'Duif'}
           loading="lazy"
-          style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+          style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block' }}
         />
       </div>
     );
