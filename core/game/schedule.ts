@@ -891,6 +891,25 @@ function runDataMigrations(db: Database): void {
     }
     db.world.dataVersion = 21;
   }
+  if ((db.world.dataVersion ?? 0) < 22) {
+    // One-off: the upcoming international morning race (10:00) was too long — shorten
+    // it to a 300–400 km route (it stays an "international" flight, just shorter).
+    // Target the still-SCHEDULED international `morning-long` flight starting around
+    // now (from ~3h ago up to ~20h ahead, so we catch today's whether this runs just
+    // before or just after 10:00, but never tomorrow's). Safe no-op once it has gone
+    // live (frozen sim) or been pruned.
+    const now = Date.now();
+    for (const f of db.flights) {
+      if (f.status !== 'scheduled' || !f.templateKey.startsWith('morning-long:') || f.type !== 'international') continue;
+      const start = Date.parse(f.startAt);
+      if (start < now - 3 * 3600_000 || start > now + 20 * 3600_000) continue;
+      const route = pickRouteInRange(300, 400);
+      f.fromCity = route.fromCity;
+      f.toCity = route.toCity;
+      f.distanceKm = route.distanceKm;
+    }
+    db.world.dataVersion = 22;
+  }
 }
 
 /**
