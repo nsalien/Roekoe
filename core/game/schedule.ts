@@ -941,6 +941,65 @@ function runDataMigrations(db: Database): void {
     }
     db.world.dataVersion = 23;
   }
+  if ((db.world.dataVersion ?? 0) < 24) {
+    // One-off admin cleanup: fully remove the player whose loft is named
+    // "flapping pidgeons" (matched case-insensitively; both the pidgeons/pigeons
+    // spellings, real players only — never a bot) and everything tied to them.
+    const norm = (s: string) => s.trim().toLowerCase().replace(/\s+/g, ' ');
+    const target = db.lofts.find(
+      (l) => !l.isBot && (norm(l.name) === 'flapping pidgeons' || norm(l.name) === 'flapping pigeons'),
+    );
+    if (target) {
+      const uid = target.userId;
+      const mine = new Set(db.pigeons.filter((p) => p.ownerId === uid).map((p) => p.id));
+
+      // Their own records.
+      db.pigeons = db.pigeons.filter((p) => p.ownerId !== uid);
+      db.breedingPairs = db.breedingPairs.filter(
+        (bp) => bp.ownerId !== uid && !mine.has(bp.sireId) && !mine.has(bp.damId),
+      );
+      db.lofts = db.lofts.filter((l) => l.userId !== uid);
+      db.users = db.users.filter((u) => u.id !== uid);
+      db.notifications = db.notifications.filter((n) => n.userId !== uid);
+
+      // Their bets go; other players' still-open bets on a removed bird are voided.
+      db.bets = db.bets.filter((b) => b.userId !== uid);
+      for (const b of db.bets) {
+        if (b.status === 'open' && ((b.pigeonId && mine.has(b.pigeonId)) || (b.rivalId && mine.has(b.rivalId)))) {
+          b.status = 'void';
+          b.settledAt = new Date().toISOString();
+        }
+      }
+
+      // Pending pigeon-offers from/to this player or on one of their birds.
+      db.offers = db.offers.filter(
+        (o) => o.fromUserId !== uid && o.toUserId !== uid && !mine.has(o.pigeonId),
+      );
+
+      // Drop their bids from open auctions; recompute the leader if they held it.
+      for (const a of db.auctions) {
+        if (a.status !== 'open') continue;
+        a.bids = a.bids.filter((bid) => bid.userId !== uid);
+        if (a.currentBidderId === uid) {
+          let top: { userId: string; name: string; amount: number } | null = null;
+          for (const bid of a.bids) if (!top || bid.amount > top.amount) top = bid;
+          a.currentBidderId = top?.userId ?? null;
+          a.currentBidderName = top?.name ?? null;
+          a.currentBid = top?.amount ?? a.minBid;
+        }
+      }
+
+      // Remove their birds from any not-yet-completed flight (entries/sim/results).
+      // Completed flights keep their historical rows (frozen name snapshots).
+      for (const f of db.flights) {
+        if (f.status === 'completed') continue;
+        f.entries = f.entries.filter((e) => e.ownerId !== uid);
+        f.sim = f.sim.filter((s) => s.ownerId !== uid);
+        f.results = f.results.filter((r) => r.ownerId !== uid);
+      }
+    }
+    db.world.dataVersion = 24;
+  }
 }
 
 /**
