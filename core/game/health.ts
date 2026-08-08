@@ -187,8 +187,9 @@ function pushHealthNote(db: Database, userId: string, title: string, body: strin
  * One real-time DAY of health for the whole world (called once per elapsed day
  * from the daily tick — see schedule.tickDailyCare). Unlike the legacy weekly
  * pass, this actually runs during normal play, so birds genuinely fall ill,
- * ailments keep sapping health, and an untreated ailment can turn fatal.
- * (Old-age mortality is intentionally left to the weekly pass for now.)
+ * ailments keep sapping health, an untreated ailment can turn fatal, and old
+ * birds can pass away of old age (their age advances in real time — see the
+ * weekly roll in tickDailyCare).
  */
 export function runHealthDay(db: Database, week: number): void {
   const humanIds = new Set(db.lofts.filter((l) => !l.isBot).map((l) => l.userId));
@@ -207,18 +208,30 @@ export function runHealthDay(db: Database, week: number): void {
       p.health = round1(clamp(p.health - drain, 0, 100));
     }
 
-    // 2. Mortality: an untreated severe/moderate ailment can be fatal.
+    // 2. Mortality: old age plus an untreated severe/moderate ailment.
     for (const p of birds) {
-      if (dead.has(p.id) || !p.ailment) continue;
-      const table = p.inInfirmary ? HEALTH.ailmentMortalityInfirmary : HEALTH.ailmentMortalityOutside;
-      const pDeath = weeklyToDaily(table[p.ailment.severity]);
+      if (dead.has(p.id)) continue;
+      let weekly = ageMortality(p, week);
+      if (p.ailment) {
+        const table = p.inInfirmary ? HEALTH.ailmentMortalityInfirmary : HEALTH.ailmentMortalityOutside;
+        weekly += table[p.ailment.severity];
+      }
+      const pDeath = weeklyToDaily(weekly);
       if (pDeath > 0 && Math.random() < pDeath) {
         dead.add(p.id);
-        if (p.ailment.name === 'Sperwerverwonding') awardBadge(db, loft, 'rip_sperwer');
+        if (p.ailment?.name === 'Sperwerverwonding') awardBadge(db, loft, 'rip_sperwer');
+        else if (!p.ailment) awardBadge(db, loft, 'vredig');
         if (human) {
+          const years = Math.floor(Math.max(0, week - p.birthWeek) / 52);
+          const cause = p.ailment
+            ? `bezweken aan ${p.ailment.name.toLowerCase()}`
+            : 'op hoge leeftijd vredig ingeslapen';
+          const advice = p.ailment
+            ? 'Een aandoening onbehandeld laten is gevaarlijk — de ziekenboeg en verzorging verkleinen dat risico sterk.'
+            : 'Het duivenhok neemt een moment stilte in acht.';
           pushHealthNote(
             db, loft.userId, `🕯️ ${p.name} is niet meer`,
-            `${p.name} is bezweken aan ${p.ailment.name.toLowerCase()}. Een aandoening onbehandeld laten is gevaarlijk — de ziekenboeg en verzorging verkleinen dat risico sterk.`,
+            `${p.name} (${years} jaar) is ${cause}. ${advice}`,
           );
         }
       }
