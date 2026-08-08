@@ -113,7 +113,11 @@ volgorde:
    `placeBid` (auction.ts): een bod in de **laatste 5 min** schuift `endAt` naar
    **nu + 5 min** (anti-snipe), zodat anderen nog kunnen terugbieden.
 4. `tickDailyCare(db, nowMs)` — **dagelijkse** voeding/herstel/**honger**/**rustbonus**
-   (echte tijd, per 24u vanaf `world.lastDailyTick`; inhaalslag tot 30 dagen).
+   (afgerekend op de **dagovergang om 00:00** in `TIMEZONE` — elke duif krijgt op
+   net hetzelfde moment energie bij, ongeacht wanneer de eigenaar inlogt; het
+   aantal gepasseerde middernachten sinds `world.lastDailyTick` wordt ingehaald,
+   tot 30 dagen; `world.lastDailyTick` staat telkens op de laatst verwerkte
+   lokale middernacht).
    Verhongerde duiven worden hier verwijderd. **Rekent ook alle vaste onkosten dagelijks
    af** (`dailyRunningCost`: onderhoud + coach + ziekenboegstaf/medicatie) en betaalt
    **sponsorbijdragen dagelijks** (weekbedrag ÷ 7). `advanceWeek` doet dit **niet** meer.
