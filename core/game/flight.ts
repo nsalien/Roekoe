@@ -487,9 +487,10 @@ export function finalizeFlight(flight: Flight, pigeons: Pigeon[]): SimulatedFlig
     // drained gradually while the bird flew (see tickFlightEnergy). Here we
     // only settle what is left:
     //  - a pulled bird (gaveUp) paid for the distance it covered, nothing more;
-    //  - a finisher tops up to the frozen full cost of the route;
-    //  - a bird that flew itself into the ground (DNF) tops up AND takes an
-    //    extra exhaustion hit.
+    //  - everyone else (finisher OR a DNF) tops up to the frozen route cost.
+    // A DNF is NOT penalised with extra energy: not finishing (no points, no
+    // prize) plus the health/injury hit below is setback enough — an uitgevallen
+    // duif kost dus niet méér energie dan een duif die gewoon uitvliegt.
     // Flights that were already live before gradual draining existed have no
     // frozen formCost — fall back to the original lump-sum drain for those.
     const drained = s.formDrained ?? 0;
@@ -497,13 +498,11 @@ export function finalizeFlight(flight: Flight, pigeons: Pigeon[]): SimulatedFlig
     if (s.formCost == null) {
       formDelta = gaveUp
         ? -round1(FLIGHT_FATIGUE.gaveUpBase + flight.distanceKm / FLIGHT_FATIGUE.gaveUpPerKmDivisor + rf(0, FLIGHT_FATIGUE.gaveUpJitter))
-        : -round1(FLIGHT_FATIGUE.base + flight.distanceKm / FLIGHT_FATIGUE.perKmDivisor + rf(0, FLIGHT_FATIGUE.jitter) + (isDnf ? FLIGHT_FATIGUE.exhaustionPenalty : 0));
+        : -round1(FLIGHT_FATIGUE.base + flight.distanceKm / FLIGHT_FATIGUE.perKmDivisor + rf(0, FLIGHT_FATIGUE.jitter));
     } else if (gaveUp) {
       formDelta = 0; // already paid gradually for the distance it flew
     } else {
-      const remainder = Math.max(0, s.formCost - drained);
-      const exhaustion = isDnf ? FLIGHT_FATIGUE.exhaustionPenalty + rf(0, FLIGHT_FATIGUE.exhaustionJitter) : 0;
-      formDelta = -round1(remainder + exhaustion);
+      formDelta = -round1(Math.max(0, s.formCost - drained));
     }
     const enduranceDelta = isDnf ? 0 : round1(0.3 + flight.distanceKm / 500 + rf(0, 0.4));
     const healthDelta = gaveUp ? 0 : -round1(rf(0, flight.distanceKm / 200) + (isDnf ? rf(4, 9) : 0));
