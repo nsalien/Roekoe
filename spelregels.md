@@ -344,7 +344,12 @@ leeg te laten lopen.
 ## 4. Voeding & verzorging (dagelijks, echte tijd)
 
 Voeding en herstel gebeuren **elke dag** automatisch (niet pas op weekeinde) —
-energie, gezondheid, conditie en libido bewegen dus dagelijks.
+energie, gezondheid, conditie en libido bewegen dus dagelijks. Dat gebeurt bij de
+**dagovergang, om 00:00** (Belgische tijd): op dat ene moment krijgen álle duiven
+tegelijk hun dagelijkse voeding/herstel — het maakt dus niet uit hoe laat je
+inlogt. Heeft een duif haar energie vandaag al gehad, dan is het **volgende**
+moment terug morgen om **0 u 00**. Zo is iedereen op hetzelfde moment aan de
+beurt — het eerlijkst voor iedereen.
 
 > **Zie het per duif.** In **Mijn hok** staat bij elke duif — naast de voerkeuze
 > en de apart-hok-knop — bij elke eigenschap een klein **▲/▼-cijfer per dag**:

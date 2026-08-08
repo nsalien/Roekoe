@@ -89,6 +89,19 @@ function wallToUtcMs(tz: string, y: number, m: number, d: number, hh: number, mm
   return guess - tzOffsetMs(tz, guess);
 }
 
+/** Epoch ms of the most recent local **midnight** (00:00 in `tz`) at `atMs`. */
+function startOfLocalDayMs(tz: string, atMs: number): number {
+  const { y, m, d } = tzDateParts(tz, atMs);
+  return wallToUtcMs(tz, y, m, d, 0, 0);
+}
+
+/** Epoch ms of the next local midnight after the given local-midnight instant.
+ *  Adding ~26 h and snapping back to the day start crosses DST safely (a local
+ *  day is 23–25 h long). */
+function nextLocalMidnightMs(tz: string, midnightMs: number): number {
+  return startOfLocalDayMs(tz, midnightMs + 26 * 3600000);
+}
+
 // --- Scheduling ------------------------------------------------------------
 
 /** The pool of cities a tier draws its start/finish from. */
@@ -936,18 +949,29 @@ export function flightsAwaitingStart(db: Database, nowMs: number): Flight[] {
   });
 }
 
-const DAY_MS = 86400000;
-
-/** Consume food and recover condition once per real day (with catch-up). */
+/** Consume food and recover condition once per calendar day, at the local
+ *  **day boundary** (00:00 in {@link TIMEZONE}) — so every loft's birds recover
+ *  at exactly the same moment, no matter when their owner last logged in. On
+ *  each request we simply apply care for every midnight crossed since the last
+ *  one we processed (with catch-up), and park the anchor on that midnight; the
+ *  next recovery is the following 00:00. */
 export function tickDailyCare(db: Database, nowMs: number): void {
-  const last = db.world.lastDailyTick ? Date.parse(db.world.lastDailyTick) : NaN;
-  if (Number.isNaN(last)) {
-    db.world.lastDailyTick = new Date(nowMs).toISOString();
+  const parsed = db.world.lastDailyTick ? Date.parse(db.world.lastDailyTick) : NaN;
+  const todayMidnight = startOfLocalDayMs(TIMEZONE, nowMs);
+  if (Number.isNaN(parsed)) {
+    // Fresh world: mark today as already handled; first recovery is tomorrow 00:00.
+    db.world.lastDailyTick = new Date(todayMidnight).toISOString();
     return;
   }
-  let days = Math.floor((nowMs - last) / DAY_MS);
+  // Normalize any legacy anchor (an arbitrary time-of-day from the old rolling
+  // 24 h scheme) to its local midnight, then count the day boundaries since.
+  let cursor = startOfLocalDayMs(TIMEZONE, parsed);
+  let days = 0;
+  while (cursor < todayMidnight && days < 30) { // cap catch-up after a long absence
+    cursor = nextLocalMidnightMs(TIMEZONE, cursor);
+    days++;
+  }
   if (days <= 0) return;
-  days = Math.min(days, 30); // cap catch-up after a long absence
 
   // Birds currently away on a live flight — their coach can't drill them.
   const livePigeonIds = new Set<string>(
@@ -998,7 +1022,7 @@ export function tickDailyCare(db: Database, nowMs: number): void {
       }
     }
   }
-  db.world.lastDailyTick = new Date(last + days * DAY_MS).toISOString();
+  db.world.lastDailyTick = new Date(cursor).toISOString();
   // Catch state badges that daily recovery may have unlocked (topfit, kerngezond).
   for (const loft of db.lofts) if (!loft.isBot) evaluateBadges(db, loft);
 }
