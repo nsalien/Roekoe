@@ -396,9 +396,11 @@ Entiteiten: `Pigeon`, `Loft`, `User`, `BreedingPair`, `Flight` (+ `SimEntry`,
 - **Ziekenboeg (`INFIRMARY`):** basiscapaciteit **2** (was 4); upgrades 3/4/5/6 voor
   €800/1200/1800/2400 (`INFIRMARY_CAPACITY_TIERS`). Dokter €400/wk, kinesist €350/wk,
   medicatievoer €45/duif/wk.
-- **Herstel (`HEALING`)** — real-time: `baseHoursOutside` licht 60 / matig 120 /
-  ernstig 216; ziekenboeg ×2,2, dokter/kinesist ×1,6, medicatievoer ×1,35 (stapelen);
-  `updateHours: 12` (statusupdate-cadans).
+- **Herstel (`HEALING`)** — real-time: `baseHoursOutside` licht 120 / matig 264 /
+  ernstig 432 (uren rustend in hok); ziekenboeg ×1,8, dokter/kinesist ×1,4,
+  medicatievoer ×1,2 (stapelen → volle zorg ×~3). Volle zorg: licht ~1,5 dag /
+  matig ~3,5 dagen / ernstig ~6 dagen — een aandoening is bewust een echte
+  tegenslag (was ~1 dag voor matig). `updateHours: 12` (statusupdate-cadans).
 - **Weddenschappen (`BETTING`):** window 12u, inzet €10–€500, houseMargin 0.12,
   simIterations 1500. Wedden op **alle wedstrijdvluchten**; **niet** op oefenvluchten
   (`bettingOpen` weigert `flight.practice`).
