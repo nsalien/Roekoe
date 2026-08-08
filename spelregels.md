@@ -228,10 +228,12 @@ vliegers besparen. De willekeurige spreiding (0…10) komt er los bovenop.
 **Energie loopt gaandeweg leeg, niet in één klap achteraf.** Bij de start wordt
 de totale energiekost van de rit vastgeklikt en vervolgens **per 30 minuten**
 afgetrokken, evenredig met de afgelegde afstand. Je ziet de energiebalk van je
-duif dus tijdens de wedstrijd zakken. Wie de hele vlucht uitvliegt, betaalt de
-volledige kost; wie halverwege **opgeeft** (§3.4), heeft alleen betaald voor het
-stuk dat ze al vloog — je kan de energiekost dus niet ontlopen door je duif net
-voor de finish uit de race te halen.
+duif dus tijdens de wedstrijd zakken. **Een duif betaalt altijd alleen voor het
+stuk dat ze effectief vloog:** wie de hele vlucht uitvliegt, betaalt de volledige
+kost; wie halverwege **opgeeft** (§3.4) of **onderweg uitvalt** (DNF), betaalt
+enkel voor de afgelegde afstand tot dat punt — nooit voor het stuk dat ze niet
+meer vloog. Je kan de energiekost dus niet ontlopen door je duif net voor de
+finish uit de race te halen, en een vroege uitvaller verliest navenant minder.
 
 **Gemiddeld verbruik per afstand** (energie, inclusief de gemiddelde spreiding +5).
 Nu de vluchten veel verder kunnen reiken (§2.2), loont ervaring — en een goede

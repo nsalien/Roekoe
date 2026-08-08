@@ -1074,11 +1074,15 @@ export function tickFlightEnergy(db: Database, nowMs: number): void {
     for (const s of flight.sim) {
       if (s.gaveUp) continue; // pulled — stops spending energie
       if (s.formCost == null) continue; // legacy flight: settled at finalize
-      const flownSeconds = Math.min(elapsed, s.durationSeconds);
-      const finished = elapsed >= s.durationSeconds;
-      // Quantise to whole 30-minute blocks while still flying; drain in full
-      // once home so the total spent matches the frozen cost exactly.
-      const countedSeconds = finished ? s.durationSeconds : Math.floor(flownSeconds / stepSeconds) * stepSeconds;
+      // A bird only pays energie for the part it actually flew. A finisher flies
+      // the whole route; a bird that gives out mid-flight (DNF) stops at
+      // dnfAtSeconds and never spends energie for the distance it didn't cover.
+      const stopSeconds = s.dnfAtSeconds ?? s.durationSeconds;
+      const flownSeconds = Math.min(elapsed, stopSeconds);
+      const stopped = elapsed >= stopSeconds;
+      // Quantise to whole 30-minute blocks while still flying; drain the exact
+      // flown share once the bird has stopped (finished or gave out).
+      const countedSeconds = stopped ? stopSeconds : Math.floor(flownSeconds / stepSeconds) * stepSeconds;
       const fraction = clamp(countedSeconds / s.durationSeconds, 0, 1);
       const target = round1(s.formCost * fraction);
       const delta = target - (s.formDrained ?? 0);
