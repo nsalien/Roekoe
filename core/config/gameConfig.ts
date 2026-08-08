@@ -921,11 +921,15 @@ export const INFIRMARY_CAPACITY_TIERS: { capacity: number; price: number }[] = [
  * update from the doctor/physio is emitted every `updateHours`.
  */
 export const HEALING = {
-  baseHoursOutside: { licht: 60, matig: 120, ernstig: 216 } as Record<Severity, number>,
-  infirmarySpeed: 2.2, // isolated + rested in the ziekenboeg
-  doctorSpeed: 1.6, // a doctor covering a sick bird
-  physioSpeed: 1.6, // a physio covering an injured bird
-  medicatedSpeed: 1.35, // medicated feed on
+  // Full recovery time for a bird just resting in the loft. An ailment should be
+  // a real setback: even with the best care an injured/ill bird is out for days,
+  // not hours. Care multiplies the speed below (full stack ×~3), so a matig
+  // letsel heals in ~3,5 dagen met alles samen (was ~1 dag) en ~11 dagen rustend.
+  baseHoursOutside: { licht: 120, matig: 264, ernstig: 432 } as Record<Severity, number>,
+  infirmarySpeed: 1.8, // isolated + rested in the ziekenboeg
+  doctorSpeed: 1.4, // a doctor covering a sick bird
+  physioSpeed: 1.4, // a physio covering an injured bird
+  medicatedSpeed: 1.2, // medicated feed on
   healthOnRecover: 15, // health restored when the ailment clears
   updateHours: 12, // cadence of the doctor/physio status updates
 } as const;

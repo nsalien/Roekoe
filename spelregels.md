@@ -501,13 +501,17 @@ Een duif **in de ziekenboeg** is geïsoleerd: besmet niemand en wordt niet besme
 
 ### 5.3 Herstel (in echte tijd)
 Herstel loopt **continu in echte tijd** (niet meer als wekelijkse kansworp). Een
-duif die gewoon in het hok rust, geneest volledig na (bij benadering):
+ziekte of kwetsuur is een **echte tegenslag**: de duif kan niet vliegen, trainen
+of broeden zolang ze niet genezen is. Een duif die gewoon in het hok rust,
+geneest volledig na (bij benadering):
 ```
-licht ~2,5 dagen · matig ~5 dagen · ernstig ~9 dagen
+licht ~5 dagen · matig ~11 dagen · ernstig ~18 dagen
 ```
-Goede zorg **versnelt** dat: de ziekenboeg ×2,2, een dekkende dokter/kinesist
-×1,6, en medicinaal voer ×1,35 — die stapelen. Met alles samen (×~4,75) geneest
-een licht letsel in een halve dag, een matig in ~1 dag en een ernstig in ~2 dagen.
+Goede zorg **versnelt** dat, maar geneest niet in een dag: de ziekenboeg ×1,8, een
+dekkende dokter/kinesist ×1,4, en medicinaal voer ×1,2 — die stapelen. Met alles
+samen (×~3) geneest een licht letsel in **~1,5 dag**, een matig in **~3,5 dagen**
+en een ernstig in **~6 dagen**. Reken dus op enkele dagen uitval — zet je meest
+kwetsbare duiven niet nodeloos op de zwaarste vluchten.
 
 > **Statusupdates.** Om de **12 uur** krijg je per herstellende duif een bericht
 > van de kinesist/dokter met het **herstelpercentage**, een schatting **hoe lang
