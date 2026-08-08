@@ -176,8 +176,9 @@ export const FLIGHT_DYNAMICS = {
  * frozen when the flight goes live. That cost is drained GRADUALLY while the bird
  * flies, in blocks of `stepMinutes`, so a bird pulled out (opgegeven) mid-race has
  * already paid for the part it flew — you can't dodge the energy cost by quitting
- * near the end. A bird that flies itself into the ground (DNF: exhausted or timed
- * out) loses an extra `exhaustionPenalty + random(0..exhaustionJitter)` on top.
+ * near the end. A bird that does not finish (DNF) simply pays the same frozen
+ * route cost as a finisher — no extra energy penalty; missing out on points/prize
+ * plus the health/injury hit is setback enough.
  *
  * Ervaring lowers the drain: an experienced bird flies more efficiently and burns
  * less energie, an inexperienced one burns more. The factor pivots around
@@ -193,8 +194,6 @@ export const FLIGHT_FATIGUE = {
   jitter: 10,
   experienceReliefSpread: 0.5, // total swing across ervaring 0→100 (±25% around ervaring 50)
   stepMinutes: 30, // energie is deducted in blocks of this many minutes
-  exhaustionPenalty: 24,
-  exhaustionJitter: 12,
   gaveUpBase: 6,
   gaveUpPerKmDivisor: 60,
   gaveUpJitter: 4,
