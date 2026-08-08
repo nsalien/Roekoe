@@ -21,6 +21,7 @@ const NAV: NavItem[] = [
   { to: '/sponsors', label: 'Sponsors', short: 'Sponsor', icon: '🤝' },
   { to: '/prestaties', label: 'Prestaties', short: 'Prestige', icon: '🎖️' },
   { to: '/ranglijst', label: 'Rang', short: 'Rang', icon: '🏆' },
+  { to: '/wiki', label: 'Wiki', short: 'Wiki', icon: '📖' },
   { to: '/profiel', label: 'Profiel', short: 'Profiel', icon: '👤' },
 ];
 
