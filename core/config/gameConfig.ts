@@ -938,6 +938,11 @@ export const HEALING = {
 export const HEALTH = {
   /** Health lost when an ailment first strikes, by severity. */
   onsetHealthHit: { licht: 10, matig: 22, ernstig: 38 } as Record<Severity, number>,
+  /** Health a bird keeps losing EACH DAY while it is still ailing (a sick/injured
+   *  bird gets weaker the longer it goes on). Applied in the real-time daily tick. */
+  ailmentHealthDrainPerDay: { licht: 0.6, matig: 1.5, ernstig: 2.5 } as Record<Severity, number>,
+  /** An untreated bird (not in the ziekenboeg) degrades faster than a nursed one. */
+  ailmentDrainOutsideFactor: 1.5,
   /** Base weekly recovery chance while resting in the infirmary. */
   recoverInInfirmary: { licht: 0.55, matig: 0.38, ernstig: 0.22 } as Record<Severity, number>,
   /** Recovery is much slower for a bird left in the normal loft. */

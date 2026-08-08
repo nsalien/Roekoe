@@ -480,16 +480,23 @@ duif die al ingeschreven staat of al vol energie zit.
 verrekte borstspier (licht), verstuikte vleugel (matig), borstbeenkneuzing
 (matig), sperwerverwonding (ernstig), botbreuk in de vleugel (ernstig).
 
-Bij het uitbreken zakt de gezondheid: **licht −10, matig −22, ernstig −38**.
+Bij het uitbreken zakt de gezondheid meteen: **licht −10, matig −22, ernstig −38**.
+Bovendien blijft een aandoening de gezondheid **elke dag verder ondermijnen**
+zolang de duif niet genezen is — **licht −0,6, matig −1,5, ernstig −2,5 per dag**,
+en **×1,5** zolang ze *niet* in de ziekenboeg zit. Een zieke of gekwetste duif die
+je laat aanmodderen wordt dus steeds zwakker; snel behandelen beperkt de schade.
 
-### 5.2 Kans op ziekte (wekelijks)
-Voor elke gezonde, niet-geïsoleerde duif:
+### 5.2 Kans op ziekte (elke dag, in echte tijd)
+Duiven worden nu **effectief ziek tijdens het spelen**: elke dagovergang (00:00)
+krijgt elke gezonde, niet-geïsoleerde duif een kans om ziek te worden. De
+weekkansen hieronder worden omgerekend naar een **dagkans**
+(`dagkans = 1 − (1 − weekkans)^(1/7)`):
 ```
 energierisico = clamp(1.3 − Energie/100, 0.3, 1.3)        // laag = risicovoller
 per_bron      = 0.11 · clamp(1.2 − Gezondheid/100, 0.1, 1.2) · energierisico
 van_anderen   = 1 − (1 − per_bron)^(aantal zieke, niet-geïsoleerde duiven)
 spontaan      = 0.05 · clamp(1 − Gezondheid/100, 0, 1) · energierisico
-totale_kans   = clamp(1 − (1 − van_anderen)·(1 − spontaan), 0, 0.85)
+totale_kans   = clamp(1 − (1 − van_anderen)·(1 − spontaan), 0, 0.85)   // per week, /7 per dag
 ```
 Een duif **in de ziekenboeg** is geïsoleerd: besmet niemand en wordt niet besmet.
 
@@ -498,6 +505,11 @@ Een duif **in de ziekenboeg** is geïsoleerd: besmet niemand en wordt niet besme
 > verzwakte duif (gezondheid 40, energie 20) zit rond **~13% kans/week** — meer
 > dan zes keer zoveel. Lage gezondheid én lage energie maken je hok dus veel
 > kwetsbaarder; zet zieke duiven meteen in de ziekenboeg om de ketting te breken.
+
+**Onbehandeld = gevaarlijk.** Een matige of ernstige aandoening die je niet
+verzorgt kan **dodelijk** aflopen. Een ernstig letsel dat je z'n hele beloop
+buiten de ziekenboeg laat, heeft zo'n **~1 kans op 4** om de duif te kosten; in de
+ziekenboeg zakt dat tot **~2%**. Lichte aandoeningen zijn nooit dodelijk.
 
 ### 5.3 Herstel (in echte tijd)
 Herstel loopt **continu in echte tijd** (niet meer als wekelijkse kansworp). Een

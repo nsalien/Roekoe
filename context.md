@@ -121,6 +121,12 @@ volgorde:
    Verhongerde duiven worden hier verwijderd. **Rekent ook alle vaste onkosten dagelijks
    af** (`dailyRunningCost`: onderhoud + coach + ziekenboegstaf/medicatie) en betaalt
    **sponsorbijdragen dagelijks** (weekbedrag ÷ 7). `advanceWeek` doet dit **niet** meer.
+   Roept per gepasseerde dag ook **`runHealthDay(db, week)`** (health.ts) aan: dáár
+   worden duiven **effectief ziek in echte tijd** (besmetting + spontaan), zakt de
+   gezondheid van een aandoening **elke dag verder**, en kan een **onbehandelde**
+   matige/ernstige aandoening **dodelijk** aflopen. (De oude `runHealthWeek` blijft
+   enkel voor de admin-`/advance-week`-knop; illness gebeurde vroeger *alleen* daar,
+   dus in normaal spel werden duiven nooit ziek — dat is nu opgelost.)
 5. `tickBreedingHatch(db, nowMs)` — jongen komen uit in echte tijd.
 6. `tickFlightEnergy(db, nowMs)` — trekt vlucht-energie **geleidelijk per 30 min** af.
 7. `tickHealing(db, nowMs)` — **real-time herstel** van ziekte/kwetsuur + 12u-statusupdates.
@@ -401,6 +407,13 @@ Entiteiten: `Pigeon`, `Loft`, `User`, `BreedingPair`, `Flight` (+ `SimEntry`,
   medicatievoer ×1,2 (stapelen → volle zorg ×~3). Volle zorg: licht ~1,5 dag /
   matig ~3,5 dagen / ernstig ~6 dagen — een aandoening is bewust een echte
   tegenslag (was ~1 dag voor matig). `updateHours: 12` (statusupdate-cadans).
+- **Ziekte/impact (`HEALTH`)** — `runHealthDay` draait nu **real-time** per dag
+  (zie tick 4). Nieuw: `ailmentHealthDrainPerDay` licht 0,6 / matig 1,5 / ernstig
+  2,5 gezondheid/dag zolang de duif aan een aandoening lijdt, `×ailmentDrainOutsideFactor`
+  (1,5) buiten de ziekenboeg. Besmetting/spontane ziekte (`contagionPerSource` 0,11,
+  `spontaneousIllness` 0,05, wekelijks) en ailment-sterfte (`ailmentMortality*`) worden
+  weekkans→dagkans omgerekend (`1−(1−p)^(1/7)`). Ouderdomssterfte blijft (voorlopig)
+  enkel in de wekelijkse `runHealthWeek`.
 - **Weddenschappen (`BETTING`):** window 12u, inzet €10–€500, houseMargin 0.12,
   simIterations 1500. Wedden op **alle wedstrijdvluchten**; **niet** op oefenvluchten
   (`bettingOpen` weigert `flight.practice`).
