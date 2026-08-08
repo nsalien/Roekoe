@@ -493,6 +493,11 @@ Entiteiten: `Pigeon`, `Loft`, `User`, `BreedingPair`, `Flight` (+ `SimEntry`,
   met **dagen tot de volgende speelweek** (`nextPlayWeek`+`timeUntil`).
 - `AchievementsPage` (Prestaties) — tabs Badges · Trofeeën · **Seizoensprijzen**
   (Roekoes + Vleugels: tellingen goud/zilver/brons + erelijst uit `profile.awards`).
+- `WikiPage` (`/wiki`, nav 📖 **Wiki**) — **statische**, client-only uitlegpagina van
+  de strategie-bepalende mechanismen + kansen (energie/herstel, vlucht-verbruik, DNF/
+  blessure/dood bij lage energie, broedkans, ziektekans, sterfte, ras-rariteit). Bewust
+  **niet 100% transparant**: richtwaarden i.p.v. exacte formules, geluk blijft benoemd.
+  Geen backend/kosten. Cijfers **handmatig** in sync houden met `core/config/gameConfig.ts`.
 - `AdminPage` (`/beheer`, **enkel admins**) — uitbreidbare **beheerconsole** (tabs).
   Eerste tool **Vlucht-analyse**: per duif van een afgeronde vlucht de volledige
   snelheidsontleding (eigenschappen + weging + energie/gezondheid/ervaring/leeftijd-
