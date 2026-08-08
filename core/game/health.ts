@@ -170,6 +170,93 @@ export function tickHealing(db: Database, nowMs: number): void {
   }
 }
 
+/** Convert a per-week probability to the equivalent per-day probability. */
+function weeklyToDaily(pWeek: number): number {
+  return 1 - Math.pow(1 - clamp(pWeek, 0, 1), 1 / 7);
+}
+
+/** Push a unique (non-idempotent) health notification for a one-off event. */
+function pushHealthNote(db: Database, userId: string, title: string, body: string): void {
+  db.notifications.push({
+    id: newId(), userId, kind: 'health', title, body,
+    flightId: null, createdAt: new Date().toISOString(), read: false,
+  });
+}
+
+/**
+ * One real-time DAY of health for the whole world (called once per elapsed day
+ * from the daily tick — see schedule.tickDailyCare). Unlike the legacy weekly
+ * pass, this actually runs during normal play, so birds genuinely fall ill,
+ * ailments keep sapping health, and an untreated ailment can turn fatal.
+ * (Old-age mortality is intentionally left to the weekly pass for now.)
+ */
+export function runHealthDay(db: Database, week: number): void {
+  const humanIds = new Set(db.lofts.filter((l) => !l.isBot).map((l) => l.userId));
+  const dead = new Set<string>();
+
+  for (const loft of db.lofts) {
+    const birds = db.pigeons.filter((p) => p.ownerId === loft.userId);
+    if (birds.length === 0) continue;
+    const human = humanIds.has(loft.userId);
+
+    // 1. An ongoing ailment keeps draining health (worse when left untreated).
+    for (const p of birds) {
+      if (!p.ailment) continue;
+      let drain = HEALTH.ailmentHealthDrainPerDay[p.ailment.severity];
+      if (!p.inInfirmary) drain *= HEALTH.ailmentDrainOutsideFactor;
+      p.health = round1(clamp(p.health - drain, 0, 100));
+    }
+
+    // 2. Mortality: an untreated severe/moderate ailment can be fatal.
+    for (const p of birds) {
+      if (dead.has(p.id) || !p.ailment) continue;
+      const table = p.inInfirmary ? HEALTH.ailmentMortalityInfirmary : HEALTH.ailmentMortalityOutside;
+      const pDeath = weeklyToDaily(table[p.ailment.severity]);
+      if (pDeath > 0 && Math.random() < pDeath) {
+        dead.add(p.id);
+        if (p.ailment.name === 'Sperwerverwonding') awardBadge(db, loft, 'rip_sperwer');
+        if (human) {
+          pushHealthNote(
+            db, loft.userId, `🕯️ ${p.name} is niet meer`,
+            `${p.name} is bezweken aan ${p.ailment.name.toLowerCase()}. Een aandoening onbehandeld laten is gevaarlijk — de ziekenboeg en verzorging verkleinen dat risico sterk.`,
+          );
+        }
+      }
+    }
+
+    // 3. Contagion + spontaneous illness among the survivors.
+    const alive = birds.filter((p) => !dead.has(p.id));
+    const sources = alive.filter((p) => p.ailment?.kind === 'ziekte' && !p.inInfirmary).length;
+    for (const p of alive) {
+      if (p.ailment || p.inInfirmary) continue; // already ailing, or safely isolated
+      const energyRisk = clamp(1.3 - p.form / 100, 0.3, 1.3);
+      const perSource = weeklyToDaily(HEALTH.contagionPerSource) * clamp(1.2 - p.health / 100, 0.1, 1.2) * energyRisk;
+      const fromOthers = sources > 0 ? 1 - Math.pow(1 - perSource, sources) : 0;
+      const spontaneous = weeklyToDaily(HEALTH.spontaneousIllness) * clamp(1 - p.health / 100, 0, 1) * energyRisk;
+      const compartmentGuard = p.compartment ? 1 - COMPARTMENT.diseaseReduction : 1;
+      const chance = clamp(1 - (1 - fromOthers) * (1 - spontaneous), 0, 0.85) * compartmentGuard;
+      if (Math.random() < chance) {
+        const disease = randomDisease(week);
+        applyAilment(p, disease);
+        if (human) {
+          pushHealthNote(
+            db, loft.userId, `🤒 ${p.name} is ziek geworden`,
+            `Diagnose: ${disease.name} (${disease.severity}). ${disease.description} Zet ze meteen in de ziekenboeg om besmetting te voorkomen en het herstel te versnellen.`,
+          );
+        }
+      }
+    }
+  }
+
+  if (dead.size > 0) {
+    db.pigeons = db.pigeons.filter((p) => !dead.has(p.id));
+    db.breedingPairs = db.breedingPairs.filter((bp) => !dead.has(bp.sireId) && !dead.has(bp.damId));
+    for (const f of db.flights) {
+      if (f.status !== 'completed') f.entries = f.entries.filter((e) => !dead.has(e.pigeonId));
+    }
+  }
+}
+
 /** Which infirmary birds a loft's staff can properly cover (by pigeon id). */
 export function coveredInInfirmary(loft: Loft, pigeons: Pigeon[]): Set<string> {
   const bySeverity = (a: Pigeon, b: Pigeon) =>

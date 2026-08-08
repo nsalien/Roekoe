@@ -39,7 +39,7 @@ import { breed } from './breeding.js';
 import { awardBadge, awardFlightBadges, evaluateBadges } from './badges.js';
 import { ensureAuctions } from './auction.js';
 import { settleFlightBets } from './betting.js';
-import { tickHealing } from './health.js';
+import { runHealthDay, tickHealing } from './health.js';
 import { tickSeason } from './season.js';
 import { progressMissions } from './missions.js';
 import { activeContracts, evaluateSponsorOffers } from './sponsors.js';
@@ -1021,6 +1021,9 @@ export function tickDailyCare(db: Database, nowMs: number): void {
         if (stipend > 0) loft.money += Math.round(stipend / 7);
       }
     }
+    // One real-time day of health for the whole world: birds actually fall ill,
+    // ailments keep draining health, and an untreated ailment can turn fatal.
+    runHealthDay(db, db.world.currentWeek);
   }
   db.world.lastDailyTick = new Date(cursor).toISOString();
   // Catch state badges that daily recovery may have unlocked (topfit, kerngezond).
