@@ -102,6 +102,12 @@ function nextLocalMidnightMs(tz: string, midnightMs: number): number {
   return startOfLocalDayMs(tz, midnightMs + 26 * 3600000);
 }
 
+/** Local weekday of the calendar date at `atMs` (0 = Sunday, 1 = Monday, …). */
+function localWeekday(tz: string, atMs: number): number {
+  const { y, m, d } = tzDateParts(tz, atMs);
+  return new Date(Date.UTC(y, m - 1, d)).getUTCDay();
+}
+
 // --- Scheduling ------------------------------------------------------------
 
 /** The pool of cities a tier draws its start/finish from. */
@@ -978,7 +984,13 @@ export function tickDailyCare(db: Database, nowMs: number): void {
     db.flights.filter((f) => f.status === 'live').flatMap((f) => f.entries.map((e) => e.pigeonId)),
   );
 
+  let dayMidnight = startOfLocalDayMs(TIMEZONE, parsed);
   for (let i = 0; i < days; i++) {
+    dayMidnight = nextLocalMidnightMs(TIMEZONE, dayMidnight);
+    // A game-week is 7 real days (SEASON.weekDays), so roll the monotonic
+    // week counter every Monday 00:00. This is what makes pigeons actually
+    // AGE in real time (drives the age curve + old-age mortality below).
+    if (localWeekday(TIMEZONE, dayMidnight) === 1) db.world.currentWeek += 1;
     for (const loft of db.lofts) {
       const owned = db.pigeons.filter((p) => p.ownerId === loft.userId);
       if (owned.length === 0) continue;

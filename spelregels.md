@@ -544,18 +544,27 @@ kwetsbare duiven niet nodeloos op de zwaarste vluchten.
 
 ## 6. Leeftijd & sterfte
 
+**Duiven verouderen in echte tijd.** De gameweek-teller schuift **elke maandag
+00:00** één week op (een gameweek = 7 echte dagen), dus je duiven worden echt
+ouder naarmate de tijd vordert — dat drijft zowel de prestatiecurve als de
+ouderdomssterfte hieronder.
+
 **Leeftijdscurve** (prestatievermenigvuldiger): 0 wk → 0.0, 8 wk → 0.6,
 20 wk → 0.85, 1 jaar → 1.0, 1–3 jaar → 1.0 (prime), 5 jaar → 0.9, 8 jaar → 0.7,
 10 jaar → 0.5.
 
-**Sterftekans per week:**
+**Sterfte gebeurt nu ook in echte tijd** (elke dagovergang, weekkans → dagkans
+via `1 − (1 − p)^(1/7)`):
 ```
-leeftijd (interp): 4j 0.001 · 6j 0.006 · 8j 0.025 · 10j 0.07 · 12j 0.16 · 15j 0.40
-+ onbehandelde aandoening:
+leeftijd (interp, per week): 4j 0.001 · 6j 0.006 · 8j 0.025 · 10j 0.07 · 12j 0.16 · 15j 0.40
++ onbehandelde aandoening (per week):
     buiten de boeg: matig +0.03 · ernstig +0.10
     in de boeg:     matig +0.005 · ernstig +0.025
 ```
-Bij overlijden krijgt de eigenaar een melding.
+Ouderdom weegt pas echt door vanaf ~4 jaar en loopt daarna op; jonge duiven
+sterven zo goed als nooit vanzelf. Ook **vluchten** kunnen dodelijk zijn (een
+uitgeputte duif die het onderweg begeeft — zie §3.2). Bij overlijden krijgt de
+eigenaar een melding.
 
 > **Voorbeeld.** Een gezonde duif van **8 jaar** heeft ~**2.5% kans/week** om te
 > sterven; op **12 jaar** al ~**16%**. Een duif met een **onbehandelde ernstige**
