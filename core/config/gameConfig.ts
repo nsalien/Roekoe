@@ -35,6 +35,13 @@ export const SEASON_AWARDS = {
 /** A pigeon can be entered into flights once it reaches this age (in weeks). */
 export const RACE_AGE_WEEKS = 8;
 
+/** How many game-weeks pass per real week — i.e. how fast pigeons age in real
+ *  time. At 4×, a newly hatched bird reaches race age (8 wk) in ~2 real weeks,
+ *  and the age curve + old-age mortality (both authored per game-week) play out
+ *  over real months instead of years. The game-week counter (`world.currentWeek`)
+ *  advances by this many weeks per real week. */
+export const GAME_WEEKS_PER_REAL_WEEK = 4;
+
 /** Loft capacity a new player starts with (max pigeons owned). Upgradeable. */
 export const STARTING_LOFT_CAPACITY = 8;
 

@@ -123,15 +123,19 @@ volgorde:
    **sponsorbijdragen dagelijks** (weekbedrag ÷ 7). `advanceWeek` doet dit **niet** meer.
    Roept per gepasseerde dag ook **`runHealthDay(db, week)`** (health.ts) aan: dáár
    worden duiven **effectief ziek in echte tijd** (besmetting + spontaan), zakt de
-   gezondheid van een aandoening **elke dag verder**, kan een **onbehandelde**
-   matige/ernstige aandoening **dodelijk** aflopen, én sterven oude duiven aan
-   **ouderdom** (weekkans → dagkans). (De oude `runHealthWeek` blijft enkel voor de
-   admin-`/advance-week`-knop; illness/sterfte gebeurde vroeger *alleen* daar, dus
-   in normaal spel werden duiven nooit ziek en verouderden ze niet — nu wel.)
-   **Verouderen in echte tijd:** de loop rolt `world.currentWeek` **elke maandag
-   00:00** één op (gameweek = `SEASON.weekDays` = 7 echte dagen), zodat leeftijd —
-   en dus prestatiecurve + ouderdomssterfte — echt vordert. (Vlucht-sterfte zat al
-   in `finalizeFlight` via `TOURNEY_RISK.deathChance`.)
+   gezondheid van een aandoening **elke dag verder**, en kan een **onbehandelde**
+   matige/ernstige aandoening **dodelijk** aflopen. (De oude `runHealthWeek` blijft
+   enkel voor de admin-`/advance-week`-knop; illness/sterfte gebeurde vroeger
+   *alleen* daar, dus in normaal spel werden duiven nooit ziek en verouderden ze
+   niet — nu wel.)
+   **Verouderen in echte tijd (4×):** de loop rolt `world.currentWeek` met
+   `GAME_WEEKS_PER_REAL_WEEK` (=4) weken per échte week (gelijkmatig via
+   `floor(dn·4/7)`-delta per dag). Zo is een jong na ~2 echte weken vliegklaar en
+   speelt ouderdom over echte maanden mee. **Per gerolde gameweek** draait
+   `runAgeMortality(db, week)` (health.ts) met de **rauwe weekkans** — zo blijft de
+   `MORTALITY_CURVE` kloppen ongeacht de veroudersnelheid. (Ailment-sterfte zit in
+   `runHealthDay`, per dag. Vlucht-sterfte zat al in `finalizeFlight` via
+   `TOURNEY_RISK.deathChance`.)
 5. `tickBreedingHatch(db, nowMs)` — jongen komen uit in echte tijd.
 6. `tickFlightEnergy(db, nowMs)` — trekt vlucht-energie **geleidelijk per 30 min** af.
 7. `tickHealing(db, nowMs)` — **real-time herstel** van ziekte/kwetsuur + 12u-statusupdates.
@@ -418,8 +422,9 @@ Entiteiten: `Pigeon`, `Loft`, `User`, `BreedingPair`, `Flight` (+ `SimEntry`,
   (1,5) buiten de ziekenboeg. Besmetting/spontane ziekte (`contagionPerSource` 0,11,
   `spontaneousIllness` 0,05, wekelijks) en ailment-sterfte (`ailmentMortality*`) worden
   weekkans→dagkans omgerekend (`1−(1−p)^(1/7)`). **Ouderdomssterfte** (`ageMortality`
-  / `MORTALITY_CURVE`) draait nu óók in `runHealthDay` (dagkans), gedreven door de
-  real-time week-roll. `runHealthWeek` (admin) behoudt de oude wekelijkse variant.
+  / `MORTALITY_CURVE`) draait in `runAgeMortality` **per gerolde gameweek** (rauwe
+  weekkans), gedreven door de 4× real-time veroudering (`GAME_WEEKS_PER_REAL_WEEK`).
+  `runHealthWeek` (admin) behoudt de oude wekelijkse variant.
 - **Weddenschappen (`BETTING`):** window 12u, inzet €10–€500, houseMargin 0.12,
   simIterations 1500. Wedden op **alle wedstrijdvluchten**; **niet** op oefenvluchten
   (`bettingOpen` weigert `flight.practice`).

@@ -22,7 +22,7 @@ import {
 } from '../config/gameConfig.js';
 import type { Ailment, Database, Loft, Pigeon } from '../schema.js';
 import { newId } from '../store.js';
-import { ageMortality } from './pigeon.js';
+import { ageInWeeks, ageMortality } from './pigeon.js';
 import { awardBadge, evaluateBadges } from './badges.js';
 import { clamp, pick, pickWith, round1 } from './util.js';
 
@@ -187,9 +187,8 @@ function pushHealthNote(db: Database, userId: string, title: string, body: strin
  * One real-time DAY of health for the whole world (called once per elapsed day
  * from the daily tick — see schedule.tickDailyCare). Unlike the legacy weekly
  * pass, this actually runs during normal play, so birds genuinely fall ill,
- * ailments keep sapping health, an untreated ailment can turn fatal, and old
- * birds can pass away of old age (their age advances in real time — see the
- * weekly roll in tickDailyCare).
+ * ailments keep sapping health, and an untreated ailment can turn fatal.
+ * (Old-age mortality is applied per game-week in runAgeMortality.)
  */
 export function runHealthDay(db: Database, week: number): void {
   const humanIds = new Set(db.lofts.filter((l) => !l.isBot).map((l) => l.userId));
@@ -208,30 +207,20 @@ export function runHealthDay(db: Database, week: number): void {
       p.health = round1(clamp(p.health - drain, 0, 100));
     }
 
-    // 2. Mortality: old age plus an untreated severe/moderate ailment.
+    // 2. Mortality: an untreated severe/moderate ailment can be fatal. (Old-age
+    //    mortality is handled per game-week in runAgeMortality, so it stays true
+    //    to the per-week curve regardless of how fast pigeons age.)
     for (const p of birds) {
-      if (dead.has(p.id)) continue;
-      let weekly = ageMortality(p, week);
-      if (p.ailment) {
-        const table = p.inInfirmary ? HEALTH.ailmentMortalityInfirmary : HEALTH.ailmentMortalityOutside;
-        weekly += table[p.ailment.severity];
-      }
-      const pDeath = weeklyToDaily(weekly);
+      if (dead.has(p.id) || !p.ailment) continue;
+      const table = p.inInfirmary ? HEALTH.ailmentMortalityInfirmary : HEALTH.ailmentMortalityOutside;
+      const pDeath = weeklyToDaily(table[p.ailment.severity]);
       if (pDeath > 0 && Math.random() < pDeath) {
         dead.add(p.id);
-        if (p.ailment?.name === 'Sperwerverwonding') awardBadge(db, loft, 'rip_sperwer');
-        else if (!p.ailment) awardBadge(db, loft, 'vredig');
+        if (p.ailment.name === 'Sperwerverwonding') awardBadge(db, loft, 'rip_sperwer');
         if (human) {
-          const years = Math.floor(Math.max(0, week - p.birthWeek) / 52);
-          const cause = p.ailment
-            ? `bezweken aan ${p.ailment.name.toLowerCase()}`
-            : 'op hoge leeftijd vredig ingeslapen';
-          const advice = p.ailment
-            ? 'Een aandoening onbehandeld laten is gevaarlijk — de ziekenboeg en verzorging verkleinen dat risico sterk.'
-            : 'Het duivenhok neemt een moment stilte in acht.';
           pushHealthNote(
             db, loft.userId, `🕯️ ${p.name} is niet meer`,
-            `${p.name} (${years} jaar) is ${cause}. ${advice}`,
+            `${p.name} is bezweken aan ${p.ailment.name.toLowerCase()}. Een aandoening onbehandeld laten is gevaarlijk — de ziekenboeg en verzorging verkleinen dat risico sterk.`,
           );
         }
       }
@@ -261,6 +250,41 @@ export function runHealthDay(db: Database, week: number): void {
     }
   }
 
+  if (dead.size > 0) {
+    db.pigeons = db.pigeons.filter((p) => !dead.has(p.id));
+    db.breedingPairs = db.breedingPairs.filter((bp) => !dead.has(bp.sireId) && !dead.has(bp.damId));
+    for (const f of db.flights) {
+      if (f.status !== 'completed') f.entries = f.entries.filter((e) => !dead.has(e.pigeonId));
+    }
+  }
+}
+
+/**
+ * One game-week of OLD-AGE mortality (called once per week the age counter rolls
+ * — see schedule.tickDailyCare). Kept on the game-week cadence, with the raw
+ * per-week probability, so the mortality curve stays faithful no matter how fast
+ * pigeons age in real time. Young/prime birds are practically never taken here.
+ */
+export function runAgeMortality(db: Database, week: number): void {
+  const humanIds = new Set(db.lofts.filter((l) => !l.isBot).map((l) => l.userId));
+  const dead = new Set<string>();
+  for (const loft of db.lofts) {
+    for (const p of db.pigeons) {
+      if (p.ownerId !== loft.userId || dead.has(p.id)) continue;
+      const pDeath = ageMortality(p, week);
+      if (pDeath > 0 && Math.random() < clamp(pDeath, 0, 0.95)) {
+        dead.add(p.id);
+        awardBadge(db, loft, 'vredig');
+        if (humanIds.has(loft.userId)) {
+          const years = Math.floor(ageInWeeks(p, week) / 52);
+          pushHealthNote(
+            db, loft.userId, `🕯️ ${p.name} is niet meer`,
+            `${p.name} (${years} jaar) is op hoge leeftijd vredig ingeslapen. Het duivenhok neemt een moment stilte in acht.`,
+          );
+        }
+      }
+    }
+  }
   if (dead.size > 0) {
     db.pigeons = db.pigeons.filter((p) => !dead.has(p.id));
     db.breedingPairs = db.breedingPairs.filter((bp) => !dead.has(bp.sireId) && !dead.has(bp.damId));
