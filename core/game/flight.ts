@@ -483,14 +483,14 @@ export function finalizeFlight(flight: Flight, pigeons: Pigeon[]): SimulatedFlig
     if (rank === 1 && !isDnf && !flight.titan) acc.wins += 1;
     payoutMap.set(s.ownerId, acc);
 
-    // Fatigue: racing drains energie. Most of it is already gone — it was
-    // drained gradually while the bird flew (see tickFlightEnergy). Here we
-    // only settle what is left:
+    // Fatigue: racing drains energie, and a bird pays ONLY for the part it flew.
+    // Most of it is already gone — it was drained gradually while the bird flew
+    // (see tickFlightEnergy). Here we just settle what is left:
     //  - a pulled bird (gaveUp) paid for the distance it covered, nothing more;
-    //  - everyone else (finisher OR a DNF) tops up to the frozen route cost.
-    // A DNF is NOT penalised with extra energy: not finishing (no points, no
-    // prize) plus the health/injury hit below is setback enough — an uitgevallen
-    // duif kost dus niet méér energie dan een duif die gewoon uitvliegt.
+    //  - a finisher pays the full frozen route cost;
+    //  - a DNF bird pays proportional to how far it got (stops at dnfAtSeconds),
+    //    never for the distance it didn't cover. No extra penalty for a DNF —
+    //    missing points/prize plus the health/injury hit below is setback enough.
     // Flights that were already live before gradual draining existed have no
     // frozen formCost — fall back to the original lump-sum drain for those.
     const drained = s.formDrained ?? 0;
@@ -502,7 +502,11 @@ export function finalizeFlight(flight: Flight, pigeons: Pigeon[]): SimulatedFlig
     } else if (gaveUp) {
       formDelta = 0; // already paid gradually for the distance it flew
     } else {
-      formDelta = -round1(Math.max(0, s.formCost - drained));
+      // Settle up to the flown share only: full route for a finisher, the part
+      // up to dnfAtSeconds for a bird that gave out mid-flight.
+      const stopSeconds = s.dnfAtSeconds ?? s.durationSeconds;
+      const flownTarget = round1(s.formCost * clamp(stopSeconds / s.durationSeconds, 0, 1));
+      formDelta = -round1(Math.max(0, flownTarget - drained));
     }
     const enduranceDelta = isDnf ? 0 : round1(0.3 + flight.distanceKm / 500 + rf(0, 0.4));
     const healthDelta = gaveUp ? 0 : -round1(rf(0, flight.distanceKm / 200) + (isDnf ? rf(4, 9) : 0));

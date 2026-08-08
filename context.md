@@ -385,11 +385,13 @@ Entiteiten: `Pigeon`, `Loft`, `User`, `BreedingPair`, `Flight` (+ `SimEntry`,
 - **Honger (`STARVATION`)** — geen voorraad = versnellende daling (energie 8·N,
   gezondheid 5·N, conditie 3·N, libido 4·N per honger-dag N); sterftekans vanaf
   dag 3, zeker vanaf dag 7.
-- **Vlucht-energiekost (`FLIGHT_FATIGUE`)** — totaal = `(10 + afstand/30)·ervaringsfactor
-  + rand(0..10)`, bevroren bij start, **per 30 min** geleidelijk afgetrokken. Een **DNF
-  krijgt GEEN extra energie-straf** (was `exhaustionPenalty`+jitter, verwijderd): een
-  uitgevallen duif betaalt exact dezelfde routekost als een finisher — geen punten/prijs +
-  de gezondheids-/blessureklap is straf genoeg. `stepMinutes: 30`. **Ervaringsfactor** = `1 − (ervaring/100 −
+- **Vlucht-energiekost (`FLIGHT_FATIGUE`)** — volle-routekost = `(10 + afstand/30)·ervaringsfactor
+  + rand(0..10)`, bevroren bij start, **per 30 min** geleidelijk afgetrokken. Een duif betaalt
+  **enkel voor het afgelegde deel**: de aftrek (in `tickFlightEnergy` én de finale-settlement)
+  stopt op `dnfAtSeconds` voor een **DNF**-duif, dus die betaalt `formCost·(dnfAtSeconds/duur)`
+  i.p.v. de volle route; een finisher betaalt de volle route; een `gaveUp`-duif enkel wat al
+  geleidelijk werd afgetrokken. **Geen extra DNF-straf** (`exhaustionPenalty`+jitter verwijderd) —
+  geen punten/prijs + de gezondheids-/blessureklap is straf genoeg. `stepMinutes: 30`. **Ervaringsfactor** = `1 − (ervaring/100 −
   0.5)·experienceReliefSpread` (spread 0.5 → draaipunt ervaring 50 = ×1.0, ervaring 0 =
   ×1.25 méér verbruik, ervaring 100 = ×0.75 minder). Onervaren duiven verbruiken dus
   meer, ervaren minder. NB: dit staat los van de ervaring-**dosering** in het snelheids­
