@@ -19,6 +19,7 @@ import {
   FLIGHT_FATIGUE,
   FLIGHT_TIERS,
   FOOD_PRICE_PER_KG,
+  GAME_WEEKS_PER_REAL_WEEK,
   INFIRMARY,
   REST_CURE,
   IMPROVE_ATTR_LABEL,
@@ -39,7 +40,7 @@ import { breed } from './breeding.js';
 import { awardBadge, awardFlightBadges, evaluateBadges } from './badges.js';
 import { ensureAuctions } from './auction.js';
 import { settleFlightBets } from './betting.js';
-import { runHealthDay, tickHealing } from './health.js';
+import { runAgeMortality, runHealthDay, tickHealing } from './health.js';
 import { tickSeason } from './season.js';
 import { progressMissions } from './missions.js';
 import { activeContracts, evaluateSponsorOffers } from './sponsors.js';
@@ -102,10 +103,10 @@ function nextLocalMidnightMs(tz: string, midnightMs: number): number {
   return startOfLocalDayMs(tz, midnightMs + 26 * 3600000);
 }
 
-/** Local weekday of the calendar date at `atMs` (0 = Sunday, 1 = Monday, …). */
-function localWeekday(tz: string, atMs: number): number {
+/** Whole-day index of the local calendar date at `atMs` (days since epoch). */
+function localDayNumber(tz: string, atMs: number): number {
   const { y, m, d } = tzDateParts(tz, atMs);
-  return new Date(Date.UTC(y, m - 1, d)).getUTCDay();
+  return Math.round(Date.UTC(y, m - 1, d) / 86400000);
 }
 
 // --- Scheduling ------------------------------------------------------------
@@ -987,10 +988,17 @@ export function tickDailyCare(db: Database, nowMs: number): void {
   let dayMidnight = startOfLocalDayMs(TIMEZONE, parsed);
   for (let i = 0; i < days; i++) {
     dayMidnight = nextLocalMidnightMs(TIMEZONE, dayMidnight);
-    // A game-week is 7 real days (SEASON.weekDays), so roll the monotonic
-    // week counter every Monday 00:00. This is what makes pigeons actually
-    // AGE in real time (drives the age curve + old-age mortality below).
-    if (localWeekday(TIMEZONE, dayMidnight) === 1) db.world.currentWeek += 1;
+    // Pigeons AGE in real time: roll the monotonic game-week counter forward at
+    // GAME_WEEKS_PER_REAL_WEEK weeks per real week, spread evenly over the days.
+    // Old-age mortality runs once per rolled week (true to the per-week curve).
+    const dn = localDayNumber(TIMEZONE, dayMidnight);
+    const rolls =
+      Math.floor((dn * GAME_WEEKS_PER_REAL_WEEK) / 7) -
+      Math.floor(((dn - 1) * GAME_WEEKS_PER_REAL_WEEK) / 7);
+    for (let r = 0; r < rolls; r++) {
+      db.world.currentWeek += 1;
+      runAgeMortality(db, db.world.currentWeek);
+    }
     for (const loft of db.lofts) {
       const owned = db.pigeons.filter((p) => p.ownerId === loft.userId);
       if (owned.length === 0) continue;
