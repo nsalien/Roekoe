@@ -826,8 +826,10 @@ Verdiend geld kan je investeren in je hok en je duiven (bij *Mijn hok*, de
   **kleinere kans op ziekte**. Gaat een duif naar de **ziekenboeg**, dan **komt
   haar aparte hok meteen vrij**: ze zit daar toch al apart, dus de plek gaat
   terug in de pot en je kan ze (tijdelijk of niet) aan een **andere** duif geven.
-  Ze krijgt haar aparte hok **niet** automatisch terug wanneer ze geneest — wijs
-  er dan gewoon opnieuw een toe als er nog een vrij is.
+  Komt ze genezen terug, dan **springt ze automatisch weer in een apart hok als
+  er nog eentje vrij is**. Is haar plek intussen aan een andere duif gegeven
+  (alles bezet), dan komt ze gewoon zonder terug en wijs je er later opnieuw een
+  toe zodra er eentje vrijkomt.
 - **Ziekenboeg uitbreiden.** Koop extra bedden (van 2 naar 3, 4, 5 of 6) zodat je
   meer zieke duiven tegelijk kan verzorgen.
 - **Voerschema's — per duif.** Elke duif heeft eigen noden (vluchten vs. broeden),

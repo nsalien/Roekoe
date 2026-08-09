@@ -615,17 +615,23 @@ Voor engine-logica: snelle integratietests met **tsx** vanuit de repo-root
 Alles hieronder staat **live** op de deploy-branch. Data-migraties liepen door tot
 **`dataVersion = 27`**.
 
-**Apart hok komt vrij bij ziekenboeg (nieuwste)**
-- Een duif die naar de **ziekenboeg** gaat, **geeft haar aparte hok vrij** (ze zit daar
-  toch al apart). `setInfirmary(wantIn=true)` zet nu `pigeon.compartment = false`, zodat
-  de slot vrijkomt en (tijdelijk of niet) aan een andere duif kan. Ze **herwint** het
-  apart hok **niet** automatisch bij terugkeer — opnieuw toewijzen als er een vrij is.
-- `compartmentsUsed` (presenters.ts) telt enkel `compartment && !inInfirmary`, en
-  `setPigeonCompartment` sluit ziekenboeg-duiven uit de bezettingstelling én **weigert**
-  een apart hok toe te wijzen aan een duif in de ziekenboeg. Client: de apart-hok-knop op
-  `PigeonPage` is uitgeschakeld met "🏥 Ziekenboeg"-label als de duif daar zit (LoftPage
-  deed dit al). **Migratie v27** zet `compartment = false` voor alle duiven die nú al in de
-  ziekenboeg zitten, zodat de tellingen meteen kloppen. **dataVersion → 27.**
+**Apart hok komt vrij bij ziekenboeg + auto-terugname (nieuwste)**
+- Een duif die naar de **ziekenboeg** gaat, **geeft haar aparte hok vrij** — de slot komt
+  vrij en kan (tijdelijk of niet) aan een andere duif. Ze **behoudt intern haar
+  compartment-vlag** terwijl ze geïsoleerd zit (om de slot te kunnen terugnemen), maar telt
+  níet mee in de bezetting en krijgt géén rustbonus zolang ze in de boeg zit.
+- **Auto-terugname bij genezing:** `setInfirmary(wantIn=false)` zet de duif terug in een
+  apart hok **als er nog eentje vrij is** (anders komt ze zonder terug). Ze pakt nooit een
+  slot af van een duif die er intussen in kwam, en een duif die **nooit** een apart hok had
+  krijgt er ook geen.
+- Implementatie: de compartment-vlag blijft staan bij binnenkomst (geen clear meer). De
+  **rustbonus** in `economy.ts` (`applyDayOfCare` + `projectDailyCare`) gebruikt nu
+  `compartment && !inInfirmary`; `pigeonDTO.compartment` toont `compartment && !inInfirmary`
+  (intern behouden, extern verborgen tijdens de boeg). `compartmentsUsed` en de
+  assign-check in `setPigeonCompartment` negeren ziekenboeg-duiven al; assign aan een
+  ziekenboeg-duif blijft geweigerd. `PigeonPage`-knop toont "🏥 Ziekenboeg" (disabled) als
+  de duif daar zit. **Migratie v27** (vorige stap) klaarde bestaande ziekenboeg-duiven —
+  die enkele duiven nemen hun oude hok niet automatisch terug; nieuwe wel. **dataVersion = 27.**
 
 **Finish-timer/cutoff verwijderd (nieuwste)**
 - De **90-minuten-deadline** na de eerste finisher is **weg** (`FLIGHT_CUTOFF_MINUTES`

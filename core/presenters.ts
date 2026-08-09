@@ -67,7 +67,9 @@ export function pigeonDTO(db: Database, p: Pigeon, viewerId?: string) {
     inInfirmary: revealed ? p.inInfirmary : false,
     coached: revealed ? (p.coached ?? false) : false,
     ration: revealed ? (p.ration ?? 'normal') : 'normal',
-    compartment: revealed ? (p.compartment ?? false) : false,
+    // A bird in the infirmary keeps its compartment flag internally (to reclaim the
+    // slot on the way out) but is shown as not-in-a-compartment while isolated.
+    compartment: revealed ? (!!p.compartment && !p.inInfirmary) : false,
     cureUntil: revealed ? (p.cureUntil ?? null) : null,
     onCure: revealed ? (!!p.cureUntil && Date.parse(p.cureUntil) > Date.now()) : false,
     // Per-attribute training cooldown (own birds only).
