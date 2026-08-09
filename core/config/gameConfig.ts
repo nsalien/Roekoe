@@ -110,6 +110,19 @@ export const RENAME_COST = 1000;
 /** Cost to rename your loft. */
 export const RENAME_LOFT_COST = 2000;
 
+/**
+ * The local pigeon-soup restaurant. Selling a bird here pays a small fixed sum,
+ * but sending a loft-mate to the pot rattles every remaining pigeon: each loses
+ * a random `moraleEnergyMin..moraleEnergyMax` energie (form). Releasing a bird
+ * (see engine.releasePigeon) is the money-free alternative with no morale hit.
+ */
+export const PIGEON_RESTAURANT = {
+  name: 'Bistro De Laatste Vlucht',
+  payout: 50, // fixed coins paid for the bird
+  moraleEnergyMin: 1, // each remaining bird loses at least this much energie…
+  moraleEnergyMax: 5, // …and at most this much (random per bird)
+} as const;
+
 /** How far premium feed can build a pigeon's conditie (endurance). */
 export const FOOD_ENDURANCE_CAP = 92;
 

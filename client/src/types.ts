@@ -162,6 +162,10 @@ export interface EconomyCosts {
   restCureCost: number;
   restCureEnergy: number;
   restCureHours: number;
+  restaurantName: string; // the local pigeon-soup restaurant
+  restaurantPayout: number; // fixed coins for selling a bird there
+  restaurantMoraleMin: number; // each remaining bird loses this much energie…
+  restaurantMoraleMax: number; // …up to this much (random per bird)
 }
 
 export interface FlightEntrant {

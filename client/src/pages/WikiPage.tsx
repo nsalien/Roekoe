@@ -16,6 +16,7 @@ const SECTIONS = [
   { id: 'ziekte', icon: '🤒', label: 'Ziekte' },
   { id: 'sterfte', icon: '🕯️', label: 'Sterfte' },
   { id: 'rassen', icon: '🎨', label: 'Rassen' },
+  { id: 'afscheid', icon: '👋', label: 'Afscheid nemen' },
 ];
 
 const cell: React.CSSProperties = {
@@ -187,6 +188,38 @@ export function WikiPage() {
           <li>Twee <strong>verschillende</strong> rassen geven een <strong>Gemengd</strong> jong.</li>
         </ul>
         <p><strong>Strategie:</strong> rariteit is puur geluk. Een legendarisch ras is een mooie verzamelaarsprijs en verkoopt wat duurder, maar maakt je duif geen greintje sneller.</p>
+      </Section>
+
+      <Section id="afscheid" icon="👋" title="Afscheid nemen van een duif">
+        <p className="muted" style={{ marginTop: 0 }}>
+          Wil je van een duif af, dan kan dat op <strong>twee manieren</strong> — allebei via de knop op de
+          <strong> duifpagina</strong> (klik een duif aan in je hok). Een duif die ingeschreven staat voor een
+          vlucht moet je eerst <em>uitschrijven</em>.
+        </p>
+        <ul>
+          <li>
+            <strong>🕊️ Vrijlaten</strong> — je laat de duif gaan. Ze verdwijnt uit je hok en je krijgt er
+            <strong> niets</strong> voor terug. Geen bijwerkingen: de rest van je hok blijft ongemoeid.
+          </li>
+          <li>
+            <strong>🍲 Verkopen aan Bistro De Laatste Vlucht</strong> — het lokale duivenrestaurant maakt er
+            <strong> duivensoep</strong> van. Je krijgt een <strong>vast bedrag van €50</strong>, maar het heeft
+            een prijs: het nieuws <strong>drukt de moraal</strong> van je hele hok. <strong>Elke andere duif
+            verliest 1 tot 5 energie</strong> (willekeurig per duif) door de mentale klap.
+          </li>
+        </ul>
+        <MiniTable
+          head={['Manier', 'Opbrengst', 'Effect op de rest van je hok']}
+          rows={[
+            ['🕊️ Vrijlaten', '€0', 'geen'],
+            ['🍲 Duivenrestaurant', '€50 (vast)', 'elke andere duif −1 tot −5 energie'],
+          ]}
+        />
+        <p style={{ marginTop: 12 }}>
+          <strong>Strategie:</strong> vrijlaten is het nettste als je gewoon plaats wil maken. Verkopen aan het
+          restaurant geeft snel wat geld voor een duif die toch niets meer opbrengt, maar reken de
+          energie-dip van je hele hok mee — doe het niet vlak voor een belangrijke vlucht.
+        </p>
       </Section>
 
       <p className="muted" style={{ textAlign: 'center', fontSize: '0.9rem' }}>

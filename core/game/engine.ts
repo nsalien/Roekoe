@@ -17,6 +17,7 @@ import {
   INFIRMARY,
   INFIRMARY_CAPACITY_TIERS,
   LOFT_CAPACITY_TIERS,
+  PIGEON_RESTAURANT,
   REST_CURE,
   RENAME_COST,
   RENAME_LOFT_COST,
@@ -28,7 +29,7 @@ import {
   compartmentCost,
   type FeedRationKey,
 } from '../config/gameConfig.js';
-import type { Database, Loft, User } from '../schema.js';
+import type { Database, Loft, Pigeon, User } from '../schema.js';
 import { emptySponsorState, emptyStats } from '../schema.js';
 import { newId, type Store } from '../store.js';
 import { awardBadge, evaluateBadges } from './badges.js';
@@ -39,7 +40,7 @@ import { applyAcceptSponsor, applyCancelSponsor, applyRefuseSponsor } from './sp
 import { runHealthWeek } from './health.js';
 import { voidBetsForWithdrawnPigeon } from './betting.js';
 import { canRace, generatePigeon, onRestCure } from './pigeon.js';
-import { clamp, randFloat, round1 } from './util.js';
+import { clamp, randFloat, randInt, round1 } from './util.js';
 
 export const NPC_OWNER_ID = 'npc_market';
 
@@ -559,6 +560,82 @@ export function buyPigeon(store: Store, userId: string, pigeonId: string): strin
       progressMissions(db, seller, 'market', 1);
       evaluateBadges(db, seller);
     }
+    return null;
+  });
+}
+
+/** Is this bird tied up in a race or a breeding pair (so it can't leave the loft)? */
+function pigeonBusy(db: Database, pigeonId: string): string | null {
+  const racing = db.flights.some(
+    (f) => f.status !== 'completed' && f.entries.some((e) => e.pigeonId === pigeonId),
+  );
+  if (racing) return 'Deze duif staat ingeschreven voor een vlucht — schrijf ze eerst uit';
+  const breeding = db.breedingPairs.some((bp) => bp.sireId === pigeonId || bp.damId === pigeonId);
+  if (breeding) return 'Deze duif koppelt momenteel — stop eerst het broeden';
+  return null;
+}
+
+/**
+ * Remove a bird from the world and clean up everything that pointed at it:
+ * pending offers (the bidders are told), breeding pairs and any not-yet-completed
+ * flight entries (defensive — callers block racing/breeding birds first).
+ */
+function purgePigeon(db: Database, pigeon: Pigeon): void {
+  for (const o of db.offers.filter((x) => x.pigeonId === pigeon.id)) {
+    notify(db, o.fromUserId, 'info', '🚫 Bod vervallen', `${pigeon.name} is niet meer beschikbaar. Je bod van €${o.amount} is vervallen.`);
+  }
+  db.offers = db.offers.filter((o) => o.pigeonId !== pigeon.id);
+  db.breedingPairs = db.breedingPairs.filter((bp) => bp.sireId !== pigeon.id && bp.damId !== pigeon.id);
+  for (const f of db.flights) {
+    if (f.status !== 'completed') f.entries = f.entries.filter((e) => e.pigeonId !== pigeon.id);
+  }
+  db.pigeons = db.pigeons.filter((p) => p.id !== pigeon.id);
+}
+
+/** Release one of your pigeons into the wild: you're rid of it, for no money. */
+export function releasePigeon(store: Store, userId: string, pigeonId: string): string | null {
+  return store.mutate((db) => {
+    const pigeon = db.pigeons.find((p) => p.id === pigeonId && p.ownerId === userId);
+    if (!pigeon) return 'Duif niet gevonden';
+    const busy = pigeonBusy(db, pigeonId);
+    if (busy) return busy;
+    const name = pigeon.name;
+    purgePigeon(db, pigeon);
+    notify(db, userId, 'info', '🕊️ Duif vrijgelaten', `Je liet ${name} vrij. Ze vliegt de vrijheid tegemoet — je krijgt er niets voor terug.`);
+    return null;
+  });
+}
+
+/**
+ * Sell one of your pigeons to the local pigeon-soup restaurant for a fixed sum.
+ * Grim work: sending a loft-mate to the pot rattles every remaining bird, which
+ * each loses a random `moraleEnergyMin..moraleEnergyMax` energie (form).
+ */
+export function sellToRestaurant(store: Store, userId: string, pigeonId: string): string | null {
+  return store.mutate((db) => {
+    const loft = db.lofts.find((l) => l.userId === userId);
+    const pigeon = db.pigeons.find((p) => p.id === pigeonId && p.ownerId === userId);
+    if (!loft || !pigeon) return 'Duif niet gevonden';
+    const busy = pigeonBusy(db, pigeonId);
+    if (busy) return busy;
+    const name = pigeon.name;
+    loft.money += PIGEON_RESTAURANT.payout;
+    purgePigeon(db, pigeon);
+    // Morale hit on every remaining bird in this loft (the sold one is gone).
+    let affected = 0;
+    for (const p of db.pigeons) {
+      if (p.ownerId !== userId) continue;
+      const loss = randInt(PIGEON_RESTAURANT.moraleEnergyMin, PIGEON_RESTAURANT.moraleEnergyMax);
+      p.form = clamp(p.form - loss, 0, 100);
+      affected++;
+    }
+    const moraleLine = affected > 0
+      ? ` De rest van je hok is er beroerd van: ${affected} duif${affected === 1 ? '' : 'ven'} verloor elk ${PIGEON_RESTAURANT.moraleEnergyMin}–${PIGEON_RESTAURANT.moraleEnergyMax} energie.`
+      : '';
+    notify(
+      db, userId, 'info', `🍲 Verkocht aan ${PIGEON_RESTAURANT.name}`,
+      `${name} ging voor €${PIGEON_RESTAURANT.payout} naar ${PIGEON_RESTAURANT.name} — er wordt duivensoep van gemaakt.${moraleLine}`,
+    );
     return null;
   });
 }

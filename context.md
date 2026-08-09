@@ -482,8 +482,11 @@ Entiteiten: `Pigeon`, `Loft`, `User`, `BreedingPair`, `Flight` (+ `SimEntry`,
   (of "🏥 Ziekenboeg"-label als ze daar zit), verkoop, uitbreidingen. De statbalken
   tonen een **▲/▼ per dag** (groei/daling door je huidige keuze; via `pigeon.dailyCare`).
 - `PigeonPage` — één duif: stats, afstamming, historiek; training; coach; voerkeuze;
-  **rustkuur** (POST `/pigeons/:id/restcure`); hernoemen. (De per-dag-▲/▼ staan in het
-  hokoverzicht, niet hier.)
+  **rustkuur** (POST `/pigeons/:id/restcure`); hernoemen; **"Afscheid nemen"**
+  (POST `/pigeons/:id/release` = vrijlaten, geen geld; POST `/pigeons/:id/restaurant`
+  = verkoop aan het duivenrestaurant voor €50 + moraal-energieklap op de rest van het
+  hok). Beide met bevestigingsstap; geblokkeerd zolang de duif ingeschreven/koppelt.
+  (De per-dag-▲/▼ staan in het hokoverzicht, niet hier.)
 - `FlightsPage` — kalender/uitslagen; inschrijven; weddenschap-paneel (max. 1/vlucht,
   o.a. type **top3**). **Oefenvluchten** krijgen een eigen badge, tonen "gratis" i.p.v.
   inschrijfgeld en hebben geen weddenschap-paneel.
@@ -535,14 +538,14 @@ bedrag + verborgen eigenschappen), **seizoen, ranglijst (Roekoe), duivenranglijs
 de profielknop herhaalt hem via `window.dispatchEvent(new Event('roekoe:start-tour'))`.
 
 **"Wat is nieuw"-melding:** dezelfde `Tour` maar met een **subset** stappen. Actueel
-= **`BREED_NEWS_STEPS`** (rassen: intro + wat een ras is (foto/cosmetisch/waarde) +
-zeldzaamheid & kansen + kweekregel). Eigen localStorage-sleutel
-`roekoe.newsSeen.breeds.<id>`; toont pas als de hoofd-tour niet open is. `closeTour`
-zet ook de news-sleutel, zodat een nieuwe speler die de volledige tour afrondt niet
-nog eens de news krijgt. Bump de sleutel-suffix + wissel de `steps`-set (import in
-`Layout`) voor een volgende aankondiging. De vorige sets `BID_NEWS_STEPS` en
-`SEASON_NEWS_STEPS` blijven in `Tour.tsx` als referentie. (De oude `FeatureTour`
-met gecentreerde kaarten is verwijderd — alles zit nu in `Tour`.)
+= **`FAREWELL_NEWS_STEPS`** (afscheid nemen: intro + vrijlaten vs. duivenrestaurant +
+moraal-energieklap). Eigen localStorage-sleutel `roekoe.newsSeen.farewell.<id>`; toont
+pas als de hoofd-tour niet open is. `closeTour` zet ook de news-sleutel, zodat een
+nieuwe speler die de volledige tour afrondt niet nog eens de news krijgt. Bump de
+sleutel-suffix + wissel de `steps`-set (import in `Layout`) voor een volgende
+aankondiging. De vorige sets `BREED_NEWS_STEPS`, `BID_NEWS_STEPS` en `SEASON_NEWS_STEPS`
+blijven in `Tour.tsx` als referentie. (De oude `FeatureTour` met gecentreerde kaarten
+is verwijderd — alles zit nu in `Tour`.)
 
 **Thema:** `data-theme` op `<html>` (default **dark**, gezet door inline script in
 `index.html` vóór paint). CSS gebruikt `:root[data-theme='dark']` en
@@ -616,6 +619,27 @@ Alles hieronder staat **live** op de deploy-branch. Data-migraties liepen door t
   **afgelast** (completed met lege `results`, die liep nooit door `settleFlightBets`), of
   vlucht helemaal verdwenen. Normaal-afgewerkte vluchten regelen hun eigen bets en
   blijven ongemoeid.
+
+**Afscheid nemen van een duif: vrijlaten + duivenrestaurant (nieuwste)**
+- Twee nieuwe speler-acties op de duifpagina (enkel eigen duif, geblokkeerd zolang de
+  duif ingeschreven/koppelt):
+  - **Vrijlaten** — `releasePigeon(store, userId, pigeonId)` (engine.ts): verwijdert de
+    duif, **geen geld**, geen bijwerkingen. Endpoint `POST /pigeons/:id/release`.
+  - **Verkoop aan het duivenrestaurant** — `sellToRestaurant(...)` (engine.ts): **vast
+    €50** (`PIGEON_RESTAURANT.payout`), en **elke andere duif in het hok verliest
+    `randInt(1,5)` energie** (moraalklap, `form` geclampt ≥ 0). Endpoint
+    `POST /pigeons/:id/restaurant`. Restaurantnaam **`Bistro De Laatste Vlucht`**.
+  - Config: **`PIGEON_RESTAURANT`** (`gameConfig.ts`: `name`/`payout`/`moraleEnergyMin`/
+    `moraleEnergyMax`). Beide acties delen `pigeonBusy` (racing/breeding-guard) +
+    `purgePigeon` (verwijdert duif + laat openstaande `offers` erop vervallen mét
+    melding aan de bieders; defensief ook breedingPairs/flight-entries). Elke actie
+    stuurt de speler een bevestigingsmelding.
+- Restaurant-config gaat mee in de **economy-DTO** (`/state`): `restaurantName`/
+  `restaurantPayout`/`restaurantMoraleMin`/`restaurantMoraleMax` → `client/src/types.ts`
+  `EconomyCosts`. UI: kaart **"⚠️ Afscheid nemen"** op `PigeonPage` (bevestigingsstap,
+  `.btn.danger`). Wiki: nieuwe sectie **👋 Afscheid nemen**. Spelregels: **§9.2**.
+- **Eerste-login-melding**: `FAREWELL_NEWS_STEPS` (Tour.tsx) + sleutel
+  `roekoe.newsSeen.farewell.<id>` (import + key in `Layout.tsx` omgezet van breeds).
 
 **Rassen (breeds) — nieuwste**
 - Elke duif heeft een **ras** (`Pigeon.breed`, kolom `breed`): bepaalt de **foto** +
