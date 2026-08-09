@@ -263,6 +263,98 @@ export function settleFlightBets(db: Database, flight: Flight): void {
   }
 }
 
+/** Cancel one open bet and refund its stake to the owner, idempotently. */
+function refundBet(db: Database, b: Bet, body: string): void {
+  b.status = 'void';
+  b.settledAt = new Date().toISOString();
+  const loft = db.lofts.find((l) => l.userId === b.userId);
+  if (loft) {
+    loft.money += b.stake;
+    // Reuse the stable per-bet notification id so a later settlement (or a second
+    // run) can never double up the message or the refund.
+    notify(db, b.userId, '↩️ Weddenschap geannuleerd', body, `ntf:bet:${b.id}`);
+  }
+}
+
+/** Does a bet still depend on this bird being in the flight? */
+function betNeedsPigeon(b: Bet, flight: Flight, pigeonId: string): boolean {
+  if (b.kind === 'mine_wins') {
+    // "one of my birds wins" is only doomed once this owner has no bird left in.
+    return !flight.entries.some((e) => e.ownerId === b.userId);
+  }
+  if (b.kind === 'head2head') return b.pigeonId === pigeonId || b.rivalId === pigeonId;
+  return b.pigeonId === pigeonId;
+}
+
+/**
+ * A bird was withdrawn from a still-scheduled flight: cancel and refund every
+ * open bet that depended on it, immediately (instead of only when the flight
+ * settles). `flight.entries` must already reflect the removal so mine_wins can
+ * be re-evaluated.
+ */
+export function voidBetsForWithdrawnPigeon(db: Database, flight: Flight, pigeonId: string): void {
+  const name = db.pigeons.find((p) => p.id === pigeonId)?.name ?? 'Een duif';
+  for (const b of db.bets) {
+    if (b.status !== 'open' || b.flightId !== flight.id) continue;
+    if (!betNeedsPigeon(b, flight, pigeonId)) continue;
+    const body =
+      b.kind === 'mine_wins'
+        ? `${name} is uitgeschreven en je hebt geen duiven meer in ${flight.name}. Je inzet van €${b.stake} is terugbetaald.`
+        : `${name} is uitgeschreven voor ${flight.name}. Je inzet van €${b.stake} is terugbetaald.`;
+    refundBet(db, b, body);
+  }
+}
+
+/**
+ * A whole flight was called off (too few rivals): refund + cancel every open bet
+ * on it. Used from the schedule so a cancelled flight never strands open bets.
+ */
+export function refundFlightBets(db: Database, flight: Flight): void {
+  for (const b of db.bets) {
+    if (b.status !== 'open' || b.flightId !== flight.id) continue;
+    refundBet(db, b, `${flight.name} is afgelast. Je inzet van €${b.stake} is terugbetaald.`);
+  }
+}
+
+/**
+ * One-time repair for bets placed before withdrawals refunded immediately:
+ * refund + cancel every open bet whose bird is no longer taking part — the
+ * flight was called off (completed with no results), the flight is gone, or the
+ * bird(s) the bet needs are no longer entered in a still-scheduled/live flight.
+ * Normally-finished flights already settle their own bets and are left alone.
+ */
+export function voidOrphanedBets(db: Database): void {
+  for (const b of db.bets) {
+    if (b.status !== 'open') continue;
+    const flight = db.flights.find((f) => f.id === b.flightId);
+    if (!flight) {
+      refundBet(db, b, `De vlucht van je weddenschap bestaat niet meer. Je inzet van €${b.stake} is terugbetaald.`);
+      continue;
+    }
+    if (flight.status === 'completed') {
+      // A cancelled flight (no results) never ran settleFlightBets; refund those.
+      if (flight.results.length === 0) {
+        refundBet(db, b, `${flight.name} is afgelast. Je inzet van €${b.stake} is terugbetaald.`);
+      }
+      continue;
+    }
+    const entered = (id: string | null) => !!id && flight.entries.some((e) => e.pigeonId === id);
+    let orphaned: boolean;
+    let body: string;
+    if (b.kind === 'mine_wins') {
+      orphaned = !flight.entries.some((e) => e.ownerId === b.userId);
+      body = `Je hebt geen ingeschreven duiven meer in ${flight.name}. Je inzet van €${b.stake} is terugbetaald.`;
+    } else if (b.kind === 'head2head') {
+      orphaned = !entered(b.pigeonId) || !entered(b.rivalId);
+      body = `${b.pigeonName} of ${b.rivalName ?? 'de tegenstander'} is uitgeschreven voor ${flight.name}. Je inzet van €${b.stake} is terugbetaald.`;
+    } else {
+      orphaned = !entered(b.pigeonId);
+      body = `${b.pigeonName} is uitgeschreven voor ${flight.name}. Je inzet van €${b.stake} is terugbetaald.`;
+    }
+    if (orphaned) refundBet(db, b, body);
+  }
+}
+
 /** A player's bets (open first, then recently settled), with flight context. */
 export function betsView(db: Database, userId: string, limit = 20) {
   return db.bets

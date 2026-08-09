@@ -37,6 +37,7 @@ import { progressMissions } from './missions.js';
 import { resolveEvent as resolveEventCard } from './events.js';
 import { applyAcceptSponsor, applyCancelSponsor, applyRefuseSponsor } from './sponsors.js';
 import { runHealthWeek } from './health.js';
+import { voidBetsForWithdrawnPigeon } from './betting.js';
 import { canRace, generatePigeon, onRestCure } from './pigeon.js';
 import { clamp, randFloat, round1 } from './util.js';
 
@@ -461,6 +462,9 @@ export function withdrawFlight(
     flight.entries.splice(idx, 1);
     const loft = db.lofts.find((l) => l.userId === userId);
     if (loft) loft.money += flight.entryFee;
+    // Cancel and refund any open bets that depended on this bird (entries already
+    // reflect the removal, so mine_wins is re-evaluated correctly).
+    voidBetsForWithdrawnPigeon(db, flight, pigeonId);
     return null;
   });
 }
