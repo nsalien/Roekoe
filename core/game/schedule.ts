@@ -1037,6 +1037,13 @@ function runDataMigrations(db: Database): void {
     }
     db.world.dataVersion = 26;
   }
+  if ((db.world.dataVersion ?? 0) < 27) {
+    // A bird in the infirmary no longer occupies a private compartment (the slot
+    // frees up for another bird). Release the compartment on every bird currently
+    // in the infirmary so the counts match the new rule from the start.
+    for (const p of db.pigeons) if (p.inInfirmary && p.compartment) p.compartment = false;
+    db.world.dataVersion = 27;
+  }
 }
 
 /**
