@@ -495,13 +495,11 @@ export function tickFlights(db: Database, nowMs: number, weatherByFlight?: Map<s
         // Durably record each surviving bird's placing before the flight can be
         // pruned (covers race, practice and titan flights).
         logRaceResults(db, flight);
-        // Neither oefenvluchten nor de titanenwedstrijd feed the seasonal rankings
-        // (only regionale/nationale/internationale wedstrijden do). They award no
-        // ranking badges, bets, win/podium missions or peak/podium stats. Prize
-        // money for the titan is already paid via applyFlightEffects above. Record
-        // the development they added so it can be subtracted from the "vooruitgang"
-        // ranking (birds still improve for real — only the ranking excludes it).
-        if (flight.practice || flight.titan) {
+        // Oefenvluchten (practice) feed NONE of the rankings. Record the
+        // development they added so it can be subtracted from the "vooruitgang"
+        // ranking (birds still improve for real — only the ranking excludes it),
+        // then skip everything else.
+        if (flight.practice) {
           for (const f of sim.fatigue) {
             const p = db.pigeons.find((x) => x.id === f.pigeonId);
             if (!p) continue;
@@ -515,7 +513,11 @@ export function tickFlights(db: Database, nowMs: number, weatherByFlight?: Map<s
           continue;
         }
         // Per-season pigeon stats: best average flight speed (r.velocity = route
-        // average, despite the seasonPeakSpeed field name) + podium count (finishers only).
+        // average, despite the seasonPeakSpeed field name) + podium count (finishers
+        // only). Runs for wedstrijdvluchten AND the titanenwedstrijd — the titan
+        // feeds the three duivenranglijsten (snelheid, podiums, vooruitgang), it
+        // just yields no seizoenspunten (its results carry 0 points from finalize,
+        // so the Roekoe/melker ranking is untouched).
         for (const r of flight.results) {
           if (r.finished === false) continue;
           const p = db.pigeons.find((x) => x.id === r.pigeonId);
@@ -523,6 +525,10 @@ export function tickFlights(db: Database, nowMs: number, weatherByFlight?: Map<s
           if (r.velocity > (p.seasonPeakSpeed ?? 0)) p.seasonPeakSpeed = r.velocity;
           if (r.rank <= 3) p.seasonPodiums = (p.seasonPodiums ?? 0) + 1;
         }
+        // The titan stops here: no medals/wins badges, no bets (none can be placed
+        // on it), no win/podium missions and no sponsor bonuses — money + the
+        // pigeon rankings above are all it feeds.
+        if (flight.titan) continue;
         awardFlightBadges(db, flight);
         settleFlightBets(db, flight);
         // Daily-mission progress for win/podium.
@@ -1009,6 +1015,27 @@ function runDataMigrations(db: Database): void {
     // was called off / is gone). Normally-finished flights already settled.
     voidOrphanedBets(db);
     db.world.dataVersion = 25;
+  }
+  if ((db.world.dataVersion ?? 0) < 26) {
+    // Titanenwedstrijden now feed the pigeon rankings (speed/podiums/vooruitgang),
+    // where before they were excluded. Back-fill the two stored stats from titan
+    // flights still on record — retention keeps ~2 days, i.e. the most recent
+    // titan — so a bird's titan result shows up in the ⚡/🎖️ ranglijsten right away:
+    // raise seasonPeakSpeed to the titan's route average and count its podiums.
+    // (Vooruitgang can't be recovered retroactively: the titan's development was
+    // folded into seasonPracticeGain and isn't separable — only future titans
+    // count there. Pruned older titans can't be recovered either.)
+    for (const f of db.flights) {
+      if (f.status !== 'completed' || !f.titan) continue;
+      for (const r of f.results) {
+        if (r.finished === false) continue;
+        const p = db.pigeons.find((x) => x.id === r.pigeonId);
+        if (!p) continue;
+        if (r.velocity > (p.seasonPeakSpeed ?? 0)) p.seasonPeakSpeed = r.velocity;
+        if (r.rank <= 3) p.seasonPodiums = (p.seasonPodiums ?? 0) + 1;
+      }
+    }
+    db.world.dataVersion = 26;
   }
 }
 
