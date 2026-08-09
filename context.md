@@ -258,7 +258,8 @@ Roekoe/
 │       ├── engine.ts            speler-acties (buy/train/enter/giveUpFlight/breed/…)
 │       ├── schedule.ts          advanceRealtime + data-migraties + alle ticks
 │       ├── flight.ts            vluchtsim (velocity, DETERMINISTISCHE finalize, live, cutoff)
-│       ├── betting.ts           weddenschappen (Monte-Carlo odds + settle, stats)
+│       ├── betting.ts           weddenschappen (Monte-Carlo odds + settle, stats,
+│       │                        void+refund bij uitschrijven duif / afgelaste vlucht)
 │       ├── health.ts            ziekte/kwetsuur + REAL-TIME herstel (tickHealing)
 │       ├── breeding.ts          kweek
 │       ├── economy.ts           dagverzorging (applyDayOfCare) + projectie + upkeep + honger + rust
@@ -598,7 +599,23 @@ Voor engine-logica: snelle integratietests met **tsx** vanuit de repo-root
 ## 8. Belangrijkste wijzigingen deze sessie (achtergrond)
 
 Alles hieronder staat **live** op de deploy-branch. Data-migraties liepen door tot
-**`dataVersion = 23`**.
+**`dataVersion = 25`**.
+
+**Weddenschap terugbetalen bij uitschrijven duif (nieuwste)**
+- Een open weddenschap wordt nu **onmiddellijk geannuleerd + terugbetaald** zodra de
+  duif waarop ze steunt uit een vlucht wordt gehaald — niet pas bij het afhandelen van
+  de vlucht. `withdrawFlight` (engine.ts) roept `voidBetsForWithdrawnPigeon(db, flight,
+  pigeonId)` (betting.ts) ná de `entries.splice`. Geldt voor `win`/`top3`/`own_top3`/
+  `last` op die duif en `head2head` waar de duif óf de tegenstander verdwijnt;
+  `mine_wins` valt pas als de eigenaar **geen** ingeschreven duif meer heeft in die
+  vlucht. Terugbetaling via stabiele melding-id `ntf:bet:<betId>` (idempotent, deelt de
+  id met de settle-melding → nooit dubbel).
+- **Migratie v25** (`voidOrphanedBets` in betting.ts, aangeroepen in `runDataMigrations`):
+  bestaande **open** weddenschappen waarvan de duif al niet meer meedoet worden
+  terugbetaald — duif niet meer in `entries` van een `scheduled`/`live` vlucht, vlucht
+  **afgelast** (completed met lege `results`, die liep nooit door `settleFlightBets`), of
+  vlucht helemaal verdwenen. Normaal-afgewerkte vluchten regelen hun eigen bets en
+  blijven ongemoeid.
 
 **Rassen (breeds) — nieuwste**
 - Elke duif heeft een **ras** (`Pigeon.breed`, kolom `breed`): bepaalt de **foto** +

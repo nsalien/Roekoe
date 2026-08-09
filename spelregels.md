@@ -843,8 +843,17 @@ te misbruiken. Een sterke favoriet heeft een grote kans en dus een **lagere
 uitbetalingsratio**; een outsider betaalt meer. Vóór je bevestigt zie je de
 geschatte kans, de **ratio** en je **mogelijke winst** (inzet × ratio, met een
 bookmakersmarge waardoor het huis licht in het voordeel is). Je inzet wordt meteen
-afgehouden; bij winst krijg je inzet × ratio terug. Doet de doelduif niet mee
-(uitgeschreven), dan is de weddenschap vervallen en krijg je je inzet terug.
+afgehouden; bij winst krijg je inzet × ratio terug.
+
+**Wordt de duif uitgeschreven, dan krijg je je inzet meteen terug.** Zodra de duif
+waarop je weddenschap steunt uit de vlucht wordt gehaald (uitgeschreven), wordt je
+weddenschap **onmiddellijk geannuleerd** en je **inzet volledig terugbetaald** — je
+hoeft niet te wachten tot de vlucht afgelopen is. Dat geldt voor elke weddenschap die
+op die duif rust: "wint de vlucht", "top 3", "allerlaatste" en een **kop-aan-kop** waar
+de duif (of haar tegenstander) uit verdwijnt. Bij "een van mijn duiven wint" gebeurt de
+terugbetaling zodra je **laatste** ingeschreven duif in die vlucht is uitgeschreven.
+Wordt een **hele vlucht afgelast** (te weinig deelnemers, §2.1), dan worden alle
+weddenschappen erop eveneens terugbetaald.
 
 Het invoerveld voor je inzet wordt automatisch begrensd tot **min. €10** en
 **max. €500** (om te vermijden dat één gelukkige weddenschap de economie ontwricht).

@@ -39,7 +39,7 @@ import { applyDayOfCare, dailyRunningCost } from './economy.js';
 import { breed } from './breeding.js';
 import { awardBadge, awardFlightBadges, evaluateBadges } from './badges.js';
 import { ensureAuctions } from './auction.js';
-import { settleFlightBets } from './betting.js';
+import { settleFlightBets, voidOrphanedBets, refundFlightBets } from './betting.js';
 import { runAgeMortality, runHealthDay, tickHealing } from './health.js';
 import { tickSeason } from './season.js';
 import { progressMissions } from './missions.js';
@@ -453,6 +453,8 @@ export function tickFlights(db: Database, nowMs: number, weatherByFlight?: Map<s
         flight.weather = entries.length === 0 ? 'Afgelast (geen deelnemers)' : 'Afgelast (te weinig deelnemers)';
         flight.results = [];
         flight.recap = generateRecap(flight);
+        // Cancel + refund any open bets on this flight (it never reaches settle).
+        refundFlightBets(db, flight);
         // Refund the entry fee to every entrant (one fee per entered bird).
         if (flight.entryFee > 0) {
           for (const e of flight.entries) {
@@ -999,6 +1001,14 @@ function runDataMigrations(db: Database): void {
       }
     }
     db.world.dataVersion = 24;
+  }
+  if ((db.world.dataVersion ?? 0) < 25) {
+    // Withdrawing a bird now refunds any open bet on it right away. Repair the
+    // bets placed before that: refund + cancel every open bet whose bird is no
+    // longer taking part (withdrawn from a scheduled/live flight, or its flight
+    // was called off / is gone). Normally-finished flights already settled.
+    voidOrphanedBets(db);
+    db.world.dataVersion = 25;
   }
 }
 
