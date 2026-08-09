@@ -263,7 +263,11 @@ energie­planning — nog meer op de lange fond:
 > best uitgeruste duiven op de verste vluchten.
 >
 > **Let op:** een duif die **niet thuis raakt** (uitputting of een blessure
-> onderweg, §3.2) verliest er nog eens **24 + willekeurig 0…12** energie bovenop.
+> onderweg, §3.2) krijgt **geen extra energiestraf** — ze betaalt enkel voor het
+> stuk dat ze **wél** vloog, tot ze uitvalt. Op een lange fondvlucht is dat stuk
+> echter vaak bijna de volledige route, dus een duif die pas **laat** uitvalt komt
+> er alsnog zo goed als **leeg** uit (bovenop het verlies van punten/prijs en de
+> blessure). Vroeg uitvallen spaart wél veel energie.
 
 ### 3.1 Kans op verbetering van een vaardigheid
 Elke deelnemer maakt kans om te groeien in de vaardigheid die voor die afstand
