@@ -744,6 +744,17 @@ export function setInfirmary(
     if (!pigeon) return 'Duif niet gevonden';
     if (!wantIn) {
       pigeon.inInfirmary = false;
+      // Auto-reclaim the private compartment it held on the way in — but only if a
+      // slot is still free (another bird may have taken the freed slot while it was
+      // in the infirmary). If the loft is now full on compartments, it comes back
+      // without one and can be reassigned later.
+      if (pigeon.compartment) {
+        const loft = db.lofts.find((l) => l.userId === userId);
+        const used = db.pigeons.filter(
+          (p) => p.ownerId === userId && p.compartment && !p.inInfirmary && p.id !== pigeon.id,
+        ).length;
+        if (used >= (loft?.compartments ?? 0)) pigeon.compartment = false;
+      }
       return null;
     }
     if (pigeon.inInfirmary) return null;
@@ -756,11 +767,11 @@ export function setInfirmary(
     );
     if (racing) return 'Deze duif staat ingeschreven voor een vlucht';
     pigeon.inInfirmary = true;
-    // A bird in the infirmary is housed apart there, so it releases any private
-    // compartment it held — the slot frees up and can (temporarily or not) go to
-    // another bird. It won't auto-reclaim the compartment when it returns to the
-    // loft; reassign it then if a slot is free.
-    pigeon.compartment = false;
+    // The bird KEEPS its compartment flag while isolated in the infirmary, but the
+    // slot frees up in the meantime — compartmentsUsed and the assign-check both
+    // ignore infirmary birds, and the rest-bonus is withheld — so another bird can
+    // use the slot. On the way out it reclaims the compartment only if one is still
+    // free (see the wantIn=false branch above).
     progressMissions(db, loft ?? undefined, 'care', 1);
     return null;
   });

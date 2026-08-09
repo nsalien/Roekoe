@@ -79,9 +79,12 @@ export function applyDayOfCare(loft: Loft, pigeons: Pigeon[], livePigeonIds?: Se
 
     if (fed) {
       p.hungerDays = 0; // a fed bird is no longer hungry
-      // A private compartment lets this bird rest better and stay healthier.
-      const formMult = 1 + (p.compartment ? COMPARTMENT.formRecoveryBonus : 0);
-      const healthMult = 1 + (p.compartment ? COMPARTMENT.healthRecoveryBonus : 0);
+      // A private compartment lets this bird rest better and stay healthier — but
+      // not while it's isolated in the infirmary (it still holds the slot flag so
+      // it can reclaim it on the way out, yet gets no compartment rest bonus there).
+      const inCompartment = !!p.compartment && !p.inInfirmary;
+      const formMult = 1 + (inCompartment ? COMPARTMENT.formRecoveryBonus : 0);
+      const healthMult = 1 + (inCompartment ? COMPARTMENT.healthRecoveryBonus : 0);
       const energyGain = (ration.formRecovery / 7) * (1 + p.experience / 200) * formMult; // exp + compartment speed recovery
       p.form = round1(clamp(p.form + energyGain, 0, 100));
       p.health = round1(clamp(p.health + (ration.healthRecovery / 7) * healthMult + p.endurance / 280, 0, 100));
@@ -189,8 +192,9 @@ export function projectDailyCare(loft: Loft, p: Pigeon, live = false): DailyCare
   let experience = 0;
 
   if (fed) {
-    const formMult = 1 + (p.compartment ? COMPARTMENT.formRecoveryBonus : 0);
-    const healthMult = 1 + (p.compartment ? COMPARTMENT.healthRecoveryBonus : 0);
+    const inCompartment = !!p.compartment && !p.inInfirmary; // no rest bonus while in the infirmary
+    const formMult = 1 + (inCompartment ? COMPARTMENT.formRecoveryBonus : 0);
+    const healthMult = 1 + (inCompartment ? COMPARTMENT.healthRecoveryBonus : 0);
     let rawForm = (ration.formRecovery / 7) * (1 + p.experience / 200) * formMult;
     // A rest-bonus day (fed, home) adds an extra energie boost — show it in the
     // projected ▲ on the day it lands.
