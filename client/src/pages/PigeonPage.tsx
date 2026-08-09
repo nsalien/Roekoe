@@ -26,6 +26,7 @@ export function PigeonPage() {
   const [renaming, setRenaming] = useState(false);
   const [newName, setNewName] = useState('');
   const [offerAmount, setOfferAmount] = useState(0);
+  const [confirmPart, setConfirmPart] = useState<null | 'release' | 'restaurant'>(null);
 
   async function load() {
     if (!id) return;
@@ -109,6 +110,22 @@ export function PigeonPage() {
       setRenaming(false);
       setNewName('');
     });
+  }
+
+  // Get rid of a pigeon for good: release it (no money) or sell it to the soup
+  // restaurant (fixed sum, morale hit on the rest). The bird is gone afterwards,
+  // so navigate back to the loft instead of reloading this (now-missing) page.
+  async function partWays(kind: 'release' | 'restaurant') {
+    setBusy(true);
+    try {
+      await api(`/pigeons/${p.id}/${kind}`, { method: 'POST' });
+      toast.show(kind === 'release' ? 'Duif vrijgelaten 🕊️' : 'Verkocht aan het restaurant 🍲', 'ok');
+      await refresh();
+      nav('/hok');
+    } catch (e) {
+      toast.show(e instanceof Error ? e.message : 'Mislukt', 'err');
+      setBusy(false);
+    }
   }
 
   return (
@@ -421,6 +438,67 @@ export function PigeonPage() {
                   </div>
                   <button className="btn sm" style={{ flexShrink: 0 }} disabled={busy} onClick={() => { setNewName(p.name); setRenaming(true); }}>Hernoemen</button>
                 </div>
+              )}
+            </div>
+          )}
+
+          {mine && (
+            <div className="card" style={{ borderColor: 'var(--bad)' }}>
+              <h2>⚠️ Afscheid nemen</h2>
+              {p.racing ? (
+                <p className="muted" style={{ margin: 0 }}>
+                  🏁 {p.name} staat ingeschreven voor een vlucht. Schrijf haar eerst uit voor je afscheid kan nemen.
+                </p>
+              ) : (
+                <>
+                  {/* Vrijlaten — no money */}
+                  <div className="row" style={{ justifyContent: 'space-between', gap: 10, alignItems: 'flex-start' }}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <strong>🕊️ Vrijlaten</strong>
+                      <div className="faint" style={{ fontSize: '0.85rem' }}>
+                        Laat {p.name} vrij als je van haar af wil. Ze verdwijnt uit je hok — je krijgt er <strong>geen geld</strong> voor terug.
+                      </div>
+                    </div>
+                    {confirmPart === 'release' ? (
+                      <div className="row" style={{ gap: 6, flexShrink: 0 }}>
+                        <button className="btn danger sm" disabled={busy} onClick={() => partWays('release')}>Zeker?</button>
+                        <button className="btn ghost sm" disabled={busy} onClick={() => setConfirmPart(null)}>×</button>
+                      </div>
+                    ) : (
+                      <button className="btn ghost sm" style={{ flexShrink: 0 }} disabled={busy} onClick={() => setConfirmPart('release')}>Vrijlaten</button>
+                    )}
+                  </div>
+
+                  <hr className="sep" />
+
+                  {/* Verkoop aan het duivenrestaurant — fixed sum, morale hit */}
+                  <div className="row" style={{ justifyContent: 'space-between', gap: 10, alignItems: 'flex-start' }}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <strong>🍲 Verkoop aan {state?.economy?.restaurantName ?? 'het duivenrestaurant'}</strong>
+                      <div className="faint" style={{ fontSize: '0.85rem' }}>
+                        {state?.economy ? (
+                          <>
+                            Levert een vast bedrag van <Money value={state.economy.restaurantPayout} /> op — er wordt duivensoep
+                            van {p.name} gemaakt. Maar het <strong>drukt de moraal</strong> van je hok: elke andere duif verliest{' '}
+                            {state.economy.restaurantMoraleMin}–{state.economy.restaurantMoraleMax} energie.
+                          </>
+                        ) : (
+                          <>Levert een klein vast bedrag op, maar drukt de moraal van je hele hok (elke andere duif verliest wat energie).</>
+                        )}
+                      </div>
+                    </div>
+                    {confirmPart === 'restaurant' ? (
+                      <div className="row" style={{ gap: 6, flexShrink: 0 }}>
+                        <button className="btn danger sm" disabled={busy} onClick={() => partWays('restaurant')}>Zeker?</button>
+                        <button className="btn ghost sm" disabled={busy} onClick={() => setConfirmPart(null)}>×</button>
+                      </div>
+                    ) : (
+                      <button className="btn sm" style={{ flexShrink: 0 }} disabled={busy} onClick={() => setConfirmPart('restaurant')}>
+                        Verkoop{state?.economy && <> <Money value={state.economy.restaurantPayout} /></>}
+                      </button>
+                    )}
+                  </div>
+                </>
               )}
             </div>
           )}

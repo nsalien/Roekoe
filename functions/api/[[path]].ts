@@ -21,6 +21,7 @@ import {
   COACH,
   FEED_RATIONS,
   INFIRMARY,
+  PIGEON_RESTAURANT,
   REST_CURE,
   RENAME_COST,
   RENAME_LOFT_COST,
@@ -41,9 +42,11 @@ import {
   giveUpFlight,
   listForSale,
   refuseSponsor,
+  releasePigeon,
   renameLoft,
   renamePigeon,
   seedWorld,
+  sellToRestaurant,
   setCoach,
   setInfirmary,
   setInfirmaryStaff,
@@ -290,6 +293,10 @@ app.get('/state', (c) => {
       restCureCost: REST_CURE.cost,
       restCureEnergy: REST_CURE.energy,
       restCureHours: REST_CURE.durationHours,
+      restaurantName: PIGEON_RESTAURANT.name,
+      restaurantPayout: PIGEON_RESTAURANT.payout,
+      restaurantMoraleMin: PIGEON_RESTAURANT.moraleEnergyMin,
+      restaurantMoraleMax: PIGEON_RESTAURANT.moraleEnergyMax,
     },
     missions: loft?.missions ?? [],
     streak: loft?.streak ?? 0,
@@ -481,6 +488,22 @@ app.post('/pigeons/:id/rename', async (c) => {
   const body = await c.req.json().catch(() => ({}));
   const store = c.get('store');
   const err = renamePigeon(store, user.id, c.req.param('id'), String(body.name ?? ''));
+  await store.persist();
+  return err ? c.json({ error: err }, 400) : c.json({ ok: true });
+});
+
+app.post('/pigeons/:id/release', async (c) => {
+  const user = requireUser(c);
+  const store = c.get('store');
+  const err = releasePigeon(store, user.id, c.req.param('id'));
+  await store.persist();
+  return err ? c.json({ error: err }, 400) : c.json({ ok: true });
+});
+
+app.post('/pigeons/:id/restaurant', async (c) => {
+  const user = requireUser(c);
+  const store = c.get('store');
+  const err = sellToRestaurant(store, user.id, c.req.param('id'));
   await store.persist();
   return err ? c.json({ error: err }, 400) : c.json({ ok: true });
 });

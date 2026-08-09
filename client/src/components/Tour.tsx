@@ -271,6 +271,44 @@ export const BREED_NEWS_STEPS: Step[] = [
   },
 ];
 
+/**
+ * One-time "what's new" run for saying farewell to a pigeon: release it for
+ * free, or sell it to the local pigeon-soup restaurant for a fixed sum (which
+ * dents the whole loft's morale).
+ */
+export const FAREWELL_NEWS_STEPS: Step[] = [
+  {
+    route: '/',
+    title: '✨ Nieuw: afscheid nemen van een duif',
+    body: 'Je kan een duif waar je van af wil nu vrijlaten, óf verkopen aan het lokale duivenrestaurant. Even kort wat dat betekent. Je kan deze rondleiding later altijd opnieuw starten via je profiel.',
+  },
+  {
+    route: '/hok', selector: '[data-tour="pigeon"]',
+    title: '👋 Twee manieren om afscheid te nemen',
+    body: (
+      <>
+        Klik een duif aan om haar pagina te openen — onderaan vind je <strong>“Afscheid nemen”</strong>:
+        <br />
+        <strong>🕊️ Vrijlaten</strong> — je bent van de duif af, maar krijgt er <strong>geen geld</strong> voor terug.
+        <br />
+        <strong>🍲 Verkopen aan Bistro De Laatste Vlucht</strong> — er wordt <strong>duivensoep</strong> van gemaakt en
+        je krijgt een <strong>vast bedrag van €50</strong>.
+      </>
+    ),
+  },
+  {
+    route: '/hok', selector: '[data-tour="pigeon"]',
+    title: '💔 De soep drukt de moraal',
+    body: (
+      <>
+        Een duif naar de soep sturen valt <strong>zwaar bij de rest van je hok</strong>: elke andere duif verliest
+        <strong> 1 tot 5 energie</strong> (willekeurig per duif). Doe het dus liever niet vlak voor een belangrijke
+        vlucht. Wil je enkel plaats maken zonder bijwerkingen, kies dan <strong>vrijlaten</strong>.
+      </>
+    ),
+  },
+];
+
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
 
 export function Tour({ onClose, steps = STEPS }: { onClose: () => void; steps?: Step[] }) {

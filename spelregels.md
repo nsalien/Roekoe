@@ -680,6 +680,29 @@ kunnen terugbieden. In die slotfase telt de resterende tijd **live** af — de
 countdown loopt vanzelf verder en de laatste biedingen verschijnen **zonder dat je
 de pagina hoeft te vernieuwen**.
 
+### 9.2 Afscheid nemen van een duif (vrijlaten of het duivenrestaurant)
+Wil je van een duif af, dan hoef je niet te wachten tot iemand ze koopt. Op de
+**duifpagina** (klik een duif in je hok aan) staat onderaan **"Afscheid nemen"** met
+twee keuzes. Een duif die **ingeschreven staat voor een vlucht** moet je eerst
+**uitschrijven**.
+
+- **🕊️ Vrijlaten.** Je laat de duif gaan; ze verdwijnt uit je hok. Dit brengt **geen
+  geld** op en heeft **geen** bijwerkingen op je andere duiven — de nette manier om
+  simpelweg plaats te maken.
+- **🍲 Verkopen aan Bistro De Laatste Vlucht.** Het lokale duivenrestaurant maakt er
+  **duivensoep** van. Je krijgt een **vast bedrag van €50**, maar het nieuws **drukt de
+  moraal** van je hele hok: **elke andere duif verliest 1 tot 5 energie** (willekeurig
+  per duif). Energie zakt nooit onder 0.
+
+| Manier | Opbrengst | Effect op de rest van je hok |
+|---|---|---|
+| 🕊️ Vrijlaten | €0 | geen |
+| 🍲 Duivenrestaurant | €50 (vast) | elke andere duif −1 tot −5 energie |
+
+Bij beide keuzes vervallen eventuele **openstaande biedingen** van andere spelers op
+die duif (de bieders krijgen een melding). Zet een duif dus niet naar de soep vlak
+vóór een belangrijke vlucht — de energie-dip treft je hele ploeg.
+
 ---
 
 ## 10. Namen
