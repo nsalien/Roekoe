@@ -193,9 +193,13 @@ Eén keer per week, in het **weekend** (zaterdag 11:00), is er een prestigieuze
 **Titanenwedstrijd**:
 - **Elke duivenmelker mag maar één duif inschrijven.**
 - **Middellange tot lange** afstand (~200–600 km).
-- Er is **inschrijfgeld** (€100) en er valt **enkel geld** te winnen — **geen**
-  rangschikkingspunten, geen medailles, en het telt **niet** mee voor de
-  ranglijsten (§15). Prijzengeld: **1e €1400, 2e €1200, 3e €1000**.
+- Er is **inschrijfgeld** (€100) en er valt **enkel geld** te winnen: **geen
+  seizoenspunten** en **geen medailles**, dus het telt **niet mee voor de
+  melkerranglijst (de Roekoe, §15.2)**. Prijzengeld: **1e €1400, 2e €1200, 3e €1000**.
+- **Voor de duivenranglijsten (de Vleugel, §15.3) telt de titanenwedstrijd wél mee.**
+  De snelheid, podiumplaatsen en vooruitgang van je duif in deze wedstrijd tellen dus
+  gewoon mee voor de drie ranglijsten van individuele duiven — het is alleen de
+  melker-puntentelling die er niet door beweegt.
 - Je duif kan er, zoals bij elke vlucht, **wel op vooruitgaan** (conditie, enz.).
 - Deze wedstrijd **vervangt** die dag alle andere vluchten (er is dus maar één).
 
@@ -895,7 +899,8 @@ voorbij is, wordt de **prijsuitreiking** gehouden, start een nieuw seizoen op
 
 ### 15.2 Melkerranglijst → de Roekoe
 De ranglijst rangschikt alle hokken op **seizoenspunten** (enkel wedstrijdvluchten
-geven punten; oefenvluchten niet). **Bots dingen gewoon mee** en kunnen ook winnen —
+geven punten; **de titanenwedstrijd en oefenvluchten geven géén seizoenspunten**).
+**Bots dingen gewoon mee** en kunnen ook winnen —
 zij hebben het prijzengeld ook nodig. Bij de prijsuitreiking winnen de **top 3
 hokken**:
 
@@ -909,8 +914,10 @@ De winnaar krijgt ook de badge **Seizoenskampioen**.
 
 ### 15.3 Duivenranglijsten → de Vleugel
 Naast de melkers zijn er **drie ranglijsten van individuele duiven** (top 10),
-allemaal voor het **lopende seizoen**. **Alleen wedstrijdvluchten** (regionaal,
-nationaal, internationaal) tellen mee — **oefenvluchten niet**:
+allemaal voor het **lopende seizoen**. **Wedstrijdvluchten** (regionaal, nationaal,
+internationaal) **én de titanenwedstrijd** tellen mee — **enkel oefenvluchten niet**.
+(De titan geeft geen seizoenspunten voor de melkerranglijst, maar de prestaties van je
+duif erin tellen hier wél volwaardig mee.)
 - **⚡ Snelste duiven** — hoogste **gemiddelde vluchtsnelheid** dit seizoen, in
   km/u. Dit is het beste **rit­gemiddelde** (afgelegde afstand ÷ vluchttijd) van
   één wedstrijd — **niet** de momentane pieksnelheid die je live tijdens een

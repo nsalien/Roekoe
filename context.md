@@ -455,18 +455,23 @@ Entiteiten: `Pigeon`, `Loft`, `User`, `BreedingPair`, `Flight` (+ `SimEntry`,
   (dagnummer = dagen sinds Unix-epoch); op een **titan-dag** worden alle níet-titan-slots
   overgeslagen (de titan vervangt alles die dag).
 - **Titanenwedstrijd (`TITAN`):** `weekday 6` (zaterdag), `hour 11`, afstand 200–600 km,
-  `entryFee 100`, `prizes [1400,1200,1000]`. **Enkel geld**, geen punten/medailles/wins,
-  telt niet mee voor de ranglijsten (behandeld als niet-competitie, net als practice, in
-  `tickFlights`); **max. 1 duif per hok** (`enterFlight` + bots 1 vogel); geen wedden
-  (`bettingOpen`). Prijzengeld via `finalizeFlight` (`flight.titan` → `TITAN.prizes`,
-  0 punten, 0 wins). Duiven verbeteren wél normaal.
+  `entryFee 100`, `prizes [1400,1200,1000]`. **Enkel geld** voor de melker-economie: geen
+  **seizoenspunten**/medailles/wins, telt **niet** mee voor de **melkerranglijst (Roekoe)**;
+  **max. 1 duif per hok** (`enterFlight` + bots 1 vogel); geen wedden (`bettingOpen`).
+  Prijzengeld via `finalizeFlight` (`flight.titan` → `TITAN.prizes`, 0 punten, 0 wins).
+  **Telt sinds kort wél mee voor de duivenranglijsten (Vleugel):** in `tickFlights` draait
+  de per-seizoen-stats­update (`seasonPeakSpeed`/`seasonPodiums`) óók voor titans, en titan-
+  groei gaat **niet** meer naar `seasonPracticeGain` (dus vooruitgang telt mee). Enkel de
+  melker-economie-stappen (badges/medailles, bets, missies, sponsorbonus) blijven over-
+  geslagen via `if (flight.titan) continue;`. Duiven verbeteren sowieso normaal.
 - **Wedstrijd-annulering:** een niet-oefenvlucht met **< 2 verschillende eigenaars**
   bij de start wordt afgelast (`tickFlights`), inschrijfgeld **terugbetaald** per
   ingeschreven duif + melding. Oefenvluchten mogen solo doorgaan.
-- **Ranglijsten tellen enkel wedstrijdvluchten** (regionaal/nationaal/internationaal),
-  níet oefenvluchten. Snelheid/podiums negeren practice al; **vooruitgang** trekt de
-  practice-groei af via `Pigeon.seasonPracticeGain` (kolom `season_practice_gain`),
-  bijgewerkt in `tickFlights` en gereset bij seizoenswissel.
+- **Duivenranglijsten tellen wedstrijdvluchten én de titanenwedstrijd** (enkel
+  oefenvluchten niet). Snelheid/podiums negeren enkel practice; **vooruitgang** trekt de
+  practice-groei af via `Pigeon.seasonPracticeGain` (kolom `season_practice_gain`, enkel
+  door practice gevuld), bijgewerkt in `tickFlights` en gereset bij seizoenswissel. De
+  **melkerranglijst (seizoenspunten)** telt titan/practice níet (0 punten uit `finalizeFlight`).
 
 ---
 
@@ -602,7 +607,24 @@ Voor engine-logica: snelle integratietests met **tsx** vanuit de repo-root
 ## 8. Belangrijkste wijzigingen deze sessie (achtergrond)
 
 Alles hieronder staat **live** op de deploy-branch. Data-migraties liepen door tot
-**`dataVersion = 25`**.
+**`dataVersion = 26`**.
+
+**Titanenwedstrijd telt mee voor de duivenranglijsten (nieuwste)**
+- De titan voedt nu de **drie duivenranglijsten** (⚡ gemiddelde snelheid / 🎖️ podiums /
+  📈 vooruitgang) — vroeger werd ze daar volledig uit geweerd (behandeld als practice).
+  Enkel **oefenvluchten** tellen nog nergens mee. De **melkerranglijst (Roekoe)** blijft
+  ongemoeid: titan-resultaten dragen **0 seizoenspunten** (uit `finalizeFlight`), en geen
+  medailles/wins/bets/missies/sponsorbonus.
+- `tickFlights` (schedule.ts) is gesplitst: **enkel `flight.practice`** gaat naar
+  `seasonPracticeGain` + `continue`; de per-seizoen-stats­update (`seasonPeakSpeed`/
+  `seasonPodiums`) draait nu óók voor titans; daarna `if (flight.titan) continue;` slaat
+  de melker-economie-stappen over. Zo telt de titan wél voor snelheid/podiums/vooruitgang,
+  niet voor punten.
+- **Migratie v26**: bestaande **afgewerkte titanvluchten die nog bewaard zijn** (2-daagse
+  retentie → de recentste titan) worden nagerekend: `seasonPeakSpeed` opgetrokken naar het
+  titan-ritgemiddelde + podiums geteld. **Vooruitgang** kan niet retroactief hersteld
+  worden (de titan-groei zat al in `seasonPracticeGain` en is niet scheidbaar); geprunede
+  oudere titans evenmin. **dataVersion → 26.**
 
 **Weddenschap terugbetalen bij uitschrijven duif (nieuwste)**
 - Een open weddenschap wordt nu **onmiddellijk geannuleerd + terugbetaald** zodra de
