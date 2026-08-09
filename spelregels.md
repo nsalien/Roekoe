@@ -262,8 +262,8 @@ energie­planning — nog meer op de lange fond:
 > Herstelvoer, §4) nodig voor ze weer inzetbaar is. Zet dus je meest ervaren,
 > best uitgeruste duiven op de verste vluchten.
 >
-> **Let op:** een duif die **niet thuis raakt** (uitputting/tijdslimiet, §3.3)
-> verliest er nog eens **24 + willekeurig 0…12** energie bovenop.
+> **Let op:** een duif die **niet thuis raakt** (uitputting of een blessure
+> onderweg, §3.2) verliest er nog eens **24 + willekeurig 0…12** energie bovenop.
 
 ### 3.1 Kans op verbetering van een vaardigheid
 Elke deelnemer maakt kans om te groeien in de vaardigheid die voor die afstand
@@ -316,16 +316,25 @@ blessurekans gelden er extra gevaren, bepaald door de energie waarmee de duif
 Sterfte gaat vóór alle andere aandoeningen: sterft de duif, dan verlaat ze het
 hok (met een melding). Oefenvluchten (§2.7) kennen deze risico's **niet**.
 
-### 3.3 Wedstrijddeadline (90 minuten na de eerste duif)
+### 3.3 Geen tijdslimiet — elke duif krijgt de tijd om thuis te komen
 
-Een wedstrijd loopt niet eindeloos door. **Zodra de eerste duif thuis is, start
-een deadline van 90 minuten.** Elke duif die daarna nog niet binnen is, wordt
-**geëlimineerd**: ze telt als *niet thuis* (DNF) — geen punten, geen prijs. Zo
-sleept een enkele trage duif de uitslag niet urenlang aan.
+Er is **geen wedstrijddeadline**. Vroeger startte er een klok van 90 minuten zodra
+de eerste duif thuis was, en werd elke duif die daarna nog niet binnen was
+geëlimineerd. Dat is **afgeschaft**: een wedstrijd loopt nu door **tot de laatste
+duif die het effectief haalt ook thuis is**. Een trage duif — of een die onderweg
+**verdwaald** raakte en een omweg vloog — wordt dus **niet meer weggestreept** puur
+omdat de kopvrouw al lang binnen is; ze krijgt gewoon de tijd om (mogelijk) alsnog
+thuis te komen, verdient haar plaats in de uitslag en kan er punten/prijs aan
+overhouden.
 
 ```
-duur_wedstrijd = min(traagste duif, eerste duif + 90 min)
+duur_wedstrijd = de traagste duif die thuis raakt
 ```
+
+Enkel duiven die **echt niet thuis raken** blijven DNF: wie je **zelf opgeeft**
+(§3.4), of wie **onderweg uitvalt** door uitputting of een blessure (§3.2). Dat een
+race daardoor wat langer kan duren (zeker met een verdwaalde duif) is de bewuste
+prijs: iedereen mag uitvliegen.
 
 ### 3.4 Zelf opgeven om energie te sparen
 

@@ -228,13 +228,6 @@ export const BETTING = {
   simIterations: 1500, // Monte-Carlo draws used to estimate fair odds
 } as const;
 
-/**
- * Once the FIRST pigeon is home, a race still runs this many minutes; any bird
- * not home by then is eliminated (did not finish). Keeps very slow birds from
- * dragging a race out for hours.
- */
-export const FLIGHT_CUTOFF_MINUTES = 90;
-
 /** Money every new player (and bot) starts with. */
 export const STARTING_MONEY = 5000;
 
