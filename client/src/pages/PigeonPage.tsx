@@ -362,11 +362,11 @@ export function PigeonPage() {
                 )}
                 <button
                   className={`btn sm ${p.compartment ? 'accent' : 'ghost'}`}
-                  disabled={busy || (!p.compartment && (state?.loft ? state.loft.compartmentsUsed >= state.loft.compartments : true))}
-                  title={p.compartment ? 'Zit in een apart hok' : 'Zit samen met de rest'}
+                  disabled={busy || p.inInfirmary || (!p.compartment && (state?.loft ? state.loft.compartmentsUsed >= state.loft.compartments : true))}
+                  title={p.inInfirmary ? 'Zit in de ziekenboeg — een apart hok kan pas weer als ze terug in het hok is' : p.compartment ? 'Zit in een apart hok' : 'Zit samen met de rest'}
                   onClick={() => setCompartment(!p.compartment)}
                 >
-                  🧱 {p.compartment ? 'Apart hok' : 'Samen'}
+                  🧱 {p.inInfirmary ? '🏥 Ziekenboeg' : p.compartment ? 'Apart hok' : 'Samen'}
                 </button>
               </div>
               {state?.feedRations && (state.loft?.food[p.ration] ?? 0) <= 0 && (

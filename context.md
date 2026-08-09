@@ -613,7 +613,19 @@ Voor engine-logica: snelle integratietests met **tsx** vanuit de repo-root
 ## 8. Belangrijkste wijzigingen deze sessie (achtergrond)
 
 Alles hieronder staat **live** op de deploy-branch. Data-migraties liepen door tot
-**`dataVersion = 26`**.
+**`dataVersion = 27`**.
+
+**Apart hok komt vrij bij ziekenboeg (nieuwste)**
+- Een duif die naar de **ziekenboeg** gaat, **geeft haar aparte hok vrij** (ze zit daar
+  toch al apart). `setInfirmary(wantIn=true)` zet nu `pigeon.compartment = false`, zodat
+  de slot vrijkomt en (tijdelijk of niet) aan een andere duif kan. Ze **herwint** het
+  apart hok **niet** automatisch bij terugkeer — opnieuw toewijzen als er een vrij is.
+- `compartmentsUsed` (presenters.ts) telt enkel `compartment && !inInfirmary`, en
+  `setPigeonCompartment` sluit ziekenboeg-duiven uit de bezettingstelling én **weigert**
+  een apart hok toe te wijzen aan een duif in de ziekenboeg. Client: de apart-hok-knop op
+  `PigeonPage` is uitgeschakeld met "🏥 Ziekenboeg"-label als de duif daar zit (LoftPage
+  deed dit al). **Migratie v27** zet `compartment = false` voor alle duiven die nú al in de
+  ziekenboeg zitten, zodat de tellingen meteen kloppen. **dataVersion → 27.**
 
 **Finish-timer/cutoff verwijderd (nieuwste)**
 - De **90-minuten-deadline** na de eerste finisher is **weg** (`FLIGHT_CUTOFF_MINUTES`

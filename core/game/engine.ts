@@ -340,8 +340,12 @@ export function setPigeonCompartment(store: Store, userId: string, pigeonId: str
       pigeon.compartment = false;
       return null;
     }
+    // A bird in the infirmary is already housed apart there; it can only take a
+    // private compartment once it is back in the loft.
+    if (pigeon.inInfirmary) return 'Een duif in de ziekenboeg heeft geen apart hok nodig — wijs er een toe als ze terug in het hok is';
     if (pigeon.compartment) return null;
-    const used = db.pigeons.filter((p) => p.ownerId === userId && p.compartment).length;
+    // Birds in the infirmary don't occupy a compartment slot, so don't count them.
+    const used = db.pigeons.filter((p) => p.ownerId === userId && p.compartment && !p.inInfirmary).length;
     if (used >= (loft.compartments ?? 0)) return 'Geen vrij apart hok — bouw er eerst een bij';
     pigeon.compartment = true;
     progressMissions(db, loft, 'apart', 1);
@@ -752,6 +756,11 @@ export function setInfirmary(
     );
     if (racing) return 'Deze duif staat ingeschreven voor een vlucht';
     pigeon.inInfirmary = true;
+    // A bird in the infirmary is housed apart there, so it releases any private
+    // compartment it held — the slot frees up and can (temporarily or not) go to
+    // another bird. It won't auto-reclaim the compartment when it returns to the
+    // loft; reassign it then if a slot is free.
+    pigeon.compartment = false;
     progressMissions(db, loft ?? undefined, 'care', 1);
     return null;
   });

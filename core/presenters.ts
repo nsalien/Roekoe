@@ -102,7 +102,7 @@ export function loftDTO(db: Database, loft: Loft) {
     feedRation: loft.feedRation,
     capacity: loft.capacity,
     compartments: loft.compartments ?? 0,
-    compartmentsUsed: pigeons.filter((p) => p.compartment).length,
+    compartmentsUsed: pigeons.filter((p) => p.compartment && !p.inInfirmary).length,
     compartmentCost: (loft.compartments ?? 0) >= loft.capacity ? null : compartmentCost(loft.compartments ?? 0),
     nextCapacity: nextCapacityTier(loft.capacity),
     nextInfirmary: nextInfirmaryTier(loft.infirmaryCapacity),
