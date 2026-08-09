@@ -175,7 +175,8 @@ vlucht uniek, tóch deterministisch):
 - **Weer per duif** (`weatherSpread`) — ruw weer (regen/wind) treft de ene duif harder
   dan de andere → slecht weer = meer loterij, goed weer = de beste wint.
 - **Verdwalen** (`lost*`, kans ↑ bij lage oriëntatie) — een stuk traag gevlogen →
-  echt tijdverlies, forse val in de stand, soms buiten de tijd.
+  echt tijdverlies en een forse val in de stand, maar de duif **finisht nog steeds**
+  (late thuiskomst; er is geen tijdslimiet meer die haar wegstreept).
 - **Onderweg opgeven** (`dnfAtSeconds`/`dnfKind`) — uitputting (lage start-energie via
   `FLIGHT_RISK`) of blessure (kans ↑ bij ruw weer): de duif stopt zichtbaar midden in
   de vlucht en finisht niet.
@@ -183,8 +184,11 @@ Live posities komen uit `raceProgress(sim, distance, elapsed)` (stukje-per-stukj
 afstand); **live-rangschikking = op afgelegde afstand** (verst = leider), aangekomen
 duiven vooraan (op finishtijd), opgegeven/uitgevallen achteraan. `liveSnapshot`
 **bevriest de stand op `total`** zodra de race klaar is, zodat de replay de eindstand
-toont. `finalizeFlight` bepaalt DNF **uit ditzelfde bevroren profiel** (opgegeven +
-verdwaald-te-traag/getimeoutet + onderweg-opgegeven), dus **live-einde == einduitslag**.
+toont. `total = flightTotalSeconds` = de **traagste duif die effectief finisht** (géén
+cutoff meer). `finalizeFlight` bepaalt DNF **uit ditzelfde bevroren profiel** — enkel
+**zelf opgegeven** (`gaveUp`) of **onderweg uitgevallen** (`dnfAtSeconds`, uitputting/
+blessure); trage/verdwaalde duiven komen gewoon (laat) thuis — dus **live-einde ==
+einduitslag**.
 **Élke duif kan presteren, geordend op kwaliteit** (afgesteld op `dayNoise`/tails,
 ±17%): getest op een veld van 6 (beste→slechtste) over alle weertypes gaf ~ win /
 top-3 / niet-laatste / laatste: beste **40% / 76% / 94% / 6%**, slechtste **2% / 12% /
@@ -257,7 +261,7 @@ Roekoe/
 │   └── game/
 │       ├── engine.ts            speler-acties (buy/train/enter/giveUpFlight/breed/…)
 │       ├── schedule.ts          advanceRealtime + data-migraties + alle ticks
-│       ├── flight.ts            vluchtsim (velocity, DETERMINISTISCHE finalize, live, cutoff)
+│       ├── flight.ts            vluchtsim (velocity, DETERMINISTISCHE finalize, live; geen finish-timer)
 │       ├── betting.ts           weddenschappen (Monte-Carlo odds + settle, stats,
 │       │                        void+refund bij uitschrijven duif / afgelaste vlucht)
 │       ├── health.ts            ziekte/kwetsuur + REAL-TIME herstel (tickHealing)
@@ -410,7 +414,9 @@ Entiteiten: `Pigeon`, `Loft`, `User`, `BreedingPair`, `Flight` (+ `SimEntry`,
   per-duif bijgehouden in `Pigeon.trainedAt` (kolom `trained_at` JSON);
   `pigeonDTO.trainAvailableAt` vergrendelt de knoppen op `PigeonPage`.
 - **Vluchtrisico (`FLIGHT_RISK`):** onder ~22 energie DNF-kans; onder ~25 extra
-  blessurekans. **`FLIGHT_CUTOFF_MINUTES = 90`.**
+  blessurekans. **Geen finish-timer/cutoff meer** (`FLIGHT_CUTOFF_MINUTES` verwijderd):
+  `flightTotalSeconds` = de traagste duif die effectief finisht, dus trage/verdwaalde
+  duiven worden niet meer weggestreept. Enkel `gaveUp`/`dnfAtSeconds` = DNF.
 - **Kweken (`BREEDING`):** ouders minstens **20** energie (`minParentForm`, was 40);
   meer energie+libido = sneller een jong.
 - **Ziekenboeg (`INFIRMARY`):** basiscapaciteit **2** (was 4); upgrades 3/4/5/6 voor
@@ -608,6 +614,19 @@ Voor engine-logica: snelle integratietests met **tsx** vanuit de repo-root
 
 Alles hieronder staat **live** op de deploy-branch. Data-migraties liepen door tot
 **`dataVersion = 26`**.
+
+**Finish-timer/cutoff verwijderd (nieuwste)**
+- De **90-minuten-deadline** na de eerste finisher is **weg** (`FLIGHT_CUTOFF_MINUTES`
+  verwijderd uit `gameConfig.ts`; import weg uit `flight.ts`). `flightTotalSeconds` geeft
+  nu de **traagste duif die effectief finisht** (`Math.max(durations)`), zonder cap. Zo
+  krijgt **elke duif de tijd om (mogelijk) thuis te komen** — een trage of **verdwaalde**
+  duif wordt niet meer weggestreept omdat de kopvrouw al lang binnen is.
+- `finalizeFlight`: de `timedOut`-set (duif voorbij de cutoff → DNF) is verwijderd; DNF is
+  nu enkel **`gaveUp`** (zelf opgegeven) of **`dnfAtSeconds`** (onderweg uitgevallen door
+  uitputting/blessure). `liveSnapshot`/`flightCommentary` lopen vanzelf mee (ze lezen
+  `flightTotalSeconds`). `raceProgress` bevriest opgegeven/uitgevallen duiven al intern op
+  `gaveUpAtSeconds`/`dnfAtSeconds`, dus de tail-ordening blijft juist. Keerzijde: een race
+  kan langer duren (zeker met een verdwaalde duif) — bewuste keuze. Spelregels §3.3 herschreven.
 
 **Titanenwedstrijd telt mee voor de duivenranglijsten (nieuwste)**
 - De titan voedt nu de **drie duivenranglijsten** (⚡ gemiddelde snelheid / 🎖️ podiums /

@@ -12,7 +12,6 @@ import {
   COMMENTARY_INTERVAL_SECONDS,
   DISTANCE_WEIGHTING,
   ENERGIE_IMPACT,
-  FLIGHT_CUTOFF_MINUTES,
   FLIGHT_DYNAMICS,
   FLIGHT_FATIGUE,
   FLIGHT_RISK,
@@ -374,14 +373,14 @@ export function startLiveFlight(flight: Flight, entries: Entry[], week: number, 
 }
 
 /**
- * When the flight is over (seconds). A race ends once the first bird is home
- * plus a cutoff window — anyone not home by then is eliminated — or when the
- * slowest still-flying bird arrives, whichever comes first. Birds pulled by
- * their owner (gaveUp) don't count toward the timing.
+ * When the flight is over (seconds). There is NO finish-timer/cutoff: the race
+ * runs until the LAST bird that actually finishes is home, so every bird gets
+ * the time to (possibly) fly home — a slow or strayed bird is no longer cut off
+ * just because the leader arrived long ago. Birds pulled by their owner (gaveUp)
+ * or that give out mid-flight (dnfAtSeconds) never come home and don't set the
+ * clock.
  */
 export function flightTotalSeconds(flight: Flight): number {
-  // Only birds that actually finish set the clock: a pulled bird (gaveUp) or one
-  // that gives out mid-flight (dnfAtSeconds) never comes home.
   const durations = flight.sim.filter((s) => !s.gaveUp && s.dnfAtSeconds == null).map((s) => s.durationSeconds);
   if (durations.length === 0) {
     // Nobody finishes — fall back to the slowest scheduled duration so the race
@@ -389,9 +388,8 @@ export function flightTotalSeconds(flight: Flight): number {
     const all = flight.sim.map((s) => s.durationSeconds);
     return all.length ? Math.max(1, Math.min(...all)) : 1;
   }
-  const first = Math.min(...durations);
-  const slowest = Math.max(...durations);
-  return Math.max(1, Math.min(slowest, first + FLIGHT_CUTOFF_MINUTES * 60));
+  // The slowest actual finisher closes the race (no cutoff cap).
+  return Math.max(1, Math.max(...durations));
 }
 
 /** Pick which attribute a bird gets a chance to grow in, weighted by distance. */
@@ -430,12 +428,12 @@ export function finalizeFlight(flight: Flight, pigeons: Pigeon[]): SimulatedFlig
 
   // Who makes it home. Ways to NOT finish, all decided at RELEASE (frozen in the
   // sim) so the live board and this result always agree: pulled by the owner
-  // (gaveUp), gave out mid-flight (dnfAtSeconds — exhaustion or injury), or timed
-  // out past the cutoff. `exhausted` = the DNFs that leave a bird strung out
-  // (everything except a clean injury), which raises its injury risk below.
+  // (gaveUp) or gave out mid-flight (dnfAtSeconds — exhaustion or injury). There
+  // is no finish-timer any more, so a merely slow or strayed bird still comes
+  // home. `exhausted` = the DNFs that leave a bird strung out (everything except
+  // a clean injury), which raises its injury risk below.
   const total = flightTotalSeconds(flight);
   const gaveUpSet = new Set<string>();
-  const timedOut = new Set<string>();
   const gaveOut = new Set<string>();
   const exhausted = new Set<string>();
   for (const s of flight.sim) {
@@ -443,11 +441,9 @@ export function finalizeFlight(flight: Flight, pigeons: Pigeon[]): SimulatedFlig
     if (s.dnfAtSeconds != null) {
       gaveOut.add(s.pigeonId);
       if (s.dnfKind !== 'injury') exhausted.add(s.pigeonId);
-      continue;
     }
-    if (s.durationSeconds > total + 0.5) { timedOut.add(s.pigeonId); exhausted.add(s.pigeonId); }
   }
-  const isDnfId = (id: string) => gaveUpSet.has(id) || timedOut.has(id) || gaveOut.has(id);
+  const isDnfId = (id: string) => gaveUpSet.has(id) || gaveOut.has(id);
   // How far a non-finisher actually got (for ordering the tail of the field).
   const reachedKm = (s: SimEntry) => raceProgress(s, flight.distanceKm, s.dnfAtSeconds ?? total).kmDone;
   const finishers = flight.sim.filter((s) => !isDnfId(s.pigeonId)).sort((a, b) => a.durationSeconds - b.durationSeconds);
