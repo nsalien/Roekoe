@@ -551,7 +551,7 @@ export interface TierConfig {
 }
 
 export const FLIGHT_TIERS: Record<FlightTier, TierConfig> = {
-  regional: { label: 'Regionaal', name: 'Regiovlucht', entryFee: 20, minKm: 0, maxKm: 200 },
+  regional: { label: 'Regionaal', name: 'Regiovlucht', entryFee: 20, minKm: 100, maxKm: 200 },
   national: { label: 'Nationaal', name: 'Nationale vlucht', entryFee: 40, minKm: 200, maxKm: 500 },
   international: { label: 'Internationaal', name: 'Internationale vlucht', entryFee: 80, minKm: 400, maxKm: 1200 },
 };

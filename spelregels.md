@@ -50,18 +50,21 @@ verschillende duivenmelkers** meedoen. Doet er maar één mee, dan wordt de vluc
 ### 2.2 Niveaus
 | Niveau | Steden | Afstand | Inschrijfgeld |
 |---|---|---|---|
-| Regionaal | twee Vlaamse steden | 0–200 km | €20 |
+| Regionaal | twee Vlaamse steden | 100–200 km | €20 |
 | Nationaal | België + buurlanden (BE, NL, FR, LU, DE) | 200–500 km | €40 |
 | Internationaal | tot de **grote fond** (BE, NL, FR, GB, LU, DE, ES) | 400–1200 km | €80 |
 
 Start- en aankomststad worden **willekeurig** gekozen binnen het niveau; de
-afstand wordt berekend uit de coördinaten (Haversine). De niveaus overlappen
-bewust een stukje, zodat er **veel meer variatie** in afstand zit dan vroeger:
-een regiovlucht kan kort of bijna 200 km zijn, een nationale tot 500 km, en de
-internationale vluchten reiken van ~400 km tot de klassieke **grote-fond­
-losplaatsen** in het diepe zuiden (Bordeaux, Toulouse, Perpignan, **Barcelona**),
-tot ~1200 km ver. Grotere afstand = zwaardere vlucht: meer energieverbruik (§3)
-en meer gewicht op conditie en oriëntatie (§2.3).
+afstand wordt berekend uit de coördinaten (Haversine). Elke wedstrijdvlucht
+respecteert een **minimumafstand** — regionaal **nooit onder 100 km**, nationaal
+**nooit onder 200 km**, internationaal **nooit onder 400 km** — zodat de niveaus
+duidelijk verschillen in zwaarte. De niveaus overlappen aan de bovenkant nog wel
+een stukje: een regiovlucht loopt van ~100 tot bijna 200 km, een nationale tot
+500 km, en de internationale vluchten reiken van ~400 km tot de klassieke
+**grote-fond­losplaatsen** in het diepe zuiden (Bordeaux, Toulouse, Perpignan,
+**Barcelona**), tot ~1200 km ver. Grotere afstand = zwaardere vlucht: meer
+energieverbruik (§3) en meer gewicht op conditie en oriëntatie (§2.3).
+(**Oefenvluchten** — §2.7 — vallen hierbuiten: die blijven bewust **kort**.)
 
 ### 2.3 Vluchtsnelheid (m/min)
 Per duif, bevroren bij de start:

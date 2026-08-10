@@ -127,16 +127,20 @@ export function pickRoute(tier: FlightTier, minKmOverride?: number, maxKmOverrid
   const pool = tierPool(tier);
   const minKm = minKmOverride ?? FLIGHT_TIERS[tier].minKm;
   const maxKm = maxKmOverride ?? FLIGHT_TIERS[tier].maxKm;
-  let fallback: { a: RaceCity; b: RaceCity; d: number } | null = null;
-  for (let i = 0; i < 60; i++) {
+  // Track the sampled pair that sits CLOSEST to the [minKm, maxKm] window, so if
+  // no in-window pair turns up we still return the nearest one (respecting the
+  // minimum whenever the pool can reach it) instead of any random short pair.
+  let best: { a: RaceCity; b: RaceCity; d: number; penalty: number } | null = null;
+  for (let i = 0; i < 120; i++) {
     const a = pick(pool);
     const b = pick(pool);
     if (a.name === b.name) continue;
     const d = haversineKm(a, b);
     if (d >= minKm && d <= maxKm) return { fromCity: a.name, toCity: b.name, distanceKm: Math.round(d) };
-    if (!fallback) fallback = { a, b, d }; // any distinct pair, just in case
+    const penalty = d < minKm ? minKm - d : d - maxKm; // how far outside the window
+    if (!best || penalty < best.penalty) best = { a, b, d, penalty };
   }
-  const f = fallback ?? { a: pool[0], b: pool[1], d: haversineKm(pool[0], pool[1]) };
+  const f = best ?? { a: pool[0], b: pool[1], d: haversineKm(pool[0], pool[1]) };
   return { fromCity: f.a.name, toCity: f.b.name, distanceKm: Math.round(f.d) };
 }
 
@@ -164,7 +168,14 @@ function makeRealtimeFlight(
   const cfg = FLIGHT_TIERS[tier];
   // A titanenwedstrijd draws a medium-to-long route of its own and always carries
   // the same title + entry fee; its tier is derived from the distance for display.
-  const route = titan ? pickRouteInRange(TITAN.minKm, TITAN.maxKm) : pickRoute(tier);
+  // Oefenvluchten (practice) stay SHORT training runs: they use the regional pool
+  // but override the min distance to 0, so the regional competition floor (100 km)
+  // doesn't lengthen them.
+  const route = titan
+    ? pickRouteInRange(TITAN.minKm, TITAN.maxKm)
+    : practice
+      ? pickRoute(tier, 0)
+      : pickRoute(tier);
   const effectiveTier: FlightTier = titan ? (route.distanceKm >= 300 ? 'international' : 'national') : tier;
   return {
     id: newId('flt'),
@@ -1043,6 +1054,30 @@ function runDataMigrations(db: Database): void {
     // in the infirmary so the counts match the new rule from the start.
     for (const p of db.pigeons) if (p.inInfirmary && p.compartment) p.compartment = false;
     db.world.dataVersion = 27;
+  }
+  if ((db.world.dataVersion ?? 0) < 28) {
+    // Enforce per-tier MINIMUM distances on the existing calendar: regional never
+    // < 100 km, national never < 200, international never < 400. Re-route every
+    // still-SCHEDULED competition flight that sits below its tier's floor into the
+    // tier's window. Oefenvluchten stay short (skipped), and live/completed flights
+    // (frozen sim) and titans (own range) are left untouched — a race in progress
+    // can't be re-routed. New flights already respect the floors via pickRoute.
+    for (const f of db.flights) {
+      if (f.status !== 'scheduled' || f.titan || f.practice) continue;
+      const tier: FlightTier =
+        f.type === 'regional' || f.type === 'national' || f.type === 'international'
+          ? f.type
+          : f.distanceKm >= 400 ? 'international' : f.distanceKm >= 200 ? 'national' : 'regional';
+      if (f.distanceKm >= FLIGHT_TIERS[tier].minKm) continue; // already at/above the floor
+      const route = pickRoute(tier);
+      f.type = tier;
+      f.name = FLIGHT_TIERS[tier].name;
+      f.entryFee = FLIGHT_TIERS[tier].entryFee;
+      f.fromCity = route.fromCity;
+      f.toCity = route.toCity;
+      f.distanceKm = route.distanceKm;
+    }
+    db.world.dataVersion = 28;
   }
 }
 
