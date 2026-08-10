@@ -74,38 +74,45 @@ export function StatBar({
           <span className="stat-val">{Math.round(value)}</span>
         </span>
       </div>
-      <div className={`bar ${threshold ? '' : (variant ?? '')}`} style={hasCap ? { position: 'relative' } : undefined}>
-        <span style={{ width: `${pct}%`, ...(threshold ? { background: thresholdColor(value) } : {}) }} />
-        {hasCap && (
-          <span
-            role="button"
-            tabIndex={0}
-            aria-label={`Genetisch maximum: ${cap}`}
-            title={`Genetisch maximum voor deze vaardigheid — klik voor de waarde`}
+      {hasCap ? (
+        // The cap marker + readout live OUTSIDE `.bar` (which has overflow:hidden
+        // and colours its `> span` children as the fill) so the red line stays a
+        // thin line and the popped-up value isn't clipped.
+        <div style={{ position: 'relative' }}>
+          <div className={`bar ${threshold ? '' : (variant ?? '')}`}>
+            <span style={{ width: `${pct}%`, ...(threshold ? { background: thresholdColor(value) } : {}) }} />
+          </div>
+          <button
+            type="button"
+            aria-label={`Genetisch maximum: ${cap} — klik voor de waarde`}
+            title="Genetisch maximum — klik voor de waarde"
             onClick={(e) => { e.stopPropagation(); e.preventDefault(); setShowCap((s) => !s); }}
             style={{
-              position: 'absolute', top: -3, bottom: -3, left: `${capPct}%`,
-              transform: 'translateX(-50%)', width: 12, display: 'flex',
-              justifyContent: 'center', cursor: 'pointer', zIndex: 2,
+              position: 'absolute', top: '50%', left: `${capPct}%`,
+              transform: 'translate(-50%, -50%)', width: 3, height: 14, padding: 0,
+              border: 'none', background: 'var(--bad)', borderRadius: 1,
+              cursor: 'pointer', zIndex: 2,
             }}
-          >
-            <span style={{ width: 2, background: 'var(--bad)', borderRadius: 1 }} />
-          </span>
-        )}
-        {hasCap && showCap && (
-          <span
-            style={{
-              position: 'absolute', bottom: '100%', left: `${capPct}%`,
-              transform: 'translateX(-50%)', marginBottom: 3, fontSize: '0.62rem',
-              fontWeight: 700, color: 'var(--bad)', background: 'var(--card, #1a1a1a)',
-              border: '1px solid var(--bad)', borderRadius: 3, padding: '0 4px',
-              whiteSpace: 'nowrap', zIndex: 3,
-            }}
-          >
-            max {cap} · genen
-          </span>
-        )}
-      </div>
+          />
+          {showCap && (
+            <span
+              style={{
+                position: 'absolute', bottom: 'calc(100% + 5px)', left: `${capPct}%`,
+                transform: 'translateX(-50%)', background: 'var(--bad)', color: '#fff',
+                fontSize: '0.72rem', fontWeight: 700, lineHeight: 1.3, padding: '2px 7px',
+                borderRadius: 5, whiteSpace: 'nowrap', zIndex: 5,
+                boxShadow: '0 2px 8px rgba(0,0,0,0.4)',
+              }}
+            >
+              cap {cap}
+            </span>
+          )}
+        </div>
+      ) : (
+        <div className={`bar ${threshold ? '' : (variant ?? '')}`}>
+          <span style={{ width: `${pct}%`, ...(threshold ? { background: thresholdColor(value) } : {}) }} />
+        </div>
+      )}
     </div>
   );
 }
