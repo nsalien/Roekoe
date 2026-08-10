@@ -8,6 +8,14 @@ import type { FeedRationKey, Severity } from './config/gameConfig.js';
 
 export type Sex = 'doffer' | 'duivin'; // male / female
 
+/** Per-bird genetic CEILINGS for the three trainable racing skills (≤ GENE.ceil,
+ *  never 100). Rolled at birth, inherited by offspring. See game/pigeon.ts. */
+export interface PigeonGenes {
+  speed: number;
+  endurance: number;
+  orientation: number;
+}
+
 /** A current disease or injury a pigeon is suffering from. */
 export interface Ailment {
   kind: 'ziekte' | 'kwetsuur';
@@ -73,6 +81,9 @@ export interface Pigeon {
   hungerDays: number; // consecutive days with no food in stock (0 = fed); drives starvation
   restDays: number; // consecutive fed days at home without racing; every 3rd gives an energie bonus
   cureUntil?: string | null; // ISO time a paid rest cure completes (bird rests, can't race)
+  // Genetics (optional so legacy birds keep working; a migration backfills them).
+  genes?: PigeonGenes; // per-skill ceilings (≤95, never 100) — ride in the `genes` JSON column
+  declineRate?: number; // ageing decline multiplier (~0.6–1.6); higher = fades faster past its prime
   // Per-season pigeon stats (reset at each season rollover — see season.ts).
   seasonPeakSpeed?: number; // highest race velocity (m/min) reached this season
   seasonPodiums?: number; // number of top-3 finishes this season

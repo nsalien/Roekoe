@@ -1,8 +1,9 @@
 /** Breeding: pairing pigeons and producing young that inherit attributes. */
 
-import { BREEDING, DEFAULT_BREED_ID, MIXED_BREED_ID } from '../config/gameConfig.js';
-import type { Pigeon } from '../schema.js';
+import { BREEDING, DEFAULT_BREED_ID, GENE, MIXED_BREED_ID } from '../config/gameConfig.js';
+import type { Pigeon, PigeonGenes } from '../schema.js';
 import { newId } from '../store.js';
+import { geneCap } from './pigeon.js';
 import { generatePigeonName } from './names.js';
 import { clamp, randFloat, round1 } from './util.js';
 
@@ -17,10 +18,19 @@ function inheritBreed(sire: Pigeon, dam: Pigeon): string {
   return s === d ? s : MIXED_BREED_ID;
 }
 
-/** Inherit one attribute: average of parents plus a random mutation. */
-function inherit(a: number, b: number): number {
+/** Inherit one attribute: average of parents plus a random mutation, capped to
+ *  the youngster's own gene ceiling for that skill. */
+function inherit(a: number, b: number, cap: number): number {
   const avg = (a + b) / 2;
-  return round1(clamp(avg + randFloat(-BREEDING.mutation, BREEDING.mutation), 5, 99));
+  return round1(clamp(avg + randFloat(-BREEDING.mutation, BREEDING.mutation), 5, cap));
+}
+
+/** Inherit one gene CEILING: average of the parents' caps ± mutation, clamped to
+ *  [GENE.floor, GENE.ceil] — so a line of well-gened birds tends to stay high, but
+ *  no youngster can ever reach 100. */
+function inheritGeneCap(a: number, b: number): number {
+  const avg = (a + b) / 2;
+  return Math.round(clamp(avg + randFloat(-GENE.mutation, GENE.mutation), GENE.floor, GENE.ceil));
 }
 
 export function canBreed(sire: Pigeon, dam: Pigeon, currentWeek: number): string | null {
@@ -49,10 +59,24 @@ export function breed(sire: Pigeon, dam: Pigeon, ownerId: string, hatchWeek: num
   const young: Pigeon[] = [];
   const childBreed = inheritBreed(sire, dam);
   for (let i = 0; i < count; i++) {
-    const speed = inherit(sire.speed, dam.speed);
-    const endurance = inherit(sire.endurance, dam.endurance);
-    const orientation = inherit(sire.orientation, dam.orientation);
-    const libido = inherit(sire.libido, dam.libido);
+    // GENETICS inherit first (average of parents' caps ± mutation), then the
+    // starting skills are inherited and clamped to the youngster's own ceilings.
+    const genes: PigeonGenes = {
+      speed: inheritGeneCap(geneCap(sire, 'speed'), geneCap(dam, 'speed')),
+      endurance: inheritGeneCap(geneCap(sire, 'endurance'), geneCap(dam, 'endurance')),
+      orientation: inheritGeneCap(geneCap(sire, 'orientation'), geneCap(dam, 'orientation')),
+    };
+    const declineRate = round1(
+      clamp(
+        ((sire.declineRate ?? 1) + (dam.declineRate ?? 1)) / 2 + randFloat(-0.3, 0.3),
+        GENE.declineRateMin,
+        GENE.declineRateMax,
+      ),
+    );
+    const speed = inherit(sire.speed, dam.speed, genes.speed);
+    const endurance = inherit(sire.endurance, dam.endurance, genes.endurance);
+    const orientation = inherit(sire.orientation, dam.orientation, genes.orientation);
+    const libido = inherit(sire.libido, dam.libido, 100); // libido isn't gene-capped
     const sex: 'doffer' | 'duivin' = Math.random() < 0.5 ? 'doffer' : 'duivin';
     young.push({
       id: newId('pig'),
@@ -82,6 +106,8 @@ export function breed(sire: Pigeon, dam: Pigeon, ownerId: string, hatchWeek: num
       compartment: false,
       hungerDays: 0,
       restDays: 0,
+      genes,
+      declineRate,
     });
   }
   return young;

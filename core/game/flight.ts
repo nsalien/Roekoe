@@ -27,7 +27,7 @@ import {
   TOURNEY_RISK,
 } from '../config/gameConfig.js';
 import type { Ailment, Flight, FlightResult, Loft, Pigeon, SimEntry } from '../schema.js';
-import { ageMultiplier } from './pigeon.js';
+import { ageMultiplier, raceCeil } from './pigeon.js';
 import { applyAilment, randomAilmentOfSeverity, randomInjury } from './health.js';
 import { randomWeather, type WeatherResult } from './weather.js';
 import { clamp, hashString, interpolate, pickWith, randFloat, round1, seededRng } from './util.js';
@@ -517,7 +517,11 @@ export function finalizeFlight(flight: Flight, pigeons: Pigeon[]): SimulatedFlig
       // more it gains — so a lesser bird that punches above its weight catches up.
       if (!isDnf) {
         const attr = pickImproveAttr(w, rng);
-        const room = clamp((IMPROVE.cap - pigeon[attr]) / IMPROVE.cap, 0, 1);
+        // Racing can only lift a skill up to min(90, geneCap) — beyond 90 only the
+        // coach helps. `room` is measured against that per-bird ceiling, so gains
+        // shrink to ~0 as the skill approaches 90 (the 80→90 grind).
+        const cap = raceCeil(pigeon, attr);
+        const room = clamp((cap - pigeon[attr]) / cap, 0, 1);
         const avgAttr = (pigeon.speed + pigeon.endurance + pigeon.orientation) / 3;
         const weakness = clamp(1 - avgAttr / 100, 0, 1); // weaker bird → larger
         const placeFactor = n > 1 ? (n - i) / n : 1; // winner ~1 → last finisher ~1/n
@@ -525,7 +529,7 @@ export function finalizeFlight(flight: Flight, pigeons: Pigeon[]): SimulatedFlig
           IMPROVE.baseChance * (0.4 + room) * (0.5 + weakness * IMPROVE.weaknessWeight) * (0.6 + placeFactor * 0.8),
           0, IMPROVE.maxChance,
         );
-        if (pigeon[attr] < IMPROVE.cap && rng() < chance) {
+        if (pigeon[attr] < cap && rng() < chance) {
           const gain = round1(rf(IMPROVE.gainMin, IMPROVE.gainMax) * (0.4 + room) * (1 + weakness * IMPROVE.weaknessGainSpread));
           if (gain > 0) {
             improvements.push({ pigeonId: pigeon.id, ownerId: pigeon.ownerId, pigeonName: pigeon.name, attr, gain });
@@ -643,11 +647,13 @@ function finalizePracticeFlight(flight: Flight, pigeons: Pigeon[]): SimulatedFli
       const chance = pigeon.coached ? PRACTICE.coachedImproveChance : PRACTICE.improveChance;
       if (rng() < chance) {
         const attr = pickImproveAttr(PRACTICE.weights, rng);
-        const room = clamp((IMPROVE.cap - pigeon[attr]) / IMPROVE.cap, 0, 1);
+        // Practice is a flight too → capped at min(90, geneCap).
+        const cap = raceCeil(pigeon, attr);
+        const room = clamp((cap - pigeon[attr]) / cap, 0, 1);
         // A coach specifically drills conditie/oriëntatie on these flights.
         const coachBonus = pigeon.coached && attr !== 'speed' ? PRACTICE.coachedBonusGain : 0;
         const gain = round1((rf(PRACTICE.gainMin, PRACTICE.gainMax) + coachBonus) * (0.4 + room));
-        if (pigeon[attr] < IMPROVE.cap && gain > 0) {
+        if (pigeon[attr] < cap && gain > 0) {
           improvements.push({ pigeonId: pigeon.id, ownerId: pigeon.ownerId, pigeonName: pigeon.name, attr, gain });
         }
       }
@@ -918,14 +924,20 @@ export function applyFlightEffects(
     if (!p) continue;
     p.restDays = 0; // raced → the rest-bonus streak restarts
     p.form = round1(clamp(p.form + f.formDelta, 0, 100)); // energie
-    p.endurance = round1(clamp(p.endurance + f.enduranceDelta, 0, 100)); // conditie
+    // Conditie built by racing respects the per-bird racing ceiling (min(90,cap));
+    // a grandfathered bird already above it keeps its value (no growth, no drop).
+    const eCap = raceCeil(p, 'endurance');
+    p.endurance = p.endurance >= eCap ? p.endurance : round1(clamp(p.endurance + f.enduranceDelta, 0, eCap));
     p.health = round1(clamp(p.health + f.healthDelta, 0, 100));
     p.experience = round1(clamp(p.experience + f.experienceDelta, 0, 100));
   }
   for (const imp of sim.improvements) {
     const p = pigeons.find((x) => x.id === imp.pigeonId);
     if (!p) continue;
-    p[imp.attr] = round1(clamp(p[imp.attr] + imp.gain, 0, IMPROVE.cap));
+    // Clamp to this bird's racing ceiling (min(90, geneCap)); never lower a
+    // grandfathered bird already above it.
+    const cap = raceCeil(p, imp.attr);
+    if (p[imp.attr] < cap) p[imp.attr] = round1(Math.min(p[imp.attr] + imp.gain, cap));
   }
   for (const inj of sim.injuries) {
     const p = pigeons.find((x) => x.id === inj.pigeonId);

@@ -9,6 +9,7 @@
  */
 
 const SECTIONS = [
+  { id: 'genen', icon: '🧬', label: 'Genen & training' },
   { id: 'energie', icon: '⚡', label: 'Energie & herstel' },
   { id: 'vlucht', icon: '🏁', label: 'Energie per vlucht' },
   { id: 'lage-energie', icon: '🪫', label: 'Lage energie' },
@@ -72,6 +73,32 @@ export function WikiPage() {
           ))}
         </div>
       </div>
+
+      <Section id="genen" icon="🧬" title="Genen, plafonds & training">
+        <p className="muted" style={{ marginTop: 0 }}>
+          Elke duif heeft <strong>aangeboren maxima</strong> (genen) voor snelheid, conditie en oriëntatie.
+          <strong> Geen enkele duif haalt ooit 100</strong> in een racevaardigheid — de absolute bovengrens is 95, en
+          de meeste duiven cappen lager. In je hok toont een <span style={{ color: 'var(--bad)', fontWeight: 700 }}>rood
+          streepje</span> op elke statbalk waar die duif capt (klik erop voor de waarde).
+        </p>
+        <p><strong>Groeien gebeurt in drie trappen</strong>, elk met haar eigen weg omhoog:</p>
+        <MiniTable
+          head={['Bereik', 'Enige manier om te groeien']}
+          rows={[
+            ['0 → 80', 'Zelf trainen (+ vluchten)'],
+            ['80 → 90', 'Enkel vluchten'],
+            ['90 → gen-cap', 'Enkel een privécoach — en traag'],
+          ]}
+        />
+        <ul style={{ marginTop: 12 }}>
+          <li><strong>Trainen wordt duurder</strong> naarmate de waarde stijgt (exponentieel): 50→51 kost een prikje, 79→80 een flinke som. Elke vaardigheid kan 1× per week getraind worden.</li>
+          <li><strong>Groei vertraagt</strong> naarmate een duif haar plafond nadert: 50→51 gaat vlot, 88→89 is een grind.</li>
+          <li><strong>Een coach heeft enkel effect boven 90</strong> — hij loont dus alleen voor een duif waarvan de genen meer dan 90 toelaten.</li>
+          <li><strong>Genen bepalen mee de waarde:</strong> hogere plafonds = duurdere duif, ook al zijn de huidige stats nog laag. En ze <strong>erven door</strong> bij kweek — koppel je toppers om een sterke lijn te bouwen.</li>
+          <li><strong>Verouderen:</strong> na haar piek (rond ~4 duivenjaar) zwakt een duif geleidelijk af in snelheid/conditie/oriëntatie — bij de ene sneller dan de andere.</li>
+        </ul>
+        <p><strong>Strategie:</strong> een jonge duif met hoge genen maar lage stats is goud waard — bouw ze op. Bewaar je coach-budget voor duiven die genetisch écht boven 90 kunnen, en fok met je best gegende koppels.</p>
+      </Section>
 
       <Section id="energie" icon="⚡" title="Energie & herstel">
         <p className="muted" style={{ marginTop: 0 }}>

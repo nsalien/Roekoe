@@ -12,6 +12,7 @@
  */
 
 import {
+  AGING,
   COMPARTMENT,
   DISEASES,
   HEALING,
@@ -291,6 +292,25 @@ export function runAgeMortality(db: Database, week: number): void {
     for (const f of db.flights) {
       if (f.status !== 'completed') f.entries = f.entries.filter((e) => !dead.has(e.pigeonId));
     }
+  }
+}
+
+/**
+ * Real-time AGEING of the racing skills. Once a bird is past its prime
+ * (AGING.peakEndWeeks, ~4 game-years) its snelheid/conditie/oriëntatie decline a
+ * little every rolled game-week, faster the older it gets — and at a pace unique
+ * to the bird (its `declineRate` gene, so some fade sooner than others). Runs once
+ * per rolled game-week alongside runAgeMortality. Skills never drop below AGING.floor.
+ */
+export function runAgeDecline(db: Database, week: number): void {
+  for (const p of db.pigeons) {
+    const age = week - p.birthWeek;
+    if (age <= AGING.peakEndWeeks) continue;
+    const dec = AGING.declinePerWeekBase * ((age - AGING.peakEndWeeks) / 52) * (p.declineRate ?? 1);
+    if (dec <= 0) continue;
+    p.speed = round1(Math.max(AGING.floor, p.speed - dec));
+    p.endurance = round1(Math.max(AGING.floor, p.endurance - dec));
+    p.orientation = round1(Math.max(AGING.floor, p.orientation - dec));
   }
 }
 

@@ -30,6 +30,11 @@ in de ziekenboeg, minstens **8 weken** oud en gezondheid > 15.
 
 **Talent** (voor marktprijs/bots) = gemiddelde van snelheid, conditie, oriëntatie.
 
+> **Genen.** Snelheid, conditie en oriëntatie hebben elk een **aangeboren maximum**
+> (per duif verschillend, **nooit 100**). Hoe die plafonds werken, hoe je ernaartoe
+> groeit (trainen → vluchten → coach) en hoe ze de waarde bepalen: zie **§7bis** en
+> **§8**. Duiven **verouderen** bovendien echt (§6).
+
 ---
 
 ## 2. Vluchten
@@ -583,9 +588,18 @@ niet eindeloos te wachten: een **pas gekweekte jong is al na ~2 echte weken
 vliegklaar** (leeftijd 8 wk), en ouderdom gaat over echte **maanden** meespelen
 i.p.v. jaren. Dit drijft zowel de prestatiecurve als de ouderdomssterfte hieronder.
 
-**Leeftijdscurve** (prestatievermenigvuldiger): 0 wk → 0.0, 8 wk → 0.6,
-20 wk → 0.85, 1 jaar → 1.0, 1–3 jaar → 1.0 (prime), 5 jaar → 0.9, 8 jaar → 0.7,
-10 jaar → 0.5.
+**Leeftijdscurve** (prestatievermenigvuldiger, enkel de **opbouw**): 0 wk → 0.0,
+8 wk → 0.6, 20 wk → 0.85, 1 jaar → 1.0, daarna **vlak op 1.0**. De neerwaartse tak
+van vroeger is weg — **verouderen gebeurt nu als een échte terugval van de
+vaardigheden** (hieronder), niet meer als een verborgen multiplier.
+
+**Verouderen: de vaardigheden zakken echt (nieuw).** Na haar piek (rond **~4
+duivenjaar**) verliest een duif elke gerolde gameweek een beetje **snelheid,
+conditie en oriëntatie** — en dat gaat **sneller naarmate ze ouder wordt**. Het
+**tempo verschilt per duif** (een aangeboren `declineRate`-gen, ~0,6–1,6×): de ene
+houdt lang stand, de andere fadet vroeg. Je ziet de cijfers dus effectief zakken.
+Realistisch: piek ~1–4 jaar, merkbare terugval vanaf ~4 jaar, sterk richting 8–10
+jaar. (Omdat verouderen 4× real-time loopt, speelt dit over echte **maanden**.)
 
 **Sterfte gebeurt nu ook in echte tijd.** Ouderdomssterfte draait **één keer per
 gerolde gameweek** (met de rauwe weekkans hieronder, dus de curve blijft kloppen
@@ -653,24 +667,72 @@ gebeurt.
 > soms pas na een week.
 
 **Overerving:** elke vaardigheid = gemiddelde van beide ouders ± willekeurige
-mutatie (±8), begrensd op 5…99.
+mutatie (±8), begrensd op de **gen-cap** van het jong (zie §7bis). Ook de
+**genen zelf** (de plafonds + het verouderingstempo) erven over — gemiddelde van
+de ouders ± mutatie. Koppel dus je best gegende duiven om een sterke lijn te bouwen.
 
 ---
 
-## 8. Training
+## 7bis. Genen: het aangeboren plafond van een duif
 
-Kost **€120**, verbruikt **15 energie**, en geeft een kleine blijvende
-verbetering (~+1.2, tot max **90**) aan snelheid, conditie of oriëntatie, plus
-**+4 ervaring**. Vereist voldoende energie. Je kan een duif **enkel trainen als
-ze thuis is** — niet zolang ze voor een vlucht ingeschreven staat.
+Elke duif heeft **aangeboren maxima** (genen) voor **snelheid, conditie en
+oriëntatie**. **Geen enkele duif haalt ooit 100** in een racevaardigheid: de
+absolute bovengrens is **95**, en de meeste duiven cappen lager. De ene duif kan
+op snelheid tot 92 groeien, een andere blijft op 78 steken — en dat verschilt óók
+per vaardigheid (een snelheidsbeest kan matig zijn in oriëntatie).
 
-**Elke eigenschap kan maar 1× per week getraind worden** (aparte teller per
-categorie: snelheid, conditie, oriëntatie). Na een trainingsbeurt is die
-eigenschap **7 dagen** geblokkeerd; de andere twee kan je intussen wél trainen.
+**Kansen op de gen-cap** (per vaardigheid, gewogen loting; betere bronnen —
+dure veilingduiven — loten hoger, opvangcentrum-duiven lager):
 
-> **Voorbeeld.** Eén trainingsbeurt tilt bv. snelheid van 78 naar ~79 en kost
-> €120 + 15 energie. Kleine stapjes dus: trainen is een trage, betrouwbare manier
-> om een duif op te bouwen, terwijl vluchten sneller (maar met risico) verbeteren.
+| Cap-bereik | Kans | |
+|---|---|---|
+| 70–73 | ~1 % | zeer zeldzaam (ondergrens) |
+| 74–77 | ~10 % | zwakke aanleg |
+| 78–81 | ~26 % | ondergemiddeld |
+| 82–85 | ~34 % | gemiddeld |
+| 86–89 | ~22 % | bovengemiddeld |
+| 90–93 | ~7 % | sterk |
+| 94–95 | ~1 % | uitzonderlijk (topgenen) |
+
+In je hok toont een **rood streepje** op elke statbalk waar de duif capt; **klik
+erop** voor de exacte waarde. **Hogere genen maken een duif meer waard** — ook al
+zijn haar huidige stats nog laag: een jong met topgenen is goud waard.
+
+> **Bestaande duiven** die vóór deze update al hoger stonden dan hun (nieuw
+> gelote) gen-cap **behouden** die waarde — ze groeien enkel niet verder. Enkel
+> nieuwe groei kan nooit boven de cap.
+
+---
+
+## 8. Training & de drie groeitrappen
+
+Een vaardigheid groeit in **drie trappen**, elk met haar eigen weg omhoog:
+
+| Bereik | Enige manier om te groeien |
+|---|---|
+| **0 → 80** | zelf **trainen** (+ vluchten) |
+| **80 → 90** | enkel **vluchten** |
+| **90 → gen-cap** | enkel een **privécoach** (§13), en traag |
+
+**Handmatig trainen** verbruikt **15 energie**, geeft ~**+1** aan de gekozen
+vaardigheid (+**4 ervaring**) en kan **tot 80** (of de gen-cap als die lager is —
+79→80 is dus de hoogste handmatige stap). Je kan enkel trainen als de duif **thuis**
+is, en **elke eigenschap maar 1× per week** (aparte teller per categorie).
+
+**De kost stijgt exponentieel met het niveau** — laag is spotgoedkoop, hoog wordt
+een echte investering:
+
+| Van → naar | Kost |
+|---|---|
+| 40 → 41 | ~€40 |
+| 50 → 51 | ~€125 |
+| 60 → 61 | ~€355 |
+| 70 → 71 | ~€1.035 |
+| 79 → 80 | **~€2.700** |
+
+**Boven 80** helpt trainen niet meer: **80→90 verdien je enkel door te vliegen**,
+en **alles boven 90 kan enkel met een privécoach** (§13). Groei vertraagt bovendien
+naarmate een duif haar plafond nadert: 50→51 gaat vlot, 88→89 is een grind.
 
 ---
 
@@ -852,27 +914,21 @@ Verdiend geld kan je investeren in je hok en je duiven (bij *Mijn hok*, de
   Naast Zuinig/Normaal/Royaal zijn er twee premiumopties: **Premium** (meer
   energie- en gezondheidsherstel én bouwt langzaam conditie op) en **Libido-mix**
   (verhoogt de voortplantingsdrang). Ze verbruiken meer voer.
-- **Privécoach.** Huur een coach voor één specifieke duif. Die traint haar
-  **elke dag** in **snelheid, conditie én oriëntatie** plus ervaring, puur om beter
-  te racen — **nooit libido**. **Geen instapkost meer** — enkel een **dagsalaris van
-  €80** per gecoachte duif zolang hij aanblijft (dagelijks automatisch afgerekend).
-  De dagelijkse winst hangt af van de **eigen ontwikkeling van de duif** en wordt
-  **kleiner naarmate een eigenschap richting 100 kruipt**:
-  ```
-  winst per dag = 1,1 · (100 − huidige_waarde) / 100   (per race-eigenschap)
-                + 0,5 ervaring/dag
-  ```
-  Zo ontwikkelt een coach een **jonge of zwakke** duif snel (~**+0,55/dag** rond
-  waarde 50) maar **perfectioneert** hij een sterke duif slechts traag (~**+0,11/dag**
-  rond waarde 90) — een uitgetrainde duif blijft dus een echte prestatie. Enkel de
-  coach duwt een race-eigenschap helemaal tot **100** (zelf trainen stopt bij 90,
-  premiumvoer-conditie bij 92). Een coach werkt niet terwijl de duif effectief aan
-  het vliegen is (een lopende vlucht); ingeschreven-maar-nog-niet-gestart mag wel.
-  De concrete winst per dag voor élke duif zie je op de **duifpagina** (onder de
-  coach-knop) en als per-dag ▲ in *Mijn hok*.
-- **Trainingsplafonds.** Zelf **trainen** komt tot **90**, **premiumvoer** bouwt
-  conditie tot **92**, en enkel een **coach** duwt een race-eigenschap helemaal
-  tot **100**. Voer verlaagt nooit een al hoger opgebouwde waarde.
+- **Privécoach = elite-afwerking (boven 90).** Huur een coach voor één specifieke
+  duif tegen een **dagsalaris van €80** (geen instapkost, dagelijks afgerekend). In
+  het genensysteem is de coach een **perfectioneerder**: hij duwt snelheid, conditie
+  of oriëntatie **enkel boven 90** verder richting de **gen-cap** van de duif (nooit
+  100) — en **traag** (de winst tapert naar ~0 aan de cap; 90→95 is een grind van
+  weken). **Onder 90 doet een coach niets**: daar bouw je op met trainen (tot 80) en
+  vluchten (tot 90). Een coach loont dus **alleen voor een duif waarvan de genen meer
+  dan 90 toelaten**. Hij werkt niet terwijl de duif effectief vliegt. De concrete
+  winst per dag voor élke duif zie je op de **duifpagina** (onder de coach-knop); als
+  er geen enkele vaardigheid ≥90 met groeiruimte is, meldt de pagina dat een coach
+  hier geen effect heeft.
+- **Trainingsplafonds (samengevat).** Zelf **trainen** tot **80**, **vluchten** tot
+  **90**, **premiumvoer** bouwt conditie mee op tot **80**, en enkel de **coach** gaat
+  boven 90 — tot de **gen-cap** van de duif (max 95, nooit 100). Voer/vlucht verlagen
+  nooit een al hoger opgebouwde waarde.
 - **Duif hernoemen** kost €1.000. **Je hok hernoemen** (bij Profiel) kost €2.000.
 
 ## 14. Weddenschappen

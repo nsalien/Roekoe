@@ -7,23 +7,29 @@ import {
   DAILY_UPKEEP_BASE,
   DAILY_UPKEEP_PER_PIGEON,
   FEED_RATIONS,
-  FOOD_ENDURANCE_CAP,
+  GENE,
   INFIRMARY,
   REST_BONUS,
   STARVATION,
+  type RacingAttr,
 } from '../config/gameConfig.js';
 import type { Loft, Pigeon } from '../schema.js';
+import { geneCap } from './pigeon.js';
 import { clamp, hashString, round1 } from './util.js';
 
+const RACING_ATTRS: RacingAttr[] = ['speed', 'endurance', 'orientation'];
+
 /**
- * A private coach's daily gain for ONE racing attribute, diminishing as the bird
- * nears the cap: `maxDailyGain · (cap − attr)/cap`. So a coach develops a weak
- * bird fast (~+0.55/day around 50) but only slowly perfects a strong one
- * (~+0.11/day around 90) — reaching 100 stays a real, expensive grind.
+ * A private coach's daily gain for ONE racing attribute. The coach is an END-GAME
+ * polisher: it only acts from GENE.coachMinAttr (90) up to the bird's own gene
+ * `cap`, tapering to ~0 at the cap. Below 90 (where training/racing do the work),
+ * or once the skill is at its genetic ceiling, the coach adds nothing.
  */
-export function coachDailyGain(attr: number): number {
-  const room = clamp((COACH.attributeCap - attr) / COACH.attributeCap, 0, 1);
-  return COACH.maxDailyGain * room; // callers round when storing (1 decimal)
+export function coachDailyGain(attr: number, cap: number): number {
+  if (attr < GENE.coachMinAttr || attr >= cap) return 0;
+  const span = Math.max(1, cap - GENE.coachMinAttr);
+  const room = (cap - attr) / span; // 1 at 90 → 0 at the cap
+  return COACH.eliteGainPerDay * Math.pow(room, 0.8); // callers round when storing
 }
 
 /** A bird that starved to death during a day of care. */
@@ -101,21 +107,29 @@ export function applyDayOfCare(
         (ration.formRecovery / 7) * (1 + p.experience / 200) * formMult * infirmaryEnergyMult; // exp + compartment speed recovery
       p.form = round1(clamp(p.form + energyGain, 0, 100));
       p.health = round1(clamp(p.health + (ration.healthRecovery / 7) * healthMult + p.endurance / 280, 0, 100));
-      // Premium feed slowly builds conditie (up to its own cap, never lowering
-      // a bird already built higher by racing/coach); a libido-mix lifts drive.
+      // Premium feed slowly builds conditie — but only up to the MANUAL tier
+      // (min(80, geneCap)); passive feeding, like training, cannot push a skill
+      // into the 80→90 racing band. Never lowers a bird already built higher.
       if (ration.enduranceRecovery) {
-        const target = Math.min(p.endurance + ration.enduranceRecovery / 7, FOOD_ENDURANCE_CAP);
+        const foodCap = Math.min(GENE.trainCap, geneCap(p, 'endurance'));
+        const target = Math.min(p.endurance + ration.enduranceRecovery / 7, foodCap);
         if (target > p.endurance) p.endurance = round1(target);
       }
       if (ration.libidoRecovery) p.libido = round1(clamp(p.libido + ration.libidoRecovery / 7, 0, 100));
-      // A hired coach drills every racing attribute (never libido) — but not
-      // while the bird is actually away racing (a live flight). The gain shrinks
-      // as each attribute nears the cap (see coachDailyGain).
+      // A hired coach POLISHES racing attributes above 90 up to the gene cap (never
+      // libido, never while away on a live flight). Below 90 it has no effect, so it
+      // only helps a bird whose genes allow >90. Experience is only earned when it
+      // actually polishes something.
       if (p.coached && !p.ailment && !p.inInfirmary && !livePigeonIds?.has(p.id)) {
-        p.speed = round1(clamp(p.speed + coachDailyGain(p.speed), 0, COACH.attributeCap));
-        p.endurance = round1(clamp(p.endurance + coachDailyGain(p.endurance), 0, COACH.attributeCap));
-        p.orientation = round1(clamp(p.orientation + coachDailyGain(p.orientation), 0, COACH.attributeCap));
-        p.experience = round1(clamp(p.experience + COACH.experienceDailyGain, 0, 100));
+        let polished = false;
+        for (const attr of RACING_ATTRS) {
+          const g = coachDailyGain(p[attr], geneCap(p, attr));
+          if (g > 0) {
+            p[attr] = round1(clamp(p[attr] + g, 0, geneCap(p, attr)));
+            polished = true;
+          }
+        }
+        if (polished) p.experience = round1(clamp(p.experience + COACH.experienceDailyGain, 0, 100));
       }
       // Libido drifts toward conditie + energie; a frisky minority stays high.
       let target = p.endurance * 0.5 + p.form * 0.5;
@@ -192,7 +206,10 @@ export function projectDailyCare(loft: Loft, p: Pigeon, live = false, covered = 
   const ration = FEED_RATIONS[key];
   const dailyNeed = ration.foodPerPigeon / 7;
   const fed = (loft.food[key] ?? 0) >= dailyNeed;
-  const coachActive = !!p.coached && !p.ailment && !p.inInfirmary && !live && fed;
+  const coachEligible = !!p.coached && !p.ailment && !p.inInfirmary && !live && fed;
+  const coachGainOf = (attr: RacingAttr) => (coachEligible ? coachDailyGain(p[attr], geneCap(p, attr)) : 0);
+  // A coach only "works" (and is worth paying) when it actually polishes a skill ≥90.
+  const coachActive = coachEligible && RACING_ATTRS.some((a) => coachGainOf(a) > 0);
   // Convalescing in the infirmary → energie recovers at a reduced rate (staffed)
   // or not at all (unstaffed); mirror applyDayOfCare.
   const infirmaryEnergyMult = p.inInfirmary ? (covered ? INFIRMARY.energyRecoveryFactor : 0) : 1;
@@ -219,19 +236,22 @@ export function projectDailyCare(loft: Loft, p: Pigeon, live = false, covered = 
     if (!live && !p.inInfirmary && ((p.restDays ?? 0) + 1) % REST_BONUS.everyDays === 0) rawForm += REST_BONUS.energy;
     form = rise(p.form, rawForm, 100);
     health = rise(p.health, (ration.healthRecovery / 7) * healthMult + p.endurance / 280, 100);
-    // Conditie from premium feed (capped at FOOD_ENDURANCE_CAP, never lowering).
-    let endAfterFood = p.endurance;
+    // Conditie from premium feed — only up to the manual tier (min(80, geneCap)),
+    // never lowering a bird already built higher.
     let enduranceRaw = 0;
     let libidoFromFeed = 0;
     if (ration.enduranceRecovery) {
-      const target = Math.min(p.endurance + ration.enduranceRecovery / 7, FOOD_ENDURANCE_CAP);
-      if (target > p.endurance) { enduranceRaw += target - p.endurance; endAfterFood = target; }
+      const foodCap = Math.min(GENE.trainCap, geneCap(p, 'endurance'));
+      const target = Math.min(p.endurance + ration.enduranceRecovery / 7, foodCap);
+      if (target > p.endurance) enduranceRaw += target - p.endurance;
     }
     if (ration.libidoRecovery) libidoFromFeed = ration.libidoRecovery / 7;
     if (coachActive) {
-      speed = rise(p.speed, coachDailyGain(p.speed), COACH.attributeCap);
-      orientation = rise(p.orientation, coachDailyGain(p.orientation), COACH.attributeCap);
-      enduranceRaw += clamp(COACH.attributeCap - endAfterFood, 0, coachDailyGain(endAfterFood));
+      // Coach polishes only ≥90 up to the gene cap (food never reaches there, so
+      // the conditie food-gain and coach-gain never overlap).
+      speed = rise(p.speed, coachGainOf('speed'), geneCap(p, 'speed'));
+      orientation = rise(p.orientation, coachGainOf('orientation'), geneCap(p, 'orientation'));
+      enduranceRaw += coachGainOf('endurance');
       experience = rise(p.experience, COACH.experienceDailyGain, 100);
     }
     endurance = round1(enduranceRaw);

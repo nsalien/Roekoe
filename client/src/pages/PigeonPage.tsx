@@ -225,8 +225,11 @@ export function PigeonPage() {
             <div className="card">
               <h2>Training</h2>
               <p className="muted">
-                {state?.economy && <>Kost <Money value={state.economy.trainCost} /> en wat energie, </>}geeft een kleine blijvende verbetering.
-                Elke eigenschap kan <strong>1× per week</strong> getraind worden.
+                Trainen geeft een kleine blijvende verbetering (~+1) en kan <strong>1× per week</strong> per eigenschap.
+                De <strong>kost stijgt exponentieel met het niveau</strong>. Handmatig trainen gaat tot <strong>80</strong>;
+                daarna groeit een duif enkel via <strong>vluchten</strong> (tot 90) en de <strong>privécoach</strong> (tot
+                haar gen-cap). Het <span style={{ color: 'var(--bad)', fontWeight: 700 }}>rode streepje</span> op elke balk
+                toont waar déze duif genetisch capt.
               </p>
               <div className="stack" style={{ marginTop: 8 }}>
                 {([
@@ -235,15 +238,29 @@ export function PigeonPage() {
                   ['orientation', 'oriëntatie'],
                 ] as const).map(([attr, label]) => {
                   const until = p.trainAvailableAt[attr];
+                  const info = p.training?.[attr];
+                  const cur = p[attr] ?? 0;
+                  const atCap = info ? cur >= info.cap : false;
+                  const Label = label.charAt(0).toUpperCase() + label.slice(1);
                   return (
                     <button
                       key={attr}
                       className="btn"
-                      disabled={busy || !!until}
-                      title={until ? `Deze week al getraind — opnieuw vanaf ${formatFlightTime(until)}` : undefined}
+                      disabled={busy || !!until || atCap}
+                      title={
+                        until
+                          ? `Deze week al getraind — opnieuw vanaf ${formatFlightTime(until)}`
+                          : atCap
+                            ? `Op het handmatige plafond (${info?.cap}) — verder via vluchten (tot 90) en coach`
+                            : undefined
+                      }
                       onClick={() => train(attr)}
                     >
-                      {until ? `🔒 ${label.charAt(0).toUpperCase() + label.slice(1)} — weer vanaf ${formatFlightTime(until)}` : `Train ${label}`}
+                      {until
+                        ? `🔒 ${Label} — weer vanaf ${formatFlightTime(until)}`
+                        : atCap
+                          ? `🔒 ${Label} — plafond ${info?.cap} bereikt`
+                          : <>Train {label} · <Money value={info?.cost ?? 0} /></>}
                     </button>
                   );
                 })}
@@ -300,26 +317,30 @@ export function PigeonPage() {
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <strong>🎯 Privécoach</strong>
                   <div className="faint" style={{ fontSize: '0.85rem' }}>
-                    Traint deze duif élke dag in snelheid, conditie én oriëntatie (tot 100) plus ervaring — puur om beter te racen, niet voor libido.
+                    Een coach <strong>perfectioneert</strong> een duif: hij duwt snelheid, conditie of oriëntatie <strong>boven 90</strong>{' '}
+                    richting haar <strong>genetische plafond</strong> (nooit 100). <strong>Onder 90 doet een coach niets</strong> —
+                    daar bouw je op met training (tot 80) en vluchten (tot 90). Enkel zinvol dus voor een duif waarvan de genen{' '}
+                    <strong>meer dan 90</strong> toelaten.
                     {state?.economy && (
                       <> Geen instapkost — enkel <Money value={state.economy.coachSalary} />/dag zolang de coach aan het werk is.</>
                     )}
                   </div>
-                  {state?.economy && p.revealed && (() => {
-                    const eco = state.economy;
-                    const gain = (attr: number | null) =>
-                      Math.round(eco.coachMaxDailyGain * Math.max(0, (eco.coachAttributeCap - (attr ?? 0)) / eco.coachAttributeCap) * 100) / 100;
-                    const gs = gain(p.speed);
-                    const ge = gain(p.endurance);
-                    const go = gain(p.orientation);
-                    return (
+                  {p.revealed && p.coachGain && (() => {
+                    const cg = p.coachGain;
+                    const any = cg.speed > 0 || cg.endurance > 0 || cg.orientation > 0;
+                    return any ? (
                       <div className="notice" style={{ margin: '8px 0 0', fontSize: '0.82rem', lineHeight: 1.5 }}>
-                        <strong>Voor {p.name} nu:</strong> per dag ± snelheid <strong>+{gs.toFixed(2)}</strong>, conditie{' '}
-                        <strong>+{ge.toFixed(2)}</strong>, oriëntatie <strong>+{go.toFixed(2)}</strong>, ervaring{' '}
-                        <strong>+{eco.coachExpDailyGain.toFixed(2)}</strong>.
+                        <strong>Voor {p.name} nu:</strong> per dag ± snelheid <strong>+{cg.speed.toFixed(2)}</strong>, conditie{' '}
+                        <strong>+{cg.endurance.toFixed(2)}</strong>, oriëntatie <strong>+{cg.orientation.toFixed(2)}</strong>
+                        {state?.economy && <>, ervaring <strong>+{state.economy.coachExpDailyGain.toFixed(2)}</strong></>}.
                         <br />
-                        De winst wordt <strong>kleiner naarmate een eigenschap richting 100 gaat</strong>: een jonge/zwakke
-                        duif ontwikkelt snel, een sterke duif verfijnt traag. Zo blijft een uitgetrainde duif een echte prestatie.
+                        De winst wordt <strong>kleiner naarmate een eigenschap haar gen-cap nadert</strong> — de laatste punten
+                        zijn een lange, dure grind.
+                      </div>
+                    ) : (
+                      <div className="notice" style={{ margin: '8px 0 0', fontSize: '0.82rem', lineHeight: 1.5 }}>
+                        Voor {p.name} heeft een coach <strong>nu geen effect</strong>: geen enkele race-eigenschap zit boven 90 met
+                        groeiruimte tot haar gen-cap. Bouw eerst op via training en vluchten — of deze duif capt genetisch onder 90.
                       </div>
                     );
                   })()}

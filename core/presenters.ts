@@ -6,11 +6,11 @@
 
 import type { Database, Flight, Loft, Notification, Pigeon, Trade } from './schema.js';
 import { BREED_RARITY, compartmentCost, REST_CURE, TRAINING } from './config/gameConfig.js';
-import { ageInWeeks, breedInfo, canRace, estimateValue, talent } from './game/pigeon.js';
+import { ageInWeeks, breedInfo, canRace, estimateValue, geneCap, talent, trainCeil, trainingCost } from './game/pigeon.js';
 import { auctionKind } from './game/auction.js';
 import { bettingOpen } from './game/betting.js';
 import { nextCapacityTier, nextInfirmaryTier, ownerName } from './game/engine.js';
-import { projectDailyCare } from './game/economy.js';
+import { coachDailyGain, projectDailyCare } from './game/economy.js';
 import { coveredInInfirmary } from './game/health.js';
 import { flightCommentary, liveSnapshot } from './game/flight.js';
 import { BADGES, levelForXp } from './game/badges.js';
@@ -95,6 +95,24 @@ export function pigeonDTO(db: Database, p: Pigeon, viewerId?: string) {
     racing: db.flights.some((f) => f.status !== 'completed' && f.entries.some((e) => e.pigeonId === p.id)),
     breeding: revealed && db.breedingPairs.some((bp) => bp.sireId === p.id || bp.damId === p.id),
     dailyCare,
+    // GENETICS (own birds only): the per-skill ceilings for the red cap markers,
+    // the level-scaled cost of the next manual training step + its 80/geneCap
+    // ceiling, and the coach's current daily polish per skill (0 below 90).
+    genes: revealed ? (p.genes ?? null) : null,
+    training: revealed
+      ? {
+          speed: { cost: trainingCost(p.speed), cap: trainCeil(p, 'speed') },
+          endurance: { cost: trainingCost(p.endurance), cap: trainCeil(p, 'endurance') },
+          orientation: { cost: trainingCost(p.orientation), cap: trainCeil(p, 'orientation') },
+        }
+      : null,
+    coachGain: revealed
+      ? {
+          speed: round1(coachDailyGain(p.speed, geneCap(p, 'speed'))),
+          endurance: round1(coachDailyGain(p.endurance, geneCap(p, 'endurance'))),
+          orientation: round1(coachDailyGain(p.orientation, geneCap(p, 'orientation'))),
+        }
+      : null,
   };
 }
 
