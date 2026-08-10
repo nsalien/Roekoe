@@ -421,7 +421,10 @@ Entiteiten: `Pigeon`, `Loft`, `User`, `BreedingPair`, `Flight` (+ `SimEntry`,
   meer energie+libido = sneller een jong.
 - **Ziekenboeg (`INFIRMARY`):** basiscapaciteit **2** (was 4); upgrades 3/4/5/6 voor
   €800/1200/1800/2400 (`INFIRMARY_CAPACITY_TIERS`). Dokter €400/wk, kinesist €350/wk,
-  medicatievoer €45/duif/wk.
+  medicatievoer €45/duif/wk. **`energyRecoveryFactor 0.5`** — een duif in de ziekenboeg
+  recupereert energie enkel als ze **door staf gedekt** is (`coveredInInfirmary`: dokter=
+  ziekte, kinesist=kwetsuur) en dan aan **50 %** van het gezonde voer-tempo; ongedekt = 0.
+  In de boeg geen rustbonus (zie §Verzorging).
 - **Herstel (`HEALING`)** — real-time: `baseHoursOutside` licht 120 / matig 264 /
   ernstig 432 (uren rustend in hok); ziekenboeg ×1,8, dokter/kinesist ×1,4,
   medicatievoer ×1,2 (stapelen → volle zorg ×~3). Volle zorg: licht ~1,5 dag /
@@ -615,7 +618,23 @@ Voor engine-logica: snelle integratietests met **tsx** vanuit de repo-root
 Alles hieronder staat **live** op de deploy-branch. Data-migraties liepen door tot
 **`dataVersion = 28`**.
 
-**Minimumafstanden per niveau (nieuwste)**
+**Energie-recuperatie in de ziekenboeg (nieuwste)**
+- Een duif in de **ziekenboeg** recupereert nu energie aan **50 %** van het gezonde
+  voer-tempo (`INFIRMARY.energyRecoveryFactor 0.5`) — en **enkel als ze door staf gedekt
+  is** (dokter voor een ziekte, kinesist voor een kwetsuur, via de bestaande
+  `coveredInInfirmary`-dekking die ook het herstel versnelt). Een **ongedekte**
+  ziekenboeg-duif krijgt **geen** energie meer (was voorheen het volle tempo). In de boeg
+  telt ook de **rustbonus** niet meer mee, zodat dit halve voerherstel de enige energiebron
+  in de ziekenboeg is.
+- `economy.ts`: `applyDayOfCare(loft, pigeons, livePigeonIds, coveredInfirmaryIds?)` — de
+  voer-energiewinst wordt ×`energyRecoveryFactor` (gedekt) of ×0 (ongedekt) voor
+  `p.inInfirmary`; rustbonus/rest-streak overgeslagen in de boeg. `projectDailyCare(loft, p,
+  live, covered?)` spiegelt dit voor de ▲/▼-weergave in Mijn hok. `tickDailyCare`
+  (schedule.ts) berekent `coveredInInfirmary(loft, owned)` en geeft de set door;
+  `pigeonDTO` (presenters.ts) draait de dekking-scan **enkel voor ziekenboeg-duiven**
+  (hot path blijft goedkoop). **Geen migratie** (config/logica), `dataVersion` blijft 28.
+
+**Minimumafstanden per niveau**
 - Wedstrijdvluchten hebben nu een **harde ondergrens**: regionaal **≥ 100 km** (was 0),
   nationaal **≥ 200**, internationaal **≥ 400** (die twee waren al zo). `FLIGHT_TIERS.regional.minKm`
   van 0 → **100**.

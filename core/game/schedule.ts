@@ -40,7 +40,7 @@ import { breed } from './breeding.js';
 import { awardBadge, awardFlightBadges, evaluateBadges } from './badges.js';
 import { ensureAuctions } from './auction.js';
 import { settleFlightBets, voidOrphanedBets, refundFlightBets } from './betting.js';
-import { runAgeMortality, runHealthDay, tickHealing } from './health.js';
+import { coveredInInfirmary, runAgeMortality, runHealthDay, tickHealing } from './health.js';
 import { tickSeason } from './season.js';
 import { progressMissions } from './missions.js';
 import { activeContracts, evaluateSponsorOffers } from './sponsors.js';
@@ -1152,7 +1152,10 @@ export function tickDailyCare(db: Database, nowMs: number): void {
           }
         }
       }
-      const { deaths } = applyDayOfCare(loft, owned, livePigeonIds);
+      // Infirmary birds only recover energie (at a reduced rate) when properly
+      // staffed — same coverage rule that speeds their healing.
+      const coveredInfirmaryIds = coveredInInfirmary(loft, owned);
+      const { deaths } = applyDayOfCare(loft, owned, livePigeonIds, coveredInfirmaryIds);
       for (const dead of deaths) {
         db.pigeons = db.pigeons.filter((p) => p.id !== dead.id);
         db.breedingPairs = db.breedingPairs.filter((bp) => bp.sireId !== dead.id && bp.damId !== dead.id);

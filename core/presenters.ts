@@ -11,6 +11,7 @@ import { auctionKind } from './game/auction.js';
 import { bettingOpen } from './game/betting.js';
 import { nextCapacityTier, nextInfirmaryTier, ownerName } from './game/engine.js';
 import { projectDailyCare } from './game/economy.js';
+import { coveredInInfirmary } from './game/health.js';
 import { flightCommentary, liveSnapshot } from './game/flight.js';
 import { BADGES, levelForXp } from './game/badges.js';
 import { round1 } from './game/util.js';
@@ -31,7 +32,13 @@ export function pigeonDTO(db: Database, p: Pigeon, viewerId?: string) {
   // viewed by someone else (to make a private/direct offer), hides its attributes.
   const revealed = viewerId === undefined || p.ownerId === viewerId || p.forSale;
   const live = db.flights.some((f) => f.status === 'live' && f.entries.some((e) => e.pigeonId === p.id));
-  const dailyCare = revealed && owner && !owner.isBot ? projectDailyCare(owner, p, live) : null;
+  // Only an infirmary bird's energie recovery depends on staff coverage, so we
+  // only run the (rare) coverage scan for those — the common path stays cheap.
+  const infirmaryCovered =
+    p.inInfirmary && owner
+      ? coveredInInfirmary(owner, db.pigeons.filter((x) => x.ownerId === owner.userId)).has(p.id)
+      : false;
+  const dailyCare = revealed && owner && !owner.isBot ? projectDailyCare(owner, p, live, infirmaryCovered) : null;
   const hide = <T,>(v: T): T | null => (revealed ? v : null);
   return {
     id: p.id,
