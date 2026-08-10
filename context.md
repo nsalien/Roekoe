@@ -613,7 +613,22 @@ Voor engine-logica: snelle integratietests met **tsx** vanuit de repo-root
 ## 8. Belangrijkste wijzigingen deze sessie (achtergrond)
 
 Alles hieronder staat **live** op de deploy-branch. Data-migraties liepen door tot
-**`dataVersion = 27`**.
+**`dataVersion = 28`**.
+
+**Minimumafstanden per niveau (nieuwste)**
+- Wedstrijdvluchten hebben nu een **harde ondergrens**: regionaal **≥ 100 km** (was 0),
+  nationaal **≥ 200**, internationaal **≥ 400** (die twee waren al zo). `FLIGHT_TIERS.regional.minKm`
+  van 0 → **100**.
+- `pickRoute` verscherpt: 120 pogingen + **beste-fallback op vensterafstand** (kiest het paar
+  dat het dichtst bij `[minKm,maxKm]` ligt i.p.v. het eerste willekeurige paar), zodat de
+  ondergrens gehaald wordt zolang de pool ze kan bereiken. Geverifieerd op 200k trekkingen:
+  0% onder de floor voor alle drie de niveaus.
+- **Oefenvluchten blijven kort**: `makeRealtimeFlight` routeert practice met
+  `pickRoute(tier, 0)` (min-override 0), dus de regionale floor lengt ze niet op (avg ~75 km).
+- **Migratie v28**: elke nog-**scheduled** wedstrijdvlucht onder haar tier-floor wordt
+  her-routeerd via `pickRoute(tier)` (tier uit `f.type`, niet uit de afstand — een te korte
+  nationale blijft dus nationaal). Practice, live/completed (bevroren sim) en titans blijven
+  ongemoeid. **dataVersion → 28.**
 
 **Apart hok komt vrij bij ziekenboeg + auto-terugname (nieuwste)**
 - Een duif die naar de **ziekenboeg** gaat, **geeft haar aparte hok vrij** — de slot komt
@@ -928,8 +943,9 @@ polls niet telkens de hele wereld herladen. **Structureel:** selectief laden i.p
   vallen uit de trofeeënlijst (niet uit de tellingen).
 
 **Afstand, coach, live-bord, veilingen, dilemma's & sponsors (deze sessie)**
-- **Bredere afstandsvensters** (`FLIGHT_TIERS` in gameConfig): regionaal **0–200 km**,
-  nationaal **200–500 km**, internationaal **400–1200 km** (was 30–160 / 60–290 / 180–950).
+- **Afstandsvensters** (`FLIGHT_TIERS` in gameConfig): regionaal **100–200 km**,
+  nationaal **200–500 km**, internationaal **400–1200 km** (regionaal-min was 0 → **100**;
+  eerdere vensters waren 30–160 / 60–290 / 180–950). Zie §"Minimumafstanden" onderaan §8.
   `tierPool` (schedule.ts): nationaal = BE + buurlanden (geen GB/ES, geen `intlOnly`);
   internationaal = alles incl. de nieuwe **grote-fond­losplaatsen**. Nieuwe steden in
   `RACE_CITIES` (Berlijn + `intlOnly`: Lyon, Bordeaux, Toulouse, Marseille, Perpignan,
