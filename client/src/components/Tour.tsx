@@ -350,8 +350,9 @@ export const GENES_NEWS_STEPS: Step[] = [
       <>
         Handmatig trainen kan nog steeds — maar <strong>enkel tot 80</strong>, en de <strong>kost stijgt
         exponentieel</strong> met het niveau (50→51 is spotgoedkoop, 79→80 een echte investering). Daarboven groeit een
-        duif enkel nog door te <strong>vliegen</strong> (tot 90) en met een <strong>privécoach</strong> (boven 90, tot
-        haar gen-cap). Een coach <strong>onder 90</strong> heeft dus geen effect meer.
+        duif door te <strong>vliegen</strong> (tot 90) en met een <strong>privécoach</strong>. Die coach werkt op{' '}
+        <strong>elk niveau</strong> richting de gen-cap (met kleiner wordende winst), en is de <strong>enige weg boven
+        90</strong>.
       </>
     ),
   },
