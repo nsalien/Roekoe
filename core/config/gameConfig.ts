@@ -87,17 +87,17 @@ export function compartmentCost(owned: number): number {
  */
 export const COACH = {
   // A private coach is a PURELY DAILY cost — no upfront hire fee, €80/day per
-  // coached pigeon. In the new genetics model the coach is an END-GAME polisher:
-  // it only has EFFECT on a racing attribute that is already at/above GENE.coachMinAttr
-  // (90), and only up to the bird's own genetic cap (never 100). Training builds
-  // 0→80, racing 80→90, and only the coach nudges 90→gene-cap — slowly. Below 90 a
-  // coach does nothing, so it is only worth hiring for a bird whose genes allow >90.
+  // coached pigeon. It drills the three racing attributes every day toward the
+  // bird's own GENE cap, at ANY level, with DIMINISHING returns: the daily gain
+  // shrinks as an attribute nears its cap and stops once it hits the cap (never
+  // above — the cap is the max). It is also the ONLY thing that pushes a skill
+  // above 90 (training stops at 80, racing at 90). Each attribute is capped
+  // independently: one already at its cap stops while the others keep rising.
+  //   gain(attr, cap) = maxDailyGain · (cap − attr) / cap   (0 at/above the cap)
   hireCost: 0, // deprecated: coaching has no one-time cost anymore
   dailySalary: 80, // per coached pigeon, charged automatically each day
-  experienceDailyGain: 0.5, // flat ervaring/day while coached AND actually polishing (≥90)
-  // Peak daily gain inside the 90→cap window (at exactly 90); it tapers to ~0 at
-  // the gene cap (see economy.coachDailyGain). So 90→95 is a multi-week grind.
-  eliteGainPerDay: 0.15,
+  maxDailyGain: 1.1, // peak gain/day (at attr 0), scaled down by the room to the cap
+  experienceDailyGain: 0.5, // flat ervaring/day while the coach still has an attribute to raise
 } as const;
 
 /**
@@ -118,8 +118,7 @@ export const GENE = {
   rollMax: 96, // bell-roll upper bound (clamped down to ceil)
   qualityShift: 12, // (quality−0.5)·this nudges the roll for better/worse sources
   trainCap: 80, // manual training can't push a skill past this
-  raceCap: 90, // racing can't push a skill past this
-  coachMinAttr: 90, // the coach only has effect from this value upward
+  raceCap: 90, // racing can't push a skill past this (only the coach goes higher)
   mutation: 6, // ± spread when a gene cap is inherited
   declineRateMin: 0.6, // per-bird ageing-decline multiplier range (see AGING)
   declineRateMax: 1.6,

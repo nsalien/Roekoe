@@ -20,16 +20,16 @@ import { clamp, hashString, round1 } from './util.js';
 const RACING_ATTRS: RacingAttr[] = ['speed', 'endurance', 'orientation'];
 
 /**
- * A private coach's daily gain for ONE racing attribute. The coach is an END-GAME
- * polisher: it only acts from GENE.coachMinAttr (90) up to the bird's own gene
- * `cap`, tapering to ~0 at the cap. Below 90 (where training/racing do the work),
- * or once the skill is at its genetic ceiling, the coach adds nothing.
+ * A private coach's daily gain for ONE racing attribute. The coach works at ANY
+ * level, drilling the skill toward the bird's own gene `cap` with DIMINISHING
+ * returns — the gain shrinks as the skill nears its cap and is 0 once it reaches
+ * it (the cap is the max; the coach never pushes above it). It is also the only
+ * thing that can raise a skill above 90 (training stops at 80, racing at 90).
  */
 export function coachDailyGain(attr: number, cap: number): number {
-  if (attr < GENE.coachMinAttr || attr >= cap) return 0;
-  const span = Math.max(1, cap - GENE.coachMinAttr);
-  const room = (cap - attr) / span; // 1 at 90 → 0 at the cap
-  return COACH.eliteGainPerDay * Math.pow(room, 0.8); // callers round when storing
+  if (attr >= cap) return 0;
+  const room = (cap - attr) / cap; // diminishes toward the cap, 0 at the cap
+  return COACH.maxDailyGain * room; // callers round when storing (1 decimal)
 }
 
 /** A bird that starved to death during a day of care. */
@@ -247,8 +247,8 @@ export function projectDailyCare(loft: Loft, p: Pigeon, live = false, covered = 
     }
     if (ration.libidoRecovery) libidoFromFeed = ration.libidoRecovery / 7;
     if (coachActive) {
-      // Coach polishes only ≥90 up to the gene cap (food never reaches there, so
-      // the conditie food-gain and coach-gain never overlap).
+      // Coach drills every skill toward its gene cap (any level, diminishing). For
+      // conditie it stacks on top of the food gain (both move it toward the cap).
       speed = rise(p.speed, coachGainOf('speed'), geneCap(p, 'speed'));
       orientation = rise(p.orientation, coachGainOf('orientation'), geneCap(p, 'orientation'));
       enduranceRaw += coachGainOf('endurance');

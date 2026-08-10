@@ -706,13 +706,13 @@ zijn haar huidige stats nog laag: een jong met topgenen is goud waard.
 
 ## 8. Training & de drie groeitrappen
 
-Een vaardigheid groeit in **drie trappen**, elk met haar eigen weg omhoog:
+Een vaardigheid groeit in **drie trappen**:
 
-| Bereik | Enige manier om te groeien |
+| Bereik | Hoe je er groeit |
 |---|---|
-| **0 → 80** | zelf **trainen** (+ vluchten) |
-| **80 → 90** | enkel **vluchten** |
-| **90 → gen-cap** | enkel een **privécoach** (§13), en traag |
+| **0 → 80** | **trainen**, **vluchten** of een **coach** |
+| **80 → 90** | **vluchten** of een **coach** |
+| **90 → gen-cap** | enkel een **privécoach** (§13) |
 
 **Handmatig trainen** verbruikt **15 energie**, geeft ~**+1** aan de gekozen
 vaardigheid (+**4 ervaring**) en kan **tot 80** (of de gen-cap als die lager is —
@@ -730,9 +730,10 @@ een echte investering:
 | 70 → 71 | ~€1.035 |
 | 79 → 80 | **~€2.700** |
 
-**Boven 80** helpt trainen niet meer: **80→90 verdien je enkel door te vliegen**,
-en **alles boven 90 kan enkel met een privécoach** (§13). Groei vertraagt bovendien
-naarmate een duif haar plafond nadert: 50→51 gaat vlot, 88→89 is een grind.
+**Boven 80** helpt handmatig trainen niet meer: **80→90 verdien je door te vliegen
+of met een coach**, en **alles boven 90 kan enkel met een privécoach** (§13). Groei
+vertraagt bovendien naarmate een duif haar plafond nadert: 50→51 gaat vlot, 88→89 is
+een grind.
 
 ---
 
@@ -914,17 +915,18 @@ Verdiend geld kan je investeren in je hok en je duiven (bij *Mijn hok*, de
   Naast Zuinig/Normaal/Royaal zijn er twee premiumopties: **Premium** (meer
   energie- en gezondheidsherstel én bouwt langzaam conditie op) en **Libido-mix**
   (verhoogt de voortplantingsdrang). Ze verbruiken meer voer.
-- **Privécoach = elite-afwerking (boven 90).** Huur een coach voor één specifieke
-  duif tegen een **dagsalaris van €80** (geen instapkost, dagelijks afgerekend). In
-  het genensysteem is de coach een **perfectioneerder**: hij duwt snelheid, conditie
-  of oriëntatie **enkel boven 90** verder richting de **gen-cap** van de duif (nooit
-  100) — en **traag** (de winst tapert naar ~0 aan de cap; 90→95 is een grind van
-  weken). **Onder 90 doet een coach niets**: daar bouw je op met trainen (tot 80) en
-  vluchten (tot 90). Een coach loont dus **alleen voor een duif waarvan de genen meer
-  dan 90 toelaten**. Hij werkt niet terwijl de duif effectief vliegt. De concrete
-  winst per dag voor élke duif zie je op de **duifpagina** (onder de coach-knop); als
-  er geen enkele vaardigheid ≥90 met groeiruimte is, meldt de pagina dat een coach
-  hier geen effect heeft.
+- **Privécoach.** Huur een coach voor één specifieke duif tegen een **dagsalaris
+  van €80** (geen instapkost, dagelijks afgerekend). Hij traint haar **elke dag** in
+  snelheid, conditie én oriëntatie (plus ervaring) — puur om te racen, nooit libido.
+  De coach werkt op **elk niveau** (of de duif nu 50 of 92 heeft) en duwt elke
+  vaardigheid richting haar **gen-cap** (nooit hoger). De **dagwinst wordt kleiner
+  naarmate een eigenschap haar cap nadert** en **stopt zodra de cap bereikt is** —
+  die vaardigheid stijgt dan niet meer, terwijl de andere (nog onder hun cap) wél
+  verder kunnen. Enkel de coach gaat **boven 90** (trainen stopt op 80, vluchten op
+  90), dus voor de allerlaatste punten is hij onmisbaar. Werkt niet terwijl de duif
+  effectief vliegt. De concrete winst per dag zie je op de **duifpagina** (onder de
+  coach-knop); zitten alle drie de vaardigheden al op hun gen-cap, dan meldt de pagina
+  dat de coach niets meer kan toevoegen.
 - **Trainingsplafonds (samengevat).** Zelf **trainen** tot **80**, **vluchten** tot
   **90**, **premiumvoer** bouwt conditie mee op tot **80**, en enkel de **coach** gaat
   boven 90 — tot de **gen-cap** van de duif (max 95, nooit 100). Voer/vlucht verlagen

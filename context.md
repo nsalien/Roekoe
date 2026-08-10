@@ -371,14 +371,14 @@ Entiteiten: `Pigeon`, `Loft`, `User`, `BreedingPair`, `Flight` (+ `SimEntry`,
   `DAILY_UPKEEP_PER_PIGEON 2`, `COACH.dailySalary 80`, `INFIRMARY.doctorSalary 57` /
   `physioSalary 50` / `medicatedFoodPerBird 6`. Aangerekend in `tickDailyCare` via
   `economy.dailyRunningCost`; sponsorbijdrage dagelijks (weekbedrag ÷ 7).
-- **Privécoach = end-game-afwerking boven 90** (`COACH`): geen instapdrempel
+- **Privécoach = dagelijkse groei richting de gen-cap** (`COACH`): geen instapdrempel
   (`hireCost 0`), enkel **€80/dag per gecoachte duif** (`dailySalary`). `coachDailyGain(attr,
-  cap)` geeft **0 onder `GENE.coachMinAttr (90)`** en tapert van `eliteGainPerDay (0.15)`
-  aan 90 naar ~0 aan de gen-cap (`room^0.8`, span = cap−90). Dus enkel zinvol voor een duif
-  met gen-cap ≥ 91; 90→95 is een grind van weken. `applyDayOfCare` polijst per attribuut en
-  geeft `experienceDailyGain 0.5` **enkel** als er echt gepolijst wordt. Werkt niet terwijl
-  de duif vliegt. `pigeonDTO.coachGain` (per attribuut) voedt de UI; `maxDailyGain`/
-  `attributeCap` **verwijderd**. Zie ook §5-Genen.
+  cap) = COACH.maxDailyGain (1.1) · (cap − attr)/cap` — werkt op **elk niveau**, afnemend
+  richting de cap, **0 op/boven de cap** (per eigenschap onafhankelijk). Enkel de coach
+  passeert 90 (trainen ≤80, vluchten ≤90). `applyDayOfCare` drilt per attribuut en geeft
+  `experienceDailyGain 0.5` zolang er nog minstens één eigenschap onder haar cap zit. Werkt
+  niet terwijl de duif vliegt. `pigeonDTO.coachGain` (per attribuut) voedt de UI;
+  `attributeCap`/`coachMinAttr`/`eliteGainPerDay` bestaan niet meer. Zie ook §5-Genen.
 - **Dagopdrachten/streak verlaagd** (missions.ts): opdrachtgeld ~gehalveerd (15–60),
   streakbonus `min(25, 5 + streak·2)` → samen ~€750/week i.p.v. ~€1750.
 - **Weddenschap max inzet €500** (`BETTING.maxStake`, was 5000).
@@ -641,10 +641,12 @@ Alles hieronder staat **live** op de deploy-branch. Data-migraties liepen door t
   `flight.ts` (finalize + practice + `applyFlightEffects` + racing-conditie) clampt op
   `raceCeil`; premiumvoer-conditie (`economy`) capt op `min(80, geneCap)`. Grandfathered
   duiven boven hun cap worden **nooit verlaagd** (guards `current < cap`).
-- **Coach = end-game (`COACH.eliteGainPerDay 0.15`)**: `coachDailyGain(attr, cap)` geeft
-  **0 onder 90** en tapert naar 0 aan de cap; `maxDailyGain`/`attributeCap` **verwijderd**
-  uit config (+ uit economy-DTO en client). `applyDayOfCare` polijst per attribuut, geeft
-  enkel ervaring als er écht gepolijst wordt. `pigeonDTO` stuurt `coachGain` per attribuut.
+- **Coach werkt op elk niveau, dooft uit richting de gen-cap** (`COACH.maxDailyGain 1.1`):
+  `coachDailyGain(attr, cap) = 1.1·(cap−attr)/cap`, **0 op/boven de cap**, per eigenschap
+  onafhankelijk; enkel de coach passeert 90. (Oude `attributeCap 100` + de tussentijdse
+  `eliteGainPerDay`/`coachMinAttr 90`-variant zijn **verwijderd** — de coach doet dus **niet**
+  enkel boven 90.) `applyDayOfCare` drilt per attribuut, geeft ervaring zolang er iets te
+  groeien valt. `pigeonDTO` stuurt `coachGain` per attribuut.
 - **Trainingskost exponentieel** (`TRAINING.costBase 0.6`, `costGrowth 2.9`, `costMin 15`):
   `trainingCost(v) = max(15, round5(0.6·2.9^(v/10)))` → ~€125 @50, ~€1035 @70, ~€2700 @79→80.
   `pigeonDTO.training[attr] = {cost, cap}`; `bots.ts` volgt dezelfde regels.

@@ -83,17 +83,17 @@ export function WikiPage() {
         </p>
         <p><strong>Groeien gebeurt in drie trappen</strong>, elk met haar eigen weg omhoog:</p>
         <MiniTable
-          head={['Bereik', 'Enige manier om te groeien']}
+          head={['Bereik', 'Hoe je er groeit']}
           rows={[
-            ['0 → 80', 'Zelf trainen (+ vluchten)'],
-            ['80 → 90', 'Enkel vluchten'],
-            ['90 → gen-cap', 'Enkel een privécoach — en traag'],
+            ['0 → 80', 'Trainen, vluchten of coach'],
+            ['80 → 90', 'Vluchten of coach'],
+            ['90 → gen-cap', 'Enkel een coach'],
           ]}
         />
         <ul style={{ marginTop: 12 }}>
-          <li><strong>Trainen wordt duurder</strong> naarmate de waarde stijgt (exponentieel): 50→51 kost een prikje, 79→80 een flinke som. Elke vaardigheid kan 1× per week getraind worden.</li>
+          <li><strong>Trainen wordt duurder</strong> naarmate de waarde stijgt (exponentieel): 50→51 kost een prikje, 79→80 een flinke som. Elke vaardigheid kan 1× per week getraind worden — en maar tot 80.</li>
           <li><strong>Groei vertraagt</strong> naarmate een duif haar plafond nadert: 50→51 gaat vlot, 88→89 is een grind.</li>
-          <li><strong>Een coach heeft enkel effect boven 90</strong> — hij loont dus alleen voor een duif waarvan de genen meer dan 90 toelaten.</li>
+          <li><strong>Een coach werkt op élk niveau</strong> en duwt elke vaardigheid dagelijks richting haar gen-cap; de winst wordt kleiner naar de cap toe en stopt daar. Enkel de coach gaat <strong>boven 90</strong>.</li>
           <li><strong>Genen bepalen mee de waarde:</strong> hogere plafonds = duurdere duif, ook al zijn de huidige stats nog laag. En ze <strong>erven door</strong> bij kweek — koppel je toppers om een sterke lijn te bouwen.</li>
           <li><strong>Verouderen:</strong> na haar piek (rond ~4 duivenjaar) zwakt een duif geleidelijk af in snelheid/conditie/oriëntatie — bij de ene sneller dan de andere.</li>
         </ul>

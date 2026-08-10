@@ -317,10 +317,11 @@ export function PigeonPage() {
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <strong>🎯 Privécoach</strong>
                   <div className="faint" style={{ fontSize: '0.85rem' }}>
-                    Een coach <strong>perfectioneert</strong> een duif: hij duwt snelheid, conditie of oriëntatie <strong>boven 90</strong>{' '}
-                    richting haar <strong>genetische plafond</strong> (nooit 100). <strong>Onder 90 doet een coach niets</strong> —
-                    daar bouw je op met training (tot 80) en vluchten (tot 90). Enkel zinvol dus voor een duif waarvan de genen{' '}
-                    <strong>meer dan 90</strong> toelaten.
+                    Traint deze duif <strong>elke dag</strong> in snelheid, conditie én oriëntatie richting hun{' '}
+                    <strong>genetische plafond</strong> (nooit hoger), plus ervaring — puur om te racen, niet voor libido. Werkt op{' '}
+                    <strong>elk niveau</strong>, maar de winst wordt <strong>kleiner naarmate een eigenschap haar cap nadert</strong>{' '}
+                    en <strong>stopt op de cap</strong>. Enkel de coach gaat <strong>boven 90</strong> (zelf trainen stopt op 80,
+                    vluchten op 90).
                     {state?.economy && (
                       <> Geen instapkost — enkel <Money value={state.economy.coachSalary} />/dag zolang de coach aan het werk is.</>
                     )}
@@ -334,13 +335,13 @@ export function PigeonPage() {
                         <strong>+{cg.endurance.toFixed(2)}</strong>, oriëntatie <strong>+{cg.orientation.toFixed(2)}</strong>
                         {state?.economy && <>, ervaring <strong>+{state.economy.coachExpDailyGain.toFixed(2)}</strong></>}.
                         <br />
-                        De winst wordt <strong>kleiner naarmate een eigenschap haar gen-cap nadert</strong> — de laatste punten
-                        zijn een lange, dure grind.
+                        De winst wordt <strong>kleiner naarmate een eigenschap haar gen-cap nadert</strong>, en een eigenschap die
+                        haar cap al bereikt heeft stijgt niet meer (de andere wél).
                       </div>
                     ) : (
                       <div className="notice" style={{ margin: '8px 0 0', fontSize: '0.82rem', lineHeight: 1.5 }}>
-                        Voor {p.name} heeft een coach <strong>nu geen effect</strong>: geen enkele race-eigenschap zit boven 90 met
-                        groeiruimte tot haar gen-cap. Bouw eerst op via training en vluchten — of deze duif capt genetisch onder 90.
+                        Voor {p.name} heeft een coach <strong>geen effect meer</strong>: snelheid, conditie én oriëntatie zitten al
+                        op hun genetische plafond.
                       </div>
                     );
                   })()}
