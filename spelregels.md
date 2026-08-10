@@ -405,6 +405,9 @@ Energie   += (energie_per_week / 7) · (1 + Ervaring/200)   // ervaring = snelle
 Gezondheid+= (gezondheid_per_week / 7) + Conditie/280       // goede conditie = betere gezondheid
 ```
 
+> **Duif in de ziekenboeg?** Dan geldt dit energieherstel maar aan **50 %** — en enkel
+> als ze door een dokter/kinesist verzorgd wordt (anders 0). Zie §5.4.
+
 **Rustbonus.** Blijft een duif thuis (doet ze geen vlucht) én eet ze elke dag, dan
 bouwt ze rust op: **elke 3e zulke dag** krijgt ze **+4 energie** bovenop het gewone
 voer-herstel. De teller **reset zodra ze een vlucht doet**, en een **hongerdag**
@@ -561,6 +564,14 @@ kwetsbare duiven niet nodeloos op de zwaarste vluchten.
 - Dekking gaat eerst naar de ernstigste gevallen.
 - Zieke/gekwetste duiven en duiven in de ziekenboeg kunnen niet vliegen, trainen
   of broeden.
+- **Energie in de ziekenboeg.** Een duif die in de ziekenboeg herstelt, recupereert
+  daar óók energie uit haar voer — maar **alleen als ze door je staf verzorgd wordt**
+  (een **dokter** voor een ziekte, een **kinesist** voor een kwetsuur) en dan nog aan
+  **50 %** van het tempo dat ze gezond zou halen. Een herstellende duif komt dus trager
+  weer op krachten dan een gezonde. Zit ze in de boeg **zonder** de juiste staf (geen
+  dokter/kinesist, of buiten de dekking van je staf), dan krijgt ze er **geen** energie
+  bij tot je verzorging voorziet. In de boeg telt bovendien de **rustbonus** (§4) niet
+  mee — enkel dit (halve) voerherstel telt.
 
 ---
 

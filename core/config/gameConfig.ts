@@ -915,6 +915,11 @@ export const INFIRMARY = {
   physioSalary: 50, // daily € per pigeon physiotherapist hired
   birdsPerDoctor: 2, // one doctor treats up to this many sick birds well
   birdsPerPhysio: 2, // one physio treats up to this many injured birds well
+  // A bird resting in the infirmary still recovers ENERGIE from its feed, but only
+  // if it is properly covered by staff (a doctor for illness, a physio for injury)
+  // and then only at this fraction of the normal (healthy) rate — a convalescing
+  // bird regains its fut more slowly. An uncovered infirmary bird recovers none.
+  energyRecoveryFactor: 0.5,
 } as const;
 
 /** Buyable infirmary-bed upgrades, bought in order from the base of 2. */

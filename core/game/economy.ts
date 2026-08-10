@@ -54,7 +54,12 @@ export interface DayOfCareResult {
  * hungry day (`hungerDays`) — energie, gezondheid, conditie and libido all drop
  * by `xPerDay · hungerDays` — and after a few days it can (then will) die.
  */
-export function applyDayOfCare(loft: Loft, pigeons: Pigeon[], livePigeonIds?: Set<string>): DayOfCareResult {
+export function applyDayOfCare(
+  loft: Loft,
+  pigeons: Pigeon[],
+  livePigeonIds?: Set<string>,
+  coveredInfirmaryIds?: Set<string>,
+): DayOfCareResult {
   const active = pigeons;
   if (active.length === 0) return { allFed: true, deaths: [] };
   const stock = loft.food;
@@ -85,7 +90,15 @@ export function applyDayOfCare(loft: Loft, pigeons: Pigeon[], livePigeonIds?: Se
       const inCompartment = !!p.compartment && !p.inInfirmary;
       const formMult = 1 + (inCompartment ? COMPARTMENT.formRecoveryBonus : 0);
       const healthMult = 1 + (inCompartment ? COMPARTMENT.healthRecoveryBonus : 0);
-      const energyGain = (ration.formRecovery / 7) * (1 + p.experience / 200) * formMult; // exp + compartment speed recovery
+      // A bird convalescing in the infirmary still recovers ENERGIE from its feed,
+      // but only when properly staffed (doctor for illness / physio for injury) and
+      // then only at INFIRMARY.energyRecoveryFactor of the healthy rate; an uncovered
+      // infirmary bird gets none. (Compartment bonus is already off in the boeg.)
+      const infirmaryEnergyMult = p.inInfirmary
+        ? (coveredInfirmaryIds?.has(p.id) ? INFIRMARY.energyRecoveryFactor : 0)
+        : 1;
+      const energyGain =
+        (ration.formRecovery / 7) * (1 + p.experience / 200) * formMult * infirmaryEnergyMult; // exp + compartment speed recovery
       p.form = round1(clamp(p.form + energyGain, 0, 100));
       p.health = round1(clamp(p.health + (ration.healthRecovery / 7) * healthMult + p.endurance / 280, 0, 100));
       // Premium feed slowly builds conditie (up to its own cap, never lowering
@@ -111,8 +124,10 @@ export function applyDayOfCare(loft: Loft, pigeons: Pigeon[], livePigeonIds?: Se
       p.libido = round1(clamp(p.libido + (target - p.libido) * 0.04, 0, 100));
       // Rest bonus: a fed bird resting at home (not racing) builds rest; every
       // few such days it gets an extra energie boost. Racing resets this (see
-      // applyFlightEffects).
-      if (!livePigeonIds?.has(p.id)) {
+      // applyFlightEffects). A bird in the infirmary is convalescing, not resting
+      // fit — it recovers energie ONLY through the reduced feeding above, so it
+      // neither builds the rest streak nor earns the bonus while in the boeg.
+      if (!livePigeonIds?.has(p.id) && !p.inInfirmary) {
         p.restDays = (p.restDays ?? 0) + 1;
         if (p.restDays % REST_BONUS.everyDays === 0) {
           p.form = round1(clamp(p.form + REST_BONUS.energy, 0, 100));
@@ -171,13 +186,16 @@ export interface DailyCareProjection {
  * planned to gain (or lose) tomorrow with the current ration, compartment and
  * coach. `live` = the bird is away on a live flight (its coach can't drill it).
  */
-export function projectDailyCare(loft: Loft, p: Pigeon, live = false): DailyCareProjection {
+export function projectDailyCare(loft: Loft, p: Pigeon, live = false, covered = false): DailyCareProjection {
   const key: keyof typeof FEED_RATIONS =
     p.ration && p.ration in FEED_RATIONS ? p.ration : (loft.feedRation in FEED_RATIONS ? loft.feedRation : 'normal');
   const ration = FEED_RATIONS[key];
   const dailyNeed = ration.foodPerPigeon / 7;
   const fed = (loft.food[key] ?? 0) >= dailyNeed;
   const coachActive = !!p.coached && !p.ailment && !p.inInfirmary && !live && fed;
+  // Convalescing in the infirmary → energie recovers at a reduced rate (staffed)
+  // or not at all (unstaffed); mirror applyDayOfCare.
+  const infirmaryEnergyMult = p.inInfirmary ? (covered ? INFIRMARY.energyRecoveryFactor : 0) : 1;
 
   // How much an attribute really moves, clamped to its cap (so a bird near the
   // ceiling shows the small remaining rise, not the raw amount).
@@ -195,10 +213,10 @@ export function projectDailyCare(loft: Loft, p: Pigeon, live = false): DailyCare
     const inCompartment = !!p.compartment && !p.inInfirmary; // no rest bonus while in the infirmary
     const formMult = 1 + (inCompartment ? COMPARTMENT.formRecoveryBonus : 0);
     const healthMult = 1 + (inCompartment ? COMPARTMENT.healthRecoveryBonus : 0);
-    let rawForm = (ration.formRecovery / 7) * (1 + p.experience / 200) * formMult;
+    let rawForm = (ration.formRecovery / 7) * (1 + p.experience / 200) * formMult * infirmaryEnergyMult;
     // A rest-bonus day (fed, home) adds an extra energie boost — show it in the
-    // projected ▲ on the day it lands.
-    if (!live && ((p.restDays ?? 0) + 1) % REST_BONUS.everyDays === 0) rawForm += REST_BONUS.energy;
+    // projected ▲ on the day it lands. Not while convalescing in the infirmary.
+    if (!live && !p.inInfirmary && ((p.restDays ?? 0) + 1) % REST_BONUS.everyDays === 0) rawForm += REST_BONUS.energy;
     form = rise(p.form, rawForm, 100);
     health = rise(p.health, (ration.healthRecovery / 7) * healthMult + p.endurance / 280, 100);
     // Conditie from premium feed (capped at FOOD_ENDURANCE_CAP, never lowering).
