@@ -135,7 +135,9 @@ volgorde:
    `runAgeMortality(db, week)` (health.ts) met de **rauwe weekkans** — zo blijft de
    `MORTALITY_CURVE` kloppen ongeacht de veroudersnelheid. (Ailment-sterfte zit in
    `runHealthDay`, per dag. Vlucht-sterfte zat al in `finalizeFlight` via
-   `TOURNEY_RISK.deathChance`.)
+   `TOURNEY_RISK.deathChance`.) **Ook `runAgeDecline(db, week)`** draait hier: boven de
+   piekleeftijd (`AGING.peakEndWeeks`) zakken snelheid/conditie/oriëntatie **echt** (per-duif
+   `declineRate`); `AGE_CURVE` is daarom neerwaarts afgevlakt.
 5. `tickBreedingHatch(db, nowMs)` — jongen komen uit in echte tijd.
 6. `tickFlightEnergy(db, nowMs)` — trekt vlucht-energie **geleidelijk per 30 min** af.
 7. `tickHealing(db, nowMs)` — **real-time herstel** van ziekte/kwetsuur + 12u-statusupdates.
@@ -307,6 +309,11 @@ Entiteiten: `Pigeon`, `Loft`, `User`, `BreedingPair`, `Flight` (+ `SimEntry`,
   effect op eigenschappen/prestaties. Toegewezen via gewogen loting bij ontstaan
   (`rollBreed` in `pigeon.ts`); geërfd bij kweek (zelfde ras behouden, anders `mixed`).
   Migratie **v23** backfilt bestaande duiven.
+- `Pigeon.genes?` — **genetische plafonds** `{speed,endurance,orientation}` (kolom `genes`
+  JSON, ≤95). Bepalen hoe ver elke racevaardigheid kan groeien (zie §5-Genen), de waarde, en
+  erven over. Migratie **v29** backfilt.
+- `Pigeon.declineRate?` — **verouderingstempo** (~0.6–1.6, kolom `decline_rate REAL`); drijft
+  `runAgeDecline`. Erft over. Migratie **v29**.
 - `Pigeon.hungerDays` — opeenvolgende dagen zonder voer (drijft verhongeren).
 - `Pigeon.restDays` — opeenvolgende gevoede rustdagen zonder vlucht (rustbonus).
 - `Pigeon.cureUntil?` — ISO-tijd waarop een betaalde **rustkuur** afloopt (eigen
@@ -364,19 +371,14 @@ Entiteiten: `Pigeon`, `Loft`, `User`, `BreedingPair`, `Flight` (+ `SimEntry`,
   `DAILY_UPKEEP_PER_PIGEON 2`, `COACH.dailySalary 80`, `INFIRMARY.doctorSalary 57` /
   `physioSalary 50` / `medicatedFoodPerBird 6`. Aangerekend in `tickDailyCare` via
   `economy.dailyRunningCost`; sponsorbijdrage dagelijks (weekbedrag ÷ 7).
-- **Privécoach = puur dagelijkse kost met afnemende groei** (`COACH`): geen
-  instapdrempel (`hireCost 0`, was €4000), enkel **€80/dag per gecoachte duif**
-  (`dailySalary`, was €60) zolang de coach werkt; `setCoach` rekent niets af bij
-  inhuren. Groei **schaalt met de resterende ruimte**:
-  `coachDailyGain(attr) = COACH.maxDailyGain (1.1) · (100 − attr)/100` per
-  eigenschap (snelheid/conditie/oriëntatie), + `experienceDailyGain 0.5`. Dus ~+0,55/dag
-  rond attribuut 50, ~+0,33 rond 70, ~+0,11 rond 90 — en door de afronding op 1
-  decimaal **stalt de groei rond ~95** (de allerlaatste punten tot 96 komen enkel via
-  racen; 100 is praktisch onbereikbaar). Zo is de coach top om een duif **op te
-  bouwen**, maar blijft een elite-duif een lange investering (≈150 dagen + ~€12k om één
-  eigenschap 50→90 te tillen). Werkt enkel als de duif **gevoerd, gezond en thuis** is
-  (niet ziek/in ziekenboeg/onderweg). Knoppen: `COACH.dailySalary` / `maxDailyGain`.
-  Helper `economy.coachDailyGain`; per-dag ▲ zichtbaar in Mijn hok.
+- **Privécoach = end-game-afwerking boven 90** (`COACH`): geen instapdrempel
+  (`hireCost 0`), enkel **€80/dag per gecoachte duif** (`dailySalary`). `coachDailyGain(attr,
+  cap)` geeft **0 onder `GENE.coachMinAttr (90)`** en tapert van `eliteGainPerDay (0.15)`
+  aan 90 naar ~0 aan de gen-cap (`room^0.8`, span = cap−90). Dus enkel zinvol voor een duif
+  met gen-cap ≥ 91; 90→95 is een grind van weken. `applyDayOfCare` polijst per attribuut en
+  geeft `experienceDailyGain 0.5` **enkel** als er echt gepolijst wordt. Werkt niet terwijl
+  de duif vliegt. `pigeonDTO.coachGain` (per attribuut) voedt de UI; `maxDailyGain`/
+  `attributeCap` **verwijderd**. Zie ook §5-Genen.
 - **Dagopdrachten/streak verlaagd** (missions.ts): opdrachtgeld ~gehalveerd (15–60),
   streakbonus `min(25, 5 + streak·2)` → samen ~€750/week i.p.v. ~€1750.
 - **Weddenschap max inzet €500** (`BETTING.maxStake`, was 5000).
@@ -401,18 +403,27 @@ Entiteiten: `Pigeon`, `Loft`, `User`, `BreedingPair`, `Flight` (+ `SimEntry`,
   ×1.25 méér verbruik, ervaring 100 = ×0.75 minder). Onervaren duiven verbruiken dus
   meer, ervaren minder. NB: dit staat los van de ervaring-**dosering** in het snelheids­
   model (`ENERGIE_IMPACT`), die enkel de *prestatie* raakt, niet het verbruik.
-- **Caps:** training tot **90**, voeding-conditie tot **92** (`FOOD_ENDURANCE_CAP`),
-  coach tot **100** (`COACH.attributeCap`).
+- **Genen & caps (`GENE`, cruciaal):** elke duif heeft een **gen-cap per racevaardigheid**
+  (`Pigeon.genes`), **nooit ≥ 96** (`ceil 95`, `floor 70`). Trappen: **trainen `trainCap 80`**,
+  **vluchten `raceCap 90`**, **coach → gen-cap** (`coachMinAttr 90`). Helpers `trainCeil`/
+  `raceCeil`/`geneCap`/`avgGeneCap` (pigeon.ts). Premiumvoer-conditie capt nu op `min(80,
+  geneCap)` (niet meer `FOOD_ENDURANCE_CAP 92`). Overerving via `GENE.mutation 6`. Waarde
+  ×`potentieelFactor=(avgGeneCap/82)³`. Nieuwe duiven: startwaarde ≤ cap; bestaande (v29) mogen
+  boven hun cap staan en behouden dat.
+- **Veroudering (`AGING`):** `runAgeDecline` trekt boven `peakEndWeeks 208` per gerolde
+  gameweek `declinePerWeekBase(0.08)·(leeftijd−208)/52·declineRate` van de 3 skills af
+  (bodem `floor 5`). `Pigeon.declineRate` ~0.6–1.6. `AGE_CURVE` neerwaartse tak afgevlakt → 1.0.
 - **Snelheidsmodel (`DISTANCE_WEIGHTING` + `ENERGIE_IMPACT`):** korte-vlucht­weging
   snelheid **0.65** / conditie 0.13 / oriëntatie 0.22 (was 0.55/0.20/0.25); lang
   0.20/0.45/0.35. Energiefactor is **afstandsafhankelijk** (kort `0.80→1.05`, lang
   `0.45→1.20`, geblend op `t`) en werkt op de **effectieve energie** = `energie +
   (ervaring/100)·(100−energie)·0.35` (ervaring laat energie **doseren**). Zie
   `pigeonVelocity` + `velocityBreakdown` in `flight.ts`.
-- **Training (`TRAINING`):** €120, −15 energie, +~1.2 eigenschap (cap 90), +4 ervaring.
-  **`cooldownDays: 7`** — elke categorie (snelheid/conditie/oriëntatie) max. 1×/week,
-  per-duif bijgehouden in `Pigeon.trainedAt` (kolom `trained_at` JSON);
-  `pigeonDTO.trainAvailableAt` vergrendelt de knoppen op `PigeonPage`.
+- **Training (`TRAINING`):** −15 energie, +~1.2 eigenschap, +4 ervaring, **cap `trainCeil`
+  (min 80, gen-cap)**. **Kost exponentieel**: `trainingCost(v)=max(15, round5(costBase 0.6·
+  costGrowth 2.9^(v/10)))` → ~€125 @50, ~€1035 @70, ~€2700 @79→80. `pigeonDTO.training[attr]=
+  {cost,cap}`. **`cooldownDays: 7`** — elke categorie max. 1×/week (`Pigeon.trainedAt`);
+  `trainAvailableAt` + `training` vergrendelen/beprijzen de knoppen op `PigeonPage`.
 - **Vluchtrisico (`FLIGHT_RISK`):** onder ~22 energie DNF-kans; onder ~25 extra
   blessurekans. **Geen finish-timer/cutoff meer** (`FLIGHT_CUTOFF_MINUTES` verwijderd):
   `flightTotalSeconds` = de traagste duif die effectief finisht, dus trage/verdwaalde
@@ -616,9 +627,47 @@ Voor engine-logica: snelle integratietests met **tsx** vanuit de repo-root
 ## 8. Belangrijkste wijzigingen deze sessie (achtergrond)
 
 Alles hieronder staat **live** op de deploy-branch. Data-migraties liepen door tot
-**`dataVersion = 28`**.
+**`dataVersion = 29`**.
 
-**Energie-recuperatie in de ziekenboeg (nieuwste)**
+**Genen, groeitrappen, exponentiële trainingskost & veroudering (nieuwste)**
+- Elke duif heeft nu een **genetisch plafond per racevaardigheid** (`Pigeon.genes =
+  {speed,endurance,orientation}`, JSON-kolom `genes`) — **nooit ≥ 96** (`GENE.ceil 95`).
+  Geloot via `rollGeneCap` (bell 70–96, quality-shift, clamp 70–95); `generatePigeon`
+  clampt de startwaarde ≤ cap. Verdeling ~centraal 82–85, 95 & 70 zeldzaam. Helpers in
+  `pigeon.ts`: `geneCap`/`avgGeneCap`/`trainCeil`(min80,cap)/`raceCeil`(min90,cap)/
+  `trainingCost`/`rollGenes`.
+- **Drie groeitrappen** per vaardigheid: **trainen ≤ 80**, **vluchten ≤ 90**, **coach
+  → gen-cap** (enkel de coach passeert 90). `engine.trainPigeon` cap = `trainCeil`;
+  `flight.ts` (finalize + practice + `applyFlightEffects` + racing-conditie) clampt op
+  `raceCeil`; premiumvoer-conditie (`economy`) capt op `min(80, geneCap)`. Grandfathered
+  duiven boven hun cap worden **nooit verlaagd** (guards `current < cap`).
+- **Coach = end-game (`COACH.eliteGainPerDay 0.15`)**: `coachDailyGain(attr, cap)` geeft
+  **0 onder 90** en tapert naar 0 aan de cap; `maxDailyGain`/`attributeCap` **verwijderd**
+  uit config (+ uit economy-DTO en client). `applyDayOfCare` polijst per attribuut, geeft
+  enkel ervaring als er écht gepolijst wordt. `pigeonDTO` stuurt `coachGain` per attribuut.
+- **Trainingskost exponentieel** (`TRAINING.costBase 0.6`, `costGrowth 2.9`, `costMin 15`):
+  `trainingCost(v) = max(15, round5(0.6·2.9^(v/10)))` → ~€125 @50, ~€1035 @70, ~€2700 @79→80.
+  `pigeonDTO.training[attr] = {cost, cap}`; `bots.ts` volgt dezelfde regels.
+- **Waarde ~ genen**: `estimateValue` × `potentieelFactor = clamp((avgGeneCap/82)³, 0.6, 1.7)`
+  → hoge genen = duurdere duif, ook bij lage huidige stats.
+- **Overerving** (`breeding.ts`): kind-cap = `avg(ouder-caps) ± GENE.mutation` (clamp 70–95),
+  `declineRate` idem; startwaarden geclampt op de kind-cap.
+- **Veroudering = échte terugval** (`health.runAgeDecline`, per gerolde gameweek in
+  `tickDailyCare`): boven `AGING.peakEndWeeks (208)` zakken de 3 skills met
+  `declinePerWeekBase(0.08)·(leeftijd−peak)/52·declineRate`. `AGE_CURVE` **neerwaartse
+  tak afgevlakt** naar 1.0 (dubbele bestraffing vermeden). `Pigeon.declineRate` (~0.6–1.6,
+  kolom `decline_rate`).
+- **Persistentie**: `ensureSchema` + kolommen `genes TEXT` / `decline_rate REAL`; rowToPigeon
+  + INSERT uitgebreid. **Migratie v29** backfilt genen + declineRate voor bestaande duiven
+  (caps onafhankelijk gerold → bestaande hoge duiven zitten mogelijk boven hun cap en
+  behouden hun waarde). **dataVersion → 29.**
+- **UI**: rood, klikbaar **cap-streepje** op de statbalken van snelheid/conditie/oriëntatie
+  (`StatBar` `cap`-prop + `PigeonStats` uit `pigeon.genes`); `PigeonPage` toont per-eigenschap
+  de geschaalde trainingskost + plafond, en de nieuwe coach-uitleg (o.b.v. `coachGain`).
+  Wiki-sectie **🧬 Genen & training**; tour-stap `GENE_STEP`; eerste-login-melding
+  `GENES_NEWS_STEPS` (sleutel `roekoe.newsSeen.genes.<id>`).
+
+**Energie-recuperatie in de ziekenboeg**
 - Een duif in de **ziekenboeg** recupereert nu energie aan **50 %** van het gezonde
   voer-tempo (`INFIRMARY.energyRecoveryFactor 0.5`) — en **enkel als ze door staf gedekt
   is** (dokter voor een ziekte, kinesist voor een kwetsuur, via de bestaande

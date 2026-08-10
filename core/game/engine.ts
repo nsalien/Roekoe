@@ -39,7 +39,7 @@ import { resolveEvent as resolveEventCard } from './events.js';
 import { applyAcceptSponsor, applyCancelSponsor, applyRefuseSponsor } from './sponsors.js';
 import { runHealthWeek } from './health.js';
 import { voidBetsForWithdrawnPigeon } from './betting.js';
-import { canRace, generatePigeon, onRestCure } from './pigeon.js';
+import { canRace, generatePigeon, onRestCure, trainCeil, trainingCost } from './pigeon.js';
 import { clamp, randFloat, randInt, round1 } from './util.js';
 
 export const NPC_OWNER_ID = 'npc_market';
@@ -661,10 +661,14 @@ export function trainPigeon(
       (f) => f.status !== 'completed' && f.entries.some((e) => e.pigeonId === pigeonId),
     );
     if (racing) return 'Deze duif is ingeschreven voor een vlucht — trainen kan pas als ze weer thuis is';
-    if (loft.money < TRAINING.cost) return 'Niet genoeg geld om te trainen';
+    // Manual training only reaches min(80, geneCap); beyond that only racing (→90)
+    // and the coach (→gene cap) can grow the skill.
+    const cap = trainCeil(pigeon, attr);
+    if (pigeon[attr] >= cap)
+      return `Deze eigenschap zit op haar handmatige plafond (${cap}). Verder groei je enkel via vluchten (tot 90) en daarna een privécoach (tot haar gen-cap).`;
+    const cost = trainingCost(pigeon[attr]); // rises exponentially with the current level
+    if (loft.money < cost) return 'Niet genoeg geld om te trainen';
     if (pigeon.form < TRAINING.formCost + 5) return 'Deze duif heeft te weinig energie om te trainen';
-    if (pigeon[attr] >= TRAINING.attributeCap)
-      return `Deze eigenschap kan niet verder getraind worden (max ${TRAINING.attributeCap})`;
     // Each attribute can be trained at most once per week.
     const lastTrained = pigeon.trainedAt?.[attr];
     if (lastTrained && Date.now() - Date.parse(lastTrained) < TRAINING.cooldownDays * 86400000) {
@@ -673,9 +677,9 @@ export function trainPigeon(
       const label = attr === 'speed' ? 'snelheid' : attr === 'endurance' ? 'conditie' : 'oriëntatie';
       return `${label.charAt(0).toUpperCase() + label.slice(1)} is deze week al getraind — opnieuw vanaf ${nextDate}`;
     }
-    loft.money -= TRAINING.cost;
+    loft.money -= cost;
     const gain = TRAINING.attributeGain * randFloat(0.7, 1.3);
-    pigeon[attr] = round1(clamp(pigeon[attr] + gain, 0, TRAINING.attributeCap));
+    pigeon[attr] = round1(clamp(pigeon[attr] + gain, 0, cap));
     pigeon.form = round1(clamp(pigeon.form - TRAINING.formCost, 0, 100));
     pigeon.experience = round1(clamp(pigeon.experience + TRAINING.experienceGain, 0, 100));
     pigeon.trainedAt = { ...pigeon.trainedAt, [attr]: new Date().toISOString() };

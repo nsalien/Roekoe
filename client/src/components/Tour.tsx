@@ -67,6 +67,27 @@ const BREED_STEP: Step = {
   ),
 };
 
+// Genetics (genen) intro — shared by the full tour and the one-time news run.
+const GENE_STEP: Step = {
+  route: '/hok', selector: '[data-tour="pigeon"]',
+  title: '🧬 Genen: elke duif heeft haar eigen plafond',
+  body: (
+    <>
+      Elke duif heeft <strong>aangeboren maxima</strong> voor snelheid, conditie en oriëntatie —{' '}
+      <strong>geen enkele haalt ooit 100</strong>. Het{' '}
+      <span style={{ color: 'var(--bad)', fontWeight: 700 }}>rode streepje</span> op elke statbalk toont waar déze duif
+      capt; <strong>klik erop</strong> voor de exacte waarde.
+      <br />
+      <span style={{ display: 'inline-block', marginTop: 4 }}>
+        Groeien gaat in <strong>drie trappen</strong>: zelf <strong>trainen tot 80</strong>,{' '}
+        <strong>vluchten tot 90</strong>, en enkel een <strong>privécoach</strong> duwt nog boven 90 (tot haar gen-cap).
+        Hoe hoger de genen, hoe <strong>meer een duif waard</strong> is — en ze <strong>erven door</strong> bij kweek.
+        Oudere duiven <strong>zwakken na hun piek geleidelijk af</strong>.
+      </span>
+    </>
+  ),
+};
+
 const STEPS: Step[] = [
   {
     route: '/',
@@ -91,6 +112,7 @@ const STEPS: Step[] = [
       </>
     ),
   },
+  GENE_STEP,
   BREED_STEP,
   {
     route: '/', selector: '[data-tour="feed"]',
@@ -304,6 +326,43 @@ export const FAREWELL_NEWS_STEPS: Step[] = [
         Een duif naar de soep sturen valt <strong>zwaar bij de rest van je hok</strong>: elke andere duif verliest
         <strong> 1 tot 5 energie</strong> (willekeurig per duif). Doe het dus liever niet vlak voor een belangrijke
         vlucht. Wil je enkel plaats maken zonder bijwerkingen, kies dan <strong>vrijlaten</strong>.
+      </>
+    ),
+  },
+];
+
+/**
+ * One-time "what's new" run for the GENETICS update: per-bird caps, the three
+ * growth tiers, level-scaled training cost, and ageing. Uses a fresh localStorage
+ * key (see Layout). Shown once, after the main tour, to existing players.
+ */
+export const GENES_NEWS_STEPS: Step[] = [
+  {
+    route: '/',
+    title: '✨ Nieuw: genen, plafonds & veroudering',
+    body: 'Duiven hebben nu aangeboren maxima per vaardigheid, groeien in drie trappen en verouderen echt. Even kort wat dat betekent — je kan deze rondleiding later altijd opnieuw starten via je profiel.',
+  },
+  GENE_STEP,
+  {
+    route: '/hok', selector: '[data-tour="pigeon"]',
+    title: '💰 Trainen wordt duurder op hoog niveau',
+    body: (
+      <>
+        Handmatig trainen kan nog steeds — maar <strong>enkel tot 80</strong>, en de <strong>kost stijgt
+        exponentieel</strong> met het niveau (50→51 is spotgoedkoop, 79→80 een echte investering). Daarboven groeit een
+        duif enkel nog door te <strong>vliegen</strong> (tot 90) en met een <strong>privécoach</strong> (boven 90, tot
+        haar gen-cap). Een coach <strong>onder 90</strong> heeft dus geen effect meer.
+      </>
+    ),
+  },
+  {
+    route: '/hok', selector: '[data-tour="pigeon"]',
+    title: '📉 Duiven verouderen',
+    body: (
+      <>
+        Na haar piek (rond ~4 duivenjaar) <strong>zwakt een duif geleidelijk af</strong> in snelheid, conditie en
+        oriëntatie — bij de ene sneller dan de andere. Zet je toppers dus tijdig in, en <strong>kweek</strong> met je
+        best gegende duiven: hoge plafonds <strong>erven door</strong> (en maken een duif <strong>meer waard</strong>).
       </>
     ),
   },

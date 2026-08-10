@@ -35,6 +35,7 @@ export function StatBar({
   variant,
   perDay,
   threshold,
+  cap,
 }: {
   label: string;
   value: number;
@@ -46,11 +47,17 @@ export function StatBar({
   /** Colour the bar by value: green > 70, orange 30–70, red < 30 (used for
    *  Energie and Gezondheid, where the level is a health signal). */
   threshold?: boolean;
+  /** Genetic ceiling for this skill: draws a clickable red marker on the bar
+   *  showing where the bird will cap. Click it to reveal the exact value. */
+  cap?: number | null;
 }) {
   const pct = Math.max(0, Math.min(100, (value / max) * 100));
   const d = perDay ?? 0;
   const show = Math.abs(d) >= 0.05;
   const up = d > 0;
+  const [showCap, setShowCap] = useState(false);
+  const hasCap = typeof cap === 'number' && cap > 0 && cap < max;
+  const capPct = hasCap ? Math.max(0, Math.min(100, (cap! / max) * 100)) : 0;
   return (
     <div className="stat">
       <div className="stat-top">
@@ -67,8 +74,37 @@ export function StatBar({
           <span className="stat-val">{Math.round(value)}</span>
         </span>
       </div>
-      <div className={`bar ${threshold ? '' : (variant ?? '')}`}>
+      <div className={`bar ${threshold ? '' : (variant ?? '')}`} style={hasCap ? { position: 'relative' } : undefined}>
         <span style={{ width: `${pct}%`, ...(threshold ? { background: thresholdColor(value) } : {}) }} />
+        {hasCap && (
+          <span
+            role="button"
+            tabIndex={0}
+            aria-label={`Genetisch maximum: ${cap}`}
+            title={`Genetisch maximum voor deze vaardigheid — klik voor de waarde`}
+            onClick={(e) => { e.stopPropagation(); e.preventDefault(); setShowCap((s) => !s); }}
+            style={{
+              position: 'absolute', top: -3, bottom: -3, left: `${capPct}%`,
+              transform: 'translateX(-50%)', width: 12, display: 'flex',
+              justifyContent: 'center', cursor: 'pointer', zIndex: 2,
+            }}
+          >
+            <span style={{ width: 2, background: 'var(--bad)', borderRadius: 1 }} />
+          </span>
+        )}
+        {hasCap && showCap && (
+          <span
+            style={{
+              position: 'absolute', bottom: '100%', left: `${capPct}%`,
+              transform: 'translateX(-50%)', marginBottom: 3, fontSize: '0.62rem',
+              fontWeight: 700, color: 'var(--bad)', background: 'var(--card, #1a1a1a)',
+              border: '1px solid var(--bad)', borderRadius: 3, padding: '0 4px',
+              whiteSpace: 'nowrap', zIndex: 3,
+            }}
+          >
+            max {cap} · genen
+          </span>
+        )}
       </div>
     </div>
   );
@@ -90,11 +126,11 @@ export function PigeonStats({ pigeon, showPerDay }: { pigeon: Pigeon; showPerDay
         <StatBar label="Libido" value={pigeon.libido ?? 0} perDay={dc?.libido} />
       </div>
       <div className="stat-pair">
-        <StatBar label="Snelheid" value={pigeon.speed ?? 0} perDay={dc?.speed} />
-        <StatBar label="Conditie" value={pigeon.endurance ?? 0} perDay={dc?.endurance} />
+        <StatBar label="Snelheid" value={pigeon.speed ?? 0} perDay={dc?.speed} cap={pigeon.genes?.speed} />
+        <StatBar label="Conditie" value={pigeon.endurance ?? 0} perDay={dc?.endurance} cap={pigeon.genes?.endurance} />
       </div>
       <div className="stat-pair">
-        <StatBar label="Oriëntatie" value={pigeon.orientation ?? 0} perDay={dc?.orientation} />
+        <StatBar label="Oriëntatie" value={pigeon.orientation ?? 0} perDay={dc?.orientation} cap={pigeon.genes?.orientation} />
         <StatBar label="Ervaring" value={pigeon.experience ?? 0} perDay={dc?.experience} />
       </div>
     </div>

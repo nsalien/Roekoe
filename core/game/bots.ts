@@ -7,7 +7,7 @@
 
 import { FEED_RATIONS, INFIRMARY, TRAINING } from '../config/gameConfig.js';
 import type { Loft, Pigeon } from '../schema.js';
-import { talent } from './pigeon.js';
+import { talent, trainCeil, trainingCost } from './pigeon.js';
 import { clamp, round1 } from './util.js';
 
 /** Bots isolate and (if they can afford it) treat their ailing birds. */
@@ -66,18 +66,22 @@ export function botTakeWeeklyActions(
     }
   }
 
-  // Occasionally invest in training a promising young pigeon.
-  if (loft.money > TRAINING.cost * 3) {
+  // Occasionally invest in training a promising young pigeon. Bots follow the same
+  // rules as players: manual training only up to min(80, geneCap) and the cost
+  // scales exponentially with the skill's current level.
+  if (loft.money > 400) {
     const candidate = pigeons
       .filter((p) => p.form > TRAINING.formCost + 20)
       .sort((a, b) => talent(b) - talent(a))[0];
     if (candidate && Math.random() < 0.5) {
       const attr = (['speed', 'endurance', 'orientation'] as const)[Math.floor(Math.random() * 3)];
-      if (candidate[attr] < TRAINING.attributeCap) {
-        candidate[attr] = round1(clamp(candidate[attr] + TRAINING.attributeGain, 0, TRAINING.attributeCap));
+      const cap = trainCeil(candidate, attr);
+      const cost = trainingCost(candidate[attr]);
+      if (candidate[attr] < cap && loft.money > cost * 2) {
+        candidate[attr] = round1(clamp(candidate[attr] + TRAINING.attributeGain, 0, cap));
         candidate.form = round1(clamp(candidate.form - TRAINING.formCost, 0, 100));
         candidate.experience = round1(clamp(candidate.experience + TRAINING.experienceGain, 0, 100));
-        loft.money -= TRAINING.cost;
+        loft.money -= cost;
       }
     }
   }

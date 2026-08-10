@@ -92,6 +92,14 @@ export interface Pigeon {
   racing: boolean;
   breeding: boolean;
   dailyCare: DailyCareProjection | null;
+  // Genetics (own birds only; null for other players' birds).
+  genes: { speed: number; endurance: number; orientation: number } | null; // per-skill ceilings (≤95)
+  training: {
+    speed: { cost: number; cap: number };
+    endurance: { cost: number; cap: number };
+    orientation: { cost: number; cap: number };
+  } | null; // per-attr next-step cost + manual ceiling (min(80, geneCap))
+  coachGain: { speed: number; endurance: number; orientation: number } | null; // coach's daily polish (0 below 90)
 }
 
 export interface Trade {
@@ -149,9 +157,7 @@ export interface EconomyCosts {
   renameLoftCost: number;
   coachHireCost: number;
   coachSalary: number; // per day (recurring costs are charged daily)
-  coachMaxDailyGain: number; // gain per racing attribute at attribute 0 (scales down near the cap)
-  coachAttributeCap: number; // coach can push racing attributes up to this
-  coachExpDailyGain: number; // flat ervaring gained per day while coached
+  coachExpDailyGain: number; // flat ervaring gained per day while coached (only ≥90)
   dailyUpkeepBase: number;
   dailyUpkeepPerPigeon: number;
   trainCost: number;

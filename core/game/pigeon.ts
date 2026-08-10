@@ -4,15 +4,73 @@ import {
   AGE_CURVE,
   BREED_RARITY,
   DEFAULT_BREED_ID,
+  GENE,
   MORTALITY_CURVE,
   PIGEON_BREEDS,
   RACE_AGE_WEEKS,
+  TRAINING,
   type BreedDef,
+  type RacingAttr,
 } from '../config/gameConfig.js';
-import type { Pigeon, Sex } from '../schema.js';
+import type { Pigeon, PigeonGenes, Sex } from '../schema.js';
 import { newId } from '../store.js';
 import { generatePigeonName } from './names.js';
 import { bell, clamp, interpolate, randInt, round1 } from './util.js';
+
+// ---------------------------------------------------------------------------
+// Genetics: per-bird ceilings for the trainable racing skills, plus the ageing
+// decline rate. No bird can reach 100 in a racing skill (hard ceiling GENE.ceil).
+// ---------------------------------------------------------------------------
+
+/**
+ * Roll one gene CAP for a racing skill: a bell curve roughly centred on ~83,
+ * shifted by the source's `quality`, and clamped to [GENE.floor, GENE.ceil]. So
+ * 95 (elite) and 70 (weak) are both the rare boundaries; most birds land 78–90.
+ */
+export function rollGeneCap(quality = 0.5, rng: () => number = Math.random): number {
+  const avg = (rng() + rng() + rng()) / 3; // bell 0..1
+  const raw = GENE.rollMin + avg * (GENE.rollMax - GENE.rollMin) + (quality - 0.5) * GENE.qualityShift;
+  return Math.round(clamp(raw, GENE.floor, GENE.ceil));
+}
+
+/** Roll a full genetic profile (the three racing caps + the ageing decline rate). */
+export function rollGenes(quality = 0.5, rng: () => number = Math.random): { genes: PigeonGenes; declineRate: number } {
+  return {
+    genes: {
+      speed: rollGeneCap(quality, rng),
+      endurance: rollGeneCap(quality, rng),
+      orientation: rollGeneCap(quality, rng),
+    },
+    declineRate: round1(GENE.declineRateMin + rng() * (GENE.declineRateMax - GENE.declineRateMin)),
+  };
+}
+
+/** This bird's genetic ceiling for a racing skill (legacy fallback: GENE.ceil). */
+export function geneCap(p: Pigeon, attr: RacingAttr): number {
+  const g = p.genes?.[attr];
+  return typeof g === 'number' ? g : GENE.ceil;
+}
+
+/** Average genetic ceiling across the three racing skills (drives market value). */
+export function avgGeneCap(p: Pigeon): number {
+  return (geneCap(p, 'speed') + geneCap(p, 'endurance') + geneCap(p, 'orientation')) / 3;
+}
+
+/** Ceiling manual training can reach for a skill: min(80, geneCap). */
+export function trainCeil(p: Pigeon, attr: RacingAttr): number {
+  return Math.min(GENE.trainCap, geneCap(p, attr));
+}
+
+/** Ceiling racing (flights) can reach for a skill: min(90, geneCap). */
+export function raceCeil(p: Pigeon, attr: RacingAttr): number {
+  return Math.min(GENE.raceCap, geneCap(p, attr));
+}
+
+/** The (level-scaled, exponential) cost of the next manual training step. */
+export function trainingCost(value: number): number {
+  const raw = TRAINING.costBase * Math.pow(TRAINING.costGrowth, value / 10);
+  return Math.max(TRAINING.costMin, Math.round(raw / 5) * 5);
+}
 
 /** Look up a breed by id, falling back to the default (Stadsduif) breed. */
 export function breedInfo(breedId: string | undefined): BreedDef {
@@ -89,15 +147,17 @@ export interface GenerateOptions {
 /** Create a fresh pigeon with rolled attributes. */
 export function generatePigeon(opts: GenerateOptions): Pigeon {
   const quality = opts.quality ?? 0.5;
-  const roll = () => {
-    // Base bell curve 25..80, shifted by quality.
+  const { genes, declineRate } = rollGenes(quality);
+  const roll = (cap: number) => {
+    // Base bell curve 25..80, shifted by quality — then clamped to the gene cap,
+    // so a fresh bird never starts above its own genetic ceiling.
     const base = bell(25, 80);
-    return round1(clamp(base + (quality - 0.5) * 40, 5, 97));
+    return round1(clamp(base + (quality - 0.5) * 40, 5, cap));
   };
   const birthWeek = opts.birthWeek ?? opts.currentWeek - randInt(RACE_AGE_WEEKS, 130);
-  const speed = roll();
-  const endurance = roll();
-  const orientation = roll();
+  const speed = roll(genes.speed);
+  const endurance = roll(genes.endurance);
+  const orientation = roll(genes.orientation);
   // Libido spans the full range independently of racing quality.
   const libido = round1(bell(20, 90));
   const sex: Sex = opts.sex ?? (Math.random() < 0.5 ? 'doffer' : 'duivin');
@@ -129,6 +189,8 @@ export function generatePigeon(opts: GenerateOptions): Pigeon {
     compartment: false,
     hungerDays: 0,
     restDays: 0,
+    genes,
+    declineRate,
   };
 }
 
@@ -148,7 +210,7 @@ export function seasonScore(pigeon: Pigeon): number {
   );
 }
 
-/** A suggested market value in coins based on talent, age and condition. */
+/** A suggested market value in coins based on talent, potential, age and condition. */
 export function estimateValue(pigeon: Pigeon, currentWeek: number): number {
   const t = talent(pigeon);
   const base = Math.pow(t / 50, 2.2) * 800; // talent scales value steeply
@@ -156,5 +218,13 @@ export function estimateValue(pigeon: Pigeon, currentWeek: number): number {
   const expFactor = 1 + pigeon.experience / 200;
   // A rarer breed fetches a small premium (cosmetic only — attributes unchanged).
   const breedFactor = breedPriceMult(pigeon.breed);
-  return Math.max(50, Math.round((base * (0.6 + 0.4 * ageFactor) * expFactor * breedFactor) / 10) * 10);
+  // GENETIC POTENTIAL: the higher a bird's caps allow it to climb, the more it is
+  // worth (and vice versa) — so a young bird with elite genes but low current stats
+  // still commands a premium. Neutral at the ~82 average; ~×0.6 for weak genes,
+  // ~×1.6 for a 95-capped topper.
+  const potentialFactor = clamp(Math.pow(avgGeneCap(pigeon) / 82, 3), 0.6, 1.7);
+  return Math.max(
+    50,
+    Math.round((base * (0.6 + 0.4 * ageFactor) * expFactor * breedFactor * potentialFactor) / 10) * 10,
+  );
 }

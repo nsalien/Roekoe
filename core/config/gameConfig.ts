@@ -86,23 +86,47 @@ export function compartmentCost(owned: number): number {
  * bird past the normal training ceiling.
  */
 export const COACH = {
-  // A private coach is now a PURELY DAILY cost — no upfront hire fee. Per coached
-  // pigeon it lifts snelheid + conditie + oriëntatie by ~1 point/day (all three)
-  // plus ervaring, all the way to 100 (training alone caps at ~92) — a strong,
-  // permanent edge. Priced a touch above the infirmary staff (physio €50, dokter
-  // €57/day) because that growth is permanent; no barrier to start, but €80/day
-  // per bird is a real recurring choice that scales with how many you coach.
+  // A private coach is a PURELY DAILY cost — no upfront hire fee, €80/day per
+  // coached pigeon. In the new genetics model the coach is an END-GAME polisher:
+  // it only has EFFECT on a racing attribute that is already at/above GENE.coachMinAttr
+  // (90), and only up to the bird's own genetic cap (never 100). Training builds
+  // 0→80, racing 80→90, and only the coach nudges 90→gene-cap — slowly. Below 90 a
+  // coach does nothing, so it is only worth hiring for a bird whose genes allow >90.
   hireCost: 0, // deprecated: coaching has no one-time cost anymore
   dailySalary: 80, // per coached pigeon, charged automatically each day
-  // Daily attribute gain DIMINISHES as the bird nears the cap:
-  //   gain(attr) = maxDailyGain · (attributeCap − attr) / attributeCap
-  // So a coach quickly develops a weak/young bird (~+0.55/day around 50) but only
-  // slowly perfects a strong one (~+0.11/day around 90) — a maxed bird stays a
-  // real achievement, and training/racing keep mattering at the low end.
-  maxDailyGain: 1.1, // gain per racing attribute at attribute 0 (scaled down by room)
-  experienceDailyGain: 0.5,
-  attributeCap: 100, // coaches can push all the way to the maximum
+  experienceDailyGain: 0.5, // flat ervaring/day while coached AND actually polishing (≥90)
+  // Peak daily gain inside the 90→cap window (at exactly 90); it tapers to ~0 at
+  // the gene cap (see economy.coachDailyGain). So 90→95 is a multi-week grind.
+  eliteGainPerDay: 0.15,
 } as const;
+
+/**
+ * Genetics: every pigeon has an individual, permanent CEILING per trainable racing
+ * attribute (snelheid/conditie/oriëntatie), rolled at birth and inherited. NO bird
+ * can reach 100 in a racing skill — the hard ceiling is GENE.ceil (95). Growth
+ * toward that ceiling runs in three tiers, each with its own single method:
+ *   - manual training : up to min(GENE.trainCap 80, geneCap)
+ *   - racing (flights): up to min(GENE.raceCap 90, geneCap)
+ *   - private coach    : up to geneCap (only the coach passes 90)
+ * A rarer/higher gene ceiling also makes a bird worth more (see estimateValue).
+ * See pigeon.rollGeneCap / geneCap / trainCeil / raceCeil / trainingCost.
+ */
+export const GENE = {
+  floor: 70, // no gene cap below this
+  ceil: 95, // ...nor above — 100 is impossible for a racing skill
+  rollMin: 70, // bell-roll lower bound (before quality shift + clamp)
+  rollMax: 96, // bell-roll upper bound (clamped down to ceil)
+  qualityShift: 12, // (quality−0.5)·this nudges the roll for better/worse sources
+  trainCap: 80, // manual training can't push a skill past this
+  raceCap: 90, // racing can't push a skill past this
+  coachMinAttr: 90, // the coach only has effect from this value upward
+  mutation: 6, // ± spread when a gene cap is inherited
+  declineRateMin: 0.6, // per-bird ageing-decline multiplier range (see AGING)
+  declineRateMax: 1.6,
+} as const;
+
+/** The three trainable/improvable racing attributes (gene-capped). */
+export type RacingAttr = 'speed' | 'endurance' | 'orientation';
 
 /** Cost to rename one of your pigeons. */
 export const RENAME_COST = 1000;
@@ -297,13 +321,20 @@ export const DAILY_UPKEEP_PER_PIGEON = 2;
  * plus experience. This is the long-term progression lever.
  */
 export const TRAINING = {
-  cost: 120,
+  cost: 120, // indicative base (real per-step cost scales with level — see trainingCost)
   formCost: 15,
   attributeGain: 1.2, // average points added to the trained attribute
-  attributeCap: 90, // training alone cannot push an attribute past this
   experienceGain: 4,
   restWeeks: 0,
   cooldownDays: 7, // each attribute (snelheid/conditie/oriëntatie) once per week
+  // Training cost rises EXPONENTIALLY with the current value (≈ ×costGrowth per +10
+  // levels): cheap at low levels, a real investment near the manual cap of 80.
+  //   cost(v) = max(costMin, round5( costBase · costGrowth^(v/10) ))
+  // e.g. ~€90 at 50, ~€355 at 60, ~€1050 at 70, ~€2700 at 79→80. Manual training
+  // is capped at GENE.trainCap (80); beyond that only racing/coach can grow a bird.
+  costBase: 0.6,
+  costGrowth: 2.9,
+  costMin: 15,
 } as const;
 
 /**
@@ -395,17 +426,34 @@ export const BREEDING = {
   minParentForm: 20,
 } as const;
 
-/** Age curve: performance multiplier by age in weeks. Interpolated. */
+/**
+ * Age curve: performance multiplier by age in weeks (interpolated). Only the
+ * RAMP-UP (a youngster growing into its prime) lives here now; the old-age
+ * DOWNSLOPE is deliberately FLAT at 1.0, because ageing past the prime is modelled
+ * as a real, permanent decline of the stored skills instead (see AGING /
+ * runAgeDecline) — so an old bird slows down because its snelheid/conditie/
+ * oriëntatie actually drop, not via a hidden multiplier (avoids double-penalising).
+ */
 export const AGE_CURVE: { weeks: number; multiplier: number }[] = [
   { weeks: 0, multiplier: 0.0 },
   { weeks: RACE_AGE_WEEKS, multiplier: 0.6 },
   { weeks: 20, multiplier: 0.85 },
   { weeks: 52, multiplier: 1.0 }, // ~1 year: coming into prime
-  { weeks: 156, multiplier: 1.0 }, // 1-3 years: prime
-  { weeks: 260, multiplier: 0.9 }, // ~5 years
-  { weeks: 416, multiplier: 0.7 }, // ~8 years
-  { weeks: 520, multiplier: 0.5 }, // ~10 years
+  { weeks: 520, multiplier: 1.0 }, // prime held flat; ageing is via skill decline
 ];
+
+/**
+ * Ageing: past its prime a pigeon's racing skills (snelheid/conditie/oriëntatie)
+ * PERMANENTLY decline, at a pace that differs per bird (its `declineRate` gene).
+ * Runs once per rolled game-week (see health.runAgeDecline). Realistic: peak
+ * ~1–4 years, a gentle slip from ~4 years, and a clear fade toward 8–10 years.
+ *   decline/week = declinePerWeekBase · (ageWeeks − peakEndWeeks)/52 · declineRate
+ */
+export const AGING = {
+  peakEndWeeks: 208, // ~4 game-years: skills start to fade past this age
+  declinePerWeekBase: 0.08, // base points/attribute per rolled week, per year past peak
+  floor: 5, // skills never decline below this
+} as const;
 
 /** The NPC supply market lists this many fresh pigeons for sale each week. */
 export const NPC_MARKET_LISTINGS_PER_WEEK = 4;

@@ -280,8 +280,6 @@ app.get('/state', (c) => {
       renameLoftCost: RENAME_LOFT_COST,
       coachHireCost: COACH.hireCost,
       coachSalary: COACH.dailySalary,
-      coachMaxDailyGain: COACH.maxDailyGain,
-      coachAttributeCap: COACH.attributeCap,
       coachExpDailyGain: COACH.experienceDailyGain,
       dailyUpkeepBase: DAILY_UPKEEP_BASE,
       dailyUpkeepPerPigeon: DAILY_UPKEEP_PER_PIGEON,

@@ -40,7 +40,7 @@ import { breed } from './breeding.js';
 import { awardBadge, awardFlightBadges, evaluateBadges } from './badges.js';
 import { ensureAuctions } from './auction.js';
 import { settleFlightBets, voidOrphanedBets, refundFlightBets } from './betting.js';
-import { coveredInInfirmary, runAgeMortality, runHealthDay, tickHealing } from './health.js';
+import { coveredInInfirmary, runAgeDecline, runAgeMortality, runHealthDay, tickHealing } from './health.js';
 import { tickSeason } from './season.js';
 import { progressMissions } from './missions.js';
 import { activeContracts, evaluateSponsorOffers } from './sponsors.js';
@@ -55,7 +55,7 @@ import {
 } from './flight.js';
 import type { WeatherResult } from './weather.js';
 import { generatePigeonName, isLegacyName, isWrongGenderName } from './names.js';
-import { canRace, rollBreed, talent } from './pigeon.js';
+import { canRace, rollBreed, rollGenes, talent } from './pigeon.js';
 import { NPC_OWNER_ID, ownerName } from './engine.js';
 import { bell, clamp, hashString, haversineKm, pick, randFloat, round1, seededRng } from './util.js';
 
@@ -1079,6 +1079,22 @@ function runDataMigrations(db: Database): void {
     }
     db.world.dataVersion = 28;
   }
+  if ((db.world.dataVersion ?? 0) < 29) {
+    // Genetics: give every existing pigeon a genetic profile (per-skill ceilings +
+    // an ageing decline rate) so the new caps/ageing apply retroactively. The caps
+    // are rolled INDEPENDENTLY of the bird's current stats — so a bird may already
+    // sit ABOVE its rolled cap (or above 95). Per the design, existing birds KEEP
+    // their current value; the growth logic simply never raises them further and
+    // never lowers them. Only NEW growth is capped. (New births clamp start ≤ cap.)
+    for (const p of db.pigeons) {
+      if (!p.genes || typeof p.declineRate !== 'number') {
+        const rolled = rollGenes(talent(p) / 100);
+        if (!p.genes) p.genes = rolled.genes;
+        if (typeof p.declineRate !== 'number') p.declineRate = rolled.declineRate;
+      }
+    }
+    db.world.dataVersion = 29;
+  }
 }
 
 /**
@@ -1136,6 +1152,7 @@ export function tickDailyCare(db: Database, nowMs: number): void {
     for (let r = 0; r < rolls; r++) {
       db.world.currentWeek += 1;
       runAgeMortality(db, db.world.currentWeek);
+      runAgeDecline(db, db.world.currentWeek); // skills fade past the prime (real time)
     }
     for (const loft of db.lofts) {
       const owned = db.pigeons.filter((p) => p.ownerId === loft.userId);
