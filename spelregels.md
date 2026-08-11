@@ -173,6 +173,14 @@ Gerangschikt op finishtijd (snelste eerst).
 **Punten** (top 20): 100, 80, 65, 55, 47, 40, 34, 29, 25, 21, 18, 15, 13, 11, 9, 7, 5, 3, 2, 1.
 Seizoenspunten tellen op over **alle** vluchten en **alle** duiven van een hok.
 
+**Prijzengeld krijg je meteen — zodra je duif finisht.** Je hoeft niet te wachten
+tot de hele vlucht is afgelopen (en de traagste duif eindelijk thuis is). **Op het
+moment dat je duif over de finish komt**, staat haar eindplaats vast en wordt het
+bijhorende **prijzengeld direct op je rekening gezet**, met een melding. De rest
+(ranglijstpunten, medailles, weddenschappen, prestaties) wordt afgerekend wanneer de
+vlucht **volledig** is afgerond. Zo blijf je nooit lang wachten op je centen, ook al
+sukkelt er nog een verdwaalde duif rond.
+
 ### 2.7 Oefenvluchten (om de 2 dagen, rond 12:00)
 Een **oefenvlucht** is een korte training, geen wedstrijd:
 - **Gratis** inschrijven — geen inschrijfgeld.

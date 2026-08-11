@@ -146,10 +146,21 @@ volgorde:
    `world.seasonWeek`/`seasonEndsAt`, en bij het einde van week 4 → `runSeasonEnd`
    (prijsuitreiking Roekoes + Vleugels, **sponsorreview** via `reviewSponsorContracts`,
    geld + meldingen, ranglijst reset, seizoen++).
+9b. `payFinishedFlightPrizes(db, nowMs)` (vóór `tickFlights`) — **betaalt prijzengeld
+   uit zodra een duif finisht**, niet pas bij afronding. Per live wedstrijd-/titanvlucht:
+   `computeFinishPayouts(flight)` (flight.ts) leidt uit de **bevroren sim** de finisher-
+   ordening af (zelfde sort als finalize → identieke rank/prijs), en voor elke finisher
+   met `finishSeconds ≤ elapsed` + prijs > 0 + nog niet betaald wordt `loft.money += prize`
+   gezet, `SimEntry.prizePaid = true` (idempotent, rijdt in `sim`-JSON) en een melding
+   gestuurd (stabiele id `ntf:prize:<flightId>:<pigeonId>`). Veilig want een finisher-rank
+   ligt vast zodra ze finisht (een snellere duif die opgeeft, geeft op vóór haar finish).
+   Punten/medailles/bets/prestaties blijven bij de afronding.
 10. `tickFlights(db, nowMs, ...)` — laat vluchten `scheduled → live → completed`
    overgaan (deterministische `finalizeFlight`; **oefenvluchten** via
    `finalizePracticeFlight`; dode duiven uit `sim.deaths` worden verwijderd; werkt
    ook per-seizoen duivenstatistieken bij: `seasonPeakSpeed`, `seasonPodiums`).
+   `finalizeFlight` telt het **al vroeg uitbetaalde prijzengeld niet nog eens** mee
+   (`acc.prize += s.prizePaid ? 0 : prize`); punten/wins blijven volledig.
    **Bij afronding schrijft `logRaceResults` elke plaatsing durably naar
    `Pigeon.raceLog`** (idempotent per vlucht), zodat historiek/trofeeën de prune
    overleven.
@@ -631,7 +642,17 @@ Voor engine-logica: snelle integratietests met **tsx** vanuit de repo-root
 Alles hieronder staat **live** op de deploy-branch. Data-migraties liepen door tot
 **`dataVersion = 29`**.
 
-**Genen, groeitrappen, exponentiële trainingskost & veroudering (nieuwste)**
+**Prijzengeld direct bij finish (nieuwste)**
+- Prijzengeld wordt uitbetaald **op het moment dat een duif finisht**, i.p.v. te wachten
+  tot de hele vlucht is afgerond (kon lang duren door een trage/verdwaalde duif). Nieuwe
+  tick `payFinishedFlightPrizes` (zie §2, item 9b) + helper `computeFinishPayouts` (flight.ts).
+  Idempotent via `SimEntry.prizePaid`; `finalizeFlight` trekt het al-uitbetaalde af. **Enkel
+  geld** gaat vroeg; punten/medailles/weddenschappen/prestaties blijven bij de afronding.
+  Geen migratie/schemakolom (rijdt in `sim`-JSON). Geverifieerd met tsx (rank==finalize,
+  geen dubbele uitbetaling, gedeeltelijke uitbetaling). Inschrijfgelden bovendien gehalveerd
+  (regio €10 / nat €20 / intl €40 / titan €50).
+
+**Genen, groeitrappen, exponentiële trainingskost & veroudering**
 - Elke duif heeft nu een **genetisch plafond per racevaardigheid** (`Pigeon.genes =
   {speed,endurance,orientation}`, JSON-kolom `genes`) — **nooit ≥ 96** (`GENE.ceil 95`).
   Geloot via `rollGeneCap` (bell 70–96, quality-shift, clamp 70–95); `generatePigeon`

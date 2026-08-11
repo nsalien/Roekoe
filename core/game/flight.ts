@@ -402,6 +402,43 @@ function pickImproveAttr(w: { speed: number; endurance: number; orientation: num
 }
 
 /**
+/** The prize money a finisher has locked in, known the moment it crosses the line. */
+export interface FinishPayout {
+  pigeonId: string;
+  ownerId: string;
+  pigeonName: string;
+  ownerName: string;
+  rank: number; // final placing among FINISHERS (1 = winner)
+  prize: number; // prize money for that placing (0 if out of the money)
+  finishSeconds: number; // elapsed seconds at which this bird crosses the line
+}
+
+/**
+ * The per-finisher prize payouts for a flight, derived purely from the FROZEN sim
+ * — so they are known (and final) the moment each bird finishes, long before the
+ * slowest straggler is home. Uses the exact same finisher ordering as
+ * finalizeFlight (sort by durationSeconds, DNFs excluded), so a bird's rank/prize
+ * here is identical to what finalize will record. A finisher's rank can never
+ * change after it crosses (any faster bird that gets pulled is pulled BEFORE it
+ * finishes), so paying on finish is safe. Practice flights pay nothing.
+ */
+export function computeFinishPayouts(flight: Flight): FinishPayout[] {
+  if (flight.practice) return [];
+  const prizes = flight.titan ? TITAN.prizes : PRIZE_MONEY[flight.type];
+  const isDnf = (s: SimEntry) => s.gaveUp || s.dnfAtSeconds != null;
+  const finishers = flight.sim.filter((s) => !isDnf(s)).sort((a, b) => a.durationSeconds - b.durationSeconds);
+  return finishers.map((s, i) => ({
+    pigeonId: s.pigeonId,
+    ownerId: s.ownerId,
+    pigeonName: s.pigeonName,
+    ownerName: s.ownerName,
+    rank: i + 1,
+    prize: prizes[i] ?? 0,
+    finishSeconds: s.durationSeconds,
+  }));
+}
+
+/**
  * Finalize a live flight into ranked results and return the effects to apply.
  * Ranks by finish time (shortest = winner). Also rolls each bird's chance to
  * permanently improve (racing builds condition) and writes the flight's recap.
@@ -473,7 +510,11 @@ export function finalizeFlight(flight: Flight, pigeons: Pigeon[]): SimulatedFlig
       finished: !isDnf,
     });
     const acc = payoutMap.get(s.ownerId) ?? { prize: 0, points: 0, wins: 0 };
-    acc.prize += prize;
+    // Prize money may already have been paid the instant this bird finished
+    // (see schedule.payFinishedFlightPrizes) — if so, don't pay it again here.
+    // The result/raceLog still records the full prize it won (below); only the
+    // money credited at finalize excludes what was already banked.
+    acc.prize += s.prizePaid ? 0 : prize;
     acc.points += points;
     // A titan win is money-only — it does not count as a competition win.
     if (rank === 1 && !isDnf && !flight.titan) acc.wins += 1;

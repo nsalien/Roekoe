@@ -46,6 +46,7 @@ import { progressMissions } from './missions.js';
 import { activeContracts, evaluateSponsorOffers } from './sponsors.js';
 import {
   applyFlightEffects,
+  computeFinishPayouts,
   finalizeFlight,
   flightTotalSeconds,
   generateRecap,
@@ -443,6 +444,41 @@ export function pruneOldFlights(db: Database, nowMs: number): void {
 }
 
 /** Start flights whose time has come and finalize flights that are over. */
+/**
+ * Pay a bird's prize money the MOMENT it crosses the finish line, based on its
+ * (already-final) placing — instead of waiting until the whole flight completes
+ * and the slowest straggler is home, which can take a very long time. The rank is
+ * frozen from the sim, so this matches what finalize will record; the per-bird
+ * `prizePaid` flag makes it idempotent, and finalize excludes already-paid prizes.
+ * Only real competition/titan flights pay money (practice pays nothing).
+ */
+function payFinishedFlightPrizes(db: Database, nowMs: number): void {
+  for (const flight of db.flights) {
+    if (flight.status !== 'live' || flight.practice) continue;
+    const startMs = flight.startAt ? Date.parse(flight.startAt) : NaN;
+    if (Number.isNaN(startMs)) continue;
+    const elapsed = (nowMs - startMs) / 1000;
+    if (elapsed <= 0) continue;
+    for (const pay of computeFinishPayouts(flight)) {
+      if (pay.finishSeconds > elapsed || pay.prize <= 0) continue; // not home yet / out of the money
+      const s = flight.sim.find((x) => x.pigeonId === pay.pigeonId);
+      if (!s || s.prizePaid) continue; // already banked
+      const loft = db.lofts.find((l) => l.userId === pay.ownerId);
+      if (!loft) continue;
+      loft.money += pay.prize;
+      s.prizePaid = true;
+      if (!loft.isBot) {
+        pushNotification(
+          db, pay.ownerId, 'result',
+          `🏁 ${pay.pigeonName} is binnen — ${pay.rank}e plaats`,
+          `${pay.pigeonName} finishte als ${pay.rank}e in ${flight.name} (${flight.fromCity} → ${flight.toCity}). Je prijzengeld van €${pay.prize} is meteen bijgeschreven — je hoeft niet te wachten tot de hele vlucht afgelopen is. De ranglijstpunten en de rest volgen bij de afronding.`,
+          flight.id, `ntf:prize:${flight.id}:${pay.pigeonId}`,
+        );
+      }
+    }
+  }
+}
+
 export function tickFlights(db: Database, nowMs: number, weatherByFlight?: Map<string, WeatherResult>): void {
   for (const flight of db.flights) {
     const startMs = flight.startAt ? Date.parse(flight.startAt) : NaN;
@@ -1368,6 +1404,7 @@ export function advanceRealtime(
   tickHealing(db, nowMs);
   tickRestCures(db, nowMs);
   tickSeason(db, nowMs);
+  payFinishedFlightPrizes(db, nowMs); // pay prize money the moment a bird finishes
   tickFlights(db, nowMs, weatherByFlight);
   pruneOldFlights(db, nowMs);
 }
