@@ -324,6 +324,10 @@ export interface SimEntry {
   dnfAtSeconds?: number | null; // it gave out mid-flight at this elapsed time (never finishes)
   dnfKind?: 'exhausted' | 'injury' | null; // why it gave out, for finalize effects
   gaveUpAtSeconds?: number; // elapsed seconds when the owner pulled it (freezes its position)
+  // Prize money for this bird was already paid out the moment it crossed the line
+  // (see schedule.payFinishedFlightPrizes), so finalize won't pay it again. Rides
+  // in the `sim` JSON — no migration.
+  prizePaid?: boolean;
   // A wandering-off-course stretch (low orientation). Recorded at release so the
   // live report can explain a bird sliding down the standings. `atSeconds` = when
   // it strays; `detourKm` = roughly the extra ground the detour costs it.
