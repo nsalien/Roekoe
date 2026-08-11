@@ -37,7 +37,7 @@ interface Analysis {
 
 export function AdminPage() {
   const { state } = useGame();
-  const [tab, setTab] = useState<'flights'>('flights');
+  const [tab, setTab] = useState<'flights' | 'pigeons'>('flights');
 
   if (!state) return <Spinner />;
   if (!state.isAdmin) return <Navigate to="/" replace />;
@@ -51,16 +51,135 @@ export function AdminPage() {
         </div>
         <div className="pill-tabs">
           <button className={tab === 'flights' ? 'active' : ''} onClick={() => setTab('flights')}>Vlucht-analyse</button>
+          <button className={tab === 'pigeons' ? 'active' : ''} onClick={() => setTab('pigeons')}>Duif-inspector</button>
         </div>
       </div>
 
       {tab === 'flights' && <FlightAnalysis />}
+      {tab === 'pigeons' && <PigeonInspector />}
     </div>
   );
 }
 
 function num(n: number | null, d = 0): string {
   return n == null ? '—' : n.toFixed(d);
+}
+
+interface InspectGenes { speed: number; endurance: number; orientation: number }
+interface InspectPigeon {
+  id: string; name: string; ownerName: string; isBot: boolean; sex: string;
+  birthWeek: number; currentWeek: number; ageWeeks: number;
+  speed: number; endurance: number; orientation: number;
+  libido: number; form: number; health: number; experience: number;
+  genes: InspectGenes | null; declineRate: number | null;
+  aging: boolean; declinePerWeek: number;
+  atGeneCap: { speed: boolean; endurance: boolean; orientation: boolean } | null;
+}
+interface InspectResp {
+  pigeons: InspectPigeon[]; total: number;
+  caps: { train: number; race: number; ceil: number; peakEndWeeks: number };
+}
+
+/**
+ * Duif-inspector: look up any pigeon's EXACT stored values (1 decimal), gene caps
+ * and ageing status — so you can verify a bird isn't unfairly degrading. A skill
+ * only declines with age once the bird is past the peak age (peakEndWeeks); the
+ * "Veroudert" column shows exactly that, plus how much it loses per rolled week.
+ */
+function PigeonInspector() {
+  const [q, setQ] = useState('');
+  const [resp, setResp] = useState<InspectResp | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  const load = useCallback(async (query: string) => {
+    setLoading(true);
+    try {
+      setResp(await api<InspectResp>(`/admin/pigeons${query ? `?q=${encodeURIComponent(query)}` : ''}`));
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+  useEffect(() => { load(''); }, [load]);
+  // Debounce the search so typing doesn't hammer the API.
+  useEffect(() => {
+    const t = setTimeout(() => load(q.trim()), 300);
+    return () => clearTimeout(t);
+  }, [q, load]);
+
+  const peak = resp?.caps.peakEndWeeks ?? 208;
+  const cap = (v: number, atCap: boolean | undefined) => (
+    <span>{v.toFixed(1)}{atCap ? <span className="badge" style={{ marginLeft: 4 }}>cap</span> : null}</span>
+  );
+
+  return (
+    <div className="stack">
+      <div className="card">
+        <label>Zoek een duif (op naam of hoknaam) — leeg = alle duiven</label>
+        <input
+          type="text"
+          value={q}
+          placeholder="bv. Tinne"
+          onChange={(e) => setQ(e.target.value)}
+          style={{ maxWidth: '100%' }}
+        />
+        <p className="faint" style={{ fontSize: '0.82rem', marginBottom: 0 }}>
+          Dit toont de <strong>exacte opgeslagen waarden</strong> (op 0,1 nauwkeurig — het spel rondt af voor de
+          weergave), de <strong>gen-caps</strong> per vaardigheid, en de veroudering. Een vaardigheid daalt <strong>alleen
+          door leeftijd</strong> zodra een duif ouder is dan <strong>{peak} weken</strong> (haar piek). Staat er bij
+          <strong> Veroudert</strong> "nee", dan kan haar snelheid/conditie/oriëntatie <em>niet</em> zakken door
+          leeftijd. Zo verifieer je of een duif terecht (of onterecht) achteruitgaat.
+        </p>
+      </div>
+
+      {loading && <Spinner />}
+
+      {resp && !loading && (
+        <div className="card">
+          <div className="faint" style={{ marginBottom: 8 }}>
+            {resp.total} duif/duiven gevonden{resp.total > resp.pigeons.length ? ` (eerste ${resp.pigeons.length} getoond)` : ''}.
+          </div>
+          <div className="table-wrap">
+            <table className="data">
+              <thead>
+                <tr>
+                  <th>Duif</th><th>Hok</th><th className="num">Lft (wk)</th>
+                  <th className="num">Snel</th><th className="num">Cond</th><th className="num">Oriÿ</th>
+                  <th className="num">Libido</th><th className="num">Energie</th><th className="num">Gez</th><th className="num">Erv</th>
+                  <th>Genen (cap)</th><th className="num">Verval/wk</th><th>Veroudert</th>
+                </tr>
+              </thead>
+              <tbody>
+                {resp.pigeons.map((p) => (
+                  <tr key={p.id} className={p.aging ? 'podium-1' : ''}>
+                    <td>
+                      <Link to={`/duif/${p.id}`} style={{ color: 'inherit' }}>{p.name}</Link>
+                      {p.isBot && <span className="faint"> · bot</span>}
+                    </td>
+                    <td className="faint">{p.ownerName}</td>
+                    <td className="num">{p.ageWeeks}</td>
+                    <td className="num"><strong>{cap(p.speed, p.atGeneCap?.speed)}</strong></td>
+                    <td className="num">{cap(p.endurance, p.atGeneCap?.endurance)}</td>
+                    <td className="num">{cap(p.orientation, p.atGeneCap?.orientation)}</td>
+                    <td className="num">{p.libido.toFixed(1)}</td>
+                    <td className="num">{p.form.toFixed(1)}</td>
+                    <td className="num">{p.health.toFixed(1)}</td>
+                    <td className="num">{p.experience.toFixed(1)}</td>
+                    <td className="faint">{p.genes ? `${p.genes.speed}/${p.genes.endurance}/${p.genes.orientation}` : '—'}</td>
+                    <td className="num">{p.aging ? p.declinePerWeek.toFixed(3) : '0'}</td>
+                    <td>
+                      {p.aging
+                        ? <span style={{ color: 'var(--bad)', fontWeight: 700 }}>ja (&gt;{peak} wk)</span>
+                        : <span className="faint">nee</span>}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+    </div>
+  );
 }
 
 function FlightAnalysis() {

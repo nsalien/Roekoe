@@ -16,10 +16,12 @@ import type { User } from '../../core/schema.js';
 import { hashPassword, verifyPassword, signToken, verifyToken } from '../../core/auth.js';
 import { newId } from '../../core/store.js';
 import {
+  AGING,
   BETTING,
   BREEDING,
   COACH,
   FEED_RATIONS,
+  GENE,
   INFIRMARY,
   PIGEON_RESTAURANT,
   REST_CURE,
@@ -833,6 +835,61 @@ app.get('/admin/flights', (c) => {
       practice: !!f.practice, titan: !!f.titan,
     }));
   return c.json({ flights });
+});
+
+/**
+ * Admin pigeon inspector: the EXACT stored values of any pigeon (own or another
+ * player's) — skills to 1 decimal, gene caps, birthWeek + real age, and the ageing
+ * diagnostics. Lets an admin verify a bird isn't unfairly degrading: `aging` is only
+ * true past AGING.peakEndWeeks, with `declinePerWeek` the exact points it then loses
+ * per rolled game-week. Search by pigeon or owner name via ?q=.
+ */
+app.get('/admin/pigeons', (c) => {
+  const user = requireUser(c);
+  if (!user.isAdmin) return c.json({ error: 'Alleen de beheerder mag dit doen' }, 403);
+  const db = c.get('store').data;
+  const week = db.world.currentWeek;
+  const q = (c.req.query('q') ?? '').trim().toLowerCase();
+  let list = db.pigeons;
+  if (q) list = list.filter((p) => p.name.toLowerCase().includes(q) || ownerName(db, p.ownerId).toLowerCase().includes(q));
+  const total = list.length;
+  const pigeons = list
+    .slice()
+    .sort((a, b) => a.name.localeCompare(b.name))
+    .slice(0, 100)
+    .map((p) => {
+      const age = ageInWeeks(p, week);
+      const g = p.genes ?? null;
+      const aging = age > AGING.peakEndWeeks;
+      return {
+        id: p.id,
+        name: p.name,
+        ownerName: ownerName(db, p.ownerId),
+        isBot: db.lofts.find((l) => l.userId === p.ownerId)?.isBot ?? false,
+        sex: p.sex,
+        birthWeek: p.birthWeek,
+        currentWeek: week,
+        ageWeeks: age,
+        // Exact stored values (1 decimal) — what the UI rounds for display.
+        speed: p.speed, endurance: p.endurance, orientation: p.orientation,
+        libido: p.libido, form: p.form, health: p.health, experience: p.experience,
+        genes: g,
+        declineRate: p.declineRate ?? null,
+        // Ageing: is this bird old enough to lose skills, and how much per rolled week?
+        aging,
+        declinePerWeek: aging
+          ? Math.round(AGING.declinePerWeekBase * ((age - AGING.peakEndWeeks) / 52) * (p.declineRate ?? 1) * 1000) / 1000
+          : 0,
+        atGeneCap: g
+          ? { speed: p.speed >= g.speed, endurance: p.endurance >= g.endurance, orientation: p.orientation >= g.orientation }
+          : null,
+      };
+    });
+  return c.json({
+    pigeons,
+    total,
+    caps: { train: GENE.trainCap, race: GENE.raceCap, ceil: GENE.ceil, peakEndWeeks: AGING.peakEndWeeks },
+  });
 });
 
 /**

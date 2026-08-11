@@ -550,6 +550,10 @@ Entiteiten: `Pigeon`, `Loft`, `User`, `BreedingPair`, `Flight` (+ `SimEntry`,
   factoren + berekende vs. echte snelheid + residu ≈ geluk). Nav-link + route enkel
   bij `state.isAdmin`; API's `GET /admin/flights` en `GET /admin/flight-analysis/:id`
   checken `user.isAdmin` (403 anders). Kern: `velocityBreakdown()` in `flight.ts`.
+  Tweede tool **Duif-inspector** (`GET /admin/pigeons?q=`): exacte opgeslagen waarden
+  (op 0,1) van élke duif (eigen of andermans) — skills, gen-caps, `birthWeek`/leeftijd,
+  `declineRate` + **verouderingsdiagnose** (`aging` enkel > `AGING.peakEndWeeks`, met de
+  exacte `declinePerWeek`). Zo verifieerbaar of een duif (on)terecht achteruitgaat.
 - `MarketPage` (Markt) — koop van spelers + veilingen (zondag/opvangcentrum) + de
   **privé-biedingen**: "Biedingen op jouw duiven" (accepteer/weiger), "Jouw
   uitgebrachte biedingen" (intrekken), én een **getrapte kiezer `BidCascade`**
