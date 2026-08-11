@@ -382,8 +382,10 @@ Entiteiten: `Pigeon`, `Loft`, `User`, `BreedingPair`, `Flight` (+ `SimEntry`,
 - **Dagopdrachten/streak verlaagd** (missions.ts): opdrachtgeld ~gehalveerd (15–60),
   streakbonus `min(25, 5 + streak·2)` → samen ~€750/week i.p.v. ~€1750.
 - **Weddenschap max inzet €500** (`BETTING.maxStake`, was 5000).
-- **Prijzengeld regionaal verdubbeld** (`PRIZE_MONEY.regional` `[600,360,220,140,90,60,40,24]`);
-  inschrijfgeld ongewijzigd (€20). **Titan inschrijfgeld €100** (was 200).
+- **Prijzengeld regionaal verdubbeld** (`PRIZE_MONEY.regional` `[600,360,220,140,90,60,40,24]`).
+- **Inschrijfgelden gehalveerd (nieuwste)** (`FLIGHT_TIERS.entryFee`): regionaal **€10**
+  (was 20), nationaal **€20** (was 40), internationaal **€40** (was 80); **Titan €50**
+  (`TITAN.entryFee`, was 100). Oefenvluchten blijven gratis.
 - **Voeding (`FEED_RATIONS`)** — herstelwaarden zijn WEKELIJKS, 1/7 per dag (UI toont
   per dag): Normaal energie **+21**/wk, Premium **+28** (+conditie/gezondheid),
   Libido-mix **+18** (+libido), Herstel **+42** (veel energie).
@@ -475,7 +477,7 @@ Entiteiten: `Pigeon`, `Loft`, `User`, `BreedingPair`, `Flight` (+ `SimEntry`,
   (dagnummer = dagen sinds Unix-epoch); op een **titan-dag** worden alle níet-titan-slots
   overgeslagen (de titan vervangt alles die dag).
 - **Titanenwedstrijd (`TITAN`):** `weekday 6` (zaterdag), `hour 11`, afstand 200–600 km,
-  `entryFee 100`, `prizes [1400,1200,1000]`. **Enkel geld** voor de melker-economie: geen
+  `entryFee 50`, `prizes [1400,1200,1000]`. **Enkel geld** voor de melker-economie: geen
   **seizoenspunten**/medailles/wins, telt **niet** mee voor de **melkerranglijst (Roekoe)**;
   **max. 1 duif per hok** (`enterFlight` + bots 1 vogel); geen wedden (`bettingOpen`).
   Prijzengeld via `finalizeFlight` (`flight.titan` → `TITAN.prizes`, 0 punten, 0 wins).
@@ -926,7 +928,8 @@ Alles hieronder staat **live** op de deploy-branch. Data-migraties liepen door t
   `COACH.dailySalary 80`, ziekenboeg dokter 57 / kinesist 50 / medicatie 6 — in
   `tickDailyCare` via `economy.dailyRunningCost`; sponsorbijdrage dagelijks (weekbedrag/7).
 - Dagopdrachten/streak verlaagd (~€750/week i.p.v. ~€1750). Weddenschap max €500.
-  Regionaal prijzengeld verdubbeld. Titan inschrijfgeld €100.
+  Regionaal prijzengeld verdubbeld. Inschrijfgelden gehalveerd (regio €10 / nat €20 /
+  intl €40 / titan €50).
 - **Snelheidsmodel**: korte-vluchtweging snelheid 0.65; energiefactor afstandsafhankelijk;
   ervaring "doseert" energie (`ENERGIE_IMPACT`). Training 1×/week per categorie
   (`Pigeon.trainedAt`).

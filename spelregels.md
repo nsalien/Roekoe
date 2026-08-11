@@ -55,9 +55,9 @@ verschillende duivenmelkers** meedoen. Doet er maar één mee, dan wordt de vluc
 ### 2.2 Niveaus
 | Niveau | Steden | Afstand | Inschrijfgeld |
 |---|---|---|---|
-| Regionaal | twee Vlaamse steden | 100–200 km | €20 |
-| Nationaal | België + buurlanden (BE, NL, FR, LU, DE) | 200–500 km | €40 |
-| Internationaal | tot de **grote fond** (BE, NL, FR, GB, LU, DE, ES) | 400–1200 km | €80 |
+| Regionaal | twee Vlaamse steden | 100–200 km | €10 |
+| Nationaal | België + buurlanden (BE, NL, FR, LU, DE) | 200–500 km | €20 |
+| Internationaal | tot de **grote fond** (BE, NL, FR, GB, LU, DE, ES) | 400–1200 km | €40 |
 
 Start- en aankomststad worden **willekeurig** gekozen binnen het niveau; de
 afstand wordt berekend uit de coördinaten (Haversine). Elke wedstrijdvlucht
@@ -201,7 +201,7 @@ Eén keer per week, in het **weekend** (zaterdag 11:00), is er een prestigieuze
 **Titanenwedstrijd**:
 - **Elke duivenmelker mag maar één duif inschrijven.**
 - **Middellange tot lange** afstand (~200–600 km).
-- Er is **inschrijfgeld** (€100) en er valt **enkel geld** te winnen: **geen
+- Er is **inschrijfgeld** (€50) en er valt **enkel geld** te winnen: **geen
   seizoenspunten** en **geen medailles**, dus het telt **niet mee voor de
   melkerranglijst (de Roekoe, §15.2)**. Prijzengeld: **1e €1400, 2e €1200, 3e €1000**.
 - **Voor de duivenranglijsten (de Vleugel, §15.3) telt de titanenwedstrijd wél mee.**

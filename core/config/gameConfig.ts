@@ -598,9 +598,9 @@ export interface TierConfig {
 }
 
 export const FLIGHT_TIERS: Record<FlightTier, TierConfig> = {
-  regional: { label: 'Regionaal', name: 'Regiovlucht', entryFee: 20, minKm: 100, maxKm: 200 },
-  national: { label: 'Nationaal', name: 'Nationale vlucht', entryFee: 40, minKm: 200, maxKm: 500 },
-  international: { label: 'Internationaal', name: 'Internationale vlucht', entryFee: 80, minKm: 400, maxKm: 1200 },
+  regional: { label: 'Regionaal', name: 'Regiovlucht', entryFee: 10, minKm: 100, maxKm: 200 },
+  national: { label: 'Nationaal', name: 'Nationale vlucht', entryFee: 20, minKm: 200, maxKm: 500 },
+  international: { label: 'Internationaal', name: 'Internationale vlucht', entryFee: 40, minKm: 400, maxKm: 1200 },
 };
 
 /**
@@ -1073,7 +1073,7 @@ export const TITAN = {
   minute: 0,
   minKm: 200, // medium-to-long
   maxKm: 600,
-  entryFee: 100,
+  entryFee: 50,
   prizes: [1400, 1200, 1000], // 1e / 2e / 3e (money only)
 } as const;
 
