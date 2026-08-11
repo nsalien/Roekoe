@@ -444,12 +444,17 @@ het dagbedrag — de daling **versnelt** dus zolang er geen eten is:
 dag N zonder eten:
   Energie   −= 8 · N
   Gezondheid−= 5 · N
-  Conditie  −= 3 · N
   Libido    −= 4 · N
 sterftekans = 0                          als N < 3
             = min(0.25 · (N−2), 0.95)    vanaf dag 3
             = 100%                        vanaf dag 7
 ```
+
+> **Honger vreet geen getrainde vaardigheden meer op.** Vroeger daalde ook de
+> **conditie** door honger; dat is geschrapt. **Trainbare vaardigheden (snelheid,
+> conditie, oriëntatie) kunnen enkel nog dalen door échte ouderdom** (§6) — nooit
+> door een tijdelijk voertekort of iets anders. Honger blijft wel hard toeslaan op
+> energie, gezondheid en libido (en kan dodelijk zijn).
 
 Zodra je de duif weer voer geeft (voorraad van haar type), springt de honger
 terug op 0 en herstelt ze weer normaal. Maar blijft ze zonder eten, dan gaat het

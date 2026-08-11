@@ -56,7 +56,7 @@ import {
 } from './flight.js';
 import type { WeatherResult } from './weather.js';
 import { generatePigeonName, isLegacyName, isWrongGenderName } from './names.js';
-import { canRace, rollBreed, rollGenes, talent } from './pigeon.js';
+import { canRace, noteAttrChange, rollBreed, rollGenes, talent } from './pigeon.js';
 import { NPC_OWNER_ID, ownerName } from './engine.js';
 import { bell, clamp, hashString, haversineKm, pick, randFloat, round1, seededRng } from './util.js';
 
@@ -1130,6 +1130,23 @@ function runDataMigrations(db: Database): void {
       }
     }
     db.world.dataVersion = 29;
+  }
+  if ((db.world.dataVersion ?? 0) < 30) {
+    // One-off correction (owner request): restore "Tinne de Doodskist-Ontwijker" to
+    // 79 snelheid. She showed a 79→78 dip that NO mechanic can cause at her age
+    // (skills only decline via ageing past ~208 weeks) — a display-rounding artefact.
+    // Real players only; only ever bumps UP; logged in the bird's audit trail.
+    for (const p of db.pigeons) {
+      if (!p.name.trim().toLowerCase().includes('tinne de doodskist')) continue;
+      const loft = db.lofts.find((l) => l.userId === p.ownerId);
+      if (!loft || loft.isBot) continue;
+      if (p.speed < 79) {
+        const before = p.speed;
+        p.speed = 79;
+        noteAttrChange(p, 'speed', before, 'admin-correctie');
+      }
+    }
+    db.world.dataVersion = 30;
   }
 }
 
