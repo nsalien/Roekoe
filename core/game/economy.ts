@@ -158,9 +158,12 @@ export function applyDayOfCare(
       // Hungry: decline accelerates with each consecutive unfed day.
       p.hungerDays = (p.hungerDays ?? 0) + 1;
       const d = p.hungerDays;
+      // Honger treft de DYNAMISCHE toestand (energie/gezondheid/libido), maar NIET
+      // de trainbare skill conditie meer: een getrainde vaardigheid mag je niet
+      // "onterecht" verliezen door een tijdelijk voertekort. Trainbare skills
+      // (snelheid/conditie/oriëntatie) dalen enkel nog door échte ouderdom (runAgeDecline).
       p.form = round1(clamp(p.form - STARVATION.energiePerDay * d, 0, 100));
       p.health = round1(clamp(p.health - STARVATION.healthPerDay * d, 0, 100));
-      p.endurance = round1(clamp(p.endurance - STARVATION.conditiePerDay * d, 0, 100));
       p.libido = round1(clamp(p.libido - STARVATION.libidoPerDay * d, 0, 100));
       // After a few days without food, death becomes likely, then certain.
       const deathChance =
@@ -273,7 +276,8 @@ export function projectDailyCare(loft: Loft, p: Pigeon, live = false, covered = 
     const d = (p.hungerDays ?? 0) + 1;
     form = rise(p.form, -STARVATION.energiePerDay * d, 100);
     health = rise(p.health, -STARVATION.healthPerDay * d, 100);
-    endurance = rise(p.endurance, -STARVATION.conditiePerDay * d, 100);
+    // Conditie (a trainable skill) no longer decays from hunger — only real ageing
+    // lowers the trainable skills now. See applyDayOfCare.
     libido = rise(p.libido, -STARVATION.libidoPerDay * d, 100);
   }
 

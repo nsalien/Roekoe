@@ -409,8 +409,9 @@ Entiteiten: `Pigeon`, `Loft`, `User`, `BreedingPair`, `Flight` (+ `SimEntry`,
 - **Rustbonus (`REST_BONUS`)** — elke **3e** gevoede rustdag zonder vlucht **+4**
   energie; reset zodra de duif vliegt of een hongerdag heeft.
 - **Honger (`STARVATION`)** — geen voorraad = versnellende daling (energie 8·N,
-  gezondheid 5·N, conditie 3·N, libido 4·N per honger-dag N); sterftekans vanaf
-  dag 3, zeker vanaf dag 7.
+  gezondheid 5·N, libido 4·N per honger-dag N); sterftekans vanaf dag 3, zeker vanaf
+  dag 7. **Honger raakt géén trainbare skills meer** (conditie-daling geschrapt;
+  `conditiePerDay` ongebruikt): trainbare skills dalen enkel via `runAgeDecline`.
 - **Vlucht-energiekost (`FLIGHT_FATIGUE`)** — volle-routekost = `(10 + afstand/30)·ervaringsfactor
   + rand(0..10)`, bevroren bij start, **per 30 min** geleidelijk afgetrokken. Een duif betaalt
   **enkel voor het afgelegde deel**: de aftrek (in `tickFlightEnergy` én de finale-settlement)
@@ -652,7 +653,20 @@ Voor engine-logica: snelle integratietests met **tsx** vanuit de repo-root
 ## 8. Belangrijkste wijzigingen deze sessie (achtergrond)
 
 Alles hieronder staat **live** op de deploy-branch. Data-migraties liepen door tot
-**`dataVersion = 29`**.
+**`dataVersion = 30`**.
+
+**Trainbare skills dalen enkel door ouderdom + Tinne-correctie (nieuwste)**
+- **Invariant:** snelheid/conditie/oriëntatie kunnen **enkel dalen via `runAgeDecline`**
+  (ouderdom > `AGING.peakEndWeeks`). **Honger vreet geen conditie meer** (de
+  `endurance`-daling in `applyDayOfCare`/`projectDailyCare` is geschrapt; honger blijft
+  energie/gezondheid/libido + sterfte). Exhaustieve grep bevestigde dat er verder geen
+  enkel pad een skill verlaagt (events/training/coach/vluchten verhogen enkel; de bot-
+  `trim` v15 was eenmalig en bot-only). Zo verliest een (jonge, gevoede) duif nooit
+  **onterecht** skill-levels.
+- **Migratie v30:** eenmalige correctie — "Tinne de Doodskist-Ontwijker" (echte speler)
+  terug naar **79 snelheid** (enkel omhoog, gelogd via `noteAttrChange` als
+  `admin-correctie`). Haar 79→78 was een afrondingsartefact; bij 41 weken kan geen enkel
+  mechanisme haar snelheid verlagen. **dataVersion → 30.**
 
 **Prijzengeld direct bij finish (nieuwste)**
 - Prijzengeld wordt uitbetaald **op het moment dat een duif finisht**, i.p.v. te wachten

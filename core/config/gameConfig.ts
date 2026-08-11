@@ -282,7 +282,8 @@ export type FeedRationKey = keyof typeof FEED_RATIONS;
 export const STARVATION = {
   energiePerDay: 8, // energie (form) lost per hunger-day, × the day count
   healthPerDay: 5,
-  conditiePerDay: 3,
+  conditiePerDay: 3, // DEPRECATED/unused: hunger no longer decays conditie (a trainable
+  // skill) — trainable skills only decline via real ageing. Kept for reference.
   libidoPerDay: 4,
   deathAfterDays: 3, // a death chance kicks in once a bird is this many days hungry
   deathChancePerDay: 0.25, // added death chance per hunger-day beyond deathAfterDays
