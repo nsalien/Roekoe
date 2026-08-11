@@ -23,7 +23,7 @@ import {
 } from '../config/gameConfig.js';
 import type { Ailment, Database, Loft, Pigeon } from '../schema.js';
 import { newId } from '../store.js';
-import { ageInWeeks, ageMortality } from './pigeon.js';
+import { ageInWeeks, ageMortality, noteAttrChange } from './pigeon.js';
 import { awardBadge, evaluateBadges } from './badges.js';
 import { clamp, pick, pickWith, round1 } from './util.js';
 
@@ -308,9 +308,11 @@ export function runAgeDecline(db: Database, week: number): void {
     if (age <= AGING.peakEndWeeks) continue;
     const dec = AGING.declinePerWeekBase * ((age - AGING.peakEndWeeks) / 52) * (p.declineRate ?? 1);
     if (dec <= 0) continue;
-    p.speed = round1(Math.max(AGING.floor, p.speed - dec));
-    p.endurance = round1(Math.max(AGING.floor, p.endurance - dec));
-    p.orientation = round1(Math.max(AGING.floor, p.orientation - dec));
+    for (const attr of ['speed', 'endurance', 'orientation'] as const) {
+      const before = p[attr];
+      p[attr] = round1(Math.max(AGING.floor, p[attr] - dec));
+      noteAttrChange(p, attr, before, 'veroudering');
+    }
   }
 }
 

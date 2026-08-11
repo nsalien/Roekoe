@@ -5,7 +5,7 @@
  * energie, leeftijd, …) drove the ranking. Built to grow — add tabs below.
  */
 
-import { useCallback, useEffect, useState } from 'react';
+import { Fragment, useCallback, useEffect, useState } from 'react';
 import { Link, Navigate } from 'react-router-dom';
 import { api } from '../api/client';
 import { useGame } from '../game/GameContext';
@@ -66,6 +66,7 @@ function num(n: number | null, d = 0): string {
 }
 
 interface InspectGenes { speed: number; endurance: number; orientation: number }
+interface AttrChange { attr: string; from: number; to: number; reason: string; at: string }
 interface InspectPigeon {
   id: string; name: string; ownerName: string; isBot: boolean; sex: string;
   birthWeek: number; currentWeek: number; ageWeeks: number;
@@ -74,7 +75,10 @@ interface InspectPigeon {
   genes: InspectGenes | null; declineRate: number | null;
   aging: boolean; declinePerWeek: number;
   atGeneCap: { speed: boolean; endurance: boolean; orientation: boolean } | null;
+  attrLog: AttrChange[];
 }
+
+const ATTR_NL: Record<string, string> = { speed: 'snelheid', endurance: 'conditie', orientation: 'oriëntatie' };
 interface InspectResp {
   pigeons: InspectPigeon[]; total: number;
   caps: { train: number; race: number; ceil: number; peakEndWeeks: number };
@@ -90,6 +94,8 @@ function PigeonInspector() {
   const [q, setQ] = useState('');
   const [resp, setResp] = useState<InspectResp | null>(null);
   const [loading, setLoading] = useState(false);
+  const [open, setOpen] = useState<Set<string>>(new Set());
+  const toggle = (id: string) => setOpen((s) => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n; });
 
   const load = useCallback(async (query: string) => {
     setLoading(true);
@@ -145,33 +151,65 @@ function PigeonInspector() {
                   <th>Duif</th><th>Hok</th><th className="num">Lft (wk)</th>
                   <th className="num">Snel</th><th className="num">Cond</th><th className="num">Oriÿ</th>
                   <th className="num">Libido</th><th className="num">Energie</th><th className="num">Gez</th><th className="num">Erv</th>
-                  <th>Genen (cap)</th><th className="num">Verval/wk</th><th>Veroudert</th>
+                  <th>Genen (cap)</th><th className="num">Verval/wk</th><th>Veroudert</th><th>Log</th>
                 </tr>
               </thead>
               <tbody>
                 {resp.pigeons.map((p) => (
-                  <tr key={p.id} className={p.aging ? 'podium-1' : ''}>
-                    <td>
-                      <Link to={`/duif/${p.id}`} style={{ color: 'inherit' }}>{p.name}</Link>
-                      {p.isBot && <span className="faint"> · bot</span>}
-                    </td>
-                    <td className="faint">{p.ownerName}</td>
-                    <td className="num">{p.ageWeeks}</td>
-                    <td className="num"><strong>{cap(p.speed, p.atGeneCap?.speed)}</strong></td>
-                    <td className="num">{cap(p.endurance, p.atGeneCap?.endurance)}</td>
-                    <td className="num">{cap(p.orientation, p.atGeneCap?.orientation)}</td>
-                    <td className="num">{p.libido.toFixed(1)}</td>
-                    <td className="num">{p.form.toFixed(1)}</td>
-                    <td className="num">{p.health.toFixed(1)}</td>
-                    <td className="num">{p.experience.toFixed(1)}</td>
-                    <td className="faint">{p.genes ? `${p.genes.speed}/${p.genes.endurance}/${p.genes.orientation}` : '—'}</td>
-                    <td className="num">{p.aging ? p.declinePerWeek.toFixed(3) : '0'}</td>
-                    <td>
-                      {p.aging
-                        ? <span style={{ color: 'var(--bad)', fontWeight: 700 }}>ja (&gt;{peak} wk)</span>
-                        : <span className="faint">nee</span>}
-                    </td>
-                  </tr>
+                  <Fragment key={p.id}>
+                    <tr className={p.aging ? 'podium-1' : ''}>
+                      <td>
+                        <Link to={`/duif/${p.id}`} style={{ color: 'inherit' }}>{p.name}</Link>
+                        {p.isBot && <span className="faint"> · bot</span>}
+                      </td>
+                      <td className="faint">{p.ownerName}</td>
+                      <td className="num">{p.ageWeeks}</td>
+                      <td className="num"><strong>{cap(p.speed, p.atGeneCap?.speed)}</strong></td>
+                      <td className="num">{cap(p.endurance, p.atGeneCap?.endurance)}</td>
+                      <td className="num">{cap(p.orientation, p.atGeneCap?.orientation)}</td>
+                      <td className="num">{p.libido.toFixed(1)}</td>
+                      <td className="num">{p.form.toFixed(1)}</td>
+                      <td className="num">{p.health.toFixed(1)}</td>
+                      <td className="num">{p.experience.toFixed(1)}</td>
+                      <td className="faint">{p.genes ? `${p.genes.speed}/${p.genes.endurance}/${p.genes.orientation}` : '—'}</td>
+                      <td className="num">{p.aging ? p.declinePerWeek.toFixed(3) : '0'}</td>
+                      <td>
+                        {p.aging
+                          ? <span style={{ color: 'var(--bad)', fontWeight: 700 }}>ja (&gt;{peak} wk)</span>
+                          : <span className="faint">nee</span>}
+                      </td>
+                      <td>
+                        <button className="btn ghost sm" onClick={() => toggle(p.id)}>
+                          📜 {p.attrLog.length}{open.has(p.id) ? ' ▲' : ' ▼'}
+                        </button>
+                      </td>
+                    </tr>
+                    {open.has(p.id) && (
+                      <tr>
+                        <td colSpan={14} style={{ background: 'var(--surface-2, rgba(127,127,127,0.06))' }}>
+                          {p.attrLog.length === 0 ? (
+                            <span className="faint">Nog geen geregistreerde wijzigingen aan snelheid/conditie/oriëntatie voor deze duif
+                              {' '}(het logboek startte bij de uitrol — oudere veranderingen zijn niet bewaard).</span>
+                          ) : (
+                            <div className="stack" style={{ gap: 3 }}>
+                              <div className="faint" style={{ fontSize: '0.8rem' }}>Wijzigingsgeschiedenis (nieuwste eerst):</div>
+                              {p.attrLog.map((e, i) => {
+                                const down = e.to < e.from;
+                                return (
+                                  <div key={i} style={{ fontSize: '0.84rem' }}>
+                                    <span className="faint">{formatFlightTime(e.at)}</span>{' · '}
+                                    <strong>{ATTR_NL[e.attr] ?? e.attr}</strong>{' '}
+                                    {e.from.toFixed(1)} <span style={{ color: down ? 'var(--bad)' : 'var(--good, #2e9e5b)', fontWeight: 700 }}>→ {e.to.toFixed(1)}</span>
+                                    {' '}<span className="faint">({e.reason})</span>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </td>
+                      </tr>
+                    )}
+                  </Fragment>
                 ))}
               </tbody>
             </table>

@@ -12,7 +12,7 @@ import {
   type BreedDef,
   type RacingAttr,
 } from '../config/gameConfig.js';
-import type { Pigeon, PigeonGenes, Sex } from '../schema.js';
+import type { AttrChange, Pigeon, PigeonGenes, Sex } from '../schema.js';
 import { newId } from '../store.js';
 import { generatePigeonName } from './names.js';
 import { bell, clamp, interpolate, randInt, round1 } from './util.js';
@@ -70,6 +70,24 @@ export function raceCeil(p: Pigeon, attr: RacingAttr): number {
 export function trainingCost(value: number): number {
   const raw = TRAINING.costBase * Math.pow(TRAINING.costGrowth, value / 10);
   return Math.max(TRAINING.costMin, Math.round(raw / 5) * 5);
+}
+
+/** Cap on how many skill-change entries we keep per bird (newest kept). */
+const ATTR_LOG_CAP = 40;
+
+/**
+ * Record a change to a racing skill (snelheid/conditie/oriëntatie) on the bird's
+ * audit log, so a rise or fall is later fully explainable (what, from→to, why,
+ * when). Call it right AFTER mutating `p[attr]`, passing the value it had BEFORE.
+ * No-op when the displayed (1-decimal) value didn't actually move — so a tiny
+ * ageing nudge that rounds away isn't logged as a phantom change.
+ */
+export function noteAttrChange(p: Pigeon, attr: RacingAttr, before: number, reason: string): void {
+  const to = p[attr];
+  if (round1(before) === round1(to)) return;
+  const entry: AttrChange = { attr, from: round1(before), to: round1(to), reason, at: new Date().toISOString() };
+  const log = p.attrLog ? [...p.attrLog, entry] : [entry];
+  p.attrLog = log.length > ATTR_LOG_CAP ? log.slice(-ATTR_LOG_CAP) : log;
 }
 
 /** Look up a breed by id, falling back to the default (Stadsduif) breed. */

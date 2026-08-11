@@ -14,7 +14,7 @@ import {
   type RacingAttr,
 } from '../config/gameConfig.js';
 import type { Loft, Pigeon } from '../schema.js';
-import { geneCap } from './pigeon.js';
+import { geneCap, noteAttrChange } from './pigeon.js';
 import { clamp, hashString, round1 } from './util.js';
 
 const RACING_ATTRS: RacingAttr[] = ['speed', 'endurance', 'orientation'];
@@ -113,7 +113,11 @@ export function applyDayOfCare(
       if (ration.enduranceRecovery) {
         const foodCap = Math.min(GENE.trainCap, geneCap(p, 'endurance'));
         const target = Math.min(p.endurance + ration.enduranceRecovery / 7, foodCap);
-        if (target > p.endurance) p.endurance = round1(target);
+        if (target > p.endurance) {
+          const before = p.endurance;
+          p.endurance = round1(target);
+          noteAttrChange(p, 'endurance', before, 'premiumvoer');
+        }
       }
       if (ration.libidoRecovery) p.libido = round1(clamp(p.libido + ration.libidoRecovery / 7, 0, 100));
       // A hired coach POLISHES racing attributes above 90 up to the gene cap (never
@@ -125,7 +129,9 @@ export function applyDayOfCare(
         for (const attr of RACING_ATTRS) {
           const g = coachDailyGain(p[attr], geneCap(p, attr));
           if (g > 0) {
+            const before = p[attr];
             p[attr] = round1(clamp(p[attr] + g, 0, geneCap(p, attr)));
+            noteAttrChange(p, attr, before, 'coach');
             polished = true;
           }
         }

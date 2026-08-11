@@ -325,6 +325,12 @@ Entiteiten: `Pigeon`, `Loft`, `User`, `BreedingPair`, `Flight` (+ `SimEntry`,
   erven over. Migratie **v29** backfilt.
 - `Pigeon.declineRate?` — **verouderingstempo** (~0.6–1.6, kolom `decline_rate REAL`); drijft
   `runAgeDecline`. Erft over. Migratie **v29**.
+- `Pigeon.attrLog?: AttrChange[]` — **auditlog van skill-wijzigingen** (kolom `attr_log` JSON,
+  cap 40). Elke verandering aan snelheid/conditie/oriëntatie wordt gelogd via
+  `noteAttrChange(p, attr, before, reason)` (pigeon.ts) met `from/to/reason/at`. Redenen:
+  `training`/`coach`/`vlucht`/`veroudering`/`premiumvoer`/`gebeurtenis: …`. Geen fantoom-entry
+  als de afgeronde (0,1) waarde niet beweegt. Zichtbaar in de admin-duifinspector. Startte bij
+  uitrol (geen historiek van daarvoor).
 - `Pigeon.hungerDays` — opeenvolgende dagen zonder voer (drijft verhongeren).
 - `Pigeon.restDays` — opeenvolgende gevoede rustdagen zonder vlucht (rustbonus).
 - `Pigeon.cureUntil?` — ISO-tijd waarop een betaalde **rustkuur** afloopt (eigen
@@ -553,7 +559,9 @@ Entiteiten: `Pigeon`, `Loft`, `User`, `BreedingPair`, `Flight` (+ `SimEntry`,
   Tweede tool **Duif-inspector** (`GET /admin/pigeons?q=`): exacte opgeslagen waarden
   (op 0,1) van élke duif (eigen of andermans) — skills, gen-caps, `birthWeek`/leeftijd,
   `declineRate` + **verouderingsdiagnose** (`aging` enkel > `AGING.peakEndWeeks`, met de
-  exacte `declinePerWeek`). Zo verifieerbaar of een duif (on)terecht achteruitgaat.
+  exacte `declinePerWeek`), plus een **uitklapbaar wijzigingslogboek** (`Pigeon.attrLog`):
+  elke skill-verandering met reden + tijdstip. Zo verifieerbaar óf, wanneer én waardoor
+  een duif zakt/stijgt.
 - `MarketPage` (Markt) — koop van spelers + veilingen (zondag/opvangcentrum) + de
   **privé-biedingen**: "Biedingen op jouw duiven" (accepteer/weiger), "Jouw
   uitgebrachte biedingen" (intrekken), én een **getrapte kiezer `BidCascade`**

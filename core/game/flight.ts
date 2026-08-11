@@ -27,7 +27,7 @@ import {
   TOURNEY_RISK,
 } from '../config/gameConfig.js';
 import type { Ailment, Flight, FlightResult, Loft, Pigeon, SimEntry } from '../schema.js';
-import { ageMultiplier, raceCeil } from './pigeon.js';
+import { ageMultiplier, noteAttrChange, raceCeil } from './pigeon.js';
 import { applyAilment, randomAilmentOfSeverity, randomInjury } from './health.js';
 import { randomWeather, type WeatherResult } from './weather.js';
 import { clamp, hashString, interpolate, pickWith, randFloat, round1, seededRng } from './util.js';
@@ -968,7 +968,11 @@ export function applyFlightEffects(
     // Conditie built by racing respects the per-bird racing ceiling (min(90,cap));
     // a grandfathered bird already above it keeps its value (no growth, no drop).
     const eCap = raceCeil(p, 'endurance');
-    p.endurance = p.endurance >= eCap ? p.endurance : round1(clamp(p.endurance + f.enduranceDelta, 0, eCap));
+    if (p.endurance < eCap) {
+      const before = p.endurance;
+      p.endurance = round1(clamp(p.endurance + f.enduranceDelta, 0, eCap));
+      noteAttrChange(p, 'endurance', before, 'vlucht');
+    }
     p.health = round1(clamp(p.health + f.healthDelta, 0, 100));
     p.experience = round1(clamp(p.experience + f.experienceDelta, 0, 100));
   }
@@ -978,7 +982,11 @@ export function applyFlightEffects(
     // Clamp to this bird's racing ceiling (min(90, geneCap)); never lower a
     // grandfathered bird already above it.
     const cap = raceCeil(p, imp.attr);
-    if (p[imp.attr] < cap) p[imp.attr] = round1(Math.min(p[imp.attr] + imp.gain, cap));
+    if (p[imp.attr] < cap) {
+      const before = p[imp.attr];
+      p[imp.attr] = round1(Math.min(p[imp.attr] + imp.gain, cap));
+      noteAttrChange(p, imp.attr, before, 'vlucht');
+    }
   }
   for (const inj of sim.injuries) {
     const p = pigeons.find((x) => x.id === inj.pigeonId);
