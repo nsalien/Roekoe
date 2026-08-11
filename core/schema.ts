@@ -16,6 +16,17 @@ export interface PigeonGenes {
   orientation: number;
 }
 
+/** One recorded change to a racing skill (snelheid/conditie/oriëntatie), so a
+ *  bird's rise/fall is auditable: what changed, from→to, why, and when. Capped
+ *  per bird; rides in the `attr_log` JSON column. See game/pigeon.noteAttrChange. */
+export interface AttrChange {
+  attr: 'speed' | 'endurance' | 'orientation';
+  from: number;
+  to: number;
+  reason: string; // 'training' | 'coach' | 'vlucht' | 'veroudering' | 'gebeurtenis'
+  at: string; // ISO timestamp
+}
+
 /** A current disease or injury a pigeon is suffering from. */
 export interface Ailment {
   kind: 'ziekte' | 'kwetsuur';
@@ -84,6 +95,7 @@ export interface Pigeon {
   // Genetics (optional so legacy birds keep working; a migration backfills them).
   genes?: PigeonGenes; // per-skill ceilings (≤95, never 100) — ride in the `genes` JSON column
   declineRate?: number; // ageing decline multiplier (~0.6–1.6); higher = fades faster past its prime
+  attrLog?: AttrChange[]; // audit trail of snelheid/conditie/oriëntatie changes (kolom `attr_log` JSON, capped)
   // Per-season pigeon stats (reset at each season rollover — see season.ts).
   seasonPeakSpeed?: number; // highest race velocity (m/min) reached this season
   seasonPodiums?: number; // number of top-3 finishes this season

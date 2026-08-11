@@ -883,6 +883,8 @@ app.get('/admin/pigeons', (c) => {
         atGeneCap: g
           ? { speed: p.speed >= g.speed, endurance: p.endurance >= g.endurance, orientation: p.orientation >= g.orientation }
           : null,
+        // Audit trail of skill changes (newest first) — the "was it lowered, how?" answer.
+        attrLog: (p.attrLog ?? []).slice(-20).reverse(),
       };
     });
   return c.json({

@@ -39,7 +39,7 @@ import { resolveEvent as resolveEventCard } from './events.js';
 import { applyAcceptSponsor, applyCancelSponsor, applyRefuseSponsor } from './sponsors.js';
 import { runHealthWeek } from './health.js';
 import { voidBetsForWithdrawnPigeon } from './betting.js';
-import { canRace, generatePigeon, onRestCure, trainCeil, trainingCost } from './pigeon.js';
+import { canRace, generatePigeon, noteAttrChange, onRestCure, trainCeil, trainingCost } from './pigeon.js';
 import { clamp, randFloat, randInt, round1 } from './util.js';
 
 export const NPC_OWNER_ID = 'npc_market';
@@ -679,7 +679,9 @@ export function trainPigeon(
     }
     loft.money -= cost;
     const gain = TRAINING.attributeGain * randFloat(0.7, 1.3);
+    const before = pigeon[attr];
     pigeon[attr] = round1(clamp(pigeon[attr] + gain, 0, cap));
+    noteAttrChange(pigeon, attr, before, 'training');
     pigeon.form = round1(clamp(pigeon.form - TRAINING.formCost, 0, 100));
     pigeon.experience = round1(clamp(pigeon.experience + TRAINING.experienceGain, 0, 100));
     pigeon.trainedAt = { ...pigeon.trainedAt, [attr]: new Date().toISOString() };

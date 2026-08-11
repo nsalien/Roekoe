@@ -6,7 +6,7 @@
 
 import type { Database, EventCard, Loft, Pigeon } from '../schema.js';
 import { newId } from '../store.js';
-import { estimateValue, generatePigeon } from './pigeon.js';
+import { estimateValue, generatePigeon, noteAttrChange } from './pigeon.js';
 import { applyAilment, randomAilmentOfSeverity, randomDisease, randomInjury } from './health.js';
 import { clamp, pick, randFloat, randInt, round1 } from './util.js';
 
@@ -195,7 +195,9 @@ export function resolveEvent(db: Database, loft: Loft, choice: number, week: num
       loft.money -= 120;
       if (Math.random() < 0.6) {
         for (const p of owned) {
+          const bEnd = p.endurance;
           p.endurance = round1(clamp(p.endurance + 8, 0, 100));
+          noteAttrChange(p, 'endurance', bEnd, 'gebeurtenis: kwakzalver');
           p.form = round1(clamp(p.form + 8, 0, 100));
         }
         return 'De vitaminen blijken echt te werken — je duiven bruisen van energie en conditie!';
@@ -281,9 +283,12 @@ export function resolveEvent(db: Database, loft: Loft, choice: number, week: num
       if (idx === -1) return 'De duif is er niet meer.';
       const p = db.pigeons[idx];
       if (Math.random() < 0.5) {
+        const bSpeed = p.speed, bEnd = p.endurance;
         p.speed = round1(clamp(p.speed + randFloat(2, 5), 0, 100));
         p.endurance = round1(clamp(p.endurance + randFloat(2, 5), 0, 100));
         p.experience = round1(clamp(p.experience + randFloat(4, 8), 0, 100));
+        noteAttrChange(p, 'speed', bSpeed, 'gebeurtenis: talentenjager');
+        noteAttrChange(p, 'endurance', bEnd, 'gebeurtenis: talentenjager');
         notify(db, loft, '🔎 Wat een vooruitgang', `${p.name} kwam sterker terug van bij de topmelker.`);
         return `${p.name} leerde bij en is merkbaar beter geworden!`;
       }
