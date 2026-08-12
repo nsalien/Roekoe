@@ -399,7 +399,9 @@ Entiteiten: `Pigeon`, `Loft`, `User`, `BreedingPair`, `Flight` (+ `SimEntry`,
 - **Dagopdrachten/streak verlaagd** (missions.ts): opdrachtgeld ~gehalveerd (15–60),
   streakbonus `min(25, 5 + streak·2)` → samen ~€750/week i.p.v. ~€1750.
 - **Weddenschap max inzet €500** (`BETTING.maxStake`, was 5000).
-- **Prijzengeld regionaal verdubbeld** (`PRIZE_MONEY.regional` `[600,360,220,140,90,60,40,24]`).
+- **Prijzengeld (nieuwste, `PRIZE_MONEY`)** — verhoogd: regionaal `[800,600,350,220,140,90,55,30]`
+  (8 pl.), nationaal `[1200,800,500,320,210,140,95,60,40,25]` (10 pl.), internationaal
+  `[2200,1800,1000,650,420,270,170,100]` (**8 pl.**, was 12). Titan `[1800,1200,900]`.
 - **Inschrijfgelden gehalveerd (nieuwste)** (`FLIGHT_TIERS.entryFee`): regionaal **€10**
   (was 20), nationaal **€20** (was 40), internationaal **€40** (was 80); **Titan €50**
   (`TITAN.entryFee`, was 100). Oefenvluchten blijven gratis.
@@ -495,7 +497,7 @@ Entiteiten: `Pigeon`, `Loft`, `User`, `BreedingPair`, `Flight` (+ `SimEntry`,
   (dagnummer = dagen sinds Unix-epoch); op een **titan-dag** worden alle níet-titan-slots
   overgeslagen (de titan vervangt alles die dag).
 - **Titanenwedstrijd (`TITAN`):** `weekday 6` (zaterdag), `hour 11`, afstand 200–600 km,
-  `entryFee 50`, `prizes [1400,1200,1000]`. **Enkel geld** voor de melker-economie: geen
+  `entryFee 50`, `prizes [1800,1200,900]`. **Enkel geld** voor de melker-economie: geen
   **seizoenspunten**/medailles/wins, telt **niet** mee voor de **melkerranglijst (Roekoe)**;
   **max. 1 duif per hok** (`enterFlight` + bots 1 vogel); geen wedden (`bettingOpen`).
   Prijzengeld via `finalizeFlight` (`flight.titan` → `TITAN.prizes`, 0 punten, 0 wins).
