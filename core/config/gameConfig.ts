@@ -365,9 +365,9 @@ export const FLIGHT_TEMPLATES: FlightTemplate[] = [
 export type FlightTier = 'regional' | 'national' | 'international';
 
 export const PRIZE_MONEY: Record<FlightTier, number[]> = {
-  regional: [600, 360, 220, 140, 90, 60, 40, 24],
-  national: [900, 550, 350, 220, 140, 90, 60, 40, 25, 15],
-  international: [2200, 1300, 800, 500, 320, 200, 130, 85, 55, 35, 25, 15],
+  regional: [800, 600, 350, 220, 140, 90, 55, 30],
+  national: [1200, 800, 500, 320, 210, 140, 95, 60, 40, 25],
+  international: [2200, 1800, 1000, 650, 420, 270, 170, 100],
 };
 
 /** Ranking points awarded by finishing position (index 0 = winner). */
@@ -1075,7 +1075,7 @@ export const TITAN = {
   minKm: 200, // medium-to-long
   maxKm: 600,
   entryFee: 50,
-  prizes: [1400, 1200, 1000], // 1e / 2e / 3e (money only)
+  prizes: [1800, 1200, 900], // 1e / 2e / 3e (money only)
 } as const;
 
 export const REAL_SCHEDULE: ScheduleSlot[] = [

@@ -166,9 +166,9 @@ Rugwind versnelt, tegenwind + regen vertragen. Zonder netwerk: willekeurig weer.
 Gerangschikt op finishtijd (snelste eerst).
 
 **Prijzengeld** (index 0 = winnaar):
-- Regionaal: 600, 360, 220, 140, 90, 60, 40, 24
-- Nationaal: 900, 550, 350, 220, 140, 90, 60, 40, 25, 15
-- Internationaal: 2200, 1300, 800, 500, 320, 200, 130, 85, 55, 35, 25, 15
+- Regionaal: 800, 600, 350, 220, 140, 90, 55, 30
+- Nationaal: 1200, 800, 500, 320, 210, 140, 95, 60, 40, 25
+- Internationaal: 2200, 1800, 1000, 650, 420, 270, 170, 100
 
 **Punten** (top 20): 100, 80, 65, 55, 47, 40, 34, 29, 25, 21, 18, 15, 13, 11, 9, 7, 5, 3, 2, 1.
 Seizoenspunten tellen op over **alle** vluchten en **alle** duiven van een hok.
@@ -211,7 +211,7 @@ Eén keer per week, in het **weekend** (zaterdag 11:00), is er een prestigieuze
 - **Middellange tot lange** afstand (~200–600 km).
 - Er is **inschrijfgeld** (€50) en er valt **enkel geld** te winnen: **geen
   seizoenspunten** en **geen medailles**, dus het telt **niet mee voor de
-  melkerranglijst (de Roekoe, §15.2)**. Prijzengeld: **1e €1400, 2e €1200, 3e €1000**.
+  melkerranglijst (de Roekoe, §15.2)**. Prijzengeld: **1e €1800, 2e €1200, 3e €900**.
 - **Voor de duivenranglijsten (de Vleugel, §15.3) telt de titanenwedstrijd wél mee.**
   De snelheid, podiumplaatsen en vooruitgang van je duif in deze wedstrijd tellen dus
   gewoon mee voor de drie ranglijsten van individuele duiven — het is alleen de
