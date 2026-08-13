@@ -12,6 +12,8 @@ import { D1Store, ensureSchema, findUserById, findUserByUsername } from './core/
 import { readFileSync } from 'node:fs';
 
 let rowsRead = 0;
+/** D1 bills a *query budget* too: 50 per Worker invocation on the free plan. */
+let queries = 0;
 
 function fakeD1(): any {
   const sql = new DatabaseSync(':memory:');
@@ -20,22 +22,24 @@ function fakeD1(): any {
     const api = {
       bind(...args: unknown[]) { bound.push(...args); return api; },
       async first() {
+        queries += 1;
         const r = sql.prepare(query).get(...(bound as any[]));
         if (r) rowsRead += 1;
         return r ?? null;
       },
       async all() {
+        queries += 1;
         const results = sql.prepare(query).all(...(bound as any[]));
         rowsRead += results.length;
         return { results };
       },
-      run() { return sql.prepare(query).run(...(bound as any[])); },
+      run() { queries += 1; return sql.prepare(query).run(...(bound as any[])); },
     };
     return api;
   };
   return {
     prepare,
-    async exec(query: string) { sql.exec(query); },
+    async exec(query: string) { queries += 1; sql.exec(query); },
     async batch(stmts: any[]) { for (const s of stmts) s.run(); },
     _raw: sql,
   };
@@ -46,9 +50,27 @@ function assert(cond: boolean, msg: string) {
   else console.log(`  ✓ ${msg}`);
 }
 
+const D1_QUERIES_PER_INVOCATION_FREE = 50;
+
 const db = fakeD1();
 db._raw.exec(readFileSync('./migrations/0001_init.sql', 'utf8'));
+
+// --- 0. ensureSchema mag een warme database niet leegtrekken ----------------
+console.log('\nensureSchema (D1: max 50 queries per invocatie op het gratis plan)');
+queries = 0;
 await ensureSchema(db);
+const coldStart = queries;
+console.log(`  → eerste upgrade: ${coldStart} queries`);
+// De world-rij bestaat nog niet, dus de versie kon niet weggeschreven worden;
+// na het zaaien van die rij moet de upgrade zich definitief uitschakelen.
+db._raw.prepare('INSERT INTO world (id, current_week, season_year, seeded) VALUES (1,1,1,1)').run();
+queries = 0;
+await ensureSchema(db);
+console.log(`  → tweede aanroep (world-rij bestaat): ${queries} queries`);
+queries = 0;
+await ensureSchema(db);
+assert(queries === 1, `warme cold start kost ${queries} query i.p.v. ${coldStart}`);
+assert(queries < D1_QUERIES_PER_INVOCATION_FREE, 'ruim onder de 50-querylimiet per invocatie');
 
 // --- seed: 3 players, a fat notification/trade/bet history ------------------
 const now = (i: number) => new Date(Date.UTC(2026, 0, 1, 0, 0, i)).toISOString();
@@ -82,8 +104,10 @@ const count = (t: string) => db._raw.prepare(`SELECT COUNT(*) c FROM ${t}`).get(
 // --- 1. what a viewer actually loads ----------------------------------------
 console.log('\nPartiële load (viewer = alice)');
 rowsRead = 0;
+queries = 0;
 const store = await D1Store.load(db, 'usr_alice');
 const loadCost = rowsRead;
+const loadQueries = queries;
 assert(store.data.notifications.length === 40 || store.data.notifications.length === 60,
   `alleen alice's inbox geladen (${store.data.notifications.length} rijen, geen 180)`);
 assert(store.data.notifications.every((n) => n.userId === 'usr_alice'), 'geen inbox van andere spelers geladen');
@@ -96,6 +120,8 @@ assert(store.data.bets.filter((b) => b.status !== 'open').every((b) => b.userId 
 const fullRows = count('users') + count('lofts') + count('notifications') + count('trades') + count('bets');
 console.log(`  → ${loadCost} rijen gelezen i.p.v. ${fullRows} bij een volledige scan`);
 assert(loadCost < fullRows / 2, 'leeskost meer dan gehalveerd');
+assert(loadQueries < D1_QUERIES_PER_INVOCATION_FREE,
+  `een load kost ${loadQueries} queries — ruimte over binnen de 50 per invocatie`);
 
 // --- 2. persist mag niets wissen wat niet geladen was ------------------------
 console.log('\nPersist met een partiële load');
