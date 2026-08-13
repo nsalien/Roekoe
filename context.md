@@ -404,7 +404,12 @@ Entiteiten: `Pigeon`, `Loft`, `User`, `BreedingPair`, `Flight` (+ `SimEntry`,
 
 - `DashboardPage` — home. Voorraad per voertype (kopen), voer-effecten **per dag** in
   **tekst** (energie/gezondheid/conditie/libido). Tegel "**Ziek/gewond in je hok**"
-  (ziekenboeg telt niet mee). Dagopdrachten. Beheerder-kaart (admin): "Volgende week"
+  (ziekenboeg telt niet mee). **Klikbare tegel "Dagelijkse kosten"** toont de
+  cumulatieve dagkost (`loft.dailyCosts.total`); klikken opent een **onderverdeling**
+  (vast onderhoud, onderhoud per duif, privécoach, duivendokter, kinesist,
+  medicatievoer + totaal & ≈weekbedrag) — cijfers uit `loft.dailyCosts`
+  (`dailyRunningCostBreakdown`, zelfde bron als de dagelijkse afrekening in
+  `tickDailyCare`). Dagopdrachten. Beheerder-kaart (admin): "Volgende week"
   + "Toon recente veilingen" (biedgeschiedenis).
 - `LoftPage` (Mijn hok) — duivenlijst met per duif: voerkeuze-select, apart/samen-knop
   (of "🏥 Ziekenboeg"-label als ze daar zit), verkoop, uitbreidingen. De statbalken

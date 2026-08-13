@@ -21,6 +21,7 @@ export function DashboardPage() {
   const [buyKg, setBuyKg] = useState(50);
   const [buyType, setBuyType] = useState<FeedRation>('normal');
   const [busy, setBusy] = useState(false);
+  const [showCosts, setShowCosts] = useState(false);
 
   if (loading || !state) return <Spinner />;
   const { loft, pigeons, world, rankings, scheduledFlights, feedRations } = state;
@@ -32,7 +33,19 @@ export function DashboardPage() {
   const avgForm = pigeons.length ? Math.round(pigeons.reduce((s, p) => s + (p.form ?? 0), 0) / pigeons.length) : 0;
   const coachedCount = pigeons.filter((p) => p.coached).length;
   const eco = state.economy;
+  const inf = state.infirmary;
   const dailyFixed = eco.dailyUpkeepBase + pigeons.length * eco.dailyUpkeepPerPigeon + coachedCount * eco.coachSalary;
+  // Full cumulative daily-cost breakdown (from the loft DTO, same source as what
+  // is actually deducted each day). Each row: label, count context, and amount.
+  const costs = loft.dailyCosts;
+  const costRows = [
+    { key: 'base', label: 'Vast onderhoud', detail: 'basiskost van je hok', amount: costs.upkeepBase },
+    { key: 'perPigeon', label: 'Onderhoud per duif', detail: `${loft.pigeonCount} × `, unit: eco.dailyUpkeepPerPigeon, amount: costs.upkeepPerPigeon },
+    { key: 'coach', label: 'Privécoach', detail: `${loft.coachedCount} × `, unit: eco.coachSalary, amount: costs.coaches },
+    { key: 'doctor', label: 'Duivendokter', detail: `${loft.doctors} × `, unit: inf.doctorSalary, amount: costs.doctors },
+    { key: 'physio', label: 'Kinesist', detail: `${loft.physios} × `, unit: inf.physioSalary, amount: costs.physios },
+    { key: 'medfeed', label: 'Medicatievoer', detail: loft.medicatedFood ? `${loft.infirmaryCount} × ` : 'uit', unit: loft.medicatedFood ? inf.medicatedFoodPerBird : undefined, amount: costs.medicatedFeed },
+  ];
   // How many pigeons eat each food type, and which types are running out.
   const rationCounts = { normal: 0, premium: 0, libido: 0, herstel: 0 } as Record<FeedRation, number>;
   for (const p of pigeons) rationCounts[p.ration] = (rationCounts[p.ration] ?? 0) + 1;
@@ -88,6 +101,30 @@ export function DashboardPage() {
           </div>
         </div>
 
+        <div
+          className="tile card-hover"
+          role="button"
+          tabIndex={0}
+          aria-expanded={showCosts}
+          onClick={() => setShowCosts((v) => !v)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              setShowCosts((v) => !v);
+            }
+          }}
+          style={{ display: 'block', cursor: 'pointer' }}
+          data-tour="daily-costs"
+        >
+          <div className="tile-label">Dagelijkse kosten</div>
+          <div className="tile-value" style={{ color: 'var(--bad)' }}>
+            −<Money value={costs.total} />
+          </div>
+          <div className="faint" style={{ fontSize: '0.8rem' }}>
+            {showCosts ? '▲ verberg onderverdeling' : '▼ klik voor onderverdeling'}
+          </div>
+        </div>
+
         <Link to="/ziekenboeg" className="tile card-hover" style={{ display: 'block', color: 'inherit' }}>
           <div className="tile-label">Ziek/gewond in je hok</div>
           <div className="tile-value" style={{ color: needCare > 0 ? 'var(--bad)' : 'var(--good)' }}>
@@ -131,6 +168,40 @@ export function DashboardPage() {
           </div>
         )}
       </div>
+
+      {/* Daily-cost breakdown (toggled by the "Dagelijkse kosten" tile) */}
+      {showCosts && (
+        <div className="card" style={{ marginBottom: 18 }}>
+          <div className="row" style={{ justifyContent: 'space-between' }}>
+            <h2 style={{ margin: 0 }}>💸 Dagelijkse kosten</h2>
+            <button className="btn ghost sm" onClick={() => setShowCosts(false)}>Sluiten</button>
+          </div>
+          <p className="faint" style={{ margin: '4px 0 10px', fontSize: '0.82rem' }}>
+            Deze vaste kosten worden <strong>elke dag automatisch</strong> van je kassa afgehouden
+            (exclusief voer, dat apart uit je voorraad gaat). Sponsorbijdragen komen er dagelijks bij.
+          </p>
+          <table className="data">
+            <tbody>
+              {costRows.map((r) => (
+                <tr key={r.key} className={r.amount <= 0 ? 'faint' : undefined}>
+                  <td>{r.label}</td>
+                  <td className="faint" style={{ fontSize: '0.82rem' }}>
+                    {r.detail}
+                    {r.unit !== undefined && <Money value={r.unit} />}
+                    {r.unit !== undefined ? '/dag' : ''}
+                  </td>
+                  <td className="num">−<Money value={r.amount} /></td>
+                </tr>
+              ))}
+              <tr style={{ borderTop: '2px solid var(--border)', fontWeight: 800 }}>
+                <td>Totaal per dag</td>
+                <td className="faint" style={{ fontSize: '0.82rem' }}>≈ <Money value={costs.total * 7} />/week</td>
+                <td className="num" style={{ color: 'var(--bad)' }}>−<Money value={costs.total} /></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      )}
 
       {/* Daily missions */}
       {state.missions.length > 0 && (

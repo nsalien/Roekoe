@@ -238,16 +238,43 @@ export function projectDailyCare(loft: Loft, p: Pigeon, live = false): DailyCare
   };
 }
 
-/** Charge a loft its weekly maintenance overhead (money). */
 /**
- * The recurring costs charged to a loft for ONE day: fixed upkeep + coach
- * salaries + infirmary staff/medicated feed. (Deducted in schedule.tickDailyCare;
- * sponsor stipends are paid there too.) Returned so callers can total it up.
+ * The recurring daily costs of a loft, split per category, so the total that is
+ * charged and the breakdown shown to the player come from the SAME source. All
+ * amounts are € per day.
  */
-export function dailyRunningCost(loft: Loft, pigeonCount: number, coachedCount: number, infirmaryBirds: number): number {
-  const upkeep = DAILY_UPKEEP_BASE + pigeonCount * DAILY_UPKEEP_PER_PIGEON;
+export interface DailyCostBreakdown {
+  upkeepBase: number; // fixed base upkeep (independent of loft size)
+  upkeepPerPigeon: number; // per-pigeon upkeep, totalled over the loft
+  coaches: number; // private-coach salaries
+  doctors: number; // pigeon-doctor salaries
+  physios: number; // physiotherapist salaries
+  medicatedFeed: number; // medicated feed for the birds in the infirmary
+  total: number; // sum of all of the above
+}
+
+/**
+ * The recurring costs charged to a loft for ONE day, split per category: fixed
+ * upkeep (base + per pigeon) + coach salaries + infirmary staff/medicated feed.
+ * (Deducted in schedule.tickDailyCare; sponsor stipends are paid there too.)
+ */
+export function dailyRunningCostBreakdown(
+  loft: Loft,
+  pigeonCount: number,
+  coachedCount: number,
+  infirmaryBirds: number,
+): DailyCostBreakdown {
+  const upkeepBase = DAILY_UPKEEP_BASE;
+  const upkeepPerPigeon = pigeonCount * DAILY_UPKEEP_PER_PIGEON;
   const coaches = coachedCount * COACH.dailySalary;
-  const staff = loft.doctors * INFIRMARY.doctorSalary + loft.physios * INFIRMARY.physioSalary;
-  const feed = loft.medicatedFood ? infirmaryBirds * INFIRMARY.medicatedFoodPerBird : 0;
-  return upkeep + coaches + staff + feed;
+  const doctors = loft.doctors * INFIRMARY.doctorSalary;
+  const physios = loft.physios * INFIRMARY.physioSalary;
+  const medicatedFeed = loft.medicatedFood ? infirmaryBirds * INFIRMARY.medicatedFoodPerBird : 0;
+  const total = upkeepBase + upkeepPerPigeon + coaches + doctors + physios + medicatedFeed;
+  return { upkeepBase, upkeepPerPigeon, coaches, doctors, physios, medicatedFeed, total };
+}
+
+/** The total recurring cost charged to a loft for one day (see the breakdown). */
+export function dailyRunningCost(loft: Loft, pigeonCount: number, coachedCount: number, infirmaryBirds: number): number {
+  return dailyRunningCostBreakdown(loft, pigeonCount, coachedCount, infirmaryBirds).total;
 }

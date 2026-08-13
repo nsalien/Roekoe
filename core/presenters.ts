@@ -10,7 +10,7 @@ import { ageInWeeks, canRace, estimateValue, talent } from './game/pigeon.js';
 import { auctionKind } from './game/auction.js';
 import { bettingOpen } from './game/betting.js';
 import { nextCapacityTier, nextInfirmaryTier, ownerName } from './game/engine.js';
-import { projectDailyCare } from './game/economy.js';
+import { dailyRunningCostBreakdown, projectDailyCare } from './game/economy.js';
 import { flightCommentary, liveSnapshot } from './game/flight.js';
 import { BADGES, levelForXp } from './game/badges.js';
 import { round1 } from './game/util.js';
@@ -86,6 +86,7 @@ export function pigeonDTO(db: Database, p: Pigeon, viewerId?: string) {
 export function loftDTO(db: Database, loft: Loft) {
   const pigeons = db.pigeons.filter((p) => p.ownerId === loft.userId);
   const infirmary = pigeons.filter((p) => p.inInfirmary);
+  const coachedCount = pigeons.filter((p) => p.coached).length;
   return {
     userId: loft.userId,
     name: loft.name,
@@ -111,6 +112,11 @@ export function loftDTO(db: Database, loft: Loft) {
     physios: loft.physios,
     sickCount: infirmary.filter((p) => p.ailment?.kind === 'ziekte').length,
     injuredCount: infirmary.filter((p) => p.ailment?.kind === 'kwetsuur').length,
+    coachedCount,
+    // Cumulative recurring cost charged to this loft each day, split per category
+    // (upkeep, coaches, infirmary staff, medicated feed) — same source as what
+    // schedule.tickDailyCare actually deducts.
+    dailyCosts: dailyRunningCostBreakdown(loft, pigeons.length, coachedCount, infirmary.length),
     // Weekly rest-cure lock: ISO time the next cure becomes available, or null if
     // one can be started right now (max one cure per loft per week).
     restCureAvailableAt: (() => {
