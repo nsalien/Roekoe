@@ -101,49 +101,6 @@ export function DashboardPage() {
           </div>
         </div>
 
-        <div
-          className="tile card-hover"
-          role="button"
-          tabIndex={0}
-          aria-expanded={showCosts}
-          onClick={() => setShowCosts((v) => !v)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' || e.key === ' ') {
-              e.preventDefault();
-              setShowCosts((v) => !v);
-            }
-          }}
-          style={{ display: 'block', cursor: 'pointer' }}
-          data-tour="daily-costs"
-        >
-          <div className="tile-label">Dagelijkse kosten</div>
-          <div className="tile-value" style={{ color: 'var(--bad)' }}>
-            −<Money value={costs.total} />
-          </div>
-          <div className="faint" style={{ fontSize: '0.8rem' }}>
-            {showCosts ? '▲ verberg onderverdeling' : '▼ klik voor onderverdeling'}
-          </div>
-        </div>
-
-        <Link to="/ziekenboeg" className="tile card-hover" style={{ display: 'block', color: 'inherit' }}>
-          <div className="tile-label">Ziek/gewond in je hok</div>
-          <div className="tile-value" style={{ color: needCare > 0 ? 'var(--bad)' : 'var(--good)' }}>
-            {needCare}
-          </div>
-          <div className="faint" style={{ fontSize: '0.8rem' }}>
-            {needCare > 0 ? '⚠️ actie nodig — naar ziekenboeg' : 'niets in je hok (buiten de ziekenboeg) 🎉'}
-          </div>
-        </Link>
-
-        <Link to="/ziekenboeg" className="tile card-hover" style={{ display: 'block', color: 'inherit' }}>
-          <div className="tile-label">In de ziekenboeg</div>
-          <div className="tile-value">
-            {loft.infirmaryCount}
-            <span className="faint" style={{ fontSize: '0.95rem', fontWeight: 600 }}> / {loft.infirmaryCapacity}</span>
-          </div>
-          <div className="faint" style={{ fontSize: '0.8rem' }}>in verzorging</div>
-        </Link>
-
         {myNextFlight ? (
           <Link to={`/vluchten/${myNextFlight.id}`} className="tile card-hover" style={{ display: 'block', color: 'inherit' }}>
             <div className="tile-label">
@@ -167,6 +124,52 @@ export function DashboardPage() {
             <div className="faint" style={{ fontSize: '0.8rem' }}>schrijf een duif in bij Vluchten</div>
           </div>
         )}
+
+        <Link to="/ziekenboeg" className="tile card-hover" style={{ display: 'block', color: 'inherit' }}>
+          <div className="tile-label">Ziek/gewond in je hok</div>
+          <div className="tile-value" style={{ color: needCare > 0 ? 'var(--bad)' : 'var(--good)' }}>
+            {needCare}
+          </div>
+          <div className="faint" style={{ fontSize: '0.8rem' }}>
+            {needCare > 0 ? '⚠️ actie nodig — naar ziekenboeg' : 'niets in je hok (buiten de ziekenboeg) 🎉'}
+          </div>
+        </Link>
+
+        <Link to="/ziekenboeg" className="tile card-hover" style={{ display: 'block', color: 'inherit' }}>
+          <div className="tile-label">In de ziekenboeg</div>
+          <div className="tile-value">
+            {loft.infirmaryCount}
+            <span className="faint" style={{ fontSize: '0.95rem', fontWeight: 600 }}> / {loft.infirmaryCapacity}</span>
+          </div>
+          <div className="faint" style={{ fontSize: '0.8rem' }}>in verzorging</div>
+        </Link>
+
+        {/* Full-width so the (otherwise odd) tile count fills two clean rows above. */}
+        <div
+          className="tile card-hover"
+          role="button"
+          tabIndex={0}
+          aria-expanded={showCosts}
+          onClick={() => setShowCosts((v) => !v)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              setShowCosts((v) => !v);
+            }
+          }}
+          style={{ gridColumn: '1 / -1', cursor: 'pointer' }}
+          data-tour="daily-costs"
+        >
+          <div className="row" style={{ justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+            <div>
+              <div className="tile-label">Dagelijkse kosten</div>
+              <div className="tile-value" style={{ color: 'var(--bad)' }}>−<Money value={costs.total} /></div>
+            </div>
+            <div className="faint" style={{ fontSize: '0.85rem' }}>
+              {showCosts ? '▲ verberg onderverdeling' : '▼ klik voor de onderverdeling'}
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Daily-cost breakdown (toggled by the "Dagelijkse kosten" tile) */}
@@ -180,26 +183,35 @@ export function DashboardPage() {
             Deze vaste kosten worden <strong>elke dag automatisch</strong> van je kassa afgehouden
             (exclusief voer, dat apart uit je voorraad gaat). Sponsorbijdragen komen er dagelijks bij.
           </p>
-          <table className="data">
-            <tbody>
-              {costRows.map((r) => (
-                <tr key={r.key} className={r.amount <= 0 ? 'faint' : undefined}>
-                  <td>{r.label}</td>
-                  <td className="faint" style={{ fontSize: '0.82rem' }}>
+          {/* Flex rows (not a table) so it fits narrow phones: the label/detail on
+              the left may wrap/shrink, the amount on the right stays put — no
+              horizontal scroll. */}
+          <div>
+            {costRows.map((r) => (
+              <div
+                key={r.key}
+                className={r.amount <= 0 ? 'faint' : undefined}
+                style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 12, padding: '8px 0', borderBottom: '1px solid var(--border)' }}
+              >
+                <div style={{ minWidth: 0 }}>
+                  <div>{r.label}</div>
+                  <div className="faint" style={{ fontSize: '0.8rem' }}>
                     {r.detail}
                     {r.unit !== undefined && <Money value={r.unit} />}
                     {r.unit !== undefined ? '/dag' : ''}
-                  </td>
-                  <td className="num">−<Money value={r.amount} /></td>
-                </tr>
-              ))}
-              <tr style={{ borderTop: '2px solid var(--border)', fontWeight: 800 }}>
-                <td>Totaal per dag</td>
-                <td className="faint" style={{ fontSize: '0.82rem' }}>≈ <Money value={costs.total * 7} />/week</td>
-                <td className="num" style={{ color: 'var(--bad)' }}>−<Money value={costs.total} /></td>
-              </tr>
-            </tbody>
-          </table>
+                  </div>
+                </div>
+                <div className="num" style={{ whiteSpace: 'nowrap', flexShrink: 0 }}>−<Money value={r.amount} /></div>
+              </div>
+            ))}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 12, padding: '10px 0 0', borderTop: '2px solid var(--border)', fontWeight: 800 }}>
+              <div style={{ minWidth: 0 }}>
+                <div>Totaal per dag</div>
+                <div className="faint" style={{ fontSize: '0.8rem', fontWeight: 400 }}>≈ <Money value={costs.total * 7} />/week</div>
+              </div>
+              <div className="num" style={{ whiteSpace: 'nowrap', flexShrink: 0, color: 'var(--bad)' }}>−<Money value={costs.total} /></div>
+            </div>
+          </div>
         </div>
       )}
 
