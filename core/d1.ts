@@ -1,14 +1,27 @@
 /**
  * D1-backed store.
  *
- * Loads the entire (small) world into an in-memory `Database` so the existing
- * synchronous game engine can run against it untouched, then persists only the
- * rows that actually changed. Because we diff per-row, two players acting on
- * different pigeons/lofts in the same instant don't overwrite each other.
+ * Loads the world into an in-memory `Database` so the existing synchronous game
+ * engine can run against it untouched, then persists only the rows that actually
+ * changed. Because we diff per-row, two players acting on different
+ * pigeons/lofts in the same instant don't overwrite each other.
  *
- * The world is tiny (a handful of players + bots), so loading it per request is
- * cheap. If it ever grows, this file is the single place to make persistence
- * smarter.
+ * ## Reads are the scarce resource (see §Performance in context.md)
+ * D1 bills *rows read*, and on the free plan the daily budget is what takes the
+ * whole game down (every route 503s, login included) once it runs out. So the
+ * log-shaped tables are NOT loaded whole any more:
+ *
+ *  - `notifications` — only the viewer's inbox (`user_id` index).
+ *  - `bets`          — only still-open bets plus the viewer's own.
+ *  - `trades`        — only the newest `TRADE_LOAD_LIMIT` (index on `at`).
+ *
+ * Everything the engine reasons about globally (users, lofts, pigeons, flights,
+ * auctions, …) is still loaded whole; those are bounded by the number of players
+ * and the 2-day flight retention.
+ *
+ * Because these three tables are no longer fully in memory, the engine can't
+ * bound them by rewriting the array. `persist()` therefore appends bounded SQL
+ * cleanups — but only on the rare requests that actually append a row.
  */
 
 import type { D1Database, D1PreparedStatement } from '@cloudflare/workers-types';
@@ -30,6 +43,14 @@ import { emptyDatabase, emptyFoodStock, emptySponsorState, emptyStats } from './
 import type { Store } from './store.js';
 
 const b = (v: unknown) => (v ? 1 : 0);
+
+/** Newest trades kept in memory (and on disk). Feeds the sale history views. */
+const TRADE_LOAD_LIMIT = 100;
+/** Settled bets kept on disk; open ones are always kept, whatever their age. */
+const BET_KEEP_LIMIT = 100;
+/** Notifications kept per user — matches the engine's own in-memory inbox trim
+ *  (`trimNotifications`), which can now only reach the viewer's own rows. */
+const NOTIFICATION_KEEP_PER_USER = 40;
 
 function rowToUser(r: any): User {
   return {
@@ -239,6 +260,25 @@ function rowToTrade(r: any): Trade {
   };
 }
 
+/**
+ * Look up a single user without loading the world — the whole point being that
+ * logging in must keep working even when the read budget for the game state is
+ * gone. `users` is tiny and `username` is indexed.
+ */
+export async function findUserById(db: D1Database, id: string): Promise<User | null> {
+  const row = (await db.prepare('SELECT * FROM users WHERE id = ?').bind(id).first()) as any;
+  return row ? rowToUser(row) : null;
+}
+
+/** Same, by name. Case-insensitive and never matches a bot. */
+export async function findUserByUsername(db: D1Database, username: string): Promise<User | null> {
+  const row = (await db
+    .prepare('SELECT * FROM users WHERE lower(username) = lower(?) AND is_bot = 0')
+    .bind(username)
+    .first()) as any;
+  return row ? rowToUser(row) : null;
+}
+
 export class D1Store implements Store {
   private constructor(
     private readonly db: D1Database,
@@ -246,6 +286,8 @@ export class D1Store implements Store {
     private readonly snapshots: Record<string, Map<string, string>>,
     private readonly worldExisted: boolean,
     private readonly worldSnapshot: string,
+    /** Whose inbox/bets were loaded; the bounded cleanups key off this. */
+    private readonly viewerId: string | undefined,
   ) {}
 
   get data(): Database {
@@ -256,7 +298,12 @@ export class D1Store implements Store {
     return fn(this.world);
   }
 
-  static async load(db: D1Database): Promise<D1Store> {
+  /**
+   * `viewerId` is the logged-in user (decoded from the JWT, which needs no
+   * database). It narrows the per-user tables to that player's rows; pass
+   * nothing for an anonymous request and those tables come back empty.
+   */
+  static async load(db: D1Database, viewerId?: string): Promise<D1Store> {
     const worldRow = (await db.prepare('SELECT * FROM world WHERE id = 1').first()) as any;
     const dbObj = emptyDatabase();
     let worldExisted = false;
@@ -275,17 +322,24 @@ export class D1Store implements Store {
       };
     }
 
-    const [users, lofts, pigeons, breeding, flights, notifications, trades, auctions, bets] = await Promise.all([
-      db.prepare('SELECT * FROM users').all(),
-      db.prepare('SELECT * FROM lofts').all(),
-      db.prepare('SELECT * FROM pigeons').all(),
-      db.prepare('SELECT * FROM breeding_pairs').all(),
-      db.prepare('SELECT * FROM flights').all(),
-      db.prepare('SELECT * FROM notifications').all(),
-      db.prepare('SELECT * FROM trades').all(),
-      db.prepare('SELECT * FROM auctions').all(),
-      db.prepare('SELECT * FROM bets').all(),
-    ]);
+    // The per-user tables are queried through their indexes, never scanned. An
+    // anonymous request binds '' and matches nothing, which is what we want.
+    const viewer = viewerId ?? '';
+    const [users, lofts, pigeons, breeding, flights, notifications, trades, auctions, openBets, myBets] =
+      await Promise.all([
+        db.prepare('SELECT * FROM users').all(),
+        db.prepare('SELECT * FROM lofts').all(),
+        db.prepare('SELECT * FROM pigeons').all(),
+        db.prepare('SELECT * FROM breeding_pairs').all(),
+        db.prepare('SELECT * FROM flights').all(),
+        db.prepare('SELECT * FROM notifications WHERE user_id = ?').bind(viewer).all(),
+        db.prepare('SELECT * FROM trades ORDER BY at DESC LIMIT ?').bind(TRADE_LOAD_LIMIT).all(),
+        db.prepare('SELECT * FROM auctions').all(),
+        // Open bets are needed in full: any request may be the one that settles a
+        // flight, and settling touches every open bet on it, whoever placed it.
+        db.prepare("SELECT * FROM bets WHERE status = 'open'").all(),
+        db.prepare("SELECT * FROM bets WHERE user_id = ? AND status != 'open'").bind(viewer).all(),
+      ]);
 
     dbObj.users = (users.results as any[]).map(rowToUser);
     dbObj.lofts = (lofts.results as any[]).map(rowToLoft);
@@ -293,9 +347,9 @@ export class D1Store implements Store {
     dbObj.breedingPairs = (breeding.results as any[]).map(rowToBreeding);
     dbObj.flights = (flights.results as any[]).map(rowToFlight);
     dbObj.notifications = (notifications.results as any[]).map(rowToNotification);
-    dbObj.trades = (trades.results as any[]).map(rowToTrade);
+    dbObj.trades = (trades.results as any[]).map(rowToTrade).reverse(); // oldest → newest, as before
     dbObj.auctions = (auctions.results as any[]).map(rowToAuction);
-    dbObj.bets = (bets.results as any[]).map(rowToBet);
+    dbObj.bets = [...(openBets.results as any[]), ...(myBets.results as any[])].map(rowToBet);
 
     // Bids live in their own table (clobber-free). Attach them to each auction,
     // overriding the legacy JSON column when present. Guarded so a database that
@@ -339,7 +393,7 @@ export class D1Store implements Store {
       offers: snapshot(dbObj.offers, (o) => o.id),
     };
 
-    return new D1Store(db, dbObj, snapshots, worldExisted, JSON.stringify(dbObj.world));
+    return new D1Store(db, dbObj, snapshots, worldExisted, JSON.stringify(dbObj.world), viewerId);
   }
 
   /** Write back only what changed. */
@@ -347,6 +401,11 @@ export class D1Store implements Store {
     const db = this.db;
     const w = this.world;
     const stmts: D1PreparedStatement[] = [];
+    // Users who got a fresh notification this request; their inbox is capped
+    // afterwards (see `boundedCleanups`).
+    const notifiedUsers = new Set<string>();
+    let addedTrade = false;
+    let addedBet = false;
 
     const wd = w.world;
     if (!this.worldExisted) {
@@ -435,19 +494,23 @@ export class D1Store implements Store {
     });
 
     diff(this.snapshots.notifications, w.notifications, (nt) => nt.id, {
-      upsert: (nt) =>
-        db.prepare(
+      upsert: (nt) => {
+        if (!this.snapshots.notifications.has(nt.id)) notifiedUsers.add(nt.userId);
+        return db.prepare(
           'INSERT OR REPLACE INTO notifications (id, user_id, kind, title, body, flight_id, created_at, read) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-        ).bind(nt.id, nt.userId, nt.kind, nt.title, nt.body, nt.flightId, nt.createdAt, b(nt.read)),
+        ).bind(nt.id, nt.userId, nt.kind, nt.title, nt.body, nt.flightId, nt.createdAt, b(nt.read));
+      },
       del: (id) => db.prepare('DELETE FROM notifications WHERE id = ?').bind(id),
       stmts,
     });
 
     diff(this.snapshots.trades, w.trades, (t) => t.id, {
-      upsert: (t) =>
-        db.prepare(
+      upsert: (t) => {
+        if (!this.snapshots.trades.has(t.id)) addedTrade = true;
+        return db.prepare(
           'INSERT OR REPLACE INTO trades (id, pigeon_id, pigeon_name, seller_id, seller_name, buyer_id, buyer_name, price, at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
-        ).bind(t.id, t.pigeonId, t.pigeonName, t.sellerId, t.sellerName, t.buyerId, t.buyerName, t.price, t.at),
+        ).bind(t.id, t.pigeonId, t.pigeonName, t.sellerId, t.sellerName, t.buyerId, t.buyerName, t.price, t.at);
+      },
       del: (id) => db.prepare('DELETE FROM trades WHERE id = ?').bind(id),
       stmts,
     });
@@ -477,10 +540,12 @@ export class D1Store implements Store {
     });
 
     diff(this.snapshots.bets, w.bets, (bt) => bt.id, {
-      upsert: (bt) =>
-        db.prepare(
+      upsert: (bt) => {
+        if (!this.snapshots.bets.has(bt.id)) addedBet = true;
+        return db.prepare(
           'INSERT OR REPLACE INTO bets (id, user_id, user_name, flight_id, kind, pigeon_id, pigeon_name, rival_id, rival_name, stake, ratio, potential_win, status, placed_at, settled_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-        ).bind(bt.id, bt.userId, bt.userName, bt.flightId, bt.kind, bt.pigeonId, bt.pigeonName, bt.rivalId, bt.rivalName, bt.stake, bt.ratio, bt.potentialWin, bt.status, bt.placedAt, bt.settledAt),
+        ).bind(bt.id, bt.userId, bt.userName, bt.flightId, bt.kind, bt.pigeonId, bt.pigeonName, bt.rivalId, bt.rivalName, bt.stake, bt.ratio, bt.potentialWin, bt.status, bt.placedAt, bt.settledAt);
+      },
       del: (id) => db.prepare('DELETE FROM bets WHERE id = ?').bind(id),
       stmts,
     });
@@ -494,7 +559,54 @@ export class D1Store implements Store {
       stmts,
     });
 
+    boundedCleanups(db, stmts, notifiedUsers, addedTrade, addedBet);
+
     if (stmts.length > 0) await db.batch(stmts);
+  }
+}
+
+/**
+ * Keep the log-shaped tables from growing forever.
+ *
+ * These used to be bounded in memory (`db.trades.slice(-200)` and friends), which
+ * only worked while the whole table was loaded. Now that we load a slice, the cap
+ * lives here in SQL instead — and runs only on the rare requests that actually
+ * appended a row, so a plain poll adds nothing.
+ *
+ * Each statement is index-backed and touches a single user's inbox or the tail of
+ * one table, so the cleanup itself stays cheap. `OFFSET n` returning no row (fewer
+ * rows than the cap) yields NULL, and `< NULL` deletes nothing — exactly right.
+ */
+function boundedCleanups(
+  db: D1Database,
+  stmts: D1PreparedStatement[],
+  notifiedUsers: Set<string>,
+  addedTrade: boolean,
+  addedBet: boolean,
+): void {
+  for (const userId of notifiedUsers) {
+    stmts.push(
+      db.prepare(
+        'DELETE FROM notifications WHERE user_id = ?1 AND created_at < ' +
+          '(SELECT created_at FROM notifications WHERE user_id = ?1 ORDER BY created_at DESC LIMIT 1 OFFSET ?2)',
+      ).bind(userId, NOTIFICATION_KEEP_PER_USER),
+    );
+  }
+  if (addedTrade) {
+    stmts.push(
+      db.prepare(
+        'DELETE FROM trades WHERE at < (SELECT at FROM trades ORDER BY at DESC LIMIT 1 OFFSET ?)',
+      ).bind(TRADE_LOAD_LIMIT),
+    );
+  }
+  if (addedBet) {
+    // Open bets always survive — they still have to be settled.
+    stmts.push(
+      db.prepare(
+        "DELETE FROM bets WHERE status != 'open' AND placed_at < " +
+          "(SELECT placed_at FROM bets WHERE status != 'open' ORDER BY placed_at DESC LIMIT 1 OFFSET ?)",
+      ).bind(BET_KEEP_LIMIT),
+    );
   }
 }
 
@@ -633,6 +745,21 @@ export async function ensureSchema(db: D1Database): Promise<void> {
     );
   } catch {
     // Already exists.
+  }
+
+  // Indexes backing the partial loads (see the file header). Without them SQLite
+  // scans — and D1 bills — the whole table anyway, defeating the point. Created
+  // last, so every table above already exists.
+  for (const sql of [
+    'CREATE INDEX IF NOT EXISTS idx_notifications_user_created ON notifications (user_id, created_at)',
+    'CREATE INDEX IF NOT EXISTS idx_trades_at ON trades (at)',
+    'CREATE INDEX IF NOT EXISTS idx_bets_status ON bets (status)',
+  ]) {
+    try {
+      await db.exec(sql);
+    } catch {
+      // Already exists.
+    }
   }
 }
 

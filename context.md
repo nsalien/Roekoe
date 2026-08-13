@@ -15,11 +15,16 @@
 
 | Rol | Branch | Doel |
 |-----|--------|------|
-| **Dev** | `claude/context-md-review-frhk89` | Alle ontwikkeling/commits komen hier **eerst**. |
+| **Dev** | `claude/hallo-49m6hj` | Alle ontwikkeling/commits komen hier **eerst**. |
 | **Prod** | `claude/roekoe-game-website-jwa0vo` | Elke commit wordt hierheen **gecherry-pickt**; deze branch triggert de **Cloudflare Pages**-deploy naar productie. |
 
+> De vorige dev-branch `claude/hallo-49m6hj` bestaat niet meer (lokaal
+> noch op origin). Ontwikkelt een sessie op een nieuwe `claude/…`-branch, gebruik
+> die dan als dev-branch en **werk deze tabel meteen bij** — de prod-branch
+> hierboven verandert nooit.
+
 **Workflow per wijziging (zie §7 voor de exacte commando's):**
-1. Commit op **dev** (`claude/context-md-review-frhk89`) + push.
+1. Commit op **dev** (`claude/hallo-49m6hj`) + push.
 2. `git checkout` **prod** → `git cherry-pick <commit>` → push naar prod
    (`claude/roekoe-game-website-jwa0vo`) → Cloudflare bouwt.
 3. Terug naar **dev**.
@@ -45,8 +50,7 @@ Een online **duivenmelker-managementspel** voor een groepje vrienden (~10 speler
 geld verdienen → kopen/kweken/uitbreiden → herhalen.** Bots vullen het veld.
 
 - **Repo:** `nsalien/roekoe` (GitHub).
-- **Ontwikkelbranch:** `claude/context-md-review-frhk89` — hier ontwikkelen en
-  committen.
+- **Ontwikkelbranch:** `claude/hallo-49m6hj` — hier ontwikkelen en committen.
 - **Productie/deploy-branch:** `claude/roekoe-game-website-jwa0vo` — een push
   hiernaartoe triggert de **Cloudflare Pages** build (= live). Elke wijziging
   wordt via cherry-pick naar deze branch gebracht en gepusht (zie §7).
@@ -66,9 +70,34 @@ Draait **volledig op Cloudflare** — geen altijd-aan server:
 
 ### D1Store-patroon (cruciaal om te begrijpen)
 De wereld is klein, dus **elk verzoek**:
-1. laadt de **hele wereld** uit D1 in een in-memory `Database` (`core/d1.ts`),
+1. laadt de wereld uit D1 in een in-memory `Database` (`core/d1.ts`),
 2. draait de **synchrone** engine erop,
 3. schrijft alleen de **gewijzigde rijen** terug (per-rij JSON-diff).
+
+**Niet meer letterlijk "de hele wereld" (nieuwste — leesbudget):** D1 rekent
+**gelezen rijen** af, en dát is wat het spel plat legt (zie §Performance). De drie
+**log-vormige** tabellen worden daarom **gedeeltelijk** geladen, via `viewerId`
+(= de `sub` uit de JWT, die vóór de load geverifieerd wordt want dat kost geen DB):
+- `notifications` → **enkel de inbox van de viewer** (`WHERE user_id = ?`),
+- `bets` → **alle openstaande** (elk verzoek kan de afhandelaar zijn) + de
+  **eigen afgehandelde** van de viewer,
+- `trades` → enkel de **nieuwste `TRADE_LOAD_LIMIT` (100)** (`ORDER BY at DESC`).
+
+Alles wat de engine globaal nodig heeft (users, lofts, pigeons, flights, auctions,
+offers, auction_bids) wordt nog steeds volledig geladen; die zijn begrensd door het
+aantal spelers en de 2-daagse vluchtretentie.
+
+**Gevolgen om te onthouden bij nieuwe code:**
+- De engine mag deze drie arrays **niet meer aftoppen** (`db.trades.slice(-200)`
+  e.d. is overal weg): wat niet geladen is, zou de per-rij-diff als *verwijderd*
+  zien. Aftoppen gebeurt nu in **SQL** via `boundedCleanups` in `d1.ts::persist`,
+  en enkel op verzoeken die écht een rij toevoegen (een gewone poll doet niets).
+- Elke partiële query **moet** door een index gedekt zijn, anders scant SQLite —
+  en factureert D1 — de tabel alsnog. `ensureSchema` maakt daarom
+  `idx_notifications_user_created`, `idx_trades_at` en `idx_bets_status` aan.
+- Dedupe op een **stabiele melding-id** werkt enkel nog binnen de eigen inbox; voor
+  een andere speler valt hij terug op `INSERT OR REPLACE` (zelfde rij, maar
+  `read` gaat terug op false). Dat gebeurt alleen bij dubbele verwerking.
 
 Twee spelers die aan verschillende rijen werken overschrijven elkaar dus niet.
 **Let op — "lost update" op gedeelde hot rows:** dezelfde rij (bv. een veiling,
@@ -268,7 +297,8 @@ Roekoe/
 │   ├── config/gameConfig.ts     ← ALLE instelbare getallen ("de knoppen")
 │   ├── schema.ts                datamodel (entiteiten + Database)
 │   ├── store.ts                 Store-interface + in-memory basis + newId()
-│   ├── d1.ts                    D1-persistentie (load/snapshot/diff/ensureSchema, auction_bids)
+│   ├── d1.ts                    D1-persistentie (load(viewerId)/diff/ensureSchema/
+│   │                            boundedCleanups/findUserBy*, auction_bids)
 │   ├── auth.ts                  wachtwoord-hash + JWT via Web Crypto
 │   ├── presenters.ts            entiteit → client-DTO (pigeonDTO(db,p,viewerId?) → dailyCare + info-hiding)
 │   └── game/
@@ -288,6 +318,7 @@ Roekoe/
 │       ├── events.ts            dilemma-kaarten
 │       ├── pigeon.ts, names.ts, weather.ts, util.ts (seededRng/hashString/clamp/pickWith)
 ├── functions/api/[[path]].ts    de HELE API (Hono) — dun laagje op de engine (+ /admin/auctions)
+├── d1-partial-load.test.mts     regressietest op de partiële load (npx tsx, node:sqlite)
 ├── migrations/0001_init.sql     D1-schema voor verse installatie
 ├── spelregels.md                spelregels + formules (Nederlands, speler-gericht)
 ├── README.md / DEPLOY.md        opzet + telefoon-only deploy-gids
@@ -630,10 +661,16 @@ npm run build                    # bouwt de client (vanuit root)
 ```
 Voor engine-logica: snelle integratietests met **tsx** vanuit de repo-root
 (`npx tsx <test>.mts`, importeert rechtstreeks uit `./core/...`; achteraf verwijderen).
+Uitzondering die **wél blijft staan**: `d1-partial-load.test.mts` — persistentie is
+te subtiel om op zicht te vertrouwen. Draai die na **elke** wijziging aan `core/d1.ts`:
+```bash
+npx tsx d1-partial-load.test.mts
+```
+(Staat buiten `tsconfig.json` (`include` = `core/` + `functions/`), dus tsc raakt hem niet.)
 
 ### Git + deploy (ALTIJD, zie §0)
-1. Ontwikkel + commit op **`claude/context-md-review-frhk89`**; push met
-   `git push -u origin claude/context-md-review-frhk89` (retry met backoff).
+1. Ontwikkel + commit op **`claude/hallo-49m6hj`**; push met
+   `git push -u origin claude/hallo-49m6hj` (retry met backoff).
 2. **Deploy meteen naar productie** door de commit op de deploy-branch te zetten:
    ```bash
    git fetch origin claude/roekoe-game-website-jwa0vo
@@ -642,7 +679,7 @@ Voor engine-logica: snelle integratietests met **tsx** vanuit de repo-root
    git cherry-pick <commit>        # of meerdere
    # typecheck + build ter controle
    git push -u origin claude/roekoe-game-website-jwa0vo   # triggert Cloudflare Pages
-   git checkout claude/context-md-review-frhk89           # terug naar dev
+   git checkout claude/hallo-49m6hj           # terug naar dev
    ```
 3. **Geen PR** tenzij expliciet gevraagd.
 4. Commit messages in het **Nederlands**, en eindig met de footer:
@@ -664,6 +701,16 @@ Voor engine-logica: snelle integratietests met **tsx** vanuit de repo-root
 
 Alles hieronder staat **live** op de deploy-branch. Data-migraties liepen door tot
 **`dataVersion = 30`**.
+
+**503-fix ronde 2: inloggen kost geen wereld meer (nieuwste)**
+- De 503-golf kwam terug. Oorzaak: de **basis-leeskost** per verzoek (~1300 rijen,
+  11× `SELECT *`) — óók op `/auth/login` en `/auth/me`, want de "light routes"
+  sloegen enkel de engine over, niet de load. Opgelost met een **featherweight
+  inlogpad** (~1 rij) + **partieel laden** van `notifications`/`bets`/`trades`
+  (~450 rijen per verzoek) + **SQL-begrenzing** i.p.v. array-begrenzing + de
+  bijhorende **indexen**. Details, cijfers en verificatie: §Performance & stabiliteit
+  onderaan. **Geen migratie / geen `dataVersion`-bump** (enkel schema-indexen via
+  `ensureSchema`, en die zijn idempotent).
 
 **Trainbare skills dalen enkel door ouderdom + Tinne-correctie (nieuwste)**
 - **Invariant:** snelheid/conditie/oriëntatie kunnen **enkel dalen via `runAgeDecline`**
@@ -1056,12 +1103,50 @@ moet gewoon efficiënt zijn.
    401** (niet bij 503/netwerkfout) → geen willekeurige uitlogs/lock-outs meer.
 6. **Rustiger pollen** — LiveFlightPage 8s→**20s**, FlightsPage 15s→**40s**.
 
-**Nog beschikbare hefbomen als de reads op zware live-vlucht-dagen toch krap zijn**
-(niet gedaan, want free plan + wilde eerst de oorzaak wegnemen): retentie van
-`notifications`/`trades`/`bets` verlagen; `advanceRealtime` throttlen (bv. max. 1×/20s
-via een `world.lastAdvance`-guard); of `/state` kort cachen (Cache API) zodat snelle
-polls niet telkens de hele wereld herladen. **Structureel:** selectief laden i.p.v.
-"laad de hele wereld", maar dat raakt het `D1Store`-model — apart en bewust doen.
+**Terugkeer van de 503 — tweede ronde (nieuwste, opgelost)**
+**Symptoom (identiek):** 503 op alles, spelers zien plots het inlogscherm en
+**inloggen geeft dezelfde 503**. Dat "uitloggen" is trouwens schijn: `AuthContext`
+gooit het token niet weg bij 5xx (fix 5 hierboven), maar als `/auth/me` faalt blijft
+`user` null → de app toont LoginPage. En inloggen faalde óók, dus je raakte er niet in.
+
+**Oorzaak:** de vluchtretentie haalde de *piek* weg, maar niet de **basiskost**. Elk
+verzoek deed nog altijd **11× `SELECT *`**, óók `/api/auth/login` en `/api/auth/me` —
+de "light routes" sloegen wél `advanceRealtime` + `persist` over, **maar niet de load**.
+Ruwe telling per verzoek: pigeons ~200 + notifications ~640 (40 × ~16 gebruikers) +
+trades 200 + bets 200 + de rest ≈ **~1300 rijen**. Op het gratis plan (5 M rijen/dag)
+is dat **~3800 verzoeken per dag voor het hele spel** — met 10 spelers die pollen
+(live 20 s, vluchten 40 s, markt 15 s) is dat er na een paar uur actief spelen door.
+
+**Wat is gefixt:**
+7. **Inloggen laadt de wereld niet meer.** `/api/health`, `/api/auth/login` en
+   `/api/auth/me` zijn nu **featherweight**: het token wordt geverifieerd vóór elke
+   DB-toegang (pure crypto), en de speler wordt opgezocht met één rij via
+   `findUserById`/`findUserByUsername` (`core/d1.ts`). **~1 rij i.p.v. ~1300** → je
+   raakt altijd binnen, ook op een dag dat de spelstate haar budget opgesoupeerd
+   heeft. `/health` raakt **geen enkele tabel** meer (`{ok:true}`; week/spelersaantal
+   zijn eruit — de client gebruikte ze niet). `/auth/register` houdt de volle load
+   (maakt een hok aan, en is zeldzaam).
+8. **Partieel laden van `notifications`/`bets`/`trades`** (zie §2, D1Store-patroon)
+   → de basiskost zakt van ~1300 naar **~450 rijen** per verzoek, dus ~3× meer
+   verzoeken binnen hetzelfde budget.
+9. **SQL-begrenzing i.p.v. array-begrenzing** (`boundedCleanups`): inbox 40/speler,
+   trades 100, afgehandelde weddenschappen 100 — **openstaande** weddenschappen
+   overleven altijd. Draait enkel bij een echte toevoeging.
+10. **Indexen** die die queries dekken (`idx_notifications_user_created`,
+   `idx_trades_at`, `idx_bets_status`), aangemaakt achteraan `ensureSchema` zodat
+   alle tabellen al bestaan. Zonder index scant SQLite alsnog de hele tabel.
+
+**Geverifieerd** met `d1-partial-load.test.mts` (repo-root, `npx tsx …`): draait de
+echte `d1.ts` tegen een `node:sqlite`-nep-D1 en checkt dat (a) enkel de juiste slice
+geladen wordt, (b) `persist` **niets** wist wat niet geladen was, (c) de opruiming de
+tabellen aftopt zonder open weddenschappen te raken, en (d) het inlogpad 2 rijen kost.
+Query-plannen gecontroleerd met `EXPLAIN QUERY PLAN` — alles index-gedekt behalve
+`lower(username)` bij login, en dat is een scan over ~16 rijen.
+
+**Nog beschikbare hefbomen als het toch weer krap wordt:** `advanceRealtime` throttlen
+(bv. max. 1×/20 s via een `world.lastAdvance`-guard); `/state` kort cachen (Cache API);
+`TRADE_LOAD_LIMIT` verlagen. **Structureel** blijft `pigeons` (~200 rijen) de grootste
+volledige load — die is echt globaal nodig (vluchten, markt, bots).
 
 ### Openstaande ideeën / balans om op te letten
 - Sterfte is nog **wekelijks** terwijl herstel real-time is (evt. op elkaar afstemmen).
