@@ -707,8 +707,9 @@ Alles hieronder staat **live** op de deploy-branch. Data-migraties liepen door t
   gelezen rijen). Oorzaak: `ensureSchema` vuurde **71 losse D1-statements** af bij
   **elke cold start**, tegen een limiet van **50 queries per Worker-invocatie** op
   het gratis plan → zo'n verzoek sterft vóór het het spel bereikt, op eender welke
-  route (ook inloggen). Nu **gegate op `world.schema_version`**: 1 query op een
-  bijgewerkte database. **Bump `SCHEMA_VERSION` bij elk nieuw statement.**
+  route (ook inloggen). Nu **gegate op `world.schema_version` én hervatbaar** (max.
+  20 statements per invocatie): 1 query op een bijgewerkte database.
+  **`SCHEMA_STEPS` is append-only — nieuwe statements achteraan.**
 - Meegenomen: **featherweight inlogpad** (~1 rij i.p.v. ~1300) + **partieel laden**
   van `notifications`/`bets`/`trades` + **SQL-begrenzing** + **indexen** — die
   drukken vooral de CPU per verzoek (10 ms-limiet). Details, cijfers en verificatie:
@@ -1125,11 +1126,22 @@ gerecycleerd, dus dat gebeurt willekeurig en vaak. Zo'n verzoek gaat over de lim
 zo goed /auth/login. Dat verklaart de willekeur ("soms werkt het, soms niet") én
 waarom inloggen meeging.
 
-**Fix:** `ensureSchema` is nu **gegate op `world.schema_version`** (`SCHEMA_VERSION`
-in `d1.ts`). Een bijgewerkte database kost **1 query** i.p.v. 71; de upgrade draait
-enkel nog wanneer de versie achterloopt, en zet daarna de versie. **Bump
-`SCHEMA_VERSION` telkens je een statement toevoegt**, anders draait je nieuwe
-`ALTER`/`CREATE INDEX` nooit.
+**Fix: `ensureSchema` is nu gegate én hervatbaar.** Alle statements staan in één
+**append-only** lijst `SCHEMA_STEPS`; `world.schema_version` bewaart **hoeveel** er
+al toegepast zijn.
+- Bijgewerkte database → **1 query**, functie geeft `true` terug.
+- Achterlopende database → hoogstens **`SCHEMA_STEPS_PER_RUN` (20)** statements,
+  slaat de voortgang op en geeft `false` → de middleware (`schemaReady = await
+  ensureSchema(...)`) komt terug voor de rest. Duurste invocatie: **22 queries**.
+- Zo blijft **élke** invocatie ver onder de 50, ook de allereerste op een verse
+  database (waar de `world`-rij nog niet bestaat en de voortgang dus niet bewaard
+  kan worden).
+
+> **Regel: `SCHEMA_STEPS` is append-only.** Nieuwe statements gaan **achteraan**.
+> Iets invoegen of herordenen zou databases die al verder staan statements laten
+> overslaan. Elk statement is idempotent (`ADD COLUMN` op een bestaande kolom
+> gooit, `IF NOT EXISTS` doet niets), dus een verkeerde teller kost hoogstens
+> queries, nooit correctheid.
 
 **Daarnaast meegenomen (basiskost, want die was sowieso onnodig hoog):** elk verzoek
 deed **11× `SELECT *`**, óók `/api/auth/login` en `/api/auth/me` — de "light routes"
@@ -1156,8 +1168,8 @@ je eroverheen gaat. Minder rijen = minder parse/stringify, dus dit blijft nuttig
 > hou dat in de gaten als er ooit weer 503's zijn net ná een race.
 
 **Wat is gefixt:**
-7. **`ensureSchema` gegate op `world.schema_version`** — 71 queries → **1** op een
-   bijgewerkte database. Dit is de hoofdfix voor ronde 2.
+7. **`ensureSchema` gegate + hervatbaar** — 71 queries → **1** op een bijgewerkte
+   database, max. 22 tijdens een upgrade. Dit is de hoofdfix voor ronde 2.
 8. **Inloggen laadt de wereld niet meer.** `/api/health`, `/api/auth/login` en
    `/api/auth/me` zijn nu **featherweight**: het token wordt geverifieerd vóór elke
    DB-toegang (pure crypto), en de speler wordt opgezocht met één rij via

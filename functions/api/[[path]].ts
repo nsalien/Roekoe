@@ -106,10 +106,10 @@ let schemaReady = false;
 // Load the world, seed on first ever request, run the real-time clock (schedule
 // flights, start/finish live races, bots auto-enter), and resolve the user.
 app.use('*', async (c, next) => {
-  if (!schemaReady) {
-    await ensureSchema(c.env.DB);
-    schemaReady = true;
-  }
+  // The schema upgrade is chunked to stay inside D1's per-invocation query budget
+  // (see core/d1.ts), so keep asking until it reports it is finished. On an
+  // up-to-date database that is a single query, once per isolate.
+  if (!schemaReady) schemaReady = await ensureSchema(c.env.DB);
 
   // Verify the token BEFORE touching D1: it is a pure crypto check, and knowing
   // who is asking lets us load only their notifications/bets instead of every
