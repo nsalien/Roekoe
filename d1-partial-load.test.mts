@@ -55,22 +55,44 @@ const D1_QUERIES_PER_INVOCATION_FREE = 50;
 const db = fakeD1();
 db._raw.exec(readFileSync('./migrations/0001_init.sql', 'utf8'));
 
-// --- 0. ensureSchema mag een warme database niet leegtrekken ----------------
+// --- 0. ensureSchema mag nooit over de querylimiet van één invocatie gaan ----
 console.log('\nensureSchema (D1: max 50 queries per invocatie op het gratis plan)');
+
+// Verse database: nog geen world-rij, dus voortgang kan niet bewaard worden.
+// Dat mag de upgrade niet laten vastlopen én niet over de limiet duwen.
 queries = 0;
-await ensureSchema(db);
-const coldStart = queries;
-console.log(`  → eerste upgrade: ${coldStart} queries`);
-// De world-rij bestaat nog niet, dus de versie kon niet weggeschreven worden;
-// na het zaaien van die rij moet de upgrade zich definitief uitschakelen.
+let complete = await ensureSchema(db);
+assert(queries < D1_QUERIES_PER_INVOCATION_FREE,
+  `eerste aanroep zonder world-rij kost ${queries} queries (< 50)`);
+
 db._raw.prepare('INSERT INTO world (id, current_week, season_year, seeded) VALUES (1,1,1,1)').run();
+
+// Vanaf hier moet hij konvergeren: elke aanroep een stukje, tot hij klaar meldt.
+let runs = 0;
+let worst = 0;
+while (!complete) {
+  queries = 0;
+  complete = await ensureSchema(db);
+  worst = Math.max(worst, queries);
+  runs += 1;
+  if (runs > 10) break;
+}
+console.log(`  → volledig bijgewerkt na ${runs} aanroepen, duurste kostte ${worst} queries`);
+assert(complete, `upgrade meldt zichzelf klaar (na ${runs} aanroepen)`);
+assert(worst < D1_QUERIES_PER_INVOCATION_FREE, `duurste invocatie ${worst} queries — onder de 50`);
+
+// Steady state: één query, en hij blijft klaar melden.
 queries = 0;
-await ensureSchema(db);
-console.log(`  → tweede aanroep (world-rij bestaat): ${queries} queries`);
-queries = 0;
-await ensureSchema(db);
-assert(queries === 1, `warme cold start kost ${queries} query i.p.v. ${coldStart}`);
-assert(queries < D1_QUERIES_PER_INVOCATION_FREE, 'ruim onder de 50-querylimiet per invocatie');
+assert((await ensureSchema(db)) === true, 'blijft "klaar" melden');
+assert(queries === 1, `bijgewerkte database kost ${queries} query i.p.v. ~71`);
+
+// Alle kolommen moeten er echt staan, niet enkel de teller.
+const cols = (t: string) => new Set((db._raw.prepare(`PRAGMA table_info(${t})`).all() as any[]).map((r) => r.name));
+assert(cols('pigeons').has('attr_log') && cols('pigeons').has('genes') && cols('pigeons').has('race_log'),
+  'laatste pigeons-kolommen zijn effectief aangemaakt');
+assert(cols('lofts').has('awards') && cols('world').has('season_week'), 'lofts/world-kolommen aangemaakt');
+const tables = new Set((db._raw.prepare("SELECT name FROM sqlite_master WHERE type='table'").all() as any[]).map((r) => r.name));
+assert(tables.has('auction_bids') && tables.has('offers'), 'latere tabellen aangemaakt');
 
 // --- seed: 3 players, a fat notification/trade/bet history ------------------
 const now = (i: number) => new Date(Date.UTC(2026, 0, 1, 0, 0, i)).toISOString();

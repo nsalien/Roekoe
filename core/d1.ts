@@ -611,31 +611,50 @@ function boundedCleanups(
 }
 
 /**
- * Bump whenever a statement is added below. The stored value lets a warm database
- * skip the whole upgrade in a single query.
+ * How many upgrade statements one invocation may run. D1 allows **50 queries per
+ * Worker invocation** on the free plan, and the same request still has to load the
+ * world (13) and write its batch, so the upgrade takes a modest slice and resumes
+ * on the next call.
  */
-const SCHEMA_VERSION = 1;
+const SCHEMA_STEPS_PER_RUN = 20;
 
 /**
- * Idempotent schema top-up. The base tables come from migrations/0001; this
- * adds columns introduced later so existing databases upgrade themselves on
- * deploy (no manual SQL needed).
+ * Every schema statement, in a **frozen, append-only order**.
  *
- * **Gated on `world.schema_version`, and that matters.** The upgrade below is ~70
- * separate statements. D1's free plan allows **50 queries per Worker invocation**,
- * so running it unconditionally blew that budget on every cold start — the request
- * died before it ever reached the game, and a cold start can happen at any moment
- * (including on a login). Now an up-to-date database costs exactly one query.
+ * `world.schema_version` stores how many of these have been applied, so an
+ * up-to-date database skips the lot in a single query. That makes the order load-
+ * bearing: **only ever append**. Inserting or reordering would make already-upgraded
+ * databases skip statements they never ran.
+ *
+ * Every statement is individually idempotent (`ADD COLUMN` on an existing column and
+ * `IF NOT EXISTS` both just throw or no-op), so re-running a prefix is always safe —
+ * which is what keeps a wrong counter harmless rather than corrupting.
+ *
+ * Table creation comes first: `D1Store.load` guards its `auction_bids`/`offers`
+ * queries, but a fresh install should get them early rather than after 56 ALTERs.
  */
-export async function ensureSchema(db: D1Database): Promise<void> {
-  try {
-    const row = (await db.prepare('SELECT schema_version AS v FROM world WHERE id = 1').first()) as any;
-    if (row && (row.v ?? 0) >= SCHEMA_VERSION) return;
-  } catch {
-    // No `schema_version` column (or no world row) yet — fall through and upgrade.
-  }
+const SCHEMA_STEPS: string[] = [
+  // 0 — the progress counter itself, so tracking works from the very first run.
+  'ALTER TABLE world ADD COLUMN schema_version INTEGER NOT NULL DEFAULT 0',
 
-  const alters = [
+  // Tables introduced after migrations/0001.
+  'CREATE TABLE IF NOT EXISTS notifications (id TEXT PRIMARY KEY, user_id TEXT NOT NULL, kind TEXT NOT NULL, title TEXT NOT NULL, body TEXT NOT NULL, flight_id TEXT, created_at TEXT NOT NULL, read INTEGER NOT NULL DEFAULT 0)',
+  'CREATE TABLE IF NOT EXISTS trades (id TEXT PRIMARY KEY, pigeon_id TEXT NOT NULL, pigeon_name TEXT NOT NULL, seller_id TEXT NOT NULL, seller_name TEXT NOT NULL, buyer_id TEXT NOT NULL, buyer_name TEXT NOT NULL, price INTEGER NOT NULL, at TEXT NOT NULL)',
+  'CREATE TABLE IF NOT EXISTS auctions (id TEXT PRIMARY KEY, template_key TEXT NOT NULL, pigeon_id TEXT NOT NULL, start_at TEXT NOT NULL, end_at TEXT NOT NULL, min_bid INTEGER NOT NULL, min_increment INTEGER NOT NULL, current_bid INTEGER NOT NULL DEFAULT 0, current_bidder_id TEXT, current_bidder_name TEXT, status TEXT NOT NULL)',
+  'CREATE TABLE IF NOT EXISTS auction_bids (auction_id TEXT NOT NULL, user_id TEXT NOT NULL, name TEXT NOT NULL, amount INTEGER NOT NULL, at TEXT NOT NULL, PRIMARY KEY (auction_id, user_id))',
+  "CREATE TABLE IF NOT EXISTS bets (id TEXT PRIMARY KEY, user_id TEXT NOT NULL, user_name TEXT NOT NULL, flight_id TEXT NOT NULL, kind TEXT NOT NULL, pigeon_id TEXT, pigeon_name TEXT NOT NULL, rival_id TEXT, rival_name TEXT, stake INTEGER NOT NULL, ratio REAL NOT NULL, potential_win INTEGER NOT NULL, status TEXT NOT NULL, placed_at TEXT NOT NULL, settled_at TEXT)",
+  'CREATE TABLE IF NOT EXISTS offers (id TEXT PRIMARY KEY, pigeon_id TEXT NOT NULL, pigeon_name TEXT NOT NULL, from_user_id TEXT NOT NULL, from_user_name TEXT NOT NULL, to_user_id TEXT NOT NULL, to_user_name TEXT NOT NULL, amount INTEGER NOT NULL, status TEXT NOT NULL, created_at TEXT NOT NULL, resolved_at TEXT)',
+
+  // Indexes, including the ones backing the partial loads (see the file header).
+  'CREATE INDEX IF NOT EXISTS idx_notifications_user ON notifications (user_id)',
+  'CREATE INDEX IF NOT EXISTS idx_notifications_user_created ON notifications (user_id, created_at)',
+  'CREATE INDEX IF NOT EXISTS idx_auction_bids_auction ON auction_bids (auction_id)',
+  'CREATE INDEX IF NOT EXISTS idx_bets_user ON bets (user_id)',
+  'CREATE INDEX IF NOT EXISTS idx_bets_status ON bets (status)',
+  'CREATE INDEX IF NOT EXISTS idx_trades_at ON trades (at)',
+
+  // Columns added after migrations/0001.
+  ...([
     'ALTER TABLE world ADD COLUMN schema_version INTEGER NOT NULL DEFAULT 0',
     "ALTER TABLE flights ADD COLUMN from_city TEXT NOT NULL DEFAULT ''",
     "ALTER TABLE flights ADD COLUMN to_city TEXT NOT NULL DEFAULT ''",
@@ -693,103 +712,54 @@ export async function ensureSchema(db: D1Database): Promise<void> {
     "ALTER TABLE world ADD COLUMN last_shelter_spawn TEXT NOT NULL DEFAULT ''",
     "ALTER TABLE auctions ADD COLUMN bids TEXT NOT NULL DEFAULT '[]'",
     "ALTER TABLE lofts ADD COLUMN food_stock TEXT NOT NULL DEFAULT ''",
-  ];
-  for (const sql of alters) {
+  ] as string[]),
+];
+
+/**
+ * Idempotent, **resumable** schema top-up. The base tables come from
+ * migrations/0001; this applies everything added since, so existing databases
+ * upgrade themselves on deploy (no manual SQL needed).
+ *
+ * ## Why it is chunked (this caused a day of 503s)
+ * This used to fire all ~70 statements on every cold start. D1 allows **50 queries
+ * per Worker invocation** on the free plan, so such a request blew its budget and
+ * died before it ever reached the game — on any route, login included, at random
+ * moments (isolates are recycled constantly). Now:
+ *   - an up-to-date database costs **one** query and returns `true`;
+ *   - a stale one applies at most `SCHEMA_STEPS_PER_RUN` statements, records how
+ *     far it got, and returns `false` so the caller comes back for the rest.
+ * Either way a single invocation stays far below the limit.
+ *
+ * Returns whether the schema is now fully up to date.
+ */
+export async function ensureSchema(db: D1Database): Promise<boolean> {
+  let done = 0;
+  try {
+    const row = (await db.prepare('SELECT schema_version AS v FROM world WHERE id = 1').first()) as any;
+    if (row) done = Number(row.v ?? 0) || 0;
+    if (done >= SCHEMA_STEPS.length) return true;
+  } catch {
+    // No `schema_version` column (or no world row) yet — start from the top. Every
+    // step is idempotent, so re-running a prefix costs queries, never correctness.
+  }
+
+  const slice = SCHEMA_STEPS.slice(done, done + SCHEMA_STEPS_PER_RUN);
+  for (const sql of slice) {
     try {
       await db.exec(sql);
     } catch {
-      // Column already exists — nothing to do.
+      // Column/table/index already exists — nothing to do.
     }
   }
-  // Notifications inbox (introduced with real-time results). Create if missing.
-  try {
-    await db.exec(
-      'CREATE TABLE IF NOT EXISTS notifications (id TEXT PRIMARY KEY, user_id TEXT NOT NULL, kind TEXT NOT NULL, title TEXT NOT NULL, body TEXT NOT NULL, flight_id TEXT, created_at TEXT NOT NULL, read INTEGER NOT NULL DEFAULT 0)',
-    );
-  } catch {
-    // Already exists.
-  }
-  try {
-    await db.exec('CREATE INDEX IF NOT EXISTS idx_notifications_user ON notifications (user_id)');
-  } catch {
-    // Already exists.
-  }
-  // Market buy/sell history (introduced with the player-only market).
-  try {
-    await db.exec(
-      'CREATE TABLE IF NOT EXISTS trades (id TEXT PRIMARY KEY, pigeon_id TEXT NOT NULL, pigeon_name TEXT NOT NULL, seller_id TEXT NOT NULL, seller_name TEXT NOT NULL, buyer_id TEXT NOT NULL, buyer_name TEXT NOT NULL, price INTEGER NOT NULL, at TEXT NOT NULL)',
-    );
-  } catch {
-    // Already exists.
-  }
-  // Weekly auctions.
-  try {
-    await db.exec(
-      'CREATE TABLE IF NOT EXISTS auctions (id TEXT PRIMARY KEY, template_key TEXT NOT NULL, pigeon_id TEXT NOT NULL, start_at TEXT NOT NULL, end_at TEXT NOT NULL, min_bid INTEGER NOT NULL, min_increment INTEGER NOT NULL, current_bid INTEGER NOT NULL DEFAULT 0, current_bidder_id TEXT, current_bidder_name TEXT, status TEXT NOT NULL)',
-    );
-  } catch {
-    // Already exists.
-  }
-  // Auction bids, kept one row per (auction, bidder) so concurrent requests can
-  // never clobber each other's bids the way a single JSON column on the auction
-  // row could. This is the source of truth for who bid what.
-  try {
-    await db.exec(
-      'CREATE TABLE IF NOT EXISTS auction_bids (auction_id TEXT NOT NULL, user_id TEXT NOT NULL, name TEXT NOT NULL, amount INTEGER NOT NULL, at TEXT NOT NULL, PRIMARY KEY (auction_id, user_id))',
-    );
-  } catch {
-    // Already exists.
-  }
-  try {
-    await db.exec('CREATE INDEX IF NOT EXISTS idx_auction_bids_auction ON auction_bids (auction_id)');
-  } catch {
-    // Already exists.
-  }
-  // Flight bets.
-  try {
-    await db.exec(
-      "CREATE TABLE IF NOT EXISTS bets (id TEXT PRIMARY KEY, user_id TEXT NOT NULL, user_name TEXT NOT NULL, flight_id TEXT NOT NULL, kind TEXT NOT NULL, pigeon_id TEXT, pigeon_name TEXT NOT NULL, rival_id TEXT, rival_name TEXT, stake INTEGER NOT NULL, ratio REAL NOT NULL, potential_win INTEGER NOT NULL, status TEXT NOT NULL, placed_at TEXT NOT NULL, settled_at TEXT)",
-    );
-  } catch {
-    // Already exists.
-  }
-  try {
-    await db.exec('CREATE INDEX IF NOT EXISTS idx_bets_user ON bets (user_id)');
-  } catch {
-    // Already exists.
-  }
-  // Private pigeon offers (bid on another player's bird, listed or not).
-  try {
-    await db.exec(
-      'CREATE TABLE IF NOT EXISTS offers (id TEXT PRIMARY KEY, pigeon_id TEXT NOT NULL, pigeon_name TEXT NOT NULL, from_user_id TEXT NOT NULL, from_user_name TEXT NOT NULL, to_user_id TEXT NOT NULL, to_user_name TEXT NOT NULL, amount INTEGER NOT NULL, status TEXT NOT NULL, created_at TEXT NOT NULL, resolved_at TEXT)',
-    );
-  } catch {
-    // Already exists.
-  }
+  const reached = done + slice.length;
 
-  // Indexes backing the partial loads (see the file header). Without them SQLite
-  // scans — and D1 bills — the whole table anyway, defeating the point. Created
-  // last, so every table above already exists.
-  for (const sql of [
-    'CREATE INDEX IF NOT EXISTS idx_notifications_user_created ON notifications (user_id, created_at)',
-    'CREATE INDEX IF NOT EXISTS idx_trades_at ON trades (at)',
-    'CREATE INDEX IF NOT EXISTS idx_bets_status ON bets (status)',
-  ]) {
-    try {
-      await db.exec(sql);
-    } catch {
-      // Already exists.
-    }
-  }
-
-  // Remember that we're done, so the next cold start costs one query instead of
-  // ~70. A brand-new database has no world row yet; seeding creates it with
-  // schema_version 0, so the upgrade runs once more and then sticks.
   try {
-    await db.prepare('UPDATE world SET schema_version = ? WHERE id = 1').bind(SCHEMA_VERSION).run();
+    await db.prepare('UPDATE world SET schema_version = ? WHERE id = 1').bind(reached).run();
   } catch {
-    // World row not there yet — the next cold start will set it.
+    // No world row yet (brand-new database, not seeded). Progress isn't recorded,
+    // so the prefix simply runs again after seeding — harmless, and it converges.
   }
+  return reached >= SCHEMA_STEPS.length;
 }
 
 /** Flatten every auction's bids into one row per (auction, bidder). The key
