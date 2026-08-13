@@ -702,15 +702,17 @@ npx tsx d1-partial-load.test.mts
 Alles hieronder staat **live** op de deploy-branch. Data-migraties liepen door tot
 **`dataVersion = 30`**.
 
-**503-fix ronde 2: inloggen kost geen wereld meer (nieuwste)**
-- De 503-golf kwam terug. Oorzaak: de **basis-leeskost** per verzoek (~1300 rijen,
-  11× `SELECT *`) — óók op `/auth/login` en `/auth/me`, want de "light routes"
-  sloegen enkel de engine over, niet de load. Opgelost met een **featherweight
-  inlogpad** (~1 rij) + **partieel laden** van `notifications`/`bets`/`trades`
-  (~450 rijen per verzoek) + **SQL-begrenzing** i.p.v. array-begrenzing + de
-  bijhorende **indexen**. Details, cijfers en verificatie: §Performance & stabiliteit
-  onderaan. **Geen migratie / geen `dataVersion`-bump** (enkel schema-indexen via
-  `ensureSchema`, en die zijn idempotent).
+**503-fix ronde 2: `ensureSchema` blies de 50-querylimiet op (nieuwste)**
+- De 503-golf kwam terug, maar **niet** door het dagquotum (metrics: 273 k van 5 M
+  gelezen rijen). Oorzaak: `ensureSchema` vuurde **71 losse D1-statements** af bij
+  **elke cold start**, tegen een limiet van **50 queries per Worker-invocatie** op
+  het gratis plan → zo'n verzoek sterft vóór het het spel bereikt, op eender welke
+  route (ook inloggen). Nu **gegate op `world.schema_version`**: 1 query op een
+  bijgewerkte database. **Bump `SCHEMA_VERSION` bij elk nieuw statement.**
+- Meegenomen: **featherweight inlogpad** (~1 rij i.p.v. ~1300) + **partieel laden**
+  van `notifications`/`bets`/`trades` + **SQL-begrenzing** + **indexen** — die
+  drukken vooral de CPU per verzoek (10 ms-limiet). Details, cijfers en verificatie:
+  §Performance & stabiliteit onderaan. **Geen migratie / geen `dataVersion`-bump.**
 
 **Trainbare skills dalen enkel door ouderdom + Tinne-correctie (nieuwste)**
 - **Invariant:** snelheid/conditie/oriëntatie kunnen **enkel dalen via `runAgeDecline`**
@@ -1103,22 +1105,60 @@ moet gewoon efficiënt zijn.
    401** (niet bij 503/netwerkfout) → geen willekeurige uitlogs/lock-outs meer.
 6. **Rustiger pollen** — LiveFlightPage 8s→**20s**, FlightsPage 15s→**40s**.
 
-**Terugkeer van de 503 — tweede ronde (nieuwste, opgelost)**
+**Terugkeer van de 503 — tweede ronde (nieuwste)**
 **Symptoom (identiek):** 503 op alles, spelers zien plots het inlogscherm en
 **inloggen geeft dezelfde 503**. Dat "uitloggen" is trouwens schijn: `AuthContext`
 gooit het token niet weg bij 5xx (fix 5 hierboven), maar als `/auth/me` faalt blijft
 `user` null → de app toont LoginPage. En inloggen faalde óók, dus je raakte er niet in.
 
-**Oorzaak:** de vluchtretentie haalde de *piek* weg, maar niet de **basiskost**. Elk
-verzoek deed nog altijd **11× `SELECT *`**, óók `/api/auth/login` en `/api/auth/me` —
-de "light routes" sloegen wél `advanceRealtime` + `persist` over, **maar niet de load**.
-Ruwe telling per verzoek: pigeons ~200 + notifications ~640 (40 × ~16 gebruikers) +
-trades 200 + bets 200 + de rest ≈ **~1300 rijen**. Op het gratis plan (5 M rijen/dag)
-is dat **~3800 verzoeken per dag voor het hele spel** — met 10 spelers die pollen
-(live 20 s, vluchten 40 s, markt 15 s) is dat er na een paar uur actief spelen door.
+> ⚠️ **Het was déze keer NIET het dagquotum.** Eerste hypothese was opnieuw "rows
+> read op". De D1-metrics weerlegden dat: **273,4 k gelezen / 37,1 k geschreven
+> rijen** op de dag van de storing, tegen limieten van 5 M / 100 k — dus ~5 %
+> van het leesbudget. Check dus **altijd eerst de metrics** vóór je op quota gokt.
+
+**Echte oorzaak (gevonden): de D1-limiet van 50 queries per Worker-invocatie**
+(gratis plan; betaald 1000). Dat is een **per-verzoek**-limiet, los van het dagquotum.
+`ensureSchema` vuurde **71 losse statements** af (56 `ALTER` + 6 `CREATE TABLE` +
+6 `CREATE INDEX` + …) en draaide bij **élke cold start** — een isolate wordt continu
+gerecycleerd, dus dat gebeurt willekeurig en vaak. Zo'n verzoek gaat over de limiet en
+**sterft vóór het bij het spel raakt**, ongeacht welke route het was: /state, maar net
+zo goed /auth/login. Dat verklaart de willekeur ("soms werkt het, soms niet") én
+waarom inloggen meeging.
+
+**Fix:** `ensureSchema` is nu **gegate op `world.schema_version`** (`SCHEMA_VERSION`
+in `d1.ts`). Een bijgewerkte database kost **1 query** i.p.v. 71; de upgrade draait
+enkel nog wanneer de versie achterloopt, en zet daarna de versie. **Bump
+`SCHEMA_VERSION` telkens je een statement toevoegt**, anders draait je nieuwe
+`ALTER`/`CREATE INDEX` nooit.
+
+**Daarnaast meegenomen (basiskost, want die was sowieso onnodig hoog):** elk verzoek
+deed **11× `SELECT *`**, óók `/api/auth/login` en `/api/auth/me` — de "light routes"
+sloegen wél `advanceRealtime` + `persist` over, **maar niet de load**. Ruwe telling:
+pigeons ~200 + notifications ~640 + trades 200 + bets 200 + de rest ≈ **~1300 rijen**
+per verzoek. Dat is geen quotumprobleem gebleken, maar wel **CPU** (JSON.parse van de
+hele wereld + `snapshot()` die élke entiteit stringify't) — en de gratis Workers-limiet
+is **10 ms CPU per invocatie**, met **Error 1102 "Worker exceeded resource limits"** als
+je eroverheen gaat. Minder rijen = minder parse/stringify, dus dit blijft nuttig.
+
+**Relevante Cloudflare-limieten om te onthouden (gratis plan):**
+
+| Limiet | Gratis | Waar het pijn doet |
+|---|---|---|
+| D1 **queries per Worker-invocatie** | **50** | `ensureSchema` (71!), en een `batch()` met veel statements |
+| Workers **CPU per invocatie** | **10 ms** | de hele wereld parsen/stringify'en → Error 1102 |
+| D1 rijen gelezen/dag | 5 M | wás de oorzaak in ronde 1, níet in ronde 2 |
+| D1 rijen geschreven/dag | 100 k | zat op 37 k tijdens de storing |
+| D1 databasegrootte | 500 MB | zat op ~0,7 MB |
+| Externe `fetch`-subrequests | 50 | `fetchFlightWeather` (1 per startende vlucht) |
+
+> **Let op bij `persist()`:** één `db.batch([...])` met veel statements telt mee voor de
+> 50-querylimiet. Een vluchtafronding raakt tientallen duiven + meldingen tegelijk —
+> hou dat in de gaten als er ooit weer 503's zijn net ná een race.
 
 **Wat is gefixt:**
-7. **Inloggen laadt de wereld niet meer.** `/api/health`, `/api/auth/login` en
+7. **`ensureSchema` gegate op `world.schema_version`** — 71 queries → **1** op een
+   bijgewerkte database. Dit is de hoofdfix voor ronde 2.
+8. **Inloggen laadt de wereld niet meer.** `/api/health`, `/api/auth/login` en
    `/api/auth/me` zijn nu **featherweight**: het token wordt geverifieerd vóór elke
    DB-toegang (pure crypto), en de speler wordt opgezocht met één rij via
    `findUserById`/`findUserByUsername` (`core/d1.ts`). **~1 rij i.p.v. ~1300** → je
@@ -1126,13 +1166,13 @@ is dat **~3800 verzoeken per dag voor het hele spel** — met 10 spelers die pol
    heeft. `/health` raakt **geen enkele tabel** meer (`{ok:true}`; week/spelersaantal
    zijn eruit — de client gebruikte ze niet). `/auth/register` houdt de volle load
    (maakt een hok aan, en is zeldzaam).
-8. **Partieel laden van `notifications`/`bets`/`trades`** (zie §2, D1Store-patroon)
-   → de basiskost zakt van ~1300 naar **~450 rijen** per verzoek, dus ~3× meer
-   verzoeken binnen hetzelfde budget.
-9. **SQL-begrenzing i.p.v. array-begrenzing** (`boundedCleanups`): inbox 40/speler,
+9. **Partieel laden van `notifications`/`bets`/`trades`** (zie §2, D1Store-patroon)
+   → de basiskost zakt van ~1300 naar **~450 rijen** per verzoek: minder leeswerk,
+   en vooral minder JSON-parse/stringify-CPU.
+10. **SQL-begrenzing i.p.v. array-begrenzing** (`boundedCleanups`): inbox 40/speler,
    trades 100, afgehandelde weddenschappen 100 — **openstaande** weddenschappen
    overleven altijd. Draait enkel bij een echte toevoeging.
-10. **Indexen** die die queries dekken (`idx_notifications_user_created`,
+11. **Indexen** die die queries dekken (`idx_notifications_user_created`,
    `idx_trades_at`, `idx_bets_status`), aangemaakt achteraan `ensureSchema` zodat
    alle tabellen al bestaan. Zonder index scant SQLite alsnog de hele tabel.
 

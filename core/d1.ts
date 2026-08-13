@@ -611,12 +611,32 @@ function boundedCleanups(
 }
 
 /**
+ * Bump whenever a statement is added below. The stored value lets a warm database
+ * skip the whole upgrade in a single query.
+ */
+const SCHEMA_VERSION = 1;
+
+/**
  * Idempotent schema top-up. The base tables come from migrations/0001; this
  * adds columns introduced later so existing databases upgrade themselves on
- * deploy (no manual SQL needed). Safe to call on every cold start.
+ * deploy (no manual SQL needed).
+ *
+ * **Gated on `world.schema_version`, and that matters.** The upgrade below is ~70
+ * separate statements. D1's free plan allows **50 queries per Worker invocation**,
+ * so running it unconditionally blew that budget on every cold start — the request
+ * died before it ever reached the game, and a cold start can happen at any moment
+ * (including on a login). Now an up-to-date database costs exactly one query.
  */
 export async function ensureSchema(db: D1Database): Promise<void> {
+  try {
+    const row = (await db.prepare('SELECT schema_version AS v FROM world WHERE id = 1').first()) as any;
+    if (row && (row.v ?? 0) >= SCHEMA_VERSION) return;
+  } catch {
+    // No `schema_version` column (or no world row) yet — fall through and upgrade.
+  }
+
   const alters = [
+    'ALTER TABLE world ADD COLUMN schema_version INTEGER NOT NULL DEFAULT 0',
     "ALTER TABLE flights ADD COLUMN from_city TEXT NOT NULL DEFAULT ''",
     "ALTER TABLE flights ADD COLUMN to_city TEXT NOT NULL DEFAULT ''",
     "ALTER TABLE flights ADD COLUMN start_at TEXT NOT NULL DEFAULT ''",
@@ -760,6 +780,15 @@ export async function ensureSchema(db: D1Database): Promise<void> {
     } catch {
       // Already exists.
     }
+  }
+
+  // Remember that we're done, so the next cold start costs one query instead of
+  // ~70. A brand-new database has no world row yet; seeding creates it with
+  // schema_version 0, so the upgrade runs once more and then sticks.
+  try {
+    await db.prepare('UPDATE world SET schema_version = ? WHERE id = 1').bind(SCHEMA_VERSION).run();
+  } catch {
+    // World row not there yet — the next cold start will set it.
   }
 }
 
