@@ -150,6 +150,19 @@ export interface Loft {
   sickCount: number;
   injuredCount: number;
   restCureAvailableAt: string | null;
+  coachedCount: number;
+  dailyCosts: DailyCostBreakdown;
+}
+
+/** Cumulative recurring daily costs of a loft, split per category (€ per day). */
+export interface DailyCostBreakdown {
+  upkeepBase: number;
+  upkeepPerPigeon: number;
+  coaches: number;
+  doctors: number;
+  physios: number;
+  medicatedFeed: number;
+  total: number;
 }
 
 export interface EconomyCosts {
