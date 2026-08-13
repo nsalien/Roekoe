@@ -86,7 +86,7 @@ function transfer(db: Database, buyer: Loft, seller: Loft, pigeon: Pigeon, price
     sellerId: seller.userId, sellerName: seller.name, buyerId: buyer.userId, buyerName: buyer.name,
     price, at: new Date().toISOString(),
   });
-  if (db.trades.length > 200) db.trades = db.trades.slice(-200);
+  // Bounded by the store (core/d1.ts) — see the note in engine.ts::buyPigeon.
   buyer.stats.buys += 1;
   seller.stats.sells += 1;
   if (price > 1000) awardBadge(db, seller, 'handelaar');

@@ -11,7 +11,7 @@ import { cors } from 'hono/cors';
 import { handle } from 'hono/cloudflare-pages';
 import type { D1Database } from '@cloudflare/workers-types';
 
-import { D1Store, ensureSchema } from '../../core/d1.js';
+import { D1Store, ensureSchema, findUserById, findUserByUsername } from '../../core/d1.js';
 import type { User } from '../../core/schema.js';
 import { hashPassword, verifyPassword, signToken, verifyToken } from '../../core/auth.js';
 import { newId } from '../../core/store.js';
@@ -110,18 +110,44 @@ app.use('*', async (c, next) => {
     await ensureSchema(c.env.DB);
     schemaReady = true;
   }
-  let store = await D1Store.load(c.env.DB);
+
+  // Verify the token BEFORE touching D1: it is a pure crypto check, and knowing
+  // who is asking lets us load only their notifications/bets instead of every
+  // player's (see core/d1.ts — reads are the scarce resource).
+  const auth = c.req.header('Authorization');
+  const payload = auth?.startsWith('Bearer ')
+    ? await verifyToken(auth.slice(7), c.env.JWT_SECRET)
+    : null;
+
+  const nowMs = Date.now();
+  const path = c.req.path;
+
+  // Login / "who am I" / health must keep working even when the game state's read
+  // budget is exhausted — otherwise a heavy day locks everyone out of the game
+  // entirely. They resolve the user with a single indexed row lookup and never
+  // load the world at all. Registration is the exception: it creates a loft, so
+  // it needs the real store (and it's rare enough not to matter).
+  const featherweight =
+    path === '/api/health' || path === '/api/auth/login' || path === '/api/auth/me';
+  if (featherweight) {
+    if (payload) {
+      const user = await findUserById(c.env.DB, payload.sub);
+      if (user) c.set('user', user);
+    }
+    await next();
+    return;
+  }
+
+  let store = await D1Store.load(c.env.DB, payload?.sub);
   if (!store.data.world.seeded) {
     seedWorld(store);
     await store.persist();
-    store = await D1Store.load(c.env.DB); // fresh snapshots for any later write
+    store = await D1Store.load(c.env.DB, payload?.sub); // fresh snapshots for any later write
   }
-  // Auth + health are "light" routes: they must keep working even when the game
-  // state is heavy, so they skip the real-time engine (flight lifecycle, ticks,
-  // migrations) and its write. Their own handlers still persist what they change.
-  const nowMs = Date.now();
-  const path = c.req.path;
-  const light = path.startsWith('/api/auth/') || path === '/api/health';
+  // Registration is "light": it skips the real-time engine (flight lifecycle,
+  // ticks, migrations) and its write, so signing up stays cheap. Its own handler
+  // still persists what it changes.
+  const light = path.startsWith('/api/auth/');
 
   if (!light) {
     // Real-time flight lifecycle + one-time data migrations. Persist any changes.
@@ -137,22 +163,17 @@ app.use('*', async (c, next) => {
   }
   c.set('store', store);
 
-  const auth = c.req.header('Authorization');
-  if (auth?.startsWith('Bearer ')) {
-    const payload = await verifyToken(auth.slice(7), c.env.JWT_SECRET);
-    if (payload) {
-      const user = store.data.users.find((u) => u.id === payload.sub);
-      if (user) {
-        c.set('user', user);
-        // Per-user: roll over daily missions/streak (and maybe a dilemma).
-        // Sponsor offers are NOT made here — they only appear after a good
-        // competition result (see tickFlights). Skipped on light routes so
-        // /auth/me stays cheap.
-        const loft = store.data.lofts.find((l) => l.userId === user.id);
-        if (loft && !light) {
-          const dirty = refreshDailyMissions(store.data, loft, nowMs);
-          if (dirty) await store.persist();
-        }
+  if (payload) {
+    const user = store.data.users.find((u) => u.id === payload.sub);
+    if (user) {
+      c.set('user', user);
+      // Per-user: roll over daily missions/streak (and maybe a dilemma).
+      // Sponsor offers are NOT made here — they only appear after a good
+      // competition result (see tickFlights).
+      const loft = store.data.lofts.find((l) => l.userId === user.id);
+      if (loft && !light) {
+        const dirty = refreshDailyMissions(store.data, loft, nowMs);
+        if (dirty) await store.persist();
       }
     }
   }
@@ -179,10 +200,9 @@ app.onError((err, c) => {
 
 const TOKEN_TTL = 60 * 60 * 24 * 30;
 
-app.get('/health', (c) => {
-  const db = c.get('store').data;
-  return c.json({ ok: true, week: db.world.currentWeek, players: db.users.filter((u) => !u.isBot).length });
-});
+// Pure liveness — deliberately touches no table, so it stays answerable when the
+// database is the thing that's struggling.
+app.get('/health', (c) => c.json({ ok: true }));
 
 // --- Auth ------------------------------------------------------------------
 app.post('/auth/register', async (c) => {
@@ -237,10 +257,9 @@ app.post('/auth/login', async (c) => {
   const body = await c.req.json().catch(() => ({}));
   const username = String(body.username ?? '').trim();
   const password = String(body.password ?? '');
-  const store = c.get('store');
-  const user = store.data.users.find(
-    (u) => u.username.toLowerCase() === username.toLowerCase() && !u.isBot,
-  );
+  // Single indexed row lookup — no world load, so logging in survives a day where
+  // the game state has burned through the read budget.
+  const user = await findUserByUsername(c.env.DB, username);
   if (!user || !(await verifyPassword(password, user.passwordHash))) {
     return c.json({ error: 'Verkeerde gebruikersnaam of wachtwoord' }, 401);
   }

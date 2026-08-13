@@ -552,8 +552,9 @@ export function buyPigeon(store: Store, userId: string, pigeonId: string): strin
       price,
       at: new Date().toISOString(),
     });
-    // Keep history bounded.
-    if (db.trades.length > 200) db.trades = db.trades.slice(-200);
+    // History is bounded by the store (core/d1.ts), not here: only a slice of the
+    // trades table is in memory now, so trimming the array would delete rows we
+    // simply never loaded.
     // Badges for buyer + seller.
     buyer.stats.buys += 1;
     progressMissions(db, buyer, 'market', 1);

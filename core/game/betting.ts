@@ -197,7 +197,9 @@ export function placeBet(
     status: 'open', placedAt: new Date(nowMs).toISOString(), settledAt: null,
   };
   db.bets.push(newBet);
-  if (db.bets.length > 200) db.bets = db.bets.slice(-200);
+  // Bounded by the store (core/d1.ts). Trimming the array here would be actively
+  // harmful now: `db.bets` holds every OPEN bet plus this player's settled ones,
+  // so dropping the head could delete other players' unsettled bets.
   loft.stats.bets += 1;
   progressMissions(db, loft, 'bet', 1);
   evaluateBadges(db, loft);
