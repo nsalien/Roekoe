@@ -1184,6 +1184,10 @@ Alles hieronder staat **live** op de deploy-branch. Data-migraties liepen door t
   **rechtstreeks bod** te doen. Is `revealed` false dan worden `speed/endurance/orientation/
   libido/form/health/experience` (+ ailment/inInfirmary/coached/ration/compartment/
   cureUntil/onCure/breeding/trainAvailableAt/dailyCare) **op null/false** gezet.
+  **Ook een duif in een lopende veiling is volledig zichtbaar** (`onAuction`-check in
+  `pigeonDTO`): de zondagstopper en de opvangcentrum-duif waren op hun eigen **duifpagina**
+  verborgen omdat ze van het veilinghuis zijn en niet `forSale` staan. De **veilingkaart** op de
+  markt toonde bovendien helemaal geen statbalken (server stuurde ze wél mee) — nu wel.
   **Publiek blijven**: `talent` (algemene score, ook via weddenschappen/ranglijst),
   `value`, `canRace`, `forSale`, `price`, `sex`, `ageWeeks`, `racing`. Het verbergen
   gebeurt **server-side** zodat privéwaarden niet over de lijn gaan. Alle API-calls

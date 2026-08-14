@@ -28,10 +28,13 @@ export function pigeonDTO(db: Database, p: Pigeon, viewerId?: string) {
   const week = db.world.currentWeek;
   const owner = db.lofts.find((l) => l.userId === p.ownerId);
   // Attributes are public when: there is no specific viewer (server-internal),
-  // the viewer owns the bird, OR the bird is openly listed for sale on the market
-  // (a buyer must see what they're buying). Only a bird that is NOT for sale, when
-  // viewed by someone else (to make a private/direct offer), hides its attributes.
-  const revealed = viewerId === undefined || p.ownerId === viewerId || p.forSale;
+  // the viewer owns the bird, the bird is openly listed for sale on the market, OR
+  // it is under the hammer in a running auction — in all of those cases a buyer
+  // must be able to see what they are bidding on. Only a bird that is NOT on offer
+  // anywhere, viewed by someone else (to make a private/direct offer), hides its
+  // attributes.
+  const onAuction = db.auctions.some((a) => a.status === 'open' && a.pigeonId === p.id);
+  const revealed = viewerId === undefined || p.ownerId === viewerId || p.forSale || onAuction;
   const live = db.flights.some((f) => f.status === 'live' && f.entries.some((e) => e.pigeonId === p.id));
   // Only an infirmary bird's energie recovery depends on staff coverage, so we
   // only run the (rare) coverage scan for those — the common path stays cheap.

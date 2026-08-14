@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../api/client';
 import { useGame } from '../game/GameContext';
-import { Money, Spinner, countdownTo, useToast } from '../components/ui';
+import { Money, PigeonStats, Spinner, countdownTo, useToast } from '../components/ui';
 import { PigeonCard } from '../components/PigeonCard';
 import { PigeonAvatar } from '../components/PigeonAvatar';
 import type { AuctionInfo, OfferView, Pigeon, Trade } from '../types';
@@ -445,6 +445,12 @@ function AuctionCard({
             )}
           </div>
         </div>
+      </div>
+
+      {/* You must be able to see what you are bidding on: an auction bird shows
+          its full attributes, just like a bird listed on the market. */}
+      <div style={{ marginTop: 10 }}>
+        <PigeonStats pigeon={p} />
       </div>
 
       <hr className="sep" />
