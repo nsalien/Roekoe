@@ -146,6 +146,50 @@ export function WikiPage() {
         <p><strong>Strategie:</strong> zet je meest <em>ervaren én best uitgeruste</em> duiven op de verste vluchten. Een frisse groentje op 1000 km is vragen om problemen.</p>
       </Section>
 
+      <Section id="sponsors" icon="🤝" title="Sponsors: wat ze opbrengen">
+        <p className="muted" style={{ marginTop: 0 }}>
+          Een sponsor betaalt je op <strong>twee manieren</strong>: een vast bedrag <strong>elke dag</strong>, en een
+          <strong> podiumpremie</strong> telkens een van je duiven bij de eerste drie eindigt. Het dagbedrag staat naast
+          je dagelijkse kosten in de <strong>dagbalans</strong> op het overzicht.
+        </p>
+        <MiniTable
+          head={['Tier', 'Per dag', 'Podiumpremie (1e nationaal)']}
+          rows={[
+            ['1 — buurtsponsor', '€25 – €40', '€50 – €70'],
+            ['2 — lokale zaak', '€45 – €70', '€85 – €120'],
+            ['3 — grote speler', '€90 – €135', '€145 – €215'],
+            ['4 — prestige', '€150 – €200', '€235 – €310'],
+          ]}
+        />
+        <p style={{ marginTop: 12 }}>
+          <strong>De premie hangt af van de vlucht én van je plaats.</strong> Een sponsor heeft er meer aan dat zijn
+          logo bij een internationale zege hangt dan bij een regiovlucht, dus hij betaalt in verhouding tot het
+          prestige — net zoals het prijzengeld zelf:
+        </p>
+        <MiniTable
+          head={['Niveau', '1e plaats', '2e plaats', '3e plaats']}
+          rows={[
+            ['Regionaal', '×0,6', '×0,36', '×0,21'],
+            ['Nationaal', '×1,0', '×0,6', '×0,35'],
+            ['Internationaal', '×1,8', '×1,08', '×0,63'],
+          ]}
+        />
+        <p style={{ marginTop: 12 }}>
+          Voorbeeld met drie buurtsponsors samen (basis €185): een <strong>regionale derde plaats €40</strong>, een
+          <strong> nationale zege €185</strong>, een <strong>internationale zege €330</strong>. Zet je meerdere duiven in
+          en pakken ze 1-2-3, dan krijg je alle drie de premies.
+        </p>
+        <ul>
+          <li>Enkel <strong>wedstrijdvluchten</strong> tellen: een oefenvlucht, de titanenwedstrijd en de
+            estafettevlucht leveren <strong>geen</strong> sponsorgeld op.</li>
+          <li>Je kan <strong>meerdere sponsors</strong> tegelijk hebben, maar per categorie maar één.</li>
+          <li>Presteer je een heel seizoen fors minder, dan kan een sponsor er zelf mee stoppen.</li>
+        </ul>
+        <p><strong>Strategie:</strong> een portefeuille sponsors dekt een flink deel van je dagelijkse kosten, en de
+          premie maakt de zware internationale vluchten extra de moeite. Grote sponsors komen enkel op je af ná een
+          podium — dus goed presteren betaalt zichzelf dubbel terug.</p>
+      </Section>
+
       <Section id="estafette" icon="🔗" title="De estafettevlucht (om de week, zaterdag)">
         <p className="muted" style={{ marginTop: 0 }}>
           Zaterdag wisselt de prestigewedstrijd af: de ene week de <strong>titanenwedstrijd</strong> (één topduif),

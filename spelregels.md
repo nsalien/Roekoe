@@ -569,9 +569,11 @@ onkosten/dag = 22 + 2 · aantal_duiven
              + 57 · dokters + 50 · kinesisten        (ziekenboegstaf, §5)
              + 6  · duiven_in_boeg (met medicatievoer)
 ```
-Ook **sponsorbijdragen** worden dagelijks uitbetaald (weekbedrag ÷ 7). Voer wordt
-apart uit je voorraad verbruikt (§4). Ziekte/sterfte-rondes en de seizoenswissel
-lopen los daarvan (§5, §6, §15).
+**Sponsors** betalen op datzelfde ritme: elke actieve sponsor stort **elke dag**
+zijn vaste bijdrage (§12). Op het **Overzicht** vind je daarom een **dagbalans**:
+je kosten, je sponsorinkomsten en wat je netto per dag over- of tekortkomt.
+Voer wordt apart uit je voorraad verbruikt (§4). Ziekte/sterfte-rondes en de
+seizoenswissel lopen los daarvan (§5, §6, §15).
 
 Onkosten kunnen je kassa **onder €0** duwen. Sta je negatief, dan **kan je niet
 meer inschrijven** voor vluchten: eerst een duif verkopen om terug uit het rood
@@ -956,8 +958,30 @@ kwetsuur, ziekte, herstel, sterfte en geboorte van jongen.
   overwinning dan bij een derde plaats). Ze verschijnen dus **nooit zomaar** en **nooit
   allemaal tegelijk**: er meldt zich hoogstens **één nieuwe sponsor per keer**. Presteer
   je goed, dan komen de suitors vanzelf langs; presteer je niet, dan blijft het stil.
-  - Aanvaarden geeft eenmalig **tekengeld**, daarna elke week een **weekbijdrage**
-    (bij "Volgende week") en een **bonus per gewonnen vlucht**.
+  - Aanvaarden geeft eenmalig **tekengeld**, daarna **elke dag** een vaste
+    bijdrage (zichtbaar in de dagbalans op het Overzicht, §4.2) en telkens een
+    van je duiven op het **podium** eindigt een **podiumpremie**.
+  - **De podiumpremie hangt af van de vlucht én van de plaats.** Een sponsor
+    haalt meer eer uit een internationale zege dan uit een regiovlucht, dus hij
+    betaalt in verhouding — net als het prijzengeld zelf. Elke sponsor heeft één
+    basisbedrag (= een zege op een **nationale** vlucht); daarop staan deze
+    vermenigvuldigers:
+
+| Niveau | 1e plaats | 2e plaats | 3e plaats |
+|---|---|---|---|
+| Regionaal | ×0,6 | ×0,36 | ×0,21 |
+| Nationaal | **×1,0** | ×0,6 | ×0,35 |
+| Internationaal | ×1,8 | ×1,08 | ×0,63 |
+
+    Enkel **wedstrijdvluchten** tellen: een oefenvlucht (§2.7), de
+    titanenwedstrijd (§2.8) en de estafettevlucht (§2.9) leveren **geen**
+    sponsorgeld op. Zet je meerdere duiven in en pakken ze 1-2-3, dan krijg je
+    alle drie de premies. Na elke wedstrijd waarin je scoort, krijg je een
+    melding met wat elke sponsor precies betaalde.
+  - **Orde van grootte.** Een buurtsponsor (tier 1) geeft €25–40 per dag en
+    €50–70 voor een nationale zege; een prestigesponsor (tier 4) €150–200 per
+    dag en €235–310. Drie buurtsponsors samen dekken dus ruwweg een derde van de
+    dagelijkse kosten van een gemiddeld hok.
   - Je kan **meerdere sponsors tegelijk** hebben, maar **per categorie** (café,
     frituur, bakkerij, …) telkens maar **één** — concurrenten vechten om jou. Wil
     je overstappen naar een concurrent in dezelfde categorie, dan moet je het oude

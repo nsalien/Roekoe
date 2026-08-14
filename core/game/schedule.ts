@@ -29,6 +29,8 @@ import {
   isRelayWeek,
   SCHEDULE_HORIZON_DAYS,
   SPONSOR_OFFER_ON_PERFORMANCE,
+  SPONSORS,
+  sponsorPodiumBonus,
   STARTING_LOFT_CAPACITY,
   TIMEZONE,
   TITAN,
@@ -696,16 +698,41 @@ export function tickFlights(db: Database, nowMs: number, weatherByFlight?: Map<s
           if (podiums > 0) progressMissions(db, loft, 'podium', podiums);
           const wins = mine.filter((r) => r.rank === 1).length;
           if (wins > 0) progressMissions(db, loft, 'win', 1);
-          // Every active sponsor pays a bonus for each winning bird.
-          if (wins > 0) {
-            const contracts = activeContracts(loft);
-            const bonus = contracts.reduce((s, c) => s + c.contract.winBonus * wins, 0);
+          // Every active sponsor pays for EACH podium finish, scaled by how much
+          // prestige the race carries (regionaal < nationaal < internationaal)
+          // and by the placing. Only the three competition tiers pay — the titan
+          // and the estafette already returned above, and a practice flight never
+          // gets here.
+          const contracts = activeContracts(loft);
+          if (contracts.length > 0) {
+            const tier = flight.type as FlightTier;
+            const perSponsor = new Map<string, number>();
+            let bonus = 0;
+            for (const r of mine) {
+              if (r.rank > 3) continue;
+              for (const c of contracts) {
+                const amount = sponsorPodiumBonus(c.contract.podiumBase, tier, r.rank);
+                if (amount <= 0) continue;
+                perSponsor.set(c.def.id, (perSponsor.get(c.def.id) ?? 0) + amount);
+                bonus += amount;
+              }
+            }
             if (bonus > 0) {
               loft.money += bonus;
+              const places = mine
+                .filter((r) => r.rank <= 3)
+                .sort((a, b) => a.rank - b.rank)
+                .map((r) => `${r.pigeonName} ${ordinal(r.rank)}`)
+                .join(', ');
+              const lines = contracts
+                .filter((c) => (perSponsor.get(c.def.id) ?? 0) > 0)
+                .map((c) => `${c.def.icon} ${c.def.name}: €${perSponsor.get(c.def.id)}`)
+                .join(' · ');
               pushNotification(
-                db, loft.userId, 'info', '🤝 Sponsorbonus',
-                `Je sponsors belonen je overwinning met €${bonus}.`, flight.id,
-                `ntf:spon:${flight.id}:${loft.userId}`,
+                db, loft.userId, 'info', `🤝 Sponsorpremie — €${bonus}`,
+                `${places} in ${flight.name} (${FLIGHT_TIERS[tier]?.label.toLowerCase() ?? flight.type}). ` +
+                `Je sponsors betalen daarvoor samen €${bonus} uit: ${lines}.`,
+                flight.id, `ntf:spon:${flight.id}:${loft.userId}`,
               );
             }
           }
@@ -1292,7 +1319,49 @@ function runDataMigrations(db: Database): void {
     }
     db.world.dataVersion = 31;
   }
+  if ((db.world.dataVersion ?? 0) < 32) {
+    // Sponsor terms moved from a WEEKLY stipend + win-only bonus to a DAILY
+    // stipend + a podium bonus that scales with the flight tier — and the whole
+    // catalogue was re-tuned upward (the old amounts covered ~9% of a loft's
+    // running costs). Rewrite every signed contract and pending offer onto the
+    // new shape, at the NEW catalogue value: a contract signed under the old
+    // terms should not stay stuck on money that was never meant to be that low.
+    // A contract whose terms were scaled at signing keeps that same ratio.
+    for (const loft of db.lofts) {
+      const raw: any = loft.sponsorship;
+      if (!raw) continue;
+      const rescale = (entry: any) => {
+        const def = SPONSORS.find((d) => d.id === entry?.id);
+        if (!def) return;
+        // How the old terms compared to the old catalogue value, so a
+        // performance-scaled offer keeps its edge (or its discount).
+        const oldWeekly = typeof entry.weeklyStipend === 'number' ? entry.weeklyStipend : null;
+        const ratio = oldWeekly && oldWeekly > 0 && LEGACY_WEEKLY[def.id]
+          ? clamp(oldWeekly / LEGACY_WEEKLY[def.id], 0.5, 2)
+          : 1;
+        entry.dailyStipend = Math.max(1, Math.round((def.dailyStipend * ratio) / 5) * 5);
+        entry.podiumBase = Math.max(5, Math.round((def.podiumBase * ratio) / 5) * 5);
+        if (typeof entry.signingBonus === 'number') {
+          entry.signingBonus = Math.max(5, Math.round((def.signingBonus * ratio) / 5) * 5);
+        }
+        delete entry.weeklyStipend;
+        delete entry.winBonus;
+      };
+      for (const a of Array.isArray(raw.active) ? raw.active : []) rescale(a);
+      for (const o of Array.isArray(raw.offers) ? raw.offers : []) rescale(o);
+    }
+    db.world.dataVersion = 32;
+  }
 }
+
+/** The pre-v32 weekly stipends, kept only so migration v32 can tell whether a
+ *  stored contract was scaled up or down relative to the old catalogue. */
+const LEGACY_WEEKLY: Record<string, number> = {
+  zatte_duif: 40, vetzakske: 60, den_beenhouwer: 50, het_schuim: 70,
+  de_pluim: 80, kruimeltje: 85, den_dorst: 95, van_steen: 110, van_hoof: 120,
+  gulden_friet: 150, zeker_vast: 170, fondinvest: 180, duivenkoning: 200, snelle_vleugel: 260,
+  gouden_ring: 300, vleugelnet: 320, turbo_motors: 400,
+};
 
 /** One leg of a scheduled estafettevlucht whose forecast should be refreshed. */
 export interface RelayForecastRequest {
@@ -1449,8 +1518,10 @@ export function tickDailyCare(db: Database, nowMs: number): void {
         const coachedCount = alive.filter((p) => p.coached).length;
         const infirmaryBirds = alive.filter((p) => p.inInfirmary).length;
         loft.money -= dailyRunningCost(loft, alive.length, coachedCount, infirmaryBirds);
-        const stipend = activeContracts(loft).reduce((s, c) => s + c.contract.weeklyStipend, 0);
-        if (stipend > 0) loft.money += Math.round(stipend / 7);
+        // Sponsors pay a DAILY stipend — same cadence as the running costs, so
+        // the player's daily balance is a single honest number (no /7 rounding).
+        const stipend = activeContracts(loft).reduce((s, c) => s + c.contract.dailyStipend, 0);
+        if (stipend > 0) loft.money += stipend;
       }
     }
     // One real-time day of health for the whole world: birds actually fall ill,

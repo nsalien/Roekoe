@@ -15,6 +15,7 @@ import {
 } from '../config/gameConfig.js';
 import type { Loft, Pigeon } from '../schema.js';
 import { geneCap, noteAttrChange } from './pigeon.js';
+import { activeContracts } from './sponsors.js';
 import { clamp, hashString, round1 } from './util.js';
 
 const RACING_ATTRS: RacingAttr[] = ['speed', 'endurance', 'orientation'];
@@ -303,6 +304,12 @@ export interface DailyCostBreakdown {
   physios: number; // physiotherapist salaries
   medicatedFeed: number; // medicated feed for the birds in the infirmary
   total: number; // sum of all of the above
+  /** Daily sponsor income, per contract + totalled. Sponsors pay on the same
+   *  daily cadence as these costs, so the two belong in one balance. */
+  sponsors: { id: string; name: string; icon: string; amount: number }[];
+  sponsorTotal: number;
+  /** What the loft actually gains or loses per day (income − costs). */
+  net: number;
 }
 
 /**
@@ -323,7 +330,14 @@ export function dailyRunningCostBreakdown(
   const physios = loft.physios * INFIRMARY.physioSalary;
   const medicatedFeed = loft.medicatedFood ? infirmaryBirds * INFIRMARY.medicatedFoodPerBird : 0;
   const total = upkeepBase + upkeepPerPigeon + coaches + doctors + physios + medicatedFeed;
-  return { upkeepBase, upkeepPerPigeon, coaches, doctors, physios, medicatedFeed, total };
+  const sponsors = activeContracts(loft).map((c) => ({
+    id: c.def.id, name: c.def.name, icon: c.def.icon, amount: c.contract.dailyStipend,
+  }));
+  const sponsorTotal = sponsors.reduce((s, x) => s + x.amount, 0);
+  return {
+    upkeepBase, upkeepPerPigeon, coaches, doctors, physios, medicatedFeed, total,
+    sponsors, sponsorTotal, net: sponsorTotal - total,
+  };
 }
 
 /** The total recurring cost charged to a loft for one day (see the breakdown). */
