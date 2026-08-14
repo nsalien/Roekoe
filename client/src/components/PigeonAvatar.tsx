@@ -15,7 +15,18 @@ function hashHue(id: string): number {
 
 type AvatarPigeon = Pick<Pigeon, 'id' | 'sex' | 'talent'> & { breed?: Pigeon['breed'] };
 
-export function PigeonAvatar({ pigeon, size = 84 }: { pigeon: AvatarPigeon; size?: number }) {
+export function PigeonAvatar({
+  pigeon,
+  size = 84,
+  shape = 'circle',
+}: {
+  pigeon: AvatarPigeon;
+  size?: number;
+  /** `circle` is the compact list avatar. `showcase` uses a rounded square with
+   *  barely any inset, so the bird itself is drawn far bigger in the same box —
+   *  for places where the photo is the point (market, auctions). */
+  shape?: 'circle' | 'showcase';
+}) {
   const elite = pigeon.talent >= 75;
   const image = pigeon.breed?.image;
 
@@ -31,21 +42,25 @@ export function PigeonAvatar({ pigeon, size = 84 }: { pigeon: AvatarPigeon; size
             ? '#f59e0b'
             : 'var(--line, rgba(0,0,0,0.12))';
     const ringWidth = rarity === 'legendarisch' || rarity === 'zeldzaam' || elite ? 2.5 : 1.5;
+    const showcase = shape === 'showcase';
     return (
       <div
         style={{
           width: size,
           height: size,
-          borderRadius: '50%',
+          // A round crop of a square photo throws away the corners, so the bird
+          // has to sit small inside it. The showcase frame keeps the corners and
+          // drops the inset, which is most of why the photo reads bigger.
+          borderRadius: showcase ? 14 : '50%',
           overflow: 'hidden',
           flexShrink: 0,
           background: 'var(--surface-2, #eee)',
           border: `${ringWidth}px solid ${ring}`,
           boxSizing: 'border-box',
           // A little inner padding so the WHOLE bird (tail + feet) stays inside
-          // the circle — the photos are near full-bleed squares, so a plain
+          // the frame — the photos are near full-bleed squares, so a plain
           // circular crop would clip the extremities.
-          padding: '10%',
+          padding: showcase ? '3%' : '10%',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',

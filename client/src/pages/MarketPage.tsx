@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../api/client';
 import { useGame } from '../game/GameContext';
-import { Money, PigeonStats, Spinner, countdownTo, useToast } from '../components/ui';
+import { BreedBadge, Money, PigeonStats, Spinner, countdownTo, useToast } from '../components/ui';
 import { PigeonCard } from '../components/PigeonCard';
 import { PigeonAvatar } from '../components/PigeonAvatar';
 import type { AuctionInfo, OfferView, Pigeon, Trade } from '../types';
@@ -176,7 +176,7 @@ export function MarketPage() {
 
       <div className="grid pigeons">
         {listings.map((p) => (
-          <PigeonCard key={p.id} pigeon={p} showOwner>
+          <PigeonCard key={p.id} pigeon={p} showOwner showBreed showcase avatarSize={104}>
             <button
               className="btn accent block"
               disabled={busy || money < (p.price ?? 0)}
@@ -433,7 +433,7 @@ function AuctionCard({
       )}
 
       <div className="row" style={{ gap: 14, alignItems: 'center', marginTop: 12 }}>
-        <PigeonAvatar pigeon={p} size={72} />
+        <PigeonAvatar pigeon={p} size={112} shape="showcase" />
         <div style={{ flex: 1, minWidth: 0 }}>
           <Link to={`/duif/${p.id}`} style={{ color: 'inherit' }}><strong style={{ fontSize: '1.05rem' }}>{p.name}</strong></Link>
           <div className="faint">★ talent {p.talent} · {p.sex} · geschatte waarde <Money value={p.value} /></div>
@@ -446,6 +446,9 @@ function AuctionCard({
           </div>
         </div>
       </div>
+
+      {/* Full width, so a long breed name never wraps in the narrow column. */}
+      <div style={{ marginTop: 8 }}><BreedBadge breed={p.breed} /></div>
 
       {/* You must be able to see what you are bidding on: an auction bird shows
           its full attributes, just like a bird listed on the market. */}

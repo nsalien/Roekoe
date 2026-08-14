@@ -144,6 +144,24 @@ export function PigeonStats({ pigeon, showPerDay }: { pigeon: Pigeon; showPerDay
   );
 }
 
+/** The bird's breed (ras) as a coloured chip — rarer breeds pop more. Public
+ *  information, so it shows even for a bird whose attributes are withheld. */
+export function BreedBadge({ breed }: { breed: Pigeon['breed'] }) {
+  const style: Record<string, { bg: string; fg: string }> = {
+    legendarisch: { bg: 'var(--gold-soft)', fg: 'var(--gold)' },
+    zeldzaam: { bg: 'rgba(168,85,247,0.16)', fg: '#a855f7' },
+    ongewoon: { bg: 'var(--brand-soft)', fg: 'var(--brand-ink)' },
+    algemeen: { bg: 'var(--surface-2)', fg: 'var(--ink-soft, inherit)' },
+    gemengd: { bg: 'var(--surface-2)', fg: 'var(--ink-soft, inherit)' },
+  };
+  const s = style[breed.rarity] ?? style.algemeen;
+  return (
+    <span className="badge" style={{ background: s.bg, color: s.fg }} title={`Ras: ${breed.name} · ${breed.rarityLabel}`}>
+      🕊️ {breed.name} · {breed.rarityLabel}
+    </span>
+  );
+}
+
 /** Dutch label for a flight tier (tolerates legacy 'club'/'national' values). */
 export function tierLabel(type: string): string {
   switch (type) {

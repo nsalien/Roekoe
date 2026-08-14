@@ -5,7 +5,7 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import { api } from '../api/client';
 import { useGame } from '../game/GameContext';
 import { PigeonAvatar } from '../components/PigeonAvatar';
-import { Money, PigeonStats, SexBadge, Spinner, formatFlightTime, useToast } from '../components/ui';
+import { BreedBadge, Money, PigeonStats, SexBadge, Spinner, formatFlightTime, useToast } from '../components/ui';
 import type { Pigeon, RaceHistoryRow } from '../types';
 
 interface PigeonDetail {
@@ -576,23 +576,6 @@ export function PigeonPage() {
         </div>
       </div>
     </div>
-  );
-}
-
-function BreedBadge({ breed }: { breed: Pigeon['breed'] }) {
-  // A little colour per rarity so rarer breeds pop.
-  const style: Record<string, { bg: string; fg: string }> = {
-    legendarisch: { bg: 'var(--gold-soft)', fg: 'var(--gold)' },
-    zeldzaam: { bg: 'rgba(168,85,247,0.16)', fg: '#a855f7' },
-    ongewoon: { bg: 'var(--brand-soft)', fg: 'var(--brand-ink)' },
-    algemeen: { bg: 'var(--surface-2)', fg: 'var(--ink-soft, inherit)' },
-    gemengd: { bg: 'var(--surface-2)', fg: 'var(--ink-soft, inherit)' },
-  };
-  const s = style[breed.rarity] ?? style.algemeen;
-  return (
-    <span className="badge" style={{ background: s.bg, color: s.fg }} title={`Ras: ${breed.name} · ${breed.rarityLabel}`}>
-      🕊️ {breed.name} · {breed.rarityLabel}
-    </span>
   );
 }
 
