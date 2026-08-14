@@ -146,6 +146,29 @@ export function WikiPage() {
         <p><strong>Strategie:</strong> zet je meest <em>ervaren én best uitgeruste</em> duiven op de verste vluchten. Een frisse groentje op 1000 km is vragen om problemen.</p>
       </Section>
 
+      <Section id="estafette" icon="🔗" title="De estafettevlucht (om de week, zaterdag)">
+        <p className="muted" style={{ marginTop: 0 }}>
+          Zaterdag wisselt de prestigewedstrijd af: de ene week de <strong>titanenwedstrijd</strong> (één topduif),
+          de andere week de <strong>estafettevlucht</strong> — één ploeg van <strong>drie</strong> duiven die elkaar
+          aflossen over zowat 900 km. De titan vraagt je beste duif, de estafette vraagt <em>diepte</em>.
+        </p>
+        <ul>
+          <li>De route wordt in <strong>drie exact gelijke etappes</strong> gesneden (± 300 km elk). Er is altijd maar
+            <strong> één duif tegelijk</strong> in de lucht; op elk wisselpunt neemt de volgende over.</li>
+          <li>Elke duif betaalt enkel de energie van <strong>haar eigen etappe</strong> (± 25) — per duif dus lichter
+            dan één solo-fondvlucht, maar je zet er wel drie tegelijk voor in.</li>
+          <li><strong>Eén schakel weg = ploeg weg.</strong> Geeft een duif op of raakt ze er niet, dan is de hele ploeg
+            uitgeschakeld. Duiven die nog niet aan de beurt waren, vliegen dan gewoon niet (en verliezen niets).</li>
+          <li>Elke etappe heeft <strong>haar eigen weer</strong>, en dat weerbericht staat er dagen op voorhand bij.
+            Daarom mag je je volgorde tot de start nog wisselen.</li>
+          <li>Enkel <strong>prijzengeld</strong> (top 5), geen seizoenspunten en geen weddenschappen. De snelheid van je
+            duiven op hun etappe telt wél mee voor de duivenranglijsten.</li>
+        </ul>
+        <p><strong>Strategie:</strong> zet je sterkste duif op de <em>zwaarste</em> etappe (die met tegenwind) — daar
+          verlies je met haar het minst. Bij overal hetzelfde weer maakt de volgorde niets uit. En kijk vooral naar je
+          <em> zwakste</em> schakel: die bepaalt evenveel van de ploegtijd als je kampioen.</p>
+      </Section>
+
       <Section id="lage-energie" icon="🪫" title="Vliegen op lage energie: DNF, blessure & dood">
         <p className="muted" style={{ marginTop: 0 }}>
           Inschrijven kan vanaf <strong>1 energie</strong>, maar op een lege tank vliegen is riskant.

@@ -175,6 +175,8 @@ function rowToFlight(r: any): Flight {
     status: r.status,
     practice: !!r.practice,
     titan: !!r.titan,
+    relay: !!r.relay,
+    legs: r.legs ? JSON.parse(r.legs) : undefined,
     entries: JSON.parse(r.entries || '[]'),
     sim: JSON.parse(r.sim || '[]'),
     weather: r.weather,
@@ -482,12 +484,13 @@ export class D1Store implements Store {
     diff(this.snapshots.flights, w.flights, (f) => f.id, {
       upsert: (f) =>
         db.prepare(
-          'INSERT OR REPLACE INTO flights (id, week, template_key, name, type, distance_km, entry_fee, from_city, to_city, start_at, status, entries, sim, weather, weather_factor, results, recap, created_at, practice, titan) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+          'INSERT OR REPLACE INTO flights (id, week, template_key, name, type, distance_km, entry_fee, from_city, to_city, start_at, status, entries, sim, weather, weather_factor, results, recap, created_at, practice, titan, relay, legs) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
         ).bind(
           f.id, f.week, f.templateKey, f.name, f.type, f.distanceKm, f.entryFee,
           f.fromCity, f.toCity, f.startAt, f.status,
           JSON.stringify(f.entries), JSON.stringify(f.sim), f.weather, f.weatherFactor,
           JSON.stringify(f.results), f.recap, f.createdAt, b(f.practice), b(f.titan),
+          b(f.relay), f.legs ? JSON.stringify(f.legs) : null,
         ),
       del: (id) => db.prepare('DELETE FROM flights WHERE id = ?').bind(id),
       stmts,
@@ -712,6 +715,8 @@ const SCHEMA_STEPS: string[] = [
     "ALTER TABLE world ADD COLUMN last_shelter_spawn TEXT NOT NULL DEFAULT ''",
     "ALTER TABLE auctions ADD COLUMN bids TEXT NOT NULL DEFAULT '[]'",
     "ALTER TABLE lofts ADD COLUMN food_stock TEXT NOT NULL DEFAULT ''",
+    'ALTER TABLE flights ADD COLUMN relay INTEGER NOT NULL DEFAULT 0',
+    'ALTER TABLE flights ADD COLUMN legs TEXT',
   ] as string[]),
 ];
 

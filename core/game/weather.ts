@@ -52,6 +52,70 @@ async function fetchJson(url: string, timeoutMs = 4000): Promise<any> {
   return res.json();
 }
 
+/** Turn wind + rain along a route into Roekoe's speed factor and a label. */
+function toWeather(
+  from: { lat: number; lon: number },
+  to: { lat: number; lon: number },
+  windSpeed: number,
+  windFrom: number,
+  precip: number,
+  forecast: boolean,
+): WeatherResult {
+  const travel = bearing(from, to);
+  const windTo = (windFrom + 180) % 360;
+  const along = windSpeed * Math.cos(toRad(signedAngle(windTo, travel))); // + = tailwind km/h
+  const factor = clamp(1 + along / 120 - Math.min(precip, 4) * 0.04, 0.7, 1.2);
+
+  let windWord: string;
+  if (along > 6) windWord = `rugwind ${Math.round(windSpeed)} km/u`;
+  else if (along < -6) windWord = `tegenwind ${Math.round(windSpeed)} km/u`;
+  else windWord = windSpeed > 12 ? `zijwind ${Math.round(windSpeed)} km/u` : 'kalm weer';
+  const rainWord = precip > 0.2 ? ', regen' : '';
+  const suffix = forecast ? ' (voorspelling)' : ' (echt weer)';
+  const label = `${windWord.charAt(0).toUpperCase()}${windWord.slice(1)}${rainWord}${suffix}`;
+  return { label, factor: round1(factor) };
+}
+
+/**
+ * The forecast for one leg of a route at a given moment — used by the
+ * estafettevlucht, which shows the weather per leg days before the start so a
+ * player can decide which bird flies which stretch. Handover points are plain
+ * coordinates, not cities, so this takes lat/lon directly.
+ */
+export async function fetchLegForecast(
+  from: { lat: number; lon: number },
+  to: { lat: number; lon: number },
+  atMs: number,
+): Promise<WeatherResult> {
+  try {
+    const hour = new Date(Math.round(atMs / 3600000) * 3600000).toISOString().slice(0, 13) + ':00';
+    const url =
+      `https://api.open-meteo.com/v1/forecast?latitude=${from.lat.toFixed(3)}&longitude=${from.lon.toFixed(3)}` +
+      '&hourly=wind_speed_10m,wind_direction_10m,precipitation&wind_speed_unit=kmh&forecast_days=7&timezone=UTC';
+    const j = await fetchJson(url);
+    const times: string[] = j.hourly?.time ?? [];
+    let i = times.indexOf(hour);
+    if (i < 0) {
+      // Fall back to the closest hour the API returned.
+      let bestDiff = Infinity;
+      times.forEach((t, k) => {
+        const diff = Math.abs(Date.parse(t + 'Z') - atMs);
+        if (diff < bestDiff) { bestDiff = diff; i = k; }
+      });
+    }
+    if (i < 0) return randomWeather();
+    return toWeather(
+      from, to,
+      Number(j.hourly.wind_speed_10m?.[i]) || 0,
+      Number(j.hourly.wind_direction_10m?.[i]) || 0,
+      Number(j.hourly.precipitation?.[i]) || 0,
+      true,
+    );
+  } catch {
+    return randomWeather();
+  }
+}
+
 /** Current weather for a route, mapped to a Roekoe speed factor + label. */
 export async function fetchFlightWeather(fromCity: string, toCity: string): Promise<WeatherResult> {
   const from = CITY_COORDS[fromCity];

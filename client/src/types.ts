@@ -227,6 +227,8 @@ export interface InfirmaryConfig {
 export interface FlightEntry {
   pigeonId: string;
   ownerId: string;
+  /** Estafettevlucht: which leg this bird flies. */
+  leg?: number;
 }
 
 export interface FlightResult {
@@ -255,6 +257,12 @@ export interface Flight {
   status: FlightStatus;
   practice: boolean;
   titan: boolean;
+  /** Estafettevlucht: one team of `teamSize` birds per loft, flying equal legs. */
+  relay: boolean;
+  legs?: RelayLeg[];
+  teamSize?: number;
+  legKm?: number;
+  teams?: RelayEntryTeam[];
   weather: string;
   entryCount: number;
   entries: FlightEntry[];
@@ -263,6 +271,51 @@ export interface Flight {
   results: FlightResult[];
   recap: string;
   createdAt: string;
+}
+
+/** One equal stretch of an estafettevlucht, with its own forecast. */
+export interface RelayLeg {
+  index: number;
+  fromName: string;
+  toName: string;
+  distanceKm: number;
+  weather: string;
+  weatherFactor: number;
+  forecastAt?: string;
+}
+
+/** A loft's entered relay team, in running order. */
+export interface RelayEntryTeam {
+  ownerId: string;
+  ownerName: string;
+  complete: boolean;
+  legs: { leg: number; pigeonId: string; name: string }[];
+}
+
+export interface LiveRelayLeg {
+  leg: number;
+  pigeonId: string;
+  pigeonName: string;
+  kmDone: number;
+  kmTotal: number;
+  speedKmh: number;
+  status: 'wachtend' | 'onderweg' | 'binnen' | 'gestopt';
+}
+
+export interface LiveRelayTeam {
+  ownerId: string;
+  ownerName: string;
+  kmDone: number;
+  kmTotal: number;
+  kmRemaining: number;
+  progress: number;
+  activeLeg: number;
+  speedKmh: number;
+  legs: LiveRelayLeg[];
+  finished: boolean;
+  out: boolean;
+  etaSeconds: number;
+  liveRank: number;
 }
 
 export interface LiveBird {
@@ -288,6 +341,8 @@ export interface LiveSnapshot {
   overallProgress: number;
   allFinished: boolean;
   birds: LiveBird[];
+  /** Estafettevlucht only: the same race grouped per team. */
+  teams?: LiveRelayTeam[];
 }
 
 export interface CommentLine {

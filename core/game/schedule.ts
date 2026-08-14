@@ -25,6 +25,8 @@ import {
   IMPROVE_ATTR_LABEL,
   RACE_CITIES,
   REAL_SCHEDULE,
+  RELAY,
+  isRelayWeek,
   SCHEDULE_HORIZON_DAYS,
   SPONSOR_OFFER_ON_PERFORMANCE,
   STARTING_LOFT_CAPACITY,
@@ -50,6 +52,7 @@ import {
   finalizeFlight,
   flightTotalSeconds,
   generateRecap,
+  relayTeams,
   startLiveFlight,
   type Entry,
   type SimulatedFlight,
@@ -58,6 +61,7 @@ import type { WeatherResult } from './weather.js';
 import { generatePigeonName, isLegacyName, isWrongGenderName } from './names.js';
 import { canRace, noteAttrChange, rollBreed, rollGenes, talent } from './pigeon.js';
 import { NPC_OWNER_ID, ownerName } from './engine.js';
+import { pickRelayRoute, relayEntryTeams, relayLegKm, relayTeamComplete } from './relay.js';
 import { bell, clamp, hashString, haversineKm, pick, randFloat, round1, seededRng } from './util.js';
 
 // --- Time-zone helpers -----------------------------------------------------
@@ -164,9 +168,38 @@ function pickRouteInRange(minKm: number, maxKm: number): { fromCity: string; toC
 }
 
 function makeRealtimeFlight(
-  templateKey: string, tier: FlightTier, startMs: number, week: number, practice = false, titan = false,
+  templateKey: string, tier: FlightTier, startMs: number, week: number, practice = false, titan = false, relay = false,
 ): Flight {
   const cfg = FLIGHT_TIERS[tier];
+  // An estafettevlucht carries its own route: one long haul cut into equal legs,
+  // with handover points instead of a single release → home pair.
+  if (relay) {
+    const r = pickRelayRoute();
+    return {
+      id: newId('flt'),
+      week,
+      templateKey,
+      name: RELAY.name,
+      type: 'international',
+      distanceKm: r.totalKm,
+      entryFee: RELAY.entryFee,
+      fromCity: r.fromCity,
+      toCity: r.toCity,
+      startAt: new Date(startMs).toISOString(),
+      status: 'scheduled',
+      practice: false,
+      titan: false,
+      relay: true,
+      legs: r.legs,
+      entries: [],
+      sim: [],
+      weather: '',
+      weatherFactor: 1,
+      results: [],
+      recap: '',
+      createdAt: new Date().toISOString(),
+    };
+  }
   // A titanenwedstrijd draws a medium-to-long route of its own and always carries
   // the same title + entry fee; its tier is derived from the distance for display.
   // Oefenvluchten (practice) stay SHORT training runs: they use the regional pool
@@ -218,9 +251,22 @@ function botsEnterFlight(db: Database, flight: Flight): void {
     const eligible = db.pigeons
       .filter((p) => p.ownerId === loft.userId && canRace(p, week) && p.form > 45 && !committed.has(p.id))
       .sort((a, b) => talent(b) + b.form - (talent(a) + a.form));
-    // A titanenwedstrijd allows only ONE bird per loft; otherwise 1-2.
-    const n = flight.titan ? 1 : 1 + Math.floor(Math.random() * 2);
-    for (const p of eligible.slice(0, n)) {
+    // A titanenwedstrijd allows only ONE bird per loft; an estafettevlucht needs
+    // a full team of exactly RELAY.teamSize (a short-handed bot would only get
+    // refunded at the start); otherwise 1-2.
+    const n = flight.relay ? RELAY.teamSize : flight.titan ? 1 : 1 + Math.floor(Math.random() * 2);
+    if (flight.relay && eligible.length < RELAY.teamSize) continue;
+    // The relay charges its fee once per team, not per bird.
+    const team = eligible.slice(0, n);
+    if (flight.relay) {
+      loft.money -= flight.entryFee;
+      team.forEach((p, i) => {
+        flight.entries.push({ pigeonId: p.id, ownerId: loft.userId, leg: i + 1 });
+        committed.add(p.id);
+      });
+      continue;
+    }
+    for (const p of team) {
       if (loft.money < flight.entryFee) break;
       flight.entries.push({ pigeonId: p.id, ownerId: loft.userId });
       committed.add(p.id);
@@ -266,7 +312,13 @@ export function ensureFlightsScheduled(db: Database, nowMs: number): void {
       if (slot.weekday !== null && slot.weekday !== weekday) continue;
       if (titanDay && !slot.titan) continue; // titan replaces everything else that day
       if (slot.everyNDays && slot.everyNDays > 1 && dayNumber % slot.everyNDays !== 0) continue;
-      const startMs = wallToUtcMs(TIMEZONE, y, m, d, slot.hour, slot.minute);
+      // The weekend slot alternates: titanenwedstrijd one Saturday, estafette-
+      // vlucht the next. The relay starts earlier (RELAY.hour) because ~900 km in
+      // three legs takes most of the day.
+      const relay = !!slot.titan && isRelayWeek(dayNumber);
+      const hour = relay ? RELAY.hour : slot.hour;
+      const minute = relay ? RELAY.minute : slot.minute;
+      const startMs = wallToUtcMs(TIMEZONE, y, m, d, hour, minute);
       // Skip flights that are already well past their live window.
       if (startMs < nowMs - 2 * 3600 * 1000) continue;
       const templateKey = `${slot.key}:${y}-${m}-${d}`;
@@ -275,7 +327,9 @@ export function ensureFlightsScheduled(db: Database, nowMs: number): void {
       // Resolve the tier: fixed, or rotate deterministically by the date.
       const tier: FlightTier = slot.tier
         ?? slot.tiers![Math.abs(hashDate(y, m, d)) % slot.tiers!.length];
-      const flight = makeRealtimeFlight(templateKey, tier, startMs, db.world.currentWeek, !!slot.practice, !!slot.titan);
+      const flight = makeRealtimeFlight(
+        templateKey, tier, startMs, db.world.currentWeek, !!slot.practice, !!slot.titan && !relay, relay,
+      );
       db.flights.push(flight);
       botsEnterFlight(db, flight);
     }
@@ -339,6 +393,23 @@ function emitFlightNotifications(db: Database, flight: Flight, sim: SimulatedFli
       const body = `${count === 1 ? list[0].pigeonName : `Je ${count} duiven`} vloog${count === 1 ? '' : 'en'} de oefenvlucht ` +
         `(${flight.fromCity} → ${flight.toCity}) uit — een rustige training aan conditie en oriëntatie. Geen punten of prijzengeld, wel ervaring.`;
       pushNotification(db, ownerId, 'info', `🕊️ Oefenvlucht afgerond`, body, flight.id, `ntf:res:${flight.id}:${ownerId}`);
+      continue;
+    }
+    // An estafettevlucht is scored per TEAM: one placing, one prize, three birds.
+    if (flight.relay) {
+      const teamRank = list[0].rank;
+      const prize = list.reduce((s, r) => s + r.prize, 0);
+      const teamCount = new Set(flight.results.map((r) => r.ownerId)).size;
+      const order = [...list].sort((a, b) => (a.rank - b.rank) || 0);
+      const failed = order.find((r) => r.finished === false);
+      const money = prize > 0 ? ` Prijzengeld: €${prize}.` : '';
+      const title = teamRank === 1 && !failed ? `🏆 Ploegzege — ${flight.name}!` : `Uitslag — ${flight.name}`;
+      const body = failed
+        ? `Je ploeg strandde in de ${flight.name.toLowerCase()}: ${failed.pigeonName} raakte er niet, en zonder haar valt de hele ploeg uit. ` +
+          `Eindstand: ${ordinal(teamRank)} van ${teamCount} ploegen.${money}`
+        : `Je ploeg werd ${ordinal(teamRank)} van ${teamCount} ploegen in de ${flight.name.toLowerCase()} ` +
+          `(${flight.fromCity} → ${flight.toCity}, ${RELAY.teamSize} × ${relayLegKm(flight)} km).${money}`;
+      pushNotification(db, ownerId, 'result', title, body, flight.id, `ntf:res:${flight.id}:${ownerId}`);
       continue;
     }
     // Rank finishers first so "best" is a bird that actually came home if any did.
@@ -427,6 +498,11 @@ function logRaceResults(db: Database, flight: Flight): void {
       distanceKm: flight.distanceKm, startAt: flight.startAt, ownerId: r.ownerId,
       rank: r.rank, total: flight.results.length, points: r.points, prize: r.prize,
       velocity: r.velocity, finished: r.finished, practice: !!flight.practice, titan: !!flight.titan,
+      relay: !!flight.relay,
+      // A relay bird flew one leg, not the whole route — record which and how far.
+      ...(flight.relay
+        ? { leg: flight.entries.find((e) => e.pigeonId === r.pigeonId)?.leg, legKm: relayLegKm(flight) }
+        : {}),
     };
     const idx = log.findIndex((e) => e.flightId === flight.id);
     if (idx >= 0) log[idx] = entry;
@@ -478,10 +554,13 @@ function payFinishedFlightPrizes(db: Database, nowMs: number): void {
       loft.money += pay.prize;
       s.prizePaid = true;
       if (!loft.isBot) {
+        const body = flight.relay
+          ? `${pay.pigeonName} bracht je ploeg als ${pay.rank}e binnen in de ${flight.name.toLowerCase()} (${flight.fromCity} → ${flight.toCity}). Je prijzengeld van €${pay.prize} staat al op je rekening — je hoeft niet te wachten tot de laatste ploeg thuis is.`
+          : `${pay.pigeonName} finishte als ${pay.rank}e in ${flight.name} (${flight.fromCity} → ${flight.toCity}). Je prijzengeld van €${pay.prize} is meteen bijgeschreven — je hoeft niet te wachten tot de hele vlucht afgelopen is. De ranglijstpunten en de rest volgen bij de afronding.`;
         pushNotification(
           db, pay.ownerId, 'result',
-          `🏁 ${pay.pigeonName} is binnen — ${pay.rank}e plaats`,
-          `${pay.pigeonName} finishte als ${pay.rank}e in ${flight.name} (${flight.fromCity} → ${flight.toCity}). Je prijzengeld van €${pay.prize} is meteen bijgeschreven — je hoeft niet te wachten tot de hele vlucht afgelopen is. De ranglijstpunten en de rest volgen bij de afronding.`,
+          flight.relay ? `🏁 Ploeg binnen — ${pay.rank}e plaats` : `🏁 ${pay.pigeonName} is binnen — ${pay.rank}e plaats`,
+          body,
           flight.id, `ntf:prize:${flight.id}:${pay.pigeonId}`,
         );
       }
@@ -494,6 +573,26 @@ export function tickFlights(db: Database, nowMs: number, weatherByFlight?: Map<s
     const startMs = flight.startAt ? Date.parse(flight.startAt) : NaN;
 
     if (flight.status === 'scheduled' && !Number.isNaN(startMs) && nowMs >= startMs) {
+      // An estafettevlucht only starts full teams. A loft that never completed
+      // its team (or lost a bird since entering) is taken off the flight and
+      // refunded — it cannot fly a leg short.
+      if (flight.relay) {
+        for (const [ownerId, team] of relayEntryTeams(flight)) {
+          const allPresent = team.every((e) => db.pigeons.some((p) => p.id === e.pigeonId));
+          if (relayTeamComplete(team) && allPresent) continue;
+          flight.entries = flight.entries.filter((e) => e.ownerId !== ownerId);
+          const loft = db.lofts.find((l) => l.userId === ownerId);
+          if (!loft) continue;
+          loft.money += flight.entryFee;
+          if (!loft.isBot) {
+            pushNotification(
+              db, ownerId, 'info', `🚫 Ploeg niet compleet — ${flight.name}`,
+              `Je ploeg voor de ${flight.name.toLowerCase()} telde geen ${RELAY.teamSize} vluchtklare duiven bij de start, dus ze is uit de wedstrijd gehaald. Je inschrijfgeld (€${flight.entryFee}) is terugbetaald.`,
+              flight.id, `ntf:relayshort:${flight.id}:${ownerId}`,
+            );
+          }
+        }
+      }
       const entries: Entry[] = [];
       for (const e of flight.entries) {
         const pigeon = db.pigeons.find((p) => p.id === e.pigeonId);
@@ -502,7 +601,8 @@ export function tickFlights(db: Database, nowMs: number, weatherByFlight?: Map<s
       }
       // A competition flight needs at least two different breeders — otherwise it
       // is called off and everyone's entry fee is refunded. Training flights
-      // (oefenvluchten) may run with a single participant.
+      // (oefenvluchten) may run with a single participant. For a relay that means
+      // two complete TEAMS (short-handed ones were just removed above).
       const distinctOwners = new Set(flight.entries.map((e) => e.ownerId)).size;
       const tooFewRivals = !flight.practice && distinctOwners < 2;
       if (entries.length === 0 || tooFewRivals) {
@@ -512,16 +612,15 @@ export function tickFlights(db: Database, nowMs: number, weatherByFlight?: Map<s
         flight.recap = generateRecap(flight);
         // Cancel + refund any open bets on this flight (it never reaches settle).
         refundFlightBets(db, flight);
-        // Refund the entry fee to every entrant (one fee per entered bird).
+        // Refund the entry fee to every entrant: one fee per entered bird, or —
+        // for an estafettevlucht — one fee per team.
         if (flight.entryFee > 0) {
-          for (const e of flight.entries) {
-            const loft = db.lofts.find((l) => l.userId === e.ownerId);
-            if (loft) loft.money += flight.entryFee;
-          }
           for (const ownerId of new Set(flight.entries.map((e) => e.ownerId))) {
+            const count = flight.relay ? 1 : flight.entries.filter((e) => e.ownerId === ownerId).length;
             const loft = db.lofts.find((l) => l.userId === ownerId);
-            if (loft && !loft.isBot) {
-              const count = flight.entries.filter((e) => e.ownerId === ownerId).length;
+            if (!loft) continue;
+            loft.money += flight.entryFee * count;
+            if (!loft.isBot) {
               pushNotification(
                 db, ownerId, 'info', `🚫 ${flight.name} afgelast`,
                 `Te weinig deelnemers voor de ${flight.name.toLowerCase()} (${flight.fromCity} → ${flight.toCity}). Je inschrijfgeld (€${flight.entryFee * count}) is terugbetaald.`,
@@ -582,10 +681,10 @@ export function tickFlights(db: Database, nowMs: number, weatherByFlight?: Map<s
           if (r.velocity > (p.seasonPeakSpeed ?? 0)) p.seasonPeakSpeed = r.velocity;
           if (r.rank <= 3) p.seasonPodiums = (p.seasonPodiums ?? 0) + 1;
         }
-        // The titan stops here: no medals/wins badges, no bets (none can be placed
-        // on it), no win/podium missions and no sponsor bonuses — money + the
-        // pigeon rankings above are all it feeds.
-        if (flight.titan) continue;
+        // The weekend specials stop here: no medals/wins badges, no bets (none can
+        // be placed on them), no win/podium missions and no sponsor bonuses —
+        // money + the pigeon rankings above are all they feed.
+        if (flight.titan || flight.relay) continue;
         awardFlightBadges(db, flight);
         settleFlightBets(db, flight);
         // Daily-mission progress for win/podium.
@@ -1158,6 +1257,98 @@ function runDataMigrations(db: Database): void {
     }
     db.world.dataVersion = 30;
   }
+  if ((db.world.dataVersion ?? 0) < 31) {
+    // The weekend slot now alternates titanenwedstrijd / estafettevlucht. A titan
+    // that was already scheduled on what is now a relay Saturday is dropped so the
+    // estafette can take its place; everyone who had entered gets their entry fee
+    // back with a notification. Live/completed titans are left alone.
+    const dropped: Flight[] = [];
+    for (const f of db.flights) {
+      if (f.status !== 'scheduled' || !f.titan || !f.startAt) continue;
+      const startMs = Date.parse(f.startAt);
+      if (Number.isNaN(startMs)) continue;
+      if (!isRelayWeek(localDayNumber(TIMEZONE, startMs))) continue;
+      dropped.push(f);
+      for (const ownerId of new Set(f.entries.map((e) => e.ownerId))) {
+        const count = f.entries.filter((e) => e.ownerId === ownerId).length;
+        const loft = db.lofts.find((l) => l.userId === ownerId);
+        if (!loft) continue;
+        loft.money += f.entryFee * count;
+        if (loft.isBot) continue;
+        pushNotification(
+          db, ownerId, 'info', `🔄 Titanenwedstrijd wordt ${RELAY.name.toLowerCase()}`,
+          `Vanaf nu wisselt de zaterdagwedstrijd week na week: de ene week de titanenwedstrijd, de andere de ${RELAY.name.toLowerCase()} ` +
+          `— één ploeg van ${RELAY.teamSize} duiven die elkaar aflossen over ~900 km. Die van dit weekend wordt een ${RELAY.name.toLowerCase()}, ` +
+          `dus je inschrijving voor de titanenwedstrijd is geannuleerd en je inschrijfgeld (€${f.entryFee * count}) is terugbetaald. Schrijf gerust een ploeg in!`,
+          null, `ntf:relayswap:${f.id}:${ownerId}`,
+        );
+      }
+    }
+    if (dropped.length > 0) {
+      const ids = new Set(dropped.map((f) => f.id));
+      // Any open bets on a dropped titan are refunded before it disappears.
+      for (const f of dropped) refundFlightBets(db, f);
+      db.flights = db.flights.filter((f) => !ids.has(f.id));
+    }
+    db.world.dataVersion = 31;
+  }
+}
+
+/** One leg of a scheduled estafettevlucht whose forecast should be refreshed. */
+export interface RelayForecastRequest {
+  flightId: string;
+  legIndex: number; // 1-based
+  from: { lat: number; lon: number };
+  to: { lat: number; lon: number };
+  atMs: number; // roughly when that leg is flown
+}
+
+/**
+ * Which relay legs need their weather (re)fetched. Every leg of an upcoming
+ * estafettevlucht carries its own forecast, published days ahead so a player can
+ * choose which bird flies which stretch — and refreshed while the forecast can
+ * still change, so what you plan with stays close to what you fly. Cheap by
+ * design: at most `teamSize` requests every few hours, and nothing at all once a
+ * leg's forecast is fresh.
+ */
+export function relayLegsNeedingForecast(db: Database, nowMs: number): RelayForecastRequest[] {
+  const out: RelayForecastRequest[] = [];
+  for (const f of db.flights) {
+    if (f.status !== 'scheduled' || !f.relay || !f.legs?.length || !f.startAt) continue;
+    const startMs = Date.parse(f.startAt);
+    if (Number.isNaN(startMs) || startMs < nowMs) continue;
+    const untilStartH = (startMs - nowMs) / 3600000;
+    const staleH = untilStartH <= RELAY.forecastFinalHours ? 1 : RELAY.forecastRefreshHours;
+    const legHours = relayLegKm(f) / RELAY.nominalKmh;
+    for (const leg of f.legs) {
+      const ageH = leg.forecastAt ? (nowMs - Date.parse(leg.forecastAt)) / 3600000 : Infinity;
+      if (Number.isFinite(ageH) && ageH < staleH) continue;
+      out.push({
+        flightId: f.id,
+        legIndex: leg.index,
+        from: { lat: leg.fromLat, lon: leg.fromLon },
+        to: { lat: leg.toLat, lon: leg.toLon },
+        atMs: startMs + (leg.index - 1) * legHours * 3600000,
+      });
+    }
+  }
+  return out;
+}
+
+/** Store refreshed relay forecasts, keyed `flightId:legIndex`. */
+export function applyRelayForecasts(db: Database, forecasts: Map<string, WeatherResult>, nowMs: number): void {
+  if (forecasts.size === 0) return;
+  const at = new Date(nowMs).toISOString();
+  for (const f of db.flights) {
+    if (!f.relay || !f.legs?.length) continue;
+    for (const leg of f.legs) {
+      const w = forecasts.get(`${f.id}:${leg.index}`);
+      if (!w) continue;
+      leg.weather = w.label;
+      leg.weatherFactor = w.factor;
+      leg.forecastAt = at;
+    }
+  }
 }
 
 /**
@@ -1291,16 +1482,31 @@ export function tickFlightEnergy(db: Database, nowMs: number): void {
     const startMs = flight.startAt ? Date.parse(flight.startAt) : NaN;
     if (Number.isNaN(startMs)) continue;
     const elapsed = Math.max(0, (nowMs - startMs) / 1000);
+    // Birds of a relay team that was already knocked out never leave the handover,
+    // so they must not start draining when their leg's clock would have begun.
+    const grounded = new Set<string>();
+    if (flight.relay) {
+      for (const team of relayTeams(flight)) {
+        if (team.outAtLeg == null) continue;
+        for (const s of team.legs) if ((s.leg ?? 0) > team.outAtLeg) grounded.add(s.pigeonId);
+      }
+    }
 
     for (const s of flight.sim) {
       if (s.gaveUp) continue; // pulled — stops spending energie
+      if (grounded.has(s.pigeonId)) continue; // team was out before its turn
       if (s.formCost == null) continue; // legacy flight: settled at finalize
+      // In an estafettevlucht a bird only burns energie during ITS OWN leg: its
+      // clock starts at the handover, and a bird still waiting there (or one whose
+      // team was already knocked out) spends nothing at all.
+      const legElapsed = elapsed - (s.legStartSeconds ?? 0);
+      if (legElapsed <= 0) continue;
       // A bird only pays energie for the part it actually flew. A finisher flies
       // the whole route; a bird that gives out mid-flight (DNF) stops at
       // dnfAtSeconds and never spends energie for the distance it didn't cover.
       const stopSeconds = s.dnfAtSeconds ?? s.durationSeconds;
-      const flownSeconds = Math.min(elapsed, stopSeconds);
-      const stopped = elapsed >= stopSeconds;
+      const flownSeconds = Math.min(legElapsed, stopSeconds);
+      const stopped = legElapsed >= stopSeconds;
       // Quantise to whole 30-minute blocks while still flying; drain the exact
       // flown share once the bird has stopped (finished or gave out).
       const countedSeconds = stopped ? stopSeconds : Math.floor(flownSeconds / stepSeconds) * stepSeconds;

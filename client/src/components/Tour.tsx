@@ -369,6 +369,46 @@ export const GENES_NEWS_STEPS: Step[] = [
   },
 ];
 
+/** One-time announcement of the estafettevlucht (see Layout's news key). */
+export const RELAY_NEWS_STEPS: Step[] = [
+  {
+    route: '/',
+    title: '🔗 Nieuw: de estafettevlucht',
+    body: 'De zaterdagwedstrijd wisselt vanaf nu week na week: de ene week de titanenwedstrijd, de andere week een gloednieuwe estafettevlucht. Even kort wat dat inhoudt — je kan deze rondleiding later altijd opnieuw starten via je profiel.',
+  },
+  {
+    route: '/vluchten', selector: '[data-tour="flights"]',
+    title: '🔗 Eén ploeg, drie duiven, ~900 km',
+    body: (
+      <>
+        Je schrijft <strong>één ploeg van 3 duiven</strong> in. Ze vliegen de route in{' '}
+        <strong>drie exact gelijke etappes</strong> van ± 300 km en lossen elkaar af op de wisselpunten — er is dus altijd
+        maar <strong>één duif tegelijk</strong> in de lucht. Elke duif betaalt enkel de energie van haar eigen etappe.
+        <br />
+        <span style={{ display: 'inline-block', marginTop: 4 }}>
+          Opgelet: <strong>geeft één duif er de brui aan, dan ligt de hele ploeg eruit</strong>.
+        </span>
+      </>
+    ),
+  },
+  {
+    route: '/vluchten', selector: '[data-tour="flights"]',
+    title: '🌬️ Kies zelf wie welke etappe vliegt',
+    body: (
+      <>
+        Bij elke etappe staat het <strong>weerbericht</strong>, dagen op voorhand. Omdat de etappes even lang zijn, is dát
+        het enige wat je volgorde uitmaakt — zet je <strong>sterkste duif op de zwaarste etappe</strong>. Je mag wisselen
+        tot de vlucht start.
+        <br />
+        <span style={{ display: 'inline-block', marginTop: 4 }}>
+          Er valt enkel <strong>geld</strong> te winnen (€3000 voor de winnende ploeg, tot de 5e plaats), geen
+          seizoenspunten — maar de snelheid van je duiven telt wél mee voor de duivenranglijsten.
+        </span>
+      </>
+    ),
+  },
+];
+
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
 
 export function Tour({ onClose, steps = STEPS }: { onClose: () => void; steps?: Step[] }) {

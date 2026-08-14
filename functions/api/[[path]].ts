@@ -55,6 +55,7 @@ import {
   setMedicatedFood,
   setPigeonCompartment,
   setPigeonRation,
+  setRelayOrder,
   startBreeding,
   startRestCure,
   stopBreeding,
@@ -64,12 +65,12 @@ import {
   upgradeInfirmary,
   withdrawFlight,
 } from '../../core/game/engine.js';
-import { advanceRealtime, flightsAwaitingStart } from '../../core/game/schedule.js';
+import { advanceRealtime, applyRelayForecasts, flightsAwaitingStart, relayLegsNeedingForecast } from '../../core/game/schedule.js';
 import { pigeonSeasonRankings } from '../../core/game/season.js';
 import { velocityBreakdown, weightsForDistance } from '../../core/game/flight.js';
 import { ageInWeeks } from '../../core/game/pigeon.js';
 import { ownerName } from '../../core/game/engine.js';
-import { fetchFlightWeather, type WeatherResult } from '../../core/game/weather.js';
+import { fetchFlightWeather, fetchLegForecast, type WeatherResult } from '../../core/game/weather.js';
 import { auctionKind, placeBid } from '../../core/game/auction.js';
 import { betsView, placeBet, previewBet } from '../../core/game/betting.js';
 import { makeOffer, withdrawOffer, respondOffer, offersFor } from '../../core/game/offers.js';
@@ -156,7 +157,19 @@ app.use('*', async (c, next) => {
     const due = flightsAwaitingStart(store.data, nowMs);
     const weatherByFlight = new Map<string, WeatherResult>();
     for (const f of due) {
+      // A relay freezes against its own per-leg forecasts, refreshed below.
+      if (f.relay) continue;
       weatherByFlight.set(f.id, await fetchFlightWeather(f.fromCity, f.toCity));
+    }
+    // Per-leg forecast for an upcoming estafettevlucht: published days ahead so
+    // players can pick their running order, refreshed while it can still change.
+    const legs = relayLegsNeedingForecast(store.data, nowMs);
+    if (legs.length > 0) {
+      const forecasts = new Map<string, WeatherResult>();
+      for (const leg of legs) {
+        forecasts.set(`${leg.flightId}:${leg.legIndex}`, await fetchLegForecast(leg.from, leg.to, leg.atMs));
+      }
+      applyRelayForecasts(store.data, forecasts, nowMs);
     }
     advanceRealtime(store.data, nowMs, weatherByFlight);
     await store.persist();
@@ -773,6 +786,18 @@ app.post('/flights/:id/withdraw', async (c) => {
   const body = await c.req.json().catch(() => ({}));
   const store = c.get('store');
   const err = withdrawFlight(store, user.id, c.req.param('id'), String(body.pigeonId ?? ''));
+  await store.persist();
+  return err ? c.json({ error: err }, 400) : c.json({ ok: true });
+});
+
+// Reorder your estafette team (which bird flies leg 1, 2 and 3) — allowed until
+// the flight starts, so you can react to the per-leg forecast.
+app.post('/flights/:id/relay-order', async (c) => {
+  const user = requireUser(c);
+  const body = await c.req.json().catch(() => ({}));
+  const store = c.get('store');
+  const ids = Array.isArray(body.pigeonIds) ? body.pigeonIds.map((x: unknown) => String(x)) : [];
+  const err = setRelayOrder(store, user.id, c.req.param('id'), ids);
   await store.persist();
   return err ? c.json({ error: err }, 400) : c.json({ ok: true });
 });

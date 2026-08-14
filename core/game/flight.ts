@@ -26,7 +26,9 @@ import {
   TITAN,
   TOURNEY_RISK,
 } from '../config/gameConfig.js';
+import { RELAY } from '../config/gameConfig.js';
 import type { Ailment, Flight, FlightResult, Loft, Pigeon, SimEntry } from '../schema.js';
+import { relayEntryTeams, relayLegKm, relaySimTeams } from './relay.js';
 import { ageMultiplier, noteAttrChange, raceCeil } from './pigeon.js';
 import { applyAilment, randomAilmentOfSeverity, randomInjury } from './health.js';
 import { randomWeather, type WeatherResult } from './weather.js';
@@ -338,6 +340,7 @@ function raceProgress(s: SimEntry, distanceKm: number, elapsed: number): {
  * frozen `sim`, so birds overtake and the final result matches the live board.
  */
 export function startLiveFlight(flight: Flight, entries: Entry[], week: number, weather?: WeatherResult): void {
+  if (flight.relay) return startLiveRelay(flight, entries, week);
   const w = weather ?? randomWeather();
   flight.weather = w.label;
   flight.weatherFactor = w.factor;
@@ -381,6 +384,7 @@ export function startLiveFlight(flight: Flight, entries: Entry[], week: number, 
  * clock.
  */
 export function flightTotalSeconds(flight: Flight): number {
+  if (flight.relay) return relayTotalSeconds(flight);
   const durations = flight.sim.filter((s) => !s.gaveUp && s.dnfAtSeconds == null).map((s) => s.durationSeconds);
   if (durations.length === 0) {
     // Nobody finishes — fall back to the slowest scheduled duration so the race
@@ -390,6 +394,163 @@ export function flightTotalSeconds(flight: Flight): number {
   }
   // The slowest actual finisher closes the race (no cutoff cap).
   return Math.max(1, Math.max(...durations));
+}
+
+// --- Estafettevlucht ---------------------------------------------------------
+
+/**
+ * A relay team's frozen race, read off its birds' pace profiles.
+ *
+ * The legs run back to back — only one bird of a team is airborne at a time — so
+ * the team's clock is simply its legs added up. The moment ANY bird fails to
+ * make it (pulled by its owner or gave out mid-leg) the team is eliminated and
+ * the birds behind it never fly at all.
+ */
+export interface RelayTeam {
+  ownerId: string;
+  ownerName: string;
+  legs: SimEntry[]; // ordered leg 1..n
+  outAtLeg: number | null; // the leg whose bird never made it
+  outSeconds: number | null; // race-clock second the team dropped out
+  totalSeconds: number; // race-clock second the anchor got home (if it did)
+  finished: boolean;
+}
+
+/** Every team in a relay flight, with its frozen outcome. */
+export function relayTeams(flight: Flight): RelayTeam[] {
+  const teams: RelayTeam[] = [];
+  for (const [ownerId, legs] of relaySimTeams(flight)) {
+    let offset = 0;
+    let outAtLeg: number | null = null;
+    let outSeconds: number | null = null;
+    for (let i = 0; i < legs.length; i++) {
+      const s = legs[i];
+      // Both timers are LEG-local (see giveUpFlight), so they compare directly
+      // against this bird's own duration.
+      const stop = s.gaveUp ? (s.gaveUpAtSeconds ?? 0) : s.dnfAtSeconds ?? null;
+      if (stop != null) {
+        outAtLeg = s.leg ?? i + 1;
+        outSeconds = offset + stop;
+        break;
+      }
+      offset += s.durationSeconds;
+    }
+    teams.push({
+      ownerId,
+      ownerName: legs[0]?.ownerName ?? '',
+      legs,
+      outAtLeg,
+      outSeconds,
+      totalSeconds: offset,
+      finished: outAtLeg === null && legs.length === RELAY.teamSize,
+    });
+  }
+  return teams;
+}
+
+/** Where a team is at `elapsed` seconds: ground covered plus who is flying. */
+export function relayTeamProgress(team: RelayTeam, legKm: number, elapsed: number): {
+  kmDone: number; activeLeg: number; active: SimEntry | null; curMult: number; finished: boolean; out: boolean;
+} {
+  let km = 0;
+  for (let i = 0; i < team.legs.length; i++) {
+    const s = team.legs[i];
+    const local = elapsed - (s.legStartSeconds ?? 0);
+    if (local <= 0) {
+      // Waiting at the handover for its turn — the team is parked on this leg.
+      return { kmDone: round1(km), activeLeg: s.leg ?? i + 1, active: s, curMult: 1, finished: false, out: false };
+    }
+    const prog = raceProgress(s, legKm, local);
+    km += prog.kmDone;
+    if (prog.stopped) {
+      return { kmDone: round1(km), activeLeg: s.leg ?? i + 1, active: s, curMult: prog.curMult, finished: false, out: true };
+    }
+    if (!prog.finished) {
+      return { kmDone: round1(km), activeLeg: s.leg ?? i + 1, active: s, curMult: prog.curMult, finished: false, out: false };
+    }
+  }
+  return { kmDone: round1(km), activeLeg: 0, active: null, curMult: 1, finished: team.finished, out: !team.finished };
+}
+
+/**
+ * When a relay is over: the slowest team that actually gets home closes it. If
+ * no team makes it, the race ends when the last team drops out, so it still
+ * finishes in bounded time.
+ */
+function relayTotalSeconds(flight: Flight): number {
+  const teams = relayTeams(flight);
+  const done = teams.filter((t) => t.finished).map((t) => t.totalSeconds);
+  if (done.length > 0) return Math.max(1, Math.max(...done));
+  const out = teams.map((t) => t.outSeconds ?? t.totalSeconds).filter((n) => n > 0);
+  return out.length ? Math.max(1, Math.max(...out)) : 1;
+}
+
+/**
+ * The final team order: teams that got home first (fastest total time), then the
+ * eliminated ones by how far they actually got. An eliminated team can therefore
+ * still land in a paying slot — but never ahead of a team that made it home.
+ */
+export function relayStandings(flight: Flight): RelayTeam[] {
+  const legKm = relayLegKm(flight);
+  const total = relayTotalSeconds(flight);
+  const teams = relayTeams(flight);
+  const reached = new Map(teams.map((t) => [t.ownerId, relayTeamProgress(t, legKm, t.outSeconds ?? total).kmDone]));
+  const home = teams.filter((t) => t.finished).sort((a, b) => a.totalSeconds - b.totalSeconds);
+  const gone = teams.filter((t) => !t.finished).sort((a, b) => (reached.get(b.ownerId) ?? 0) - (reached.get(a.ownerId) ?? 0));
+  return [...home, ...gone];
+}
+
+/**
+ * Release a relay: freeze a pace profile per bird over ITS OWN leg, using that
+ * leg's own weather (which is why the running order matters), and record when
+ * each bird is handed the baton. Legs are equal in length, so a team's total is
+ * purely the three birds added up.
+ */
+function startLiveRelay(flight: Flight, entries: Entry[], week: number): void {
+  const legKm = relayLegKm(flight);
+  const byId = new Map(entries.map((e) => [e.pigeon.id, e]));
+  const sim: SimEntry[] = [];
+  for (const [, teamEntries] of relayEntryTeams(flight)) {
+    let offset = 0;
+    for (let i = 0; i < teamEntries.length; i++) {
+      const fe = teamEntries[i];
+      const e = byId.get(fe.pigeonId);
+      if (!e) continue;
+      const legIndex = fe.leg ?? i + 1;
+      const leg = flight.legs?.[legIndex - 1];
+      const weatherFactor = leg?.weatherFactor ?? 1;
+      const prof = buildPaceProfile(flight.id, e.pigeon, legKm, week, weatherFactor, false);
+      // Each bird pays only for its own leg — a third of the route.
+      const expRelief = 1 - (clamp(e.pigeon.experience, 0, 100) / 100 - 0.5) * FLIGHT_FATIGUE.experienceReliefSpread;
+      const formCost = round1((FLIGHT_FATIGUE.base + legKm / FLIGHT_FATIGUE.perKmDivisor) * expRelief + randFloat(0, FLIGHT_FATIGUE.jitter));
+      sim.push({
+        pigeonId: e.pigeon.id,
+        pigeonName: e.pigeon.name,
+        ownerId: e.pigeon.ownerId,
+        ownerName: e.ownerName,
+        velocity: prof.velocity,
+        durationSeconds: prof.durationSeconds,
+        segMult: prof.segMult,
+        dnfAtSeconds: prof.dnfAtSeconds,
+        dnfKind: prof.dnfKind,
+        lost: prof.lost,
+        startForm: e.pigeon.form,
+        formCost,
+        formDrained: 0,
+        leg: legIndex,
+        legStartSeconds: offset,
+      });
+      offset += prof.durationSeconds;
+    }
+  }
+  flight.sim = sim;
+  // The flight-level weather line summarises the three legs (each has its own).
+  const labels = (flight.legs ?? []).map((l, i) => `etappe ${i + 1}: ${l.weather || 'onbekend'}`);
+  if (labels.length) {
+    flight.weather = labels.join(' · ');
+    flight.weatherFactor = round1((flight.legs ?? []).reduce((s, l) => s + l.weatherFactor, 0) / (flight.legs?.length || 1));
+  }
+  flight.status = 'live';
 }
 
 /** Pick which attribute a bird gets a chance to grow in, weighted by distance. */
@@ -424,6 +585,26 @@ export interface FinishPayout {
  */
 export function computeFinishPayouts(flight: Flight): FinishPayout[] {
   if (flight.practice) return [];
+  if (flight.relay) {
+    // A relay pays per TEAM, banked on its anchor bird. Safe to pay early: an
+    // eliminated team always ranks behind every team that gets home, so a
+    // finishing team's placing is locked the moment its anchor is in.
+    return relayTeams(flight)
+      .filter((t) => t.finished)
+      .sort((a, b) => a.totalSeconds - b.totalSeconds)
+      .map((t, i) => {
+        const anchor = t.legs[t.legs.length - 1];
+        return {
+          pigeonId: anchor.pigeonId,
+          ownerId: t.ownerId,
+          pigeonName: anchor.pigeonName,
+          ownerName: t.ownerName,
+          rank: i + 1,
+          prize: RELAY.prizes[i] ?? 0,
+          finishSeconds: t.totalSeconds,
+        };
+      });
+  }
   const prizes = flight.titan ? TITAN.prizes : PRIZE_MONEY[flight.type];
   const isDnf = (s: SimEntry) => s.gaveUp || s.dnfAtSeconds != null;
   const finishers = flight.sim.filter((s) => !isDnf(s)).sort((a, b) => a.durationSeconds - b.durationSeconds);
@@ -445,6 +626,7 @@ export function computeFinishPayouts(flight: Flight): FinishPayout[] {
  */
 export function finalizeFlight(flight: Flight, pigeons: Pigeon[]): SimulatedFlight {
   if (flight.practice) return finalizePracticeFlight(flight, pigeons);
+  if (flight.relay) return finalizeRelayFlight(flight, pigeons);
   // A titanenwedstrijd pays its own money prizes and NO ranking points.
   const prizes = flight.titan ? TITAN.prizes : PRIZE_MONEY[flight.type];
   const results: FlightResult[] = [];
@@ -647,6 +829,152 @@ export function finalizeFlight(flight: Flight, pigeons: Pigeon[]): SimulatedFlig
 }
 
 /**
+ * Finalize an estafettevlucht into ranked TEAMS.
+ *
+ * Teams that got home rank first on total time; the eliminated ones follow on
+ * ground covered, so a team that dropped out can still take a paying slot when
+ * few teams make it. Prize money is per team (credited once, recorded on the
+ * anchor bird) and there are NO ranking points. Only birds that actually flew
+ * pay energie or run any risk — a bird waiting at a handover when its team was
+ * eliminated stays untouched.
+ */
+function finalizeRelayFlight(flight: Flight, pigeons: Pigeon[]): SimulatedFlight {
+  const legKm = relayLegKm(flight);
+  const results: FlightResult[] = [];
+  const payoutMap = new Map<string, { prize: number; points: number; wins: number }>();
+  const fatigue: SimulatedFlight['fatigue'] = [];
+  const improvements: Improvement[] = [];
+  const injuries: FlightInjury[] = [];
+  const deaths: SimulatedFlight['deaths'] = [];
+  const w = weightsForDistance(legKm);
+  const injuryChance = HEALTH.flightInjuryBase + legKm * HEALTH.flightInjuryPerKm;
+  const rng = seededRng(hashString(flight.id + ':finalize'));
+  const rf = (a: number, b: number) => a + (b - a) * rng();
+
+  const standings = relayStandings(flight);
+  const teamCount = standings.length;
+
+  standings.forEach((team, ti) => {
+    const rank = ti + 1;
+    const prize = RELAY.prizes[ti] ?? 0;
+    const anchor = team.legs[team.legs.length - 1];
+    const outAt = team.outAtLeg ?? Infinity;
+
+    const acc = payoutMap.get(team.ownerId) ?? { prize: 0, points: 0, wins: 0 };
+    // The anchor may already have banked the money the moment it landed
+    // (payFinishedFlightPrizes) — don't pay a winning team twice.
+    acc.prize += anchor?.prizePaid ? 0 : prize;
+    payoutMap.set(team.ownerId, acc);
+
+    for (let i = 0; i < team.legs.length; i++) {
+      const s = team.legs[i];
+      const leg = s.leg ?? i + 1;
+      const flew = leg <= outAt; // the failing bird still flew part of its leg
+      const completed = leg < outAt || team.finished;
+      const gaveUp = !!s.gaveUp;
+
+      results.push({
+        pigeonId: s.pigeonId,
+        pigeonName: s.pigeonName,
+        ownerId: s.ownerId,
+        ownerName: s.ownerName,
+        // Its own average over its own leg — directly comparable with any other
+        // flight, which is what feeds the duivenranglijsten.
+        velocity: completed ? round1(((legKm * 1000) / s.durationSeconds) * 60) : 0,
+        timeSeconds: completed ? s.durationSeconds : 0,
+        rank,
+        points: 0, // money only — no seizoenspunten
+        // The team's prize sits on the bird that brought it home, so the money in
+        // the result rows adds up to exactly what the loft was paid.
+        prize: leg === RELAY.teamSize ? prize : 0,
+        finished: completed,
+      });
+
+      if (!flew) continue; // never left the handover: no cost, no risk, no gain
+
+      // Energie: settle what the gradual drain has not taken yet, for the flown
+      // share of its own leg only.
+      const drained = s.formDrained ?? 0;
+      let formDelta: number;
+      if (s.formCost == null) {
+        formDelta = -round1(FLIGHT_FATIGUE.base + legKm / FLIGHT_FATIGUE.perKmDivisor + rf(0, FLIGHT_FATIGUE.jitter));
+      } else if (gaveUp) {
+        formDelta = 0; // already paid gradually for the distance it flew
+      } else {
+        const stopSeconds = s.dnfAtSeconds ?? s.durationSeconds;
+        const flownTarget = round1(s.formCost * clamp(stopSeconds / s.durationSeconds, 0, 1));
+        formDelta = -round1(Math.max(0, flownTarget - drained));
+      }
+      const enduranceDelta = completed ? round1(0.3 + legKm / 500 + rf(0, 0.4)) : 0;
+      const healthDelta = gaveUp ? 0 : -round1(rf(0, legKm / 200) + (completed ? 0 : rf(4, 9)));
+      const experienceDelta = round1((completed ? 2 : 1) + legKm / 100);
+      fatigue.push({ pigeonId: s.pigeonId, formDelta, enduranceDelta, healthDelta, experienceDelta });
+
+      const pigeon = pigeons.find((p) => p.id === s.pigeonId);
+      if (!pigeon) continue;
+
+      // Growth, on the team's placing (you fly for the team, not for yourself).
+      if (completed) {
+        const attr = pickImproveAttr(w, rng);
+        const cap = raceCeil(pigeon, attr);
+        const room = clamp((cap - pigeon[attr]) / cap, 0, 1);
+        const avgAttr = (pigeon.speed + pigeon.endurance + pigeon.orientation) / 3;
+        const weakness = clamp(1 - avgAttr / 100, 0, 1);
+        const placeFactor = teamCount > 1 ? (teamCount - ti) / teamCount : 1;
+        const chance = clamp(
+          IMPROVE.baseChance * (0.4 + room) * (0.5 + weakness * IMPROVE.weaknessWeight) * (0.6 + placeFactor * 0.8),
+          0, IMPROVE.maxChance,
+        );
+        if (pigeon[attr] < cap && rng() < chance) {
+          const gain = round1(rf(IMPROVE.gainMin, IMPROVE.gainMax) * (0.4 + room) * (1 + weakness * IMPROVE.weaknessGainSpread));
+          if (gain > 0) improvements.push({ pigeonId: pigeon.id, ownerId: pigeon.ownerId, pigeonName: pigeon.name, attr, gain });
+        }
+      }
+
+      // Same dangers as any competition flight, judged on the energie the bird
+      // was released with. A bird its owner pulled is spared the strain.
+      const startForm = s.startForm ?? pigeon.form;
+      let died = false;
+      if (!gaveUp && startForm < TOURNEY_RISK.deathThreshold && rng() < TOURNEY_RISK.deathChance) {
+        deaths.push({ pigeonId: pigeon.id, ownerId: pigeon.ownerId, pigeonName: pigeon.name });
+        died = true;
+      }
+      const lowEnergie = startForm < FLIGHT_RISK.lowEnergieInjuryThreshold
+        ? ((FLIGHT_RISK.lowEnergieInjuryThreshold - startForm) / FLIGHT_RISK.lowEnergieInjuryThreshold) * FLIGHT_RISK.lowEnergieInjuryBonus
+        : 0;
+      let perBirdInjury = gaveUp ? 0 : injuryChance * (1 + (100 - startForm) / 100) + lowEnergie;
+      if (!completed && !gaveUp) {
+        perBirdInjury = Math.max(perBirdInjury, s.dnfKind === 'injury' ? 0.95 : 0.8);
+      }
+      let hurt = false;
+      if (!died && !pigeon.ailment && rng() < clamp(perBirdInjury, 0, 0.95)) {
+        injuries.push({ pigeonId: pigeon.id, ownerId: pigeon.ownerId, pigeonName: pigeon.name, ailment: randomInjury(flight.week, rng) });
+        hurt = true;
+      }
+      if (!gaveUp && !died && !hurt && !pigeon.ailment) {
+        let severity: Severity | null = null;
+        let chance = 0;
+        if (startForm < TOURNEY_RISK.moderateThreshold) { severity = 'matig'; chance = TOURNEY_RISK.moderateChance; }
+        else if (startForm < TOURNEY_RISK.lightThreshold) { severity = 'licht'; chance = TOURNEY_RISK.lightChance; }
+        if (severity && rng() < chance) {
+          const kind: Ailment['kind'] = rng() < 0.5 ? 'ziekte' : 'kwetsuur';
+          injuries.push({
+            pigeonId: pigeon.id, ownerId: pigeon.ownerId, pigeonName: pigeon.name,
+            ailment: randomAilmentOfSeverity(kind, severity, flight.week, rng),
+          });
+        }
+      }
+    }
+  });
+
+  flight.results = results;
+  flight.recap = generateRelayRecap(flight, standings);
+  flight.status = 'completed';
+  const payouts = [...payoutMap.entries()].map(([ownerId, v]) => ({ ownerId, ...v }));
+  return { fatigue, payouts, improvements, injuries, deaths };
+}
+
+/**
  * Finalize an oefenvlucht (practice flight). A gentle training loop: every bird
  * makes it home, nobody wins money or ranking points, and there is no DNF,
  * injury or death risk. Birds get a chance to build conditie/oriëntatie (and,
@@ -723,6 +1051,34 @@ export interface LiveBird {
   liveRank: number;
 }
 
+/** One bird's slot in a relay team's running order. */
+export interface LiveRelayLeg {
+  leg: number;
+  pigeonId: string;
+  pigeonName: string;
+  kmDone: number;
+  kmTotal: number;
+  speedKmh: number;
+  status: 'wachtend' | 'onderweg' | 'binnen' | 'gestopt';
+}
+
+/** A relay team on the live board: one row, three birds, one baton. */
+export interface LiveRelayTeam {
+  ownerId: string;
+  ownerName: string;
+  kmDone: number;
+  kmTotal: number;
+  kmRemaining: number;
+  progress: number;
+  activeLeg: number; // 0 once the team is home or out
+  speedKmh: number; // of the bird currently airborne
+  legs: LiveRelayLeg[];
+  finished: boolean;
+  out: boolean;
+  etaSeconds: number;
+  liveRank: number;
+}
+
 export interface LiveSnapshot {
   status: Flight['status'];
   elapsedSeconds: number;
@@ -730,6 +1086,8 @@ export interface LiveSnapshot {
   overallProgress: number;
   allFinished: boolean;
   birds: LiveBird[];
+  /** Estafettevlucht only: the same race grouped into teams. */
+  teams?: LiveRelayTeam[];
 }
 
 /** Compute the live positions of every bird from the frozen pace profile + time.
@@ -737,6 +1095,7 @@ export interface LiveSnapshot {
  *  as the race unfolds; at the finish this collapses to the final order (finishers
  *  by time, the rest by how far they got). */
 export function liveSnapshot(flight: Flight, nowMs: number): LiveSnapshot {
+  if (flight.relay) return relaySnapshot(flight, nowMs);
   const startMs = Date.parse(flight.startAt);
   const elapsed = Math.max(0, (nowMs - startMs) / 1000);
   const total = flightTotalSeconds(flight);
@@ -800,6 +1159,120 @@ export function liveSnapshot(flight: Flight, nowMs: number): LiveSnapshot {
   };
 }
 
+/**
+ * The live board of an estafettevlucht: one row per team, ranked on the ground
+ * the team has covered so far. Teams that are home lead, then the teams still
+ * flying (furthest first — the baton changes hands mid-race, so the order really
+ * moves), and the eliminated teams at the bottom. The per-bird `birds` list is
+ * filled in as well, each bird measured over its own leg.
+ */
+function relaySnapshot(flight: Flight, nowMs: number): LiveSnapshot {
+  const startMs = Date.parse(flight.startAt);
+  const elapsed = Math.max(0, (nowMs - startMs) / 1000);
+  const total = flightTotalSeconds(flight);
+  const legKm = relayLegKm(flight);
+  const routeKm = legKm * RELAY.teamSize;
+  const view = Math.min(elapsed, total);
+  const SPEED_STEP_SECONDS = 300;
+  const speedView = Math.min(Math.floor(view / SPEED_STEP_SECONDS) * SPEED_STEP_SECONDS, total);
+
+  const birds: LiveBird[] = [];
+  const rows = relayTeams(flight).map((team) => {
+    const legs: LiveRelayLeg[] = [];
+    let kmDone = 0;
+    let activeLeg = 0;
+    let speedKmh = 0;
+    let reachedEnd = true;
+    for (let i = 0; i < team.legs.length; i++) {
+      const s = team.legs[i];
+      const legNo = s.leg ?? i + 1;
+      const local = view - (s.legStartSeconds ?? 0);
+      let status: LiveRelayLeg['status'] = 'wachtend';
+      let legKmDone = 0;
+      let legSpeed = 0;
+      if (local > 0 && reachedEnd) {
+        const prog = raceProgress(s, legKm, local);
+        legKmDone = prog.kmDone;
+        if (prog.stopped) { status = 'gestopt'; reachedEnd = false; activeLeg = legNo; }
+        else if (prog.finished) { status = 'binnen'; }
+        else {
+          status = 'onderweg';
+          activeLeg = legNo;
+          reachedEnd = false;
+          const { curMult } = raceProgress(s, legKm, Math.max(0, speedView - (s.legStartSeconds ?? 0)));
+          legSpeed = round1(s.velocity * curMult * 0.06);
+          speedKmh = legSpeed;
+        }
+      } else if (!reachedEnd) {
+        status = 'wachtend';
+      }
+      kmDone += legKmDone;
+      legs.push({
+        leg: legNo, pigeonId: s.pigeonId, pigeonName: s.pigeonName,
+        kmDone: legKmDone, kmTotal: legKm, speedKmh: legSpeed, status,
+      });
+      birds.push({
+        pigeonId: s.pigeonId,
+        pigeonName: s.pigeonName,
+        ownerId: s.ownerId,
+        ownerName: s.ownerName,
+        kmDone: legKmDone,
+        kmTotal: legKm,
+        kmRemaining: round1(Math.max(0, legKm - legKmDone)),
+        speedKmh: legSpeed,
+        progress: clamp(legKmDone / legKm, 0, 1),
+        finished: status === 'binnen',
+        gaveUp: status === 'gestopt',
+        etaSeconds: status === 'onderweg' ? Math.round(Math.max(0, (s.legStartSeconds ?? 0) + s.durationSeconds - elapsed)) : 0,
+        liveRank: 0,
+      });
+      if (status === 'gestopt') break;
+      if (status === 'wachtend') break;
+    }
+    const out = legs.some((l) => l.status === 'gestopt');
+    const finished = !out && legs.length === RELAY.teamSize && legs.every((l) => l.status === 'binnen');
+    const t: LiveRelayTeam = {
+      ownerId: team.ownerId,
+      ownerName: team.ownerName,
+      kmDone: round1(kmDone),
+      kmTotal: routeKm,
+      kmRemaining: round1(Math.max(0, routeKm - kmDone)),
+      progress: clamp(kmDone / routeKm, 0, 1),
+      activeLeg: finished || out ? 0 : activeLeg,
+      speedKmh,
+      legs,
+      finished,
+      out,
+      etaSeconds: finished || out ? 0 : Math.round(Math.max(0, team.totalSeconds - elapsed)),
+      liveRank: 0,
+    };
+    return { t, finishTime: team.totalSeconds };
+  });
+
+  rows.sort((a, b) => {
+    if (a.t.out !== b.t.out) return a.t.out ? 1 : -1;
+    const af = a.t.finished ? 0 : 1, bf = b.t.finished ? 0 : 1;
+    if (af !== bf) return af - bf;
+    if (a.t.finished && b.t.finished) return a.finishTime - b.finishTime;
+    return b.t.kmDone - a.t.kmDone;
+  });
+  const teams = rows.map((r, i) => { r.t.liveRank = i + 1; return r.t; });
+  // Mirror the team ranking onto the flattened bird list so both read the same.
+  const teamRank = new Map(teams.map((t) => [t.ownerId, t.liveRank]));
+  birds.sort((a, b) => (teamRank.get(a.ownerId) ?? 99) - (teamRank.get(b.ownerId) ?? 99));
+  birds.forEach((b, i) => { b.liveRank = i + 1; });
+
+  return {
+    status: flight.status,
+    elapsedSeconds: round1(elapsed),
+    totalSeconds: total,
+    overallProgress: clamp(elapsed / total, 0, 1),
+    allFinished: elapsed >= total,
+    birds,
+    teams,
+  };
+}
+
 export interface CommentLine {
   atSeconds: number;
   text: string;
@@ -826,6 +1299,7 @@ interface RankRow {
  */
 export function flightCommentary(flight: Flight, nowMs: number): CommentLine[] {
   if (flight.sim.length === 0) return [];
+  if (flight.relay) return relayCommentary(flight, nowMs);
   const startMs = Date.parse(flight.startAt);
   const elapsed = Math.max(0, (nowMs - startMs) / 1000);
   const total = flightTotalSeconds(flight);
@@ -954,6 +1428,131 @@ export function flightCommentary(flight: Flight, nowMs: number): CommentLine[] {
     .sort((a, b) => a.atSeconds - b.atSeconds);
 }
 
+/**
+ * Live report for an estafettevlucht. Same idea as the normal feed, but the
+ * duel is between TEAMS: it samples the team standings every interval and
+ * reports which team passed which (naming the bird that is actually flying),
+ * plus the moments that only a relay has — every handover at a swap point, a
+ * team knocked out because one bird never made it, and a team completing the
+ * full route. Deterministic (seeded on the flight id), grows monotonically.
+ */
+function relayCommentary(flight: Flight, nowMs: number): CommentLine[] {
+  const startMs = Date.parse(flight.startAt);
+  const elapsed = Math.max(0, (nowMs - startMs) / 1000);
+  const total = flightTotalSeconds(flight);
+  const legKm = relayLegKm(flight);
+  const rng = seededRng(hashString(flight.id));
+  const pickLine = <T>(pool: readonly T[]): T => pickWith(rng, pool);
+  const fill = (tpl: string, a: string, b?: string, km?: string | number) =>
+    tpl.replace('{name}', a).replace('{name2}', b ?? '').replace('{km}', String(km ?? ''));
+
+  const teams = relayTeams(flight);
+  const lines: CommentLine[] = [];
+  lines.push({ atSeconds: 0, text: pickLine(COMMENTARY.start) });
+
+  // Team standings at an arbitrary moment, ranked like the live board.
+  const rankAt = (t: number) =>
+    teams
+      .map((team) => ({ team, ...relayTeamProgress(team, legKm, t) }))
+      .sort((a, b) => {
+        if (a.out !== b.out) return a.out ? 1 : -1;
+        const af = a.finished ? 0 : 1, bf = b.finished ? 0 : 1;
+        if (af !== bf) return af - bf;
+        if (a.finished && b.finished) return a.team.totalSeconds - b.team.totalSeconds;
+        return b.kmDone - a.kmDone;
+      });
+
+  const flying = (r: { finished: boolean; out: boolean }) => !r.finished && !r.out;
+  const PAIR_COOLDOWN = 3;
+  const pairMutedUntil = new Map<string, number>();
+  const pairKey = (x: string, y: string) => (x < y ? `${x}|${y}` : `${y}|${x}`);
+  let prev = rankAt(1);
+  let interval = 0;
+  for (let t = COMMENTARY_INTERVAL_SECONDS; t <= total; t += COMMENTARY_INTERVAL_SECONDS) {
+    interval++;
+    const now = rankAt(t);
+    const prevIdx = new Map(prev.map((r, i) => [r.team.ownerId, i]));
+    const nowIdx = new Map(now.map((r, i) => [r.team.ownerId, i]));
+    const wasFlying = new Map(prev.map((r) => [r.team.ownerId, flying(r)]));
+
+    type Pass = { a: typeof now[number]; b: typeof now[number]; climb: number };
+    const passes: Pass[] = [];
+    for (const a of now) {
+      if (!flying(a) || !wasFlying.get(a.team.ownerId)) continue;
+      const aNow = nowIdx.get(a.team.ownerId)!, aPrev = prevIdx.get(a.team.ownerId)!;
+      if (aNow >= aPrev) continue;
+      let scalp: typeof now[number] | null = null, scalpPrev = -1;
+      for (const b of now) {
+        if (b === a || !flying(b) || !wasFlying.get(b.team.ownerId)) continue;
+        const bNow = nowIdx.get(b.team.ownerId)!, bPrev = prevIdx.get(b.team.ownerId)!;
+        if (bPrev < aPrev && bNow > aNow && bPrev > scalpPrev) { scalp = b; scalpPrev = bPrev; }
+      }
+      if (scalp) passes.push({ a, b: scalp, climb: aPrev - aNow });
+    }
+
+    passes.sort((x, y) => y.climb - x.climb || x.a.team.ownerId.localeCompare(y.a.team.ownerId));
+    const used = new Set<string>();
+    let emitted = 0;
+    for (const p of passes) {
+      if (emitted >= 2) break;
+      if (used.has(p.a.team.ownerId) || used.has(p.b.team.ownerId)) continue;
+      const aName = p.a.active?.pigeonName ?? p.a.team.ownerName;
+      const bName = p.b.active?.pigeonName ?? p.b.team.ownerName;
+      const isLead = nowIdx.get(p.a.team.ownerId) === 0;
+      const bLost = p.b.active?.lost && t >= (p.b.active.legStartSeconds ?? 0) + p.b.active.lost.atSeconds && p.b.curMult < 0.95;
+      const key = pairKey(p.a.team.ownerId, p.b.team.ownerId);
+      if (!isLead && !bLost && interval < (pairMutedUntil.get(key) ?? 0)) continue;
+      used.add(p.a.team.ownerId); used.add(p.b.team.ownerId);
+      pairMutedUntil.set(key, interval + PAIR_COOLDOWN);
+      emitted++;
+      let text: string;
+      if (isLead) text = fill(pickLine(COMMENTARY.leadChange), aName, bName);
+      else if (bLost) text = fill(pickLine(COMMENTARY.overtakeLost), aName, bName, p.b.active!.lost!.detourKm);
+      else if (p.b.curMult < 0.8) text = fill(pickLine(COMMENTARY.overtakeTired), aName, bName);
+      else if (p.a.curMult > 1.15) text = fill(pickLine(COMMENTARY.overtakeSurge), aName, bName);
+      else text = fill(pickLine(COMMENTARY.overtake), aName, bName);
+      lines.push({ atSeconds: t, text });
+    }
+    prev = now;
+  }
+
+  // The moments that make a relay: handovers, eliminations and team finishes.
+  for (const team of teams) {
+    const outAt = team.outAtLeg ?? Infinity;
+    for (let i = 0; i < team.legs.length; i++) {
+      const s = team.legs[i];
+      const legNo = s.leg ?? i + 1;
+      if (legNo > outAt) break;
+      const legStart = s.legStartSeconds ?? 0;
+      if (s.lost && legNo <= outAt) {
+        lines.push({ atSeconds: legStart + s.lost.atSeconds, text: fill(pickLine(COMMENTARY.stray), s.pigeonName, undefined, s.lost.detourKm) });
+      }
+      if (legNo === outAt) {
+        const at = legStart + (s.gaveUp ? (s.gaveUpAtSeconds ?? 0) : s.dnfAtSeconds ?? 0);
+        const cause = s.gaveUp
+          ? fill(pickLine(COMMENTARY.pulled), s.pigeonName)
+          : fill(pickLine(s.dnfKind === 'injury' ? COMMENTARY.dnfInjury : COMMENTARY.dnfExhausted), s.pigeonName);
+        lines.push({ atSeconds: at, text: cause });
+        lines.push({ atSeconds: at + 1, text: fill(pickLine(COMMENTARY.relayOut), s.pigeonName, team.ownerName) });
+        break;
+      }
+      // Completed its leg: either a handover or the team coming home.
+      const at = legStart + s.durationSeconds;
+      const next = team.legs[i + 1];
+      if (next) {
+        const point = flight.legs?.[legNo - 1]?.toName ?? `${legNo}`;
+        lines.push({ atSeconds: at, text: fill(pickLine(COMMENTARY.handover), s.pigeonName, next.pigeonName, point) });
+      } else {
+        lines.push({ atSeconds: at, text: fill(pickLine(COMMENTARY.relayFinish), s.pigeonName, team.ownerName) });
+      }
+    }
+  }
+
+  return lines
+    .filter((l) => l.atSeconds <= elapsed + 0.5)
+    .sort((a, b) => a.atSeconds - b.atSeconds);
+}
+
 /** Apply a flight's effects to pigeons and lofts in place. */
 export function applyFlightEffects(
   sim: SimulatedFlight,
@@ -1006,6 +1605,41 @@ export function applyFlightEffects(
  * A short sports-reporter recap of a completed flight — read after the race by
  * everyone. Deterministic (seeded on the flight id) so it never changes.
  */
+/** A sports-reporter recap of an estafettevlucht — written per team. */
+function generateRelayRecap(flight: Flight, standings: RelayTeam[]): string {
+  const legKm = relayLegKm(flight);
+  const route = (flight.legs ?? []).map((l) => l.fromName).concat(flight.toCity).join(' → ');
+  const parts: string[] = [
+    `${flight.name}: ${standings.length} ploeg${standings.length === 1 ? '' : 'en'} van elk ${RELAY.teamSize} duiven ` +
+    `over ${legKm * RELAY.teamSize} km, in etappes van ${legKm} km. Route: ${route}.`,
+  ];
+  const home = standings.filter((t) => t.finished);
+  if (home.length === 0) {
+    parts.push('Ongezien: geen enkele ploeg raakte compleet thuis. Overal sneuvelde er wel een schakel.');
+    parts.push('Tot de volgende lossing, duivenvrienden!');
+    return parts.join(' ');
+  }
+  const win = home[0];
+  const hrs = Math.floor(win.totalSeconds / 3600);
+  const mins = Math.round((win.totalSeconds % 3600) / 60);
+  parts.push(
+    `De ploeg van ${win.ownerName} wint in ${hrs} u ${mins} min, met ${win.legs.map((l) => l.pigeonName).join(', ')} ` +
+    'die elkaar vlekkeloos aflosten.',
+  );
+  if (home.length >= 3) {
+    parts.push(`${home[1].ownerName} pakt zilver, ${home[2].ownerName} brons — de wissels maakten daar het verschil.`);
+  } else if (home.length === 2) {
+    parts.push(`${home[1].ownerName} moest als enige andere ploeg vrede nemen met de tweede stek.`);
+  }
+  const out = standings.filter((t) => !t.finished);
+  if (out.length > 0) {
+    const names = out.map((t) => t.ownerName).join(', ');
+    parts.push(`Uitgeschakeld onderweg: ${names}. Eén duif die het niet haalt, en de hele ploeg ligt eruit — zo hard is de estafette.`);
+  }
+  parts.push('Tot de volgende lossing, duivenvrienden!');
+  return parts.join(' ');
+}
+
 export function generateRecap(flight: Flight): string {
   const r = flight.results;
   if (r.length === 0) {
