@@ -1093,6 +1093,47 @@ export const TITAN = {
  * draws from the same pool of birds, so a lighter schedule concentrates the
  * field and makes each race more competitive.
  */
+/**
+ * Estafettevlucht (relay) — the other weekend special, alternating week by week
+ * with the TITANENWEDSTRIJD. A loft enters ONE team of exactly three birds that
+ * fly the route in sequence: bird 1 from the release point to the first handover,
+ * bird 2 on to the second, bird 3 home. Every leg is EXACTLY the same length, so
+ * each bird flies a third of the route and only one bird of a team is airborne at
+ * a time. The team's time is its three legs added up; if any bird fails to make
+ * it (pulled or gave out), the whole team is eliminated. Money only — no ranking
+ * points — but the birds' own leg results do feed the duivenranglijsten.
+ */
+export const RELAY = {
+  name: 'Estafettevlucht',
+  hour: 5, // early start: ~900 km in three legs eats most of the day
+  minute: 0,
+  teamSize: 3,
+  minKm: 850, // total route (the sum of the three legs)
+  maxKm: 950,
+  entryFee: 100, // once per team, not per bird
+  prizes: [3000, 2000, 1500, 1100, 800], // 1e..5e, money only
+  /** How stale a leg's weather forecast may get before it is fetched again.
+   *  Tightened close to the start so what players plan with is what they fly. */
+  forecastRefreshHours: 6,
+  forecastFinalHours: 2, // within this many hours of the start, refresh hourly
+  /** Rough cruising speed (km/h) used only to estimate WHEN a later leg starts,
+   *  so its forecast is taken for roughly the right hour of the day. */
+  nominalKmh: 85,
+  /** A handover point closer than this to a known city is described as "bij X"
+   *  instead of "ten noorden van X". */
+  nearCityKm: 25,
+} as const;
+
+/**
+ * Which weekend special a Saturday gets. The weekend slot alternates week by
+ * week: `Math.floor(dayNumber / 7)` counts whole weeks since the Unix epoch, so
+ * consecutive Saturdays flip the parity. Anchored so that 22 August 2026 (the
+ * first estafettevlucht) lands on the relay side.
+ */
+export function isRelayWeek(dayNumber: number): boolean {
+  return (((Math.floor(dayNumber / 7) % 2) + 2) % 2) === 1;
+}
+
 export const REAL_SCHEDULE: ScheduleSlot[] = [
   { key: 'mon-international', tier: 'international', weekday: 1, hour: 8, minute: 0 },
   { key: 'tue-regional', tier: 'regional', weekday: 2, hour: 10, minute: 0 },
@@ -1101,6 +1142,9 @@ export const REAL_SCHEDULE: ScheduleSlot[] = [
   { key: 'thu-international', tier: 'international', weekday: 4, hour: 8, minute: 0 },
   { key: 'fri-regional', tier: 'regional', weekday: 5, hour: 10, minute: 0 },
   { key: 'fri-practice', tier: 'regional', weekday: 5, hour: 12, minute: 0, practice: true },
+  // The weekend special. Its key stays 'titan' (it is the same calendar slot, and
+  // the key is what dedupes a day) but its FORMAT alternates: on relay weeks
+  // `ensureFlightsScheduled` builds an estafettevlucht at RELAY.hour instead.
   { key: 'titan', tier: 'international', weekday: TITAN.weekday, hour: TITAN.hour, minute: TITAN.minute, titan: true },
   { key: 'sun-national', tier: 'national', weekday: 0, hour: 8, minute: 0 },
   { key: 'sun-regional', tier: 'regional', weekday: 0, hour: 17, minute: 0 },
@@ -1272,5 +1316,24 @@ export const COMMENTARY = {
     '{name} plooit de vleugels en duikt het hok in. Binnen!',
     'Daar is {name}! De melker pinkt een traantje weg.',
     '{name} landt en vraagt meteen om eten. Typisch.',
+  ],
+  // --- Estafettevlucht ------------------------------------------------------
+  // A relay handover: {name} arrives at the swap point, {name2} takes over.
+  handover: [
+    '{name} raakt het wisselpunt {km} — {name2} neemt over en vertrekt.',
+    'Wissel {km}: {name} lost af, {name2} pakt de draad op.',
+    '{name} komt binnen bij het wisselpunt {km} en stuurt {name2} de baan op.',
+  ],
+  // A relay team is eliminated because one of its birds never made it.
+  relayOut: [
+    'Drama voor de ploeg van {name2}: {name} raakt er niet, en daarmee ligt de hele ploeg eruit.',
+    '{name} strandt — de ploeg van {name2} is uitgeschakeld.',
+    'Einde verhaal voor {name2}: zonder {name} raakt de estafette niet thuis.',
+  ],
+  // A relay team completes the full route.
+  relayFinish: [
+    'De ploeg van {name2} is compleet binnen — {name} drukt de klok!',
+    '{name} sluit af voor {name2}: de estafette zit erop!',
+    'Daar is {name}! De ploeg van {name2} heeft de volle route uitgevlogen.',
   ],
 } as const;

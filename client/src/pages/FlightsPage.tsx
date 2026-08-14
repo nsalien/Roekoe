@@ -140,14 +140,19 @@ export function FlightsPage() {
                   <div>
                     <div className="row" style={{ gap: 8 }}>
                       <h2 style={{ margin: 0 }}>{f.name}</h2>
-                      {f.titan
-                        ? <span className="badge" style={{ background: 'var(--gold-soft)', color: 'var(--gold)' }}>🏆 Titanenwedstrijd</span>
-                        : f.practice
-                          ? <span className="badge" style={{ background: 'var(--surface-2)' }}>🌤️ Oefenvlucht</span>
-                          : <span className={`badge ${f.type}`}>{tierLabel(f.type)}</span>}
+                      {f.relay
+                        ? <span className="badge" style={{ background: 'var(--gold-soft)', color: 'var(--gold)' }}>🔗 Estafettevlucht</span>
+                        : f.titan
+                          ? <span className="badge" style={{ background: 'var(--gold-soft)', color: 'var(--gold)' }}>🏆 Titanenwedstrijd</span>
+                          : f.practice
+                            ? <span className="badge" style={{ background: 'var(--surface-2)' }}>🌤️ Oefenvlucht</span>
+                            : <span className={`badge ${f.type}`}>{tierLabel(f.type)}</span>}
                     </div>
                     <div className="faint" style={{ marginTop: 2 }}>
-                      🕊️ {f.fromCity} → {f.toCity} · {f.distanceKm} km · {f.practice ? 'gratis' : <>inschrijfgeld <Money value={f.entryFee} /></>}
+                      🕊️ {f.fromCity} → {f.toCity} · {f.distanceKm} km
+                      {f.relay && <> ({f.teamSize} × {f.legKm} km)</>}
+                      {' · '}
+                      {f.practice ? 'gratis' : <>inschrijfgeld <Money value={f.entryFee} /></>}
                     </div>
                   </div>
                   <div style={{ textAlign: 'right' }}>
@@ -177,9 +182,23 @@ export function FlightsPage() {
                   </div>
                 )}
 
+                {f.relay && (
+                  <RelayPlan
+                    flight={f}
+                    myPigeonNames={new Map(state.pigeons.map((p) => [p.id, p.name]))}
+                    myUserId={user?.id}
+                    busy={busy}
+                    onReorder={(ids) =>
+                      act(() => api(`/flights/${f.id}/relay-order`, { method: 'POST', body: { pigeonIds: ids } }))
+                    }
+                  />
+                )}
+
                 <hr className="sep" />
                 <div className="row" style={{ justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
-                  {f.titan && myEntries.length >= 1 ? (
+                  {f.relay && myEntries.length >= (f.teamSize ?? 3) ? (
+                    <span className="faint">🔗 Je ploeg is compleet ({f.teamSize} duiven). Wissel hierboven de volgorde tot de start.</span>
+                  ) : f.titan && myEntries.length >= 1 ? (
                     <span className="faint">🏆 Je hebt je duif voor de titanenwedstrijd ingeschreven (max. één per hok).</span>
                   ) : (
                     <EnterControl
@@ -188,9 +207,22 @@ export function FlightsPage() {
                       onEnter={(pigeonId) => act(() => api(`/flights/${f.id}/enter`, { method: 'POST', body: { pigeonId } }), 'Ingeschreven!')}
                     />
                   )}
-                  <span className="faint" style={{ flexShrink: 0 }}>{f.entryCount} ingeschreven</span>
+                  <span className="faint" style={{ flexShrink: 0 }}>
+                    {f.relay
+                      ? `${(f.teams ?? []).filter((t) => t.complete).length} ploegen ingeschreven`
+                      : `${f.entryCount} ingeschreven`}
+                  </span>
                 </div>
 
+                {f.relay && (
+                  <p className="faint" style={{ marginTop: 10, marginBottom: 0 }}>
+                    🔗 De estafettevlucht: <strong>één ploeg van {f.teamSize} duiven per hok</strong>, die elkaar aflossen —
+                    elke duif vliegt exact {f.legKm} km, en er is er altijd maar één tegelijk in de lucht. Valt er één weg,
+                    dan ligt de <strong>hele ploeg</strong> eruit. Enkel prijzengeld (€3000 / €2000 / €1500 / €1100 / €800
+                    voor de top 5), <strong>geen</strong> rangschikkingspunten en geen weddenschappen. Je duiven gaan er wel
+                    op vooruit, en hun snelheid telt mee voor de duivenranglijsten.
+                  </p>
+                )}
                 {f.titan && (
                   <p className="faint" style={{ marginTop: 10, marginBottom: 0 }}>
                     🏆 De titanenwedstrijd: middellange tot lange afstand, <strong>één duif per hok</strong>. Enkel prijzengeld
@@ -203,7 +235,7 @@ export function FlightsPage() {
                     🌤️ Een korte training: lage energiekost, geen geldkosten, en levert geen punten of prijzen op.
                   </p>
                 )}
-                {!f.practice && !f.titan && (() => {
+                {!f.practice && !f.titan && !f.relay && (() => {
                   const opensAt = Date.parse(f.startAt) - state.economy.betWindowHours * 3600000;
                   if (betFlights.has(f.id)) {
                     return (
@@ -396,6 +428,89 @@ function BetPanel({ flight, meId, onPlaced }: { flight: Flight; meId?: string; o
         </span>
         <button className="btn accent sm" disabled={busy || !preview} onClick={confirm}>Bevestig</button>
       </div>
+    </div>
+  );
+}
+
+/**
+ * The three legs of an estafettevlucht: where each one hands over, how the
+ * weather is expected to be there, and which of your birds flies it. The legs
+ * are equal in length, so the running order only matters because of that
+ * weather — hence the up/down buttons, usable right up to the start.
+ */
+function RelayPlan({
+  flight, myUserId, busy, onReorder,
+}: {
+  flight: Flight;
+  myPigeonNames: Map<string, string>;
+  myUserId?: string;
+  busy: boolean;
+  onReorder: (pigeonIds: string[]) => void;
+}) {
+  const legs = flight.legs ?? [];
+  if (legs.length === 0) return null;
+  const myTeam = (flight.teams ?? []).find((t) => t.ownerId === myUserId);
+  const mine = myTeam?.legs ?? [];
+  const canReorder = mine.length > 1 && flight.status === 'scheduled';
+
+  function move(from: number, to: number) {
+    if (to < 0 || to >= mine.length) return;
+    const ids = mine.map((l) => l.pigeonId);
+    [ids[from], ids[to]] = [ids[to], ids[from]];
+    onReorder(ids);
+  }
+
+  return (
+    <div style={{ marginTop: 10 }}>
+      <div className="row" style={{ justifyContent: 'space-between', gap: 8 }}>
+        <strong style={{ fontSize: '0.9rem' }}>Etappes</strong>
+        <span className="faint" style={{ fontSize: '0.85rem' }}>elk {flight.legKm} km</span>
+      </div>
+      <div className="stack" style={{ gap: 6, marginTop: 6 }}>
+        {legs.map((leg, i) => {
+          const bird = mine[i];
+          return (
+            <div
+              key={leg.index}
+              className="row"
+              style={{
+                justifyContent: 'space-between', gap: 8, flexWrap: 'wrap',
+                background: 'var(--surface-2)', borderRadius: 8, padding: '6px 10px',
+              }}
+            >
+              <div style={{ minWidth: 0, flex: 1 }}>
+                <div style={{ fontSize: '0.9rem', overflowWrap: 'anywhere' }}>
+                  <strong>{leg.index}.</strong> {leg.fromName} → {leg.toName}
+                </div>
+                <div className="faint" style={{ fontSize: '0.82rem' }}>
+                  {leg.weather || 'weerbericht volgt'}
+                </div>
+              </div>
+              <div className="row" style={{ gap: 4, flexShrink: 0, alignItems: 'center' }}>
+                {bird ? (
+                  <>
+                    <span className="badge" style={{ background: 'var(--surface)' }}>🕊️ {bird.name}</span>
+                    {canReorder && (
+                      <>
+                        <button className="btn ghost sm" style={{ padding: '0 6px' }} disabled={busy || i === 0} onClick={() => move(i, i - 1)}>▲</button>
+                        <button className="btn ghost sm" style={{ padding: '0 6px' }} disabled={busy || i === mine.length - 1} onClick={() => move(i, i + 1)}>▼</button>
+                      </>
+                    )}
+                  </>
+                ) : (
+                  <span className="faint" style={{ fontSize: '0.85rem' }}>nog geen duif</span>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      {mine.length > 0 && mine.length < legs.length && (
+        <p className="notice" style={{ marginTop: 8, marginBottom: 0 }}>
+          Je ploeg is nog niet compleet — schrijf {legs.length - mine.length} duif
+          {legs.length - mine.length === 1 ? '' : 'ven'} bij, anders start ze niet mee (je inschrijfgeld krijg je dan terug).
+        </p>
+      )}
     </div>
   );
 }

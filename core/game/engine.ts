@@ -18,6 +18,7 @@ import {
   INFIRMARY_CAPACITY_TIERS,
   LOFT_CAPACITY_TIERS,
   PIGEON_RESTAURANT,
+  RELAY,
   REST_CURE,
   RENAME_COST,
   RENAME_LOFT_COST,
@@ -432,6 +433,11 @@ export function enterFlight(
     // The titanenwedstrijd allows only one bird per loft.
     if (flight.titan && flight.entries.some((e) => e.ownerId === userId))
       return 'In de titanenwedstrijd mag je maar één duif inschrijven';
+    // An estafettevlucht is entered as ONE team of exactly RELAY.teamSize birds.
+    // The entry fee is charged once, on the first bird of the team.
+    const ownEntries = flight.entries.filter((e) => e.ownerId === userId);
+    if (flight.relay && ownEntries.length >= RELAY.teamSize)
+      return `Je ploeg is al volledig (${RELAY.teamSize} duiven) — haal er eerst een duif uit`;
     // A pigeon may race at most once per day.
     const day = flight.startAt.slice(0, 10);
     const racingElsewhere = db.flights.some(
@@ -442,9 +448,15 @@ export function enterFlight(
         f.entries.some((e) => e.pigeonId === pigeonId),
     );
     if (racingElsewhere) return 'Deze duif vliegt die dag al een andere vlucht';
-    if (loft.money < flight.entryFee) return 'Niet genoeg geld voor het inschrijfgeld';
-    loft.money -= flight.entryFee;
-    flight.entries.push({ pigeonId, ownerId: userId });
+    // A relay team pays one fee for the whole team, when its first bird is entered.
+    const fee = flight.relay && ownEntries.length > 0 ? 0 : flight.entryFee;
+    if (loft.money < fee) return 'Niet genoeg geld voor het inschrijfgeld';
+    loft.money -= fee;
+    flight.entries.push(
+      flight.relay
+        ? { pigeonId, ownerId: userId, leg: ownEntries.length + 1 }
+        : { pigeonId, ownerId: userId },
+    );
     loft.stats.entries += 1;
     progressMissions(db, loft, 'enter', 1);
     evaluateBadges(db, loft);
@@ -464,12 +476,44 @@ export function withdrawFlight(
     if (!flight || flight.status !== 'scheduled') return 'Vlucht niet beschikbaar';
     const idx = flight.entries.findIndex((e) => e.pigeonId === pigeonId && e.ownerId === userId);
     if (idx === -1) return 'Duif is niet ingeschreven';
-    flight.entries.splice(idx, 1);
     const loft = db.lofts.find((l) => l.userId === userId);
+    // Pulling one bird out of a relay team pulls the WHOLE team — you cannot fly
+    // a leg short — and refunds the single team fee.
+    if (flight.relay) {
+      flight.entries = flight.entries.filter((e) => e.ownerId !== userId);
+      if (loft) loft.money += flight.entryFee;
+      voidBetsForWithdrawnPigeon(db, flight, pigeonId);
+      return null;
+    }
+    flight.entries.splice(idx, 1);
     if (loft) loft.money += flight.entryFee;
     // Cancel and refund any open bets that depended on this bird (entries already
     // reflect the removal, so mine_wins is re-evaluated correctly).
     voidBetsForWithdrawnPigeon(db, flight, pigeonId);
+    return null;
+  });
+}
+
+/**
+ * Set the running order of your estafette team: which of your three birds flies
+ * leg 1, 2 and 3. Allowed right up to the start, so you can react to the weather
+ * forecast per leg (see RelayLeg) — the legs are equal in length, so the running
+ * order only matters because each leg has its own wind.
+ */
+export function setRelayOrder(store: Store, userId: string, flightId: string, pigeonIds: string[]): string | null {
+  return store.mutate((db) => {
+    const flight = db.flights.find((f) => f.id === flightId);
+    if (!flight || !flight.relay) return 'Dit is geen estafettevlucht';
+    if (flight.status !== 'scheduled') return 'De vlucht is al gestart — de volgorde ligt vast';
+    const own = flight.entries.filter((e) => e.ownerId === userId);
+    if (own.length === 0) return 'Je hebt geen ploeg in deze vlucht';
+    const wanted = [...new Set(pigeonIds)];
+    if (wanted.length !== own.length) return 'Geef precies je eigen ingeschreven duiven op';
+    if (!wanted.every((id) => own.some((e) => e.pigeonId === id))) return 'Die duif zit niet in je ploeg';
+    wanted.forEach((id, i) => {
+      const entry = own.find((e) => e.pigeonId === id);
+      if (entry) entry.leg = i + 1;
+    });
     return null;
   });
 }
@@ -484,8 +528,14 @@ export function giveUpFlight(store: Store, userId: string, flightId: string, pig
     if (entry.gaveUp) return 'Deze duif is al opgegeven';
     entry.gaveUp = true;
     // Freeze where it was when pulled, so the live board shows it stop there.
+    // A relay bird runs on its OWN leg clock (it is released at the handover), so
+    // store the elapsed time within its leg — every per-bird calculation compares
+    // this against that bird's own duration.
     const startMs = flight.startAt ? Date.parse(flight.startAt) : NaN;
-    if (!Number.isNaN(startMs)) entry.gaveUpAtSeconds = Math.max(0, (Date.now() - startMs) / 1000);
+    if (!Number.isNaN(startMs)) {
+      const raceSeconds = Math.max(0, (Date.now() - startMs) / 1000);
+      entry.gaveUpAtSeconds = Math.max(0, raceSeconds - (entry.legStartSeconds ?? 0));
+    }
     return null;
   });
 }

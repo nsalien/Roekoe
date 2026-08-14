@@ -49,11 +49,11 @@ Elke dag heeft haar **eigen vaste programma**:
 | **Woensdag** | 08:00 nationaal |
 | **Donderdag** | 08:00 internationaal |
 | **Vrijdag** | 10:00 regionaal · 12:00 **oefenvlucht** (§2.7) |
-| **Zaterdag** | 08:00 **Titanenwedstrijd** (§2.8) — de **enige** vlucht die dag |
+| **Zaterdag** | 08:00 **Titanenwedstrijd** (§2.8) of 05:00 **Estafettevlucht** (§2.9) — week om week, en de **enige** vlucht die dag |
 | **Zondag** | 08:00 nationaal · 17:00 regionaal |
 
 Dat zijn **8 wedstrijdvluchten + 2 oefenvluchten per week**: 3 regionale, 2
-nationale, 2 internationale en 1 titanenwedstrijd. Bewust **minder vluchten dan
+nationale, 2 internationale en 1 weekendwedstrijd. Bewust **minder vluchten dan
 vroeger** (toen was er élke dag een lange én een korte vlucht): alle melkers
 putten uit dezelfde duiven, dus een lichtere kalender betekent **meer duiven aan
 de start van élke vlucht** en dus een **sterker deelnemersveld** om tegen te
@@ -217,9 +217,14 @@ groei       = willekeurig(0.4 … 1.4) · (0.4 + ruimte)
 Zo kan een duif zonder energie voor wedstrijden tóch elke dag beter worden. Een
 **privécoach** (§13) maakt de kans én de winst op conditie/oriëntatie groter.
 
-### 2.8 Titanenwedstrijd (zaterdag)
-Eén keer per week, in het **weekend** (zaterdag 08:00), is er een prestigieuze
-**Titanenwedstrijd**:
+### 2.8 Titanenwedstrijd (om de week, zaterdag 08:00)
+De zaterdagwedstrijd **wisselt week na week** tussen twee prestigeformats: de
+**Titanenwedstrijd** (hieronder) en de **Estafettevlucht** (§2.9). De titan
+vraagt je **beste duif**, de estafette vraagt de **diepte van je hok** — samen
+dwingen ze je dus twee verschillende hokken te bouwen. Welk van de twee er
+aankomt, zie je gewoon op de vluchtkalender.
+
+Bij de **Titanenwedstrijd**:
 - **Elke duivenmelker mag maar één duif inschrijven.**
 - **Middellange tot lange** afstand (~200–600 km).
 - Er is **inschrijfgeld** (€50) en er valt **enkel geld** te winnen: **geen
@@ -231,6 +236,68 @@ Eén keer per week, in het **weekend** (zaterdag 08:00), is er een prestigieuze
   melker-puntentelling die er niet door beweegt.
 - Je duif kan er, zoals bij elke vlucht, **wel op vooruitgaan** (conditie, enz.).
 - Deze wedstrijd **vervangt** die dag alle andere vluchten (er is dus maar één).
+
+### 2.9 Estafettevlucht (om de week, zaterdag 05:00)
+De andere zaterdag is het **estafette**: geen solo-exploot, maar een **ploeg van
+drie duiven** die elkaar aflossen over een lange route van zowat **900 km**. Ze
+start **vroeg (05:00)**, want die afstand kost een ploeg een halve dag.
+
+**Hoe het werkt**
+- Je schrijft **één ploeg per hok** in, van **exact 3 duiven**. Inschrijfgeld:
+  **€100 voor de hele ploeg** (niet per duif).
+- De route wordt in **drie exact even lange etappes** gesneden (± 300 km elk).
+  Start en aankomst zijn echte steden; de twee **wisselpunten** ertussen liggen
+  precies op een derde en twee derde van de route, en worden aangeduid met de
+  stad in de buurt (bv. *"ten oosten van Limoges"*).
+- Er vliegt altijd maar **één duif van je ploeg tegelijk**. Bij elk wisselpunt
+  neemt de volgende duif over. De **tijd van je ploeg** is de drie etappes bij
+  elkaar opgeteld.
+- **Elke duif betaalt enkel de energie van haar eigen etappe** (± 25 voor een
+  gemiddelde duif) — per duif dus lichter dan één solo-fondvlucht, al zet je er
+  wel drie tegelijk voor in.
+
+**Eén schakel weg = ploeg weg.** Geeft een van je duiven onderweg op, of raakt ze
+er niet (uitputting of blessure), dan is de **hele ploeg uitgeschakeld**. De
+duiven die nog niet aan de beurt waren, vliegen dan gewoon **niet**: die betalen
+geen energie en lopen geen enkel risico.
+
+**Elke etappe heeft haar eigen weer.** Bij elke etappe staat een **weerbericht**,
+al **dagen voor de start**, en dat wordt bijgewerkt zolang de voorspelling nog
+verandert. Daarom mag je de **volgorde van je duiven wisselen tot de vlucht
+begint**: de etappes zijn even lang, dus het weer is het enige wat je volgorde
+uitmaakt. Vuistregel: **zet je sterkste duif op de zwaarste etappe** — daar
+verlies je met haar de minste tijd. Bij overal hetzelfde weer maakt de volgorde
+niets uit.
+
+**Uitslag en prijzengeld**
+- Eerst komen de ploegen die **compleet thuis** raken, op tijd. Daarna de
+  **uitgeschakelde** ploegen, gerangschikt op hoe ver ze geraakt zijn. Een ploeg
+  die uitvalt kan dus nog steeds in de prijzen eindigen als er weinig ploegen
+  aankomen — maar nooit vóór een ploeg die het wél haalde.
+
+| Plaats | Prijzengeld |
+|---|---|
+| 1e | €3.000 |
+| 2e | €2.000 |
+| 3e | €1.500 |
+| 4e | €1.100 |
+| 5e | €800 |
+
+- Vanaf de **6e plaats** is er geen prijzengeld meer.
+- Net als de titan: **enkel geld**. Geen seizoenspunten, geen medailles, dus het
+  telt **niet mee voor de melkerranglijst** (§15.2). Er kan ook **niet op gewed**
+  worden.
+- **Voor de duivenranglijsten (§15.3) telt ze wél mee**: elke duif krijgt haar
+  eigen gemiddelde over haar etappe. Duiven die door de uitschakeling nooit
+  gevlogen hebben, tellen nergens mee.
+- Je duiven gaan er gewoon op **vooruit** (conditie, ervaring, enz.), op basis
+  van de plaats van je ploeg.
+
+**Praktisch.** Heb je bij de start geen 3 vluchtklare duiven ingeschreven, dan
+wordt je ploeg uit de wedstrijd gehaald en krijg je je inschrijfgeld terug. Haal
+je één duif uit je ploeg, dan schrijf je meteen de **hele ploeg** uit (je kan
+niet met twee vliegen) — ook dan komt je inschrijfgeld terug. En zoals bij elke
+wedstrijd: er moeten **minstens 2 volledige ploegen** aan de start staan.
 
 ---
 
@@ -968,7 +1035,8 @@ start, kan je niet meer inzetten. Je kan **maximaal één weddenschap per vlucht
 plaatsen.
 
 Je kan wedden op **alle wedstrijdvluchten** (regionaal, nationaal én
-internationaal). Op **oefenvluchten** (§2.7) kan je niet wedden.
+internationaal). Op **oefenvluchten** (§2.7), de **titanenwedstrijd** (§2.8) en de
+**estafettevlucht** (§2.9) kan je niet wedden.
 
 Je kiest een **inzet**, een **type weddenschap** en (meestal) een **doelduif** —
 ook duiven van andere spelers. Types:
@@ -1016,7 +1084,8 @@ voorbij is, wordt de **prijsuitreiking** gehouden, start een nieuw seizoen op
 
 ### 15.2 Melkerranglijst → de Roekoe
 De ranglijst rangschikt alle hokken op **seizoenspunten** (enkel wedstrijdvluchten
-geven punten; **de titanenwedstrijd en oefenvluchten geven géén seizoenspunten**).
+geven punten; **de titanenwedstrijd, de estafettevlucht en oefenvluchten geven
+géén seizoenspunten**).
 **Bots dingen gewoon mee** en kunnen ook winnen —
 zij hebben het prijzengeld ook nodig. Bij de prijsuitreiking winnen de **top 3
 hokken**:
@@ -1032,7 +1101,8 @@ De winnaar krijgt ook de badge **Seizoenskampioen**.
 ### 15.3 Duivenranglijsten → de Vleugel
 Naast de melkers zijn er **drie ranglijsten van individuele duiven** (top 10),
 allemaal voor het **lopende seizoen**. **Wedstrijdvluchten** (regionaal, nationaal,
-internationaal) **én de titanenwedstrijd** tellen mee — **enkel oefenvluchten niet**.
+internationaal) **én de weekendwedstrijden** (titan en estafette) tellen mee —
+**enkel oefenvluchten niet**.
 (De titan geeft geen seizoenspunten voor de melkerranglijst, maar de prestaties van je
 duif erin tellen hier wél volwaardig mee.)
 - **⚡ Snelste duiven** — hoogste **gemiddelde vluchtsnelheid** dit seizoen, in

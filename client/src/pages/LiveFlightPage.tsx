@@ -6,7 +6,12 @@ import { api } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
 import { useGame } from '../game/GameContext';
 import { Money, Spinner, countdownTo, formatFlightTime, useToast } from '../components/ui';
-import type { LiveResponse } from '../types';
+import type { Flight, LiveResponse } from '../types';
+
+/** Which leg of an estafettevlucht a bird flew (undefined for normal flights). */
+function legOf(flight: Flight, pigeonId: string): number | undefined {
+  return flight.entries.find((e) => e.pigeonId === pigeonId)?.leg;
+}
 
 export function LiveFlightPage() {
   const { id } = useParams();
@@ -123,8 +128,85 @@ export function LiveFlightPage() {
         )}
       </div>
 
+      {/* Per-team live board (estafettevlucht) */}
+      {live?.teams && (
+        <div className="card">
+          <h2>Stand van de ploegen</h2>
+          <div className="stack" style={{ gap: 14 }}>
+            {live.teams.map((t) => {
+              const mine = t.ownerId === user?.id;
+              return (
+                <div
+                  key={t.ownerId}
+                  style={mine ? { background: 'var(--brand-soft)', borderLeft: '3px solid var(--brand-strong)', borderRadius: 8, padding: '6px 8px' } : undefined}
+                >
+                  <div className="row" style={{ justifyContent: 'space-between', fontSize: '0.9rem' }}>
+                    <span className="stat-label">
+                      <strong>{t.out ? '—' : `${t.liveRank}.`}</strong> {mine ? <strong>{t.ownerName}</strong> : t.ownerName}
+                      {mine && <span className="badge club" style={{ marginLeft: 6 }}>jij</span>}
+                    </span>
+                    <span className="stat-val">
+                      {t.out ? '💥 uitgeschakeld' : t.finished ? '🏁 thuis' : `${t.speedKmh} km/u`}
+                    </span>
+                  </div>
+                  <div className="bar" style={{ height: 9, opacity: t.out ? 0.4 : 1 }}>
+                    <span
+                      style={{
+                        width: `${t.progress * 100}%`,
+                        background: t.out
+                          ? 'var(--muted)'
+                          : t.finished
+                            ? 'var(--good)'
+                            : mine
+                              ? 'linear-gradient(90deg,var(--accent),#fdba74)'
+                              : undefined,
+                      }}
+                    />
+                  </div>
+                  <div className="row" style={{ justifyContent: 'space-between' }}>
+                    <span className="faint">{t.kmDone} / {t.kmTotal} km</span>
+                    <span className="faint">{t.out ? 'uit de wedstrijd' : t.finished ? 'binnen' : `etappe ${t.activeLeg} · nog ${t.kmRemaining} km`}</span>
+                  </div>
+                  {/* The three legs, so you can see who has the baton. */}
+                  <div className="stack" style={{ gap: 3, marginTop: 6 }}>
+                    {t.legs.map((l) => {
+                      const flying = l.status === 'onderweg';
+                      return (
+                        <div key={l.pigeonId} className="row" style={{ justifyContent: 'space-between', gap: 8, fontSize: '0.82rem', opacity: l.status === 'wachtend' ? 0.55 : 1 }}>
+                          <span style={{ minWidth: 0, overflowWrap: 'anywhere' }}>
+                            {l.status === 'binnen' ? '✅' : flying ? '🔴' : l.status === 'gestopt' ? '💥' : '⏳'} etappe {l.leg} · {l.pigeonName}
+                          </span>
+                          <span className="row" style={{ gap: 6, flexShrink: 0 }}>
+                            <span className="faint">{l.kmDone} / {l.kmTotal} km</span>
+                            {mine && flying && (
+                              <button
+                                className="btn ghost sm"
+                                style={{ padding: '0 6px', color: 'var(--bad)' }}
+                                disabled={busy}
+                                title="De hele ploeg valt dan uit — enkel om je duif te sparen"
+                                onClick={() => giveUp(l.pigeonId, l.pigeonName)}
+                              >
+                                🏳️
+                              </button>
+                            )}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          <p className="faint" style={{ marginTop: 10, marginBottom: 0 }}>
+            Per ploeg vliegt er één duif tegelijk; op elk wisselpunt neemt de volgende over. Geeft één duif op of raakt ze
+            er niet, dan valt de hele ploeg uit.
+          </p>
+        </div>
+      )}
+
       {/* Per-bird live board */}
-      {live && (
+      {live && !live.teams && (
         <div className="card">
           <h2>Stand in de lucht</h2>
           <div className="stack" style={{ gap: 12 }}>
@@ -220,16 +302,31 @@ export function LiveFlightPage() {
           <div className="table-wrap">
             <table className="data">
               <thead>
-                <tr><th>#</th><th>Duif</th><th>Hok</th><th className="num">Prijs</th><th className="num">Ptn</th></tr>
+                <tr>
+                  <th>#</th><th>Duif</th><th>Hok</th><th className="num">Prijs</th>
+                  {flight.relay ? <th className="num">km/u</th> : <th className="num">Ptn</th>}
+                </tr>
               </thead>
               <tbody>
-                {flight.results.map((r) => (
+                {/* A relay scores per team: three birds share one placing, listed
+                    in the order they flew their legs. */}
+                {(flight.relay
+                  ? [...flight.results].sort((a, b) =>
+                      a.rank - b.rank ||
+                      (legOf(flight, a.pigeonId) ?? 0) - (legOf(flight, b.pigeonId) ?? 0))
+                  : flight.results
+                ).map((r) => (
                   <tr key={r.pigeonId} className={r.ownerId === user?.id ? 'me' : r.rank === 1 ? 'podium-1' : ''}>
                     <td>{r.rank === 1 ? '🥇' : r.rank === 2 ? '🥈' : r.rank === 3 ? '🥉' : r.rank}</td>
-                    <td>{r.pigeonName}</td>
+                    <td>
+                      {r.pigeonName}
+                      {flight.relay && <span className="faint"> · etappe {legOf(flight, r.pigeonId) ?? '?'}</span>}
+                    </td>
                     <td>{r.ownerName}</td>
                     <td className="num">{r.prize > 0 ? <Money value={r.prize} /> : '—'}</td>
-                    <td className="num">{r.points}</td>
+                    {flight.relay
+                      ? <td className="num">{r.finished === false ? '—' : Math.round(r.velocity * 0.06)}</td>
+                      : <td className="num">{r.points}</td>}
                   </tr>
                 ))}
               </tbody>

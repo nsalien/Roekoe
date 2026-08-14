@@ -18,7 +18,7 @@ import { clamp, hashString, seededRng } from './util.js';
 /** When betting opens/closes for a flight. */
 export function bettingOpen(flight: Flight, nowMs: number): boolean {
   if (flight.status !== 'scheduled') return false;
-  if (flight.practice || flight.titan) return false; // oefenvlucht/titan: geen inzet
+  if (flight.practice || flight.titan || flight.relay) return false; // oefenvlucht/titan/estafette: geen inzet
   const start = Date.parse(flight.startAt);
   if (Number.isNaN(start)) return false;
   return nowMs >= start - BETTING.windowHours * 3600000 && nowMs < start;

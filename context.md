@@ -305,6 +305,7 @@ Roekoe/
 │       ├── engine.ts            speler-acties (buy/train/enter/giveUpFlight/breed/…)
 │       ├── schedule.ts          advanceRealtime + data-migraties + alle ticks
 │       ├── flight.ts            vluchtsim (velocity, DETERMINISTISCHE finalize, live; geen finish-timer)
+│       ├── relay.ts             estafette: routegeometrie (gelijke etappes, wisselpunten) + ploeghelpers
 │       ├── betting.ts           weddenschappen (Monte-Carlo odds + settle, stats,
 │       │                        void+refund bij uitschrijven duif / afgelaste vlucht)
 │       ├── health.ts            ziekte/kwetsuur + REAL-TIME herstel (tickHealing)
@@ -521,6 +522,43 @@ Entiteiten: `Pigeon`, `Loft`, `User`, `BreedingPair`, `Flight` (+ `SimEntry`,
   `cooldownDays 7` — **max. één kuur per hok per week** (dus één duif/week), bewaakt
   via `Loft.lastRestCure` (kolom `last_rest_cure TEXT`); `loftDTO.restCureAvailableAt`
   toont de UI wanneer de volgende weer kan.
+- **Estafettevlucht (`RELAY`, nieuwste — zaterdag om de week):** ploegformat dat
+  **week om week afwisselt met de titan** op hetzelfde zaterdagslot. `isRelayWeek(dayNumber)`
+  (`gameConfig.ts`) = `floor(dayNumber/7) % 2 === 1` → eerste estafette **22 aug 2026**;
+  `ensureFlightsScheduled` kiest per zaterdag het format en gebruikt dan **`RELAY.hour` 5**
+  i.p.v. `TITAN.hour` 8. Slot-key blijft `titan` (dedupe per dag). Knoppen: `teamSize 3`,
+  route **850–950 km**, `entryFee 100` (**één keer per ploeg**), `prizes [3000,2000,1500,1100,800]`,
+  0 punten, geen wedden. **Route** via `pickRelayRoute` (`core/game/relay.ts`): echte start/
+  aankomststad (aankomst altijd Vlaams), wisselpunten **exact op ⅓ en ⅔ van de grootcirkel**
+  → elke etappe exact even lang; punten gelabeld met de dichtstbijzijnde stad + windstreek
+  (`describePoint` → "ten oosten van Limoges", "bij Lyon" onder `nearCityKm 25`). 36 mogelijke
+  routes.
+- **Estafette-mechaniek (`flight.ts`):** één duif per ploeg tegelijk in de lucht.
+  `startLiveRelay` bevriest per duif een pace-profiel over **haar eigen etappe** met **die
+  etappe haar eigen weerfactor** (daarom is de volgorde tactisch), plus `SimEntry.leg` en
+  `legStartSeconds` (= som van de eerdere etappes). `relayTeams` leidt per ploeg af of/waar ze
+  uitvalt (`outAtLeg`/`outSeconds`) en haar totaaltijd; `relayTeamProgress` geeft afgelegde
+  ploegafstand; `relayStandings` = **finishers op tijd, daarna uitgevallen ploegen op afstand**
+  (een uitgevallen ploeg kan dus nog in de prijzen vallen, nooit vóór een finisher).
+  `relaySnapshot` levert `LiveSnapshot.teams` (ploegrij + 3 etapperijen), `relayCommentary`
+  doet ploegduels + **wisselmomenten/uitschakeling/ploegfinish**, `finalizeRelayFlight` rekent
+  per ploeg af. **Duiven die nooit aan de beurt kwamen betalen niets en lopen geen risico**
+  (ook `tickFlightEnergy` slaat ze over via een `grounded`-set). `giveUpFlight` bewaart
+  `gaveUpAtSeconds` **etappe-lokaal**. Prijzengeld gaat **één keer** naar het hok (vroege
+  uitbetaling via de anker-duif in `computeFinishPayouts`, `prizePaid` verrekend in finalize);
+  in `results` staat het bedrag op de **laatste etappe** zodat de meldingssom klopt.
+- **Weer per etappe:** `relayLegsNeedingForecast` + `applyRelayForecasts` (schedule.ts) en
+  `fetchLegForecast` (weather.ts, uurlijkse Open-Meteo-forecast op coördinaten). De API haalt
+  het op vóór `advanceRealtime`; ververst elke `forecastRefreshHours` (6), en **elk uur** binnen
+  `forecastFinalHours` (2) van de start. Kost hoogstens 3 subrequests per venster.
+- **Ploegbeheer:** `enterFlight` laat max. 3 duiven per hok toe en rekent het inschrijfgeld
+  enkel bij de **eerste** aan; `setRelayOrder` (engine.ts, `POST /flights/:id/relay-order`)
+  wisselt de etappevolgorde tot de start; `withdrawFlight` haalt de **hele ploeg** weg met één
+  terugbetaling; `tickFlights` gooit **onvolledige ploegen** eruit (terugbetaling + melding)
+  vóór de "minstens 2 melkers"-check, en de afgelast-terugbetaling telt voor een estafette
+  **één fee per ploeg**. Bots schrijven 3 duiven in of doen niet mee.
+- **Migratie v31:** een reeds geplande **titan op een estafette-zaterdag** wordt verwijderd,
+  inschrijfgeld terugbetaald + melding (en open weddenschappen erop terugbetaald). **dataVersion → 31.**
 - **Schema (`REAL_SCHEDULE`, nieuwste — vaste weekkalender):** één vast programma per
   weekdag i.p.v. het oude dagelijkse lang+kort-ritme. **ma** 08:00 intl · **di** 10:00 regio
   + 12:00 oefenvlucht · **wo** 08:00 nat · **do** 08:00 intl · **vr** 10:00 regio + 12:00
@@ -712,9 +750,28 @@ npx tsx d1-partial-load.test.mts
 ## 8. Belangrijkste wijzigingen deze sessie (achtergrond)
 
 Alles hieronder staat **live** op de deploy-branch. Data-migraties liepen door tot
-**`dataVersion = 30`**.
+**`dataVersion = 31`**.
 
-**Lichtere, vaste weekkalender (nieuwste)**
+**Estafettevlucht (nieuwste)**
+- Nieuw weekendformat dat **week om week afwisselt met de titanenwedstrijd** (zie §5 voor
+  alle details): één **ploeg van 3 duiven** per hok, ~900 km in **drie exact gelijke
+  etappes**, één duif tegelijk in de lucht, **weer per etappe** dat dagen vooraf zichtbaar is
+  en waar je je volgorde op afstemt. **Eén duif die er niet geraakt = hele ploeg uit.** Enkel
+  geld (top 5), geen seizoenspunten, geen wedden; duivenranglijsten tellen wél mee.
+- Nieuw bestand `core/game/relay.ts` (routegeometrie + ploeghelpers); sim/live/uitslag in
+  `flight.ts`; nieuw endpoint `POST /flights/:id/relay-order`; UI op `FlightsPage`
+  (etappes + weerbericht + ▲▼-volgorde) en `LiveFlightPage` (ploegbord met de 3 etappes);
+  wiki-sectie 🔗; spelregels **§2.9**; eerste-login-melding `RELAY_NEWS_STEPS`
+  (sleutel `roekoe.newsSeen.relay.<id>`).
+- Kolommen `relay INTEGER` + `legs TEXT` achteraan `SCHEMA_STEPS` (append-only).
+  **Migratie v31** ruimt een al geplande titan op een estafette-zaterdag op. **dataVersion → 31.**
+- Geverifieerd met een wegwerp-tsx-script tegen de echte engine (40+ controles): kalender­
+  afwisseling, gelijke etappes, één duif tegelijk, energie enkel tijdens de eigen etappe,
+  uitschakeling + niet-gevlogen duiven ongemoeid, klassement finishers-vóór-uitgevallen,
+  prijzengeld één keer uitbetaald, ploegbeheer (inschrijven/volgorde/uitschrijven) en
+  onvolledige ploegen.
+
+**Lichtere, vaste weekkalender**
 - `REAL_SCHEDULE` is herschreven van "elke dag een lange + een korte vlucht (+ om de 2
   dagen een oefenvlucht)" naar **één vast programma per weekdag** (zie §5). Resultaat:
   **10 vluchten/week** (8 wedstrijden + 2 oefen) i.p.v. 13–15. Doel: **hogere deelname

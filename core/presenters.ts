@@ -5,7 +5,7 @@
  */
 
 import type { Database, Flight, Loft, Notification, Pigeon, Trade } from './schema.js';
-import { BREED_RARITY, compartmentCost, REST_CURE, TRAINING } from './config/gameConfig.js';
+import { BREED_RARITY, compartmentCost, RELAY, REST_CURE, TRAINING } from './config/gameConfig.js';
 import { ageInWeeks, breedInfo, canRace, estimateValue, geneCap, talent, trainCeil, trainingCost } from './game/pigeon.js';
 import { auctionKind } from './game/auction.js';
 import { bettingOpen } from './game/betting.js';
@@ -13,6 +13,7 @@ import { nextCapacityTier, nextInfirmaryTier, ownerName } from './game/engine.js
 import { coachDailyGain, dailyRunningCostBreakdown, projectDailyCare } from './game/economy.js';
 import { coveredInInfirmary } from './game/health.js';
 import { flightCommentary, liveSnapshot } from './game/flight.js';
+import { relayEntryTeams, relayLegKm } from './game/relay.js';
 import { BADGES, levelForXp } from './game/badges.js';
 import { round1 } from './game/util.js';
 
@@ -175,6 +176,25 @@ export function flightDTO(db: Database, f: Flight) {
     status: f.status,
     practice: !!f.practice,
     titan: !!f.titan,
+    relay: !!f.relay,
+    // Estafettevlucht: the three equal legs, their handover points and the
+    // forecast per leg (which is what makes the running order a real choice).
+    legs: f.relay ? f.legs ?? [] : undefined,
+    teamSize: f.relay ? RELAY.teamSize : undefined,
+    legKm: f.relay ? relayLegKm(f) : undefined,
+    // The entered teams, in running order, so the page can show who flies what.
+    teams: f.relay
+      ? [...relayEntryTeams(f)].map(([ownerId, entries]) => ({
+          ownerId,
+          ownerName: ownerName(db, ownerId),
+          complete: entries.length === RELAY.teamSize,
+          legs: entries.map((e, i) => ({
+            leg: e.leg ?? i + 1,
+            pigeonId: e.pigeonId,
+            name: db.pigeons.find((p) => p.id === e.pigeonId)?.name ?? 'duif',
+          })),
+        }))
+      : undefined,
     weather: f.weather,
     entryCount: f.entries.length,
     entries: f.entries,

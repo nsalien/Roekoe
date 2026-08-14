@@ -130,6 +130,10 @@ export interface RaceLogEntry {
   finished: boolean;
   practice?: boolean;
   titan?: boolean;
+  relay?: boolean;
+  /** Estafettevlucht: the leg this bird flew, and how long that leg was. */
+  leg?: number;
+  legKm?: number;
 }
 
 /** Everything about a player's operation that is not an individual pigeon. */
@@ -311,6 +315,30 @@ export interface FlightResult {
 export interface FlightEntry {
   pigeonId: string;
   ownerId: string;
+  /** Estafettevlucht only: which leg (1..RELAY.teamSize) this bird flies. One
+   *  team per loft, so the owner + leg identify the slot. */
+  leg?: number;
+}
+
+/**
+ * One leg of an estafettevlucht: exactly a third of the route, flown by one bird
+ * of the team. The handover points are not race cities but exact thirds of the
+ * great circle, so every bird flies the same distance; `fromName`/`toName` carry
+ * a human description ("ten noorden van Limoges"). Each leg has its OWN weather,
+ * forecast days ahead so a player can pick which bird flies which leg.
+ */
+export interface RelayLeg {
+  index: number; // 1-based
+  fromName: string;
+  toName: string;
+  fromLat: number;
+  fromLon: number;
+  toLat: number;
+  toLon: number;
+  distanceKm: number; // identical for every leg of the flight
+  weather: string;
+  weatherFactor: number;
+  forecastAt?: string; // ISO time the forecast was last refreshed
 }
 
 /** A single pigeon's frozen performance, computed when a flight goes live. */
@@ -344,6 +372,13 @@ export interface SimEntry {
   // live report can explain a bird sliding down the standings. `atSeconds` = when
   // it strays; `detourKm` = roughly the extra ground the detour costs it.
   lost?: { atSeconds: number; detourKm: number } | null;
+  // --- Estafettevlucht only -------------------------------------------------
+  /** Which leg this bird flies (1..3). */
+  leg?: number;
+  /** Elapsed seconds into the RACE at which this bird is released (the sum of
+   *  its team-mates' earlier legs). Leg 1 starts at 0. Frozen at release so the
+   *  live board, the energie drain and the result all read the same clock. */
+  legStartSeconds?: number;
 }
 
 /**
@@ -366,6 +401,10 @@ export interface Flight {
   status: 'scheduled' | 'live' | 'completed';
   practice?: boolean; // oefenvlucht: no fee, no prizes/points, gentle training
   titan?: boolean; // titanenwedstrijd: money-only, one bird per loft, no ranking points
+  /** Estafettevlucht: money-only, one TEAM of three birds per loft that fly the
+   *  route leg by leg. `legs` holds the three equal stretches + their weather. */
+  relay?: boolean;
+  legs?: RelayLeg[];
   entries: FlightEntry[];
   sim: SimEntry[]; // frozen when the flight goes live
   weather: string;
