@@ -1061,9 +1061,17 @@ export const HEALTH = {
   /** Recovery chance is capped here so nothing is ever guaranteed. */
   recoverCap: 0.92,
   /** Per-source weekly infection chance, scaled by (1.2 - targetHealth/100). */
-  contagionPerSource: 0.11,
-  /** Weekly chance a low-condition bird falls ill on its own (× (1-health/100)). */
-  spontaneousIllness: 0.05,
+  contagionPerSource: 0.3,
+  /** Weekly chance a bird falls ill on its own, scaled by how frail it is. */
+  spontaneousIllness: 0.1,
+  /**
+   * The floor under that frailty factor. Health is by far the biggest lever —
+   * the factor is `1 - health/100`, so a weak bird is many times more likely to
+   * fall ill — but no loft is sterile: even a bird in perfect health keeps this
+   * much baseline risk. Without a floor a bird at health 100 could NEVER fall
+   * ill, which is exactly why illness was effectively unreachable in practice.
+   */
+  illnessBaselineRisk: 0.18,
   /** Extra weekly death chance from an untreated severe/moderate ailment. */
   ailmentMortalityOutside: { licht: 0, matig: 0.03, ernstig: 0.1 } as Record<Severity, number>,
   ailmentMortalityInfirmary: { licht: 0, matig: 0.005, ernstig: 0.025 } as Record<Severity, number>,
@@ -1071,6 +1079,33 @@ export const HEALTH = {
   flightInjuryBase: 0.025,
   flightInjuryPerKm: 0.00018,
 } as const;
+
+/**
+ * How BAD a spontaneous/caught illness turns out to be.
+ *
+ * Falling ill is partly luck, but how hard it hits is not: a bird in good health
+ * shrugs off most of it (mostly a licht case), while a run-down bird is the one
+ * that catches something serious. `frailty` runs from 0 (health ≥ `mildAbove`)
+ * to 1 (health 0), and shifts weight from licht to ernstig. A severe illness
+ * therefore stays possible for a healthy bird — just uncommon.
+ */
+export const DISEASE_SEVERITY = {
+  mildAbove: 80, // at or above this health, the mildest mix applies
+  healthy: { licht: 55, matig: 33, ernstig: 12 } as Record<Severity, number>,
+  frail: { licht: 30, matig: 35, ernstig: 35 } as Record<Severity, number>,
+} as const;
+
+/** The severity weights for a bird at a given health (interpolated). */
+export function diseaseSeverityWeights(health: number): Record<Severity, number> {
+  const raw = (DISEASE_SEVERITY.mildAbove - health) / DISEASE_SEVERITY.mildAbove;
+  const frailty = Math.max(0, Math.min(1, raw));
+  const mix = (a: number, b: number) => a + (b - a) * frailty;
+  return {
+    licht: mix(DISEASE_SEVERITY.healthy.licht, DISEASE_SEVERITY.frail.licht),
+    matig: mix(DISEASE_SEVERITY.healthy.matig, DISEASE_SEVERITY.frail.matig),
+    ernstig: mix(DISEASE_SEVERITY.healthy.ernstig, DISEASE_SEVERITY.frail.ernstig),
+  };
+}
 
 /** Weekly death probability by age in weeks (interpolated). Old birds fade. */
 export const MORTALITY_CURVE: { weeks: number; p: number }[] = [

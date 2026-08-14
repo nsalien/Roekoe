@@ -617,19 +617,43 @@ krijgt elke gezonde, niet-geïsoleerde duif een kans om ziek te worden. De
 weekkansen hieronder worden omgerekend naar een **dagkans**
 (`dagkans = 1 − (1 − weekkans)^(1/7)`):
 ```
-energierisico = clamp(1.3 − Energie/100, 0.3, 1.3)        // laag = risicovoller
-per_bron      = 0.11 · clamp(1.2 − Gezondheid/100, 0.1, 1.2) · energierisico
+energierisico = clamp(1.3 − Energie/100, 0.3, 1.3)         // laag = risicovoller
+per_bron      = 0.30 · clamp(1.2 − Gezondheid/100, 0.1, 1.2) · energierisico
 van_anderen   = 1 − (1 − per_bron)^(aantal zieke, niet-geïsoleerde duiven)
-spontaan      = 0.05 · clamp(1 − Gezondheid/100, 0, 1) · energierisico
+kwetsbaarheid = clamp(1 − Gezondheid/100, 0.18, 1)         // ondergrens = pech
+spontaan      = 0.10 · kwetsbaarheid · energierisico
 totale_kans   = clamp(1 − (1 − van_anderen)·(1 − spontaan), 0, 0.85)   // per week, /7 per dag
 ```
 Een duif **in de ziekenboeg** is geïsoleerd: besmet niemand en wordt niet besmet.
 
-> **Voorbeeld.** Eén zieke hokgenoot loopt rond. Een fitte duif (gezondheid 85,
-> energie 90) heeft daardoor maar **~2% kans/week** om ziek te worden. Een
-> verzwakte duif (gezondheid 40, energie 20) zit rond **~13% kans/week** — meer
-> dan zes keer zoveel. Lage gezondheid én lage energie maken je hok dus veel
-> kwetsbaarder; zet zieke duiven meteen in de ziekenboeg om de ketting te breken.
+**Gezondheid is veruit de grootste factor — maar geen schild.** Ook een
+kerngezonde duif houdt een klein restrisico (de ondergrens van **0,18** in de
+formule hierboven): net als bij mensen wordt een topfit beest af en toe eens
+ziek. Wat het verschil maakt is *hoe vaak*:
+
+| Hok van 8 duiven | Eerste ziektegeval na… | Kans dat één zieke duif besmet binnen een week |
+|---|---|---|
+| Kerngezond (gez. 100, energie 90) | ~110 dagen | 20% |
+| Goed verzorgd (92 / 80) | ~90 dagen | 37% |
+| Normaal (80 / 60) | ~60 dagen | 57% |
+| Verwaarloosd (55 / 35) | **~17 dagen** | 80% |
+
+Een verwaarloosd hok wordt dus ruim **zes keer sneller** getroffen dan een
+kerngezond hok. En zet je een zieke duif niet in de ziekenboeg, dan is de kans
+groot dat het overslaat op de rest.
+
+**Hoe erg de ziekte is, hangt óók van de gezondheid af.** Een duif in goede doen
+sleept meestal iets lichts op; een verzwakte duif is degene die iets zwaars
+oploopt:
+
+| Gezondheid | Licht | Matig | Ernstig |
+|---|---|---|---|
+| 80 of hoger | 55% | 33% | **12%** |
+| 55 | 47% | 34% | 19% |
+| 30 | 40% | 34% | **26%** |
+
+Een ernstige ziekte blijft dus altijd mogelijk, ook bij een topduif — ze is
+alleen zeldzaam.
 
 **Onbehandeld = gevaarlijk.** Een matige of ernstige aandoening die je niet
 verzorgt kan **dodelijk** aflopen. Een ernstig letsel dat je z'n hele beloop

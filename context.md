@@ -499,6 +499,20 @@ Entiteiten: `Pigeon`, `Loft`, `User`, `BreedingPair`, `Flight` (+ `SimEntry`,
   medicatievoer ×1,2 (stapelen → volle zorg ×~3). Volle zorg: licht ~1,5 dag /
   matig ~3,5 dagen / ernstig ~6 dagen — een aandoening is bewust een echte
   tegenslag (was ~1 dag voor matig). `updateHours: 12` (statusupdate-cadans).
+- **Ziekte was in de praktijk onbereikbaar (nieuwste — opgelost):** de spontane kans werd
+  vermenigvuldigd met `clamp(1 − gezondheid/100, 0, 1)`, dus bij **gezondheid 100 exact 0** — en
+  de dagelijkse verzorging houdt duiven net dáár. Gemeten: eerste ziektegeval na **428 dagen** voor
+  een goed verzorgd hok van 8, en **nooit** bij gezondheid 100; besmetting kwam nooit op gang bij
+  gebrek aan een patiënt, dus de duivendokter (€57/dag) had niets te doen. Fix: **bodem
+  `HEALTH.illnessBaselineRisk 0.18`** op de kwetsbaarheidsfactor (toeval bestaat),
+  `spontaneousIllness` 0,05 → **0,10**, `contagionPerSource` 0,11 → **0,30**. Gemeten na de fix:
+  kerngezond ~110 d · goed verzorgd ~90 d · normaal ~60 d · verwaarloosd **~17 d**; besmetting binnen
+  een week 20/37/57/80%. Gezondheid blijft dus 6× de doorslag geven.
+- **Ernst schaalt met de gezondheid** (`DISEASE_SEVERITY` + `diseaseSeverityWeights(health)` in
+  gameConfig, gebruikt door `randomDisease(week, health)`): vroeger trok hij **uniform** uit de 6
+  ziektes → 33% meteen ernstig. Nu gezondheid ≥80 → licht 55 / matig 33 / ernstig 12%, en bij
+  gezondheid 30 → 40/34/**26**%. Het gewicht van een ernstniveau wordt verdeeld over de ziektes
+  binnen dat niveau, zodat een nieuwe ziekte de mix niet stiekem verschuift.
 - **Ziekte/impact (`HEALTH`)** — `runHealthDay` draait nu **real-time** per dag
   (zie tick 4). Nieuw: `ailmentHealthDrainPerDay` licht 0,6 / matig 1,5 / ernstig
   2,5 gezondheid/dag zolang de duif aan een aandoening lijdt, `×ailmentDrainOutsideFactor`

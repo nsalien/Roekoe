@@ -240,16 +240,38 @@ export function WikiPage() {
 
       <Section id="ziekte" icon="🤒" title="Kans op ziekte">
         <p className="muted" style={{ marginTop: 0 }}>
-          Elke dag is er een kleine kans dat een gezonde duif ziek wordt. Er zijn twee bronnen:
-          <strong> besmetting</strong> (van een zieke, niet-geïsoleerde hokgenoot) en <strong>spontane ziekte</strong>
-          (vooral bij verzwakte duiven).
+          Elke dag is er een kans dat een duif ziek wordt. Er zijn twee bronnen: <strong>besmetting</strong> (van een
+          zieke, niet-geïsoleerde hokgenoot) en <strong>spontane ziekte</strong>. Gezondheid en energie zijn veruit de
+          grootste factor — maar geen schild: <strong>ook een kerngezonde duif wordt af en toe eens ziek</strong>, net
+          als een mens. Het verschil zit in hoe vaak.
         </p>
-        <ul>
-          <li><strong>Lage gezondheid én lage energie</strong> maken een duif veel kwetsbaarder. Met één zieke hokgenoot in de buurt: een fitte duif ± <strong>2% per week</strong>, een verzwakte duif ± <strong>13% per week</strong> — meer dan zes keer zoveel.</li>
+        <MiniTable
+          head={['Hok van 8 duiven', 'Eerste ziektegeval na…', 'Besmetting binnen een week']}
+          rows={[
+            ['Kerngezond', '± 110 dagen', '20%'],
+            ['Goed verzorgd', '± 90 dagen', '37%'],
+            ['Normaal', '± 60 dagen', '57%'],
+            ['Verwaarloosd', '± 17 dagen', '80%'],
+          ]}
+        />
+        <p style={{ marginTop: 12 }}>
+          <strong>Hoe erg de ziekte is, hangt óók van de gezondheid af.</strong> Een duif in goede doen sleept meestal
+          iets lichts op; een verzwakte duif is degene die iets zwaars oploopt.
+        </p>
+        <MiniTable
+          head={['Gezondheid', 'Licht', 'Matig', 'Ernstig']}
+          rows={[
+            ['80 of hoger', '55%', '33%', '12%'],
+            ['55', '47%', '34%', '19%'],
+            ['30', '40%', '34%', '26%'],
+          ]}
+        />
+        <ul style={{ marginTop: 12 }}>
           <li><strong>De ziekenboeg breekt de ketting:</strong> een zieke duif die daar geïsoleerd zit, besmet niemand en wordt zelf niet besmet.</li>
           <li>Een <strong>apart hok</strong> verlaagt de kans om ziek te worden.</li>
+          <li>Een ernstige ziekte blijft altijd mogelijk, ook bij een topduif — ze is alleen zeldzaam.</li>
         </ul>
-        <p><strong>Strategie:</strong> houd gezondheid en energie op peil, en zet een zieke duif <em>meteen</em> in de ziekenboeg om een uitbraak in je hok te voorkomen.</p>
+        <p><strong>Strategie:</strong> houd gezondheid en energie op peil, en zet een zieke duif <em>meteen</em> in de ziekenboeg — anders is de kans groot dat het overslaat op de rest van je hok.</p>
       </Section>
 
       <Section id="sterfte" icon="🕯️" title="Sterfte">
