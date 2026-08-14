@@ -40,11 +40,24 @@ in de ziekenboeg, minstens **8 weken** oud en gezondheid > 15.
 ## 2. Vluchten
 
 ### 2.1 Kalender (Brussel-tijd)
-- **10:00 — lange vlucht**: nationaal of internationaal (wisselt per dag).
-- **12:00 — oefenvlucht**: korte training, **om de 2 dagen** (zie §2.7).
-- **17:00 — korte vlucht**: regionaal.
-- **Zaterdag 11:00 — Titanenwedstrijd** (zie §2.8): die dag is er **enkel** deze
-  vlucht — ze **vervangt** alle andere vluchten van die dag.
+Elke dag heeft haar **eigen vaste programma**:
+
+| Dag | Vluchten |
+|---|---|
+| **Maandag** | 08:00 internationaal |
+| **Dinsdag** | 10:00 regionaal · 12:00 **oefenvlucht** (§2.7) |
+| **Woensdag** | 08:00 nationaal |
+| **Donderdag** | 08:00 internationaal |
+| **Vrijdag** | 10:00 regionaal · 12:00 **oefenvlucht** (§2.7) |
+| **Zaterdag** | 08:00 **Titanenwedstrijd** (§2.8) — de **enige** vlucht die dag |
+| **Zondag** | 08:00 nationaal · 17:00 regionaal |
+
+Dat zijn **8 wedstrijdvluchten + 2 oefenvluchten per week**: 3 regionale, 2
+nationale, 2 internationale en 1 titanenwedstrijd. Bewust **minder vluchten dan
+vroeger** (toen was er élke dag een lange én een korte vlucht): alle melkers
+putten uit dezelfde duiven, dus een lichtere kalender betekent **meer duiven aan
+de start van élke vlucht** en dus een **sterker deelnemersveld** om tegen te
+strijden.
 
 **Gaat een wedstrijd wel door?** Een **wedstrijdvlucht** (regionaal, nationaal,
 internationaal én de titanenwedstrijd) gaat **enkel door als er minstens 2
@@ -181,7 +194,7 @@ bijhorende **prijzengeld direct op je rekening gezet**, met een melding. De rest
 vlucht **volledig** is afgerond. Zo blijf je nooit lang wachten op je centen, ook al
 sukkelt er nog een verdwaalde duif rond.
 
-### 2.7 Oefenvluchten (om de 2 dagen, rond 12:00)
+### 2.7 Oefenvluchten (dinsdag & vrijdag, 12:00)
 Een **oefenvlucht** is een korte training, geen wedstrijd:
 - **Gratis** inschrijven — geen inschrijfgeld.
 - **Geen** prijzengeld, **geen** seizoenspunten, **geen** overwinningen/medailles.
@@ -205,7 +218,7 @@ Zo kan een duif zonder energie voor wedstrijden tóch elke dag beter worden. Een
 **privécoach** (§13) maakt de kans én de winst op conditie/oriëntatie groter.
 
 ### 2.8 Titanenwedstrijd (zaterdag)
-Eén keer per week, in het **weekend** (zaterdag 11:00), is er een prestigieuze
+Eén keer per week, in het **weekend** (zaterdag 08:00), is er een prestigieuze
 **Titanenwedstrijd**:
 - **Elke duivenmelker mag maar één duif inschrijven.**
 - **Middellange tot lange** afstand (~200–600 km).

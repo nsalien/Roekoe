@@ -234,6 +234,13 @@ function hashDate(y: number, m: number, d: number): number {
   return (y * 372 + m * 31 + d) | 0;
 }
 
+/** Slot keys of the OLD, denser calendar (a daily long race + a daily short one
+ *  + an every-other-day oefenvlucht). A day that already carries one of these was
+ *  planned under that calendar and keeps exactly what it has — the new, lighter
+ *  schedule only fills days that were never planned. Self-expiring: once no such
+ *  flight is left within the horizon this guard stops matching and can go. */
+const LEGACY_SLOT_KEYS = ['morning-long', 'noon-practice', 'evening-short'];
+
 /** Keep the next few days of flights on the calendar (idempotent). */
 export function ensureFlightsScheduled(db: Database, nowMs: number): void {
   const today = tzDateParts(TIMEZONE, nowMs);
@@ -249,6 +256,9 @@ export function ensureFlightsScheduled(db: Database, nowMs: number): void {
     // Absolute calendar-day index (days since the Unix epoch) for "every N days"
     // slots — deterministic and independent of the schedule horizon window.
     const dayNumber = Math.floor(dayMid.getTime() / 86400000);
+    // Leave days that were already planned under the old calendar completely
+    // alone, so the new schedule never bolts extra races onto an existing day.
+    if (LEGACY_SLOT_KEYS.some((k) => db.flights.some((f) => f.templateKey === `${k}:${y}-${m}-${d}`))) continue;
     // On a titanenwedstrijd day, that race replaces every other flight.
     const titanDay = REAL_SCHEDULE.some((s) => s.titan && s.weekday === weekday);
 
