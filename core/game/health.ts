@@ -12,6 +12,7 @@
  */
 
 import {
+  diseaseSeverityWeights,
   AGING,
   COMPARTMENT,
   DISEASES,
@@ -45,7 +46,24 @@ function makeAilment(kind: 'ziekte' | 'kwetsuur', t: AilmentTemplate, week: numb
 export function randomInjury(week: number, rng?: () => number): Ailment {
   return makeAilment('kwetsuur', rng ? pickWith(rng, INJURIES) : pick(INJURIES), week);
 }
-export function randomDisease(week: number): Ailment {
+/**
+ * A disease to strike a bird with. Pass the bird's `health` to weight HOW BAD it
+ * is: a bird in good shape mostly picks up something light, a run-down one is
+ * the one that catches something serious (see DISEASE_SEVERITY). Without a
+ * health the mix is the healthy one.
+ */
+export function randomDisease(week: number, health = 100): Ailment {
+  const weights = diseaseSeverityWeights(health);
+  // Split the weight of a severity evenly over the diseases that carry it, so
+  // adding a disease to the catalogue never silently shifts the severity mix.
+  const pool = DISEASES.map((d) => ({
+    d,
+    w: weights[d.severity] / Math.max(1, DISEASES.filter((x) => x.severity === d.severity).length),
+  }));
+  let r = Math.random() * pool.reduce((s, x) => s + x.w, 0);
+  for (const x of pool) {
+    if ((r -= x.w) <= 0) return makeAilment('ziekte', x.d, week);
+  }
   return makeAilment('ziekte', pick(DISEASES), week);
 }
 
@@ -235,11 +253,15 @@ export function runHealthDay(db: Database, week: number): void {
       const energyRisk = clamp(1.3 - p.form / 100, 0.3, 1.3);
       const perSource = weeklyToDaily(HEALTH.contagionPerSource) * clamp(1.2 - p.health / 100, 0.1, 1.2) * energyRisk;
       const fromOthers = sources > 0 ? 1 - Math.pow(1 - perSource, sources) : 0;
-      const spontaneous = weeklyToDaily(HEALTH.spontaneousIllness) * clamp(1 - p.health / 100, 0, 1) * energyRisk;
+      // Health is the dominant lever, but never a full shield: the frailty factor
+      // bottoms out at HEALTH.illnessBaselineRisk, so even a bird in perfect shape
+      // can have bad luck now and then.
+      const frailty = clamp(1 - p.health / 100, HEALTH.illnessBaselineRisk, 1);
+      const spontaneous = weeklyToDaily(HEALTH.spontaneousIllness) * frailty * energyRisk;
       const compartmentGuard = p.compartment ? 1 - COMPARTMENT.diseaseReduction : 1;
       const chance = clamp(1 - (1 - fromOthers) * (1 - spontaneous), 0, 0.85) * compartmentGuard;
       if (Math.random() < chance) {
-        const disease = randomDisease(week);
+        const disease = randomDisease(week, p.health);
         applyAilment(p, disease);
         if (human) {
           pushHealthNote(
@@ -383,12 +405,13 @@ export function runHealthWeek(db: Database, week: number): HealthEvent[] {
       const energyRisk = clamp(1.3 - p.form / 100, 0.3, 1.3);
       const perSource = HEALTH.contagionPerSource * clamp(1.2 - p.health / 100, 0.1, 1.2) * energyRisk;
       const fromOthers = sources > 0 ? 1 - Math.pow(1 - perSource, sources) : 0;
-      const spontaneous = HEALTH.spontaneousIllness * clamp(1 - p.health / 100, 0, 1) * energyRisk;
+      const frailty = clamp(1 - p.health / 100, HEALTH.illnessBaselineRisk, 1);
+      const spontaneous = HEALTH.spontaneousIllness * frailty * energyRisk;
       // A private compartment keeps this bird apart, cutting its onset chance.
       const compartmentGuard = p.compartment ? 1 - COMPARTMENT.diseaseReduction : 1;
       const chance = clamp(1 - (1 - fromOthers) * (1 - spontaneous), 0, 0.85) * compartmentGuard;
       if (Math.random() < chance) {
-        const disease = randomDisease(week);
+        const disease = randomDisease(week, p.health);
         applyAilment(p, disease);
         events.push({
           pigeonId: p.id, ownerId: p.ownerId, pigeonName: p.name, type: 'sick',
