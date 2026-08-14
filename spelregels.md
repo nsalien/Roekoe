@@ -848,11 +848,18 @@ op de duifpagina zelf. Op de Markt gaat het **stap voor stap**: (1) kies eerst d
 **speler** op wie je wilt bieden, (2) kies daarna een **duif** van die speler, en
 (3) geef je **bedrag** in.
 
-**Je ziet niet alle eigenschappen van andermans duiven.** Enkel de **algemene
-score (★ talent)** is bekend — de precieze snelheid, conditie, oriëntatie, energie,
-gezondheid, libido en ervaring blijven **geheim**. Je weet dus niet *exact* wat je
-koopt, maar je kan wel een idee vormen via de **algemene score**, de
-**duivenranglijst** of de **resultaten van specifieke vluchten**.
+**Wat je te koop ziet, zie je volledig.** Van elke duif die **op de markt staat**
+— van een andere speler of van een bot — en van elke duif in een **veiling**
+(zondagveiling én opvangcentrum) zie je **alle eigenschappen**: snelheid,
+conditie, oriëntatie, energie, gezondheid, libido en ervaring. Je moet nu eenmaal
+kunnen zien wat je koopt.
+
+**Enkel bij een rechtstreeks bod op een duif die níet te koop staat, tast je in
+het duister.** Dan blijven die eigenschappen **geheim** en zie je enkel de
+**algemene score (★ talent)**, de geschatte waarde, het geslacht, de leeftijd en
+het ras. Je weet dus niet *exact* wat je koopt, maar je kan wel een idee vormen
+via die algemene score, de **duivenranglijst** of de **resultaten van specifieke
+vluchten**.
 - Je geld wordt **niet** vastgehouden; het wordt pas gecontroleerd wanneer de
   eigenaar aanvaardt (heb je dan te weinig geld of geen plaats, dan vervalt het bod).
 - De eigenaar ziet het bod **bij de Markt** (niet via de belknop) — met een teller
