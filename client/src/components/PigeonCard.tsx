@@ -3,7 +3,7 @@
 import { Link } from 'react-router-dom';
 import type { Pigeon } from '../types';
 import { PigeonAvatar } from './PigeonAvatar';
-import { PigeonStats, SexBadge } from './ui';
+import { BreedBadge, PigeonStats, SexBadge } from './ui';
 
 function ageLabel(weeks: number): string {
   const years = Math.floor(weeks / 52);
@@ -17,18 +17,26 @@ export function PigeonCard({
   to,
   children,
   showOwner,
+  showBreed,
+  avatarSize = 76,
+  showcase,
   tourId,
 }: {
   pigeon: Pigeon;
   to?: string;
   children?: React.ReactNode;
   showOwner?: boolean;
+  /** Show the breed (ras) chip — worth it wherever the bird is on offer. */
+  showBreed?: boolean;
+  avatarSize?: number;
+  /** Draw the photo big, in a rounded square instead of a small round crop. */
+  showcase?: boolean;
   tourId?: string;
 }) {
   const inner = (
     <div className="row" style={{ alignItems: 'flex-start', flexWrap: 'nowrap', gap: 12 }}>
       <div style={{ flex: '0 0 auto' }}>
-        <PigeonAvatar pigeon={pigeon} size={76} />
+        <PigeonAvatar pigeon={pigeon} size={avatarSize} shape={showcase ? 'showcase' : 'circle'} />
       </div>
       <div style={{ flex: 1, minWidth: 0 }}>
         <div className="row" style={{ justifyContent: 'space-between', gap: 6 }}>
@@ -66,6 +74,8 @@ export function PigeonCard({
       ) : (
         inner
       )}
+
+      {showBreed && <div style={{ marginTop: 8 }}><BreedBadge breed={pigeon.breed} /></div>}
 
       {pigeon.revealed ? (
         <div style={{ marginTop: 6 }}>
