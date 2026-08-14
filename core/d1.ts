@@ -102,7 +102,9 @@ function parseSponsorship(r: any): SponsorState {
   }
   const st = emptySponsorState();
   if (r.sponsor_id) {
-    st.active.push({ id: r.sponsor_id, since: r.sponsor_since ?? '', weeklyStipend: 0, winBonus: 0 });
+    // Terms unknown on this ancient shape; sponsors.ts fills in the catalogue
+    // defaults for a contract without stored terms.
+    st.active.push({ id: r.sponsor_id, since: r.sponsor_since ?? '', dailyStipend: 0, podiumBase: 0 });
   }
   if (r.sponsors_signed) {
     try { st.signed = JSON.parse(r.sponsors_signed); } catch { /* ignore */ }

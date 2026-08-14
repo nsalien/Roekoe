@@ -21,6 +21,8 @@ import {
   SPONSOR_REOFFER_MULT_MAX,
   SPONSOR_REOFFER_MULT_MIN,
   SPONSOR_REVIEW,
+  sponsorPodiumBonus,
+  type FlightTier,
   type SponsorDef,
 } from '../config/gameConfig.js';
 import type {
@@ -43,7 +45,21 @@ export function sponsorById(id: string | null | undefined): SponsorDef | undefin
 }
 
 function baseTerms(def: SponsorDef): OfferTerms {
-  return { signingBonus: def.signingBonus, weeklyStipend: def.weeklyStipend, winBonus: def.winBonus };
+  return { signingBonus: def.signingBonus, dailyStipend: def.dailyStipend, podiumBase: def.podiumBase };
+}
+
+/** Read a stored term, falling back to the pre-daily shape (weekly stipend /
+ *  win-only bonus) for contracts signed before that switch. Migration v32
+ *  rewrites them in place; this keeps a not-yet-migrated world correct. */
+function legacyDaily(a: any, def: SponsorDef): number {
+  if (typeof a?.dailyStipend === 'number' && a.dailyStipend > 0) return a.dailyStipend;
+  if (typeof a?.weeklyStipend === 'number' && a.weeklyStipend > 0) return Math.max(1, Math.round(a.weeklyStipend / 7));
+  return def.dailyStipend; // no usable terms stored → the catalogue's own value
+}
+function legacyPodium(a: any, def: SponsorDef): number {
+  if (typeof a?.podiumBase === 'number' && a.podiumBase > 0) return a.podiumBase;
+  if (typeof a?.winBonus === 'number' && a.winBonus > 0) return Math.max(5, Math.round(a.winBonus / 5) * 5);
+  return def.podiumBase;
 }
 
 /**
@@ -61,8 +77,8 @@ function state(loft: Loft): SponsorState {
     active.push({
       id,
       since: (typeof a === 'object' && a?.since) || '',
-      weeklyStipend: typeof a?.weeklyStipend === 'number' ? a.weeklyStipend : def.weeklyStipend,
-      winBonus: typeof a?.winBonus === 'number' ? a.winBonus : def.winBonus,
+      dailyStipend: legacyDaily(a, def),
+      podiumBase: legacyPodium(a, def),
       refPoints: typeof a?.refPoints === 'number' ? a.refPoints : undefined,
     });
   }
@@ -76,8 +92,8 @@ function state(loft: Loft): SponsorState {
       id,
       at: (typeof o === 'object' && o?.at) || '',
       signingBonus: typeof o?.signingBonus === 'number' ? o.signingBonus : b.signingBonus,
-      weeklyStipend: typeof o?.weeklyStipend === 'number' ? o.weeklyStipend : b.weeklyStipend,
-      winBonus: typeof o?.winBonus === 'number' ? o.winBonus : b.winBonus,
+      dailyStipend: legacyDaily(o, def),
+      podiumBase: legacyPodium(o, def),
     });
   }
   const declined = (Array.isArray(raw.declined) ? raw.declined : [])
@@ -158,11 +174,25 @@ export function requirementLabel(def: SponsorDef): string {
 function round5(n: number): number {
   return Math.max(5, Math.round(n / 5) * 5);
 }
+
+/** The full podium payout grid for one contract: per tier, the 1e/2e/3e amount. */
+export function podiumGrid(podiumBase: number): Record<FlightTier, number[]> {
+  const tiers: FlightTier[] = ['regional', 'national', 'international'];
+  const grid = {} as Record<FlightTier, number[]>;
+  for (const t of tiers) grid[t] = [1, 2, 3].map((rank) => sponsorPodiumBonus(podiumBase, t, rank));
+  return grid;
+}
+
+/** One-line summary of what a win pays across the three tiers (for messages). */
+function podiumSummary(podiumBase: number): string {
+  const g = podiumGrid(podiumBase);
+  return `zege: €${g.regional[0]} regionaal · €${g.national[0]} nationaal · €${g.international[0]} internationaal`;
+}
 function scaledTerms(def: SponsorDef, mult: number): OfferTerms {
   return {
     signingBonus: round5(def.signingBonus * mult),
-    weeklyStipend: round5(def.weeklyStipend * mult),
-    winBonus: Math.max(5, Math.round(def.winBonus * mult)),
+    dailyStipend: round5(def.dailyStipend * mult),
+    podiumBase: round5(def.podiumBase * mult),
   };
 }
 
@@ -218,7 +248,7 @@ export function evaluateSponsorOffers(db: Database, loft: Loft, nowMs: number): 
       const terms = scaledTerms(def, mult);
       st.offers.push({ id: def.id, at: new Date(nowMs).toISOString(), ...terms });
       st.declined.splice(declinedIdx, 1);
-      const richer = terms.weeklyStipend >= def.weeklyStipend;
+      const richer = terms.dailyStipend >= def.dailyStipend;
       notify(db, loft, `${def.icon} ${def.name} klopt opnieuw aan`,
         `${richer ? 'Je duiven presteerden goed — het aanbod is er beter op geworden.' : 'Een nieuw, wat bescheidener aanbod.'} Bekijk het op de sponsorpagina.`);
     } else {
@@ -272,16 +302,16 @@ export function applyAcceptSponsor(db: Database, loft: Loft, sponsorId: string, 
   }
 
   st.offers = st.offers.filter((o) => o.id !== sponsorId);
-  st.active.push({ id: sponsorId, since: new Date().toISOString(), weeklyStipend: offer.weeklyStipend, winBonus: offer.winBonus });
+  st.active.push({ id: sponsorId, since: new Date().toISOString(), dailyStipend: offer.dailyStipend, podiumBase: offer.podiumBase });
   if (!st.signed.includes(sponsorId)) {
     st.signed.push(sponsorId);
     loft.money += offer.signingBonus;
     notify(db, loft, `${def.icon} ${def.name} tekent bij jou`,
-      `Welkomstpremie €${offer.signingBonus}. Vanaf nu €${offer.weeklyStipend}/week en €${offer.winBonus} per overwinning.`);
+      `Welkomstpremie €${offer.signingBonus}. Vanaf nu €${offer.dailyStipend} per dag, plus een podiumpremie per wedstrijdvlucht (${podiumSummary(offer.podiumBase)}).`);
     return `${def.name} is nu een van je sponsors! Tekengeld: €${offer.signingBonus}.`;
   }
   notify(db, loft, `${def.icon} ${def.name} weer aan boord`,
-    `Je tekent opnieuw — geen tekengeld, wel €${offer.weeklyStipend}/week en €${offer.winBonus} per overwinning.`);
+    `Je tekent opnieuw — geen tekengeld, wel €${offer.dailyStipend} per dag en de podiumpremie (${podiumSummary(offer.podiumBase)}).`);
   return `${def.name} is opnieuw een van je sponsors (geen nieuw tekengeld).`;
 }
 
@@ -367,8 +397,11 @@ function sponsorDTO(def: SponsorDef, terms: OfferTerms, signed: boolean) {
     category: def.category,
     categoryLabel: def.categoryLabel,
     signingBonus: terms.signingBonus,
-    weeklyStipend: terms.weeklyStipend,
-    winBonus: terms.winBonus,
+    dailyStipend: terms.dailyStipend,
+    podiumBase: terms.podiumBase,
+    // The full payout grid (tier × placing), so the client never has to know
+    // the factors — see config sponsorPodiumBonus().
+    podium: podiumGrid(terms.podiumBase),
     breakPenalty: def.breakPenalty,
     requirement: requirementLabel(def),
     signedBefore: signed,
@@ -386,7 +419,7 @@ export function sponsorView(db: Database, loft: Loft) {
       const def = BY_ID.get(c.id);
       if (!def) return null;
       return {
-        ...sponsorDTO(def, { signingBonus: def.signingBonus, weeklyStipend: c.weeklyStipend, winBonus: c.winBonus }, st.signed.includes(c.id)),
+        ...sponsorDTO(def, { signingBonus: def.signingBonus, dailyStipend: c.dailyStipend, podiumBase: c.podiumBase }, st.signed.includes(c.id)),
         since: c.since,
       };
     })

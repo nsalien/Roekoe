@@ -163,6 +163,11 @@ export interface DailyCostBreakdown {
   physios: number;
   medicatedFeed: number;
   total: number;
+  /** Daily sponsor income, per contract and totalled. */
+  sponsors: { id: string; name: string; icon: string; amount: number }[];
+  sponsorTotal: number;
+  /** Income − costs: what the loft nets per day. */
+  net: number;
 }
 
 export interface EconomyCosts {
@@ -519,8 +524,12 @@ export interface Sponsor {
   category: string;
   categoryLabel: string;
   signingBonus: number;
-  weeklyStipend: number;
-  winBonus: number;
+  /** Paid every day the contract is active. */
+  dailyStipend: number;
+  /** Reference podium bonus (a win on a national flight). */
+  podiumBase: number;
+  /** The full payout grid: per tier, the amount for 1e / 2e / 3e. */
+  podium: { regional: number[]; national: number[]; international: number[] };
   breakPenalty: number;
   requirement: string;
   signedBefore: boolean;

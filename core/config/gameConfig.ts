@@ -664,8 +664,12 @@ export interface SponsorDef {
     gold?: number;
   };
   signingBonus: number; // one-time, first time you accept this sponsor
-  weeklyStipend: number; // paid every "volgende week" tick while active
-  winBonus: number; // paid each time one of your pigeons wins a flight
+  /** Paid EVERY DAY while the contract is active (see tickDailyCare). Daily,
+   *  not weekly, so it lines up with the daily running costs the player sees. */
+  dailyStipend: number;
+  /** Reference podium bonus: what a WIN on a NATIONAL flight pays. Other
+   *  placings and tiers scale off it — see sponsorPodiumBonus(). */
+  podiumBase: number;
   breakPenalty: number; // fee to terminate this contract early
 }
 
@@ -722,57 +726,93 @@ export const SPONSOR_REVIEW = {
   minReviewPoints: 20,
 } as const;
 
+/**
+ * How a podium finish converts into sponsor money.
+ *
+ * A sponsor carries ONE reference amount (`podiumBase` = a win on a NATIONAL
+ * flight); the actual payout is `podiumBase × tier factor × placing factor`,
+ * rounded to €5. Two shared tables instead of a 3×3 grid per sponsor keeps the
+ * catalogue readable and the rules explainable to players.
+ *
+ * The tier factors mirror the PRIZE MONEY ratio (regional 800 / national 1200 /
+ * international 2200 for a win), because that is exactly the prestige a sponsor
+ * is buying: it pays in proportion to the race it gets its logo shown at. Over a
+ * normal week (3 regional + 2 national + 2 international) the average factor is
+ * ~1.06, so tiering REDISTRIBUTES the money towards the big races rather than
+ * inflating it.
+ *
+ * Only the three competition tiers pay: an oefenvlucht, the titanenwedstrijd and
+ * the estafettevlucht yield no sponsor money (a titan's `type` is derived from
+ * its distance, so callers must check the flight KIND, not its tier).
+ */
+export const SPONSOR_TIER_FACTOR: Record<FlightTier, number> = {
+  regional: 0.6,
+  national: 1.0,
+  international: 1.8,
+};
+
+/** Placing factor: 1e full, 2e ~60%, 3e ~35%. Nothing below the podium. */
+export const SPONSOR_PODIUM_FACTOR = [1, 0.6, 0.35] as const;
+
+/** What one sponsor pays for a given placing on a given tier (0 = no bonus). */
+export function sponsorPodiumBonus(podiumBase: number, tier: FlightTier, rank: number): number {
+  const placing = SPONSOR_PODIUM_FACTOR[rank - 1];
+  if (!placing) return 0; // outside the podium
+  const raw = podiumBase * (SPONSOR_TIER_FACTOR[tier] ?? 1) * placing;
+  return Math.max(5, Math.round(raw / 5) * 5);
+}
+
 export const SPONSORS: SponsorDef[] = [
   // Tier 1 — first real milestones (a first win, loyal participation).
   {
     id: 'zatte_duif', name: 'Café De Zatte Duif', icon: '🍺', tier: 1,
     category: 'cafe', categoryLabel: 'Café',
     tagline: 'Ge hebt uw eerste vlucht gewonnen! Ons café hangt vol duivenfoto’s — kom erbij.',
-    req: { totalWins: 1 }, signingBonus: 200, weeklyStipend: 40, winBonus: 12, breakPenalty: 150,
+    req: { totalWins: 1 }, signingBonus: 350, dailyStipend: 25, podiumBase: 50, breakPenalty: 300,
   },
   {
     id: 'vetzakske', name: "Frituur 't Vetzakske", icon: '🍟', tier: 1,
     category: 'frituur', categoryLabel: 'Frituur',
     tagline: 'Ge zijt een trouwe deelnemer. Elke overwinning trakteren we op een grote friet.',
-    req: { entries: 12 }, signingBonus: 300, weeklyStipend: 60, winBonus: 18, breakPenalty: 220,
+    req: { entries: 12 }, signingBonus: 500, dailyStipend: 35, podiumBase: 65, breakPenalty: 400,
   },
   // Tier 2 — a good bird, some season success, a rival café.
   {
     id: 'kruimeltje', name: "Bakkerij 't Kruimeltje", icon: '🥖', tier: 2,
     category: 'bakkerij', categoryLabel: 'Bakkerij',
     tagline: 'Zo’n getalenteerde duif verdient verse pistolets, elke zondagmorgen.',
-    req: { bestTalent: 70 }, signingBonus: 450, weeklyStipend: 85, winBonus: 20, breakPenalty: 320,
+    req: { bestTalent: 70 }, signingBonus: 700, dailyStipend: 50, podiumBase: 90, breakPenalty: 550,
   },
   {
     id: 'den_dorst', name: 'Café Den Droogen Dorst', icon: '🍻', tier: 2,
     category: 'cafe', categoryLabel: 'Café',
     tagline: 'Dat café verderop mag u dan wel hebben, MAAR wij bieden meer, melker.',
-    req: { totalWins: 5 }, signingBonus: 500, weeklyStipend: 95, winBonus: 22, breakPenalty: 380,
+    req: { totalWins: 5 }, signingBonus: 800, dailyStipend: 55, podiumBase: 100, breakPenalty: 650,
   },
   {
     id: 'van_hoof', name: 'Landbouwmachines Van Hoof', icon: '🚜', tier: 2,
     category: 'landbouw', categoryLabel: 'Landbouw',
     tagline: 'Wij houden van sterke beesten met pk’s onder de vleugels.',
-    req: { bestTalent: 80 }, signingBonus: 600, weeklyStipend: 120, winBonus: 25, breakPenalty: 450,
+    req: { bestTalent: 80 }, signingBonus: 1000, dailyStipend: 70, podiumBase: 120, breakPenalty: 800,
   },
   // Tier 3 — top performers, a rival frituur, big money.
   {
     id: 'gulden_friet', name: 'Frituur De Gulden Friet', icon: '🍟', tier: 3,
     category: 'frituur', categoryLabel: 'Frituur',
     tagline: 'Acht overwinningen?! Laat die andere frituur maar zitten, wij bakken groter.',
-    req: { totalWins: 8 }, signingBonus: 800, weeklyStipend: 150, winBonus: 30, breakPenalty: 600,
+    req: { totalWins: 8 }, signingBonus: 1250, dailyStipend: 90, podiumBase: 145, breakPenalty: 1000,
   },
   {
     id: 'fondinvest', name: 'Duivenbank Fondinvest', icon: '🏦', tier: 3,
     category: 'bank', categoryLabel: 'Bank',
     tagline: 'Uw prestaties, onze investering. Beleg in pluimen.',
-    req: { level: 6 }, signingBonus: 1000, weeklyStipend: 180, winBonus: 35, breakPenalty: 800,
+    req: { level: 6 }, signingBonus: 1450, dailyStipend: 105, podiumBase: 165, breakPenalty: 1200,
   },
   {
     id: 'snelle_vleugel', name: 'Racing Team Snelle Vleugel', icon: '🏎️', tier: 3,
     category: 'racing', categoryLabel: 'Racingteam',
     tagline: 'Alleen echte winnaars dragen ons logo. Jij hoort er nu bij.',
-    req: { gold: 12 }, signingBonus: 1500, weeklyStipend: 260, winBonus: 55, breakPenalty: 1100,
+    req: { gold: 12 }, signingBonus: 1900, dailyStipend: 135, podiumBase: 215, breakPenalty: 1550,
   },
 
   // --- Extra variëteit: nieuwe categorieën, rivalen en een prestige-tier 4 ---
@@ -784,58 +824,58 @@ export const SPONSORS: SponsorDef[] = [
     id: 'den_beenhouwer', name: 'Slagerij Den Beenhouwer', icon: '🥩', tier: 1,
     category: 'slagerij', categoryLabel: 'Slagerij',
     tagline: 'Sterke duiven, sterke worst. Elke deelnemer is er bij ons eentje.',
-    req: { entries: 6 }, signingBonus: 250, weeklyStipend: 50, winBonus: 14, breakPenalty: 180,
+    req: { entries: 6 }, signingBonus: 400, dailyStipend: 30, podiumBase: 55, breakPenalty: 350,
   },
   {
     id: 'het_schuim', name: "Brouwerij 't Schuim", icon: '🍺', tier: 1,
     category: 'brouwerij', categoryLabel: 'Brouwerij',
     tagline: 'Een pint op elke thuiskomst — proost, melker!',
-    req: { level: 3 }, signingBonus: 350, weeklyStipend: 70, winBonus: 16, breakPenalty: 260,
+    req: { level: 3 }, signingBonus: 550, dailyStipend: 40, podiumBase: 70, breakPenalty: 450,
   },
   // Tier 2 — een goede duif, seizoenspunten, een rivaal-café.
   {
     id: 'de_pluim', name: 'Dierenspeciaalzaak De Pluim', icon: '🐾', tier: 2,
     category: 'dierenwinkel', categoryLabel: 'Dierenwinkel',
     tagline: 'Wij kennen onze beestjes — en die van u zijn iets speciaals.',
-    req: { bestTalent: 65 }, signingBonus: 400, weeklyStipend: 80, winBonus: 18, breakPenalty: 300,
+    req: { bestTalent: 65 }, signingBonus: 650, dailyStipend: 45, podiumBase: 85, breakPenalty: 500,
   },
   {
     id: 'van_steen', name: 'Bouwbedrijf Van Steen', icon: '🧱', tier: 2,
     category: 'bouw', categoryLabel: 'Bouw',
     tagline: 'Wij bouwen aan uw hok én aan uw palmares.',
-    req: { seasonPoints: 120 }, signingBonus: 550, weeklyStipend: 110, winBonus: 24, breakPenalty: 420,
+    req: { seasonPoints: 120 }, signingBonus: 900, dailyStipend: 65, podiumBase: 110, breakPenalty: 750,
   },
   // Tier 3 — grote spelers, extra rivalen (verzekering, café).
   {
     id: 'zeker_vast', name: 'Verzekeringen Zeker & Vast', icon: '🛡️', tier: 3,
     category: 'verzekering', categoryLabel: 'Verzekering',
     tagline: 'Zoveel vluchten, zoveel vertrouwen. Wij dekken uw duiven graag.',
-    req: { entries: 40 }, signingBonus: 900, weeklyStipend: 170, winBonus: 32, breakPenalty: 700,
+    req: { entries: 40 }, signingBonus: 1350, dailyStipend: 95, podiumBase: 155, breakPenalty: 1100,
   },
   {
     id: 'duivenkoning', name: 'Café De Duivenkoning', icon: '👑', tier: 3,
     category: 'cafe', categoryLabel: 'Café',
     tagline: 'Twaalf overwinningen! Aan onze toog zit voortaan een koning.',
-    req: { totalWins: 12 }, signingBonus: 1200, weeklyStipend: 200, winBonus: 40, breakPenalty: 900,
+    req: { totalWins: 12 }, signingBonus: 1600, dailyStipend: 115, podiumBase: 180, breakPenalty: 1300,
   },
   // Tier 4 — prestige. Alleen de absolute top haalt deze binnen.
   {
     id: 'vleugelnet', name: 'Telecom Vleugelnet', icon: '📡', tier: 4,
     category: 'telecom', categoryLabel: 'Telecom',
     tagline: 'Het snelste netwerk zoekt het snelste hok. Dat ben jij.',
-    req: { level: 10 }, signingBonus: 2000, weeklyStipend: 320, winBonus: 60, breakPenalty: 1500,
+    req: { level: 10 }, signingBonus: 2300, dailyStipend: 165, podiumBase: 255, breakPenalty: 1900,
   },
   {
     id: 'gouden_ring', name: 'Nationale Loterij — De Gouden Ring', icon: '🎰', tier: 4,
     category: 'loterij', categoryLabel: 'Loterij',
     tagline: 'Driehonderd punten? Jij weet wat winnen is. Speel met ons mee.',
-    req: { seasonPoints: 300 }, signingBonus: 3000, weeklyStipend: 300, winBonus: 50, breakPenalty: 1800,
+    req: { seasonPoints: 300 }, signingBonus: 3000, dailyStipend: 150, podiumBase: 235, breakPenalty: 1700,
   },
   {
     id: 'turbo_motors', name: 'Formule Duif Racing', icon: '🏆', tier: 4,
     category: 'racing', categoryLabel: 'Racingteam',
     tagline: 'Twintig gouden medailles. Laat dat andere team maar zitten — dit is de grote liga.',
-    req: { gold: 20 }, signingBonus: 2500, weeklyStipend: 400, winBonus: 70, breakPenalty: 2000,
+    req: { gold: 20 }, signingBonus: 2800, dailyStipend: 200, podiumBase: 310, breakPenalty: 2300,
   },
 ];
 

@@ -162,8 +162,16 @@ export function DashboardPage() {
         >
           <div className="row" style={{ justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
             <div>
-              <div className="tile-label">Dagelijkse kosten</div>
-              <div className="tile-value" style={{ color: 'var(--bad)' }}>−<Money value={costs.total} /></div>
+              <div className="tile-label">Dagbalans</div>
+              {/* Costs AND sponsor income run on the same daily clock, so the
+                  headline number is what your loft actually nets per day. */}
+              <div className="tile-value" style={{ color: costs.net >= 0 ? 'var(--good)' : 'var(--bad)' }}>
+                {costs.net >= 0 ? '+' : '−'}<Money value={Math.abs(costs.net)} />
+              </div>
+              <div className="faint" style={{ fontSize: '0.8rem' }}>
+                −<Money value={costs.total} /> kosten
+                {costs.sponsorTotal > 0 && <> · +<Money value={costs.sponsorTotal} /> sponsors</>}
+              </div>
             </div>
             <div className="faint" style={{ fontSize: '0.85rem' }}>
               {showCosts ? '▲ verberg onderverdeling' : '▼ klik voor de onderverdeling'}
@@ -176,12 +184,13 @@ export function DashboardPage() {
       {showCosts && (
         <div className="card" style={{ marginBottom: 18 }}>
           <div className="row" style={{ justifyContent: 'space-between' }}>
-            <h2 style={{ margin: 0 }}>💸 Dagelijkse kosten</h2>
+            <h2 style={{ margin: 0 }}>💶 Dagbalans</h2>
             <button className="btn ghost sm" onClick={() => setShowCosts(false)}>Sluiten</button>
           </div>
           <p className="faint" style={{ margin: '4px 0 10px', fontSize: '0.82rem' }}>
-            Deze vaste kosten worden <strong>elke dag automatisch</strong> van je kassa afgehouden
-            (exclusief voer, dat apart uit je voorraad gaat). Sponsorbijdragen komen er dagelijks bij.
+            Deze kosten worden <strong>elke dag automatisch</strong> van je kassa afgehouden en je
+            sponsorbijdragen komen er diezelfde dag bij (exclusief voer, dat apart uit je voorraad
+            gaat). Prijzengeld en podiumpremies staan hier niet in — die hangen van je uitslagen af.
           </p>
           {/* Flex rows (not a table) so it fits narrow phones: the label/detail on
               the left may wrap/shrink, the amount on the right stays put — no
@@ -204,12 +213,43 @@ export function DashboardPage() {
                 <div className="num" style={{ whiteSpace: 'nowrap', flexShrink: 0 }}>−<Money value={r.amount} /></div>
               </div>
             ))}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 12, padding: '10px 0', borderTop: '2px solid var(--border)', fontWeight: 700 }}>
+              <div>Totaal kosten</div>
+              <div className="num" style={{ whiteSpace: 'nowrap', flexShrink: 0, color: 'var(--bad)' }}>−<Money value={costs.total} /></div>
+            </div>
+
+            {/* Income side: what your sponsors put in every single day. */}
+            <div style={{ paddingTop: 6 }}>
+              <div className="faint" style={{ fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Inkomsten</div>
+              {costs.sponsors.length === 0 && (
+                <div className="faint" style={{ padding: '8px 0', fontSize: '0.85rem' }}>
+                  Nog geen sponsors. Een goede uitslag trekt er vanzelf een aan.
+                </div>
+              )}
+              {costs.sponsors.map((s) => (
+                <div key={s.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 12, padding: '8px 0', borderBottom: '1px solid var(--border)' }}>
+                  <div style={{ minWidth: 0 }}>{s.icon} {s.name}</div>
+                  <div className="num" style={{ whiteSpace: 'nowrap', flexShrink: 0, color: 'var(--good)' }}>+<Money value={s.amount} /></div>
+                </div>
+              ))}
+              {costs.sponsors.length > 0 && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 12, padding: '10px 0', borderTop: '2px solid var(--border)', fontWeight: 700 }}>
+                  <div>Totaal sponsors</div>
+                  <div className="num" style={{ whiteSpace: 'nowrap', flexShrink: 0, color: 'var(--good)' }}>+<Money value={costs.sponsorTotal} /></div>
+                </div>
+              )}
+            </div>
+
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 12, padding: '10px 0 0', borderTop: '2px solid var(--border)', fontWeight: 800 }}>
               <div style={{ minWidth: 0 }}>
-                <div>Totaal per dag</div>
-                <div className="faint" style={{ fontSize: '0.8rem', fontWeight: 400 }}>≈ <Money value={costs.total * 7} />/week</div>
+                <div>Netto per dag</div>
+                <div className="faint" style={{ fontSize: '0.8rem', fontWeight: 400 }}>
+                  ≈ {costs.net >= 0 ? '+' : '−'}<Money value={Math.abs(costs.net) * 7} />/week
+                </div>
               </div>
-              <div className="num" style={{ whiteSpace: 'nowrap', flexShrink: 0, color: 'var(--bad)' }}>−<Money value={costs.total} /></div>
+              <div className="num" style={{ whiteSpace: 'nowrap', flexShrink: 0, color: costs.net >= 0 ? 'var(--good)' : 'var(--bad)' }}>
+                {costs.net >= 0 ? '+' : '−'}<Money value={Math.abs(costs.net)} />
+              </div>
             </div>
           </div>
         </div>

@@ -195,8 +195,10 @@ export interface SeasonAward {
 /** The money terms of a sponsor deal (they scale with performance over time). */
 export interface OfferTerms {
   signingBonus: number; // one-time on signing
-  weeklyStipend: number; // per "volgende week" tick
-  winBonus: number; // per flight won
+  dailyStipend: number; // paid every day the contract is active
+  /** Reference podium bonus (a win on a national flight); the real payout scales
+   *  by flight tier + placing — see config sponsorPodiumBonus(). */
+  podiumBase: number;
 }
 
 /** A pending sponsor offer with its concrete (performance-scaled) terms. */
@@ -209,8 +211,8 @@ export interface SponsorOffer extends OfferTerms {
 export interface ActiveSponsorship {
   id: string;
   since: string; // ISO timestamp the contract was signed
-  weeklyStipend: number;
-  winBonus: number;
+  dailyStipend: number;
+  podiumBase: number;
   // Season-review baseline: the loft's season points at the previous season
   // rollover while this contract was active. The sponsor compares each new
   // season to it and may walk away if performance drops (see season review).

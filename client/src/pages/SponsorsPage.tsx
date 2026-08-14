@@ -135,12 +135,34 @@ function SponsorCard({
         <table className="data compact">
           <tbody>
             <tr><td>Tekengeld</td><td className="num"><Money value={s.signingBonus} />{s.signedBefore ? ' (al gehad)' : ''}</td></tr>
-            <tr><td>Per week</td><td className="num"><Money value={s.weeklyStipend} /></td></tr>
-            <tr><td>Per overwinning</td><td className="num"><Money value={s.winBonus} /></td></tr>
+            <tr><td>Per dag</td><td className="num"><Money value={s.dailyStipend} /></td></tr>
             {active && <tr><td>Opzegboete</td><td className="num"><Money value={s.breakPenalty} /></td></tr>}
           </tbody>
         </table>
       </div>
+
+      {/* Podium pays more the bigger the race — that is the whole point of a
+          sponsor, so show the grid rather than one number. */}
+      <div className="table-wrap" style={{ marginTop: 8 }}>
+        <table className="data compact">
+          <thead>
+            <tr><th>Podiumpremie</th><th className="num">1e</th><th className="num">2e</th><th className="num">3e</th></tr>
+          </thead>
+          <tbody>
+            {([['Regionaal', s.podium?.regional], ['Nationaal', s.podium?.national], ['Internationaal', s.podium?.international]] as const)
+              .filter(([, row]) => !!row)
+              .map(([label, row]) => (
+                <tr key={label}>
+                  <td>{label}</td>
+                  {row!.map((v, i) => <td key={i} className="num"><Money value={v} /></td>)}
+                </tr>
+              ))}
+          </tbody>
+        </table>
+      </div>
+      <p className="faint" style={{ margin: '6px 0 0', fontSize: '0.8rem' }}>
+        Enkel wedstrijdvluchten tellen — een oefenvlucht, de titanenwedstrijd en de estafettevlucht leveren geen premie op.
+      </p>
 
       {!active && s.conflictWith && (
         <div className="faint" style={{ marginTop: 8, fontSize: '0.82rem', color: 'var(--bad)' }}>

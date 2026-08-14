@@ -428,6 +428,10 @@ Entiteiten: `Pigeon`, `Loft`, `User`, `BreedingPair`, `Flight` (+ `SimEntry`,
   `experienceDailyGain 0.5` zolang er nog minstens één eigenschap onder haar cap zit. Werkt
   niet terwijl de duif vliegt. `pigeonDTO.coachGain` (per attribuut) voedt de UI;
   `attributeCap`/`coachMinAttr`/`eliteGainPerDay` bestaan niet meer. Zie ook §5-Genen.
+- **Sponsors (`SPONSORS`, nieuwste):** `dailyStipend` (dagelijks, niet meer per week) +
+  `podiumBase` (= zege op een nationale vlucht). Uitbetaling per podiumplaats via
+  `sponsorPodiumBonus(base, tier, rank)` = `base × SPONSOR_TIER_FACTOR[tier] × SPONSOR_PODIUM_FACTOR[rank-1]`,
+  afgerond op €5. Niveau 0,6/1,0/1,8 · plaats 1/0,6/0,35. Enkel wedstrijdvluchten.
 - **Dagopdrachten/streak verlaagd** (missions.ts): opdrachtgeld ~gehalveerd (15–60),
   streakbonus `min(25, 5 + streak·2)` → samen ~€750/week i.p.v. ~€1750.
 - **Weddenschap max inzet €500** (`BETTING.maxStake`, was 5000).
@@ -750,7 +754,32 @@ npx tsx d1-partial-load.test.mts
 ## 8. Belangrijkste wijzigingen deze sessie (achtergrond)
 
 Alles hieronder staat **live** op de deploy-branch. Data-migraties liepen door tot
-**`dataVersion = 31`**.
+**`dataVersion = 32`**.
+
+**Sponsors herijkt: dagbedrag + podiumpremie per niveau (nieuwste)**
+- **Probleem:** 3 sponsors gaven samen €170/week (€24/dag) tegen ~€280/dag kosten — 8,7% dekking —
+  en de bonus hing aan een **overwinning**, wat met 8 wedstrijden/week en 10 melkers zelden lukt.
+- **`SponsorDef.weeklyStipend` → `dailyStipend`** (uitbetaald in `tickDailyCare`, geen `/7`-afronding
+  meer) en **`winBonus` → `podiumBase`** = het bedrag voor een **zege op een nationale vlucht**. De
+  echte uitbetaling = `podiumBase × SPONSOR_TIER_FACTOR × SPONSOR_PODIUM_FACTOR`, afgerond op €5
+  (`sponsorPodiumBonus` in gameConfig). Niveaufactoren **0,6 / 1,0 / 1,8** (spiegelen de prijzengeld-
+  verhouding), plaatsfactoren **1 / 0,6 / 0,35**. Gemiddelde niveaufactor over een week = 1,06, dus
+  het **herverdeelt** richting de grote vluchten i.p.v. te inflateren.
+- Bedragen ~4× omhoog (degressief: tier 1 ×4,5 → tier 4 ×3,5): tier 1 €25–40/dag, tier 2 €45–70,
+  tier 3 €90–135, tier 4 €150–200. Tekengeld/opzegboete ≈ 14 dagen stipendium (de Loterij houdt haar
+  €3.000 tekengeld als flavour). Het trio van de speler gaat van €24 → **€100/dag**.
+- **Enkel wedstrijdvluchten betalen** — titan en estafette vallen al vóór dit blok weg in `tickFlights`,
+  practice bereikt het nooit. Let op: een titan draagt intern `type: 'international'`, dus nooit op
+  het niveau checken.
+- **Melding na elke wedstrijd met podium** (`ntf:spon:<flightId>:<userId>`, stabiel): welke duiven
+  welke plaats haalden, op welk niveau, en **per sponsor** het uitbetaalde bedrag.
+- **Dagbalans op het Overzicht:** `dailyRunningCostBreakdown` (economy.ts) geeft nu ook `sponsors[]`,
+  `sponsorTotal` en `net`; de tegel heet **Dagbalans**, toont het **nettobedrag** (groen/rood) en de
+  onderverdeling kreeg een inkomstenblok per sponsor + "Netto per dag".
+- **Migratie v32** zet lopende contracten én openstaande aanbiedingen om naar de nieuwe velden op het
+  **nieuwe** catalogusniveau; een contract dat bij ondertekening geschaald was, behoudt zijn verhouding
+  (clamp 0,5–2). `sponsors.ts` leest oude velden defensief (`weeklyStipend/7`) tot de migratie liep.
+  **dataVersion → 32.**
 
 **Estafettevlucht (nieuwste)**
 - Nieuw weekendformat dat **week om week afwisselt met de titanenwedstrijd** (zie §5 voor
