@@ -1070,7 +1070,7 @@ export interface ScheduleSlot {
 export const TITAN = {
   name: 'Titanenwedstrijd',
   weekday: 6, // Saturday (0=Sun..6=Sat)
-  hour: 11,
+  hour: 8,
   minute: 0,
   minKm: 200, // medium-to-long
   maxKm: 600,
@@ -1078,16 +1078,32 @@ export const TITAN = {
   prizes: [1800, 1200, 900], // 1e / 2e / 3e (money only)
 } as const;
 
+/**
+ * The weekly calendar (Brussels time), one fixed line-up per weekday.
+ *
+ *   ma  08:00 internationaal
+ *   di  10:00 regionaal        · 12:00 oefenvlucht
+ *   wo  08:00 nationaal
+ *   do  08:00 internationaal
+ *   vr  10:00 regionaal        · 12:00 oefenvlucht
+ *   za  08:00 titanenwedstrijd (replaces everything else that day)
+ *   zo  08:00 nationaal        · 17:00 regionaal
+ *
+ * Deliberately fewer races than the old daily long+short calendar: every flight
+ * draws from the same pool of birds, so a lighter schedule concentrates the
+ * field and makes each race more competitive.
+ */
 export const REAL_SCHEDULE: ScheduleSlot[] = [
-  // Morning: a long-distance race (national or international, rotating per day).
-  { key: 'morning-long', tiers: ['national', 'international'], weekday: null, hour: 10, minute: 0 },
-  // Noon: a short OEFENVLUCHT — free, no ranking, builds conditie/oriëntatie.
-  // Only every other day (not daily).
-  { key: 'noon-practice', tier: 'regional', weekday: null, hour: 12, minute: 0, practice: true, everyNDays: 2 },
-  // Late afternoon: a short regional race.
-  { key: 'evening-short', tier: 'regional', weekday: null, hour: 17, minute: 0 },
-  // Weekend: the TITANENWEDSTRIJD. On its day it replaces every slot above.
+  { key: 'mon-international', tier: 'international', weekday: 1, hour: 8, minute: 0 },
+  { key: 'tue-regional', tier: 'regional', weekday: 2, hour: 10, minute: 0 },
+  { key: 'tue-practice', tier: 'regional', weekday: 2, hour: 12, minute: 0, practice: true },
+  { key: 'wed-national', tier: 'national', weekday: 3, hour: 8, minute: 0 },
+  { key: 'thu-international', tier: 'international', weekday: 4, hour: 8, minute: 0 },
+  { key: 'fri-regional', tier: 'regional', weekday: 5, hour: 10, minute: 0 },
+  { key: 'fri-practice', tier: 'regional', weekday: 5, hour: 12, minute: 0, practice: true },
   { key: 'titan', tier: 'international', weekday: TITAN.weekday, hour: TITAN.hour, minute: TITAN.minute, titan: true },
+  { key: 'sun-national', tier: 'national', weekday: 0, hour: 8, minute: 0 },
+  { key: 'sun-regional', tier: 'regional', weekday: 0, hour: 17, minute: 0 },
 ];
 
 /**

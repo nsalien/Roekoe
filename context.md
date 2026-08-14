@@ -15,16 +15,16 @@
 
 | Rol | Branch | Doel |
 |-----|--------|------|
-| **Dev** | `claude/hallo-49m6hj` | Alle ontwikkeling/commits komen hier **eerst**. |
+| **Dev** | `claude/context-spelregels-q2ywtx` | Alle ontwikkeling/commits komen hier **eerst**. |
 | **Prod** | `claude/roekoe-game-website-jwa0vo` | Elke commit wordt hierheen **gecherry-pickt**; deze branch triggert de **Cloudflare Pages**-deploy naar productie. |
 
-> De vorige dev-branch `claude/hallo-49m6hj` bestaat niet meer (lokaal
-> noch op origin). Ontwikkelt een sessie op een nieuwe `claude/…`-branch, gebruik
+> De vorige dev-branch was `claude/hallo-49m6hj` (stond op dezelfde commit als prod;
+> gebruik ze niet meer). Ontwikkelt een sessie op een nieuwe `claude/…`-branch, gebruik
 > die dan als dev-branch en **werk deze tabel meteen bij** — de prod-branch
 > hierboven verandert nooit.
 
 **Workflow per wijziging (zie §7 voor de exacte commando's):**
-1. Commit op **dev** (`claude/hallo-49m6hj`) + push.
+1. Commit op **dev** (`claude/context-spelregels-q2ywtx`) + push.
 2. `git checkout` **prod** → `git cherry-pick <commit>` → push naar prod
    (`claude/roekoe-game-website-jwa0vo`) → Cloudflare bouwt.
 3. Terug naar **dev**.
@@ -50,7 +50,7 @@ Een online **duivenmelker-managementspel** voor een groepje vrienden (~10 speler
 geld verdienen → kopen/kweken/uitbreiden → herhalen.** Bots vullen het veld.
 
 - **Repo:** `nsalien/roekoe` (GitHub).
-- **Ontwikkelbranch:** `claude/hallo-49m6hj` — hier ontwikkelen en committen.
+- **Ontwikkelbranch:** `claude/context-spelregels-q2ywtx` — hier ontwikkelen en committen.
 - **Productie/deploy-branch:** `claude/roekoe-game-website-jwa0vo` — een push
   hiernaartoe triggert de **Cloudflare Pages** build (= live). Elke wijziging
   wordt via cherry-pick naar deze branch gebracht en gepusht (zie §7).
@@ -521,12 +521,24 @@ Entiteiten: `Pigeon`, `Loft`, `User`, `BreedingPair`, `Flight` (+ `SimEntry`,
   `cooldownDays 7` — **max. één kuur per hok per week** (dus één duif/week), bewaakt
   via `Loft.lastRestCure` (kolom `last_rest_cure TEXT`); `loftDTO.restCureAvailableAt`
   toont de UI wanneer de volgende weer kan.
-- **Schema (`REAL_SCHEDULE`):** dagelijks 10:00 lange vlucht + **12:00 oefenvlucht**
-  (`practice: true`, **`everyNDays: 2`** → om de 2 dagen) + 17:00 korte regiovlucht +
-  **zaterdag 11:00 Titanenwedstrijd** (`titan: true`). Tijdzone Europe/Brussels.
-  `ensureFlightsScheduled` slaat `everyNDays`-slots over als `dagnummer % N !== 0`
-  (dagnummer = dagen sinds Unix-epoch); op een **titan-dag** worden alle níet-titan-slots
-  overgeslagen (de titan vervangt alles die dag).
+- **Schema (`REAL_SCHEDULE`, nieuwste — vaste weekkalender):** één vast programma per
+  weekdag i.p.v. het oude dagelijkse lang+kort-ritme. **ma** 08:00 intl · **di** 10:00 regio
+  + 12:00 oefenvlucht · **wo** 08:00 nat · **do** 08:00 intl · **vr** 10:00 regio + 12:00
+  oefenvlucht · **za** 08:00 **Titan** (`TITAN.hour` van 11 → **8**) · **zo** 08:00 nat +
+  17:00 regio. Dat is **8 wedstrijden + 2 oefenvluchten/week** (3 regio, 2 nat, 2 intl,
+  1 titan) tegen 11–13 + 2–4 vroeger — bewust minder, zodat er **meer duiven per vlucht**
+  aan de start staan. Tijdzone Europe/Brussels; elk slot heeft een eigen `key`
+  (`mon-international`, `tue-regional`, `tue-practice`, …) zodat `templateKey` per dag
+  uniek blijft. `everyNDays` en `tiers` (dagrotatie) worden niet meer gebruikt maar
+  blijven ondersteund. Op een **titan-dag** worden alle níet-titan-slots nog steeds
+  overgeslagen (nu redundant: zaterdag heeft er geen).
+- **Oude kalenderdagen blijven ongemoeid** (`LEGACY_SLOT_KEYS` in `schedule.ts`): een dag
+  die al een vlucht heeft met een **oude** slot-key (`morning-long`/`noon-practice`/
+  `evening-short`) wordt door `ensureFlightsScheduled` **volledig overgeslagen**, zodat de
+  nieuwe kalender er geen extra races bovenop plant. Zelf-uitdovend: zodra zo'n vlucht niet
+  meer binnen de horizon (`SCHEDULE_HORIZON_DAYS 4`) valt, doet de guard niets meer en mag
+  hij weg. Een bestaande **titan** deelt zijn key (`titan:<datum>`) en wordt dus door de
+  gewone dedupe-check bewaard (blijft op 11:00 tot hij gepasseerd is).
 - **Titanenwedstrijd (`TITAN`):** `weekday 6` (zaterdag), `hour 11`, afstand 200–600 km,
   `entryFee 50`, `prizes [1800,1200,900]`. **Enkel geld** voor de melker-economie: geen
   **seizoenspunten**/medailles/wins, telt **niet** mee voor de **melkerranglijst (Roekoe)**;
@@ -669,8 +681,8 @@ npx tsx d1-partial-load.test.mts
 (Staat buiten `tsconfig.json` (`include` = `core/` + `functions/`), dus tsc raakt hem niet.)
 
 ### Git + deploy (ALTIJD, zie §0)
-1. Ontwikkel + commit op **`claude/hallo-49m6hj`**; push met
-   `git push -u origin claude/hallo-49m6hj` (retry met backoff).
+1. Ontwikkel + commit op **`claude/context-spelregels-q2ywtx`**; push met
+   `git push -u origin claude/context-spelregels-q2ywtx` (retry met backoff).
 2. **Deploy meteen naar productie** door de commit op de deploy-branch te zetten:
    ```bash
    git fetch origin claude/roekoe-game-website-jwa0vo
@@ -679,7 +691,7 @@ npx tsx d1-partial-load.test.mts
    git cherry-pick <commit>        # of meerdere
    # typecheck + build ter controle
    git push -u origin claude/roekoe-game-website-jwa0vo   # triggert Cloudflare Pages
-   git checkout claude/hallo-49m6hj           # terug naar dev
+   git checkout claude/context-spelregels-q2ywtx           # terug naar dev
    ```
 3. **Geen PR** tenzij expliciet gevraagd.
 4. Commit messages in het **Nederlands**, en eindig met de footer:
@@ -701,6 +713,22 @@ npx tsx d1-partial-load.test.mts
 
 Alles hieronder staat **live** op de deploy-branch. Data-migraties liepen door tot
 **`dataVersion = 30`**.
+
+**Lichtere, vaste weekkalender (nieuwste)**
+- `REAL_SCHEDULE` is herschreven van "elke dag een lange + een korte vlucht (+ om de 2
+  dagen een oefenvlucht)" naar **één vast programma per weekdag** (zie §5). Resultaat:
+  **10 vluchten/week** (8 wedstrijden + 2 oefen) i.p.v. 13–15. Doel: **hogere deelname
+  per vlucht** — hetzelfde aantal duiven verdeeld over minder races = voller veld en meer
+  competitie. `TITAN.hour` 11 → **8** (zaterdag blijft de enige vlucht die dag).
+- **Enkel voor nog niet geplande dagen.** Reeds geplande vluchten blijven exact zoals ze
+  zijn: `ensureFlightsScheduled` slaat elke dag over die al een vlucht met een **oude**
+  slot-key draagt (`LEGACY_SLOT_KEYS`), zodat er geen mengeling van oud + nieuw op één dag
+  ontstaat. De nieuwe kalender begint dus pas voorbij de horizon (~5 dagen na deploy).
+  **Geen migratie, geen `dataVersion`-bump.**
+- Geverifieerd met een wegwerp-tsx-script tegen de echte `ensureFlightsScheduled`: de
+  weekkalender klopt exact (3 regio / 2 nat / 2 intl / 1 titan / 2 oefen), planning is
+  idempotent, een beschermde dag krijgt niets bij, en een bestaande titan wordt niet
+  gedupliceerd.
 
 **503-fix ronde 2: `ensureSchema` blies de 50-querylimiet op (nieuwste)**
 - De 503-golf kwam terug, maar **niet** door het dagquotum (metrics: 273 k van 5 M
@@ -981,7 +1009,8 @@ Alles hieronder staat **live** op de deploy-branch. Data-migraties liepen door t
   Koppelaar, Eigen Stek, Fijnproever); missies (weddenschap, kweekkoppel, apart hok).
 
 **Laag-energie-gameplay (nieuwste)**
-- **Oefenvluchten** (`PRACTICE`, slot `noon-practice` 12:00): gratis, ~8 energie, geen
+- **Oefenvluchten** (`PRACTICE`, slots `tue-practice`/`fri-practice` 12:00; vroeger het
+  dagelijkse `noon-practice`): gratis, ~8 energie, geen
   punten/prijzen/DNF/blessure; bouwt conditie/oriëntatie op (privécoach = grotere kans
   + bonus). Bots doen niet mee. Aparte `finalizePracticeFlight` in `flight.ts`;
   `botsEnterFlight`/`bettingOpen` slaan practice over; gerichte "oefenvlucht afgerond"-
