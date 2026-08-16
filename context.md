@@ -321,6 +321,7 @@ Roekoe/
 ├── functions/api/[[path]].ts    de HELE API (Hono) — dun laagje op de engine (+ /admin/auctions)
 ├── d1-partial-load.test.mts     regressietest op de partiële load (npx tsx, node:sqlite)
 ├── query-budget.test.mts        regressietest: queries per verzoek < 50 (D1-limiet)
+├── idle-writes.test.mts         regressietest: idle poll schrijft 0 rijen (D1-schrijflimiet)
 ├── limits-report.mts            meet queries/rijen gelezen/geschreven per verzoek
 ├── migrations/0001_init.sql     D1-schema voor verse installatie
 ├── spelregels.md                spelregels + formules (Nederlands, speler-gericht)
@@ -736,6 +737,7 @@ Uitzonderingen die **wél blijven staan** — draai ze na **elke** wijziging aan
 ```bash
 npx tsx d1-partial-load.test.mts   # persistentie: laadt/schrijft de juiste slice
 npx tsx query-budget.test.mts      # D1: geen enkel verzoek over de 50 queries
+npx tsx idle-writes.test.mts       # D1: een poll zonder gebeurtenissen schrijft niets
 ```
 (Beide staan buiten `tsconfig.json` (`include` = `core/` + `functions/`), dus tsc raakt ze niet.)
 
@@ -1374,7 +1376,39 @@ Query-plannen gecontroleerd met `EXPLAIN QUERY PLAN` — alles index-gedekt beha
 `TRADE_LOAD_LIMIT` verlagen. **Structureel** blijft `pigeons` (~200 rijen) de grootste
 volledige load — die is echt globaal nodig (vluchten, markt, bots).
 
-### De bindende limiet: rijen gelezen per dag (meting `limits-report.mts`)
+### 503-fix ronde 4: elke poll schreef rijen (dé oorzaak, nieuwste)
+
+**Symptoom:** iedereen buiten, hele dag. **Metrics van die dag:** 474 k gelezen (van 5 M,
+dus 9 %) maar **77,5 k geschreven van de 100 k/dag** om 19:30 UTC — de **schrijflimiet**
+was de bindende, niet de leeslimiet. Loopt die vol, dan faalt élke schrijvende request
+tot middernacht UTC.
+
+**Oorzaak: twee klokken die "nu" in een rij stempelden bij élk verzoek.**
+- `auction.ts::ensureAuctions` zette `world.lastShelterSpawn = now` op **elke** request
+  (`dtHours > 0` is altijd waar) → de wereldrij werd altijd geschreven.
+- `health.ts::tickHealing` zette `ailment.lastTickMs = now` + herrekende `healed` op
+  **elke** request → **één duifrij per zieke duif per poll** (en `pigeons` heeft een
+  index, dus D1 rekent 2 rijen per duif aan).
+
+Met ~12 zieke duiven kostte élke poll ~25 geschreven rijen, ook al gebeurde er niets.
+Gemeten: 474 k gelezen ÷ 350 rijen ≈ **1.355 verzoeken op de hele dag** → ×25 ≈ 34 k
+rijen, en dat schaalt lineair mee met het pollen (live-bord = 3 verzoeken/minuut).
+
+**Fix — beide klokken gekwantiseerd** (zoals `tickFlightEnergy` al per 30 min werkte):
+`HEALING.tickMinutes 15` en `AUCTION.shelterCheckMinutes 15`. Sla je een tick over, dan
+blijft `lastTickMs`/`lastShelterSpawn` staan en pakt de volgende de **volle** verstreken
+tijd — geen verlies, geen drift, en de spawn-kans blijft memoryless (zelfde gemiddelde
+van 60 u). Herstel duurt 1,5–18 dagen, dus kwartierstappen zijn onzichtbaar.
+
+**Resultaat:** een poll zonder gebeurtenissen schrijft **0 rijen** (was 13–25). De zieke
+duiven kosten nu ~12 rijen per kwartier (~1.150/dag) i.p.v. per verzoek.
+
+**Nieuwe blijvende test `idle-writes.test.mts`:** pollt herhaaldelijk in een live én een
+rustige wereld en faalt zodra een poll zonder gebeurtenissen ook maar één rij schrijft.
+**Regel voor nieuwe code: stempel nooit `Date.now()` in een rij op elk verzoek** — geef
+zo'n klok altijd een minimuminterval.
+
+### De tweede limiet: rijen gelezen per dag (meting `limits-report.mts`)
 
 Gemeten op een productiewereld (200 duiven, 16 hokken, 250 trades, 40 meldingen/speler):
 

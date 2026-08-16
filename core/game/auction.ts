@@ -222,7 +222,11 @@ export function ensureAuctions(db: Database, nowMs: number): void {
       db.world.lastShelterSpawn = new Date(nowMs).toISOString();
     } else {
       const dtHours = (nowMs - last) / 3600000;
-      if (dtHours > 0) {
+      // Only roll (and stamp the world row) once every shelterCheckMinutes. The
+      // draw stays memoryless and scaled by the elapsed time, so the mean
+      // interval is unchanged — but a poll no longer rewrites `world` every
+      // time, which used to cost a D1 write on EVERY request.
+      if (dtHours >= AUCTION.shelterCheckMinutes / 60) {
         const lambdaPerHour = 1 / AUCTION.shelterMeanIntervalHours;
         if (Math.random() < 1 - Math.exp(-lambdaPerHour * dtHours)) {
           createShelterAuction(db, nowMs);

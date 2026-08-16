@@ -619,6 +619,13 @@ export const AUCTION = {
   shelterWindowHours: 24,
   /** Never run more than this many rescue auctions at once. */
   shelterMaxConcurrent: 1,
+  /**
+   * How often the spawn dice are rolled, in minutes. The draw is memoryless and
+   * scaled by elapsed time, so rolling every quarter of an hour keeps the same
+   * ~60h mean — but it stops the world row from being rewritten on every single
+   * request, which was burning the D1 daily write budget.
+   */
+  shelterCheckMinutes: 15,
   /** Opening bid for a rescue-centre bird. */
   shelterStartBid: 25,
   /** Quality range for rescue birds (they are no racers). */
@@ -1037,6 +1044,16 @@ export const HEALING = {
   medicatedSpeed: 1.2, // medicated feed on
   healthOnRecover: 15, // health restored when the ailment clears
   updateHours: 12, // cadence of the doctor/physio status updates
+  /**
+   * How often the healing clock is actually advanced, in minutes. Recovery is
+   * continuous in principle, but writing it on every request rewrote a row per
+   * ailing bird per poll — the single biggest source of D1 "rows written" (the
+   * free plan allows 100k/day). Healing takes 1,5 to 18 days, so moving in
+   * quarter-hour steps is invisible to the player, and no time is lost: a tick
+   * that is skipped leaves `lastTickMs` alone, so the next one gets the full
+   * elapsed time.
+   */
+  tickMinutes: 15,
 } as const;
 
 /** Health-system tuning. All probabilities are per weekly tick. */
