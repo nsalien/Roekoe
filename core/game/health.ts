@@ -141,8 +141,13 @@ export function tickHealing(db: Database, nowMs: number): void {
         continue;
       }
       const elapsedH = (nowMs - a.lastTickMs) / HOUR_MS;
+      // Advance the healing clock in quarter-hour steps. Touching `healed` and
+      // `lastTickMs` on every request rewrote a pigeon row per ailing bird per
+      // poll — the biggest consumer of D1's 100k rows/day write budget. Skipping
+      // a tick loses no progress: `lastTickMs` stays put, so the next one picks
+      // up the whole elapsed span.
+      if (elapsedH < HEALING.tickMinutes / 60) continue;
       a.lastTickMs = nowMs;
-      if (elapsedH <= 0) continue;
 
       const speed = healSpeed(p, loft, covered.has(p.id));
       const base = HEALING.baseHoursOutside[a.severity];
