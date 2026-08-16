@@ -321,6 +321,7 @@ Roekoe/
 ├── functions/api/[[path]].ts    de HELE API (Hono) — dun laagje op de engine (+ /admin/auctions)
 ├── d1-partial-load.test.mts     regressietest op de partiële load (npx tsx, node:sqlite)
 ├── query-budget.test.mts        regressietest: queries per verzoek < 50 (D1-limiet)
+├── limits-report.mts            meet queries/rijen gelezen/geschreven per verzoek
 ├── migrations/0001_init.sql     D1-schema voor verse installatie
 ├── spelregels.md                spelregels + formules (Nederlands, speler-gericht)
 ├── README.md / DEPLOY.md        opzet + telefoon-only deploy-gids
@@ -1372,6 +1373,38 @@ Query-plannen gecontroleerd met `EXPLAIN QUERY PLAN` — alles index-gedekt beha
 (bv. max. 1×/20 s via een `world.lastAdvance`-guard); `/state` kort cachen (Cache API);
 `TRADE_LOAD_LIMIT` verlagen. **Structureel** blijft `pigeons` (~200 rijen) de grootste
 volledige load — die is echt globaal nodig (vluchten, markt, bots).
+
+### De bindende limiet: rijen gelezen per dag (meting `limits-report.mts`)
+
+Gemeten op een productiewereld (200 duiven, 16 hokken, 250 trades, 40 meldingen/speler):
+
+| Verzoek | queries | rijen gelezen | rijen geschreven |
+|---|---|---|---|
+| Poll, niets te doen | 15 | **349** | 1 |
+| Poll tijdens live vlucht | 15 | 350 | 1 |
+| Live poll met energie-aftrek (per 30 min) | 17 | 350 | 102 |
+| Vluchtafronding | 43 | 350 | 429 |
+| Dagovergang 00:00 | 41 | 351 | 377 |
+
+**Élk** verzoek leest ~350 rijen, want de middleware laadt de wereld: ~200 duiven +
+100 trades (`TRADE_LOAD_LIMIT`) + tot 40 meldingen + 16 hokken + 16 users + vluchten.
+Bij 5 M rijen/dag is dat een **plafond van ~14.000 verzoeken per dag** — véél lager dan
+de 100.000 Worker-verzoeken/dag. De client pollt `/flights/:id/live` elke **20 s** en
+`/flights` elke **40 s**, dus één open live-bord = 180 verzoeken/uur. Tien spelers die
+samen een namiddag naar een fondvlucht kijken zitten al aan het dagbudget.
+
+> **Belangrijk:** als het leesbudget op is, faalt **ook het lichte inlogpad** (dat leest
+> nog altijd één rij). Vandaar "niemand raakt er nog in" tot de reset om **middernacht
+> UTC**. Het featherweight-pad spaart rijen, maar redt je niet als het budget al op is.
+
+**Hefbomen, in volgorde van effect** (nog niet uitgevoerd):
+1. `trades` niet meer in de hot path (enkel op `/market`) → −100 rijen (−29 %).
+2. Meldingen enkel laden waar ze nodig zijn (`/state`, bel) → −40 rijen.
+3. Live-bord **cachen** (Cache API, ~15 s): iedereen ziet hetzelfde bord, dus N pollers
+   worden één DB-hit — raakt precies het zwaarste pollpatroon.
+4. Pollintervallen verruimen: live 20 → 60 s, kalender 40 → 90 s (−3×).
+5. `advanceRealtime` throttlen (max. 1×/20 s) zodat een poll de wereld niet meer hoeft
+   te laden; dan kan `/flights/:id/live` toe met de vlucht + haar deelnemers.
 
 ### Openstaande ideeën / balans om op te letten
 - Sterfte is nog **wekelijks** terwijl herstel real-time is (evt. op elkaar afstemmen).
