@@ -283,11 +283,64 @@ export async function findUserByUsername(db: D1Database, username: string): Prom
   return row ? rowToUser(row) : null;
 }
 
+/**
+ * Column lists + row mappers for the two tables that dominate a write: `pigeons`
+ * (hundreds of rows, 38 columns) and `lofts` (one per player, 26 columns). They
+ * live at module scope because `load` snapshots the column values as they are on
+ * disk, and `persist` compares against that snapshot to write only the columns
+ * that genuinely changed (see `diff`).
+ */
+const PIGEON_COLUMNS = [
+  'id', 'owner_id', 'name', 'sex', 'birth_week', 'speed', 'endurance', 'orientation', 'libido',
+  'form', 'health', 'experience', 'sire_id', 'dam_id', 'for_sale', 'price', 'created_at_week',
+  'retired', 'ailment', 'in_infirmary', 'races', 'ever_ailed', 'breed', 'coached', 'ration',
+  'compartment', 'hunger_days', 'rest_days', 'cure_until', 'season_peak_speed', 'season_podiums',
+  'season_start_score', 'season_practice_gain', 'trained_at', 'race_log', 'genes', 'decline_rate',
+  'attr_log',
+];
+
+function pigeonRow(p: Pigeon): unknown[] {
+  return [
+    p.id, p.ownerId, p.name, p.sex, p.birthWeek, p.speed, p.endurance, p.orientation, p.libido, p.form, p.health,
+    p.experience, p.sireId, p.damId, b(p.forSale), p.price, p.createdAtWeek, 0,
+    p.ailment ? JSON.stringify(p.ailment) : '', b(p.inInfirmary), p.races, b(p.everAiled), p.breed ?? null, b(p.coached),
+    p.ration ?? 'normal', b(p.compartment), p.hungerDays ?? 0, p.restDays ?? 0, p.cureUntil ?? null,
+    p.seasonPeakSpeed ?? 0, p.seasonPodiums ?? 0, p.seasonStartScore ?? null, p.seasonPracticeGain ?? 0,
+    p.trainedAt ? JSON.stringify(p.trainedAt) : null,
+    p.raceLog && p.raceLog.length ? JSON.stringify(p.raceLog) : null,
+    p.genes ? JSON.stringify(p.genes) : null,
+    typeof p.declineRate === 'number' ? p.declineRate : null,
+    p.attrLog && p.attrLog.length ? JSON.stringify(p.attrLog) : null,
+  ];
+}
+
+const LOFT_COLUMNS = [
+  'user_id', 'name', 'money', 'food', 'food_stock', 'feed_ration', 'capacity', 'compartments',
+  'season_points', 'total_wins', 'is_bot', 'infirmary_capacity', 'medicated_food', 'doctors',
+  'physios', 'xp', 'level', 'stats', 'badges', 'missions', 'missions_day', 'streak',
+  'pending_event', 'sponsorship', 'last_rest_cure', 'awards',
+];
+
+function loftRow(l: Loft): unknown[] {
+  return [
+    l.userId, l.name, l.money, 0, JSON.stringify(l.food ?? emptyFoodStock()), l.feedRation, l.capacity, l.compartments ?? 0, l.seasonPoints, l.totalWins, b(l.isBot),
+    l.infirmaryCapacity, b(l.medicatedFood), l.doctors, l.physios,
+    l.xp, l.level, JSON.stringify(l.stats), JSON.stringify(l.badges),
+    JSON.stringify(l.missions ?? []), l.missionsDay ?? '', l.streak ?? 0,
+    l.pendingEvent ? JSON.stringify(l.pendingEvent) : '',
+    JSON.stringify(l.sponsorship ?? emptySponsorState()),
+    l.lastRestCure ?? null,
+    JSON.stringify(l.awards ?? []),
+  ];
+}
+
 export class D1Store implements Store {
   private constructor(
     private readonly db: D1Database,
     private readonly world: Database,
     private readonly snapshots: Record<string, Map<string, string>>,
+    /** Column values as loaded, for the tables that get column-narrowed updates. */
+    private readonly rowSnapshots: Record<string, Map<string, unknown[]>>,
     private readonly worldExisted: boolean,
     private readonly worldSnapshot: string,
     /** Whose inbox/bets were loaded; the bounded cleanups key off this. */
@@ -396,8 +449,15 @@ export class D1Store implements Store {
       bets: snapshot(dbObj.bets, (bt) => bt.id),
       offers: snapshot(dbObj.offers, (o) => o.id),
     };
+    // Column-level snapshots of the two heavy tables, taken BEFORE the engine
+    // mutates the entities, so `persist` can write `SET form = ...` instead of
+    // all 38 columns of a pigeon.
+    const rowSnapshots: Record<string, Map<string, unknown[]>> = {
+      pigeons: rowSnapshot(dbObj.pigeons, (p) => p.id, pigeonRow),
+      lofts: rowSnapshot(dbObj.lofts, (l) => l.userId, loftRow),
+    };
 
-    return new D1Store(db, dbObj, snapshots, worldExisted, JSON.stringify(dbObj.world), viewerId);
+    return new D1Store(db, dbObj, snapshots, rowSnapshots, worldExisted, JSON.stringify(dbObj.world), viewerId);
   }
 
   /** Write back only what changed. */
@@ -428,139 +488,133 @@ export class D1Store implements Store {
     }
 
     diff(this.snapshots.users, w.users, (u) => u.id, {
-      upsert: (u) =>
-        db.prepare(
-          'INSERT OR REPLACE INTO users (id, username, password_hash, is_admin, is_bot, created_at) VALUES (?, ?, ?, ?, ?, ?)',
-        ).bind(u.id, u.username, u.passwordHash, b(u.isAdmin), b(u.isBot), u.createdAt),
-      del: (id) => db.prepare('DELETE FROM users WHERE id = ?').bind(id),
+      db,
+      table: 'users',
+      columns: ['id', 'username', 'password_hash', 'is_admin', 'is_bot', 'created_at'],
+      keyColumn: 'id',
+      row: (u) => [u.id, u.username, u.passwordHash, b(u.isAdmin), b(u.isBot), u.createdAt],
       stmts,
     });
 
     diff(this.snapshots.lofts, w.lofts, (l) => l.userId, {
-      upsert: (l) =>
-        db.prepare(
-          'INSERT OR REPLACE INTO lofts (user_id, name, money, food, food_stock, feed_ration, capacity, compartments, season_points, total_wins, is_bot, infirmary_capacity, medicated_food, doctors, physios, xp, level, stats, badges, missions, missions_day, streak, pending_event, sponsorship, last_rest_cure, awards) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-        ).bind(
-          l.userId, l.name, l.money, 0, JSON.stringify(l.food ?? emptyFoodStock()), l.feedRation, l.capacity, l.compartments ?? 0, l.seasonPoints, l.totalWins, b(l.isBot),
-          l.infirmaryCapacity, b(l.medicatedFood), l.doctors, l.physios,
-          l.xp, l.level, JSON.stringify(l.stats), JSON.stringify(l.badges),
-          JSON.stringify(l.missions ?? []), l.missionsDay ?? '', l.streak ?? 0,
-          l.pendingEvent ? JSON.stringify(l.pendingEvent) : '',
-          JSON.stringify(l.sponsorship ?? emptySponsorState()),
-          l.lastRestCure ?? null,
-          JSON.stringify(l.awards ?? []),
-        ),
-      del: (id) => db.prepare('DELETE FROM lofts WHERE user_id = ?').bind(id),
+      db,
+      table: 'lofts',
+      columns: LOFT_COLUMNS,
+      keyColumn: 'user_id',
+      row: loftRow,
+      previousRows: this.rowSnapshots.lofts,
       stmts,
     });
 
     diff(this.snapshots.pigeons, w.pigeons, (p) => p.id, {
-      upsert: (p) =>
-        db.prepare(
-          'INSERT OR REPLACE INTO pigeons (id, owner_id, name, sex, birth_week, speed, endurance, orientation, libido, form, health, experience, sire_id, dam_id, for_sale, price, created_at_week, retired, ailment, in_infirmary, races, ever_ailed, breed, coached, ration, compartment, hunger_days, rest_days, cure_until, season_peak_speed, season_podiums, season_start_score, season_practice_gain, trained_at, race_log, genes, decline_rate, attr_log) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-        ).bind(
-          p.id, p.ownerId, p.name, p.sex, p.birthWeek, p.speed, p.endurance, p.orientation, p.libido, p.form, p.health,
-          p.experience, p.sireId, p.damId, b(p.forSale), p.price, p.createdAtWeek, 0,
-          p.ailment ? JSON.stringify(p.ailment) : '', b(p.inInfirmary), p.races, b(p.everAiled), p.breed ?? null, b(p.coached),
-          p.ration ?? 'normal', b(p.compartment), p.hungerDays ?? 0, p.restDays ?? 0, p.cureUntil ?? null,
-          p.seasonPeakSpeed ?? 0, p.seasonPodiums ?? 0, p.seasonStartScore ?? null, p.seasonPracticeGain ?? 0,
-          p.trainedAt ? JSON.stringify(p.trainedAt) : null,
-          p.raceLog && p.raceLog.length ? JSON.stringify(p.raceLog) : null,
-          p.genes ? JSON.stringify(p.genes) : null,
-          typeof p.declineRate === 'number' ? p.declineRate : null,
-          p.attrLog && p.attrLog.length ? JSON.stringify(p.attrLog) : null,
-        ),
-      del: (id) => db.prepare('DELETE FROM pigeons WHERE id = ?').bind(id),
+      db,
+      table: 'pigeons',
+      columns: PIGEON_COLUMNS,
+      keyColumn: 'id',
+      row: pigeonRow,
+      previousRows: this.rowSnapshots.pigeons,
       stmts,
     });
 
     diff(this.snapshots.breedingPairs, w.breedingPairs, (bp) => bp.id, {
-      upsert: (bp) =>
-        db.prepare(
-          'INSERT OR REPLACE INTO breeding_pairs (id, owner_id, sire_id, dam_id, hatch_week, hatch_at, created_at_week) VALUES (?, ?, ?, ?, ?, ?, ?)',
-        ).bind(bp.id, bp.ownerId, bp.sireId, bp.damId, 0, bp.hatchAt, bp.createdAtWeek),
-      del: (id) => db.prepare('DELETE FROM breeding_pairs WHERE id = ?').bind(id),
+      db,
+      table: 'breeding_pairs',
+      columns: ['id', 'owner_id', 'sire_id', 'dam_id', 'hatch_week', 'hatch_at', 'created_at_week'],
+      keyColumn: 'id',
+      row: (bp) => [bp.id, bp.ownerId, bp.sireId, bp.damId, 0, bp.hatchAt, bp.createdAtWeek],
       stmts,
     });
 
     diff(this.snapshots.flights, w.flights, (f) => f.id, {
-      upsert: (f) =>
-        db.prepare(
-          'INSERT OR REPLACE INTO flights (id, week, template_key, name, type, distance_km, entry_fee, from_city, to_city, start_at, status, entries, sim, weather, weather_factor, results, recap, created_at, practice, titan, relay, legs) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-        ).bind(
-          f.id, f.week, f.templateKey, f.name, f.type, f.distanceKm, f.entryFee,
-          f.fromCity, f.toCity, f.startAt, f.status,
-          JSON.stringify(f.entries), JSON.stringify(f.sim), f.weather, f.weatherFactor,
-          JSON.stringify(f.results), f.recap, f.createdAt, b(f.practice), b(f.titan),
-          b(f.relay), f.legs ? JSON.stringify(f.legs) : null,
-        ),
-      del: (id) => db.prepare('DELETE FROM flights WHERE id = ?').bind(id),
+      db,
+      table: 'flights',
+      columns: [
+        'id', 'week', 'template_key', 'name', 'type', 'distance_km', 'entry_fee', 'from_city',
+        'to_city', 'start_at', 'status', 'entries', 'sim', 'weather', 'weather_factor', 'results',
+        'recap', 'created_at', 'practice', 'titan', 'relay', 'legs',
+      ],
+      keyColumn: 'id',
+      row: (f) => [
+        f.id, f.week, f.templateKey, f.name, f.type, f.distanceKm, f.entryFee,
+        f.fromCity, f.toCity, f.startAt, f.status,
+        JSON.stringify(f.entries), JSON.stringify(f.sim), f.weather, f.weatherFactor,
+        JSON.stringify(f.results), f.recap, f.createdAt, b(f.practice), b(f.titan),
+        b(f.relay), f.legs ? JSON.stringify(f.legs) : null,
+      ],
       stmts,
     });
 
     diff(this.snapshots.notifications, w.notifications, (nt) => nt.id, {
-      upsert: (nt) => {
-        if (!this.snapshots.notifications.has(nt.id)) notifiedUsers.add(nt.userId);
-        return db.prepare(
-          'INSERT OR REPLACE INTO notifications (id, user_id, kind, title, body, flight_id, created_at, read) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-        ).bind(nt.id, nt.userId, nt.kind, nt.title, nt.body, nt.flightId, nt.createdAt, b(nt.read));
-      },
-      del: (id) => db.prepare('DELETE FROM notifications WHERE id = ?').bind(id),
+      db,
+      table: 'notifications',
+      columns: ['id', 'user_id', 'kind', 'title', 'body', 'flight_id', 'created_at', 'read'],
+      keyColumn: 'id',
+      row: (nt) => [nt.id, nt.userId, nt.kind, nt.title, nt.body, nt.flightId, nt.createdAt, b(nt.read)],
+      onInsert: (nt) => notifiedUsers.add(nt.userId),
       stmts,
     });
 
     diff(this.snapshots.trades, w.trades, (t) => t.id, {
-      upsert: (t) => {
-        if (!this.snapshots.trades.has(t.id)) addedTrade = true;
-        return db.prepare(
-          'INSERT OR REPLACE INTO trades (id, pigeon_id, pigeon_name, seller_id, seller_name, buyer_id, buyer_name, price, at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
-        ).bind(t.id, t.pigeonId, t.pigeonName, t.sellerId, t.sellerName, t.buyerId, t.buyerName, t.price, t.at);
-      },
-      del: (id) => db.prepare('DELETE FROM trades WHERE id = ?').bind(id),
+      db,
+      table: 'trades',
+      columns: ['id', 'pigeon_id', 'pigeon_name', 'seller_id', 'seller_name', 'buyer_id', 'buyer_name', 'price', 'at'],
+      keyColumn: 'id',
+      row: (t) => [t.id, t.pigeonId, t.pigeonName, t.sellerId, t.sellerName, t.buyerId, t.buyerName, t.price, t.at],
+      onInsert: () => { addedTrade = true; },
       stmts,
     });
 
     diff(this.snapshots.auctions, w.auctions, (a) => a.id, {
-      upsert: (a) =>
-        db.prepare(
-          'INSERT OR REPLACE INTO auctions (id, template_key, pigeon_id, start_at, end_at, min_bid, min_increment, current_bid, current_bidder_id, current_bidder_name, bids, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-        ).bind(a.id, a.templateKey, a.pigeonId, a.startAt, a.endAt, a.minBid, a.minIncrement, a.currentBid, a.currentBidderId, a.currentBidderName, JSON.stringify(a.bids ?? []), a.status),
-      del: (id) => db.prepare('DELETE FROM auctions WHERE id = ?').bind(id),
+      db,
+      table: 'auctions',
+      columns: [
+        'id', 'template_key', 'pigeon_id', 'start_at', 'end_at', 'min_bid', 'min_increment',
+        'current_bid', 'current_bidder_id', 'current_bidder_name', 'bids', 'status',
+      ],
+      keyColumn: 'id',
+      row: (a) => [a.id, a.templateKey, a.pigeonId, a.startAt, a.endAt, a.minBid, a.minIncrement, a.currentBid, a.currentBidderId, a.currentBidderName, JSON.stringify(a.bids ?? []), a.status],
       stmts,
     });
 
     // Bids as independent rows: one (auction, bidder) each, so a concurrent
     // request closing an auction can never wipe a freshly-placed bid.
     diff(this.snapshots.auctionBids, flattenAuctionBids(w.auctions), (r) => r.key, {
-      upsert: (r) =>
-        db.prepare(
-          'INSERT OR REPLACE INTO auction_bids (auction_id, user_id, name, amount, at) VALUES (?, ?, ?, ?, ?)',
-        ).bind(r.auctionId, r.userId, r.name, r.amount, new Date().toISOString()),
-      del: (key) => {
-        const sep = key.lastIndexOf('::');
-        return db.prepare('DELETE FROM auction_bids WHERE auction_id = ? AND user_id = ?')
-          .bind(key.slice(0, sep), key.slice(sep + 2));
-      },
+      db,
+      table: 'auction_bids',
+      columns: ['auction_id', 'user_id', 'name', 'amount', 'at'],
+      row: (r) => [r.auctionId, r.userId, r.name, r.amount, new Date().toISOString()],
+      // Composite key, so these deletes can't be folded into one `IN (...)`.
+      deleteKeys: (keys) =>
+        keys.map((key) => {
+          const sep = key.lastIndexOf('::');
+          return db.prepare('DELETE FROM auction_bids WHERE auction_id = ? AND user_id = ?')
+            .bind(key.slice(0, sep), key.slice(sep + 2));
+        }),
       stmts,
     });
 
     diff(this.snapshots.bets, w.bets, (bt) => bt.id, {
-      upsert: (bt) => {
-        if (!this.snapshots.bets.has(bt.id)) addedBet = true;
-        return db.prepare(
-          'INSERT OR REPLACE INTO bets (id, user_id, user_name, flight_id, kind, pigeon_id, pigeon_name, rival_id, rival_name, stake, ratio, potential_win, status, placed_at, settled_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-        ).bind(bt.id, bt.userId, bt.userName, bt.flightId, bt.kind, bt.pigeonId, bt.pigeonName, bt.rivalId, bt.rivalName, bt.stake, bt.ratio, bt.potentialWin, bt.status, bt.placedAt, bt.settledAt);
-      },
-      del: (id) => db.prepare('DELETE FROM bets WHERE id = ?').bind(id),
+      db,
+      table: 'bets',
+      columns: [
+        'id', 'user_id', 'user_name', 'flight_id', 'kind', 'pigeon_id', 'pigeon_name', 'rival_id',
+        'rival_name', 'stake', 'ratio', 'potential_win', 'status', 'placed_at', 'settled_at',
+      ],
+      keyColumn: 'id',
+      row: (bt) => [bt.id, bt.userId, bt.userName, bt.flightId, bt.kind, bt.pigeonId, bt.pigeonName, bt.rivalId, bt.rivalName, bt.stake, bt.ratio, bt.potentialWin, bt.status, bt.placedAt, bt.settledAt],
+      onInsert: () => { addedBet = true; },
       stmts,
     });
 
     diff(this.snapshots.offers, w.offers, (o) => o.id, {
-      upsert: (o) =>
-        db.prepare(
-          'INSERT OR REPLACE INTO offers (id, pigeon_id, pigeon_name, from_user_id, from_user_name, to_user_id, to_user_name, amount, status, created_at, resolved_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-        ).bind(o.id, o.pigeonId, o.pigeonName, o.fromUserId, o.fromUserName, o.toUserId, o.toUserName, o.amount, o.status, o.createdAt, o.resolvedAt),
-      del: (id) => db.prepare('DELETE FROM offers WHERE id = ?').bind(id),
+      db,
+      table: 'offers',
+      columns: [
+        'id', 'pigeon_id', 'pigeon_name', 'from_user_id', 'from_user_name', 'to_user_id',
+        'to_user_name', 'amount', 'status', 'created_at', 'resolved_at',
+      ],
+      keyColumn: 'id',
+      row: (o) => [o.id, o.pigeonId, o.pigeonName, o.fromUserId, o.fromUserName, o.toUserId, o.toUserName, o.amount, o.status, o.createdAt, o.resolvedAt],
       stmts,
     });
 
@@ -790,20 +844,146 @@ function snapshot<T>(items: T[], key: (t: T) => string): Map<string, string> {
   return m;
 }
 
+/** Same, but keeping the column values, for the column-narrowed updates in `diff`. */
+function rowSnapshot<T>(items: T[], key: (t: T) => string, row: (t: T) => unknown[]): Map<string, unknown[]> {
+  const m = new Map<string, unknown[]>();
+  for (const it of items) m.set(key(it), row(it));
+  return m;
+}
+
+/**
+ * D1 bills TWO budgets that matter here (free plan):
+ *   - **50 queries per Worker invocation** — every statement inside a `batch()`
+ *     counts, so a request that changes 60 rows used to die before it answered.
+ *   - **100 bound parameters per query** — which is what caps how many rows we
+ *     can fold into one multi-row statement.
+ * `diff` therefore writes a table's changed rows as a handful of MULTI-ROW
+ * statements instead of one statement per row: a pigeon has 38 columns, so two
+ * birds fit in one query; a notification has 8, so twelve do.
+ */
+const D1_MAX_BOUND_PARAMS = 100;
+
+/**
+ * Write back a table's changed rows (and drop the vanished ones), grouped into
+ * as few statements as the parameter ceiling allows.
+ *
+ * `onInsert` fires only for rows that are genuinely new (not in the snapshot),
+ * which is how the caller knows an inbox/trade/bet log actually grew and needs
+ * capping (see `boundedCleanups`).
+ */
 function diff<T>(
   snap: Map<string, string>,
   current: T[],
   key: (t: T) => string,
-  ops: { upsert: (t: T) => D1PreparedStatement; del: (id: string) => D1PreparedStatement; stmts: D1PreparedStatement[] },
+  ops: {
+    db: D1Database;
+    table: string;
+    columns: string[];
+    /** Primary-key column, used for the grouped DELETE. Omit with `deleteKeys`. */
+    keyColumn?: string;
+    row: (t: T) => unknown[];
+    onInsert?: (t: T) => void;
+    /**
+     * Column values as they are on disk. When given, an existing row is written
+     * with a narrow `UPDATE` of just the columns that moved instead of a full
+     * 38-column upsert — the difference between 100 statements and 8 on a
+     * daily-care tick.
+     */
+    previousRows?: Map<string, unknown[]>;
+    /** Custom deletes for a table whose key is composite (auction_bids). */
+    deleteKeys?: (keys: string[]) => D1PreparedStatement[];
+    stmts: D1PreparedStatement[];
+  },
 ): void {
+  const { db, columns, stmts } = ops;
+  const inserts: unknown[][] = [];
+  /** changed-column signature → the rows that moved exactly those columns. */
+  const bySignature = new Map<string, { cols: number[]; rows: { id: string; row: unknown[] }[] }>();
+  const touched = new Set<number>(); // union of every column that moved
+  let updateCount = 0;
+  const gone: string[] = [];
   const seen = new Set<string>();
+
   for (const it of current) {
     const id = key(it);
     seen.add(id);
-    const json = JSON.stringify(it);
-    if (snap.get(id) !== json) ops.stmts.push(ops.upsert(it));
+    if (snap.get(id) === JSON.stringify(it)) continue; // untouched
+    if (!snap.has(id)) ops.onInsert?.(it);
+    const row = ops.row(it);
+    const before = snap.has(id) ? ops.previousRows?.get(id) : undefined;
+    if (!before) {
+      inserts.push(row);
+      continue;
+    }
+    const cols: number[] = [];
+    for (let i = 0; i < row.length; i++) if (row[i] !== before[i]) cols.push(i);
+    if (cols.length === 0) continue; // JSON moved but nothing persisted changed
+    for (const i of cols) touched.add(i);
+    updateCount += 1;
+    const sig = cols.join(',');
+    const group = bySignature.get(sig) ?? { cols, rows: [] };
+    group.rows.push({ id, row });
+    bySignature.set(sig, group);
   }
-  for (const id of snap.keys()) {
-    if (!seen.has(id)) ops.stmts.push(ops.del(id));
+  for (const id of snap.keys()) if (!seen.has(id)) gone.push(id);
+
+  // Two ways to pack the updates, and which one is cheaper depends on the tick.
+  // Daily care moves the same few columns on every bird → the per-signature
+  // groups are already ideal. A race finish moves a slightly different set per
+  // bird, fragmenting into dozens of tiny statements; there, writing every row
+  // with the UNION of the changed columns (re-writing a few unchanged values,
+  // which is harmless) packs far denser. Count both and take the smaller.
+  const statementsFor = (cols: number[], rows: number) =>
+    Math.ceil(rows / Math.max(1, Math.floor(D1_MAX_BOUND_PARAMS / (cols.length + 1))));
+  const union = [...touched].sort((x, y) => x - y);
+  const splitCost = [...bySignature.values()].reduce((n, g) => n + statementsFor(g.cols, g.rows.length), 0);
+  const unionCost = statementsFor(union, updateCount);
+  const updates =
+    unionCost < splitCost
+      ? [{ cols: union, rows: [...bySignature.values()].flatMap((g) => g.rows) }]
+      : [...bySignature.values()];
+
+  const rowsPerStatement = Math.max(1, Math.floor(D1_MAX_BOUND_PARAMS / columns.length));
+  const tuple = `(${columns.map(() => '?').join(', ')})`;
+  for (let i = 0; i < inserts.length; i += rowsPerStatement) {
+    const chunk = inserts.slice(i, i + rowsPerStatement);
+    stmts.push(
+      db
+        .prepare(
+          `INSERT OR REPLACE INTO ${ops.table} (${columns.join(', ')}) VALUES ${chunk.map(() => tuple).join(', ')}`,
+        )
+        .bind(...chunk.flat()),
+    );
+  }
+
+  // Narrow updates, one statement per group of rows that changed the same
+  // columns. `WITH v(...) AS (VALUES ...)` names the columns explicitly, so the
+  // UPDATE ... FROM reads as plain SQL and stays inside the parameter ceiling.
+  for (const { cols, rows } of updates) {
+    const names = cols.map((i) => columns[i]);
+    const perStatement = Math.max(1, Math.floor(D1_MAX_BOUND_PARAMS / (names.length + 1)));
+    const values = `(${['?', ...names.map(() => '?')].join(', ')})`;
+    for (let i = 0; i < rows.length; i += perStatement) {
+      const chunk = rows.slice(i, i + perStatement);
+      const sql =
+        `WITH v(k, ${names.join(', ')}) AS (VALUES ${chunk.map(() => values).join(', ')}) ` +
+        `UPDATE ${ops.table} SET ${names.map((n) => `${n} = v.${n}`).join(', ')} ` +
+        `FROM v WHERE ${ops.table}.${ops.keyColumn} = v.k`;
+      stmts.push(db.prepare(sql).bind(...chunk.flatMap(({ id, row }) => [id, ...cols.map((i2) => row[i2])])));
+    }
+  }
+
+  if (gone.length === 0) return;
+  if (ops.deleteKeys) {
+    stmts.push(...ops.deleteKeys(gone));
+    return;
+  }
+  for (let i = 0; i < gone.length; i += D1_MAX_BOUND_PARAMS) {
+    const chunk = gone.slice(i, i + D1_MAX_BOUND_PARAMS);
+    stmts.push(
+      db
+        .prepare(`DELETE FROM ${ops.table} WHERE ${ops.keyColumn} IN (${chunk.map(() => '?').join(', ')})`)
+        .bind(...chunk),
+    );
   }
 }

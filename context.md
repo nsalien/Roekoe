@@ -15,16 +15,16 @@
 
 | Rol | Branch | Doel |
 |-----|--------|------|
-| **Dev** | `claude/context-spelregels-q2ywtx` | Alle ontwikkeling/commits komen hier **eerst**. |
+| **Dev** | `claude/hallo-xifh0c` | Alle ontwikkeling/commits komen hier **eerst**. |
 | **Prod** | `claude/roekoe-game-website-jwa0vo` | Elke commit wordt hierheen **gecherry-pickt**; deze branch triggert de **Cloudflare Pages**-deploy naar productie. |
 
-> De vorige dev-branch was `claude/hallo-49m6hj` (stond op dezelfde commit als prod;
-> gebruik ze niet meer). Ontwikkelt een sessie op een nieuwe `claude/…`-branch, gebruik
+> Vorige dev-branches (niet meer gebruiken): `claude/context-spelregels-q2ywtx`,
+> `claude/hallo-49m6hj`. Ontwikkelt een sessie op een nieuwe `claude/…`-branch, gebruik
 > die dan als dev-branch en **werk deze tabel meteen bij** — de prod-branch
 > hierboven verandert nooit.
 
 **Workflow per wijziging (zie §7 voor de exacte commando's):**
-1. Commit op **dev** (`claude/context-spelregels-q2ywtx`) + push.
+1. Commit op **dev** (`claude/hallo-xifh0c`) + push.
 2. `git checkout` **prod** → `git cherry-pick <commit>` → push naar prod
    (`claude/roekoe-game-website-jwa0vo`) → Cloudflare bouwt.
 3. Terug naar **dev**.
@@ -50,7 +50,7 @@ Een online **duivenmelker-managementspel** voor een groepje vrienden (~10 speler
 geld verdienen → kopen/kweken/uitbreiden → herhalen.** Bots vullen het veld.
 
 - **Repo:** `nsalien/roekoe` (GitHub).
-- **Ontwikkelbranch:** `claude/context-spelregels-q2ywtx` — hier ontwikkelen en committen.
+- **Ontwikkelbranch:** `claude/hallo-xifh0c` — hier ontwikkelen en committen.
 - **Productie/deploy-branch:** `claude/roekoe-game-website-jwa0vo` — een push
   hiernaartoe triggert de **Cloudflare Pages** build (= live). Elke wijziging
   wordt via cherry-pick naar deze branch gebracht en gepusht (zie §7).
@@ -320,6 +320,7 @@ Roekoe/
 │       ├── pigeon.ts, names.ts, weather.ts, util.ts (seededRng/hashString/clamp/pickWith)
 ├── functions/api/[[path]].ts    de HELE API (Hono) — dun laagje op de engine (+ /admin/auctions)
 ├── d1-partial-load.test.mts     regressietest op de partiële load (npx tsx, node:sqlite)
+├── query-budget.test.mts        regressietest: queries per verzoek < 50 (D1-limiet)
 ├── migrations/0001_init.sql     D1-schema voor verse installatie
 ├── spelregels.md                spelregels + formules (Nederlands, speler-gericht)
 ├── README.md / DEPLOY.md        opzet + telefoon-only deploy-gids
@@ -729,16 +730,17 @@ npm run build                    # bouwt de client (vanuit root)
 ```
 Voor engine-logica: snelle integratietests met **tsx** vanuit de repo-root
 (`npx tsx <test>.mts`, importeert rechtstreeks uit `./core/...`; achteraf verwijderen).
-Uitzondering die **wél blijft staan**: `d1-partial-load.test.mts` — persistentie is
-te subtiel om op zicht te vertrouwen. Draai die na **elke** wijziging aan `core/d1.ts`:
+Uitzonderingen die **wél blijven staan** — draai ze na **elke** wijziging aan
+`core/d1.ts` of aan een tick in `schedule.ts`:
 ```bash
-npx tsx d1-partial-load.test.mts
+npx tsx d1-partial-load.test.mts   # persistentie: laadt/schrijft de juiste slice
+npx tsx query-budget.test.mts      # D1: geen enkel verzoek over de 50 queries
 ```
-(Staat buiten `tsconfig.json` (`include` = `core/` + `functions/`), dus tsc raakt hem niet.)
+(Beide staan buiten `tsconfig.json` (`include` = `core/` + `functions/`), dus tsc raakt ze niet.)
 
 ### Git + deploy (ALTIJD, zie §0)
-1. Ontwikkel + commit op **`claude/context-spelregels-q2ywtx`**; push met
-   `git push -u origin claude/context-spelregels-q2ywtx` (retry met backoff).
+1. Ontwikkel + commit op **`claude/hallo-xifh0c`**; push met
+   `git push -u origin claude/hallo-xifh0c` (retry met backoff).
 2. **Deploy meteen naar productie** door de commit op de deploy-branch te zetten:
    ```bash
    git fetch origin claude/roekoe-game-website-jwa0vo
@@ -747,7 +749,7 @@ npx tsx d1-partial-load.test.mts
    git cherry-pick <commit>        # of meerdere
    # typecheck + build ter controle
    git push -u origin claude/roekoe-game-website-jwa0vo   # triggert Cloudflare Pages
-   git checkout claude/context-spelregels-q2ywtx           # terug naar dev
+   git checkout claude/hallo-xifh0c           # terug naar dev
    ```
 3. **Geen PR** tenzij expliciet gevraagd.
 4. Commit messages in het **Nederlands**, en eindig met de footer:
@@ -769,6 +771,44 @@ npx tsx d1-partial-load.test.mts
 
 Alles hieronder staat **live** op de deploy-branch. Data-migraties liepen door tot
 **`dataVersion = 32`**.
+
+**503-fix ronde 3: `persist()` schreef één statement per rij (nieuwste)**
+- **Symptoom:** 503 tijdens een live vlucht; spelers konden de vlucht niet volgen én
+  niet bieden. **Niet het dagquotum**: de D1-metrics toonden 5 k gelezen / 2 k
+  geschreven rijen (limieten 5 M / 100 k) — nog geen 0,1 % van het budget.
+- **Oorzaak: opnieuw de 50-queries-per-invocatie-limiet**, nu via `persist()`. De
+  per-rij-diff maakte **één `INSERT OR REPLACE` per gewijzigde rij**, en die tellen
+  allemaal mee binnen dezelfde `batch()`. Gemeten met `query-budget.test.mts` op een
+  productiewereld: een gewone poll 15 queries, maar een **live vlucht 68** (elke 30 min
+  krijgt élke ingeschreven duif haar energie-aftrek → 52 rijen), een **afronding 149**
+  en de **dagovergang 144**. Zo'n verzoek sterft vóór het het spel bereikt — en omdat de
+  tick niet gepersisteerd raakt, doet het vólgende verzoek exact hetzelfde: iedereen
+  zit vast zolang de vlucht loopt.
+- **Fix, volledig in `core/d1.ts::diff`** (geen migratie, geen gedragswijziging):
+  1. **Multi-row statements** — de gewijzigde rijen van een tabel gaan samen in één
+     `INSERT OR REPLACE … VALUES (…),(…)`, begrensd door D1's **100 bound parameters
+     per query** (`D1_MAX_BOUND_PARAMS`).
+  2. **Smalle updates** — `load` bewaart nu ook de **kolomwaarden** van `pigeons` en
+     `lofts` (`rowSnapshots`, mappers `pigeonRow`/`loftRow` op moduleniveau), zodat
+     `persist` alleen de kolommen schrijft die écht bewogen:
+     `WITH v(k, form) AS (VALUES …) UPDATE pigeons SET form = v.form FROM v WHERE
+     pigeons.id = v.k`. Een duif heeft 38 kolommen (2 rijen/query); een energie-aftrek
+     raakt er één (**50 rijen/query**).
+  3. **Groeperen op maat** — rijen die dezelfde kolommen wijzigen gaan samen; wijzigt
+     elke rij een iets andere set (een vluchtafronding), dan is één groep op de
+     **unie** van de kolommen goedkoper. `diff` rekent beide varianten door en neemt
+     de kleinste.
+  4. Deletes gaan gegroepeerd via `… WHERE id IN (?,?,…)`.
+- **Resultaat (gemeten, ~200 duiven):** live vlucht **68 → 17**, afronding **149 → 41**,
+  dagovergang **144 → 42**, kalender plannen **130 → 28**. Alles ruim onder de 50.
+- **Bekend plafond:** de dagovergang schaalt met het **totale** aantal duiven — bij
+  ~**350** duiven zit ze op 48/50. Rond ~400 duiven moet `tickDailyCare` per hok
+  gechunkt worden (per-hok-cursor i.p.v. `world.lastDailyTick`). `query-budget.test.mts`
+  bewaakt dit; draai hem met `PIGEONS=400` om het na te meten.
+- **Nieuwe blijvende test `query-budget.test.mts`** (naast `d1-partial-load.test.mts`):
+  bouwt een productiewereld op de échte engine en telt de queries van een verzoek door
+  een hele zondag (kalender → live vlucht → afronding → middernacht). Faalt zodra één
+  verzoek 50 queries raakt. **Draai hem na élke wijziging aan `d1.ts` of aan een tick.**
 
 **Sponsors herijkt: dagbedrag + podiumpremie per niveau (nieuwste)**
 - **Probleem:** 3 sponsors gaven samen €170/week (€24/dag) tegen ~€280/dag kosten — 8,7% dekking —
