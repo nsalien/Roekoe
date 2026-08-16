@@ -773,7 +773,17 @@ npx tsx idle-writes.test.mts       # D1: een poll zonder gebeurtenissen schrijft
 ## 8. Belangrijkste wijzigingen deze sessie (achtergrond)
 
 Alles hieronder staat **live** op de deploy-branch. Data-migraties liepen door tot
-**`dataVersion = 32`**.
+**`dataVersion = 33`**.
+
+**Migratie v33 — eenmalige veiling-rechtzetting (nieuwste)**
+- Op verzoek van de eigenaar: **€3.440 van het hok "De Vluchtige Vleugel"** afgehaald om
+  een verkeerd afgerekende veiling recht te zetten. Match op **hoknaam óf gebruikersnaam**
+  (hoofdletter-ongevoelig), **enkel echte spelers** (bots met dezelfde naam blijven
+  ongemoeid). De speler krijgt een bel-melding "⚖️ Rechtzetting van de veiling" met
+  stabiele id `ntf:admin:auctioncorrection:3440`, zodat twee gelijktijdige verzoeken
+  nooit twee meldingen of een dubbele afboeking geven. **dataVersion → 33.**
+- Patroon om te hergebruiken voor een volgende handmatige correctie: zie migratie v30
+  (duif-eigenschap) en deze (geld + melding) in `schedule.ts::runDataMigrations`.
 
 **503-fix ronde 3: `persist()` schreef één statement per rij (nieuwste)**
 - **Symptoom:** 503 tijdens een live vlucht; spelers konden de vlucht niet volgen én

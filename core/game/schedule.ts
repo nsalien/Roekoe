@@ -1352,6 +1352,31 @@ function runDataMigrations(db: Database): void {
     }
     db.world.dataVersion = 32;
   }
+  if ((db.world.dataVersion ?? 0) < 33) {
+    // One-off correction (owner request): take €3440 back off "De Vluchtige
+    // Vleugel" to settle an auction that had been credited wrongly. Real players
+    // only, matched on loft name or username. The stable notification id keeps it
+    // to exactly one message even if two requests run the migration at once — the
+    // player reads it from the bell the next time they open the game.
+    const target = db.lofts.find((l) => {
+      if (l.isBot) return false;
+      const user = db.users.find((u) => u.id === l.userId);
+      const names = [l.name, user?.username ?? ''];
+      return names.some((n) => n.trim().toLowerCase() === 'de vluchtige vleugel');
+    });
+    if (target) {
+      target.money -= 3440;
+      pushNotification(
+        db, target.userId, 'info',
+        '⚖️ Rechtzetting van de veiling',
+        'Er is €3.440 van je kassa gehaald om een veiling recht te zetten die verkeerd was ' +
+          'afgerekend. Je duiven, punten en de rest van je hok blijven ongewijzigd.',
+        null,
+        'ntf:admin:auctioncorrection:3440',
+      );
+    }
+    db.world.dataVersion = 33;
+  }
 }
 
 /** The pre-v32 weekly stipends, kept only so migration v32 can tell whether a
