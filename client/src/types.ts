@@ -83,6 +83,10 @@ export interface Pigeon {
   damId: string | null;
   ailment: Ailment | null;
   inInfirmary: boolean;
+  /** Actually being treated by a dokter/kinesist right now. */
+  treated: boolean;
+  /** The owner pinned this bird to a staff slot (vs. the automatic choice). */
+  careAssigned: boolean;
   coached: boolean;
   ration: FeedRation;
   compartment: boolean;

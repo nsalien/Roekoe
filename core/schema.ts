@@ -74,6 +74,13 @@ export interface Pigeon {
   // Health status.
   ailment: Ailment | null; // current disease/injury, or null if healthy
   inInfirmary: boolean; // resting in the ziekenboeg (isolated, recovering)
+  /**
+   * The player pinned this bird to a doctor/physio slot. One doctor treats only
+   * `INFIRMARY.birdsPerDoctor` sick birds (a physio likewise), so with more
+   * patients than slots the owner gets to choose who is treated. Unset means
+   * "let the game decide", and coverage falls back to severity-first.
+   */
+  careAssigned?: boolean;
   // Career counters (for badges).
   races: number; // flights this bird has finished
   everAiled: boolean; // has ever been ill or injured (for "Comeback" badge)

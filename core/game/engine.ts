@@ -38,7 +38,7 @@ import { botTakeWeeklyActions } from './bots.js';
 import { progressMissions } from './missions.js';
 import { resolveEvent as resolveEventCard } from './events.js';
 import { applyAcceptSponsor, applyCancelSponsor, applyRefuseSponsor } from './sponsors.js';
-import { runHealthWeek } from './health.js';
+import { careSlots, runHealthWeek } from './health.js';
 import { voidBetsForWithdrawnPigeon } from './betting.js';
 import { canRace, generatePigeon, noteAttrChange, onRestCure, trainCeil, trainingCost } from './pigeon.js';
 import { clamp, randFloat, randInt, round1 } from './util.js';
@@ -869,6 +869,41 @@ export function cancelSponsor(store: Store, userId: string, sponsorId: string): 
     const loft = db.lofts.find((l) => l.userId === userId);
     if (!loft) return '!Geen hok gevonden';
     return applyCancelSponsor(db, loft, sponsorId);
+  });
+}
+
+/**
+ * Pin (or unpin) one infirmary bird to a doctor/physio slot. A doctor treats
+ * only `INFIRMARY.birdsPerDoctor` sick birds and a physio as many injured ones,
+ * so once there are more patients than slots the owner decides who gets the
+ * care instead of the game handing it to the worst case. Returns error or null.
+ */
+export function setCareAssignment(store: Store, userId: string, pigeonId: string, on: boolean): string | null {
+  return store.mutate((db) => {
+    const loft = db.lofts.find((l) => l.userId === userId);
+    const pigeon = db.pigeons.find((p) => p.id === pigeonId && p.ownerId === userId);
+    if (!loft || !pigeon) return 'Duif niet gevonden';
+    if (!on) {
+      pigeon.careAssigned = false;
+      return null;
+    }
+    if (!pigeon.ailment) return 'Deze duif is niet ziek of gewond';
+    if (!pigeon.inInfirmary) return 'Zet deze duif eerst in de ziekenboeg';
+    if (pigeon.careAssigned) return null;
+    const kind = pigeon.ailment.kind;
+    const owned = db.pigeons.filter((p) => p.ownerId === userId);
+    const { slots, assigned } = careSlots(loft, owned, kind);
+    if (slots === 0) {
+      return kind === 'ziekte'
+        ? 'Je hebt nog geen duivendokter in dienst'
+        : 'Je hebt nog geen duivenkinesist in dienst';
+    }
+    if (assigned >= slots) {
+      const who = kind === 'ziekte' ? 'dokter' : 'kinesist';
+      return `Je ${who} behandelt er al ${slots} — haal er eerst een duif uit, of neem een tweede ${who} in dienst`;
+    }
+    pigeon.careAssigned = true;
+    return null;
   });
 }
 

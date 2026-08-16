@@ -76,6 +76,10 @@ export function pigeonDTO(db: Database, p: Pigeon, viewerId?: string) {
     damId: p.damId,
     ailment: revealed ? p.ailment : null,
     inInfirmary: revealed ? p.inInfirmary : false,
+    // Who the doctor/physio is actually treating, and whether the owner pinned
+    // this bird to that slot themselves (see Pigeon.careAssigned).
+    treated: revealed ? infirmaryCovered : false,
+    careAssigned: revealed ? !!p.careAssigned : false,
     coached: revealed ? (p.coached ?? false) : false,
     ration: revealed ? (p.ration ?? 'normal') : 'normal',
     // A bird in the infirmary keeps its compartment flag internally (to reclaim the

@@ -775,7 +775,30 @@ npx tsx idle-writes.test.mts       # D1: een poll zonder gebeurtenissen schrijft
 Alles hieronder staat **live** op de deploy-branch. Data-migraties liepen door tot
 **`dataVersion = 33`**.
 
-**Migratie v33 — eenmalige veiling-rechtzetting (nieuwste)**
+**Zelf kiezen wie de dokter/kinesist behandelt (nieuwste)**
+- **Probleem:** één dokter dekt maar `INFIRMARY.birdsPerDoctor` (2) zieke duiven en één
+  kinesist 2 gekwetste, maar de dekking ging **altijd automatisch** naar de ernstigste
+  gevallen. Met 3 patiënten en 1 dokter kon je dus niet kiezen wie voorrang kreeg.
+- **`Pigeon.careAssigned?: boolean`** (kolom `care_assigned INTEGER DEFAULT 0`, achteraan
+  `SCHEMA_STEPS`): de speler zet een duif vast op een personeelsplaats.
+  `coveredInInfirmary` (health.ts) neemt **eerst de vastgezette duiven** (onderling op
+  ernst) en vult de resterende plaatsen daarna zoals vroeger **ernstigste eerst** — een
+  hok dat de knop nooit gebruikt gedraagt zich dus exact als voorheen.
+- Nieuwe helper **`careSlots(loft, pigeons, kind)`** → `{slots, assigned, patients}`,
+  gebruikt door de guard én de UI-tellers.
+- Actie **`setCareAssignment`** (engine.ts) + endpoint **`POST /pigeons/:id/care`**
+  (`{on}`). Weigert netjes: geen personeel in dienst, duif niet in de boeg, duif niet
+  ziek, of alle plaatsen al vastgezet ("Je dokter behandelt er al 2 — …").
+- DTO: `pigeonDTO` stuurt nu **`treated`** (wordt ze effectief behandeld) en
+  **`careAssigned`**. De client rekende de dekking vroeger zélf na — die spiegel is weg,
+  de server is de waarheid.
+- UI (`InfirmaryPage`): per personeelslid een regel "behandelt nu X van je Y patiënten
+  · Z door jou vastgezet" plus een rode waarschuwing bij meer patiënten dan plaatsen; op
+  elke duifkaart in de boeg een knop **"📌 Deze duif laten behandelen"** /
+  **"📌 Behandeling vrijgeven"**. Spelregels **§5.4** bijgewerkt.
+- Geen migratie nodig (nieuwe kolom met default 0 = huidige gedrag).
+
+**Migratie v33 — eenmalige veiling-rechtzetting**
 - Op verzoek van de eigenaar: **€3.440 van het hok "De Vluchtige Vleugel"** afgehaald om
   een verkeerd afgerekende veiling recht te zetten. Match op **hoknaam óf gebruikersnaam**
   (hoofdletter-ongevoelig), **enkel echte spelers** (bots met dezelfde naam blijven

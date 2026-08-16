@@ -41,14 +41,15 @@ export function InfirmaryPage() {
   const inBoeg = pigeons.filter((p) => p.inInfirmary);
   const ailingOutside = pigeons.filter((p) => p.ailment && !p.inInfirmary);
 
-  // Mirror the server's severity-first coverage so we can show who's treated.
+  // Who is treated comes from the server now (pigeon.treated) — it knows which
+  // birds the player pinned to a staff slot and fills the rest worst-case-first.
   const bySev = (a: Pigeon, b: Pigeon) => SEV_RANK[b.ailment!.severity] - SEV_RANK[a.ailment!.severity];
   const sickIn = inBoeg.filter((p) => p.ailment?.kind === 'ziekte').sort(bySev);
   const injIn = inBoeg.filter((p) => p.ailment?.kind === 'kwetsuur').sort(bySev);
-  const covered = new Set<string>([
-    ...sickIn.slice(0, loft.doctors * cfg.birdsPerDoctor).map((p) => p.id),
-    ...injIn.slice(0, loft.physios * cfg.birdsPerPhysio).map((p) => p.id),
-  ]);
+  const doctorSlots = loft.doctors * cfg.birdsPerDoctor;
+  const physioSlots = loft.physios * cfg.birdsPerPhysio;
+  const pinnedSick = sickIn.filter((p) => p.careAssigned).length;
+  const pinnedInjured = injIn.filter((p) => p.careAssigned).length;
 
   const medFoodCost = loft.medicatedFood ? loft.infirmaryCount * cfg.medicatedFoodPerBird : 0;
   const staffCost = loft.doctors * cfg.doctorSalary + loft.physios * cfg.physioSalary;
@@ -114,7 +115,9 @@ export function InfirmaryPage() {
                 <div className="faint">
                   Geneest ziektes. 1 dokter behandelt {cfg.birdsPerDoctor} zieke duiven. <Money value={cfg.doctorSalary} />/dag.
                 </div>
-                <div className="faint">Dekt nu {loft.doctors * cfg.birdsPerDoctor} zieke duiven.</div>
+                <SlotLine
+                  slots={doctorSlots} pinned={pinnedSick} patients={sickIn.length} who="dokter"
+                />
               </div>
               <Stepper value={loft.doctors} disabled={busy} onChange={(v) => setStaff(v, loft.physios)} />
             </div>
@@ -128,7 +131,9 @@ export function InfirmaryPage() {
                 <div className="faint">
                   Geneest kwetsuren zoals een verstuikte vleugel. 1 kinesist behandelt {cfg.birdsPerPhysio} duiven. <Money value={cfg.physioSalary} />/dag.
                 </div>
-                <div className="faint">Dekt nu {loft.physios * cfg.birdsPerPhysio} gekwetste duiven.</div>
+                <SlotLine
+                  slots={physioSlots} pinned={pinnedInjured} patients={injIn.length} who="kinesist"
+                />
               </div>
               <Stepper value={loft.physios} disabled={busy} onChange={(v) => setStaff(loft.doctors, v)} />
             </div>
@@ -181,11 +186,18 @@ export function InfirmaryPage() {
             <AilingCard
               key={p.id}
               p={p}
-              treated={covered.has(p.id)}
               medFood={loft.medicatedFood}
               busy={busy}
               action="out"
               onMove={() => act(() => api(`/pigeons/${p.id}/infirmary`, { method: 'POST', body: { in: false } }), `${p.name} terug naar het hok`)}
+              onCare={() =>
+                act(
+                  () => api(`/pigeons/${p.id}/care`, { method: 'POST', body: { on: !p.careAssigned } }),
+                  p.careAssigned
+                    ? `${p.name} is vrijgegeven`
+                    : `${p.name} wordt nu behandeld`,
+                )
+              }
             />
           ))}
         </div>
@@ -207,7 +219,6 @@ export function InfirmaryPage() {
               <AilingCard
                 key={p.id}
                 p={p}
-                treated={false}
                 medFood={false}
                 busy={busy || loft.infirmaryCount >= loft.infirmaryCapacity}
                 action="in"
@@ -267,6 +278,27 @@ function InfirmaryIntro({ cfg, onClose }: { cfg: InfirmaryConfig; onClose: () =>
   );
 }
 
+/**
+ * "2 van de 2 plaatsen bezet · 3 patienten" — and a nudge to choose when there
+ * are more patients than the staff can handle.
+ */
+function SlotLine({ slots, pinned, patients, who }: { slots: number; pinned: number; patients: number; who: string }) {
+  const short = patients > slots && slots > 0;
+  return (
+    <>
+      <div className="faint">
+        Behandelt nu {Math.min(slots, patients)} van je {patients} {patients === 1 ? 'patient' : 'patienten'}
+        {slots > 0 && pinned > 0 ? ` · ${pinned} door jou vastgezet` : ''}
+      </div>
+      {short && (
+        <div style={{ color: 'var(--bad)', fontSize: '0.8rem', marginTop: 2 }}>
+          Meer patienten dan plaatsen — kies hieronder wie je {who} behandelt, of neem er een tweede bij.
+        </div>
+      )}
+    </>
+  );
+}
+
 function Stepper({ value, onChange, disabled }: { value: number; onChange: (v: number) => void; disabled?: boolean }) {
   return (
     <div className="row" style={{ gap: 6, flexShrink: 0, alignItems: 'center' }}>
@@ -279,18 +311,19 @@ function Stepper({ value, onChange, disabled }: { value: number; onChange: (v: n
 
 function AilingCard({
   p,
-  treated,
   medFood,
   busy,
   action,
   onMove,
+  onCare,
 }: {
   p: Pigeon;
-  treated: boolean;
   medFood: boolean;
   busy?: boolean;
   action: 'in' | 'out';
   onMove: () => void;
+  /** Pin/unpin this bird to a staff slot (only for birds in the infirmary). */
+  onCare?: () => void;
 }) {
   const a = p.ailment;
   return (
@@ -325,11 +358,28 @@ function AilingCard({
           )}
           {action === 'out' && (
             <div className="faint" style={{ marginTop: 6, fontSize: '0.8rem' }}>
-              {treated ? '✅ Onder behandeling' : '⏳ Wacht op verzorging'}{medFood ? ' · 💊 medicinaal voer' : ''}
+              {p.treated ? '✅ Onder behandeling' : '⏳ Wacht op verzorging'}
+              {p.careAssigned ? ' · 📌 door jou gekozen' : ''}
+              {medFood ? ' · 💊 medicinaal voer' : ''}
             </div>
           )}
         </div>
       </div>
+      {action === 'out' && onCare && p.ailment && (
+        <button
+          className={`btn ${p.careAssigned ? 'accent' : 'ghost'} block sm`}
+          style={{ marginTop: 10 }}
+          disabled={busy}
+          onClick={onCare}
+          title={
+            p.careAssigned
+              ? 'Geef deze plaats vrij voor een andere duif'
+              : `Zet je ${p.ailment.kind === 'ziekte' ? 'dokter' : 'kinesist'} op deze duif`
+          }
+        >
+          {p.careAssigned ? '📌 Behandeling vrijgeven' : '📌 Deze duif laten behandelen'}
+        </button>
+      )}
       <button className={`btn ${action === 'in' ? 'accent' : 'ghost'} block sm`} style={{ marginTop: 10 }} disabled={busy} onClick={onMove}>
         {action === 'in' ? '→ Naar ziekenboeg' : '← Terug naar hok'}
       </button>

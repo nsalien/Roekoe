@@ -132,6 +132,7 @@ function rowToPigeon(r: any): Pigeon {
     createdAtWeek: r.created_at_week,
     ailment: r.ailment ? JSON.parse(r.ailment) : null,
     inInfirmary: !!r.in_infirmary,
+    careAssigned: !!r.care_assigned,
     races: r.races ?? 0,
     everAiled: !!r.ever_ailed,
     breed: r.breed ?? undefined,
@@ -296,7 +297,7 @@ const PIGEON_COLUMNS = [
   'retired', 'ailment', 'in_infirmary', 'races', 'ever_ailed', 'breed', 'coached', 'ration',
   'compartment', 'hunger_days', 'rest_days', 'cure_until', 'season_peak_speed', 'season_podiums',
   'season_start_score', 'season_practice_gain', 'trained_at', 'race_log', 'genes', 'decline_rate',
-  'attr_log',
+  'attr_log', 'care_assigned',
 ];
 
 function pigeonRow(p: Pigeon): unknown[] {
@@ -311,6 +312,7 @@ function pigeonRow(p: Pigeon): unknown[] {
     p.genes ? JSON.stringify(p.genes) : null,
     typeof p.declineRate === 'number' ? p.declineRate : null,
     p.attrLog && p.attrLog.length ? JSON.stringify(p.attrLog) : null,
+    b(p.careAssigned),
   ];
 }
 
@@ -773,6 +775,7 @@ const SCHEMA_STEPS: string[] = [
     "ALTER TABLE lofts ADD COLUMN food_stock TEXT NOT NULL DEFAULT ''",
     'ALTER TABLE flights ADD COLUMN relay INTEGER NOT NULL DEFAULT 0',
     'ALTER TABLE flights ADD COLUMN legs TEXT',
+    'ALTER TABLE pigeons ADD COLUMN care_assigned INTEGER NOT NULL DEFAULT 0',
   ] as string[]),
 ];
 
