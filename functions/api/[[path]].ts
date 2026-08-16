@@ -52,6 +52,7 @@ import {
   setCoach,
   setInfirmary,
   setInfirmaryStaff,
+  setCareAssignment,
   setMedicatedFood,
   setPigeonCompartment,
   setPigeonRation,
@@ -565,6 +566,17 @@ app.post('/loft/infirmary/medicated', async (c) => {
   const body = await c.req.json().catch(() => ({}));
   const store = c.get('store');
   const err = setMedicatedFood(store, user.id, body.on === true);
+  await store.persist();
+  return err ? c.json({ error: err }, 400) : c.json({ ok: true });
+});
+
+// Pin one infirmary bird to a doctor/physio slot (or release it). With more
+// patients than slots the owner picks who gets treated — see setCareAssignment.
+app.post('/pigeons/:id/care', async (c) => {
+  const user = requireUser(c);
+  const body = await c.req.json().catch(() => ({}));
+  const store = c.get('store');
+  const err = setCareAssignment(store, user.id, c.req.param('id'), body.on === true);
   await store.persist();
   return err ? c.json({ error: err }, 400) : c.json({ ok: true });
 });

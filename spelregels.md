@@ -685,7 +685,17 @@ kwetsbare duiven niet nodeloos op de zwaarste vluchten.
 - **Medicinaal voer**: €6/duif/dag, verhoogt herstel van iedereen in de boeg.
 - **Duivendokter**: €57/dag, geneest **2** zieke duiven (ziektes).
 - **Duivenkinesist**: €50/dag, geneest **2** duiven (kwetsuren).
-- Dekking gaat eerst naar de ernstigste gevallen.
+- **Meer patiënten dan plaatsen? Jij kiest.** Eén dokter behandelt maar **2** zieke
+  duiven en één kinesist maar **2** gekwetste. Heb je er drie liggen met maar één
+  dokter, dan duid je op de ziekenboegpagina zelf aan wie behandeld wordt met de knop
+  **"📌 Deze duif laten behandelen"**. Zo'n vastgezette duif houdt haar plaats tot je
+  ze weer **vrijgeeft** — handig als je liever je kampioen snel terug op de baan hebt
+  dan de duif die toevallig het ziekst is.
+- **Kies je niets, dan kiest het spel**: de vrije plaatsen gaan automatisch naar de
+  **ernstigste** gevallen eerst, precies zoals vroeger. Zet je er zelf één vast, dan
+  wordt de rest van de plaatsen nog steeds automatisch ingevuld.
+- Wil je iederéén tegelijk behandelen, neem dan een **tweede dokter of kinesist** in
+  dienst — elk extra personeelslid geeft er twee plaatsen bij.
 - Zieke/gekwetste duiven en duiven in de ziekenboeg kunnen niet vliegen, trainen
   of broeden.
 - **Energie in de ziekenboeg.** Een duif die in de ziekenboeg herstelt, recupereert

@@ -347,15 +347,41 @@ export function runAgeDecline(db: Database, week: number): void {
 export function coveredInInfirmary(loft: Loft, pigeons: Pigeon[]): Set<string> {
   const bySeverity = (a: Pigeon, b: Pigeon) =>
     severityRank(b.ailment!.severity) - severityRank(a.ailment!.severity);
-  const sick = pigeons
-    .filter((p) => p.inInfirmary && p.ailment?.kind === 'ziekte')
-    .sort(bySeverity)
-    .slice(0, loft.doctors * INFIRMARY.birdsPerDoctor);
-  const injured = pigeons
-    .filter((p) => p.inInfirmary && p.ailment?.kind === 'kwetsuur')
-    .sort(bySeverity)
-    .slice(0, loft.physios * INFIRMARY.birdsPerPhysio);
-  return new Set([...sick, ...injured].map((p) => p.id));
+  // Birds the owner pinned themselves take the slots first (see Pigeon.careAssigned);
+  // whatever is left over is filled the old way, worst case first. So a loft that
+  // never touches the new control behaves exactly as before.
+  const pick = (kind: Ailment['kind'], slots: number) => {
+    const patients = pigeons.filter((p) => p.inInfirmary && p.ailment?.kind === kind);
+    const chosen = patients.filter((p) => p.careAssigned).sort(bySeverity).slice(0, slots);
+    const rest = patients.filter((p) => !p.careAssigned).sort(bySeverity);
+    return [...chosen, ...rest.slice(0, Math.max(0, slots - chosen.length))];
+  };
+  return new Set(
+    [
+      ...pick('ziekte', loft.doctors * INFIRMARY.birdsPerDoctor),
+      ...pick('kwetsuur', loft.physios * INFIRMARY.birdsPerPhysio),
+    ].map((p) => p.id),
+  );
+}
+
+/**
+ * How many staff slots a loft has for one kind of ailment, and how many of them
+ * the owner has already pinned. Drives both the guard in `setCareAssignment` and
+ * the counters shown on the Ziekenboeg page.
+ */
+export function careSlots(
+  loft: Loft,
+  pigeons: Pigeon[],
+  kind: Ailment['kind'],
+): { slots: number; assigned: number; patients: number } {
+  const patients = pigeons.filter((p) => p.inInfirmary && p.ailment?.kind === kind);
+  return {
+    slots: kind === 'ziekte'
+      ? loft.doctors * INFIRMARY.birdsPerDoctor
+      : loft.physios * INFIRMARY.birdsPerPhysio,
+    assigned: patients.filter((p) => p.careAssigned).length,
+    patients: patients.length,
+  };
 }
 
 function severityRank(s: Ailment['severity']): number {
