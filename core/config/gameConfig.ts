@@ -628,6 +628,19 @@ export const AUCTION = {
   shelterCheckMinutes: 15,
   /** Opening bid for a rescue-centre bird. */
   shelterStartBid: 25,
+  /**
+   * Endgame rules. Bidding is free for as long as an auction has more than
+   * `finalPhaseMinutes` to run; inside that window every player gets only
+   * `finalPhaseMaxBids` bids on that bird. The point is to stop the drip of
+   * one-increment nibbles: with three shots left you go to your real maximum,
+   * which ends the auction sooner AND cuts the polling load it generates.
+   * A bid inside the last `antiSnipeMinutes` still pushes the close time back to
+   * that many minutes, so nobody wins by bidding at the buzzer — but the cap keeps
+   * counting, so an extension cannot be farmed forever.
+   */
+  finalPhaseMinutes: 30,
+  finalPhaseMaxBids: 3,
+  antiSnipeMinutes: 5,
   /** Quality range for rescue birds (they are no racers). */
   shelterQualityMin: 0.05,
   shelterQualityMax: 0.35,

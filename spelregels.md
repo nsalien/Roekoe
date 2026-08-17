@@ -904,11 +904,31 @@ vluchten**.
 - Bij **aanvaarden** verhuist de duif zoals bij een gewone verkoop; andere lopende
   biedingen op die duif vervallen. Je krijgt een melding bij aanvaarden/weigeren.
 
-De **veilingen** (§12) hebben daarnaast een **anti-snipe**: een bod in de **laatste
-5 minuten** schuift de sluitingstijd terug naar **5 minuten**, zodat anderen nog
-kunnen terugbieden. In die slotfase telt de resterende tijd **live** af — de
-countdown loopt vanzelf verder en de laatste biedingen verschijnen **zonder dat je
-de pagina hoeft te vernieuwen**.
+### 9.3 Bieden op een veiling: vrij, dan geteld
+
+Een veiling (§12) kent **twee fases**:
+
+| Tijd tot het einde | Wat mag je? |
+|---|---|
+| meer dan **30 minuten** | onbeperkt bieden, zo vaak je wil |
+| laatste **30 minuten** | nog **maximaal 3 biedingen** per speler, op die duif |
+| laatste **5 minuten** | elk bod zet de klok terug op **5 minuten** (anti-snipe) |
+
+- **Je ziet je tegoed.** Zodra de slotfase begint, toont de veilingkaart hoeveel van
+  je 3 biedingen je al gebruikt hebt en hoeveel er nog over zijn. Zijn ze op, dan kan
+  je op die duif niet meer bieden — ook niet als iemand je nadien overbiedt.
+- **De klok terugzetten kost je een bod.** Een bod in de laatste 5 minuten verlengt de
+  veiling, maar telt gewoon mee voor je drie. Eindeloos rekken lukt dus niet.
+- **Winnen op de valreep bestaat niet:** door die verlenging krijgen de anderen altijd
+  de kans om terug te bieden.
+- In de slotfase telt de resterende tijd **live** af — de countdown loopt vanzelf
+  verder en de laatste biedingen verschijnen **zonder dat je de pagina hoeft te
+  vernieuwen**.
+
+**Waarom?** Met een beperkt aantal biedingen loont nibbelen met het minimumbedrag niet
+meer: je zet beter meteen een stevige stap, of gewoon je échte maximum. Zo eindigt een
+veiling in een handvol duidelijke stappen in plaats van tientallen kleine — spannender,
+en het houdt het spel snel voor iedereen.
 
 ### 9.2 Afscheid nemen van een duif (vrijlaten of het duivenrestaurant)
 Wil je van een duif af, dan hoef je niet te wachten tot iemand ze koopt. Op de
@@ -966,8 +986,10 @@ kwetsuur, ziekte, herstel, sterfte en geboorte van jongen.
   op), een **sperwer** in de buurt (van niets doen tot een dode duif) of een
   **liefdadigheidsvlucht** met je ace. Elke keuze heeft gevolgen — soms winst,
   soms flink risico.
-- **Zondagveiling.** Elke **zondag van 11:00 tot 20:00** (Brussel) gaat een
-  topduif onder de hamer op de markt. Je moet het geld dat je biedt op dat moment
+- **Zondagveiling.** Elke **zondag van 11:00 tot 20:00** (Brussel) gaat **één**
+  topduif onder de hamer op de markt — nooit meerdere tegelijk, zodat alle melkers
+  om dezelfde duif strijden. Zolang die veiling loopt, komt er ook **geen**
+  opvangcentrum-duif tussen. Je moet het geld dat je biedt op dat moment
   ook echt hebben, maar het wordt **niet vastgehouden** — je kan het intussen nog
   gewoon gebruiken. Bij sluiting wint de hoogste bieder, **op voorwaarde dat hij
   het bedrag nog kan betalen** (en plaats heeft). Kan hij niet, dan gaat de duif

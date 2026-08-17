@@ -27,6 +27,7 @@
 import type { D1Database, D1PreparedStatement } from '@cloudflare/workers-types';
 import type {
   Auction,
+  AuctionBid,
   Bet,
   BreedingPair,
   Database,
@@ -416,10 +417,10 @@ export class D1Store implements Store {
     try {
       const bidRows = (await db.prepare('SELECT * FROM auction_bids').all()).results as any[];
       if (bidRows.length > 0) {
-        const byAuction = new Map<string, { userId: string; name: string; amount: number }[]>();
+        const byAuction = new Map<string, AuctionBid[]>();
         for (const r of bidRows) {
           const arr = byAuction.get(r.auction_id) ?? [];
-          arr.push({ userId: r.user_id, name: r.name, amount: r.amount });
+          arr.push({ userId: r.user_id, name: r.name, amount: r.amount, lateBids: r.late_bids ?? 0 });
           byAuction.set(r.auction_id, arr);
         }
         for (const a of dbObj.auctions) {
@@ -583,8 +584,8 @@ export class D1Store implements Store {
     diff(this.snapshots.auctionBids, flattenAuctionBids(w.auctions), (r) => r.key, {
       db,
       table: 'auction_bids',
-      columns: ['auction_id', 'user_id', 'name', 'amount', 'at'],
-      row: (r) => [r.auctionId, r.userId, r.name, r.amount, new Date().toISOString()],
+      columns: ['auction_id', 'user_id', 'name', 'amount', 'at', 'late_bids'],
+      row: (r) => [r.auctionId, r.userId, r.name, r.amount, new Date().toISOString(), r.lateBids ?? 0],
       // Composite key, so these deletes can't be folded into one `IN (...)`.
       deleteKeys: (keys) =>
         keys.map((key) => {
@@ -776,6 +777,7 @@ const SCHEMA_STEPS: string[] = [
     'ALTER TABLE flights ADD COLUMN relay INTEGER NOT NULL DEFAULT 0',
     'ALTER TABLE flights ADD COLUMN legs TEXT',
     'ALTER TABLE pigeons ADD COLUMN care_assigned INTEGER NOT NULL DEFAULT 0',
+    'ALTER TABLE auction_bids ADD COLUMN late_bids INTEGER NOT NULL DEFAULT 0',
   ] as string[]),
 ];
 
@@ -829,13 +831,16 @@ export async function ensureSchema(db: D1Database): Promise<boolean> {
 /** Flatten every auction's bids into one row per (auction, bidder). The key
  *  `${auctionId}::${userId}` lets the per-row diff add/update/remove each bid
  *  independently, so bids survive concurrent writes to the auction row. */
-function flattenAuctionBids(
-  auctions: Auction[],
-): { key: string; auctionId: string; userId: string; name: string; amount: number }[] {
-  const rows: { key: string; auctionId: string; userId: string; name: string; amount: number }[] = [];
+type FlatBid = { key: string; auctionId: string; userId: string; name: string; amount: number; lateBids: number };
+
+function flattenAuctionBids(auctions: Auction[]): FlatBid[] {
+  const rows: FlatBid[] = [];
   for (const a of auctions) {
     for (const bd of a.bids ?? []) {
-      rows.push({ key: `${a.id}::${bd.userId}`, auctionId: a.id, userId: bd.userId, name: bd.name, amount: bd.amount });
+      rows.push({
+        key: `${a.id}::${bd.userId}`, auctionId: a.id, userId: bd.userId,
+        name: bd.name, amount: bd.amount, lateBids: bd.lateBids ?? 0,
+      });
     }
   }
   return rows;

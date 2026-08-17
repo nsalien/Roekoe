@@ -462,6 +462,12 @@ export interface AuctionBid {
   userId: string;
   name: string;
   amount: number;
+  /**
+   * Bids this player has spent inside the auction's final phase (see
+   * AUCTION.finalPhaseMinutes). Capped at AUCTION.finalPhaseMaxBids, and it
+   * survives a raise: a player keeps one standing bid row, not a history.
+   */
+  lateBids?: number;
 }
 
 export interface Auction {

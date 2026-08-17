@@ -517,6 +517,15 @@ export interface AuctionInfo {
   currentBid: number;
   currentBidderName: string | null;
   minNextBid: number;
+  /** When the endgame starts: from here every player has only `maxBids` left. */
+  finalPhaseAt: string;
+  finalPhase: boolean;
+  finalPhaseMinutes: number;
+  antiSnipeMinutes: number;
+  maxBids: number;
+  /** Bids this viewer already spent in the final phase, and what is left. */
+  bidsUsed: number;
+  bidsLeft: number;
 }
 
 export interface Sponsor {
