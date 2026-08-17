@@ -434,6 +434,12 @@ export interface Trade {
   buyerName: string;
   price: number;
   at: string; // ISO timestamp
+  /**
+   * The bird's talent at the moment of sale. This is what makes the sale usable as
+   * a price observation later (see game/market.ts) — the bird itself may since have
+   * trained on, been sold again, or died.
+   */
+  talent?: number;
 }
 
 /**

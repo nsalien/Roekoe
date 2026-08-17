@@ -12,6 +12,7 @@ import { bettingOpen } from './game/betting.js';
 import { nextCapacityTier, nextInfirmaryTier, ownerName } from './game/engine.js';
 import { coachDailyGain, dailyRunningCostBreakdown, projectDailyCare } from './game/economy.js';
 import { coveredInInfirmary } from './game/health.js';
+import { valuePigeon } from './game/market.js';
 import { flightCommentary, liveSnapshot } from './game/flight.js';
 import { relayEntryTeams, relayLegKm } from './game/relay.js';
 import { BADGES, levelForXp } from './game/badges.js';
@@ -68,7 +69,18 @@ export function pigeonDTO(db: Database, p: Pigeon, viewerId?: string) {
       const b = breedInfo(p.breed);
       return { id: b.id, name: b.name, rarity: b.rarity, rarityLabel: BREED_RARITY[b.rarity].label, image: b.image };
     })(),
-    value: estimateValue(p, week),
+    ...(() => {
+      // What a bird is worth is set by the MARKET (recent comparable sales),
+      // falling back to the model curve when there is no data — see game/market.ts.
+      const v = valuePigeon(db, p, week);
+      return {
+        value: v.value,
+        valueModel: v.modelValue,
+        valueMarket: v.marketValue,
+        valueTrust: Math.round(v.trust * 100),
+        valueSamples: v.sampleSize,
+      };
+    })(),
     canRace: canRace(p, week),
     forSale: p.forSale,
     price: p.price,

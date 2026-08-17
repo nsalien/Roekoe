@@ -155,6 +155,17 @@ export function PigeonPage() {
                 {p.canRace ? ' klaar om te vliegen' : ' nog niet vluchtklaar'}
               </p>
               <div className="faint">Geschatte waarde <Money value={p.value} /> · eigenaar {p.ownerName}</div>
+              <div className="faint" style={{ fontSize: '0.78rem' }}>
+                {p.valueTrust > 0 ? (
+                  <>
+                    Marktprijs: {p.valueTrust}% bepaald door {p.valueSamples} recente
+                    {p.valueSamples === 1 ? ' verkoop' : ' verkopen'} van vergelijkbare duiven
+                    {p.valueMarket !== null ? <> (gemiddeld <Money value={p.valueMarket} />)</> : null}
+                  </>
+                ) : (
+                  <>Nog geen vergelijkbare verkopen — dit is een schatting op basis van haar eigenschappen</>
+                )}
+              </div>
             </div>
           </div>
 

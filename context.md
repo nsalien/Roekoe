@@ -323,6 +323,7 @@ Roekoe/
 ├── query-budget.test.mts        regressietest: queries per verzoek < 50 (D1-limiet)
 ├── idle-writes.test.mts         regressietest: idle poll schrijft 0 rijen (D1-schrijflimiet)
 ├── limits-report.mts            meet queries/rijen gelezen/geschreven per verzoek
+│   (core/game/market.ts        = marktgestuurde duivenwaarde, zie §8)
 ├── migrations/0001_init.sql     D1-schema voor verse installatie
 ├── spelregels.md                spelregels + formules (Nederlands, speler-gericht)
 ├── README.md / DEPLOY.md        opzet + telefoon-only deploy-gids
@@ -775,7 +776,46 @@ npx tsx idle-writes.test.mts       # D1: een poll zonder gebeurtenissen schrijft
 Alles hieronder staat **live** op de deploy-branch. Data-migraties liepen door tot
 **`dataVersion = 33`**.
 
-**Veiling-slotfase: 3 biedingen in de laatste 30 min + één zondagduif (nieuwste)**
+**Duivenwaarde komt van de markt i.p.v. een vaste curve (nieuwste)**
+- **Probleem:** `estimateValue` is een vaste curve `(talent/50)^2.2 × 800`, en die is te
+  vlak aan de top: over de héle talentschaal 40→90 gaat de prijs maar **×6**, terwijl een
+  topduif ~€2.500/week aan prijzengeld kan ophalen en een talent-50 duif nooit iets. Een
+  veilingduif geschat op €2.300 ging voor **€7.000** weg. Gemeten met `limits-report`-stijl
+  script: zondagveiling-duiven schatten op €1.220–€2.910.
+- **Nieuw: `core/game/market.ts`.** De markt zet het **niveau**, het model bewaakt de
+  **rangorde**:
+  1. elke verkoop (markt/privébod/veiling) bewaart het **talent** bij de prijs
+     (`Trade.talent`, kolom `talent REAL` achteraan `SCHEMA_STEPS`);
+  2. per verkoop een **factor** = prijs ÷ referentiecurve op dat talent;
+  3. die factoren worden gemiddeld per talentband, gewogen op **talentafstand**
+     (`talentSigma 10`) en **recentheid** (`halfLifeDays 10`, venster 28 dagen);
+  4. de curve wordt **monotoon** gemaakt (cumulatief maximum) → een betere duif is nooit
+     minder waard, ook niet als er in één band een koopje voorbijkwam.
+- **Waarom factoren en niet de prijzen zelf:** met 10 spelers zijn er nooit verkopen in
+  élke band. Rechtstreeks naar prijzen blenden maakte een talent-85 duif **goedkoper** dan
+  een talent-70 die hoog verkocht was. Schalen van de curve houdt de banden vergelijkbaar.
+- **Per verzoek één curve** (`WeakMap` op `Database`, sleutel bevat `db.trades.length` zodat
+  een verkoop die in hetzelfde verzoek wordt afgesloten wél meetelt). Nodig want `/state`
+  waardeert ~200 duiven binnen 10 ms CPU.
+- **Zonder verkopen = het oude gedrag.** `MARKET_VALUATION` knoppen: `trustWeight 1.5`
+  (≈2 verse verkopen = volle invloed), `maxTrust 0.85`, factorband `0.1–8`.
+- **Gemeten** (verkopen talent 70–72 aan €7.000/€5.200): talent 70 → €7.010, 78 → €8.970,
+  85 → €9.370 (monotoon); daarna twee junkverkopen aan €50–60: talent 30 → €120.
+- **Doorwerking:** `pigeonDTO.value` + nieuwe velden `valueModel`/`valueMarket`/`valueTrust`/
+  `valueSamples` (duifpagina toont "X% bepaald door N recente verkopen"); **veiling-startbod**
+  = `AUCTION.openingBidFraction` (**0,3**, was 0,5 van de modelwaarde) zodat de hamer de prijs
+  *ontdekt* i.p.v. dicteert; het **koopman-dilemma** biedt nu op marktwaarde.
+- **Migratie v34:** de twee veilingverkopen van 16 aug 2026 ("tante … soep" €7.000,
+  "Edgard … soep" €5.200) worden als **prijsobservatie** in `db.trades` gezet (het spel lag
+  plat, spelers regelden het onderling). **Enkel data:** geen geld verplaatst, geen eigenaar
+  gewijzigd. Stabiele id `trd_manual_…`. **dataVersion → 34.**
+- **Bekende scheefheden die nog in het model zitten** (nu minder erg, want de markt overrulet
+  het niveau): leeftijd verlaagt de waarde **niet** meer boven 1 jaar (`AGE_CURVE` is aan de
+  dalende kant afgevlakt naar 1,0), en de ervaringsfactor (×1,0–1,5) weegt zwaarder dan het
+  verschil tussen een goede en een elitevogel.
+- Wiki-sectie **💰 Wat is een duif waard?**, spelregels **§9.0**.
+
+**Veiling-slotfase: 3 biedingen in de laatste 30 min + één zondagduif**
 - **Doel:** minder nibbelen met minimumbedragen → spelers zetten sneller hun echte
   maximum, veilingen eindigen in enkele grote stappen, en dat drukt meteen de
   poll-belasting van het slotkwartier.

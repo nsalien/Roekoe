@@ -40,7 +40,7 @@ import { resolveEvent as resolveEventCard } from './events.js';
 import { applyAcceptSponsor, applyCancelSponsor, applyRefuseSponsor } from './sponsors.js';
 import { careSlots, runHealthWeek } from './health.js';
 import { voidBetsForWithdrawnPigeon } from './betting.js';
-import { canRace, generatePigeon, noteAttrChange, onRestCure, trainCeil, trainingCost } from './pigeon.js';
+import { canRace, generatePigeon, noteAttrChange, onRestCure, talent, trainCeil, trainingCost } from './pigeon.js';
 import { clamp, randFloat, randInt, round1 } from './util.js';
 
 export const NPC_OWNER_ID = 'npc_market';
@@ -597,6 +597,7 @@ export function buyPigeon(store: Store, userId: string, pigeonId: string): strin
       pigeonName: pigeon.name,
       sellerId,
       sellerName: ownerName(db, sellerId),
+      talent: talent(pigeon), // price observation for the market valuation
       buyerId: userId,
       buyerName: buyer.name,
       price,

@@ -82,6 +82,12 @@ export interface Pigeon {
   sireId: string | null;
   damId: string | null;
   ailment: Ailment | null;
+  /** What the market says this bird is worth (see server game/market.ts). */
+  valueModel: number;
+  valueMarket: number | null;
+  /** How strongly recent comparable sales set the price, in %. */
+  valueTrust: number;
+  valueSamples: number;
   inInfirmary: boolean;
   /** Actually being treated by a dokter/kinesist right now. */
   treated: boolean;
