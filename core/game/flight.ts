@@ -29,7 +29,7 @@ import {
 import { RELAY } from '../config/gameConfig.js';
 import type { Ailment, Flight, FlightResult, Loft, Pigeon, SimEntry } from '../schema.js';
 import { relayEntryTeams, relayLegKm, relaySimTeams } from './relay.js';
-import { ageMultiplier, noteAttrChange, raceCeil } from './pigeon.js';
+import { ageMultiplier, experienceGain, noteAttrChange, raceCeil } from './pigeon.js';
 import { applyAilment, randomAilmentOfSeverity, randomInjury } from './health.js';
 import { randomWeather, type WeatherResult } from './weather.js';
 import { clamp, hashString, interpolate, pickWith, randFloat, round1, seededRng } from './util.js';
@@ -729,10 +729,14 @@ export function finalizeFlight(flight: Flight, pigeons: Pigeon[]): SimulatedFlig
     }
     const enduranceDelta = isDnf ? 0 : round1(0.3 + flight.distanceKm / 500 + rf(0, 0.4));
     const healthDelta = gaveUp ? 0 : -round1(rf(0, flight.distanceKm / 200) + (isDnf ? rf(4, 9) : 0));
-    const experienceDelta = round1((isDnf ? 1 : 2) + flight.distanceKm / 100);
+    const pigeon = pigeons.find((p) => p.id === s.pigeonId);
+    // Ervaring has diminishing returns: the same ride teaches a rookie far more
+    // than a veteran (experienceGain scales the raw gain by the room left).
+    const experienceDelta = round1(
+      experienceGain(pigeon?.experience ?? 0, (isDnf ? 1 : 2) + flight.distanceKm / 100),
+    );
     fatigue.push({ pigeonId: s.pigeonId, formDelta, enduranceDelta, healthDelta, experienceDelta });
 
-    const pigeon = pigeons.find((p) => p.id === s.pigeonId);
     if (pigeon) {
       // Racing builds condition (finishers only): a chance to grow in the
       // attribute that matters most for this distance. The WORSE the bird is
@@ -907,10 +911,11 @@ function finalizeRelayFlight(flight: Flight, pigeons: Pigeon[]): SimulatedFlight
       }
       const enduranceDelta = completed ? round1(0.3 + legKm / 500 + rf(0, 0.4)) : 0;
       const healthDelta = gaveUp ? 0 : -round1(rf(0, legKm / 200) + (completed ? 0 : rf(4, 9)));
-      const experienceDelta = round1((completed ? 2 : 1) + legKm / 100);
+      const pigeon = pigeons.find((p) => p.id === s.pigeonId);
+      // Diminishing returns on ervaring — same curve as a solo race.
+      const experienceDelta = round1(experienceGain(pigeon?.experience ?? 0, (completed ? 2 : 1) + legKm / 100));
       fatigue.push({ pigeonId: s.pigeonId, formDelta, enduranceDelta, healthDelta, experienceDelta });
 
-      const pigeon = pigeons.find((p) => p.id === s.pigeonId);
       if (!pigeon) continue;
 
       // Growth, on the team's placing (you fly for the team, not for yourself).
@@ -1008,10 +1013,11 @@ function finalizePracticeFlight(flight: Flight, pigeons: Pigeon[]): SimulatedFli
     const remainder = s.formCost == null ? PRACTICE.energyCost : Math.max(0, s.formCost - drained);
     const formDelta = -round1(remainder);
     const enduranceDelta = round1(0.2 + rf(0, 0.3)); // light conditie build
-    const experienceDelta = round1(0.5 + rf(0, 0.5));
+    const pigeon = pigeons.find((p) => p.id === s.pigeonId);
+    // Diminishing returns on ervaring — same curve as a competition flight.
+    const experienceDelta = round1(experienceGain(pigeon?.experience ?? 0, 0.5 + rf(0, 0.5)));
     fatigue.push({ pigeonId: s.pigeonId, formDelta, enduranceDelta, healthDelta: 0, experienceDelta });
 
-    const pigeon = pigeons.find((p) => p.id === s.pigeonId);
     if (pigeon) {
       const chance = pigeon.coached ? PRACTICE.coachedImproveChance : PRACTICE.improveChance;
       if (rng() < chance) {

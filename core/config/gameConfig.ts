@@ -338,6 +338,29 @@ export const TRAINING = {
 } as const;
 
 /**
+ * Ervaring (experience) grows with DIMINISHING RETURNS. Every raw experience gain
+ * — a flight, a training session, a coaching day, an event — is multiplied by
+ *
+ *   factor(exp) = minFactor + (maxFactor − minFactor) · ((100 − exp)/100)^curve
+ *
+ * so a green bird picks things up fast and a seasoned veteran barely learns
+ * anything new. With the values below a rookie learns ×1.8 and the factor drops
+ * below 1 around ervaring 33, to ×0.16 at 90. Climbing the whole 0→100 costs
+ * ~2.4× the raw units it used to (0→50 stays about as quick as before; 90→100 is
+ * the real grind), which keeps a maxed-out ervaring the mark of a true veteran.
+ *
+ * `minFactor` has a hard floor to respect: ervaring is stored with ONE decimal, so
+ * the smallest recurring raw gain (the coach's 0.5/day, an oefenvlucht's ~0.5)
+ * must still land on ≥ 0.05 after scaling or it would silently round away to
+ * nothing. 0.5 × 0.12 = 0.06 — do not lower `minFactor` below 0.10.
+ */
+export const EXPERIENCE = {
+  maxFactor: 1.8, // multiplier at ervaring 0 (rookies learn fast)
+  minFactor: 0.12, // multiplier at ervaring 100 (see the rounding floor above)
+  curve: 1.6, // >1 makes the slowdown bite earlier
+} as const;
+
+/**
  * Flight calendar. Every entry describes a race that is generated each week the
  * `week % everyWeeks === offset`. Extend this array to add more competitions.
  */

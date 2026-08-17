@@ -344,10 +344,11 @@ export function PigeonPage() {
                       <div className="notice" style={{ margin: '8px 0 0', fontSize: '0.82rem', lineHeight: 1.5 }}>
                         <strong>Voor {p.name} nu:</strong> per dag ± snelheid <strong>+{cg.speed.toFixed(2)}</strong>, conditie{' '}
                         <strong>+{cg.endurance.toFixed(2)}</strong>, oriëntatie <strong>+{cg.orientation.toFixed(2)}</strong>
-                        {state?.economy && <>, ervaring <strong>+{state.economy.coachExpDailyGain.toFixed(2)}</strong></>}.
+                        , ervaring <strong>+{(cg.experience ?? 0).toFixed(2)}</strong>.
                         <br />
                         De winst wordt <strong>kleiner naarmate een eigenschap haar gen-cap nadert</strong>, en een eigenschap die
-                        haar cap al bereikt heeft stijgt niet meer (de andere wél).
+                        haar cap al bereikt heeft stijgt niet meer (de andere wél). Ook <strong>ervaring</strong> groeit trager
+                        naarmate de duif er meer heeft.
                       </div>
                     ) : (
                       <div className="notice" style={{ margin: '8px 0 0', fontSize: '0.82rem', lineHeight: 1.5 }}>

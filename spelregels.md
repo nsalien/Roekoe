@@ -23,7 +23,7 @@ Elke duif (0–100 per waarde):
 | **Energie** | dynamisch | "Fut". Daalt door vluchten, stijgt door rust + eten. Lage energie = slechtere prestaties, meer kans op ziekte/blessure, minder kans op broeden. |
 | **Gezondheid** | dynamisch | Algemene gezondheid. Vermenigvuldigt de vluchtsnelheid; laag = niet vluchtklaar. |
 | **Libido** | dynamisch | Broeddrift. Volgt conditie + energie (met een frisse minderheid als uitzondering). |
-| **Ervaring** | groeit | Zelfvertrouwen. Betere prestaties, sneller energieherstel én **minder energieverbruik per vlucht**. Groeit door te vliegen. |
+| **Ervaring** | groeit | Zelfvertrouwen. Betere prestaties, sneller energieherstel én **minder energieverbruik per vlucht**. Groeit door te vliegen, te trainen en met een coach — **snel bij een groentje, steeds trager bij een routinier** (§3.5). |
 
 Een duif is **vluchtklaar** als: niet gepensioneerd, geen ziekte/kwetsuur, niet
 in de ziekenboeg, minstens **8 weken** oud en gezondheid > 15.
@@ -310,7 +310,7 @@ Per deelnemende duif:
 | **Energie** (verbruik) | −((10 + afstand/30) · ervaringsfactor + willekeurig 0…10) | **geleidelijk tijdens de vlucht** (zie hieronder) |
 | **Conditie** (opbouw) | +(0.3 + afstand/500 + willekeurig 0…0.4) | na afloop |
 | **Gezondheid** | −(willekeurig 0 … afstand/200) | na afloop |
-| **Ervaring** | +(2 + afstand/100) | na afloop |
+| **Ervaring** | +(2 + afstand/100) × **leerfactor** (§3.5) | na afloop |
 
 **Ervaring bepaalt mee hoeveel energie een vlucht kost.** Een ervaren duif vliegt
 efficiënter en verbruikt **minder**; een onervaren duif verbruikt **meer**. De
@@ -453,6 +453,52 @@ de live-pagina). Ze finisht dan niet en telt als DNF — géén punten of prijs 
 Handig als je vroeg merkt dat een duif toch niet gaat scoren en je haar zoveel
 mogelijk fris wil houden voor de volgende vlucht, in plaats van haar helemaal
 leeg te laten lopen.
+
+### 3.5 Ervaring: een groentje leert snel, een veteraan amper nog
+
+Ervaring stijgt **niet** aan een vast tempo. Élke ervaringswinst — een vlucht, een
+oefenvlucht, een trainingsbeurt, een dag privécoach, een gebeurtenis — wordt
+vermenigvuldigd met een **leerfactor** die afhangt van hoeveel ervaring de duif al
+heeft:
+
+```
+ruimte      = (100 − Ervaring) / 100
+leerfactor  = 0.12 + 1.68 · ruimte^1.6
+Ervaring   += rauwe_winst · leerfactor
+```
+
+| Ervaring van de duif | Leerfactor | Wat dat betekent |
+|---|---|---|
+| 0 | **×1,80** | een groentje leert bijna dubbel zo snel als vroeger |
+| 20 | ×1,30 | nog altijd sneller dan vroeger |
+| **33** | **×1,00** | het omslagpunt — vanaf hier gaat het trager dan vroeger |
+| 50 | ×0,67 | een vlucht levert nog twee derde op |
+| 70 | ×0,36 | ruim een derde |
+| 90 | ×0,16 | een tiende — de laatste punten zijn een grind |
+| 100 | ×0,12 | (de bodem; hoger dan 100 kan sowieso niet) |
+
+**Wat blijft gelden:**
+- **Een verre vlucht leert nog steeds meer dan een korte.** De leerfactor schaalt
+  alles evenredig, dus de rangorde tussen vluchten verandert niet — een fondvlucht
+  blijft de beste leerschool.
+- **Het loopt nooit helemaal vast.** Ook op ervaring 95 pikt een duif nog iets op;
+  het duurt gewoon lang.
+- **Ervaring heeft geen gen-cap.** Elke duif kan in principe 100 halen (anders dan
+  snelheid/conditie/oriëntatie, §7bis) — het is een kwestie van kilometers maken.
+
+**Ruwe orde van grootte.** Een duif die ~3 wedstrijden en 2 oefenvluchten per week
+vliegt met een coach erbij, zit na ongeveer **2 weken op ervaring 50**, na **6
+weken op 80**, en heeft er zo'n **11 weken** voor nodig om tegen de 100 aan te
+leunen. Het volledige traject 0 → 100 kost dus ruwweg **2,5× meer vluchten** dan
+vroeger, terwijl de eerste helft juist **sneller** gaat dan vroeger.
+
+> **Strategie.** Laat jonge duiven **vroeg en vaak** meevliegen: hun ervaring is er
+> in enkele weken. Bij een duif die al ver zit, koop je met een extra vlucht amper
+> nog ervaring bij — die zet je beter in wanneer het écht telt.
+
+> **Bestaande duiven** behouden hun opgebouwde ervaring; enkel de groei **vanaf nu**
+> volgt de leerfactor. Een doorwinterde duif verliest dus niets, maar haar voorsprong
+> is voortaan wél moeilijker in te halen.
 
 ---
 
@@ -844,7 +890,8 @@ Een vaardigheid groeit in **drie trappen**:
 | **90 → gen-cap** | enkel een **privécoach** (§13) |
 
 **Handmatig trainen** verbruikt **15 energie**, geeft ~**+1** aan de gekozen
-vaardigheid (+**4 ervaring**) en kan **tot 80** (of de gen-cap als die lager is —
+vaardigheid (+**4 ervaring**, ×de leerfactor van §3.5 — bij een routinier dus
+merkbaar minder) en kan **tot 80** (of de gen-cap als die lager is —
 79→80 is dus de hoogste handmatige stap). Je kan enkel trainen als de duif **thuis**
 is, en **elke eigenschap maar 1× per week** (aparte teller per categorie).
 
@@ -1143,7 +1190,9 @@ Verdiend geld kan je investeren in je hok en je duiven (bij *Mijn hok*, de
   90), dus voor de allerlaatste punten is hij onmisbaar. Werkt niet terwijl de duif
   effectief vliegt. De concrete winst per dag zie je op de **duifpagina** (onder de
   coach-knop); zitten alle drie de vaardigheden al op hun gen-cap, dan meldt de pagina
-  dat de coach niets meer kan toevoegen.
+  dat de coach niets meer kan toevoegen. Zijn dagelijkse **ervaringswinst** volgt de
+  leerfactor van §3.5: bij een groentje bijna een punt per dag, bij een veteraan nog
+  maar een fractie — de duifpagina toont het exacte cijfer voor déze duif.
 - **Trainingsplafonds (samengevat).** Zelf **trainen** tot **80**, **vluchten** tot
   **90**, **premiumvoer** bouwt conditie mee op tot **80**, en enkel de **coach** gaat
   boven 90 — tot de **gen-cap** van de duif (max 95, nooit 100). Voer/vlucht verlagen

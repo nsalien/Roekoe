@@ -4,6 +4,7 @@ import {
   AGE_CURVE,
   BREED_RARITY,
   DEFAULT_BREED_ID,
+  EXPERIENCE,
   GENE,
   MORTALITY_CURVE,
   PIGEON_BREEDS,
@@ -64,6 +65,24 @@ export function trainCeil(p: Pigeon, attr: RacingAttr): number {
 /** Ceiling racing (flights) can reach for a skill: min(90, geneCap). */
 export function raceCeil(p: Pigeon, attr: RacingAttr): number {
   return Math.min(GENE.raceCap, geneCap(p, attr));
+}
+
+/**
+ * Scale a RAW ervaring gain by the bird's remaining room: fast for a rookie,
+ * slow for a veteran (see EXPERIENCE in gameConfig for the curve and why
+ * `minFactor` may not go below 0.10).
+ *
+ * Call this at the SOURCE of every gain — the scaled value is what actually gets
+ * added, so anything that also reads the delta (e.g. `seasonPracticeGain`) sees
+ * the real number. The result is deliberately NOT rounded: the caller's final
+ * `round1(experience + delta)` does that, so a small gain isn't inflated twice.
+ */
+export function experienceGain(current: number, raw: number): number {
+  if (raw <= 0) return raw; // nothing lowers ervaring today; never scale a loss
+  const room = clamp((100 - current) / 100, 0, 1);
+  const factor =
+    EXPERIENCE.minFactor + (EXPERIENCE.maxFactor - EXPERIENCE.minFactor) * Math.pow(room, EXPERIENCE.curve);
+  return raw * factor;
 }
 
 /** The (level-scaled, exponential) cost of the next manual training step. */

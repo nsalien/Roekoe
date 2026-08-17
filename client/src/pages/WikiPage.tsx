@@ -10,6 +10,7 @@
 
 const SECTIONS = [
   { id: 'genen', icon: '🧬', label: 'Genen & training' },
+  { id: 'ervaring', icon: '🎓', label: 'Ervaring' },
   { id: 'energie', icon: '⚡', label: 'Energie & herstel' },
   { id: 'vlucht', icon: '🏁', label: 'Energie per vlucht' },
   { id: 'lage-energie', icon: '🪫', label: 'Lage energie' },
@@ -100,6 +101,39 @@ export function WikiPage() {
           <li><strong>Verouderen:</strong> na haar piek (rond ~4 duivenjaar) zwakt een duif geleidelijk af in snelheid/conditie/oriëntatie — bij de ene sneller dan de andere.</li>
         </ul>
         <p><strong>Strategie:</strong> een jonge duif met hoge genen maar lage stats is goud waard — bouw ze op. Bewaar je coach-budget voor duiven die genetisch écht boven 90 kunnen, en fok met je best gegende koppels.</p>
+      </Section>
+
+      <Section id="ervaring" icon="🎓" title="Ervaring: snel geleerd, traag vervolmaakt">
+        <p className="muted" style={{ marginTop: 0 }}>
+          Ervaring maakt een duif sneller (tot <strong>+33 %</strong>), zuiniger op de vlucht en vlotter in
+          haar herstel. Ze groeit door te <strong>vliegen</strong>, te <strong>trainen</strong> en met een
+          <strong> privécoach</strong> — maar niet aan een vast tempo.
+        </p>
+        <p>
+          <strong>Een groentje leert snel, een routinier amper nog.</strong> Elke vlucht en elke
+          trainingsbeurt levert dezelfde duif <em>minder</em> op naarmate ze al meer ervaring heeft. De
+          eerste helft gaat vlot, de laatste punten zijn een echte grind:
+        </p>
+        <MiniTable
+          head={['Ervaring van de duif', 'Wat een vlucht opbrengt', 'Tempo']}
+          rows={[
+            ['0 – 30 (groentje)', 'bijna dubbel zoveel als vroeger', 'zeer snel'],
+            ['± 35', 'ongeveer zoals vroeger', 'normaal'],
+            ['± 50', 'ongeveer twee derde', 'trager'],
+            ['± 70', 'ongeveer een derde', 'traag'],
+            ['90+ (veteraan)', 'nog een tiende', 'grind'],
+          ]}
+        />
+        <ul style={{ marginTop: 12 }}>
+          <li><strong>Een verre vlucht leert nog steeds meer</strong> dan een korte — de rangorde blijft, alleen het tempo zakt.</li>
+          <li><strong>Het blijft altijd vooruitgaan.</strong> Ook een duif op 95 pikt nog iets op; het duurt gewoon lang.</li>
+          <li><strong>De coach helpt mee</strong>, maar zijn dagelijkse ervaringswinst krimpt op dezelfde manier. Op de duifpagina staat wat hij voor <em>déze</em> duif per dag oplevert.</li>
+        </ul>
+        <p>
+          <strong>Strategie:</strong> laat je jonge duiven vroeg en vaak meevliegen — dan is hun ervaring
+          in enkele weken opgebouwd. Bij een duif die al ver zit, koop je met een extra vlucht nauwelijks
+          nog ervaring bij: die zet je beter in wanneer het écht telt.
+        </p>
       </Section>
 
       <Section id="energie" icon="⚡" title="Energie & herstel">
