@@ -5,7 +5,8 @@ import {
   COACH,
   COMPARTMENT,
   DAILY_UPKEEP_BASE,
-  DAILY_UPKEEP_PER_PIGEON,
+  pigeonUpkeepBands,
+  type UpkeepBandCost,
   FEED_RATIONS,
   GENE,
   INFIRMARY,
@@ -304,7 +305,10 @@ export function projectDailyCare(loft: Loft, p: Pigeon, live = false, covered = 
  */
 export interface DailyCostBreakdown {
   upkeepBase: number; // fixed base upkeep (independent of loft size)
-  upkeepPerPigeon: number; // per-pigeon upkeep, totalled over the loft
+  upkeepPerPigeon: number; // per-pigeon upkeep, totalled over the loft (all bands)
+  /** The same per-pigeon upkeep split over the progressive bands it fills, so the
+   *  player can see WHY a big loft costs more (see UPKEEP_BANDS). */
+  upkeepBands: UpkeepBandCost[];
   coaches: number; // private-coach salaries
   doctors: number; // pigeon-doctor salaries
   physios: number; // physiotherapist salaries
@@ -330,7 +334,10 @@ export function dailyRunningCostBreakdown(
   infirmaryBirds: number,
 ): DailyCostBreakdown {
   const upkeepBase = DAILY_UPKEEP_BASE;
-  const upkeepPerPigeon = pigeonCount * DAILY_UPKEEP_PER_PIGEON;
+  // Per-pigeon upkeep is PROGRESSIVE: bird 9 costs more than bird 8, bird 17 more
+  // than bird 16. A loft at the starting capacity (8) pays the old flat rate.
+  const upkeepBands = pigeonUpkeepBands(pigeonCount);
+  const upkeepPerPigeon = upkeepBands.reduce((sum, b) => sum + b.amount, 0);
   const coaches = coachedCount * COACH.dailySalary;
   const doctors = loft.doctors * INFIRMARY.doctorSalary;
   const physios = loft.physios * INFIRMARY.physioSalary;
@@ -341,7 +348,7 @@ export function dailyRunningCostBreakdown(
   }));
   const sponsorTotal = sponsors.reduce((s, x) => s + x.amount, 0);
   return {
-    upkeepBase, upkeepPerPigeon, coaches, doctors, physios, medicatedFeed, total,
+    upkeepBase, upkeepPerPigeon, upkeepBands, coaches, doctors, physios, medicatedFeed, total,
     sponsors, sponsorTotal, net: sponsorTotal - total,
   };
 }

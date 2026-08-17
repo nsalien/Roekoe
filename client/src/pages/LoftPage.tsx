@@ -58,7 +58,9 @@ export function LoftPage() {
         </label>
       </div>
 
-      {state.loft && <LoftUpgrades loft={state.loft} busy={busy} act={act} />}
+      {state.loft && (
+        <LoftUpgrades loft={state.loft} busy={busy} act={act} upkeepBands={state.economy.upkeepBands ?? []} />
+      )}
 
       <div className="grid pigeons">
         {pigeons.map((p, idx) => (
@@ -148,10 +150,12 @@ function LoftUpgrades({
   loft,
   busy,
   act,
+  upkeepBands,
 }: {
   loft: Loft;
   busy: boolean;
   act: (fn: () => Promise<unknown>, ok?: string) => void;
+  upkeepBands: { upTo: number; perPigeon: number }[];
 }) {
   return (
     <div className="card" style={{ marginBottom: 18 }} data-tour="upgrades">
@@ -173,6 +177,27 @@ function LoftUpgrades({
             </button>
           ) : (
             <div className="faint">Maximale capaciteit bereikt.</div>
+          )}
+          {/* Upkeep rises per band — show it BEFORE the upgrade is bought, so a
+              bigger loft is never a hidden recurring cost. */}
+          {upkeepBands.length > 1 && (
+            <div className="faint" style={{ marginTop: 8, fontSize: '0.8rem', lineHeight: 1.5 }}>
+              Onderhoud per duif stijgt met de grootte van je hok:{' '}
+              {upkeepBands.map((b, i) => {
+                const from = i === 0 ? 1 : upkeepBands[i - 1].upTo + 1;
+                const mine = loft.pigeonCount >= from;
+                return (
+                  <span key={b.upTo}>
+                    {i > 0 && ' · '}
+                    <strong style={mine ? { color: 'var(--text)' } : undefined}>
+                      duif {from}–{b.upTo}
+                    </strong>{' '}
+                    €{b.perPigeon}/dag
+                  </span>
+                );
+              })}
+              .
+            </div>
           )}
         </div>
 

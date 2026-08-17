@@ -30,6 +30,7 @@ import {
   TRAINING,
   DAILY_UPKEEP_BASE,
   DAILY_UPKEEP_PER_PIGEON,
+  UPKEEP_BANDS,
 } from '../../core/config/gameConfig.js';
 import {
   acceptSponsor,
@@ -318,6 +319,9 @@ app.get('/state', (c) => {
       coachExpDailyGain: COACH.experienceDailyGain,
       dailyUpkeepBase: DAILY_UPKEEP_BASE,
       dailyUpkeepPerPigeon: DAILY_UPKEEP_PER_PIGEON,
+      // The progressive per-pigeon upkeep schedule, so the loft page can show
+      // what the NEXT birds will cost before you buy the capacity for them.
+      upkeepBands: UPKEEP_BANDS,
       trainCost: TRAINING.cost,
       breedCost: BREEDING.cost,
       betMinStake: BETTING.minStake,

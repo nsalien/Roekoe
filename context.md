@@ -425,9 +425,28 @@ Entiteiten: `Pigeon`, `Loft`, `User`, `BreedingPair`, `Flight` (+ `SimEntry`,
 - **Start:** €5000, 6 duiven, hokcapaciteit 8. **Bots ook 8** (`BOT_LOFT_CAPACITY`,
   was 20), met speler-kwaliteit (0.4–0.6). Startvoorraad 50 kg normaal.
 - **Vaste onkosten = DAGELIJKS** (geen weekkost meer): `DAILY_UPKEEP_BASE 22` +
-  `DAILY_UPKEEP_PER_PIGEON 2`, `COACH.dailySalary 80`, `INFIRMARY.doctorSalary 57` /
-  `physioSalary 50` / `medicatedFoodPerBird 6`. Aangerekend in `tickDailyCare` via
-  `economy.dailyRunningCost`; sponsorbijdrage dagelijks (weekbedrag ÷ 7).
+  **progressieve schijven per duif** (zie hieronder), `COACH.dailySalary 80`,
+  `INFIRMARY.doctorSalary 57` / `physioSalary 50` / `medicatedFoodPerBird 6`.
+  Aangerekend in `tickDailyCare` via `economy.dailyRunningCost`; sponsorbijdrage
+  dagelijks (weekbedrag ÷ 7).
+- **Progressieve daghuur (`UPKEEP_BANDS`, nieuwste — anti-runaway):** onderhoud per
+  duif gaat in **schijven** zoals belastingschijven — elke duif betaalt het tarief van
+  háár schijf, nooit het toptarief op het hele hok. **duif 1–8 €2 · 9–12 €6 · 13–16 €12
+  · 17–20 €20** per dag. Helpers `pigeonUpkeepBands(count)` (→ `UpkeepBandCost[]`) en
+  `dailyPigeonUpkeep(count)` staan in `gameConfig.ts` naast de tabel; `economy.ts::
+  dailyRunningCostBreakdown` gebruikt ze en levert `upkeepBands` mee in de DTO, zodat de
+  **Dagbalans** een regel per schijf toont. Weekkost: 8 duiven €266 (**exact als
+  vroeger**), 12 €434, 16 €770, 20 €1.330 — een vol hok kost nu ~5× een starthok i.p.v.
+  1,6×. **Invariant: een hok t/m `STARTING_LOFT_CAPACITY` (8) betaalt exact het oude
+  vlakke tarief** — deze maatregel mag een kleine melker níets kosten (bots zitten ook op
+  8 en blijven dus ongemoeid). `DAILY_UPKEEP_PER_PIGEON 2` blijft bestaan als het tarief
+  van de eerste schijf + wordt nog naar de client gestuurd (oude open tab).
+- **Hokcapaciteit (`LOFT_CAPACITY_TIERS`, nieuwste — steiler):** stappen van +2 met
+  sterk oplopende prijs: 10 €1.500 · 12 €3.500 · 14 €10.000 · 16 €17.500 · 18 €30.000 ·
+  20 €50.000 → **€112.500 cumulatief** van 8 naar 20 (was €29.000 via 8/10/12/16/20).
+  Ruimte voor meer duiven is de sterkste structurele troef (meer duiven = meer starts =
+  groter aandeel in de prijzenpot), dus dat moet een investering van lange adem zijn.
+  `nextCapacityTier`/`upgradeCapacity` zijn ongewijzigd (ze lezen de tabel).
 - **Privécoach = dagelijkse groei richting de gen-cap** (`COACH`): geen instapdrempel
   (`hireCost 0`), enkel **€80/dag per gecoachte duif** (`dailySalary`). `coachDailyGain(attr,
   cap) = COACH.maxDailyGain (1.1) · (cap − attr)/cap` — werkt op **elk niveau**, afnemend
@@ -798,6 +817,48 @@ npx tsx names.test.mts             # elke duivennaam blijft uniek
 
 Alles hieronder staat **live** op de deploy-branch. Data-migraties liepen door tot
 **`dataVersion = 35`**.
+
+**Schaal afremmen: steilere capaciteitsladder + progressieve daghuur (nieuwste)**
+- **Aanleiding:** één speler liep weg met de competitie. Analyse van de mechanismen (geen
+  productiedata beschikbaar vanuit de sessie) wees drie versterkende lussen aan:
+  1. **Geen limiet op het aantal duiven per hok per wedstrijdvlucht** (`enterFlight`) —
+     enkel titan (1) en estafette (3) hebben er een, en **bots schrijven zichzelf op 1–2
+     in** (`botsEnterFlight`). Eén groot hok kan dus meerdere prijsplaatsen tegelijk pakken.
+  2. **Schaal was zo goed als gratis:** een hok van 20 kostte €434/week tegen €266 voor een
+     hok van 8 (1,6×) bij ~2,5× de verdiencapaciteit.
+  3. Geld → markt/veiling → betere duiven, en de marktwaardering leert van zijn eigen
+     verkopen.
+  Ter referentie: de prijzenpot is ~**€30.755/week** (regio 3×€2.285, nat 2×€3.390, intl
+  2×€6.610, titan €3.900) en is **top-zwaar** — de top 3 pakt ~75 % per vlucht.
+- **Nu geïmplementeerd (lus 2):** `LOFT_CAPACITY_TIERS` steiler (8→20 kost **€112.500**
+  i.p.v. €29.000) + **`UPKEEP_BANDS`**, progressieve daghuur per duif. Cijfers en de
+  invariant "een hok van 8 betaalt exact als vroeger": zie §5.
+- **UI:** de Dagbalans-tegel (`DashboardPage`) toont een **regel per schijf**
+  ("Onderhoud duif 9–12 · 4 × €6") i.p.v. één regel; de uitbreidingskaart in `LoftPage`
+  toont het **hele schijventarief vóór aankoop** (met de eigen schijven benadrukt), zodat
+  een groter hok nooit een verborgen terugkerende kost is. Economy-DTO kreeg `upkeepBands`
+  (de tabel) en de loft-DTO `dailyCosts.upkeepBands` (de eigen verdeling).
+- **Geen migratie, geen `dataVersion`-bump** (config + logica). Bestaande hokken behouden
+  hun capaciteit; wie al boven 8 zit, betaalt vanaf de eerstvolgende dagovergang het nieuwe
+  tarief.
+- ⚠️ **Bekend risico, bewust niet mee-geïmplementeerd:** een hok van 18–20 gaat van €406
+  naar €1.050–1.330/week. Duikt zo'n speler onder €0, dan blokkeert `enterFlight` hem
+  ("Je kassa staat negatief"). Overwogen mitigaties als het knelt: de toeslag in 3 weken
+  laten opbouwen, of een eenmalige melding via een `*_NEWS_STEPS`-set in `Tour.tsx`
+  (localStorage, geen migratie nodig).
+- **Nog niet gedaan (bewust, op verzoek):** de instaplimiet per vlucht (lus 1), degressief
+  prijzengeld per hok, clubkas/deelnamegeld. **Rekenpunt voor later:** een duif kan ~1,4
+  starts/week aan (energie), en bij 8 wedstrijden/week geeft een limiet van 3 duiven → 24
+  startplaatsen → een hok is volledig benut rond **17 duiven**; een limiet van 2 → 16
+  plaatsen → rond **11 duiven**. De instaplimiet bepaalt dus hoeveel duiven zinvol zijn,
+  de schijven zetten er de prijs op.
+- **Geverifieerd** met een wegwerp-tsx-script tegen de echte helpers: ladder loopt strikt
+  op, cumulatief €112.500; elk hok t/m 8 duiven ongewijzigd; totaal stijgt monotoon en de
+  marginale kost van duif N daalt nooit; elke duif exact één keer aangerekend met
+  aansluitende schijven; boven de laatste schijf blijft het toptarief gelden. Beide
+  typechecks, de build en de vier vaste regressietests blijven groen.
+- **Meegenomen doc-fix:** spelregels §4.2 vermeldde nog `36 · gecoachte duiven` voor de
+  coach; dat is al langer **€80/dag** (`COACH.dailySalary`).
 
 **Ervaring stijgt met afnemende opbrengst (nieuwste)**
 - **Probleem:** ervaring was de enige eigenschap die **volledig lineair** groeide. Elke

@@ -51,13 +51,20 @@ export const BOT_LOFT_CAPACITY = 8;
 
 /**
  * Buyable loft-capacity upgrades. Each tier lifts the maximum number of pigeons
- * you can own; you buy them in order (8 → 10 → 12 → 16 → 20).
+ * you can own; you buy them in order (8 → 10 → 12 → 14 → 16 → 18 → 20), and the
+ * price climbs steeply: €112.500 to go all the way, against €29.000 before. Room
+ * for more birds is the main structural advantage in the game (more birds = more
+ * race entries = a bigger share of the prize pot), so it should be a serious,
+ * long-term investment rather than something a leading loft buys in a week. The
+ * recurring half of that brake is UPKEEP_BANDS.
  */
 export const LOFT_CAPACITY_TIERS: { capacity: number; price: number }[] = [
   { capacity: 10, price: 1500 },
   { capacity: 12, price: 3500 },
-  { capacity: 16, price: 8000 },
-  { capacity: 20, price: 16000 },
+  { capacity: 14, price: 10000 },
+  { capacity: 16, price: 17500 },
+  { capacity: 18, price: 30000 },
+  { capacity: 20, price: 50000 },
 ];
 
 /**
@@ -312,8 +319,74 @@ export const FOOD_PRICE_PER_KG = 3;
  *  automatically each real day in tickDailyCare. */
 export const DAILY_UPKEEP_BASE = 22;
 
-/** Extra daily upkeep charged per pigeon owned. */
+/** The FIRST band's per-pigeon rate (see UPKEEP_BANDS). Kept as its own export
+ *  because the API still ships it to the client as the headline rate. */
 export const DAILY_UPKEEP_PER_PIGEON = 2;
+
+/**
+ * Extra daily upkeep per pigeon owned, charged in PROGRESSIVE BANDS — like tax
+ * brackets: every bird costs the rate of the band it falls in, never the top rate
+ * on the whole loft.
+ *
+ * Why: a big loft is what buys race entries, and entries are what win the prize
+ * pot, yet scale used to be nearly free (a loft of 20 cost only 1.6× a loft of 8
+ * while earning ~2.5× as much). These bands make growing past the starting size a
+ * real, recurring commitment instead of a one-off purchase.
+ *
+ * A loft at STARTING_LOFT_CAPACITY (8) pays EXACTLY what it always did — this must
+ * stay true, so a smaller melker feels nothing of it. Bots sit at 8 too, so their
+ * economy is untouched.
+ *
+ * `upTo` is inclusive, bands are listed in ascending order, and the last band's
+ * rate also covers anything beyond it (defensive: capacity tops out at 20).
+ */
+export const UPKEEP_BANDS: { upTo: number; perPigeon: number }[] = [
+  { upTo: 8, perPigeon: DAILY_UPKEEP_PER_PIGEON },
+  { upTo: 12, perPigeon: 6 },
+  { upTo: 16, perPigeon: 12 },
+  { upTo: 20, perPigeon: 20 },
+];
+
+/** One band's share of a loft's per-pigeon upkeep (for the daily-cost breakdown). */
+export interface UpkeepBandCost {
+  from: number; // first bird number in this band (1-based, inclusive)
+  to: number; // last bird number in this band (inclusive)
+  perPigeon: number; // daily rate for a bird in this band
+  birds: number; // how many of the loft's birds land in this band
+  amount: number; // birds × perPigeon
+}
+
+/** Split a loft's per-pigeon upkeep over the bands it actually fills. */
+export function pigeonUpkeepBands(pigeonCount: number): UpkeepBandCost[] {
+  const out: UpkeepBandCost[] = [];
+  let filled = 0; // birds already accounted for by lower bands
+  for (const band of UPKEEP_BANDS) {
+    if (filled >= pigeonCount) break;
+    const birds = Math.min(pigeonCount, band.upTo) - filled;
+    if (birds > 0) {
+      out.push({
+        from: filled + 1,
+        to: band.upTo,
+        perPigeon: band.perPigeon,
+        birds,
+        amount: birds * band.perPigeon,
+      });
+    }
+    filled = band.upTo;
+  }
+  // Anything above the last band keeps paying the top rate.
+  const top = UPKEEP_BANDS[UPKEEP_BANDS.length - 1];
+  if (pigeonCount > filled) {
+    const birds = pigeonCount - filled;
+    out.push({ from: filled + 1, to: pigeonCount, perPigeon: top.perPigeon, birds, amount: birds * top.perPigeon });
+  }
+  return out;
+}
+
+/** Total per-pigeon upkeep a loft of `pigeonCount` birds pays per day. */
+export function dailyPigeonUpkeep(pigeonCount: number): number {
+  return pigeonUpkeepBands(pigeonCount).reduce((sum, b) => sum + b.amount, 0);
+}
 
 /**
  * Training options. Training costs money and a bit of the pigeon's form now,

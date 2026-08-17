@@ -610,11 +610,42 @@ energie tóch een hoog libido.
 Alle terugkerende kosten worden **elke dag automatisch** afgerekend (niet meer
 wekelijks/handmatig):
 ```
-onkosten/dag = 22 + 2 · aantal_duiven
-             + 36 · aantal_gecoachte_duiven          (coach, §13)
+onkosten/dag = 22                                    (vast, ongeacht hokgrootte)
+             + onderhoud per duif (in schijven, zie hieronder)
+             + 80 · aantal_gecoachte_duiven          (coach, §13)
              + 57 · dokters + 50 · kinesisten        (ziekenboegstaf, §5)
              + 6  · duiven_in_boeg (met medicatievoer)
 ```
+
+**Onderhoud per duif gaat in schijven — hoe groter je hok, hoe duurder elke
+extra duif.** Het werkt zoals belastingschijven: élke duif betaalt het tarief
+van háár schijf, nooit het toptarief op je hele hok.
+
+| Schijf | Per duif/dag |
+|---|---|
+| duif 1 – 8 | €2 |
+| duif 9 – 12 | €6 |
+| duif 13 – 16 | €12 |
+| duif 17 – 20 | €20 |
+
+| Duiven | Onderhoud/dag | Per week |
+|---|---|---|
+| 8 | €38 | €266 |
+| 10 | €50 | €350 |
+| 12 | €62 | €434 |
+| 14 | €86 | €602 |
+| 16 | €110 | €770 |
+| 18 | €150 | €1.050 |
+| 20 | €190 | €1.330 |
+
+*(inclusief de vaste €22 basiskost)*
+
+Een hok van **8 duiven betaalt exact hetzelfde als vroeger** — deze schijven
+raken enkel wie groter gaat. Een vol hok van 20 kost nu ongeveer **5× een hok
+van 8**, in verhouding tot de veel grotere verdiencapaciteit die zo'n hok heeft
+(meer duiven = meer inschrijvingen = een groter deel van de prijzenpot). De
+volledige onderverdeling staat in de **Dagbalans** op het Overzicht, met een
+regel per schijf.
 **Sponsors** betalen op datzelfde ritme: elke actieve sponsor stort **elke dag**
 zijn vaste bijdrage (§12). Op het **Overzicht** vind je daarom een **dagbalans**:
 je kosten, je sponsorinkomsten en wat je netto per dag over- of tekortkomt.
@@ -1156,9 +1187,23 @@ kwetsuur, ziekte, herstel, sterfte en geboorte van jongen.
 Verdiend geld kan je investeren in je hok en je duiven (bij *Mijn hok*, de
 *Ziekenboeg* en de duifpagina):
 
-- **Hokcapaciteit.** Je start met plaats voor **8** duiven en breidt uit naar
-  10, 12, 16 en 20 (elke stap kost meer). Zonder plaats kan je niet kopen,
-  adopteren of kweken.
+- **Hokcapaciteit.** Je start met plaats voor **8** duiven en breidt uit in
+  stappen van twee. Zonder plaats kan je niet kopen, adopteren of kweken.
+
+| Stap | Prijs | Cumulatief vanaf 8 |
+|---|---|---|
+| 8 → 10 | €1.500 | €1.500 |
+| 10 → 12 | €3.500 | €5.000 |
+| 12 → 14 | €10.000 | €15.000 |
+| 14 → 16 | €17.500 | €32.500 |
+| 16 → 18 | €30.000 | €62.500 |
+| 18 → 20 | €50.000 | €112.500 |
+
+  Een groot hok is de sterkste structurele troef in het spel — meer duiven
+  betekent meer inschrijvingen en dus een groter deel van de prijzenpot. Daarom
+  is het bewust een **investering van lange adem**: de trap wordt steil, én elke
+  extra duif kost je daarna méér onderhoud per dag (de schijven in §4.2). Op de
+  uitbreidingskaart in *Mijn hok* zie je die tarieven vóór je koopt.
 - **Aparte hokken.** Koop losse compartimenten zodat je duiven niet allemaal op
   elkaar zitten. Elk apart hok wordt los gekocht (telkens wat duurder), en je
   **kiest zelf welke duiven** er een krijgen (knop bij *Mijn hok* of op de
