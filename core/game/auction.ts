@@ -73,16 +73,29 @@ function notify(db: Database, loft: Loft, title: string, body: string, id?: stri
   else db.notifications.push(note);
 }
 
-/** Put a top pigeon under the Sunday hammer and tell every player. */
+/**
+ * Put ONE top pigeon under the Sunday hammer and tell every player.
+ *
+ * Everything here carries an id derived from the Sunday's key. `ensureAuctions`
+ * runs on every request, so two concurrent requests can both find the auction
+ * missing and both open one — with random ids that produced **several top birds
+ * on the same Sunday**. With stable ids the second write replaces the first
+ * (INSERT OR REPLACE), so exactly one auction, one bird and one notification per
+ * player survive however many requests race.
+ */
 function createSundayAuction(db: Database, key: string, startMs: number, endMs: number): void {
   const week = db.world.currentWeek;
+  const slug = key.replace(/[^a-z0-9-]/gi, '_');
+  const pigeonId = `pig_${slug}`;
+  if (db.pigeons.some((x) => x.id === pigeonId)) return; // already opened this Sunday
   const p = generatePigeon({ ownerId: AUCTION_HOUSE_ID, currentWeek: week, quality: randFloat(0.82, 0.98) });
+  p.id = pigeonId;
   p.forSale = false;
   db.pigeons.push(p);
   const val = estimateValue(p, week);
   const minBid = Math.max(300, Math.round((val * 0.5) / 10) * 10);
   db.auctions.push({
-    id: newId('auc'), templateKey: key, pigeonId: p.id,
+    id: `auc_${slug}`, templateKey: key, pigeonId: p.id,
     startAt: new Date(startMs).toISOString(), endAt: new Date(endMs).toISOString(),
     minBid, minIncrement: Math.max(25, Math.round((minBid * 0.05) / 5) * 5),
     currentBid: 0, currentBidderId: null, currentBidderName: null, bids: [], status: 'open',
@@ -90,7 +103,8 @@ function createSundayAuction(db: Database, key: string, startMs: number, endMs: 
   for (const loft of db.lofts) {
     if (!loft.isBot) {
       notify(db, loft, '🔨 Zondagveiling geopend!',
-        `Topduif ${p.name} (talent ${talent(p)}) gaat onder de hamer tot 20u. Bied mee op de markt!`);
+        `Topduif ${p.name} (talent ${talent(p)}) gaat onder de hamer tot 20u. Bied mee op de markt!`,
+        `ntf:auc:open:${slug}:${loft.userId}`);
     }
   }
 }
@@ -214,9 +228,12 @@ export function ensureAuctions(db: Database, nowMs: number): void {
   }
 
   // Rescue-centre auctions: memoryless spawn based on elapsed real time, so the
-  // rate is independent of how often the game is polled.
+  // rate is independent of how often the game is polled. They stay away while the
+  // Sunday hammer is up: the top bird should be the only lot on the market, so
+  // everyone's money and attention go to the same auction.
   const openShelter = db.auctions.filter((a) => a.status === 'open' && auctionKind(a) === 'shelter').length;
-  if (openShelter < AUCTION.shelterMaxConcurrent) {
+  const sundayRunning = db.auctions.some((a) => a.status === 'open' && auctionKind(a) === 'sunday');
+  if (!sundayRunning && openShelter < AUCTION.shelterMaxConcurrent) {
     const last = db.world.lastShelterSpawn ? Date.parse(db.world.lastShelterSpawn) : NaN;
     if (Number.isNaN(last)) {
       db.world.lastShelterSpawn = new Date(nowMs).toISOString();
@@ -258,14 +275,25 @@ export function placeBid(db: Database, userId: string, auctionId: string, amount
   const owned = db.pigeons.filter((p) => p.ownerId === userId).length;
   if (owned >= loft.capacity) return 'Je hok zit vol';
 
+  // In the final phase a player only gets AUCTION.finalPhaseMaxBids bids on this
+  // bird, so the endgame is a few decisive jumps instead of a long drip of
+  // minimum raises. The counter rides on the player's standing bid and keeps
+  // counting through an anti-snipe extension.
+  const nowMs = Date.now();
+  const previous = (a.bids ?? []).find((b) => b.userId === userId);
+  const used = previous?.lateBids ?? 0;
+  const inFinalPhase = Date.parse(a.endAt) - nowMs <= AUCTION.finalPhaseMinutes * 60000;
+  if (inFinalPhase && used >= AUCTION.finalPhaseMaxBids) {
+    return `Je hebt je ${AUCTION.finalPhaseMaxBids} biedingen voor het slot van deze veiling opgebruikt`;
+  }
+
   // Record (or raise) this player's standing bid.
   a.bids = (a.bids ?? []).filter((b) => b.userId !== userId);
-  a.bids.push({ userId, name: loft.name, amount: bid });
+  a.bids.push({ userId, name: loft.name, amount: bid, lateBids: used + (inFinalPhase ? 1 : 0) });
 
-  // Anti-snipe: a bid in the final 5 minutes pushes the close time back to 5
-  // minutes from now, so the others still have time to bid back.
-  const nowMs = Date.now();
-  const antiSnipeMs = 5 * 60 * 1000;
+  // Anti-snipe: a bid in the final minutes pushes the close time back, so the
+  // others still have time to bid back and nobody wins at the buzzer.
+  const antiSnipeMs = AUCTION.antiSnipeMinutes * 60000;
   if (Date.parse(a.endAt) - nowMs < antiSnipeMs) {
     a.endAt = new Date(nowMs + antiSnipeMs).toISOString();
   }

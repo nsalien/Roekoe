@@ -17,6 +17,7 @@ const SECTIONS = [
   { id: 'ziekte', icon: '🤒', label: 'Ziekte' },
   { id: 'sterfte', icon: '🕯️', label: 'Sterfte' },
   { id: 'rassen', icon: '🎨', label: 'Rassen' },
+  { id: 'veilingen', icon: '🔨', label: 'Veilingen & bieden' },
   { id: 'afscheid', icon: '👋', label: 'Afscheid nemen' },
 ];
 
@@ -304,6 +305,50 @@ export function WikiPage() {
           <li>Twee <strong>verschillende</strong> rassen geven een <strong>Gemengd</strong> jong.</li>
         </ul>
         <p><strong>Strategie:</strong> rariteit is puur geluk. Een legendarisch ras is een mooie verzamelaarsprijs en verkoopt wat duurder, maar maakt je duif geen greintje sneller.</p>
+      </Section>
+
+      <Section id="veilingen" icon="🔨" title="Veilingen: bieden, slotfase & anti-snipe">
+        <p className="muted" style={{ marginTop: 0 }}>
+          Elke <strong>zondag van 11u tot 20u</strong> gaat er <strong>één</strong> topduif onder de hamer —
+          nooit meerdere tegelijk, zodat iedereen om dezelfde duif vecht. Daarnaast duikt er af en toe een
+          duif uit het <strong>opvangcentrum</strong> op (maar niet terwijl de zondagveiling loopt).
+        </p>
+
+        <p><strong>Bieden gebeurt in twee fases:</strong></p>
+        <MiniTable
+          head={['Tijd tot het einde', 'Wat mag je?']}
+          rows={[
+            ['meer dan 30 minuten', 'onbeperkt bieden, zo vaak je wil'],
+            ['laatste 30 minuten (slotfase)', 'nog maximaal 3 biedingen per speler, op deze duif'],
+            ['laatste 5 minuten', 'elk bod zet de klok terug op 5 minuten'],
+          ]}
+        />
+
+        <ul style={{ marginTop: 12 }}>
+          <li>
+            <strong>Je ziet je tegoed staan.</strong> Zodra de slotfase begint, toont de veilingkaart hoeveel
+            van je 3 biedingen je al gebruikt hebt en hoeveel er nog over zijn. Zijn ze op, dan kan je op
+            deze duif niet meer bieden — ook niet als iemand je daarna overbiedt.
+          </li>
+          <li>
+            <strong>De klok terugzetten kost je een bod.</strong> Een bod in de laatste 5 minuten verlengt de
+            veiling wel, maar telt gewoon mee voor je drie. Eindeloos rekken lukt dus niet.
+          </li>
+          <li>
+            <strong>Winnen op de valreep bestaat niet.</strong> Omdat elk laat bod de klok terugzet naar
+            5 minuten, krijgen de anderen altijd de kans om terug te bieden.
+          </li>
+        </ul>
+
+        <p>
+          <strong>Strategie:</strong> nibbelen met het minimumbedrag werkt niet meer. Met nog drie biedingen
+          te gaan zet je best meteen een stevige stap — of gewoon je échte maximum. Wie tot het laatste
+          moment blijft plakken met kleine verhogingen, is door zijn biedingen heen vóór de veiling sluit.
+        </p>
+        <p className="faint" style={{ fontSize: '0.85rem' }}>
+          Waarom deze regel? Zo eindigt een veiling in een handvol duidelijke stappen in plaats van tientallen
+          kleine — dat is spannender én het houdt het spel snel voor iedereen.
+        </p>
       </Section>
 
       <Section id="afscheid" icon="👋" title="Afscheid nemen van een duif">

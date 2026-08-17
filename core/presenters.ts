@@ -5,7 +5,7 @@
  */
 
 import type { Database, Flight, Loft, Notification, Pigeon, Trade } from './schema.js';
-import { BREED_RARITY, compartmentCost, RELAY, REST_CURE, TRAINING } from './config/gameConfig.js';
+import { AUCTION, BREED_RARITY, compartmentCost, RELAY, REST_CURE, TRAINING } from './config/gameConfig.js';
 import { ageInWeeks, breedInfo, canRace, estimateValue, geneCap, talent, trainCeil, trainingCost } from './game/pigeon.js';
 import { auctionKind } from './game/auction.js';
 import { bettingOpen } from './game/betting.js';
@@ -274,6 +274,13 @@ export function auctionsDTO(db: Database, viewerId?: string) {
     .map((a) => {
       const p = db.pigeons.find((x) => x.id === a.pigeonId);
       const kind = auctionKind(a);
+      // Endgame state for THIS viewer: free bidding until the final phase, then
+      // a hard cap of AUCTION.finalPhaseMaxBids on this bird (see placeBid).
+      const endMs = Date.parse(a.endAt);
+      const finalPhaseAt = new Date(endMs - AUCTION.finalPhaseMinutes * 60000).toISOString();
+      const bidsUsed = viewerId
+        ? (a.bids ?? []).find((b) => b.userId === viewerId)?.lateBids ?? 0
+        : 0;
       return {
         id: a.id,
         kind,
@@ -285,6 +292,13 @@ export function auctionsDTO(db: Database, viewerId?: string) {
         currentBid: a.currentBid,
         currentBidderName: a.currentBidderName,
         minNextBid: a.currentBid > 0 ? a.currentBid + a.minIncrement : a.minBid,
+        finalPhaseAt,
+        finalPhase: endMs - Date.now() <= AUCTION.finalPhaseMinutes * 60000,
+        finalPhaseMinutes: AUCTION.finalPhaseMinutes,
+        antiSnipeMinutes: AUCTION.antiSnipeMinutes,
+        maxBids: AUCTION.finalPhaseMaxBids,
+        bidsUsed,
+        bidsLeft: Math.max(0, AUCTION.finalPhaseMaxBids - bidsUsed),
       };
     })
     .sort((a, b) => {

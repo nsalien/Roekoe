@@ -775,7 +775,32 @@ npx tsx idle-writes.test.mts       # D1: een poll zonder gebeurtenissen schrijft
 Alles hieronder staat **live** op de deploy-branch. Data-migraties liepen door tot
 **`dataVersion = 33`**.
 
-**Zelf kiezen wie de dokter/kinesist behandelt (nieuwste)**
+**Veiling-slotfase: 3 biedingen in de laatste 30 min + één zondagduif (nieuwste)**
+- **Doel:** minder nibbelen met minimumbedragen → spelers zetten sneller hun echte
+  maximum, veilingen eindigen in enkele grote stappen, en dat drukt meteen de
+  poll-belasting van het slotkwartier.
+- **Regels** (`AUCTION` in gameConfig): vrij bieden tot `finalPhaseMinutes` (30) voor
+  het einde; daarbinnen hoogstens `finalPhaseMaxBids` (3) biedingen **per speler per
+  veiling**. De anti-snipe (`antiSnipeMinutes`, 5) blijft: een bod in de laatste 5 min
+  zet `endAt` terug op nu + 5 min — maar **telt gewoon mee** voor je drie, dus een
+  verlenging kan niet gefarmd worden.
+- **Teller** = `AuctionBid.lateBids` (kolom `late_bids` achteraan `SCHEMA_STEPS`), rijdt
+  mee op de staande bieding van de speler; verhogen buiten de slotfase telt niet mee.
+  `placeBid` weigert netjes zodra het budget op is.
+- **DTO** (`auctionsDTO`, per viewer): `finalPhase`, `finalPhaseAt`, `finalPhaseMinutes`,
+  `antiSnipeMinutes`, `maxBids`, `bidsUsed`, `bidsLeft`. UI: `AuctionCard` toont vóór de
+  slotfase de spelregel, erna een gekleurde balk "nog X van je 3 biedingen" en blokkeert
+  invoer+knop als het budget op is.
+- **Zondag = precies één duif.** `ensureAuctions` draait bij élk verzoek, dus twee
+  gelijktijdige verzoeken konden **allebei** een zondagveiling openen (random id's) →
+  meerdere topduiven op één zondag. Nu **stabiele id's** afgeleid van de dagsleutel
+  (`auc_<slug>` / `pig_<slug>` + melding-id per speler): INSERT OR REPLACE houdt er
+  precies één over, hoeveel verzoeken er ook racen. Bovendien spawnt er **geen
+  opvangcentrum-veiling** zolang de zondagveiling loopt.
+- Wiki-sectie **🔨 Veilingen & bieden**, spelregels **§9.3** + §12. Geen migratie (nieuwe
+  kolom met default 0 = huidig gedrag).
+
+**Zelf kiezen wie de dokter/kinesist behandelt**
 - **Probleem:** één dokter dekt maar `INFIRMARY.birdsPerDoctor` (2) zieke duiven en één
   kinesist 2 gekwetste, maar de dekking ging **altijd automatisch** naar de ernstigste
   gevallen. Met 3 patiënten en 1 dokter kon je dus niet kiezen wie voorrang kreeg.

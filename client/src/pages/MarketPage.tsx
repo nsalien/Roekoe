@@ -409,7 +409,11 @@ function AuctionCard({
   }, [auction.endAt, onExpire]);
 
   const remainingMs = Date.parse(auction.endAt) - nowMs;
-  const closingSoon = remainingMs > 0 && remainingMs <= 5 * 60 * 1000;
+  const closingSoon = remainingMs > 0 && remainingMs <= auction.antiSnipeMinutes * 60 * 1000;
+  // Endgame: inside the final phase every player has a hard bid budget on this
+  // bird, so we show what is left instead of letting them find out on a refusal.
+  const finalPhase = remainingMs > 0 && remainingMs <= auction.finalPhaseMinutes * 60 * 1000;
+  const outOfBids = finalPhase && auction.bidsLeft <= 0;
 
   const accent = shelter ? 'var(--good)' : 'var(--accent)';
   return (
@@ -457,6 +461,31 @@ function AuctionCard({
       </div>
 
       <hr className="sep" />
+
+      {/* Bid budget for the endgame */}
+      {finalPhase ? (
+        <div
+          className="row"
+          style={{
+            justifyContent: 'space-between', gap: 8, marginBottom: 10, padding: '8px 10px',
+            borderRadius: 8, background: outOfBids ? 'var(--bad-soft)' : 'var(--gold-soft)',
+            color: outOfBids ? 'var(--bad)' : 'var(--gold)', fontSize: '0.84rem', flexWrap: 'wrap',
+          }}
+        >
+          <strong>⏱️ Slotfase — nog {auction.bidsLeft} van je {auction.maxBids} biedingen</strong>
+          <span>
+            {outOfBids
+              ? 'Je biedingen zijn op voor deze duif.'
+              : `Je bood al ${auction.bidsUsed}× sinds de laatste ${auction.finalPhaseMinutes} minuten. Bied meteen je maximum.`}
+          </span>
+        </div>
+      ) : (
+        <p className="faint" style={{ margin: '0 0 10px', fontSize: '0.8rem' }}>
+          Vrij bieden tot {auction.finalPhaseMinutes} minuten voor het einde. Daarna heeft
+          elke speler nog maar <strong>{auction.maxBids}</strong> biedingen op deze duif.
+        </p>
+      )}
+
       <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
         <input
           type="number"
@@ -465,16 +494,23 @@ function AuctionCard({
           step={5}
           onChange={(e) => setAmount(Number(e.target.value))}
           style={{ maxWidth: 140 }}
+          disabled={outOfBids}
         />
         <button
           className="btn accent"
-          disabled={busy || amount < auction.minNextBid || amount > money}
+          disabled={busy || outOfBids || amount < auction.minNextBid || amount > money}
           onClick={() => onBid(auction.id, amount)}
         >
           Bied <Money value={amount} />
         </button>
         <span className="faint" style={{ alignSelf: 'center' }}>min. {auction.minNextBid}</span>
       </div>
+      {closingSoon && !outOfBids && (
+        <p className="faint" style={{ margin: '8px 0 0', fontSize: '0.78rem' }}>
+          Bied je nu nog, dan schuift de klok terug naar {auction.antiSnipeMinutes} minuten —
+          winnen op de valreep lukt dus niet.
+        </p>
+      )}
     </div>
   );
 }
