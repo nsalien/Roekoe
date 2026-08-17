@@ -8,6 +8,7 @@ import type { Database, EventCard, Loft, Pigeon } from '../schema.js';
 import { newId } from '../store.js';
 import { estimateValue, generatePigeon, noteAttrChange } from './pigeon.js';
 import { marketValue } from './market.js';
+import { namesInUse } from './names.js';
 import { applyAilment, randomAilmentOfSeverity, randomDisease, randomInjury } from './health.js';
 import { clamp, pick, randFloat, randInt, round1 } from './util.js';
 
@@ -150,7 +151,7 @@ export function resolveEvent(db: Database, loft: Loft, choice: number, week: num
     case 'stray': {
       if (choice === 0) {
         if (owned.length >= loft.capacity) return 'Je hok zit vol — de duif vliegt weg.';
-        const p = generatePigeon({ ownerId: loft.userId, currentWeek: week, quality: randFloat(0.3, 0.6) });
+        const p = generatePigeon({ ownerId: loft.userId, currentWeek: week, quality: randFloat(0.3, 0.6) , taken: namesInUse(db.pigeons) });
         db.pigeons.push(p);
         notify(db, loft, '🕊️ Nieuwe duif', `${p.name} maakt voortaan deel uit van je hok.`);
         return `Je hield de duif: ${p.name}.`;
@@ -181,7 +182,7 @@ export function resolveEvent(db: Database, loft: Loft, choice: number, week: num
       if (owned.length >= loft.capacity) return 'Je hok zit vol.';
       loft.money -= 300;
       const lucky = Math.random() < 0.4;
-      const p = generatePigeon({ ownerId: loft.userId, currentWeek: week, quality: lucky ? randFloat(0.8, 0.95) : randFloat(0.15, 0.4) });
+      const p = generatePigeon({ ownerId: loft.userId, currentWeek: week, quality: lucky ? randFloat(0.8, 0.95) : randFloat(0.15, 0.4) , taken: namesInUse(db.pigeons) });
       db.pigeons.push(p);
       notify(db, loft, lucky ? '🎉 Jackpot!' : '😬 Kat in een zak', `Uit de mand kwam ${p.name}.`);
       return lucky ? `Geluk! ${p.name} is een pareltje.` : `Pech — ${p.name} stelt weinig voor.`;
@@ -268,14 +269,14 @@ export function resolveEvent(db: Database, loft: Loft, choice: number, week: num
       if (owned.length >= loft.capacity) return 'Je hok zit vol — je kan geen duif plaatsen, dus de erfenis gaat aan je neus voorbij.';
       if (choice === 1) {
         // Old champion: strong genes but old (frail, low value, higher mortality).
-        const p = generatePigeon({ ownerId: loft.userId, currentWeek: week, quality: randFloat(0.82, 0.96), birthWeek: week - randInt(280, 430) });
+        const p = generatePigeon({ ownerId: loft.userId, currentWeek: week, quality: randFloat(0.82, 0.96), birthWeek: week - randInt(280, 430) , taken: namesInUse(db.pigeons) });
         db.pigeons.push(p);
         notify(db, loft, '🏆 Een oude kampioen', `${p.name} — ooit een topper, nu op leeftijd — verhuist naar jouw hok.`);
         return `Je koos de oude kampioen: ${p.name}. Sterke genen, maar tel wel haar jaren.`;
       }
       // Young prospect: unknown quality.
       const lucky = Math.random() < 0.45;
-      const p = generatePigeon({ ownerId: loft.userId, currentWeek: week, quality: lucky ? randFloat(0.7, 0.9) : randFloat(0.2, 0.45), birthWeek: week - randInt(8, 20) });
+      const p = generatePigeon({ ownerId: loft.userId, currentWeek: week, quality: lucky ? randFloat(0.7, 0.9) : randFloat(0.2, 0.45), birthWeek: week - randInt(8, 20) , taken: namesInUse(db.pigeons) });
       db.pigeons.push(p);
       notify(db, loft, lucky ? '🌟 Een ruwe diamant' : '🐣 Een gewone jong', `Uit de erfenis kwam ${p.name}.`);
       return lucky ? `De jonge belofte ${p.name} blijkt veel in haar mars te hebben!` : `De jonge belofte ${p.name} is voorlopig maar gewoontjes.`;

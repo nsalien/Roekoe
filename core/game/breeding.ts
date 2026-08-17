@@ -4,7 +4,7 @@ import { BREEDING, DEFAULT_BREED_ID, GENE, MIXED_BREED_ID } from '../config/game
 import type { Pigeon, PigeonGenes } from '../schema.js';
 import { newId } from '../store.js';
 import { geneCap } from './pigeon.js';
-import { generatePigeonName } from './names.js';
+import { generatePigeonName, nameKey } from './names.js';
 import { clamp, randFloat, round1 } from './util.js';
 
 /**
@@ -46,7 +46,14 @@ export function canBreed(sire: Pigeon, dam: Pigeon, currentWeek: number): string
  * parent libido sets both the chance of getting any young at all and the odds
  * of a second youngster. A low-libido pair can come up empty (a wasted koppel).
  */
-export function breed(sire: Pigeon, dam: Pigeon, ownerId: string, hatchWeek: number): Pigeon[] {
+export function breed(
+  sire: Pigeon,
+  dam: Pigeon,
+  ownerId: string,
+  hatchWeek: number,
+  /** Names already in the world, so a youngster never duplicates one (names.namesInUse). */
+  taken?: Set<string>,
+): Pigeon[] {
   const avgLibido = (sire.libido + dam.libido) / 2;
   // Low energie (form) makes a pair less likely to produce young.
   const avgEnergy = (sire.form + dam.form) / 2;
@@ -81,7 +88,11 @@ export function breed(sire: Pigeon, dam: Pigeon, ownerId: string, hatchWeek: num
     young.push({
       id: newId('pig'),
       ownerId,
-      name: generatePigeonName(sex, { speed, endurance, orientation }),
+      name: (() => {
+        const n = generatePigeonName(sex, { speed, endurance, orientation }, taken);
+        taken?.add(nameKey(n)); // a twin must not get its sibling's name either
+        return n;
+      })(),
       sex,
       birthWeek: hatchWeek,
       speed,

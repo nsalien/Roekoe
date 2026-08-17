@@ -51,30 +51,67 @@ function epithetInitial(epithet: string): string {
   return epithet[0]?.toUpperCase() ?? '';
 }
 
-/**
- * Generate a full name for a pigeon of the given sex. Roughly a quarter of the
- * names lean into pitch-black humour, the rest are trait-based or neutral. When
- * an alliterating epithet exists it's preferred, giving names like
- * "Stevie de Snelle".
- */
-export function generatePigeonName(sex: Sex, traits?: Traitish): string {
+/** One attempt at a name, before any uniqueness check. */
+function draftName(sex: Sex, traits?: Traitish): string {
   const first = pick(sex === 'doffer' ? MALE_FIRST_NAMES : FEMALE_FIRST_NAMES);
 
   // Build the candidate epithet pool for this bird.
   const r = Math.random();
   let pool: readonly string[];
-  if (r < 0.28) pool = EPITHETS.dark;
-  else if (traits && r < 0.7) pool = [epithetForTraits(traits)]; // already a single fit
+  if (r < 0.08) pool = EPITHETS.legend; // a rare nod to the real greats
+  else if (r < 0.32) pool = EPITHETS.dark;
+  else if (traits && r < 0.72) pool = [epithetForTraits(traits)]; // already a single fit
   else pool = EPITHETS.neutral;
 
   // Prefer an alliterating epithet from the broadest sensible set.
   const initial = first[0]?.toUpperCase() ?? '';
-  const wide = [...pool, ...EPITHETS.neutral, ...EPITHETS.dark];
+  const wide = [...pool, ...EPITHETS.neutral, ...EPITHETS.dark, ...EPITHETS.legend];
   const alliterating = wide.filter((e) => epithetInitial(e) === initial);
   const epithet =
     alliterating.length > 0 && Math.random() < 0.7 ? pick(alliterating) : pick(pool);
 
   return `${first} ${epithet}`;
+}
+
+/** Roman numerals for the fallback suffix — a dynasty reads better than "#2". */
+const ROMAN = ['II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X'];
+
+/** Case-insensitive key, so "Rita de Rappe" and "rita de rappe" are the same name. */
+export function nameKey(name: string): string {
+  return name.trim().toLowerCase().replace(/\s+/g, ' ');
+}
+
+/** Every name currently in use, ready to pass to `generatePigeonName`. */
+export function namesInUse(pigeons: readonly { name: string }[]): Set<string> {
+  return new Set(pigeons.map((p) => nameKey(p.name)));
+}
+
+/**
+ * Generate a full name for a pigeon of the given sex. Roughly a quarter of the
+ * names lean into pitch-black humour, a few honour real racing legends, the rest
+ * are trait-based or neutral. When an alliterating epithet exists it's preferred,
+ * giving names like "Stevie de Snelle".
+ *
+ * **Every first name + epithet combination is unique.** Pass the names already in
+ * the world (`namesInUse`) and this keeps drawing until it finds a free one; if the
+ * pools are genuinely exhausted it starts a dynasty instead ("Rita de Rappe III").
+ * The caller is responsible for adding the returned name to the set when it
+ * generates several birds in a row.
+ */
+export function generatePigeonName(sex: Sex, traits?: Traitish, taken?: ReadonlySet<string>): string {
+  if (!taken || taken.size === 0) return draftName(sex, traits);
+
+  for (let attempt = 0; attempt < 80; attempt++) {
+    const candidate = draftName(sex, traits);
+    if (!taken.has(nameKey(candidate))) return candidate;
+  }
+  // Pools exhausted for this sex (or very unlucky): number the newcomer.
+  const base = draftName(sex, traits);
+  for (const numeral of ROMAN) {
+    const candidate = `${base} ${numeral}`;
+    if (!taken.has(nameKey(candidate))) return candidate;
+  }
+  return `${base} ${Date.now().toString(36).slice(-4)}`;
 }
 
 /** True for old single-word names or a wrong-gender first name, so a migration
