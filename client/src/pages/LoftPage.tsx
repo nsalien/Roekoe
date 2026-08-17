@@ -1,6 +1,7 @@
 /** Mijn hok: all your pigeons with sorting and quick sell/withdraw actions. */
 
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useGame } from '../game/GameContext';
 import { api } from '../api/client';
 import { Money, Spinner, useToast } from '../components/ui';
@@ -157,6 +158,11 @@ function LoftUpgrades({
   act: (fn: () => Promise<unknown>, ok?: string) => void;
   upkeepBands: { upTo: number; perPigeon: number }[];
 }) {
+  // Daily upkeep rate the NEXT bird would fall into (bands are ascending; the
+  // last one also covers anything beyond it).
+  const nextBirdRate = upkeepBands.length
+    ? (upkeepBands.find((b) => loft.pigeonCount + 1 <= b.upTo) ?? upkeepBands[upkeepBands.length - 1]).perPigeon
+    : null;
   return (
     <div className="card" style={{ marginBottom: 18 }} data-tour="upgrades">
       <h2 style={{ marginTop: 0 }}>🏗️ Uitbreidingen</h2>
@@ -178,25 +184,13 @@ function LoftUpgrades({
           ) : (
             <div className="faint">Maximale capaciteit bereikt.</div>
           )}
-          {/* Upkeep rises per band — show it BEFORE the upgrade is bought, so a
-              bigger loft is never a hidden recurring cost. */}
-          {upkeepBands.length > 1 && (
+          {/* Upkeep rises per band. Keep it to the ONE number that matters here —
+              what the next bird costs — and send the reader to the wiki for the
+              full schedule, so a bigger loft is never a hidden recurring cost. */}
+          {nextBirdRate !== null && (
             <div className="faint" style={{ marginTop: 8, fontSize: '0.8rem', lineHeight: 1.5 }}>
-              Onderhoud per duif stijgt met de grootte van je hok:{' '}
-              {upkeepBands.map((b, i) => {
-                const from = i === 0 ? 1 : upkeepBands[i - 1].upTo + 1;
-                const mine = loft.pigeonCount >= from;
-                return (
-                  <span key={b.upTo}>
-                    {i > 0 && ' · '}
-                    <strong style={mine ? { color: 'var(--text)' } : undefined}>
-                      duif {from}–{b.upTo}
-                    </strong>{' '}
-                    €{b.perPigeon}/dag
-                  </span>
-                );
-              })}
-              .
+              Je volgende duif kost <strong>€{nextBirdRate}/dag</strong> aan onderhoud.{' '}
+              <Link to="/wiki#hok">Hoe de schijven werken →</Link>
             </div>
           )}
         </div>
