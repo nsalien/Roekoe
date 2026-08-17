@@ -14,6 +14,7 @@ import type { Database, Loft, Pigeon, PigeonOffer } from '../schema.js';
 import { newId } from '../store.js';
 import { awardBadge, evaluateBadges } from './badges.js';
 import { progressMissions } from './missions.js';
+import { talent } from './pigeon.js';
 
 function notify(db: Database, userId: string, title: string, body: string): void {
   db.notifications.push({
@@ -84,7 +85,7 @@ function transfer(db: Database, buyer: Loft, seller: Loft, pigeon: Pigeon, price
   db.trades.push({
     id: newId('trd'), pigeonId: pigeon.id, pigeonName: pigeon.name,
     sellerId: seller.userId, sellerName: seller.name, buyerId: buyer.userId, buyerName: buyer.name,
-    price, at: new Date().toISOString(),
+    price, at: new Date().toISOString(), talent: talent(pigeon),
   });
   // Bounded by the store (core/d1.ts) — see the note in engine.ts::buyPigeon.
   buyer.stats.buys += 1;

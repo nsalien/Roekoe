@@ -18,6 +18,7 @@ const SECTIONS = [
   { id: 'sterfte', icon: '🕯️', label: 'Sterfte' },
   { id: 'rassen', icon: '🎨', label: 'Rassen' },
   { id: 'veilingen', icon: '🔨', label: 'Veilingen & bieden' },
+  { id: 'waarde', icon: '💰', label: 'Wat is een duif waard?' },
   { id: 'afscheid', icon: '👋', label: 'Afscheid nemen' },
 ];
 
@@ -348,6 +349,52 @@ export function WikiPage() {
         <p className="faint" style={{ fontSize: '0.85rem' }}>
           Waarom deze regel? Zo eindigt een veiling in een handvol duidelijke stappen in plaats van tientallen
           kleine — dat is spannender én het houdt het spel snel voor iedereen.
+        </p>
+      </Section>
+
+      <Section id="waarde" icon="💰" title="Wat is een duif waard? De markt beslist">
+        <p className="muted" style={{ marginTop: 0 }}>
+          De <strong>geschatte waarde</strong> bij een duif is geen vaste formule meer. Ze wordt
+          bepaald door <strong>wat spelers echt betalen</strong>. Elke afgeronde verkoop — op de markt,
+          via een privébod of onder de veilinghamer — wordt onthouden samen met het talent van die duif,
+          en dat vormt de prijslijst van de club.
+        </p>
+
+        <ul>
+          <li>
+            <strong>Vergelijkbare duiven bepalen de prijs.</strong> Ging er een duif van talent 70 weg
+            voor €7.000, dan schuiven alle duiven in die buurt mee omhoog.
+          </li>
+          <li>
+            <strong>Recente verkopen wegen zwaarder.</strong> Het gewicht van een verkoop halveert elke
+            10 dagen en na 4 weken telt ze niet meer mee. Prijzen kunnen dus <strong>van week tot week
+            verschillen</strong>, net als op een echte markt.
+          </li>
+          <li>
+            <strong>Waar niet op geboden wordt, is weinig waard.</strong> Gaan zwakke duiven voor een
+            habbekrats van de hand, dan zakt de schatting voor dat soort duiven mee — tot enkele
+            tientjes.
+          </li>
+          <li>
+            <strong>Een betere duif is nooit minder waard</strong> dan een mindere. Ook als er in een
+            bepaalde klasse toevallig één koopje voorbijkwam, blijft de rangorde kloppen.
+          </li>
+          <li>
+            <strong>Zonder verkopen valt ze terug op een schatting</strong> op basis van talent, genen,
+            leeftijd en ervaring. Op de duifpagina staat erbij hoe de prijs tot stand kwam: hoeveel
+            procent markt, en op hoeveel verkopen dat gebaseerd is.
+          </li>
+        </ul>
+
+        <p>
+          <strong>Wat je ermee doet:</strong> de waarde is een <em>richtprijs</em>, geen verplichting —
+          je mag je duif voor elk bedrag te koop zetten. Ze bepaalt wel het <strong>startbod van de
+          veilingen</strong> (30 % van de waarde, zodat er nog te bieden valt) en wat de gladde koopman
+          in een dilemma voor je pronkstuk neerlegt.
+        </p>
+        <p className="faint" style={{ fontSize: '0.85rem' }}>
+          Wil je de prijzen zien bewegen? Kijk naar de <strong>verkoopgeschiedenis</strong> op de markt:
+          dat is letterlijk de data waarop de schattingen draaien.
         </p>
       </Section>
 

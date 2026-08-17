@@ -874,6 +874,29 @@ een grind.
 - Elke duif toont haar eigenaar; je koopt niet je eigen duiven en je hok mag niet
   vol zitten.
 
+### 9.0 Wat is een duif waard? De markt beslist
+
+De **geschatte waarde** komt niet uit een vaste formule maar uit **wat spelers echt
+betalen**. Elke afgeronde verkoop — markt, privébod of veilinghamer — wordt onthouden
+mét het talent van die duif, en samen vormen die de prijslijst van de club.
+
+- **Vergelijkbare duiven bepalen de prijs.** Ging een duif van talent 70 weg voor
+  €7.000, dan schuiven alle duiven in die klasse mee omhoog.
+- **Recente verkopen wegen zwaarder:** het gewicht halveert elke **10 dagen** en na
+  **4 weken** telt een verkoop niet meer mee. Prijzen verschillen dus **van week tot
+  week**, zoals op een echte markt.
+- **Waar niet op geboden wordt, is weinig waard.** Gaan zwakke duiven voor een
+  habbekrats weg, dan zakt de schatting voor dat soort duiven mee tot enkele tientjes.
+- **Een betere duif is nooit minder waard** dan een mindere, ook al kwam er in haar
+  klasse toevallig één koopje voorbij.
+- **Zonder verkopen** valt de schatting terug op talent, genen, leeftijd en ervaring.
+  Op de duifpagina zie je hoe de prijs tot stand kwam: hoeveel procent markt, en op
+  hoeveel verkopen.
+
+De waarde is een **richtprijs**: je mag je duif voor elk bedrag te koop zetten. Ze
+bepaalt wel het **startbod van een veiling** (30 % van de waarde, zodat er nog te
+bieden valt) en wat de gladde koopman voor je pronkstuk neerlegt.
+
 ### 9.1 Privé-biedingen (bieden op een duif die niet te koop staat)
 Je kan een **bod** uitbrengen op de duif van **een andere speler**, ook al staat
 die **niet te koop**. Dat kan op **twee plaatsen**: op de **Markt** onder

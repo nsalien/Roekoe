@@ -638,6 +638,8 @@ export const AUCTION = {
    * that many minutes, so nobody wins by bidding at the buzzer — but the cap keeps
    * counting, so an extension cannot be farmed forever.
    */
+  /** A Sunday/shelter auction opens at this fraction of the bird's market value. */
+  openingBidFraction: 0.3,
   finalPhaseMinutes: 30,
   finalPhaseMaxBids: 3,
   antiSnipeMinutes: 5,
@@ -1037,6 +1039,39 @@ export const INFIRMARY_CAPACITY_TIERS: { capacity: number; price: number }[] = [
   { capacity: 5, price: 1800 },
   { capacity: 6, price: 2400 },
 ];
+
+/**
+ * Market-driven valuation (see core/game/market.ts).
+ *
+ * A fixed price curve cannot know what a bird is worth to ten specific players,
+ * so the estimate is calibrated on real sales: the weighted average price of
+ * comparable recent transactions, blended with the model curve according to how
+ * much comparable data there is.
+ */
+export const MARKET_VALUATION = {
+  /** How close in talent a sale must be to count as "comparable" (Gaussian sigma,
+   *  in talent points). 10 keeps a sale relevant across a broad band, which matters
+   *  with only a handful of sales a week — and since sales scale the curve rather
+   *  than replace prices outright, a nearby band is a fair guide. */
+  talentSigma: 10,
+  /** A sale's weight halves every this many days, so prices drift with the market
+   *  instead of being anchored to one old record sale. */
+  halfLifeDays: 10,
+  /** Sales older than this are ignored outright. */
+  observationDays: 28,
+  /** Comparable weight at which the market fully overrules the model. Roughly two
+   *  fresh, on-talent sales — small on purpose: with ten players there will never
+   *  be many, and a real price beats a guessed one. */
+  trustWeight: 1.5,
+  /** Never let the market be the *only* voice; the model keeps a small say so a
+   *  single odd sale cannot define a whole talent band. */
+  maxTrust: 0.85,
+  /** Hard band on the market factor, so one eccentric sale cannot move the whole
+   *  scale absurdly far. A cheap-birds-are-worthless market may push prices down to
+   *  a tenth of the curve; a hot market up to eightfold. */
+  minFactor: 0.1,
+  maxFactor: 8,
+};
 
 /**
  * Real-time recovery from an illness/injury. Progress runs continuously (see

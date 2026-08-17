@@ -7,6 +7,7 @@
 import type { Database, EventCard, Loft, Pigeon } from '../schema.js';
 import { newId } from '../store.js';
 import { estimateValue, generatePigeon, noteAttrChange } from './pigeon.js';
+import { marketValue } from './market.js';
 import { applyAilment, randomAilmentOfSeverity, randomDisease, randomInjury } from './health.js';
 import { clamp, pick, randFloat, randInt, round1 } from './util.js';
 
@@ -25,7 +26,9 @@ export function makeEvent(db: Database, loft: Loft, week: number): EventCard | n
   switch (kind) {
     case 'merchant': {
       const best = [...owned].sort((a, b) => estimateValue(b, week) - estimateValue(a, week))[0];
-      const price = Math.round(estimateValue(best, week) * randFloat(1.15, 1.5));
+      // Off the MARKET value, not the model — otherwise the merchant lowballs
+      // exactly the birds players value most (see game/market.ts).
+      const price = Math.round(marketValue(db, best, week) * randFloat(1.15, 1.5));
       return {
         key: 'merchant', icon: '🤑', title: 'Een gladde koopman',
         text: `Een koopman met een dikke sigaar biedt €${price} voor je beste duif, ${best.name}. "Neem het of laat het, melker."`,

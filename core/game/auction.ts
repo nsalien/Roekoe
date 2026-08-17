@@ -15,7 +15,8 @@ import type { Auction, Database, Loft } from '../schema.js';
 import { newId } from '../store.js';
 import { AUCTION } from '../config/gameConfig.js';
 import { awardBadge } from './badges.js';
-import { estimateValue, generatePigeon, talent } from './pigeon.js';
+import { generatePigeon, talent } from './pigeon.js';
+import { marketValue } from './market.js';
 import { randFloat } from './util.js';
 
 export const AUCTION_HOUSE_ID = 'auction_house';
@@ -92,8 +93,10 @@ function createSundayAuction(db: Database, key: string, startMs: number, endMs: 
   p.id = pigeonId;
   p.forSale = false;
   db.pigeons.push(p);
-  const val = estimateValue(p, week);
-  const minBid = Math.max(300, Math.round((val * 0.5) / 10) * 10);
+  // Open at a fraction of the market value: the hammer should DISCOVER the price,
+  // not dictate it. Too high an opening bid and nobody can start bidding at all.
+  const val = marketValue(db, p, week);
+  const minBid = Math.max(300, Math.round((val * AUCTION.openingBidFraction) / 10) * 10);
   db.auctions.push({
     id: `auc_${slug}`, templateKey: key, pigeonId: p.id,
     startAt: new Date(startMs).toISOString(), endAt: new Date(endMs).toISOString(),
@@ -172,7 +175,7 @@ function closeAuction(db: Database, a: Auction): void {
       id: tradeId, pigeonId: p.id, pigeonName: p.name,
       sellerId, sellerName,
       buyerId: winner.userId, buyerName: winner.name, price,
-      at: new Date().toISOString(),
+      at: new Date().toISOString(), talent: talent(p),
     };
     if (existing) Object.assign(existing, trade);
     else db.trades.push(trade);

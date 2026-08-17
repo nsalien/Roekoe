@@ -263,6 +263,7 @@ function rowToTrade(r: any): Trade {
     buyerName: r.buyer_name,
     price: r.price,
     at: r.at,
+    talent: typeof r.talent === 'number' ? r.talent : undefined,
   };
 }
 
@@ -560,9 +561,9 @@ export class D1Store implements Store {
     diff(this.snapshots.trades, w.trades, (t) => t.id, {
       db,
       table: 'trades',
-      columns: ['id', 'pigeon_id', 'pigeon_name', 'seller_id', 'seller_name', 'buyer_id', 'buyer_name', 'price', 'at'],
+      columns: ['id', 'pigeon_id', 'pigeon_name', 'seller_id', 'seller_name', 'buyer_id', 'buyer_name', 'price', 'at', 'talent'],
       keyColumn: 'id',
-      row: (t) => [t.id, t.pigeonId, t.pigeonName, t.sellerId, t.sellerName, t.buyerId, t.buyerName, t.price, t.at],
+      row: (t) => [t.id, t.pigeonId, t.pigeonName, t.sellerId, t.sellerName, t.buyerId, t.buyerName, t.price, t.at, t.talent ?? null],
       onInsert: () => { addedTrade = true; },
       stmts,
     });
@@ -778,6 +779,7 @@ const SCHEMA_STEPS: string[] = [
     'ALTER TABLE flights ADD COLUMN legs TEXT',
     'ALTER TABLE pigeons ADD COLUMN care_assigned INTEGER NOT NULL DEFAULT 0',
     'ALTER TABLE auction_bids ADD COLUMN late_bids INTEGER NOT NULL DEFAULT 0',
+    'ALTER TABLE trades ADD COLUMN talent REAL',
   ] as string[]),
 ];
 

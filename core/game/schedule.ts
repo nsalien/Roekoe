@@ -1377,6 +1377,42 @@ function runDataMigrations(db: Database): void {
     }
     db.world.dataVersion = 33;
   }
+  if ((db.world.dataVersion ?? 0) < 34) {
+    // Seed the market valuation with the two auction sales of 16 Aug 2026. The game
+    // was down that day, so the players settled those sales between themselves and
+    // the prices never reached the trade log — which is now what prices every bird
+    // (see game/market.ts). Recorded as price OBSERVATIONS only: no money moves and
+    // no bird changes hands here, both already happened outside the game.
+    const known: { match: string[]; price: number }[] = [
+      { match: ['tante', 'soep'], price: 7000 },
+      { match: ['edgard', 'soep'], price: 5200 },
+    ];
+    for (const k of known) {
+      const p = db.pigeons.find((x) => {
+        const n = x.name.trim().toLowerCase();
+        return k.match.every((part) => n.includes(part));
+      });
+      if (!p) continue;
+      const id = `trd_manual_${k.match.join('_')}_${k.price}`;
+      const owner = db.lofts.find((l) => l.userId === p.ownerId);
+      const trade = {
+        id,
+        pigeonId: p.id,
+        pigeonName: p.name,
+        sellerId: 'auction_house',
+        sellerName: 'Veilinghuis',
+        buyerId: p.ownerId,
+        buyerName: owner?.name ?? 'Onbekend',
+        price: k.price,
+        at: new Date('2026-08-16T18:00:00Z').toISOString(),
+        talent: talent(p),
+      };
+      const existing = db.trades.find((t) => t.id === id);
+      if (existing) Object.assign(existing, trade);
+      else db.trades.push(trade);
+    }
+    db.world.dataVersion = 34;
+  }
 }
 
 /** The pre-v32 weekly stipends, kept only so migration v32 can tell whether a
