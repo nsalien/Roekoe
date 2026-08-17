@@ -60,7 +60,7 @@ import {
   type SimulatedFlight,
 } from './flight.js';
 import type { WeatherResult } from './weather.js';
-import { generatePigeonName, isLegacyName, isWrongGenderName } from './names.js';
+import { generatePigeonName, isLegacyName, isWrongGenderName, nameKey, namesInUse } from './names.js';
 import { canRace, noteAttrChange, rollBreed, rollGenes, talent } from './pigeon.js';
 import { NPC_OWNER_ID, ownerName } from './engine.js';
 import { pickRelayRoute, relayEntryTeams, relayLegKm, relayTeamComplete } from './relay.js';
@@ -758,7 +758,7 @@ function runDataMigrations(db: Database): void {
     // Give every existing bird a funny name.
     for (const p of db.pigeons) {
       if (isLegacyName(p.name)) {
-        p.name = generatePigeonName(p.sex, { speed: p.speed, endurance: p.endurance, orientation: p.orientation });
+        p.name = generatePigeonName(p.sex, { speed: p.speed, endurance: p.endurance, orientation: p.orientation }, namesInUse(db.pigeons));
       }
     }
     // Drop leftover old-model scheduled flights (they had no real start time).
@@ -816,7 +816,7 @@ function runDataMigrations(db: Database): void {
     // Give birds a first name matching their sex (no "Nancy" doffers).
     for (const p of db.pigeons) {
       if (isWrongGenderName(p.name, p.sex)) {
-        p.name = generatePigeonName(p.sex, { speed: p.speed, endurance: p.endurance, orientation: p.orientation });
+        p.name = generatePigeonName(p.sex, { speed: p.speed, endurance: p.endurance, orientation: p.orientation }, namesInUse(db.pigeons));
       }
     }
     // Refresh scheduled flight titles (drop "(Vlaanderen)"/"(België)").
@@ -1413,6 +1413,35 @@ function runDataMigrations(db: Database): void {
     }
     db.world.dataVersion = 34;
   }
+  if ((db.world.dataVersion ?? 0) < 35) {
+    // Every first name + epithet combination is unique from now on (see
+    // names.generatePigeonName). Clear out the duplicates that already exist: the
+    // OLDEST bird keeps the name, the others are renamed. A real player is told,
+    // because a bird quietly changing name would be unsettling.
+    const seen = new Set<string>();
+    const byAge = [...db.pigeons].sort((a, b) => a.birthWeek - b.birthWeek || a.id.localeCompare(b.id));
+    const humanIds = new Set(db.lofts.filter((l) => !l.isBot).map((l) => l.userId));
+    for (const p of byAge) {
+      const key = nameKey(p.name);
+      if (!seen.has(key)) {
+        seen.add(key);
+        continue;
+      }
+      const before = p.name;
+      p.name = generatePigeonName(p.sex, { speed: p.speed, endurance: p.endurance, orientation: p.orientation }, seen);
+      seen.add(nameKey(p.name));
+      if (humanIds.has(p.ownerId)) {
+        pushNotification(
+          db, p.ownerId, 'info', `✏️ ${p.name} heeft een nieuwe naam`,
+          `Er vlogen twee duiven rond onder de naam "${before}". Namen zijn voortaan uniek in de club, ` +
+            `dus jouw duif heet nu ${p.name}. Haar prestaties, genen en historiek blijven ongewijzigd — ` +
+            `en je kan haar altijd zelf hernoemen op haar duifpagina.`,
+          null, `ntf:rename:dup:${p.id}`,
+        );
+      }
+    }
+    db.world.dataVersion = 35;
+  }
 }
 
 /** The pre-v32 weekly stipends, kept only so migration v32 can tell whether a
@@ -1712,7 +1741,7 @@ export function tickBreedingHatch(db: Database, nowMs: number): void {
     }
 
     hatched.add(bp.id);
-    const young = breed(sire, dam, bp.ownerId, db.world.currentWeek);
+    const young = breed(sire, dam, bp.ownerId, db.world.currentWeek, namesInUse(db.pigeons));
     const loft = db.lofts.find((l) => l.userId === bp.ownerId);
     const owned = db.pigeons.filter((p) => p.ownerId === bp.ownerId).length;
     const space = (loft?.capacity ?? 0) - owned;

@@ -160,6 +160,12 @@ export interface GenerateOptions {
   birthWeek?: number;
   /** Force a specific breed; otherwise one is rolled by weight. */
   breed?: string;
+  /**
+   * Names already in use (see names.namesInUse). Pass it and the new bird is
+   * guaranteed a first-name + epithet combination nobody else has. Generating
+   * several birds in a row? Add each returned name to the set as you go.
+   */
+  taken?: ReadonlySet<string>;
 }
 
 /** Create a fresh pigeon with rolled attributes. */
@@ -182,7 +188,7 @@ export function generatePigeon(opts: GenerateOptions): Pigeon {
   return {
     id: newId('pig'),
     ownerId: opts.ownerId,
-    name: opts.name ?? generatePigeonName(sex, { speed, endurance, orientation }),
+    name: opts.name ?? generatePigeonName(sex, { speed, endurance, orientation }, opts.taken),
     sex,
     birthWeek,
     speed,

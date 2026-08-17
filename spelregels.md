@@ -985,6 +985,20 @@ karaktergebonden, neutrale en pikzwarte humor, met voorkeur voor alliteratie
 (zelfde beginletter), bv. *Stevie de Snelle*, *Dirk de Doodgraver*,
 *Nadine de Nabestaande*.
 
+**Elke naam is uniek.** Geen twee duiven in de club dragen dezelfde combinatie van
+voornaam én bijnaam — of ze nu geboren, gekweekt, geveild, geadopteerd of via een
+gebeurtenis binnengekomen zijn. Zo weet je bij een uitslag, een ranglijst of een bod
+altijd over wélke duif het gaat. Raakt de namenvoorraad ooit helemaal op, dan begint
+er gewoon een dynastie: *Karel de Kale II*, *III*, enzovoort. Je kan een duif altijd
+zelf hernoemen (§13) — ook dan blijft de naam uniek.
+
+**Knipoog naar de echte duivensport.** Tussen de bijnamen zitten verwijzingen naar
+legendes uit de echte wereld: *de Kannibaal*, *de Nieuwe Kim*, *de Armando*, *de
+Barcelona-Kampioen*, *de Olympiade*, *de Gouden Prins*… En bij de voornamen duiken
+kampioenen en oorlogsduiven op als **Armando**, **Bolt**, **Kim**, **Ami** (naar Cher
+Ami), **Winkie**, **Paddy** en **Gustav**. Zo'n legendarische bijnaam is zeldzamer dan
+de rest — een duif die er een krijgt, mag gezien worden.
+
 ---
 
 ## 11. Meldingen (belknop)

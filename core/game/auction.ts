@@ -17,6 +17,7 @@ import { AUCTION } from '../config/gameConfig.js';
 import { awardBadge } from './badges.js';
 import { generatePigeon, talent } from './pigeon.js';
 import { marketValue } from './market.js';
+import { namesInUse } from './names.js';
 import { randFloat } from './util.js';
 
 export const AUCTION_HOUSE_ID = 'auction_house';
@@ -89,7 +90,7 @@ function createSundayAuction(db: Database, key: string, startMs: number, endMs: 
   const slug = key.replace(/[^a-z0-9-]/gi, '_');
   const pigeonId = `pig_${slug}`;
   if (db.pigeons.some((x) => x.id === pigeonId)) return; // already opened this Sunday
-  const p = generatePigeon({ ownerId: AUCTION_HOUSE_ID, currentWeek: week, quality: randFloat(0.82, 0.98) });
+  const p = generatePigeon({ ownerId: AUCTION_HOUSE_ID, currentWeek: week, quality: randFloat(0.82, 0.98), taken: namesInUse(db.pigeons) });
   p.id = pigeonId;
   p.forSale = false;
   db.pigeons.push(p);
@@ -120,7 +121,7 @@ function createShelterAuction(db: Database, nowMs: number): void {
   const quality = better
     ? randFloat(AUCTION.shelterBetterQualityMin, AUCTION.shelterBetterQualityMax)
     : randFloat(AUCTION.shelterQualityMin, AUCTION.shelterQualityMax);
-  const p = generatePigeon({ ownerId: SHELTER_ID, currentWeek: week, quality });
+  const p = generatePigeon({ ownerId: SHELTER_ID, currentWeek: week, quality, taken: namesInUse(db.pigeons) });
   p.forSale = false;
   db.pigeons.push(p);
   db.auctions.push({

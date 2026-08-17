@@ -124,7 +124,7 @@ krijgen.**
 `core/game/schedule.ts` → `advanceRealtime(db, nowMs, weatherByFlight)` roept in
 volgorde:
 1. `runDataMigrations(db)` — eenmalige datafixes, **gated op `world.dataVersion`**
-   (staat nu op **23**; nieuwe migratie = nieuw `if ((db.world.dataVersion ?? 0) < N)`
+   (staat nu op **35**; nieuwe migratie = nieuw `if ((db.world.dataVersion ?? 0) < N)`
    blok + `db.world.dataVersion = N`). v21 zet **bestaande geplande vluchten terug naar de
    OUDE, kortere afstanden** (regio 30–160 / nat 60–290 / intl 180–950 km): elke nog-
    geplande niet-titan-vlucht buiten haar legacy-venster wordt her-routeerd via
@@ -298,7 +298,8 @@ Roekoe/
 │   ├── schema.ts                datamodel (entiteiten + Database)
 │   ├── store.ts                 Store-interface + in-memory basis + newId()
 │   ├── d1.ts                    D1-persistentie (load(viewerId)/diff/ensureSchema/
-│   │                            boundedCleanups/findUserBy*, auction_bids)
+│   │                            boundedCleanups/findUserBy*, auction_bids); diff schrijft
+│   │                            gegroepeerd + kolom-smal (zie §8 503-fix ronde 3)
 │   ├── auth.ts                  wachtwoord-hash + JWT via Web Crypto
 │   ├── presenters.ts            entiteit → client-DTO (pigeonDTO(db,p,viewerId?) → dailyCare + info-hiding)
 │   └── game/
@@ -308,22 +309,25 @@ Roekoe/
 │       ├── relay.ts             estafette: routegeometrie (gelijke etappes, wisselpunten) + ploeghelpers
 │       ├── betting.ts           weddenschappen (Monte-Carlo odds + settle, stats,
 │       │                        void+refund bij uitschrijven duif / afgelaste vlucht)
-│       ├── health.ts            ziekte/kwetsuur + REAL-TIME herstel (tickHealing)
+│       ├── health.ts            ziekte/kwetsuur + REAL-TIME herstel (tickHealing, per kwartier)
+│       │                        + coveredInInfirmary/careSlots (wie de dokter behandelt)
 │       ├── breeding.ts          kweek
 │       ├── economy.ts           dagverzorging (applyDayOfCare) + projectie + upkeep + honger + rust
 │       ├── bots.ts              bot-gedrag
-│       ├── auction.ts           veilingen (bieden, sluiten, verlies-meldingen)
+│       ├── auction.ts           veilingen (bieden, slotfase-limiet, sluiten, verlies-meldingen)
+│       ├── market.ts            marktgestuurde duivenwaarde (prijs uit echte verkopen)
 │       ├── sponsors.ts          sponsors
 │       ├── badges.ts            badges/XP/level
 │       ├── missions.ts          dagelijkse opdrachten + streak + dilemma-trigger
 │       ├── events.ts            dilemma-kaarten
-│       ├── pigeon.ts, names.ts, weather.ts, util.ts (seededRng/hashString/clamp/pickWith)
+│       ├── pigeon.ts, weather.ts, util.ts (seededRng/hashString/clamp/pickWith)
+│       ├── names.ts             naamgenerator — UNIEKE voornaam+bijnaam (namesInUse/nameKey)
 ├── functions/api/[[path]].ts    de HELE API (Hono) — dun laagje op de engine (+ /admin/auctions)
 ├── d1-partial-load.test.mts     regressietest op de partiële load (npx tsx, node:sqlite)
 ├── query-budget.test.mts        regressietest: queries per verzoek < 50 (D1-limiet)
 ├── idle-writes.test.mts         regressietest: idle poll schrijft 0 rijen (D1-schrijflimiet)
+├── names.test.mts               regressietest: duivennamen zijn uniek
 ├── limits-report.mts            meet queries/rijen gelezen/geschreven per verzoek
-│   (core/game/market.ts        = marktgestuurde duivenwaarde, zie §8)
 ├── migrations/0001_init.sql     D1-schema voor verse installatie
 ├── spelregels.md                spelregels + formules (Nederlands, speler-gericht)
 ├── README.md / DEPLOY.md        opzet + telefoon-only deploy-gids
@@ -739,6 +743,7 @@ Uitzonderingen die **wél blijven staan** — draai ze na **elke** wijziging aan
 npx tsx d1-partial-load.test.mts   # persistentie: laadt/schrijft de juiste slice
 npx tsx query-budget.test.mts      # D1: geen enkel verzoek over de 50 queries
 npx tsx idle-writes.test.mts       # D1: een poll zonder gebeurtenissen schrijft niets
+npx tsx names.test.mts             # elke duivennaam blijft uniek
 ```
 (Beide staan buiten `tsconfig.json` (`include` = `core/` + `functions/`), dus tsc raakt ze niet.)
 
@@ -774,9 +779,32 @@ npx tsx idle-writes.test.mts       # D1: een poll zonder gebeurtenissen schrijft
 ## 8. Belangrijkste wijzigingen deze sessie (achtergrond)
 
 Alles hieronder staat **live** op de deploy-branch. Data-migraties liepen door tot
-**`dataVersion = 33`**.
+**`dataVersion = 35`**.
 
-**Duivenwaarde komt van de markt i.p.v. een vaste curve (nieuwste)**
+**Unieke duivennamen + echte kampioenen als inspiratie (nieuwste)**
+- **Regel:** élke combinatie van **voornaam + bijnaam** is uniek in de wereld, ongeacht
+  hoe de duif ontstaat (start-hok, kweek, veiling, opvangcentrum, dilemma, migratie).
+- `names.ts`: `draftName` (de oude generator) + **`generatePigeonName(sex, traits, taken?)`**
+  dat tot 80 keer opnieuw trekt tot het een vrije naam vindt, en bij een écht uitgeputte
+  pool een **dynastie** begint (`… II`, `III`, …). Helpers **`nameKey`** (case-insensitive)
+  en **`namesInUse(pigeons)`**.
+- `GenerateOptions.taken` doorgegeven op **elk** ontstaanspad: `createLoftForUser` en
+  `seedWorld` (set groeit mee zodat de 6–8 starters onderling niet botsen), `auction.ts`
+  (zondag + opvangcentrum), `events.ts` (alle dilemma-duiven), `breeding.ts::breed(…, taken)`
+  (ook een **tweeling** onderling), en de legacy-hernoemmigraties.
+- **Migratie v35** ruimt bestaande duplicaten op: de **oudste** duif houdt de naam, de
+  rest wordt hernoemd; echte spelers krijgen een melding (`ntf:rename:dup:<id>`) zodat een
+  naam nooit stilletjes verandert. **dataVersion → 35.**
+- **Echte duivensport als inspiratie** (`gameConfig`): nieuwe epitheton-groep
+  **`EPITHETS.legend`** (~8 % kans) met *de Kannibaal*, *de Nieuwe Kim*, *de Armando*,
+  *de Olympiade*, *de Gouden Prins*, *de Barcelona-Kampioen*, *van Klak*, … plus voornamen
+  **Armando/Bolt/Gustav/Paddy/Joe/Commando/Klak** en **Kim/Ami/Winkie/Mary/Vita** (naar
+  Armando €1,25 M, New Kim €1,6 M, Cher Ami, Winkie's Dickin Medal).
+- **Nieuwe blijvende test `names.test.mts`**: 400 nieuwe duiven + 40 kweekrondes zonder één
+  duplicaat, en de dynastie-fallback op een kunstmatig uitgeputte pool (5.785 combinaties).
+- Spelregels **§10** bijgewerkt.
+
+**Duivenwaarde komt van de markt i.p.v. een vaste curve**
 - **Probleem:** `estimateValue` is een vaste curve `(talent/50)^2.2 × 800`, en die is te
   vlak aan de top: over de héle talentschaal 40→90 gaat de prijs maar **×6**, terwijl een
   topduif ~€2.500/week aan prijzengeld kan ophalen en een talent-50 duif nooit iets. Een

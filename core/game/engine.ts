@@ -39,6 +39,7 @@ import { progressMissions } from './missions.js';
 import { resolveEvent as resolveEventCard } from './events.js';
 import { applyAcceptSponsor, applyCancelSponsor, applyRefuseSponsor } from './sponsors.js';
 import { careSlots, runHealthWeek } from './health.js';
+import { nameKey, namesInUse } from './names.js';
 import { voidBetsForWithdrawnPigeon } from './betting.js';
 import { canRace, generatePigeon, noteAttrChange, onRestCure, talent, trainCeil, trainingCost } from './pigeon.js';
 import { clamp, randFloat, randInt, round1 } from './util.js';
@@ -103,10 +104,12 @@ export function createLoftForUser(store: Store, user: User, loftName: string): L
       sponsorship: emptySponsorState(),
     };
     db.lofts.push(loft);
+    // The set grows as we go, so the six starters can't collide with each other.
+    const taken = namesInUse(db.pigeons);
     for (let i = 0; i < STARTING_PIGEONS; i++) {
-      db.pigeons.push(
-        generatePigeon({ ownerId: user.id, currentWeek: db.world.currentWeek, quality: randFloat(0.4, 0.6) }),
-      );
+      const p = generatePigeon({ ownerId: user.id, currentWeek: db.world.currentWeek, quality: randFloat(0.4, 0.6), taken });
+      taken.add(nameKey(p.name));
+      db.pigeons.push(p);
     }
     return loft;
   });
@@ -156,10 +159,11 @@ export function seedWorld(store: Store): void {
       // Bots start with the same headroom as players (max 8) and comparable
       // birds — no quality edge — so they don't dominate every flight.
       const count = STARTING_PIGEONS + Math.floor(Math.random() * 3); // 6..8
+      const taken = namesInUse(db.pigeons);
       for (let j = 0; j < count; j++) {
-        db.pigeons.push(
-          generatePigeon({ ownerId: botUser.id, currentWeek: week, quality: randFloat(0.4, 0.6) }),
-        );
+        const p = generatePigeon({ ownerId: botUser.id, currentWeek: week, quality: randFloat(0.4, 0.6), taken });
+        taken.add(nameKey(p.name));
+        db.pigeons.push(p);
       }
     }
     db.world.seeded = true;

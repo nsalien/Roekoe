@@ -1348,6 +1348,9 @@ export const MALE_FIRST_NAMES = [
   'Jos', 'Leon', 'Marc', 'Rik', 'Theo', 'Vic', 'Wim', 'Zeger', 'Denis', 'Edgard',
   'Georges', 'Herman', 'Ivan', 'Jules', 'Koen', 'Lowie', 'Maurice', 'Norbert', 'Oscar', 'Prosper',
   'Roger', 'Staf', 'Tuur', 'Valere', 'Warre', 'Dave', 'José', 'Turbo',
+  // A nod to real racing legends: Armando (€1,25 M, 2019), Bolt (Leo Heremans),
+  // and the decorated war pigeons Gustav, Paddy, Joe (G.I. Joe) and Commando.
+  'Armando', 'Bolt', 'Gustav', 'Paddy', 'Joe', 'Commando', 'Klak',
 ];
 
 export const FEMALE_FIRST_NAMES = [
@@ -1356,6 +1359,9 @@ export const FEMALE_FIRST_NAMES = [
   'Denise', 'Simonne', 'Agnes', 'Bea', 'Carine', 'Diane', 'Emma', 'Francine', 'Greet', 'Hilde',
   'Ingrid', 'Josée', 'Katrien', 'Lea', 'Maria', 'Nadine', 'Odette', 'Paula', 'Rosa', 'Sonja',
   'Tinne', 'Ursula', 'Viviane', 'Wendy', 'Christine', 'Godelieve', 'Martha', 'Zoë',
+  // Real racing hens: New Kim (€1,6 M, 2020), Cher Ami (Croix de Guerre, WO I),
+  // Winkie (first Dickin Medal) and Mary of Exeter.
+  'Kim', 'Ami', 'Winkie', 'Mary', 'Vita',
 ];
 
 /** All first names (both sexes), used to detect legacy/wrong-gender names. */
@@ -1371,6 +1377,17 @@ export const EPITHETS = {
   neutral: [
     'de Verschrikkelijke', "van 't Stad", 'Junior', 'de Derde', 'de Kale', 'de Legende', 'met de Snor',
     'de Zatte', 'de Gepensioneerde', 'de Mysterieuze', 'uit de Goot', 'de Onverwoestbare', 'Bonus',
+  ],
+  /**
+   * Knipoog naar de échte duivensport: legendarische kampioenen en de klassiekers
+   * die elke melker kent. Zeldzamer dan de rest — een duif met zo'n bijnaam mag
+   * wat opvallen.
+   */
+  legend: [
+    'de Kannibaal', 'de Nieuwe Kim', 'de Armando', 'de Olympiade', 'de Gouden Prins',
+    'de Blauwe Prins', 'Dolce Vita', 'de Miljoenenduif', 'de Barcelona-Kampioen',
+    'van Klak', 'de Dickin-Medaille', 'het Wonder van Wetteren', 'de Nationale',
+    'de Fondkoning', 'de Asduif', 'de Bourges-Winnaar', 'de Perpignan-Held',
   ],
   // Pikzwarte humor: galgenhumor over duivenpech, sperwers en de soeppot.
   dark: [
