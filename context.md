@@ -834,10 +834,16 @@ Alles hieronder staat **live** op de deploy-branch. Data-migraties liepen door t
   i.p.v. €29.000) + **`UPKEEP_BANDS`**, progressieve daghuur per duif. Cijfers en de
   invariant "een hok van 8 betaalt exact als vroeger": zie §5.
 - **UI:** de Dagbalans-tegel (`DashboardPage`) toont een **regel per schijf**
-  ("Onderhoud duif 9–12 · 4 × €6") i.p.v. één regel; de uitbreidingskaart in `LoftPage`
-  toont het **hele schijventarief vóór aankoop** (met de eigen schijven benadrukt), zodat
-  een groter hok nooit een verborgen terugkerende kost is. Economy-DTO kreeg `upkeepBands`
-  (de tabel) en de loft-DTO `dailyCosts.upkeepBands` (de eigen verdeling).
+  ("Onderhoud duif 9–12 · 4 × €6") i.p.v. één regel. De **volledige uitleg staat in de
+  wiki** (sectie 🏠 **Hokcapaciteit & onderhoudskosten**: de ladder, de schijven, de
+  weekkost per hokgrootte); de uitbreidingskaart in `LoftPage` houdt het bij het énige
+  cijfer dat daar telt — "je volgende duif kost €X/dag" — plus een link naar
+  `/wiki#hok`, zodat een groter hok nooit een verborgen terugkerende kost is.
+  Economy-DTO kreeg `upkeepBands` (de tabel) en de loft-DTO `dailyCosts.upkeepBands`
+  (de eigen verdeling).
+- **`WikiPage` scrollt nu naar de hash** (`useEffect` op mount): React Router springt zelf
+  niet naar een anker als je van een andere route komt, dus zonder dat landde `/wiki#hok`
+  bovenaan de pagina.
 - **Geen migratie, geen `dataVersion`-bump** (config + logica). Bestaande hokken behouden
   hun capaciteit; wie al boven 8 zit, betaalt vanaf de eerstvolgende dagovergang het nieuwe
   tarief.

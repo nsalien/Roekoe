@@ -8,6 +8,8 @@
  * cost. Keep the figures in rough sync with core/config/gameConfig.ts by hand.
  */
 
+import { useEffect } from 'react';
+
 const SECTIONS = [
   { id: 'genen', icon: '🧬', label: 'Genen & training' },
   { id: 'ervaring', icon: '🎓', label: 'Ervaring' },
@@ -19,6 +21,7 @@ const SECTIONS = [
   { id: 'sterfte', icon: '🕯️', label: 'Sterfte' },
   { id: 'rassen', icon: '🎨', label: 'Rassen' },
   { id: 'veilingen', icon: '🔨', label: 'Veilingen & bieden' },
+  { id: 'hok', icon: '🏠', label: 'Hok & onderhoudskosten' },
   { id: 'waarde', icon: '💰', label: 'Wat is een duif waard?' },
   { id: 'afscheid', icon: '👋', label: 'Afscheid nemen' },
 ];
@@ -57,6 +60,14 @@ function Section({ id, icon, title, children }: { id: string; icon: string; titl
 }
 
 export function WikiPage() {
+  // Arriving from another page with a hash (e.g. a "Hoe de schijven werken →"
+  // link on Mijn hok): the router renders this page but does not scroll to the
+  // anchor itself, so do it once the sections are mounted.
+  useEffect(() => {
+    const id = window.location.hash.slice(1);
+    if (id) document.getElementById(id)?.scrollIntoView();
+  }, []);
+
   return (
     <div className="stack" style={{ gap: 14 }}>
       <div className="card">
@@ -383,6 +394,72 @@ export function WikiPage() {
         <p className="faint" style={{ fontSize: '0.85rem' }}>
           Waarom deze regel? Zo eindigt een veiling in een handvol duidelijke stappen in plaats van tientallen
           kleine — dat is spannender én het houdt het spel snel voor iedereen.
+        </p>
+      </Section>
+
+      <Section id="hok" icon="🏠" title="Hokcapaciteit & onderhoudskosten">
+        <p className="muted" style={{ marginTop: 0 }}>
+          Je hok bepaalt hoeveel duiven je kan houden — en dus hoeveel je er per week aan de
+          start kan brengen. Het is daarmee de sterkste troef in het spel, en bewust een
+          <strong> investering van lange adem</strong>: uitbreiden wordt snel duurder, én elke
+          extra duif kost je daarna méér onderhoud per dag.
+        </p>
+        <p>
+          <strong>Uitbreiden.</strong> Je start met plaats voor <strong>8</strong> duiven en
+          groeit in stappen van twee:
+        </p>
+        <MiniTable
+          head={['Stap', 'Prijs', 'Cumulatief vanaf 8']}
+          rows={[
+            ['8 → 10', '€1.500', '€1.500'],
+            ['10 → 12', '€3.500', '€5.000'],
+            ['12 → 14', '€10.000', '€15.000'],
+            ['14 → 16', '€17.500', '€32.500'],
+            ['16 → 18', '€30.000', '€62.500'],
+            ['18 → 20', '€50.000', '€112.500'],
+          ]}
+        />
+        <p style={{ marginTop: 14 }}>
+          <strong>Onderhoud gaat in schijven.</strong> Hoe groter je hok, hoe duurder elke
+          extra duif. Het werkt zoals belastingschijven: <strong>élke duif betaalt het tarief
+          van háár schijf</strong>, nooit het toptarief op je hele hok.
+        </p>
+        <MiniTable
+          head={['Schijf', 'Per duif per dag']}
+          rows={[
+            ['duif 1 – 8', '€2'],
+            ['duif 9 – 12', '€6'],
+            ['duif 13 – 16', '€12'],
+            ['duif 17 – 20', '€20'],
+          ]}
+        />
+        <p style={{ marginTop: 14 }}>
+          Samen met de vaste basiskost van €22/dag komt dat neer op:
+        </p>
+        <MiniTable
+          head={['Duiven', 'Per dag', 'Per week']}
+          rows={[
+            ['8', '€38', '€266'],
+            ['10', '€50', '€350'],
+            ['12', '€62', '€434'],
+            ['14', '€86', '€602'],
+            ['16', '€110', '€770'],
+            ['18', '€150', '€1.050'],
+            ['20', '€190', '€1.330'],
+          ]}
+        />
+        <ul style={{ marginTop: 12 }}>
+          <li><strong>Een hok van 8 betaalt niets extra</strong> — de schijven raken alleen wie groter gaat.</li>
+          <li><strong>Je ziet het per schijf terug</strong> in de <em>Dagbalans</em> op het Overzicht, naast je sponsorinkomsten.</li>
+          <li><strong>Voer, aparte hokken en de ziekenboeg staan hier los van</strong> en worden apart aangerekend.</li>
+          <li>Op de uitbreidingskaart in <em>Mijn hok</em> zie je de tarieven <strong>vóór</strong> je een uitbreiding koopt.</li>
+        </ul>
+        <p>
+          <strong>Strategie:</strong> een groter hok verdient zichzelf alleen terug als je die
+          duiven ook echt laat vliegen. Een duif kan door haar energie zowat één wedstrijd per
+          4 à 7 dagen aan — reken dus uit hoeveel starts je per week realistisch invult voor je
+          €50.000 aan de laatste twee plaatsen uitgeeft. Een kleiner, goed uitgerust hok is
+          vaak winstgevender dan een vol hok dat half staat te niksen.
         </p>
       </Section>
 
