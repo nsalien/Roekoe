@@ -7,7 +7,7 @@
 
 import { FEED_RATIONS, INFIRMARY, TRAINING } from '../config/gameConfig.js';
 import type { Loft, Pigeon } from '../schema.js';
-import { talent, trainCeil, trainingCost } from './pigeon.js';
+import { experienceGain, talent, trainCeil, trainingCost } from './pigeon.js';
 import { clamp, round1 } from './util.js';
 
 /** Bots isolate and (if they can afford it) treat their ailing birds. */
@@ -80,7 +80,9 @@ export function botTakeWeeklyActions(
       if (candidate[attr] < cap && loft.money > cost * 2) {
         candidate[attr] = round1(clamp(candidate[attr] + TRAINING.attributeGain, 0, cap));
         candidate.form = round1(clamp(candidate.form - TRAINING.formCost, 0, 100));
-        candidate.experience = round1(clamp(candidate.experience + TRAINING.experienceGain, 0, 100));
+        candidate.experience = round1(
+          clamp(candidate.experience + experienceGain(candidate.experience, TRAINING.experienceGain), 0, 100),
+        );
         loft.money -= cost;
       }
     }

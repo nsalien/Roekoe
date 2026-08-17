@@ -5,8 +5,18 @@
  */
 
 import type { Database, Flight, Loft, Notification, Pigeon, Trade } from './schema.js';
-import { AUCTION, BREED_RARITY, compartmentCost, RELAY, REST_CURE, TRAINING } from './config/gameConfig.js';
-import { ageInWeeks, breedInfo, canRace, estimateValue, geneCap, talent, trainCeil, trainingCost } from './game/pigeon.js';
+import { AUCTION, BREED_RARITY, COACH, compartmentCost, RELAY, REST_CURE, TRAINING } from './config/gameConfig.js';
+import {
+  ageInWeeks,
+  breedInfo,
+  canRace,
+  estimateValue,
+  experienceGain,
+  geneCap,
+  talent,
+  trainCeil,
+  trainingCost,
+} from './game/pigeon.js';
 import { auctionKind } from './game/auction.js';
 import { bettingOpen } from './game/betting.js';
 import { nextCapacityTier, nextInfirmaryTier, ownerName } from './game/engine.js';
@@ -131,6 +141,9 @@ export function pigeonDTO(db: Database, p: Pigeon, viewerId?: string) {
           speed: round1(coachDailyGain(p.speed, geneCap(p, 'speed'))),
           endurance: round1(coachDailyGain(p.endurance, geneCap(p, 'endurance'))),
           orientation: round1(coachDailyGain(p.orientation, geneCap(p, 'orientation'))),
+          // Ervaring has diminishing returns, so the coach's daily bit is
+          // per-bird now. Two decimals: a veteran's share is well under 0.1.
+          experience: Math.round(experienceGain(p.experience, COACH.experienceDailyGain) * 100) / 100,
         }
       : null,
   };

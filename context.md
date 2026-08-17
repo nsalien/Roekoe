@@ -15,16 +15,16 @@
 
 | Rol | Branch | Doel |
 |-----|--------|------|
-| **Dev** | `claude/hallo-xifh0c` | Alle ontwikkeling/commits komen hier **eerst**. |
+| **Dev** | `claude/hallo-pvwabx` | Alle ontwikkeling/commits komen hier **eerst**. |
 | **Prod** | `claude/roekoe-game-website-jwa0vo` | Elke commit wordt hierheen **gecherry-pickt**; deze branch triggert de **Cloudflare Pages**-deploy naar productie. |
 
 > Vorige dev-branches (niet meer gebruiken): `claude/context-spelregels-q2ywtx`,
-> `claude/hallo-49m6hj`. Ontwikkelt een sessie op een nieuwe `claude/…`-branch, gebruik
-> die dan als dev-branch en **werk deze tabel meteen bij** — de prod-branch
-> hierboven verandert nooit.
+> `claude/hallo-49m6hj`, `claude/hallo-xifh0c`. Ontwikkelt een sessie op een nieuwe
+> `claude/…`-branch, gebruik die dan als dev-branch en **werk deze tabel meteen bij** —
+> de prod-branch hierboven verandert nooit.
 
 **Workflow per wijziging (zie §7 voor de exacte commando's):**
-1. Commit op **dev** (`claude/hallo-xifh0c`) + push.
+1. Commit op **dev** (`claude/hallo-pvwabx`) + push.
 2. `git checkout` **prod** → `git cherry-pick <commit>` → push naar prod
    (`claude/roekoe-game-website-jwa0vo`) → Cloudflare bouwt.
 3. Terug naar **dev**.
@@ -50,7 +50,7 @@ Een online **duivenmelker-managementspel** voor een groepje vrienden (~10 speler
 geld verdienen → kopen/kweken/uitbreiden → herhalen.** Bots vullen het veld.
 
 - **Repo:** `nsalien/roekoe` (GitHub).
-- **Ontwikkelbranch:** `claude/hallo-xifh0c` — hier ontwikkelen en committen.
+- **Ontwikkelbranch:** `claude/hallo-pvwabx` — hier ontwikkelen en committen.
 - **Productie/deploy-branch:** `claude/roekoe-game-website-jwa0vo` — een push
   hiernaartoe triggert de **Cloudflare Pages** build (= live). Elke wijziging
   wordt via cherry-pick naar deze branch gebracht en gepusht (zie §7).
@@ -469,6 +469,23 @@ Entiteiten: `Pigeon`, `Loft`, `User`, `BreedingPair`, `Flight` (+ `SimEntry`,
   ×1.25 méér verbruik, ervaring 100 = ×0.75 minder). Onervaren duiven verbruiken dus
   meer, ervaren minder. NB: dit staat los van de ervaring-**dosering** in het snelheids­
   model (`ENERGIE_IMPACT`), die enkel de *prestatie* raakt, niet het verbruik.
+- **Ervaring groeit met afnemende opbrengst (`EXPERIENCE`, nieuwste):** élke rauwe
+  ervaringswinst gaat door **`experienceGain(current, raw)`** (`pigeon.ts`) =
+  `raw · (minFactor + (maxFactor − minFactor)·((100−exp)/100)^curve)`, met
+  `maxFactor 1.8` / `minFactor 0.12` / `curve 1.6`. Factor ×1,8 op 0, **×1,0 rond
+  ervaring 33**, ×0,67 op 50, ×0,16 op 90, ×0,12 op 100. Het volledige traject 0→100
+  kost ~2,4× de rauwe eenheden van vroeger; 0→50 blijft even snel. Toegepast **aan de
+  bron** (zodat een delta die elders gelezen wordt, zoals `seasonPracticeGain`, het
+  échte getal ziet): `flight.ts` (wedstrijd/estafette-etappe/oefenvlucht),
+  `engine.ts::trainPigeon`, `bots.ts` (bot-training), `economy.ts` (coach + de
+  `projectDailyCare`-projectie) en `events.ts` (talentenjager).
+  **Ondergrens op `minFactor`:** ervaring wordt op **1 decimaal** bewaard, dus de
+  kleinste terugkerende rauwe winst (coach 0,5/dag, oefenvlucht ~0,5) moet na schaling
+  nog ≥ 0,05 opleveren, anders rondt ze stilletjes weg tot niets. `0,5 × 0,12 = 0,06` —
+  **zet `minFactor` nooit onder 0,10.** (Keerzijde van diezelfde afronding: zo'n kleine
+  winst wordt bij het optellen naar 0,1 afgerond, dus aan de top gaat het in de praktijk
+  iets sneller dan de rauwe formule suggereert. Zelfde artefact als bij de andere stats.)
+  Ervaring heeft **geen gen-cap** — 100 blijft haalbaar, het duurt gewoon lang.
 - **Genen & caps (`GENE`, cruciaal):** elke duif heeft een **gen-cap per racevaardigheid**
   (`Pigeon.genes`), **nooit ≥ 96** (`ceil 95`, `floor 70`). Trappen: **trainen `trainCap 80`**,
   **vluchten `raceCap 90`**, **coach → gen-cap** (`coachMinAttr 90`). Helpers `trainCeil`/
@@ -664,8 +681,9 @@ Entiteiten: `Pigeon`, `Loft`, `User`, `BreedingPair`, `Flight` (+ `SimEntry`,
 - `AchievementsPage` (Prestaties) — tabs Badges · Trofeeën · **Seizoensprijzen**
   (Roekoes + Vleugels: tellingen goud/zilver/brons + erelijst uit `profile.awards`).
 - `WikiPage` (`/wiki`, nav 📖 **Wiki**) — **statische**, client-only uitlegpagina van
-  de strategie-bepalende mechanismen + kansen (energie/herstel, vlucht-verbruik, DNF/
-  blessure/dood bij lage energie, broedkans, ziektekans, sterfte, ras-rariteit). Bewust
+  de strategie-bepalende mechanismen + kansen (energie/herstel, **ervaring/leerfactor**,
+  vlucht-verbruik, DNF/blessure/dood bij lage energie, broedkans, ziektekans, sterfte,
+  ras-rariteit). Bewust
   **niet 100% transparant**: richtwaarden i.p.v. exacte formules, geluk blijft benoemd.
   Geen backend/kosten. Cijfers **handmatig** in sync houden met `core/config/gameConfig.ts`.
 - `AdminPage` (`/beheer`, **enkel admins**) — uitbreidbare **beheerconsole** (tabs).
@@ -748,8 +766,8 @@ npx tsx names.test.mts             # elke duivennaam blijft uniek
 (Beide staan buiten `tsconfig.json` (`include` = `core/` + `functions/`), dus tsc raakt ze niet.)
 
 ### Git + deploy (ALTIJD, zie §0)
-1. Ontwikkel + commit op **`claude/hallo-xifh0c`**; push met
-   `git push -u origin claude/hallo-xifh0c` (retry met backoff).
+1. Ontwikkel + commit op **`claude/hallo-pvwabx`**; push met
+   `git push -u origin claude/hallo-pvwabx` (retry met backoff).
 2. **Deploy meteen naar productie** door de commit op de deploy-branch te zetten:
    ```bash
    git fetch origin claude/roekoe-game-website-jwa0vo
@@ -758,7 +776,7 @@ npx tsx names.test.mts             # elke duivennaam blijft uniek
    git cherry-pick <commit>        # of meerdere
    # typecheck + build ter controle
    git push -u origin claude/roekoe-game-website-jwa0vo   # triggert Cloudflare Pages
-   git checkout claude/hallo-xifh0c           # terug naar dev
+   git checkout claude/hallo-pvwabx           # terug naar dev
    ```
 3. **Geen PR** tenzij expliciet gevraagd.
 4. Commit messages in het **Nederlands**, en eindig met de footer:
@@ -780,6 +798,38 @@ npx tsx names.test.mts             # elke duivennaam blijft uniek
 
 Alles hieronder staat **live** op de deploy-branch. Data-migraties liepen door tot
 **`dataVersion = 35`**.
+
+**Ervaring stijgt met afnemende opbrengst (nieuwste)**
+- **Probleem:** ervaring was de enige eigenschap die **volledig lineair** groeide. Elke
+  bron gaf een vast bedrag, los van het huidige niveau (vlucht `2 + km/100`, trainen 4,
+  coach 0,5/dag, dilemma 4–8), dus 90→100 kostte precies evenveel vluchten als 0→10.
+  Dat terwijl de trainbare skills wél afnemen richting hun plafond (`ruimte`-factor bij
+  vluchten, `(cap−attr)/cap` bij de coach). Ervaring liep daardoor bij elke actieve duif
+  vanzelf vol en was op termijn geen onderscheidende eigenschap meer — terwijl ze wel
+  fors doorweegt (+33 % snelheid, −25 % vluchtverbruik, sneller herstel, energie doseren).
+- **Fix:** nieuwe knop **`EXPERIENCE`** in `gameConfig.ts` + pure helper
+  **`experienceGain(current, raw)`** in `pigeon.ts` (zie §5 voor de formule, de cijfers en
+  de **ondergrens op `minFactor`** wegens de 1-decimaal-afronding). Toegepast **aan de
+  bron** in alle zes de paden, zodat `sim.fatigue[].experienceDelta` het werkelijk
+  toegepaste getal bevat en `seasonPracticeGain` (schedule.ts) vanzelf klopt.
+- **Nog steeds waar:** een verre vlucht leert meer dan een korte (alles schaalt evenredig,
+  de rangorde blijft), niets loopt vast (de bodem is 0,12, nooit 0), en ervaring heeft
+  **geen gen-cap**.
+- **Geen migratie, geen `dataVersion`-bump** (config + logica). Bestaande duiven **behouden**
+  hun opgebouwde ervaring; enkel de groei vanaf nu volgt de curve. Een retroactieve
+  verlaging zou bestaande spelers straffen voor iets wat ze correct hebben opgebouwd.
+- **DTO/UI:** `pigeonDTO.coachGain` kreeg een veld **`experience`** (2 decimalen — de winst
+  van een veteraan zit ver onder 0,1); `PigeonPage` toont dat per-duif-cijfer i.p.v. het
+  globale `economy.coachExpDailyGain`. Dat economy-veld **blijft** bestaan (een oude, nog
+  open tab zou anders op `undefined.toFixed()` crashen), maar wordt niet meer gebruikt.
+- **Wiki:** nieuwe sectie 🎓 **Ervaring** (met de leerfactor-tabel); spelregels **§3.5**
+  (+ verwijzingen in §1, §3, §8 en §13).
+- **Geverifieerd** met een wegwerp-tsx-script tegen de echte helper: monotoon dalend,
+  sneller dan vroeger onder ervaring 33, de kleinste terugkerende winst rondt niet weg,
+  de rangorde tussen vluchten blijft, een negatieve delta wordt niet geschaald, en geen
+  enkel startniveau (70/80/90/95/99) zit muurvast. Realistisch ritme: ervaring 50 na ~2
+  weken, 80 na ~6, tegen de 100 na ~11 weken. De vier vaste regressietests + beide
+  typechecks + build blijven groen.
 
 **Unieke duivennamen + echte kampioenen als inspiratie (nieuwste)**
 - **Regel:** élke combinatie van **voornaam + bijnaam** is uniek in de wereld, ongeacht

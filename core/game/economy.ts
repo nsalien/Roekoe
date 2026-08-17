@@ -14,7 +14,7 @@ import {
   type RacingAttr,
 } from '../config/gameConfig.js';
 import type { Loft, Pigeon } from '../schema.js';
-import { geneCap, noteAttrChange } from './pigeon.js';
+import { experienceGain, geneCap, noteAttrChange } from './pigeon.js';
 import { activeContracts } from './sponsors.js';
 import { clamp, hashString, round1 } from './util.js';
 
@@ -136,7 +136,13 @@ export function applyDayOfCare(
             polished = true;
           }
         }
-        if (polished) p.experience = round1(clamp(p.experience + COACH.experienceDailyGain, 0, 100));
+        // Ervaring has diminishing returns too, so a veteran gains far less per
+        // coached day than a rookie (see EXPERIENCE in gameConfig).
+        if (polished) {
+          p.experience = round1(
+            clamp(p.experience + experienceGain(p.experience, COACH.experienceDailyGain), 0, 100),
+          );
+        }
       }
       // Libido drifts toward conditie + energie; a frisky minority stays high.
       let target = p.endurance * 0.5 + p.form * 0.5;
@@ -262,7 +268,7 @@ export function projectDailyCare(loft: Loft, p: Pigeon, live = false, covered = 
       speed = rise(p.speed, coachGainOf('speed'), geneCap(p, 'speed'));
       orientation = rise(p.orientation, coachGainOf('orientation'), geneCap(p, 'orientation'));
       enduranceRaw += coachGainOf('endurance');
-      experience = rise(p.experience, COACH.experienceDailyGain, 100);
+      experience = rise(p.experience, experienceGain(p.experience, COACH.experienceDailyGain), 100);
     }
     endurance = round1(enduranceRaw);
     // Libido drifts toward conditie + energie (a frisky minority stays high);

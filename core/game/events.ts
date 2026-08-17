@@ -6,7 +6,7 @@
 
 import type { Database, EventCard, Loft, Pigeon } from '../schema.js';
 import { newId } from '../store.js';
-import { estimateValue, generatePigeon, noteAttrChange } from './pigeon.js';
+import { estimateValue, experienceGain, generatePigeon, noteAttrChange } from './pigeon.js';
 import { marketValue } from './market.js';
 import { namesInUse } from './names.js';
 import { applyAilment, randomAilmentOfSeverity, randomDisease, randomInjury } from './health.js';
@@ -290,7 +290,7 @@ export function resolveEvent(db: Database, loft: Loft, choice: number, week: num
         const bSpeed = p.speed, bEnd = p.endurance;
         p.speed = round1(clamp(p.speed + randFloat(2, 5), 0, 100));
         p.endurance = round1(clamp(p.endurance + randFloat(2, 5), 0, 100));
-        p.experience = round1(clamp(p.experience + randFloat(4, 8), 0, 100));
+        p.experience = round1(clamp(p.experience + experienceGain(p.experience, randFloat(4, 8)), 0, 100));
         noteAttrChange(p, 'speed', bSpeed, 'gebeurtenis: talentenjager');
         noteAttrChange(p, 'endurance', bEnd, 'gebeurtenis: talentenjager');
         notify(db, loft, '🔎 Wat een vooruitgang', `${p.name} kwam sterker terug van bij de topmelker.`);

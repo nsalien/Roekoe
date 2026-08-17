@@ -109,7 +109,9 @@ export interface Pigeon {
     endurance: { cost: number; cap: number };
     orientation: { cost: number; cap: number };
   } | null; // per-attr next-step cost + manual ceiling (min(80, geneCap))
-  coachGain: { speed: number; endurance: number; orientation: number } | null; // coach's daily polish (0 below 90)
+  // Coach's daily polish per skill (0 at the gene cap) + the ervaring it adds,
+  // which shrinks as the bird gets more experienced.
+  coachGain: { speed: number; endurance: number; orientation: number; experience: number } | null;
 }
 
 export interface Trade {

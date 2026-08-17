@@ -41,7 +41,16 @@ import { applyAcceptSponsor, applyCancelSponsor, applyRefuseSponsor } from './sp
 import { careSlots, runHealthWeek } from './health.js';
 import { nameKey, namesInUse } from './names.js';
 import { voidBetsForWithdrawnPigeon } from './betting.js';
-import { canRace, generatePigeon, noteAttrChange, onRestCure, talent, trainCeil, trainingCost } from './pigeon.js';
+import {
+  canRace,
+  experienceGain,
+  generatePigeon,
+  noteAttrChange,
+  onRestCure,
+  talent,
+  trainCeil,
+  trainingCost,
+} from './pigeon.js';
 import { clamp, randFloat, randInt, round1 } from './util.js';
 
 export const NPC_OWNER_ID = 'npc_market';
@@ -739,7 +748,9 @@ export function trainPigeon(
     pigeon[attr] = round1(clamp(pigeon[attr] + gain, 0, cap));
     noteAttrChange(pigeon, attr, before, 'training');
     pigeon.form = round1(clamp(pigeon.form - TRAINING.formCost, 0, 100));
-    pigeon.experience = round1(clamp(pigeon.experience + TRAINING.experienceGain, 0, 100));
+    pigeon.experience = round1(
+      clamp(pigeon.experience + experienceGain(pigeon.experience, TRAINING.experienceGain), 0, 100),
+    );
     pigeon.trainedAt = { ...pigeon.trainedAt, [attr]: new Date().toISOString() };
     progressMissions(db, loft, 'train', 1);
     return null;
