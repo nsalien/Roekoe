@@ -169,7 +169,9 @@ export interface Loft {
 /** Cumulative recurring daily costs of a loft, split per category (€ per day). */
 export interface DailyCostBreakdown {
   upkeepBase: number;
-  upkeepPerPigeon: number;
+  upkeepPerPigeon: number; // total over all bands
+  /** Per-pigeon upkeep split over the progressive bands (duif 1–8, 9–12, …). */
+  upkeepBands: { from: number; to: number; perPigeon: number; birds: number; amount: number }[];
   coaches: number;
   doctors: number;
   physios: number;
@@ -189,7 +191,9 @@ export interface EconomyCosts {
   coachSalary: number; // per day (recurring costs are charged daily)
   coachExpDailyGain: number; // flat ervaring gained per day while coached (only ≥90)
   dailyUpkeepBase: number;
-  dailyUpkeepPerPigeon: number;
+  dailyUpkeepPerPigeon: number; // the first band's rate (headline)
+  /** Progressive per-pigeon upkeep schedule: every bird pays its own band's rate. */
+  upkeepBands: { upTo: number; perPigeon: number }[];
   trainCost: number;
   breedCost: number;
   betMinStake: number;

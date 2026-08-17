@@ -34,13 +34,36 @@ export function DashboardPage() {
   const coachedCount = pigeons.filter((p) => p.coached).length;
   const eco = state.economy;
   const inf = state.infirmary;
-  const dailyFixed = eco.dailyUpkeepBase + pigeons.length * eco.dailyUpkeepPerPigeon + coachedCount * eco.coachSalary;
+  // Headline "vaste dagkost": base + the progressive per-pigeon upkeep (same
+  // source as what is actually deducted) + coach salaries.
+  const dailyFixed = eco.dailyUpkeepBase + (loft.dailyCosts.upkeepPerPigeon ?? 0) + coachedCount * eco.coachSalary;
   // Full cumulative daily-cost breakdown (from the loft DTO, same source as what
   // is actually deducted each day). Each row: label, count context, and amount.
   const costs = loft.dailyCosts;
+  // Per-pigeon upkeep is charged in progressive bands (duif 1–8 goedkoop, daarna
+  // duurder). One row per band the loft actually fills, so the numbers add up
+  // visibly; a loft that stays within the first band still sees a single row.
+  const bands = costs.upkeepBands ?? [];
+  const bandRows = bands.length
+    ? bands.map((b) => ({
+        key: `band-${b.from}`,
+        label: bands.length === 1 ? 'Onderhoud per duif' : `Onderhoud duif ${b.from}–${b.to}`,
+        detail: `${b.birds} × `,
+        unit: b.perPigeon,
+        amount: b.amount,
+      }))
+    : [
+        {
+          key: 'perPigeon',
+          label: 'Onderhoud per duif',
+          detail: `${loft.pigeonCount} × `,
+          unit: eco.dailyUpkeepPerPigeon,
+          amount: costs.upkeepPerPigeon,
+        },
+      ];
   const costRows = [
     { key: 'base', label: 'Vast onderhoud', detail: 'basiskost van je hok', amount: costs.upkeepBase },
-    { key: 'perPigeon', label: 'Onderhoud per duif', detail: `${loft.pigeonCount} × `, unit: eco.dailyUpkeepPerPigeon, amount: costs.upkeepPerPigeon },
+    ...bandRows,
     { key: 'coach', label: 'Privécoach', detail: `${loft.coachedCount} × `, unit: eco.coachSalary, amount: costs.coaches },
     { key: 'doctor', label: 'Duivendokter', detail: `${loft.doctors} × `, unit: inf.doctorSalary, amount: costs.doctors },
     { key: 'physio', label: 'Kinesist', detail: `${loft.physios} × `, unit: inf.physioSalary, amount: costs.physios },
