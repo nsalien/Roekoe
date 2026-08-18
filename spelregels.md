@@ -23,7 +23,7 @@ Elke duif (0–100 per waarde):
 | **Energie** | dynamisch | "Fut". Daalt door vluchten, stijgt door rust + eten. Lage energie = slechtere prestaties, meer kans op ziekte/blessure, minder kans op broeden. |
 | **Gezondheid** | dynamisch | Algemene gezondheid. Vermenigvuldigt de vluchtsnelheid; laag = niet vluchtklaar. |
 | **Libido** | dynamisch | Broeddrift. Volgt conditie + energie (met een frisse minderheid als uitzondering). |
-| **Ervaring** | groeit | Zelfvertrouwen. Betere prestaties, sneller energieherstel én **minder energieverbruik per vlucht**. Groeit door te vliegen, te trainen en met een coach — **snel bij een groentje, steeds trager bij een routinier** (§3.5). |
+| **Ervaring** | groeit | Zelfvertrouwen. Betere prestaties, sneller energieherstel én **minder energieverbruik per vlucht**. Groeit door te vliegen, te trainen en met een coach — **snel bij een groentje, steeds trager bij een routinier** (§3.6). |
 
 Een duif is **vluchtklaar** als: niet gepensioneerd, geen ziekte/kwetsuur, niet
 in de ziekenboeg, minstens **8 weken** oud en gezondheid > 15.
@@ -309,8 +309,8 @@ Per deelnemende duif:
 |---|---|---|
 | **Energie** (verbruik) | −((10 + afstand/30) · ervaringsfactor + willekeurig 0…10) | **geleidelijk tijdens de vlucht** (zie hieronder) |
 | **Conditie** (opbouw) | +(0.3 + afstand/500 + willekeurig 0…0.4) | na afloop |
-| **Gezondheid** | −(willekeurig 0 … afstand/200) | na afloop |
-| **Ervaring** | +(2 + afstand/100) × **leerfactor** (§3.5) | na afloop |
+| **Gezondheid** | −(0,5 + afstand/250) × (1 + leegte van de tank) — zie §4.4 | na afloop |
+| **Ervaring** | +(2 + afstand/100) × **leerfactor** (§3.6) | na afloop |
 
 **Ervaring bepaalt mee hoeveel energie een vlucht kost.** Een ervaren duif vliegt
 efficiënter en verbruikt **minder**; een onervaren duif verbruikt **meer**. De
@@ -382,39 +382,77 @@ Bij een verbetering krijgt de speler een melding.
 > dezelfde ruimte maar amper plaatsbonus, en dus maar ~35% kans. Winnen én
 > onervaren/zwakke duiven leren dus het snelst bij.
 
-### 3.2 Energie, thuiskomen & kans op kwetsuur
+### 3.2 Vluchtvorm: waarom een duif geblesseerd raakt
 
 Om in te schrijven heeft een duif **minstens 1 energie** nodig. Vliegt ze op een
 haast lege tank, dan is er een reële kans dat ze de vlucht **niet uitrijdt (DNF)**
 — ze raakt niet thuis, verdient geen punten of prijs, en is nadien vaak gekwetst.
-Onder ~22 energie loopt die kans snel op; bij bijna 0 energie komt ze zo goed als
-zeker niet thuis.
+
+Of een duif een **blessure** oploopt, hangt af van één cijfer: haar
+**vluchtvorm**. Die combineert **energie** en **gezondheid**, waarbij de
+**laagste van de twee dubbel telt** — één zwakke schakel wordt dus niet verstopt
+door de andere.
 
 ```
-basiskans   = 0.025 + afstand · 0.00018
-kans_duif   = basiskans · (1 + (100 − Energie)/100) + extra_bij_lage_energie
+vluchtvorm = (2 × laagste(energie, gezondheid) + hoogste) / 3   − rustaftrek (§3.5)
 ```
-Onder ~25 energie komt er een extra blessurekans bij (tot +0.6 bij 0 energie); een
-duif die niet thuis raakt, is bijna altijd gewond. De kwetsuur is willekeurig uit
-de lijst (zie §5).
 
-> **Voorbeeld.** Op een fondvlucht van **490 km** is de basiskans 0.025 +
-> 490·0.00018 ≈ **11%** bij volle energie. Vliegt de duif op haar tandvlees
-> (energie 30), dan wordt dat ×1.7 → **~19%**. Uitgeputte duiven laten vliegen
-> is dus vragen om blessures.
+| Energie / Gezondheid | Vluchtvorm | |
+|---|---|---|
+| 90 / 95 | ≈ 92 | 🟢 fris |
+| 80 / 90 | ≈ 83 | 🟢 fris |
+| 60 / 85 | ≈ 68 | 🟡 matig |
+| 40 / 70 | ≈ 50 | 🔴 risico |
+| 20 / 50 | ≈ 30 | 🔴 gevaarlijk |
 
-**Getrapt risico op een wedstrijdvlucht bij lage energie.** Naast de gewone
-blessurekans gelden er extra gevaren, bepaald door de energie waarmee de duif
-**vertrekt** (een duif die je zelf **opgeeft** loopt deze risico's níet):
+Je ziet de vluchtvorm op de duifpagina en in de keuzelijst bij het inschrijven,
+met een 🟢/🟡/🔴-stip. **Kijk daarnaar, niet alleen naar de energiebalk.**
 
-| Startenergie | Risico |
-|---|---|
-| **onder 20** | kans (~20%) op een **licht** letsel of lichte ziekte |
-| **onder 10** | kans (~30%) op een **matig** letsel of matige ziekte (of het bovenstaande) |
-| **onder 5** | kleine kans (~7%) op **sterfte** — of anders alles hierboven |
+**Er zijn twee soorten blessures.**
 
-Sterfte gaat vóór alle andere aandoeningen: sterft de duif, dan verlaat ze het
-hok (met een melding). Oefenvluchten (§2.7) kennen deze risico's **niet**.
+- **Overbelasting** — verrekte borstspier, verstuikte vleugel, borstbeenkneuzing,
+  botbreuk in de vleugel. Die loopt een duif op omdat de inspanning te zwaar was:
+  **hoe lager de vluchtvorm, hoe groter de kans** én hoe zwaarder het letsel.
+- **Pech** — een sperwer, een botsing, een afgebroken slagpen. Dat overkomt een
+  topduif net zo goed als een sukkelaar: een **kleine, vaste kans** die je met
+  geen enkele verzorging wegkrijgt. Bij een duif in topvorm is dít meestal de
+  reden dat ze toch eens gehavend thuiskomt.
+
+**Kans op een blessure per vlucht** (beide soorten samen):
+
+| Vluchtvorm | 150 km | 300 km | 500 km | 700 km | 1000 km |
+|---|---|---|---|---|---|
+| 90 (top) | 2 % | 3 % | 3 % | 4 % | 5 % |
+| 75 (goed) | 4 % | 5 % | 6 % | 7 % | 9 % |
+| 65 (normaal) | 7 % | 9 % | 11 % | 13 % | 15 % |
+| 55 (matig) | 12 % | 14 % | 17 % | 20 % | 25 % |
+| 45 (zwak) | 18 % | 21 % | 26 % | 31 % | 38 % |
+| 30 (gevaarlijk) | 30 % | 36 % | 44 % | 52 % | 64 % |
+
+Afstand telt dus nog mee, maar veel minder dan vroeger: een fitte duif kan de
+grote fond aan, terwijl een uitgeputte duif zelfs op een regiovlucht een risico
+loopt.
+
+**Hoe erg het wordt, hangt óók van de vluchtvorm af** (enkel bij overbelasting —
+pech is pech). Dat scheelt dagen uitval: licht ≈ 1,5 dag met volle zorg,
+ernstig ≈ 6 dagen.
+
+| Vluchtvorm | Licht | Matig | Ernstig |
+|---|---|---|---|
+| 90 | 66 % | 26 % | 8 % |
+| 70 | 58 % | 28 % | 14 % |
+| 50 | 50 % | 30 % | 20 % |
+| 30 | 42 % | 32 % | 26 % |
+
+**Sterfte bij een bijna lege tank.** Vertrekt een duif met **minder dan 5
+energie**, dan is er een kleine kans (~7 %) dat ze het niet haalt. Een duif die
+je zelf **opgeeft** loopt dat risico niet, en oefenvluchten (§2.7) kennen géén
+blessure- of sterfterisico.
+
+> **Voorbeeld.** Een duif met energie 46 en gezondheid 90 heeft vluchtvorm 61 —
+> "matig". Op een nationale vlucht van 300 km is haar kans op een blessure ~10 %.
+> Dezelfde duif goed uitgerust (energie 80, gezondheid 90 → vorm 83) zit op ~3 %.
+> Uitrusten loont dus echt.
 
 ### 3.3 Geen tijdslimiet — elke duif krijgt de tijd om thuis te komen
 
@@ -454,7 +492,27 @@ Handig als je vroeg merkt dat een duif toch niet gaat scoren en je haar zoveel
 mogelijk fris wil houden voor de volgende vlucht, in plaats van haar helemaal
 leeg te laten lopen.
 
-### 3.5 Ervaring: een groentje leert snel, een veteraan amper nog
+### 3.5 Twee dagen op rij vliegen kost vorm
+
+**Rust kan je niet kopen.** Energie wel: met Herstelvoer en een apart hok komt er
+tot ~14 energie per nacht bij, genoeg om een korte vlucht dag na dag te doen
+zonder dat de energiebalk het laat zien. Daarom gaat er **rechtstreeks vluchtvorm
+af** als een duif net gevlogen heeft:
+
+| Laatste vlucht | Aftrek op de vluchtvorm |
+|---|---|
+| gisteren | **−15** |
+| eergisteren | −7 |
+| langer geleden | geen |
+
+Een **oefenvlucht** telt maar voor een derde (−5). In de praktijk **verdubbelt**
+zo'n aftrek de kans op een blessure — ook al ziet je duif er verder prima uit. Bij
+het inschrijven staat het erbij: *"net gevlogen, −15"*.
+
+> Wie zijn duiven laat roteren in plaats van dezelfde vogel elke dag op te
+> offeren, heeft dus meetbaar minder blessures.
+
+### 3.6 Ervaring: een groentje leert snel, een veteraan amper nog
 
 Ervaring stijgt **niet** aan een vast tempo. Élke ervaringswinst — een vlucht, een
 oefenvlucht, een trainingsbeurt, een dag privécoach, een gebeurtenis — wordt
@@ -533,7 +591,7 @@ De tabel toont **weekwaarden**; in het spel (Overzicht) zie je ze **per dag** (1
 | Normaal | 1.0 kg | €3 | energie +21, gezondheid +5 |
 | Premium | 1.5 kg | €6 | energie +28, gezondheid +9, **conditie +4** |
 | Libido-mix | 1.4 kg | €4.5 | energie +18, gezondheid +5, **libido +14** |
-| Herstel | 1.5 kg | €3 | **energie +42**, gezondheid +3 |
+| Herstel | 1.5 kg | €3 | **energie +42**, **gezondheid +12** |
 
 Iedereen start (na de overstap) met **50 kg Normaal**; alle duiven staan standaard
 op Normaal.
@@ -541,7 +599,8 @@ op Normaal.
 Per dag, per gevoerde duif (weekwaarden gedeeld door 7):
 ```
 Energie   += (energie_per_week / 7) · (1 + Ervaring/200)   // ervaring = sneller herstel
-Gezondheid+= (gezondheid_per_week / 7) + Conditie/280       // goede conditie = betere gezondheid
+Gezondheid+= (gezondheid_per_week / 7) · (1 + (100 − Gezondheid)/100) + Conditie/280
+             // hoe verder gezakt, hoe sneller ze terugveert
 ```
 
 > **Duif in de ziekenboeg?** Dan geldt dit energieherstel maar aan **50 %** — en enkel
@@ -656,31 +715,55 @@ Onkosten kunnen je kassa **onder €0** duwen. Sta je negatief, dan **kan je nie
 meer inschrijven** voor vluchten: eerst een duif verkopen om terug uit het rood
 te geraken.
 
-### 4.3 Rustkuur (energie kopen met tijd)
+### 4.3 Rustkuur (energie én gezondheid kopen met tijd)
 Naast wachten en Herstelvoer kan je een duif een **betaalde rustkuur** geven op
 haar duifpagina:
-- Kost **€300** en duurt **één dag** (24 u, echte tijd).
+- Kost **€300** en duurt **twee dagen** (48 u, echte tijd).
 - Tijdens de kuur **rust** de duif volledig: ze kan **niets** doen — **geen
-  vluchten, geen training, geen koppelen** — tot de 24 u om zijn.
-- Als de kuur voorbij is, krijgt ze in één keer **+40 energie** (met een melding).
-- **Maximaal één rustkuur per week** per hok (dus ook maar **één duif per week**);
-  daarna telt een cooldown van **7 dagen** vóór de volgende kan. Zo blijft energie
-  kopen in balans.
+  vluchten, geen training, geen koppelen** — tot de 48 u om zijn.
+- Als de kuur voorbij is, krijgt ze in één keer **+40 energie en +15
+  gezondheid** (met een melding). Het is dus de snelste weg terug naar een
+  groene vluchtvorm (§3.2).
+- **Elke duif mag op kuur, zo vaak je wil** — er is geen weeklimiet meer. De
+  prijs en de twee dagen die ze niet kan vliegen zijn de rem.
 
-Handig als al je duiven futloos zijn en je snel iemand vluchtklaar wil krijgen
+Handig als een duif in het rood staat en je haar snel weer inzetbaar wil krijgen
 zonder op de dagelijkse verzorging te wachten. Je kan geen kuur starten voor een
-duif die al ingeschreven staat of al vol energie zit.
+duif die al ingeschreven staat, of die al vol energie én gezondheid zit.
 
----
+### 4.4 Wat een wedstrijd aan gezondheid kost
+
+Vliegen slijt. Elke wedstrijd kost gezondheid, en **extra als je duif leeg
+thuiskomt**:
+
+```
+gezondheidskost = (0,5 + afstand/250) × (1 + (100 − energie bij aankomst)/100 × 0,8)
+```
+
+| Afstand | Kost (leeg thuis) |
+|---|---|
+| 200 km | ≈ −2 |
+| 300 km | ≈ −3 |
+| 500 km | ≈ −4 |
+| 1000 km | ≈ −7 |
+
+Gezondheid komt vanzelf terug met voer, en **sneller naarmate ze verder gezakt
+is**. Herstelvoer is daarvoor het beste (§4). Grofweg: **één à twee wedstrijden
+per week** houdt een duif duurzaam op peil; wie er drie of meer vliegt, ziet haar
+gezondheid — en dus haar vluchtvorm — stelselmatig zakken.
 
 ## 5. Ziekte, kwetsuur & ziekenboeg
 
 ### 5.1 Aandoeningen
 **Ziektes (besmettelijk):** Het Geel (licht), Duivenpokken (matig), Ornithose
 (matig), Coccidiose (matig), Paramyxovirose (ernstig), Salmonellose (ernstig).
-**Kwetsuren (via vluchten):** gebroken slagpen (licht), gekneusde poot (licht),
-verrekte borstspier (licht), verstuikte vleugel (matig), borstbeenkneuzing
-(matig), sperwerverwonding (ernstig), botbreuk in de vleugel (ernstig).
+**Kwetsuren (via vluchten)** komen in twee soorten (zie §3.2):
+- **Door overbelasting** — verrekte borstspier (licht), verstuikte vleugel
+  (matig), borstbeenkneuzing (matig), botbreuk in de vleugel (ernstig). De kans
+  én de ernst hangen af van de vluchtvorm van je duif.
+- **Door pech** — gebroken slagpen (licht), gekneusde poot (licht),
+  sperwerverwonding (ernstig). Een kleine, vaste kans die niets met verzorging te
+  maken heeft.
 
 Bij het uitbreken zakt de gezondheid meteen: **licht −10, matig −22, ernstig −38**.
 Bovendien blijft een aandoening de gezondheid **elke dag verder ondermijnen**
@@ -689,53 +772,48 @@ en **×1,5** zolang ze *niet* in de ziekenboeg zit. Een zieke of gekwetste duif 
 je laat aanmodderen wordt dus steeds zwakker; snel behandelen beperkt de schade.
 
 ### 5.2 Kans op ziekte (elke dag, in echte tijd)
-Duiven worden nu **effectief ziek tijdens het spelen**: elke dagovergang (00:00)
-krijgt elke gezonde, niet-geïsoleerde duif een kans om ziek te worden. De
-weekkansen hieronder worden omgerekend naar een **dagkans**
-(`dagkans = 1 − (1 − weekkans)^(1/7)`):
-```
-energierisico = clamp(1.3 − Energie/100, 0.3, 1.3)         // laag = risicovoller
-per_bron      = 0.30 · clamp(1.2 − Gezondheid/100, 0.1, 1.2) · energierisico
-van_anderen   = 1 − (1 − per_bron)^(aantal zieke, niet-geïsoleerde duiven)
-kwetsbaarheid = clamp(1 − Gezondheid/100, 0.18, 1)         // ondergrens = pech
-spontaan      = 0.10 · kwetsbaarheid · energierisico
-totale_kans   = clamp(1 − (1 − van_anderen)·(1 − spontaan), 0, 0.85)   // per week, /7 per dag
-```
-Een duif **in de ziekenboeg** is geïsoleerd: besmet niemand en wordt niet besmet.
+Duiven worden **effectief ziek tijdens het spelen**: elke dagovergang (00:00)
+krijgt elke gezonde, niet-geïsoleerde duif een kans om ziek te worden.
 
-**Gezondheid is veruit de grootste factor — maar geen schild.** Ook een
-kerngezonde duif houdt een klein restrisico (de ondergrens van **0,18** in de
-formule hierboven): net als bij mensen wordt een topfit beest af en toe eens
-ziek. Wat het verschil maakt is *hoe vaak*:
+**Ziek worden werkt op dezelfde vluchtvorm als een blessure** (§3.2): de
+combinatie van **energie en gezondheid**, met de laagste van de twee dubbel
+geteld. Zo bepaalt één en dezelfde vraag — *hoe goed houd ik deze duif?* — zowel
+je blessure- als je ziekterisico.
 
-| Hok van 8 duiven | Eerste ziektegeval na… | Kans dat één zieke duif besmet binnen een week |
-|---|---|---|
-| Kerngezond (gez. 100, energie 90) | ~110 dagen | 20% |
-| Goed verzorgd (92 / 80) | ~90 dagen | 37% |
-| Normaal (80 / 60) | ~60 dagen | 57% |
-| Verwaarloosd (55 / 35) | **~17 dagen** | 80% |
+| Vluchtvorm | Kans om ziek te worden, per week |
+|---|---|
+| 90 (top) | ≈ 1 % |
+| 75 (goed) | ≈ 3 % |
+| 65 (normaal) | ≈ 5 % |
+| 55 (matig) | ≈ 9 % |
+| 45 (zwak) | ≈ 14 % |
+| 30 (gevaarlijk) | ≈ 24 % |
 
-Een verwaarloosd hok wordt dus ruim **zes keer sneller** getroffen dan een
-kerngezond hok. En zet je een zieke duif niet in de ziekenboeg, dan is de kans
-groot dat het overslaat op de rest.
+Een hok van acht kerngezonde duiven ziet zo ongeveer **één ziektegeval per tien
+weken**; een verwaarloosd hok gaat binnen de week onderuit.
 
-**Hoe erg de ziekte is, hangt óók van de gezondheid af.** Een duif in goede doen
+**Gezondheid is geen schild.** Ook in topvorm blijft er ~1 % per week over — net
+als bij mensen wordt een topfit beest af en toe eens ziek. En een **zieke duif
+die je niet isoleert besmet de rest**: een fitte hokgenoot vangt minder makkelijk
+iets op, maar is nooit immuun.
+
+**Hoe erg de ziekte is, hangt óók van die vluchtvorm af.** Een duif in goede doen
 sleept meestal iets lichts op; een verzwakte duif is degene die iets zwaars
 oploopt:
 
-| Gezondheid | Licht | Matig | Ernstig |
+| Vluchtvorm | Licht | Matig | Ernstig |
 |---|---|---|---|
-| 80 of hoger | 55% | 33% | **12%** |
-| 55 | 47% | 34% | 19% |
-| 30 | 40% | 34% | **26%** |
+| 80 of hoger | 55 % | 33 % | 12 % |
+| 55 | 47 % | 34 % | 19 % |
+| 30 | 40 % | 34 % | 26 % |
 
-Een ernstige ziekte blijft dus altijd mogelijk, ook bij een topduif — ze is
-alleen zeldzaam.
+Een duif **in de ziekenboeg** is geïsoleerd: ze besmet niemand en wordt niet
+besmet. Een **apart hok** verlaagt de ziektekans eveneens fors.
 
 **Onbehandeld = gevaarlijk.** Een matige of ernstige aandoening die je niet
 verzorgt kan **dodelijk** aflopen. Een ernstig letsel dat je z'n hele beloop
 buiten de ziekenboeg laat, heeft zo'n **~1 kans op 4** om de duif te kosten; in de
-ziekenboeg zakt dat tot **~2%**. Lichte aandoeningen zijn nooit dodelijk.
+ziekenboeg zakt dat tot **~2 %**. Lichte aandoeningen zijn nooit dodelijk.
 
 ### 5.3 Herstel (in echte tijd)
 Herstel loopt **continu in echte tijd** (niet meer als wekelijkse kansworp). Een
@@ -921,7 +999,7 @@ Een vaardigheid groeit in **drie trappen**:
 | **90 → gen-cap** | enkel een **privécoach** (§13) |
 
 **Handmatig trainen** verbruikt **15 energie**, geeft ~**+1** aan de gekozen
-vaardigheid (+**4 ervaring**, ×de leerfactor van §3.5 — bij een routinier dus
+vaardigheid (+**4 ervaring**, ×de leerfactor van §3.6 — bij een routinier dus
 merkbaar minder) en kan **tot 80** (of de gen-cap als die lager is —
 79→80 is dus de hoogste handmatige stap). Je kan enkel trainen als de duif **thuis**
 is, en **elke eigenschap maar 1× per week** (aparte teller per categorie).
@@ -1236,7 +1314,7 @@ Verdiend geld kan je investeren in je hok en je duiven (bij *Mijn hok*, de
   effectief vliegt. De concrete winst per dag zie je op de **duifpagina** (onder de
   coach-knop); zitten alle drie de vaardigheden al op hun gen-cap, dan meldt de pagina
   dat de coach niets meer kan toevoegen. Zijn dagelijkse **ervaringswinst** volgt de
-  leerfactor van §3.5: bij een groentje bijna een punt per dag, bij een veteraan nog
+  leerfactor van §3.6: bij een groentje bijna een punt per dag, bij een veteraan nog
   maar een fractie — de duifpagina toont het exacte cijfer voor déze duif.
 - **Trainingsplafonds (samengevat).** Zelf **trainen** tot **80**, **vluchten** tot
   **90**, **premiumvoer** bouwt conditie mee op tot **80**, en enkel de **coach** gaat

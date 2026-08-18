@@ -275,7 +275,7 @@ export const FEED_RATIONS = {
   normal: { label: 'Normaal', foodPerPigeon: 1.0, pricePerKg: 3, formRecovery: 21, healthRecovery: 5, enduranceRecovery: 0, libidoRecovery: 0 },
   premium: { label: 'Premium', foodPerPigeon: 1.5, pricePerKg: 6, formRecovery: 28, healthRecovery: 9, enduranceRecovery: 4, libidoRecovery: 0 },
   libido: { label: 'Libido-mix', foodPerPigeon: 1.4, pricePerKg: 4.5, formRecovery: 18, healthRecovery: 5, enduranceRecovery: 0, libidoRecovery: 14 },
-  herstel: { label: 'Herstel', foodPerPigeon: 1.5, pricePerKg: 3, formRecovery: 42, healthRecovery: 3, enduranceRecovery: 0, libidoRecovery: 0 },
+  herstel: { label: 'Herstel', foodPerPigeon: 1.5, pricePerKg: 3, formRecovery: 42, healthRecovery: 12, enduranceRecovery: 0, libidoRecovery: 0 },
 } as const;
 export type FeedRationKey = keyof typeof FEED_RATIONS;
 
@@ -1090,6 +1090,17 @@ export interface AilmentTemplate {
   name: string;
   severity: Severity;
   description: string;
+  /**
+   * What brings an INJURY on (diseases leave this undefined):
+   *  - 'overbelasting' — caused by the effort itself, so its odds and its severity
+   *    follow the bird's vluchtvorm (energie + gezondheid). Manage your loft well
+   *    and these become rare.
+   *  - 'pech' — plain bad luck: a hawk, a collision. A fit bird is no safer from a
+   *    sperwer than a tired one, so these run on a small FLAT chance and their
+   *    severity is drawn uniformly. They are the reason a perfectly kept bird can
+   *    still come home hurt.
+   */
+  cause?: 'overbelasting' | 'pech';
 }
 
 /** Diseases a pigeon can catch (contagious if not isolated in the infirmary). */
@@ -1104,13 +1115,16 @@ export const DISEASES: AilmentTemplate[] = [
 
 /** Injuries a pigeon can pick up (mostly during flights). Not contagious. */
 export const INJURIES: AilmentTemplate[] = [
-  { name: 'Gebroken slagpen', severity: 'licht', description: 'Een afgebroken slagpen hindert de vlucht tot ze weer aangroeit.' },
-  { name: 'Gekneusde poot', severity: 'licht', description: 'Gezwollen pootje na een botsing; de duif hinkt wat rond.' },
-  { name: 'Verrekte borstspier', severity: 'licht', description: 'Overbelaste vliegspier die rust nodig heeft.' },
-  { name: 'Verstuikte vleugel', severity: 'matig', description: 'Gezwollen vleugelgewricht; tijdelijk niet vliegklaar.' },
-  { name: 'Borstbeenkneuzing', severity: 'matig', description: 'Kneuzing na een harde landing; pijnlijk bij elke vleugelslag.' },
-  { name: 'Sperwerverwonding', severity: 'ernstig', description: 'Klauw- en beetwonden na de aanval van een roofvogel.' },
-  { name: 'Botbreuk in de vleugel', severity: 'ernstig', description: 'Gebroken vleugelbot; langdurig herstel, vliegen uitgesloten.' },
+  // Bad luck: an accident or a predator. Flat odds — being fit is no protection.
+  { name: 'Gebroken slagpen', severity: 'licht', cause: 'pech', description: 'Een afgebroken slagpen hindert de vlucht tot ze weer aangroeit.' },
+  { name: 'Gekneusde poot', severity: 'licht', cause: 'pech', description: 'Gezwollen pootje na een botsing; de duif hinkt wat rond.' },
+  { name: 'Sperwerverwonding', severity: 'ernstig', cause: 'pech', description: 'Klauw- en beetwonden na de aanval van een roofvogel.' },
+  // Strain: the effort itself broke the bird down. Odds AND severity follow its
+  // vluchtvorm, so a well-rested, healthy pigeon rarely picks these up.
+  { name: 'Verrekte borstspier', severity: 'licht', cause: 'overbelasting', description: 'Overbelaste vliegspier die rust nodig heeft.' },
+  { name: 'Verstuikte vleugel', severity: 'matig', cause: 'overbelasting', description: 'Gezwollen vleugelgewricht; tijdelijk niet vliegklaar.' },
+  { name: 'Borstbeenkneuzing', severity: 'matig', cause: 'overbelasting', description: 'Kneuzing na een harde landing; pijnlijk bij elke vleugelslag.' },
+  { name: 'Botbreuk in de vleugel', severity: 'ernstig', cause: 'overbelasting', description: 'Gebroken vleugelbot; langdurig herstel, vliegen uitgesloten.' },
 ];
 
 /** The infirmary (ziekenboeg): isolate + treat ailing birds. */
@@ -1236,9 +1250,22 @@ export const HEALTH = {
   /** Extra weekly death chance from an untreated severe/moderate ailment. */
   ailmentMortalityOutside: { licht: 0, matig: 0.03, ernstig: 0.1 } as Record<Severity, number>,
   ailmentMortalityInfirmary: { licht: 0, matig: 0.005, ernstig: 0.025 } as Record<Severity, number>,
-  /** Chance a finished flight leaves a bird injured, plus a per-km term. */
-  flightInjuryBase: 0.025,
-  flightInjuryPerKm: 0.00018,
+  /**
+   * Health a race takes out of a bird:
+   *   (flightHealthBase + km · flightHealthPerKm) · (1 + (100 − energie bij aankomst)/100 · emptyTankFactor)
+   * Racing is real wear now — a fond race costs ~7 health — and running the tank dry
+   * costs extra on top. That makes gezondheid a resource you manage over weeks
+   * instead of a number pinned at 100, which is what gives INJURY/ILLNESS their bite.
+   */
+  flightHealthBase: 0.5,
+  flightHealthPerKm: 1 / 250,
+  emptyTankFactor: 0.8,
+  /**
+   * Health recovery gets a REBOUND: the further a bird has dropped, the faster it
+   * comes back — `(healthRecovery/7) · (1 + (100 − gezondheid)/100)`. Without this,
+   * health would be a one-way ratchet for anyone who races a full calendar.
+   */
+  reboundFactor: 1,
 } as const;
 
 /**
@@ -1267,6 +1294,100 @@ export function diseaseSeverityWeights(health: number): Record<Severity, number>
     ernstig: mix(DISEASE_SEVERITY.healthy.ernstig, DISEASE_SEVERITY.frail.ernstig),
   };
 }
+
+/**
+ * VLUCHTVORM — the single number that drives injury, illness severity and the risk
+ * badge in the UI. It blends the two things a fancier actually manages:
+ *
+ *   vluchtvorm = (2 × laagste(energie, gezondheid) + hoogste) / 3
+ *
+ * The LOWER of the two counts double on purpose: a worn-out bird with a full tank
+ * is just as much a liability as a rested but sickly one, and one weak link should
+ * not be masked by the other value. See flightForm()/conditionScore() in game/pigeon.
+ */
+export const FORM = {
+  lowWeight: 2, // weight of the lower of energie/gezondheid
+  highWeight: 1, // weight of the higher one
+} as const;
+
+/**
+ * Rest between races. Energie recovery can be BOUGHT (Herstelvoer + a private
+ * compartment + a seasoned bird runs to ~14/day), which is enough to fly a short
+ * race day after day with barely a dent in the tank. Rest itself cannot be bought,
+ * so racing on consecutive days docks the vluchtvorm directly.
+ *
+ * The penalty is deliberately a form deduction rather than a flat multiplier on the
+ * injury chance: it is self-scaling (×2.5 for a fresh bird that loses its safety
+ * margin, ×1.6 for an already shaky one instead of double-punishing it), it feeds
+ * the severity mix and the visible badge through the same funnel, and no amount of
+ * feed makes it go away.
+ */
+export const RECOVERY = {
+  penaltyYesterday: 15, // raced 1 day ago
+  penaltyTwoDays: 7, // raced 2 days ago
+  practiceFactor: 1 / 3, // an oefenvlucht is a light effort — a third of the above
+} as const;
+
+/**
+ * INJURY — split in two, because not every injury says something about how the bird
+ * is kept (see AilmentTemplate.cause):
+ *
+ *  - OVERBELASTING (strain) runs on the vluchtvorm:
+ *      kans = (floor + max · ((100 − vluchtvorm)/100)^curve) · (distBase + km·distPerKm)
+ *    A bird in top form sits near the floor whatever the distance; below vluchtvorm
+ *    ~30 (roughly gezondheid < 50 AND energie < 20) it climbs past 35% on a middle
+ *    distance and past 50% on a fond race. Distance is a modifier now (×0.75 at
+ *    150 km to ×1.6 at 1000 km), not the thing that decides it — the old model was
+ *    almost purely distance-driven, which is why good husbandry paid off so little.
+ *
+ *  - PECH (bad luck) is a small FLAT chance on the same distance modifier. It never
+ *    goes to zero: a hawk does not care how well fed your bird is. This is what
+ *    keeps a perfectly kept loft from being untouchable, and at top form it is
+ *    where most of the (few) remaining injuries come from.
+ */
+export const INJURY = {
+  floor: 0.015, // strain risk that never goes away, even at vluchtvorm 100
+  max: 0.9, // added at vluchtvorm 0
+  curve: 2.4, // >1 keeps a fit bird safe and makes the bottom end genuinely dangerous
+  distBase: 0.6,
+  distPerKm: 0.001,
+  luckBase: 0.01, // flat per-flight chance of a pech injury, before the distance modifier
+} as const;
+
+/** Severity mix for a STRAIN injury, by vluchtvorm (a pech injury draws uniformly
+ *  from its own pool — luck does not care about form). Mirrors DISEASE_SEVERITY. */
+export const INJURY_SEVERITY = {
+  fit: { licht: 70, matig: 25, ernstig: 5 } as Record<Severity, number>,
+  spent: { licht: 30, matig: 35, ernstig: 35 } as Record<Severity, number>,
+} as const;
+
+/** Interpolated severity weights for a strain injury at a given vluchtvorm. */
+export function injurySeverityWeights(form: number): Record<Severity, number> {
+  const t = Math.max(0, Math.min(1, form / 100));
+  const mix = (spent: number, fit: number) => spent + (fit - spent) * t;
+  return {
+    licht: mix(INJURY_SEVERITY.spent.licht, INJURY_SEVERITY.fit.licht),
+    matig: mix(INJURY_SEVERITY.spent.matig, INJURY_SEVERITY.fit.matig),
+    ernstig: mix(INJURY_SEVERITY.spent.ernstig, INJURY_SEVERITY.fit.ernstig),
+  };
+}
+
+/**
+ * ILLNESS — the same shape as INJURY, on the same vluchtvorm, so "how well do I keep
+ * this bird" answers both questions at once. This is the WEEKLY chance a bird falls
+ * ill on its own; runHealthDay converts it to a daily chance.
+ *
+ * The floor matters: even a bird in perfect shape carries ~1%/week, so a healthy
+ * loft still sees the odd case (roughly one bird ill every ~10 weeks in a loft of
+ * eight). At vluchtvorm 30 — gezondheid < 50 and energie < 20 — it is ~24%/week, so
+ * a neglected loft goes down fast, and contagion then does the rest.
+ */
+export const ILLNESS = {
+  floor: 0.01, // weekly chance at perfect vluchtvorm — luck exists
+  max: 0.55, // added at vluchtvorm 0
+  curve: 2.4, // same shape as INJURY.curve, so both read the same way
+  contagionFloor: 0.15, // a fit bird still catches something from a sick loft mate…
+} as const;
 
 /** Weekly death probability by age in weeks (interpolated). Old birds fade. */
 export const MORTALITY_CURVE: { weeks: number; p: number }[] = [
@@ -1411,11 +1532,11 @@ export const PRACTICE = {
  * Above 20 there is only the small "rough flight" base injury chance (HEALTH).
  */
 export const TOURNEY_RISK = {
-  lightThreshold: 20,
-  moderateThreshold: 10,
+  // The graded light/moderate ailment rolls that used to sit here are GONE: the
+  // vluchtvorm now drives injury odds directly, so a bird starting on an empty tank
+  // is already deep in the danger zone — rolling a second ailment on top was double
+  // jeopardy. Racing on a nearly empty tank can still kill, and that stays.
   deathThreshold: 5,
-  lightChance: 0.2,
-  moderateChance: 0.3,
   deathChance: 0.07,
 } as const;
 
@@ -1425,9 +1546,13 @@ export const TOURNEY_RISK = {
  */
 export const REST_CURE = {
   cost: 300,
-  durationHours: 24,
+  // Two full days off. Any bird may be put on a cure — there is no per-loft weekly
+  // limit any more; the cost and the two days out of racing are the brake. A cure
+  // that was already running keeps the end time it was given (cureUntil is stored
+  // as an absolute timestamp), so birds on the old 24-hour cure are unaffected.
+  durationHours: 48,
   energy: 40,
-  cooldownDays: 7, // at most one rest cure per loft per week (so one bird a week)
+  health: 15, // real rest mends the bird too, not just its tank
 } as const;
 
 // ===========================================================================

@@ -12,11 +12,17 @@ import {
   canRace,
   estimateValue,
   experienceGain,
+  flightForm,
   geneCap,
+  restPenalty,
   talent,
   trainCeil,
   trainingCost,
 } from './game/pigeon.js';
+
+/** Vluchtvorm bands for the risk badge: 🟢 fris / 🟡 matig / 🔴 risico. */
+const FORM_GOOD = 70;
+const FORM_FAIR = 45;
 import { auctionKind } from './game/auction.js';
 import { bettingOpen } from './game/betting.js';
 import { nextCapacityTier, nextInfirmaryTier, ownerName } from './game/engine.js';
@@ -122,6 +128,19 @@ export function pigeonDTO(db: Database, p: Pigeon, viewerId?: string) {
       };
       return { speed: next('speed'), endurance: next('endurance'), orientation: next('orientation') };
     })(),
+    // VLUCHTVORM: energie + gezondheid (lower of the two counting double) minus the
+    // deduction for having raced in the last couple of days. It drives the injury
+    // odds and how bad an injury turns out, so the player has to be able to SEE it —
+    // an invisible penalty just reads as bad luck.
+    ...(() => {
+      if (!revealed) return { flightForm: null, formLabel: null, restPenalty: 0 };
+      const form = Math.round(flightForm(p));
+      return {
+        flightForm: form,
+        formLabel: form >= FORM_GOOD ? 'fris' : form >= FORM_FAIR ? 'matig' : 'risico',
+        restPenalty: Math.round(restPenalty(p)),
+      };
+    })(),
     racing: db.flights.some((f) => f.status !== 'completed' && f.entries.some((e) => e.pigeonId === p.id)),
     breeding: revealed && db.breedingPairs.some((bp) => bp.sireId === p.id || bp.damId === p.id),
     dailyCare,
@@ -183,14 +202,9 @@ export function loftDTO(db: Database, loft: Loft) {
     // (upkeep, coaches, infirmary staff, medicated feed) — same source as what
     // schedule.tickDailyCare actually deducts.
     dailyCosts: dailyRunningCostBreakdown(loft, pigeons.length, coachedCount, infirmary.length),
-    // Weekly rest-cure lock: ISO time the next cure becomes available, or null if
-    // one can be started right now (max one cure per loft per week).
-    restCureAvailableAt: (() => {
-      const last = loft.lastRestCure ? Date.parse(loft.lastRestCure) : NaN;
-      if (Number.isNaN(last)) return null;
-      const next = last + REST_CURE.cooldownDays * 86400000;
-      return next > Date.now() ? new Date(next).toISOString() : null;
-    })(),
+    // The weekly rest-cure lock is gone (any bird may go on a cure), but the field
+    // stays so an older, still-open tab keeps rendering. Always null now.
+    restCureAvailableAt: null as string | null,
   };
 }
 

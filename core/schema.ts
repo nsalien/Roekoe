@@ -99,6 +99,12 @@ export interface Pigeon {
   hungerDays: number; // consecutive days with no food in stock (0 = fed); drives starvation
   restDays: number; // consecutive fed days at home without racing; every 3rd gives an energie bonus
   cureUntil?: string | null; // ISO time a paid rest cure completes (bird rests, can't race)
+  /** ISO time of the last race this bird flew, and whether that was an oefenvlucht.
+   *  Drives the RECOVERY penalty on the vluchtvorm for racing on consecutive days.
+   *  Stored on the bird (not derived from db.flights) because finished flights are
+   *  pruned after two days, which would silently switch the penalty off. */
+  lastRaceAt?: string | null;
+  lastRaceWasPractice?: boolean;
   // Genetics (optional so legacy birds keep working; a migration backfills them).
   genes?: PigeonGenes; // per-skill ceilings (≤95, never 100) — ride in the `genes` JSON column
   declineRate?: number; // ageing decline multiplier (~0.6–1.6); higher = fades faster past its prime
@@ -363,6 +369,11 @@ export interface SimEntry {
   // tickFlightEnergy), not in one lump at the finish — so pulling a bird out
   // near the end still costs the energy it already spent getting there.
   startForm?: number; // the bird's energie at release (for DNF/injury risk)
+  /** The bird's VLUCHTVORM at release — energie + gezondheid with the lower of the
+   *  two counting double, minus the rest deduction for racing on consecutive days.
+   *  Frozen here so the strain-injury roll is deterministic (a second, concurrent
+   *  finalize sees the same number even if the first already applied its effects). */
+  startVorm?: number;
   formCost?: number; // total energie spent flying the whole route (frozen)
   formDrained?: number; // energie already deducted so far during the live race
   // Dynamic pacing (see FLIGHT_DYNAMICS). The bird flies the route in segments,
