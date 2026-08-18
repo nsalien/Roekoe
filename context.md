@@ -818,6 +818,56 @@ npx tsx names.test.mts             # elke duivennaam blijft uniek
 Alles hieronder staat **live** op de deploy-branch. Data-migraties liepen door tot
 **`dataVersion = 36`**.
 
+**Oriëntatie is een navigatie-eigenschap geworden (nieuwste)**
+- **Probleem:** oriëntatie zat als volwaardige term in `pigeonVelocity` (gewicht 0,22 kort →
+  **0,35 lang** — op de fond dus **zwaarder dan snelheid zelf**, 0,20). Een duif met snelheid
+  71 klopte er een duif met snelheid 80 mee. Erger: het mechanisme dat oriëntatie *hoort* te
+  hebben stond feitelijk uit — `lostOrientationRef 62` betekende dat **boven 62 de
+  verdwaalkans niet meer bewoog**, dus voor twee behoorlijke duiven was oriëntatie enkel nog
+  een snelheidsbonus. Precies omgekeerd.
+- **A. Uit de snelheidsformule.** `DISTANCE_WEIGHTING.orientation = 0`, gewicht proportioneel
+  herverdeeld: kort **0,83/0,17**, lang **0,31/0,69** (snelheid/conditie). Kort is nu duidelijker
+  een sprint, lang draait om conditie.
+- **B. Nieuw configblok `LOST`** — `(base 0,005 + max 0,55·room^2,4… )` → in code
+  `(LOST.base + LOST.max·room^LOST.curve) × (distBase 0,55 + km·0,0015) × (1 + rough·2,5)`,
+  afgetopt op 0,85. Gemeten: oriëntatie 95 → 0,4–1,2 %, 70 → 3,4–9,0 %, 30 → 20–52 % (150→1000 km).
+  **Weer versterkt het verschil**: op 700 km gaat 95 van 0,9 → 1,6 % en 30 van 41 → **72 %**
+  (`rough = max(0, 1 − weerfactor)`, bestond al).
+- **Twee uitkomsten.** Meestal een **omweg**: `km × 0,04 × (0,5 + 1,5·room)` → ~19 km bij
+  oriëntatie 30 op 300 km, ~62 km op 1000 km. De vertraging wordt **afgeleid uit die omweg**
+  (`slow = spanDist/(spanDist+omweg)`) zodat het tijdverlies exact klopt, en **`formCost` rekent
+  op `afstand + omweg`** — een verdwaalde duif komt dus ook leger thuis. Zeldzamer raakt ze de
+  weg **helemaal** kwijt: `strandedMax 0,35 · room^3,5`, enkel als ze al verdwaald is → totaal
+  2,6 % (or. 30, 300 km) tot 8,5 % (or. 30, 1000 km, zwaar weer); or. 95 praktisch nul.
+- **Nieuwe duifstatus VERLOREN** (`Pigeon.awayUntil`, kolom `away_until`): ze is **nooit
+  definitief weg** maar komt na `1 + km/1000·2 + room·3` dagen (± jitter) thuis met energie 2–8,
+  −15…−25 gezondheid en 45 % kans op een kwetsuur/ziekte (`tickStrayReturn`). Nieuwe
+  `dnfKind: 'lost'` + `SimEntry.strayDays`, `SimulatedFlight.strays`, eigen commentaarpool
+  `COMMENTARY.dnfLost`, en **twee meldingen** (verdwenen + thuis, stabiele id's).
+  **Guards op negen plaatsen** via `isAway(p)` (pigeon.ts): `canRace`, `enterFlight`,
+  `trainPigeon`, `startBreeding`, `startRestCure`, `setInfirmary`, `listForSale`, `pigeonBusy`
+  (vrijlaten/restaurant), `respondOffer`, plus **overslaan** in `applyDayOfCare` (eet niets,
+  **hongerteller loopt niet op**) en in `runHealthDay` (besmet niet, wordt niet besmet). Ze
+  **houdt haar hokplaats en telt mee voor de daghuur**.
+- ⚠️ **Knock-on die stilletjes zou zijn gebroken:** `pickImproveAttr` gebruikte de
+  snelheidsgewichten, dus met oriëntatie op 0 zou **vliegen nooit meer oriëntatie verbeteren**.
+  Daarom een **eigen `IMPROVE_WEIGHTING`** (kort 0,55/0,20/0,25 · lang 0,20/0,40/**0,40**) +
+  `improveWeightsForDistance()`; de estafette gebruikt de **etappe-afstand**. De coach traint
+  oriëntatie al (`RACING_ATTRS`) — daar was niets voor nodig.
+- **Bewust ongemoeid gelaten** (beslissing eigenaar): `talent`/marktwaarde/bots en de
+  weddenschap-odds. Estafette krijgt geen aparte regel: de kans loopt op de **etappe-afstand**,
+  en omdat een omweg de ploeg enkel tijd kost (alleen "helemaal kwijt" schakelt uit) blijft het
+  ploegrisico klein (~1,5 % bij oriëntatie 70). **Geen spelersaankondiging** — dit had altijd al
+  zo moeten zijn. Oefenvluchten blijven volledig veilig (`if (!practice)`).
+- **Wiki**: twee nieuwe secties — 📋 **Wat doet elke eigenschap tijdens een vlucht?** (snelheid/
+  conditie/oriëntatie/gezondheid/energie/ervaring) en 🧭 **Verdwalen**. Spelregels **§2.3**
+  herschreven, nieuwe **§3.5**, oude 3.5/3.6 doorgeschoven naar **§3.6/§3.7**.
+- **Geen migratie, geen `dataVersion`-bump** — alleen de nieuwe kolom (append-only).
+- **Geverifieerd** met een wegwerpscript (25 controles): gewichten sommeren tot 1 en oriëntatie
+  is 0, kansencurve monotoon en op de ijkpunten 95/70/30, het weer-gat groeit, omweg ≈ 20 km bij
+  or. 30 op 300 km, goede navigator raakt praktisch nooit helemaal kwijt, slechte loopt >5 % op de
+  fond, vluchten verbeteren oriëntatie nog steeds (méér op lange), en de `isAway`-status.
+
 **Blessures & ziektes op vluchtvorm (energie + gezondheid) — nieuwste**
 - **Aanleiding:** de blessurekans was in de praktijk een **vaste tol op ver vliegen**, niet
   op slecht beheer (op 1000 km had een duif met vólle energie nog 20,5 %), de **ernst werd

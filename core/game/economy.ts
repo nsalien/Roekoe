@@ -16,7 +16,7 @@ import {
   type RacingAttr,
 } from '../config/gameConfig.js';
 import type { Loft, Pigeon } from '../schema.js';
-import { experienceGain, geneCap, noteAttrChange } from './pigeon.js';
+import { experienceGain, geneCap, isAway, noteAttrChange } from './pigeon.js';
 import { activeContracts } from './sponsors.js';
 import { clamp, hashString, round1 } from './util.js';
 
@@ -78,6 +78,10 @@ export function applyDayOfCare(
   let allFed = true;
   const deaths: StarvationDeath[] = [];
   for (const p of active) {
+    // A bird that lost its way is not in the loft: it eats none of your stock, and
+    // its hunger streak must NOT tick up — you are not neglecting it, it simply
+    // isn't there. Everything else (rest bonus, coach, libido) is skipped too.
+    if (isAway(p)) continue;
     const key = rationKeyOf(p);
     const ration = FEED_RATIONS[key];
     // Feeding is per pigeon, drawn from its own food type's stock (weekly rate,

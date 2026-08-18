@@ -102,6 +102,15 @@ export interface Pigeon {
   /** ISO time this bird's last rest cure STARTED. Every bird may take a cure, but
    *  only one a week — the cooldown is per pigeon, not per loft. */
   lastRestCureAt?: string | null;
+  /**
+   * VERLOREN: she lost her way completely on a flight and is not home yet. Set at
+   * finalize, cleared by tickStrayReturn when she finally turns up (a few days
+   * later, on an empty tank). While this is in the future she is not in the loft:
+   * she cannot race, train, breed, take a cure, go to the infirmary or be sold,
+   * she eats none of your stock (and builds no hunger), and she is skipped by the
+   * daily health roll. She does still hold her loft place and cost upkeep.
+   */
+  awayUntil?: string | null;
   /** ISO time of the last race this bird flew, and whether that was an oefenvlucht.
    *  Drives the RECOVERY penalty on the vluchtvorm for racing on consecutive days.
    *  Stored on the bird (not derived from db.flights) because finished flights are
@@ -385,7 +394,9 @@ export interface SimEntry {
   // and the final result are both derived from it (so they always agree).
   segMult?: number[]; // per-segment speed multipliers (mean ~1)
   dnfAtSeconds?: number | null; // it gave out mid-flight at this elapsed time (never finishes)
-  dnfKind?: 'exhausted' | 'injury' | null; // why it gave out, for finalize effects
+  dnfKind?: 'exhausted' | 'injury' | 'lost' | null; // why it gave out, for finalize effects
+  /** Only for dnfKind 'lost': how many days before she finds her way home. */
+  strayDays?: number;
   gaveUpAtSeconds?: number; // elapsed seconds when the owner pulled it (freezes its position)
   // Prize money for this bird was already paid out the moment it crossed the line
   // (see schedule.payFinishedFlightPrizes), so finalize won't pay it again. Rides

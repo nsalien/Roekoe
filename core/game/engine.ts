@@ -45,6 +45,7 @@ import {
   canRace,
   experienceGain,
   generatePigeon,
+  isAway,
   noteAttrChange,
   onRestCure,
   talent,
@@ -54,6 +55,9 @@ import {
 import { clamp, randFloat, randInt, round1 } from './util.js';
 
 export const NPC_OWNER_ID = 'npc_market';
+
+/** A bird that lost its way on a flight is simply not in the loft yet. */
+const AWAY_MSG = 'Deze duif is de weg kwijt na haar laatste vlucht — ze is nog niet thuis';
 
 export function ownerName(db: Database, ownerId: string): string {
   if (ownerId === NPC_OWNER_ID) return 'Duivenmarkt';
@@ -380,6 +384,7 @@ export function startRestCure(store: Store, userId: string, pigeonId: string): s
     if (!loft || !pigeon) return 'Duif niet gevonden';
     if (pigeon.cureUntil && Date.parse(pigeon.cureUntil) > Date.now())
       return 'Deze duif is al op rustkuur';
+    if (isAway(pigeon)) return `${AWAY_MSG}`;
     if (pigeon.form >= 100 && pigeon.health >= 100) return 'Deze duif zit al vol energie en gezondheid';
     // EVERY bird may go on a cure (the old one-per-loft-per-week limit is gone), but
     // each bird only once a week — the cooldown runs per pigeon, from the start of
@@ -438,6 +443,7 @@ export function enterFlight(
     if (!loft || !pigeon || pigeon.ownerId !== userId) return 'Duif niet gevonden';
     if (onRestCure(pigeon))
       return 'Deze duif is op rustkuur — ze kan pas weer vliegen als de kuur voorbij is';
+    if (isAway(pigeon)) return `${AWAY_MSG} — schrijf haar in zodra ze terug is`;
     if (!canRace(pigeon, db.world.currentWeek))
       return 'Deze duif is niet vluchtklaar (te jong, ziek, gewond of in de ziekenboeg)';
     if (pigeon.form < 1) return 'Deze duif is volledig uitgeput — laat ze eerst wat rusten';
@@ -561,6 +567,7 @@ export function listForSale(store: Store, userId: string, pigeonId: string, pric
     const pigeon = db.pigeons.find((p) => p.id === pigeonId && p.ownerId === userId);
     if (!pigeon) return 'Duif niet gevonden';
     if (price <= 0) return 'Ongeldige prijs';
+    if (isAway(pigeon)) return `${AWAY_MSG} — je kan haar pas verkopen als ze terug is`;
     // A pigeon that is currently racing or breeding cannot be sold.
     const racing = db.flights.some(
       (f) => f.status !== 'completed' && f.entries.some((e) => e.pigeonId === pigeonId),
@@ -637,6 +644,8 @@ export function buyPigeon(store: Store, userId: string, pigeonId: string): strin
 
 /** Is this bird tied up in a race or a breeding pair (so it can't leave the loft)? */
 function pigeonBusy(db: Database, pigeonId: string): string | null {
+  const bird = db.pigeons.find((p) => p.id === pigeonId);
+  if (bird && isAway(bird)) return `${AWAY_MSG} — wacht tot ze terug is`;
   const racing = db.flights.some(
     (f) => f.status !== 'completed' && f.entries.some((e) => e.pigeonId === pigeonId),
   );
@@ -724,6 +733,7 @@ export function trainPigeon(
     if (!loft || !pigeon) return 'Duif niet gevonden';
     if (pigeon.ailment || pigeon.inInfirmary) return 'Een zieke, gekwetste of herstellende duif kan niet trainen';
     if (onRestCure(pigeon)) return 'Deze duif is op rustkuur — ze kan pas weer trainen als de kuur voorbij is';
+    if (isAway(pigeon)) return `${AWAY_MSG}`;
     const racing = db.flights.some(
       (f) => f.status !== 'completed' && f.entries.some((e) => e.pigeonId === pigeonId),
     );
@@ -778,6 +788,7 @@ export function startBreeding(
     if (sire.ailment || dam.ailment) return 'Een zieke of gekwetste duif kan niet koppelen';
     if (sire.inInfirmary || dam.inInfirmary) return 'Een duif in de ziekenboeg kan niet koppelen';
     if (onRestCure(sire) || onRestCure(dam)) return 'Een duif op rustkuur kan niet koppelen';
+    if (isAway(sire) || isAway(dam)) return 'Een duif die nog niet thuis is van haar vlucht kan niet koppelen';
     const alreadyBreeding = db.breedingPairs.some(
       (bp) => bp.sireId === sireId || bp.damId === sireId || bp.sireId === damId || bp.damId === damId,
     );
@@ -817,6 +828,7 @@ export function setInfirmary(
   return store.mutate((db) => {
     const pigeon = db.pigeons.find((p) => p.id === pigeonId && p.ownerId === userId);
     if (!pigeon) return 'Duif niet gevonden';
+    if (isAway(pigeon)) return `${AWAY_MSG}`;
     if (!wantIn) {
       pigeon.inInfirmary = false;
       // Auto-reclaim the private compartment it held on the way in — but only if a

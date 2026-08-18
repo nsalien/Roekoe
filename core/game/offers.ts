@@ -14,7 +14,7 @@ import type { Database, Loft, Pigeon, PigeonOffer } from '../schema.js';
 import { newId } from '../store.js';
 import { awardBadge, evaluateBadges } from './badges.js';
 import { progressMissions } from './missions.js';
-import { talent } from './pigeon.js';
+import { isAway, talent } from './pigeon.js';
 
 function notify(db: Database, userId: string, title: string, body: string): void {
   db.notifications.push({
@@ -104,6 +104,9 @@ export function respondOffer(db: Database, ownerId: string, offerId: string, acc
   const remove = () => { db.offers = db.offers.filter((x) => x.id !== o.id); };
   const pigeon = db.pigeons.find((p) => p.id === o.pigeonId);
   if (!pigeon || pigeon.ownerId !== ownerId) { remove(); return 'Deze duif is niet meer van jou'; }
+  // A bird still finding its way home from a flight is not in the loft to be sold.
+  // The offer stays open — she comes back.
+  if (isAway(pigeon)) return `${pigeon.name} is de weg kwijt na haar laatste vlucht — wacht tot ze thuis is`;
 
   if (!accept) {
     remove();
