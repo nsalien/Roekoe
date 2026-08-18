@@ -860,6 +860,10 @@ Alles hieronder staat **live** op de deploy-branch. Data-migraties liepen door t
   **`pigeonDTO.restCureAvailableAt`** (per duif); `loftDTO.restCureAvailableAt` blijft bestaan
   maar is altijd `null` (oude open tab). `Loft.lastRestCure` wordt nog geschreven als
   hok-historiek maar is geen poort meer.
+- **Eerste-login-melding** hierover: **`REST_CURE_NEWS_STEPS`** (Tour.tsx), sleutel
+  `roekoe.newsSeen.restcure.<id>` — 3 stappen: elke duif mag (1×/week per duif, prijs blijft
+  €300), +40 energie **én** +15 gezondheid, **2 dagen i.p.v. 1**, plus waaróm gezondheid nu
+  telt (de vluchtvorm en de 🟢/🟡/🔴-stip). Vervangt `RELAY_NEWS_STEPS` als actieve set.
 - **`TOURNEY_RISK` ingekort**: de extra licht/matig-worp onder 20/10 energie is weg (dubbelop
   nu de vorm dat al stuurt); **de sterfteworp onder 5 blijft**.
 - **Zichtbaar** (essentieel — een onzichtbare straf leest als willekeur): `pigeonDTO` stuurt

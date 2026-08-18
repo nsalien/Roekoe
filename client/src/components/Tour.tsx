@@ -549,3 +549,48 @@ export function Tour({ onClose, steps = STEPS }: { onClose: () => void; steps?: 
     </>
   );
 }
+
+/**
+ * One-time "what's new" run for the REST-CURE update: every bird may take a cure
+ * (one a week each), it now restores gezondheid as well as energie, and it runs
+ * two days instead of one. Uses a fresh localStorage key (see Layout).
+ */
+export const REST_CURE_NEWS_STEPS: Step[] = [
+  {
+    route: '/',
+    title: '🛌 Nieuw: de rustkuur is vernieuwd',
+    body: 'De rustkuur was vroeger beperkt tot één duif per hok per week. Dat is voorbij — en ze levert nu ook gezondheid op. Even kort wat er verandert. Je kan deze rondleiding later altijd opnieuw starten via je profiel.',
+  },
+  {
+    route: '/hok', selector: '[data-tour="pigeon"]',
+    title: '🛌 Elke duif mag op kuur',
+    body: (
+      <>
+        Je kan voortaan <strong>al je duiven</strong> op rustkuur sturen, ook meerdere tegelijk — maar
+        <strong> elke duif maar één keer per week</strong>. De prijs blijft <strong>€300</strong>.
+        <br />
+        <span style={{ display: 'inline-block', marginTop: 4 }}>
+          Ze levert nu <strong>+40 energie én +15 gezondheid</strong> op, in plaats van enkel energie. Wel duurt
+          een kuur voortaan <strong>2 dagen in plaats van 1</strong>, en zolang kan die duif niet vliegen,
+          trainen of koppelen.
+        </span>
+      </>
+    ),
+  },
+  {
+    route: '/hok', selector: '[data-tour="pigeon"]',
+    title: '💚 Waarom gezondheid er nu toe doet',
+    body: (
+      <>
+        De kans dat een duif geblesseerd raakt of ziek wordt, hangt vanaf nu af van haar{' '}
+        <strong>vluchtvorm</strong> — energie én gezondheid samen, waarbij de laagste van de twee dubbel telt.
+        Je ziet ze als een <strong>🟢/🟡/🔴-stip</strong> op de duifpagina en bij het inschrijven.
+        <br />
+        <span style={{ display: 'inline-block', marginTop: 4 }}>
+          Een rustkuur is dus de <strong>snelste weg terug naar groen</strong> voor een duif die je hard hebt
+          gereden. Alle details staan in de <strong>📖 Wiki</strong>.
+        </span>
+      </>
+    ),
+  },
+];
