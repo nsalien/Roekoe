@@ -724,8 +724,11 @@ haar duifpagina:
 - Als de kuur voorbij is, krijgt ze in één keer **+40 energie en +15
   gezondheid** (met een melding). Het is dus de snelste weg terug naar een
   groene vluchtvorm (§3.2).
-- **Elke duif mag op kuur, zo vaak je wil** — er is geen weeklimiet meer. De
-  prijs en de twee dagen die ze niet kan vliegen zijn de rem.
+- **Elke duif mag op kuur**, en je mag er gerust meerdere tegelijk op zetten —
+  maar **elke duif maar één keer per week**. Die teller loopt **per duif**,
+  vanaf het moment dat haar kuur begon: na de twee dagen kuur duurt het dus nog
+  vijf dagen voor diezelfde duif opnieuw kan. Op haar duifpagina staat vanaf
+  wanneer dat is.
 
 Handig als een duif in het rood staat en je haar snel weer inzetbaar wil krijgen
 zonder op de dagelijkse verzorging te wachten. Je kan geen kuur starten voor een

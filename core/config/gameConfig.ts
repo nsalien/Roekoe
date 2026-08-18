@@ -1546,11 +1546,16 @@ export const TOURNEY_RISK = {
  */
 export const REST_CURE = {
   cost: 300,
-  // Two full days off. Any bird may be put on a cure — there is no per-loft weekly
-  // limit any more; the cost and the two days out of racing are the brake. A cure
-  // that was already running keeps the end time it was given (cureUntil is stored
-  // as an absolute timestamp), so birds on the old 24-hour cure are unaffected.
+  // Two full days off. EVERY bird may be put on a cure — the old limit of one cure
+  // per LOFT per week is gone — but each bird individually may only take one a week
+  // (`cooldownDays`, measured from the start of its previous cure and tracked per
+  // pigeon in `Pigeon.lastRestCureAt`). So a big loft can rest several birds at once,
+  // yet no single bird can be topped up over and over.
+  //
+  // A cure that was already running keeps the end time it was given (cureUntil is an
+  // absolute timestamp), so birds on the old 24-hour cure are unaffected.
   durationHours: 48,
+  cooldownDays: 7, // per PIGEON, from the start of its last cure
   energy: 40,
   health: 15, // real rest mends the bird too, not just its tank
 } as const;

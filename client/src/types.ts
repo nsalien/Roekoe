@@ -98,6 +98,8 @@ export interface Pigeon {
   compartment: boolean;
   cureUntil: string | null;
   onCure: boolean;
+  /** When this bird may take its next rest cure (one per bird per week), or null. */
+  restCureAvailableAt: string | null;
   trainAvailableAt: { speed: string | null; endurance: string | null; orientation: string | null };
   racing: boolean;
   breeding: boolean;
@@ -208,6 +210,7 @@ export interface EconomyCosts {
   restCureEnergy: number;
   restCureHealth: number;
   restCureHours: number;
+  restCureCooldownDays: number;
   restaurantName: string; // the local pigeon-soup restaurant
   restaurantPayout: number; // fixed coins for selling a bird there
   restaurantMoraleMin: number; // each remaining bird loses this much energie…

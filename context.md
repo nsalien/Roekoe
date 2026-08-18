@@ -851,10 +851,15 @@ Alles hieronder staat **live** op de deploy-branch. Data-migraties liepen door t
 - **`SimEntry.startVorm`** bevriest de vluchtvorm bij de lossing, zodat de blessureworp
   deterministisch blijft als twee verzoeken tegelijk afronden (legacy-vluchten vallen terug
   op de huidige conditie).
-- **Rustkuur (`REST_CURE`)**: **elke duif mag, zo vaak je wil** (weeklimiet + `cooldownDays`
-  weg), duurt nu **48 u**, geeft **+40 energie én +15 gezondheid**. Lopende kuren houden hun
-  einde (`cureUntil` is absoluut), dus wie nu op de oude 24-uurskuur zit blijft ongemoeid.
-  `loftDTO.restCureAvailableAt` blijft bestaan maar is altijd `null` (oude open tab).
+- **Rustkuur (`REST_CURE`)**: **elke duif mag** (het oude één-per-HOK-per-week is weg), maar
+  **elke duif maar één keer per week** — `cooldownDays 7` geldt nu **per duif**, geteld vanaf
+  de **start** van haar vorige kuur via het nieuwe veld **`Pigeon.lastRestCureAt`** (kolom
+  `last_rest_cure_at`). Meerdere duiven tegelijk op kuur kan dus wél. Duurt **48 u**, geeft
+  **+40 energie én +15 gezondheid**. Lopende kuren houden hun einde (`cureUntil` is absoluut),
+  dus wie nu op de oude 24-uurskuur zit blijft ongemoeid. De lock zit nu op
+  **`pigeonDTO.restCureAvailableAt`** (per duif); `loftDTO.restCureAvailableAt` blijft bestaan
+  maar is altijd `null` (oude open tab). `Loft.lastRestCure` wordt nog geschreven als
+  hok-historiek maar is geen poort meer.
 - **`TOURNEY_RISK` ingekort**: de extra licht/matig-worp onder 20/10 energie is weg (dubbelop
   nu de vorm dat al stuurt); **de sterfteworp onder 5 blijft**.
 - **Zichtbaar** (essentieel — een onzichtbare straf leest als willekeur): `pigeonDTO` stuurt

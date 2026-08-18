@@ -431,9 +431,11 @@ export function PigeonPage() {
 
               <hr className="sep" />
 
-              {/* Rustkuur — elke duif mag, twee dagen, energie + gezondheid */}
+              {/* Rustkuur — elke duif mag, maar elke duif maar één keer per week */}
               {(() => {
                 const full = (p.form ?? 0) >= 100 && (p.health ?? 0) >= 100;
+                const lockedUntil = !p.onCure ? p.restCureAvailableAt : null;
+                const locked = !!lockedUntil;
                 return (
                   <div className="row" style={{ justifyContent: 'space-between', gap: 10, alignItems: 'flex-start' }}>
                     <div style={{ flex: 1, minWidth: 0 }}>
@@ -441,9 +443,11 @@ export function PigeonPage() {
                       <div className="faint" style={{ fontSize: '0.85rem' }}>
                         {p.onCure
                           ? <>Deze duif rust en kan niet vliegen tot <strong>{formatFlightTime(p.cureUntil ?? '')}</strong>. Daarna krijgt ze er energie én gezondheid bij.</>
-                          : state?.economy
-                            ? <><strong>Twee dagen</strong> verplicht rusten voor <Money value={state.economy.restCureCost} />: daarna +{state.economy.restCureEnergy} energie en +{state.economy.restCureHealth} gezondheid. Ze kan tijdens de kuur niet vliegen, trainen of koppelen — maar <strong>elke duif mag op kuur</strong>, zo vaak je wil.</>
-                            : 'Twee dagen rust die energie en gezondheid oplevert, maar geld kost.'}
+                          : locked
+                            ? <>{p.name} had deze week al een rustkuur. Elke duif kan er <strong>één per week</strong> — de volgende kan vanaf <strong>{formatFlightTime(lockedUntil!)}</strong>.</>
+                            : state?.economy
+                              ? <><strong>Twee dagen</strong> verplicht rusten voor <Money value={state.economy.restCureCost} />: daarna +{state.economy.restCureEnergy} energie en +{state.economy.restCureHealth} gezondheid. Ze kan tijdens de kuur niet vliegen, trainen of koppelen. <strong>Elke duif mag op kuur, maar elk maar één keer per week.</strong></>
+                              : 'Twee dagen rust die energie en gezondheid oplevert, maar geld kost. Eén per duif per week.'}
                       </div>
                     </div>
                     {p.onCure ? (
@@ -452,8 +456,8 @@ export function PigeonPage() {
                       <button
                         className="btn sm"
                         style={{ flexShrink: 0 }}
-                        disabled={busy || full || p.racing}
-                        title={full ? 'Al vol energie en gezondheid' : p.racing ? 'Schrijf ze eerst uit voor haar vlucht' : 'Start een rustkuur'}
+                        disabled={busy || full || p.racing || locked}
+                        title={full ? 'Al vol energie en gezondheid' : p.racing ? 'Schrijf ze eerst uit voor haar vlucht' : locked ? 'Deze duif had deze week al een rustkuur' : 'Start een rustkuur'}
                         onClick={() => startRestCure()}
                       >
                         Start rustkuur
