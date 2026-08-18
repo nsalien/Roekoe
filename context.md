@@ -124,7 +124,7 @@ krijgen.**
 `core/game/schedule.ts` → `advanceRealtime(db, nowMs, weatherByFlight)` roept in
 volgorde:
 1. `runDataMigrations(db)` — eenmalige datafixes, **gated op `world.dataVersion`**
-   (staat nu op **35**; nieuwe migratie = nieuw `if ((db.world.dataVersion ?? 0) < N)`
+   (staat nu op **36**; nieuwe migratie = nieuw `if ((db.world.dataVersion ?? 0) < N)`
    blok + `db.world.dataVersion = N`). v21 zet **bestaande geplande vluchten terug naar de
    OUDE, kortere afstanden** (regio 30–160 / nat 60–290 / intl 180–950 km): elke nog-
    geplande niet-titan-vlucht buiten haar legacy-venster wordt her-routeerd via
@@ -816,7 +816,49 @@ npx tsx names.test.mts             # elke duivennaam blijft uniek
 ## 8. Belangrijkste wijzigingen deze sessie (achtergrond)
 
 Alles hieronder staat **live** op de deploy-branch. Data-migraties liepen door tot
-**`dataVersion = 35`**.
+**`dataVersion = 36`**.
+
+**Migratie v36 — kwetsuur van Tinne teruggenomen (nieuwste)**
+- Op verzoek van de eigenaar: de **kwetsuur** van "Tinne de Doodskist-Ontwijker" wordt
+  weggenomen. Ze kwam met **21 energie over** thuis en raakte toch geblesseerd — precies
+  het geval dat het blessuremodel niet hoort te straffen (zie de analyse hieronder).
+- Match op naam, **enkel echte spelers**, en enkel zolang ze effectief een
+  `kind === 'kwetsuur'` draagt (een **ziekte** blijft staan — dat was de vraag niet).
+  Bewust **geen** genezing: geen `stats.cures`/`curesSevere`, geen genezingsbadge — de
+  kwetsuur wordt teruggenomen, ze is niet beter verzorgd. De **onset-gezondheidsklap**
+  (`HEALTH.onsetHealthHit[severity]`) krijgt ze terug; de dagelijkse drain sindsdien is
+  niet reconstrueerbaar en wordt niet vergoed. Ze komt ook uit de ziekenboeg en pakt haar
+  **apart hok** terug als er nog een vrij is (zelfde regel als `engine.setInfirmary`).
+  Stabiele melding-id `ntf:admin:injuryreset:<pigeonId>`. **dataVersion → 36.**
+- Geverifieerd met een wegwerptest tegen de echte `advanceRealtime`: kwetsuur weg,
+  gezondheid hersteld, uit de boeg, apart hok terug (én níet afgepakt van een andere duif
+  als alles bezet is), andere gewonde duiven ongemoeid, bot met dezelfde naam ongemoeid,
+  ziekte blijft staan, idempotent bij een tweede run, en geen fantoom-melding of gratis
+  gezondheid voor een gezonde Tinne.
+
+**Blessurekans-analyse (nog geen aanpassing)**
+- Aanleiding: speler had 4 gewonde duiven en ervoer de kans als ~50/50. **Per duif** is ze
+  5–30 % (`HEALTH.flightInjuryBase 0,025 + km · flightInjuryPerKm 0,00018`, ×`(1 + (100 −
+  startenergie)/100)`), maar de **kans dat mínstens één van je ingeschreven duiven gewond
+  raakt** is 42 % (3 duiven, 500 km) tot 65 % (3 duiven, 1000 km) — de waarneming klopt dus.
+- `finalizeFlight` gebruikt correct de **bevroren `s.startForm`**, niet de leeggelopen
+  `pigeon.form` — geen bug daar. De blessureworp geldt wel voor **élke** niet-opgegeven
+  duif, finishers inbegrepen (staat buiten het `if (!isDnf)`-blok).
+- **Drie structurele bevindingen** voor het herontwerp:
+  1. **Afstand domineert, energie nauwelijks.** De energiefactor loopt maar van ×1,0 tot
+     ×2,0 (praktijk ×1,3–1,6): op 1000 km heeft een duif met vólle energie nog 20,5 %,
+     tegen 34,9 % voor een uitgeputte. Goed hokbeheer wordt dus amper beloond, terwijl de
+     spelregels blessures wél als straf voor uitgeputte duiven verkopen.
+  2. **`randomInjury` loot de ernst UNIFORM** uit `INJURIES` (3 licht / 2 matig / 2
+     ernstig) → **28,6 % ernstig**. Ziektes kregen eerder wél een gezondheidsgewogen
+     verdeling (`diseaseSeverityWeights`, 12 % ernstig bij gezondheid ≥80); **kwetsuren
+     hebben die fix nooit gekregen.** Grootste enkele bijdrage aan het probleem: ernstig =
+     18 dagen rust / 6 dagen met volle zorg.
+  3. **Voorraadprobleem.** Instroom ~1,4 kwetsuren/week bij ~10 starts, hersteltijd
+     gemiddeld 3,4 d (volle zorg) tot 10,4 d (rustend) → permanent 0,7–2,5 gewonde duiven,
+     terwijl de **ziekenboeg standaard 2 bedden** heeft en dokter/kinesist elk 2 duiven
+     dekken. Wie erboven komt, komt in een spiraal: onbehandeld verliest een duif
+     0,9–3,75 gezondheid/dag, en lagere gezondheid = meer én zwaardere ziektes.
 
 **Schaal afremmen: steilere capaciteitsladder + progressieve daghuur (nieuwste)**
 - **Aanleiding:** één speler liep weg met de competitie. Analyse van de mechanismen (geen

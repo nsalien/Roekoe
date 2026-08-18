@@ -20,6 +20,7 @@ import {
   FLIGHT_TIERS,
   FOOD_PRICE_PER_KG,
   GAME_WEEKS_PER_REAL_WEEK,
+  HEALTH,
   INFIRMARY,
   REST_CURE,
   IMPROVE_ATTR_LABEL,
@@ -1441,6 +1442,50 @@ function runDataMigrations(db: Database): void {
       }
     }
     db.world.dataVersion = 35;
+  }
+  if ((db.world.dataVersion ?? 0) < 36) {
+    // One-off correction (owner request): take the INJURY back off "Tinne de
+    // Doodskist-Ontwijker". She came home from a race with 21 energie still in the
+    // tank and got hurt anyway — which is exactly the case the injury model should
+    // not punish, and precisely why it is being reworked (today the risk is driven
+    // almost entirely by distance, barely by how well a bird is kept). Real players
+    // only, matched on name, and only while she actually carries an injury.
+    //
+    // Deliberately NOT treated as a recovery: no cures/curesSevere stats and no
+    // healing badge, because she was never nursed better — the injury is being
+    // withdrawn. The health its onset cost her is handed back (the extra day-by-day
+    // drain since cannot be reconstructed, so that part is not). The stable
+    // notification id keeps it to exactly one message even if two requests run this
+    // migration at the same time.
+    for (const p of db.pigeons) {
+      if (!p.name.trim().toLowerCase().includes('tinne de doodskist')) continue;
+      const loft = db.lofts.find((l) => l.userId === p.ownerId);
+      if (!loft || loft.isBot) continue;
+      if (!p.ailment || p.ailment.kind !== 'kwetsuur') continue;
+      const was = p.ailment;
+      p.ailment = null;
+      p.health = round1(clamp(p.health + (HEALTH.onsetHealthHit[was.severity] ?? 0), 0, 100));
+      // Out of the infirmary too, reclaiming her private compartment if one is still
+      // free — the same rule engine.setInfirmary uses on the way out.
+      if (p.inInfirmary) {
+        p.inInfirmary = false;
+        if (p.compartment) {
+          const used = db.pigeons.filter(
+            (x) => x.ownerId === p.ownerId && x.compartment && !x.inInfirmary && x.id !== p.id,
+          ).length;
+          if (used >= (loft.compartments ?? 0)) p.compartment = false;
+        }
+      }
+      pushNotification(
+        db, p.ownerId, 'health',
+        `⚖️ ${p.name} is weer vliegklaar`,
+        `${was.name} is van ${p.name} weggenomen: ze kwam met energie over thuis en hoorde die kwetsuur ` +
+          `niet op te lopen. De gezondheid die de kwetsuur haar bij het oplopen kostte, kreeg ze terug, ` +
+          `en ze staat weer gewoon in het hok. Het blessuresysteem zelf wordt herbekeken.`,
+        null, `ntf:admin:injuryreset:${p.id}`,
+      );
+    }
+    db.world.dataVersion = 36;
   }
 }
 
