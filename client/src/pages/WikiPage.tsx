@@ -273,25 +273,18 @@ export function WikiPage() {
           rows={[
             ['⚡ Snelheid', 'Rauw tempo. Bepaalt samen met conditie hoe snel je duif vliegt.', 'Korte vluchten (sprint)'],
             ['💪 Conditie', 'Dat tempo kunnen aanhouden. Bepaalt samen met snelheid je tempo.', 'Lange vluchten (fond)'],
-            ['🧭 Oriëntatie', 'De weg vinden. Raakt je snelheid NIET — bepaalt of je duif omvliegt of de weg helemaal kwijtraakt.', 'Lange vluchten en slecht weer'],
+            ['🧭 Oriëntatie', 'De weg vinden. Bepaalt of je duif omvliegt of de weg helemaal kwijtraakt.', 'Lange vluchten en slecht weer'],
             ['❤️ Gezondheid', 'Samen met energie je vluchtvorm: de kans op blessure en ziekte. Heel lage gezondheid maakt een duif zelfs niet-vluchtklaar.', 'Overal'],
             ['🔋 Energie', 'De tank. Samen met gezondheid je vluchtvorm; bij een bijna lege tank valt een duif uit of erger.', 'Overal, zwaarder op lange vluchten'],
             ['🎓 Ervaring', 'Zuiniger vliegen, sneller herstellen en beter presteren (tot +33 %).', 'Overal'],
           ]}
         />
-        <p style={{ marginTop: 12 }}>
-          <strong>Belangrijk:</strong> een duif met veel oriëntatie vliegt niet sneller dan een
-          duif met weinig oriëntatie. Ze <em>verliest alleen minder tijd</em>, omdat ze niet
-          van koers raakt. Wil je pure snelheid, dan train je <strong>snelheid</strong> (kort)
-          en <strong>conditie</strong> (lang).
-        </p>
       </Section>
 
       <Section id="verdwalen" icon="🧭" title="Verdwalen: waar oriëntatie voor dient">
         <p className="muted" style={{ marginTop: 0 }}>
-          Oriëntatie is je navigatie-eigenschap. Ze maakt je duif geen meter sneller, maar
-          bepaalt of ze rechtstreeks naar huis vliegt — of kilometers omvliegt en zelfs de weg
-          helemaal kwijtraakt.
+          Oriëntatie is je navigatie-eigenschap. Ze bepaalt of ze rechtstreeks naar huis
+          vliegt — of kilometers omvliegt en zelfs de weg helemaal kwijtraakt.
         </p>
         <p><strong>Kans dat een duif van koers raakt</strong> (mooi weer):</p>
         <MiniTable
