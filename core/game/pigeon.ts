@@ -199,6 +199,7 @@ export function canRace(pigeon: Pigeon, currentWeek: number): boolean {
     !pigeon.ailment &&
     !pigeon.inInfirmary &&
     !onRestCure(pigeon) &&
+    !isAway(pigeon) && // still finding her way home from a previous flight
     ageInWeeks(pigeon, currentWeek) >= RACE_AGE_WEEKS &&
     pigeon.health > 15
   );
@@ -207,6 +208,15 @@ export function canRace(pigeon: Pigeon, currentWeek: number): boolean {
 /** Whether a paid rest cure is still running (bird rests, can do nothing). */
 export function onRestCure(pigeon: Pigeon, nowMs: number = Date.now()): boolean {
   return !!pigeon.cureUntil && Date.parse(pigeon.cureUntil) > nowMs;
+}
+
+/**
+ * VERLOREN: she lost her way on a flight and has not made it back yet. While this
+ * holds she is not in the loft at all — see Pigeon.awayUntil for everything that
+ * is skipped. She always comes home eventually (tickStrayReturn).
+ */
+export function isAway(pigeon: Pigeon, nowMs: number = Date.now()): boolean {
+  return !!pigeon.awayUntil && Date.parse(pigeon.awayUntil) > nowMs;
 }
 
 /** Performance multiplier from the age curve (0..1). */

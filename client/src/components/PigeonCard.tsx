@@ -55,6 +55,11 @@ export function PigeonCard({
             </span>
           )}
           {pigeon.inInfirmary && <span className="badge" style={{ background: 'var(--brand-soft)', color: 'var(--brand-ink)' }}>🏥</span>}
+      {pigeon.away && (
+        <span className="badge" style={{ background: 'var(--bad-soft)', color: 'var(--bad)' }} title="Nog niet thuis van haar laatste vlucht — ze komt vanzelf terug.">
+          🧭 nog niet thuis
+        </span>
+      )}
           {pigeon.coached && <span className="badge" style={{ background: 'var(--gold-soft)', color: 'var(--gold)' }}>🎯</span>}
           {pigeon.compartment && <span className="badge" style={{ background: 'var(--surface-2)', color: 'var(--text-soft)' }}>🧱</span>}
           {pigeon.racing && <span className="badge" style={{ background: 'var(--surface-2)', color: 'var(--text-soft)' }}>🏁</span>}

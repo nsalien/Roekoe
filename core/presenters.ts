@@ -14,6 +14,7 @@ import {
   experienceGain,
   flightForm,
   geneCap,
+  isAway,
   restPenalty,
   talent,
   trainCeil,
@@ -115,6 +116,9 @@ export function pigeonDTO(db: Database, p: Pigeon, viewerId?: string) {
     compartment: revealed ? (!!p.compartment && !p.inInfirmary) : false,
     cureUntil: revealed ? (p.cureUntil ?? null) : null,
     onCure: revealed ? (!!p.cureUntil && Date.parse(p.cureUntil) > Date.now()) : false,
+    // VERLOREN: lost her way on a flight and not home yet (see Pigeon.awayUntil).
+    away: isAway(p),
+    awayUntil: p.awayUntil ?? null,
     // One cure per BIRD per week: when this pigeon may have its next one (null =
     // right now). The loft-wide lock is gone.
     restCureAvailableAt: (() => {

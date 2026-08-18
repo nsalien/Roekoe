@@ -148,6 +148,15 @@ export function PigeonPage() {
                   </span>
                 )}
                 {p.inInfirmary && <span className="badge" style={{ background: 'var(--brand-soft)', color: 'var(--brand-ink)' }}>🏥 in ziekenboeg</span>}
+                {p.away && (
+                  <span
+                    className="badge"
+                    title="Ze is op haar laatste vlucht de weg kwijtgeraakt. Duiven vinden hun weg terug — ze komt vanzelf thuis, maar uitgeput."
+                    style={{ background: 'var(--bad-soft)', color: 'var(--bad)' }}
+                  >
+                    🧭 nog niet thuis{p.awayUntil ? ` · terug rond ${formatFlightTime(p.awayUntil)}` : ''}
+                  </span>
+                )}
                 {p.coached && <span className="badge" style={{ background: 'var(--gold-soft)', color: 'var(--gold)' }}>🎯 coach</span>}
                 {p.revealed && p.formLabel && (
                   <span

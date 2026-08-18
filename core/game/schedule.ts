@@ -22,6 +22,7 @@ import {
   GAME_WEEKS_PER_REAL_WEEK,
   HEALTH,
   INFIRMARY,
+  LOST,
   REST_CURE,
   IMPROVE_ATTR_LABEL,
   RACE_CITIES,
@@ -45,7 +46,16 @@ import { breed } from './breeding.js';
 import { awardBadge, awardFlightBadges, evaluateBadges } from './badges.js';
 import { ensureAuctions } from './auction.js';
 import { settleFlightBets, voidOrphanedBets, refundFlightBets } from './betting.js';
-import { coveredInInfirmary, runAgeDecline, runAgeMortality, runHealthDay, tickHealing } from './health.js';
+import {
+  applyAilment,
+  coveredInInfirmary,
+  randomDisease,
+  randomStrainInjury,
+  runAgeDecline,
+  runAgeMortality,
+  runHealthDay,
+  tickHealing,
+} from './health.js';
 import { tickSeason } from './season.js';
 import { progressMissions } from './missions.js';
 import { activeContracts, evaluateSponsorOffers } from './sponsors.js';
@@ -62,7 +72,7 @@ import {
 } from './flight.js';
 import type { WeatherResult } from './weather.js';
 import { generatePigeonName, isLegacyName, isWrongGenderName, nameKey, namesInUse } from './names.js';
-import { canRace, noteAttrChange, rollBreed, rollGenes, talent } from './pigeon.js';
+import { canRace, conditionScore, noteAttrChange, rollBreed, rollGenes, talent } from './pigeon.js';
 import { NPC_OWNER_ID, ownerName } from './engine.js';
 import { pickRelayRoute, relayEntryTeams, relayLegKm, relayTeamComplete } from './relay.js';
 import { bell, clamp, hashString, haversineKm, pick, randFloat, round1, seededRng } from './util.js';
@@ -446,6 +456,24 @@ function emitFlightNotifications(db: Database, flight: Flight, sim: SimulatedFli
     );
   }
 
+  // Birds that lost their way entirely. They are NOT gone — say so plainly, and
+  // say when to expect her back, so nobody thinks the bird is dead.
+  for (const stray of sim.strays) {
+    if (!humanIds.has(stray.ownerId)) continue;
+    const days = Math.max(1, Math.round(stray.days));
+    pushNotification(
+      db,
+      stray.ownerId,
+      'health',
+      `🧭 ${stray.pigeonName} is de weg kwijt`,
+      `${stray.pigeonName} raakte onderweg volledig van koers en is niet thuisgekomen. Ze is niet verloren voor je hok — ` +
+        `duiven vinden hun weg terug, maar het kan ${days === 1 ? 'ongeveer een dag' : `zo'n ${days} dagen`} duren. ` +
+        `Ze komt uitgeput aan. Een betere oriëntatie maakt dit veel minder waarschijnlijk, zeker op lange vluchten en bij ruw weer.`,
+      flight.id,
+      `ntf:stray:${flight.id}:${stray.pigeonId}`,
+    );
+  }
+
   for (const imp of sim.improvements) {
     if (!humanIds.has(imp.ownerId)) continue;
     const label = IMPROVE_ATTR_LABEL[imp.attr];
@@ -646,6 +674,14 @@ export function tickFlights(db: Database, nowMs: number, weatherByFlight?: Map<s
           practice: !!flight.practice,
         });
         emitFlightNotifications(db, flight, sim);
+        // Birds that lost their way: they keep everything (loft place, genes,
+        // history) — they are simply not home yet. tickStrayReturn brings them in.
+        for (const stray of sim.strays) {
+          const p = db.pigeons.find((x) => x.id === stray.pigeonId);
+          if (!p) continue;
+          p.awayUntil = new Date(nowMs + Math.max(1, stray.days) * 86400000).toISOString();
+          p.inInfirmary = false; // she is out there, not in the boeg
+        }
         // Remove birds that died on the flight and clean up their references.
         for (const dead of sim.deaths) {
           db.pigeons = db.pigeons.filter((p) => p.id !== dead.pigeonId);
@@ -1753,6 +1789,45 @@ export function tickRestCures(db: Database, nowMs: number): void {
 }
 
 /**
+ * Bring home the birds that lost their way. They always come back — but after a
+ * few days out there, on an empty tank and knocked about. Whether they also pick
+ * something up is a roll; the health hit is deliberately moderate because an empty
+ * tank already drags their vluchtvorm (and so their illness odds) right down.
+ */
+export function tickStrayReturn(db: Database, nowMs: number): void {
+  const humanIds = new Set(db.lofts.filter((l) => !l.isBot).map((l) => l.userId));
+  for (const p of db.pigeons) {
+    if (!p.awayUntil) continue;
+    const due = Date.parse(p.awayUntil);
+    if (Number.isNaN(due) || nowMs < due) continue;
+    p.awayUntil = null;
+    p.form = round1(randFloat(LOST.returnEnergyMin, LOST.returnEnergyMax));
+    p.health = round1(
+      clamp(p.health - randFloat(LOST.returnHealthLossMin, LOST.returnHealthLossMax), 1, 100),
+    );
+    p.restDays = 0;
+    let ailment: string | null = null;
+    if (!p.ailment && Math.random() < LOST.returnAilmentChance) {
+      // Days in the open: either she hurt herself or she picked something up.
+      const a = Math.random() < 0.5
+        ? randomStrainInjury(db.world.currentWeek, conditionScore(p))
+        : randomDisease(db.world.currentWeek, conditionScore(p));
+      applyAilment(p, a);
+      ailment = a.name;
+    }
+    if (!humanIds.has(p.ownerId)) continue;
+    pushNotification(
+      db, p.ownerId, 'health', `🕊️ ${p.name} is terug thuis`,
+      `${p.name} heeft de weg naar huis eindelijk gevonden. Ze is er slecht aan toe — nog ${Math.round(p.form)} energie ` +
+        `en ${Math.round(p.health)} gezondheid` +
+        (ailment ? `, en ze hield er ${ailment.toLowerCase()} aan over` : '') +
+        `. Geef haar rust (of een rustkuur) voor je haar weer inschrijft.`,
+      null, `ntf:strayhome:${p.id}:${due}`,
+    );
+  }
+}
+
+/**
  * Hatch breeding pairs — unpredictably. Each check rolls a random chance based
  * on elapsed time and the parents' current libido + energie, so there is no
  * fixed hatch time: fitter pairs simply have a higher chance every moment.
@@ -1848,6 +1923,7 @@ export function advanceRealtime(
   tickFlightEnergy(db, nowMs);
   tickHealing(db, nowMs);
   tickRestCures(db, nowMs);
+  tickStrayReturn(db, nowMs); // birds that lost their way find their way home
   tickSeason(db, nowMs);
   payFinishedFlightPrizes(db, nowMs); // pay prize money the moment a bird finishes
   tickFlights(db, nowMs, weatherByFlight);

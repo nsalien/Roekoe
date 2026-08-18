@@ -16,6 +16,8 @@ import {
   FLIGHT_FATIGUE,
   FLIGHT_RISK,
   INJURY,
+  IMPROVE_WEIGHTING,
+  LOST,
   HEALTH,
   IMPROVE,
   IMPROVE_ATTR_LABEL,
@@ -195,6 +197,9 @@ export interface SimulatedFlight {
   injuries: FlightInjury[];
   /** Birds that died during the flight (flew on almost no energie). */
   deaths: { pigeonId: string; ownerId: string; pigeonName: string }[];
+  /** Birds that lost their way entirely and are not home yet. They are NOT gone —
+   *  they turn up at the loft after `days` (see tickStrayReturn). */
+  strays: { pigeonId: string; ownerId: string; pigeonName: string; days: number }[];
 }
 
 /** Total time (s) to fly `distanceKm` given a per-segment speed profile. */
@@ -217,7 +222,7 @@ function profileDuration(distanceKm: number, velocity: number, segMult: number[]
  */
 function buildPaceProfile(
   flightId: string, pigeon: Pigeon, distanceKm: number, week: number, weatherFactor: number, practice: boolean,
-): { velocity: number; segMult: number[]; durationSeconds: number; dnfAtSeconds: number | null; dnfKind: SimEntry['dnfKind']; lost: SimEntry['lost'] } {
+): { velocity: number; segMult: number[]; durationSeconds: number; dnfAtSeconds: number | null; dnfKind: SimEntry['dnfKind']; lost: SimEntry['lost']; strayDays?: number } {
   const FD = FLIGHT_DYNAMICS;
   // Seed on the flight id + bird so every flight is a different race, yet the same
   // flight always rebuilds the identical profile (deterministic: live == final,
@@ -257,33 +262,54 @@ function buildPaceProfile(
   const invAvg = segMult.reduce((sum, m) => sum + 1 / m, 0) / N;
   for (let i = 0; i < N; i++) segMult[i] = segMult[i] * invAvg;
 
-  // Getting lost: low orientation raises the chance; a stretch is flown slowly
-  // (wandering off course → real time loss, dramatic drop in the standings).
+  // ORIËNTATIE — the whole of what the attribute does (see LOST in gameConfig).
+  // The chance rises steeply as orientation drops, grows with DISTANCE (more
+  // kilometres = more chances to drift) and with ROUGH WEATHER — and a good
+  // navigator is barely troubled by weather that wrecks a poor one.
   let lost: SimEntry['lost'] = null;
+  let strayDays: number | undefined;
+  let strandedAtSeconds: number | null = null;
   if (!practice) {
-    const lostChance = clamp(
-      FD.lostBaseChance + Math.max(0, FD.lostOrientationRef - pigeon.orientation) * FD.lostOrientationK,
-      0, FD.lostMaxChance,
+    const room = clamp((100 - pigeon.orientation) / 100, 0, 1);
+    const strayChance = Math.min(
+      LOST.maxChance,
+      (LOST.base + LOST.max * Math.pow(room, LOST.curve)) *
+        (LOST.distBase + distanceKm * LOST.distPerKm) *
+        (1 + rough * LOST.weatherK),
     );
-    if (rng() < lostChance) {
+    if (rng() < strayChance) {
+      // Where in the route she drifts off, and the cumulative time to get there.
       const span = Math.round(rf(FD.lostSpanMin, FD.lostSpanMax));
       const startSeg = Math.floor(rng() * Math.max(1, N - span));
       const endSeg = Math.min(N, startSeg + span);
-      const slow = rf(FD.lostSlowMin, FD.lostSlowMax);
-      for (let i = startSeg; i < endSeg; i++) segMult[i] = clamp(segMult[i] * slow, 0.05, 2);
-      // Record it for the live report: WHEN the bird strays (cumulative time to the
-      // start of the wandering stretch, using the now-final segMult) and roughly how
-      // much extra ground the detour costs — the distance it could have covered in
-      // the time the slow stretch eats up. That gives an honest "~X km te veel".
       const segDistM = (distanceKm * 1000) / N;
       let atSecs = 0;
       for (let i = 0; i < startSeg; i++) {
-        const segSpeed = Math.max(FD.minSegSpeed, velocity * segMult[i]);
-        atSecs += (segDistM / segSpeed) * 60;
+        atSecs += (segDistM / Math.max(FD.minSegSpeed, velocity * segMult[i])) * 60;
       }
-      const strayKm = (distanceKm / N) * (endSeg - startSeg);
-      const detourKm = Math.max(1, Math.round(strayKm * (1 / slow - 1)));
-      lost = { atSeconds: Math.round(atSecs), detourKm };
+
+      // Does she lose the way ENTIRELY? Only a genuinely poor navigator, and
+      // mostly on a long flight. She is never gone for good — she finds her way
+      // back to the loft after a few days (tickStrayReturn).
+      if (rng() < LOST.strandedMax * Math.pow(room, LOST.strandedCurve)) {
+        strandedAtSeconds = Math.round(atSecs);
+        const days =
+          LOST.returnDaysBase + distanceKm * LOST.returnDaysPerKm + room * LOST.returnDaysRoom;
+        strayDays = Math.max(1, round1(days * rf(1 - LOST.returnDaysJitter, 1 + LOST.returnDaysJitter)));
+      } else {
+        // A plain detour: real extra kilometres. The slowdown is derived FROM the
+        // detour so the time lost is exactly what those extra km cost her.
+        const detourKm = Math.max(
+          1,
+          Math.round(
+            distanceKm * LOST.detourFraction * (LOST.detourSeverityBase + LOST.detourSeveritySpread * room),
+          ),
+        );
+        const spanDistM = segDistM * (endSeg - startSeg);
+        const slow = spanDistM / (spanDistM + detourKm * 1000);
+        for (let i = startSeg; i < endSeg; i++) segMult[i] = clamp(segMult[i] * slow, 0.05, 2);
+        lost = { atSeconds: Math.round(atSecs), detourKm };
+      }
     }
   }
 
@@ -299,9 +325,15 @@ function buildPaceProfile(
     if (rng() < exhaustChance) dnfKind = 'exhausted';
     else if (rng() < injuryChance) dnfKind = 'injury';
     if (dnfKind) dnfAtSeconds = Math.round(durationSeconds * rf(FD.dnfEarliestFrac, FD.dnfLatestFrac));
+    // Losing the way entirely wins over the other two: she is not exhausted or
+    // hurt, she simply has no idea where she is. Keeps the live board honest.
+    if (strandedAtSeconds != null) {
+      dnfKind = 'lost';
+      dnfAtSeconds = strandedAtSeconds;
+    }
   }
 
-  return { velocity, segMult, durationSeconds, dnfAtSeconds, dnfKind, lost };
+  return { velocity, segMult, durationSeconds, dnfAtSeconds, dnfKind, lost, strayDays };
 }
 
 /** How far home a bird is at `elapsed` seconds, from its frozen pace profile.
@@ -356,9 +388,12 @@ export function startLiveFlight(flight: Flight, entries: Entry[], week: number, 
     // Ervaring makes flying more efficient: an experienced bird burns less
     // energie, an inexperienced one burns more (pivot at ervaring 50 = ×1.0).
     const expRelief = 1 - (clamp(e.pigeon.experience, 0, 100) / 100 - 0.5) * FLIGHT_FATIGUE.experienceReliefSpread;
+    // A detour is real extra kilometres, so it costs real extra energie — that is
+    // why a bird that wandered off comes home emptier than the rest.
+    const flownKm = flight.distanceKm + (prof.lost?.detourKm ?? 0);
     const formCost = flight.practice
       ? PRACTICE.energyCost
-      : round1((FLIGHT_FATIGUE.base + flight.distanceKm / FLIGHT_FATIGUE.perKmDivisor) * expRelief + randFloat(0, FLIGHT_FATIGUE.jitter));
+      : round1((FLIGHT_FATIGUE.base + flownKm / FLIGHT_FATIGUE.perKmDivisor) * expRelief + randFloat(0, FLIGHT_FATIGUE.jitter));
     return {
       pigeonId: e.pigeon.id,
       pigeonName: e.pigeon.name,
@@ -370,6 +405,7 @@ export function startLiveFlight(flight: Flight, entries: Entry[], week: number, 
       dnfAtSeconds: prof.dnfAtSeconds,
       dnfKind: prof.dnfKind,
       lost: prof.lost,
+      strayDays: prof.strayDays,
       startForm: e.pigeon.form,
       startVorm: flightForm(e.pigeon, startMs),
       formCost,
@@ -560,6 +596,19 @@ function startLiveRelay(flight: Flight, entries: Entry[], week: number): void {
 }
 
 /** Pick which attribute a bird gets a chance to grow in, weighted by distance. */
+/** Weights for WHICH attribute a flight improves — its own table, because the
+ *  speed weights now put orientation at 0 (see IMPROVE_WEIGHTING). */
+export function improveWeightsForDistance(distanceKm: number) {
+  const { shortKm, longKm } = DISTANCE_WEIGHTING;
+  const { short, long } = IMPROVE_WEIGHTING;
+  const t = clamp((distanceKm - shortKm) / (longKm - shortKm), 0, 1);
+  return {
+    speed: short.speed + (long.speed - short.speed) * t,
+    endurance: short.endurance + (long.endurance - short.endurance) * t,
+    orientation: short.orientation + (long.orientation - short.orientation) * t,
+  };
+}
+
 function pickImproveAttr(w: { speed: number; endurance: number; orientation: number }, rng: () => number): Improvement['attr'] {
   const total = w.speed + w.endurance + w.orientation;
   let r = rng() * total;
@@ -641,6 +690,7 @@ export function finalizeFlight(flight: Flight, pigeons: Pigeon[]): SimulatedFlig
   const improvements: Improvement[] = [];
   const injuries: FlightInjury[] = [];
   const deaths: SimulatedFlight['deaths'] = [];
+  const strays: SimulatedFlight['strays'] = [];
   const w = weightsForDistance(flight.distanceKm);
   // Distance is only a MODIFIER now (×0.75 at 150 km to ×1.6 at 1000 km); what
   // actually decides a strain injury is the bird's vluchtvorm (see INJURY).
@@ -761,7 +811,7 @@ export function finalizeFlight(flight: Flight, pigeons: Pigeon[]): SimulatedFlig
       // overall AND the BETTER it placed, the more likely it improves — and the
       // more it gains — so a lesser bird that punches above its weight catches up.
       if (!isDnf) {
-        const attr = pickImproveAttr(w, rng);
+        const attr = pickImproveAttr(improveWeightsForDistance(flight.distanceKm), rng);
         // Racing can only lift a skill up to min(90, geneCap) — beyond 90 only the
         // coach helps. `room` is measured against that per-bird ceiling, so gains
         // shrink to ~0 as the skill approaches 90 (the 80→90 grind).
@@ -798,6 +848,20 @@ export function finalizeFlight(flight: Flight, pigeons: Pigeon[]): SimulatedFlig
         died = true;
       }
 
+      // She lost her way completely and is not home yet. Not gone — she turns up
+      // at the loft in a few days (tickStrayReturn). A bird its owner pulled back
+      // never wandered off, and a strayed bird is not strained or hurt: she simply
+      // has no idea where she is, so she skips the injury roll below.
+      const strayedOff = !gaveUp && !died && s.dnfKind === 'lost';
+      if (strayedOff) {
+        strays.push({
+          pigeonId: pigeon.id,
+          ownerId: pigeon.ownerId,
+          pigeonName: pigeon.name,
+          days: s.strayDays ?? 2,
+        });
+      }
+
       // TWO separate ways to come home hurt (see INJURY in gameConfig):
       //
       //  1. OVERBELASTING — the effort broke the bird down. Runs on the vluchtvorm
@@ -822,7 +886,7 @@ export function finalizeFlight(flight: Flight, pigeons: Pigeon[]): SimulatedFlig
       if (gaveOut.has(s.pigeonId) && s.dnfKind === 'injury') strainChance = Math.max(strainChance, 0.95);
       const luckChance = INJURY.luckBase * distanceFactor;
 
-      if (!died && !pigeon.ailment) {
+      if (!died && !strayedOff && !pigeon.ailment) {
         if (rng() < clamp(strainChance, 0, 0.95)) {
           injuries.push({
             pigeonId: pigeon.id,
@@ -846,7 +910,7 @@ export function finalizeFlight(flight: Flight, pigeons: Pigeon[]): SimulatedFlig
   flight.recap = generateRecap(flight);
   flight.status = 'completed';
   const payouts = [...payoutMap.entries()].map(([ownerId, v]) => ({ ownerId, ...v }));
-  return { fatigue, payouts, improvements, injuries, deaths };
+  return { fatigue, payouts, improvements, injuries, deaths, strays };
 }
 
 /**
@@ -867,6 +931,7 @@ function finalizeRelayFlight(flight: Flight, pigeons: Pigeon[]): SimulatedFlight
   const improvements: Improvement[] = [];
   const injuries: FlightInjury[] = [];
   const deaths: SimulatedFlight['deaths'] = [];
+  const strays: SimulatedFlight['strays'] = [];
   const w = weightsForDistance(legKm);
   const distanceFactor = INJURY.distBase + legKm * INJURY.distPerKm;
   const rng = seededRng(hashString(flight.id + ':finalize'));
@@ -944,7 +1009,8 @@ function finalizeRelayFlight(flight: Flight, pigeons: Pigeon[]): SimulatedFlight
 
       // Growth, on the team's placing (you fly for the team, not for yourself).
       if (completed) {
-        const attr = pickImproveAttr(w, rng);
+        // Judged on the LEG this bird actually flew, not the whole relay route.
+        const attr = pickImproveAttr(improveWeightsForDistance(legKm), rng);
         const cap = raceCeil(pigeon, attr);
         const room = clamp((cap - pigeon[attr]) / cap, 0, 1);
         const avgAttr = (pigeon.speed + pigeon.endurance + pigeon.orientation) / 3;
@@ -968,6 +1034,15 @@ function finalizeRelayFlight(flight: Flight, pigeons: Pigeon[]): SimulatedFlight
         deaths.push({ pigeonId: pigeon.id, ownerId: pigeon.ownerId, pigeonName: pigeon.name });
         died = true;
       }
+      // Lost her way on this leg — the team is out, and she turns up at the loft
+      // in a few days (tickStrayReturn). No injury roll: she is not strained.
+      const strayedOff = !gaveUp && !died && s.dnfKind === 'lost';
+      if (strayedOff) {
+        strays.push({
+          pigeonId: pigeon.id, ownerId: pigeon.ownerId, pigeonName: pigeon.name,
+          days: s.strayDays ?? 2,
+        });
+      }
       // Strain runs on the vluchtvorm frozen at the start of the leg; bad luck is a
       // small flat chance on top. Same rules as a solo race (see INJURY).
       const startForms = s.startVorm ?? conditionScore(pigeon);
@@ -977,7 +1052,7 @@ function finalizeRelayFlight(flight: Flight, pigeons: Pigeon[]): SimulatedFlight
       if (!completed && !gaveUp) {
         strainChance = Math.max(strainChance, s.dnfKind === 'injury' ? 0.95 : 0.8);
       }
-      if (!died && !pigeon.ailment) {
+      if (!died && !strayedOff && !pigeon.ailment) {
         if (rng() < clamp(strainChance, 0, 0.95)) {
           injuries.push({
             pigeonId: pigeon.id, ownerId: pigeon.ownerId, pigeonName: pigeon.name,
@@ -997,7 +1072,7 @@ function finalizeRelayFlight(flight: Flight, pigeons: Pigeon[]): SimulatedFlight
   flight.recap = generateRelayRecap(flight, standings);
   flight.status = 'completed';
   const payouts = [...payoutMap.entries()].map(([ownerId, v]) => ({ ownerId, ...v }));
-  return { fatigue, payouts, improvements, injuries, deaths };
+  return { fatigue, payouts, improvements, injuries, deaths, strays };
 }
 
 /**
@@ -1059,7 +1134,7 @@ function finalizePracticeFlight(flight: Flight, pigeons: Pigeon[]): SimulatedFli
   flight.results = results;
   flight.recap = generateRecap(flight);
   flight.status = 'completed';
-  return { fatigue, payouts: [], improvements, injuries: [], deaths: [] };
+  return { fatigue, payouts: [], improvements, injuries: [], deaths: [], strays: [] };
 }
 
 export interface LiveBird {
@@ -1436,7 +1511,12 @@ export function flightCommentary(flight: Flight, nowMs: number): CommentLine[] {
   for (const s of flight.sim) {
     if (s.lost) lines.push({ atSeconds: s.lost.atSeconds, text: fill(pick(COMMENTARY.stray), s.pigeonName, undefined, s.lost.detourKm) });
     if (s.dnfAtSeconds != null) {
-      const pool = s.dnfKind === 'injury' ? COMMENTARY.dnfInjury : COMMENTARY.dnfExhausted;
+      const pool =
+        s.dnfKind === 'lost'
+          ? COMMENTARY.dnfLost
+          : s.dnfKind === 'injury'
+            ? COMMENTARY.dnfInjury
+            : COMMENTARY.dnfExhausted;
       lines.push({ atSeconds: s.dnfAtSeconds, text: fill(pick(pool), s.pigeonName) });
     }
     if (s.gaveUp && s.gaveUpAtSeconds != null) {
@@ -1558,7 +1638,16 @@ function relayCommentary(flight: Flight, nowMs: number): CommentLine[] {
         const at = legStart + (s.gaveUp ? (s.gaveUpAtSeconds ?? 0) : s.dnfAtSeconds ?? 0);
         const cause = s.gaveUp
           ? fill(pickLine(COMMENTARY.pulled), s.pigeonName)
-          : fill(pickLine(s.dnfKind === 'injury' ? COMMENTARY.dnfInjury : COMMENTARY.dnfExhausted), s.pigeonName);
+          : fill(
+              pickLine(
+                s.dnfKind === 'lost'
+                  ? COMMENTARY.dnfLost
+                  : s.dnfKind === 'injury'
+                    ? COMMENTARY.dnfInjury
+                    : COMMENTARY.dnfExhausted,
+              ),
+              s.pigeonName,
+            );
         lines.push({ atSeconds: at, text: cause });
         lines.push({ atSeconds: at + 1, text: fill(pickLine(COMMENTARY.relayOut), s.pigeonName, team.ownerName) });
         break;

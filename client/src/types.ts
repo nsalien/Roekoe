@@ -98,6 +98,9 @@ export interface Pigeon {
   compartment: boolean;
   cureUntil: string | null;
   onCure: boolean;
+  /** Lost her way on a flight and not home yet; she always returns. */
+  away: boolean;
+  awayUntil: string | null;
   /** When this bird may take its next rest cure (one per bird per week), or null. */
   restCureAvailableAt: string | null;
   trainAvailableAt: { speed: string | null; endurance: string | null; orientation: string | null };

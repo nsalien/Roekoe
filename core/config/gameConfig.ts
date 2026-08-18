@@ -197,14 +197,10 @@ export const FLIGHT_DYNAMICS = {
   // Weather: rough weather (rain/wind) hurts some birds more than others, so bad
   // weather makes a race more of a lottery; good weather rewards the best.
   weatherSpread: 0.8, // per-bird sensitivity spread
-  // Getting lost: low orientation raises the chance; a stretch is flown slowly
-  // (off course), costing real time and dropping the bird — occasionally out.
-  lostBaseChance: 0.04,
-  lostOrientationRef: 62, // at/above this orientation, lost chance stays at base
-  lostOrientationK: 0.005, // extra chance per orientation point below the ref
-  lostMaxChance: 0.24,
-  lostSlowMin: 0.35, lostSlowMax: 0.65, // pace during the wandering stretch
-  lostSpanMin: 1, lostSpanMax: 2, // how many segments the wandering lasts
+  // Getting lost now lives in its own config block — see LOST. (The old
+  // lostOrientationRef of 62 meant orientation did nothing at all above that,
+  // which is exactly backwards from what the attribute is for.)
+  lostSpanMin: 1, lostSpanMax: 2, // how many segments the wandering stretch covers
   // Giving out mid-flight (a DNF you can SEE happen live). Exhaustion scales with
   // low start-energie (FLIGHT_RISK); a small injury chance rises in rough weather.
   injuryDnfBase: 0.015,
@@ -479,10 +475,84 @@ export const RANKING_POINTS: number[] = [
 export const DISTANCE_WEIGHTING = {
   shortKm: 100,
   longKm: 700,
-  // Short flights are a sprint: snelheid dominates. Long flights reward conditie
-  // + oriëntatie. (Weights per column always sum to 1.)
-  short: { speed: 0.65, endurance: 0.13, orientation: 0.22 },
-  long: { speed: 0.2, endurance: 0.45, orientation: 0.35 },
+  /**
+   * How much each attribute contributes to a bird's RACING SPEED.
+   *
+   * ORIËNTATIE IS DELIBERATELY 0. It used to weigh 0.22 (short) to 0.35 (long) —
+   * on a fond flight more than snelheid itself — which meant a bird with better
+   * orientation simply flew faster. That never made sense: finding your way is not
+   * the same as being fast. Orientation now does only what it should, through
+   * `LOST`: how likely a bird is to wander off course, how big the detour is, and
+   * whether it fails to get home at all that day.
+   *
+   * The freed weight went proportionally to snelheid and conditie, so the
+   * sprinter/stayer split is unchanged in character — just sharper.
+   * (Weights per column always sum to 1.)
+   */
+  short: { speed: 0.83, endurance: 0.17, orientation: 0 },
+  long: { speed: 0.31, endurance: 0.69, orientation: 0 },
+} as const;
+
+/**
+ * Which attribute a flight is likely to IMPROVE. Deliberately its own table:
+ * reusing DISTANCE_WEIGHTING (as this did before) would mean orientation — now
+ * weighted 0 for speed — could never be trained by racing again. A bird that flies
+ * 900 km learns the route, so long flights favour conditie and oriëntatie.
+ * (A coach also drills orientation, and manual training still works up to 80.)
+ */
+export const IMPROVE_WEIGHTING = {
+  short: { speed: 0.55, endurance: 0.2, orientation: 0.25 },
+  long: { speed: 0.2, endurance: 0.4, orientation: 0.4 },
+} as const;
+
+/**
+ * ORIËNTATIE = navigation, and nothing else.
+ *
+ *   verdwaalkans = (base + max · room^curve) · (distBase + km·distPerKm) · (1 + rough·weatherK)
+ *                                              room = (100 − oriëntatie)/100
+ *
+ * Three things scale it, all of them intuitive:
+ *  - the bird's orientation (95 ≈ never, 70 modest, 30 very likely);
+ *  - the DISTANCE — more kilometres, more chances to drift off course;
+ *  - the WEATHER — mist, rain and wind make navigating harder, and a good
+ *    navigator suffers far less from that than a poor one (on 700 km the gap
+ *    between orientation 95 and 30 widens from ~40 to ~70 percentage points).
+ *
+ * A bird that strays usually just flies a DETOUR: real extra kilometres, so real
+ * lost time, a drop down the field and extra energie spent. Only a genuinely poor
+ * navigator — and mostly on a long flight — loses the way completely and fails to
+ * come home that day; see `strandedMax`. She is never gone for good: she turns up
+ * at the loft a few days later, empty and battered (tickStrayReturn).
+ */
+export const LOST = {
+  base: 0.005, // stray chance that remains even at orientation 100
+  max: 0.55, // added at orientation 0
+  curve: 2.2, // >1 keeps a good navigator safe and makes a poor one genuinely risky
+  distBase: 0.55,
+  distPerKm: 0.0015, // ×1.0 at 300 km, ×1.6 at 700 km, ×2.05 at 1000 km
+  weatherK: 2.5, // rough weather (0..0.30) multiplies the chance by up to 1.75
+  maxChance: 0.85,
+  // Size of the detour, in km: a fraction of the route, scaled by how poor the
+  // navigator is. ~19 km at orientation 30 on 300 km; ~62 km on 1000 km.
+  detourFraction: 0.04,
+  detourSeverityBase: 0.5,
+  detourSeveritySpread: 1.5,
+  // Losing the way ENTIRELY (only rolled once already straying).
+  strandedMax: 0.35,
+  strandedCurve: 3.5,
+  // How long she stays out before finding her way home.
+  returnDaysBase: 1,
+  returnDaysPerKm: 2 / 1000,
+  returnDaysRoom: 3,
+  returnDaysJitter: 0.5,
+  // What she looks like when she finally turns up. The health hit is deliberately
+  // mild-ish: she already comes home on an empty tank, and vluchtvorm drives the
+  // illness odds now — a harsher hit would drop her straight into a spiral.
+  returnEnergyMin: 2,
+  returnEnergyMax: 8,
+  returnHealthLossMin: 15,
+  returnHealthLossMax: 25,
+  returnAilmentChance: 0.45,
 } as const;
 
 /**
@@ -1682,6 +1752,13 @@ export const COMMENTARY = {
     '{name} valt stil — de tank is leeg. Ze geraakt niet meer thuis.',
     '{name} strijkt onderweg neer, doodop. Einde vlucht.',
     '{name} kan niet meer, uitgeput langs de kant. Geen finish.',
+  ],
+  // A bird loses the way completely — she is not hurt, she simply has no idea
+  // where she is. She turns up at the loft days later (see LOST).
+  dnfLost: [
+    '{name} is het noorden volledig kwijt en verdwijnt uit beeld. Ze raakt vandaag niet meer thuis.',
+    '{name} draait rondjes, kiest de verkeerde richting en is weg. Wachten wordt het.',
+    '{name} verliest alle houvast en vliegt de horizon in — die komt hier vandaag niet meer aan.',
   ],
   // A bird pulls up injured mid-flight.
   dnfInjury: [

@@ -26,7 +26,7 @@ import {
 } from '../config/gameConfig.js';
 import type { Ailment, Database, Loft, Pigeon } from '../schema.js';
 import { newId } from '../store.js';
-import { ageInWeeks, ageMortality, conditionScore, noteAttrChange } from './pigeon.js';
+import { ageInWeeks, ageMortality, conditionScore, isAway, noteAttrChange } from './pigeon.js';
 import { awardBadge, evaluateBadges } from './badges.js';
 import { clamp, pick, pickWith, round1 } from './util.js';
 
@@ -287,8 +287,9 @@ export function runHealthDay(db: Database, week: number): void {
       }
     }
 
-    // 3. Contagion + spontaneous illness among the survivors.
-    const alive = birds.filter((p) => !dead.has(p.id));
+    // 3. Contagion + spontaneous illness among the survivors. A bird that lost its
+    //    way on a flight is not in the loft: it can neither infect nor be infected.
+    const alive = birds.filter((p) => !dead.has(p.id) && !isAway(p));
     const sources = alive.filter((p) => p.ailment?.kind === 'ziekte' && !p.inInfirmary).length;
     for (const p of alive) {
       if (p.ailment || p.inInfirmary) continue; // already ailing, or safely isolated

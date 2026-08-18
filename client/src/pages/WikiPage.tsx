@@ -15,6 +15,8 @@ const SECTIONS = [
   { id: 'ervaring', icon: '🎓', label: 'Ervaring' },
   { id: 'energie', icon: '⚡', label: 'Energie & herstel' },
   { id: 'vlucht', icon: '🏁', label: 'Energie per vlucht' },
+  { id: 'eigenschappen', icon: '📋', label: 'Wat doet elke eigenschap?' },
+  { id: 'verdwalen', icon: '🧭', label: 'Verdwalen' },
   { id: 'vorm', icon: '🎯', label: 'Vluchtvorm & blessures' },
   { id: 'lage-energie', icon: '🪫', label: 'Lage energie' },
   { id: 'broeden', icon: '🥚', label: 'Broeden' },
@@ -259,6 +261,100 @@ export function WikiPage() {
         <p><strong>Strategie:</strong> zet je sterkste duif op de <em>zwaarste</em> etappe (die met tegenwind) — daar
           verlies je met haar het minst. Bij overal hetzelfde weer maakt de volgorde niets uit. En kijk vooral naar je
           <em> zwakste</em> schakel: die bepaalt evenveel van de ploegtijd als je kampioen.</p>
+      </Section>
+
+      <Section id="eigenschappen" icon="📋" title="Wat doet elke eigenschap tijdens een vlucht?">
+        <p className="muted" style={{ marginTop: 0 }}>
+          Elke eigenschap heeft één duidelijke rol. Ze doen niet allemaal hetzelfde, en ze
+          werken niet allemaal op je snelheid.
+        </p>
+        <MiniTable
+          head={['Eigenschap', 'Wat ze doet', 'Waar ze het zwaarst weegt']}
+          rows={[
+            ['⚡ Snelheid', 'Rauw tempo. Bepaalt samen met conditie hoe snel je duif vliegt.', 'Korte vluchten (sprint)'],
+            ['💪 Conditie', 'Dat tempo kunnen aanhouden. Bepaalt samen met snelheid je tempo.', 'Lange vluchten (fond)'],
+            ['🧭 Oriëntatie', 'De weg vinden. Raakt je snelheid NIET — bepaalt of je duif omvliegt of de weg helemaal kwijtraakt.', 'Lange vluchten en slecht weer'],
+            ['❤️ Gezondheid', 'Samen met energie je vluchtvorm: de kans op blessure en ziekte. Heel lage gezondheid maakt een duif zelfs niet-vluchtklaar.', 'Overal'],
+            ['🔋 Energie', 'De tank. Samen met gezondheid je vluchtvorm; bij een bijna lege tank valt een duif uit of erger.', 'Overal, zwaarder op lange vluchten'],
+            ['🎓 Ervaring', 'Zuiniger vliegen, sneller herstellen en beter presteren (tot +33 %).', 'Overal'],
+          ]}
+        />
+        <p style={{ marginTop: 12 }}>
+          <strong>Belangrijk:</strong> een duif met veel oriëntatie vliegt niet sneller dan een
+          duif met weinig oriëntatie. Ze <em>verliest alleen minder tijd</em>, omdat ze niet
+          van koers raakt. Wil je pure snelheid, dan train je <strong>snelheid</strong> (kort)
+          en <strong>conditie</strong> (lang).
+        </p>
+      </Section>
+
+      <Section id="verdwalen" icon="🧭" title="Verdwalen: waar oriëntatie voor dient">
+        <p className="muted" style={{ marginTop: 0 }}>
+          Oriëntatie is je navigatie-eigenschap. Ze maakt je duif geen meter sneller, maar
+          bepaalt of ze rechtstreeks naar huis vliegt — of kilometers omvliegt en zelfs de weg
+          helemaal kwijtraakt.
+        </p>
+        <p><strong>Kans dat een duif van koers raakt</strong> (mooi weer):</p>
+        <MiniTable
+          head={['Oriëntatie', '150 km', '300 km', '500 km', '700 km', '1000 km']}
+          rows={[
+            ['95', '0,4 %', '0,6 %', '0,7 %', '0,9 %', '1,2 %'],
+            ['85', '1,0 %', '1,3 %', '1,8 %', '2,2 %', '2,8 %'],
+            ['70', '3,4 %', '4,4 %', '5,7 %', '7,0 %', '9,0 %'],
+            ['50', '9,7 %', '12,5 %', '16,2 %', '20,0 %', '25,6 %'],
+            ['30', '19,8 %', '25,6 %', '33,3 %', '41,0 %', '52,5 %'],
+          ]}
+        />
+        <ul style={{ marginTop: 12 }}>
+          <li><strong>Hoe verder de vlucht, hoe groter de kans</strong> — meer kilometers betekent meer gelegenheid om af te dwalen.</li>
+          <li>
+            <strong>Slecht weer maakt het veel erger — maar niet voor iedereen.</strong> Mist,
+            regen en harde wind verhogen de kans tot ~75 %. Op 700 km gaat een duif met
+            oriëntatie 95 van 0,9 % naar 1,6 %, terwijl een duif met oriëntatie 30 van 41 %
+            naar <strong>72 %</strong> springt. Een goede navigator merkt er dus nauwelijks
+            iets van; een slechte is bij ruw weer nagenoeg kansloos.
+          </li>
+        </ul>
+        <p style={{ marginTop: 12 }}>
+          <strong>Wat het kost.</strong> Meestal vliegt ze gewoon een <strong>omweg</strong>:
+          echte extra kilometers, dus echt tijdverlies, een forse val in de stand — én extra
+          energie, want die kilometers moeten gevlogen worden.
+        </p>
+        <MiniTable
+          head={['Oriëntatie', 'Omweg op 300 km', 'Omweg op 1000 km']}
+          rows={[
+            ['95', '~7 km', '~23 km'],
+            ['70', '~11 km', '~38 km'],
+            ['30', '~19 km', '~62 km'],
+          ]}
+        />
+        <p style={{ marginTop: 12 }}>
+          <strong>En soms raakt ze de weg helemaal kwijt.</strong> Dan komt ze die dag niet
+          thuis. <strong>Je duif is nooit voorgoed weg</strong> — duiven vinden hun weg terug —
+          maar het kan een paar dagen duren, en ze komt binnen met een <strong>lege tank, veel
+          minder gezondheid</strong> en vaak een kwetsuur of ziekte. Zolang ze onderweg is kan
+          ze niets: niet vliegen, trainen, koppelen of verkocht worden.
+        </p>
+        <MiniTable
+          head={['Oriëntatie', 'Kans dat ze niet thuiskomt (300 km)', 'Idem (1000 km, slecht weer)']}
+          rows={[
+            ['95', 'praktisch nul', 'praktisch nul'],
+            ['70', '0,02 %', '0,1 %'],
+            ['50', '0,4 %', '1,4 %'],
+            ['30', '2,6 %', '8,5 %'],
+          ]}
+        />
+        <p style={{ marginTop: 12 }}>
+          <strong>Oriëntatie groeit door te vliegen</strong>, en het snelst op <strong>lange
+          vluchten</strong> — een duif die 900 km aflegt, leert de route kennen. Je kan haar ook
+          trainen (tot 80) en een <strong>privécoach</strong> werkt er eveneens aan, tot haar
+          genetische plafond.
+        </p>
+        <p>
+          <strong>Strategie:</strong> zet een duif met zwakke oriëntatie op <strong>korte
+          vluchten bij goed weer</strong> en bouw haar oriëntatie op met oefenvluchten en de
+          coach. Voor de grote fond — zeker met slecht weer op komst — stuur je je beste
+          navigators.
+        </p>
       </Section>
 
       <Section id="vorm" icon="🎯" title="Vluchtvorm: waarom duiven geblesseerd raken">

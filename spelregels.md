@@ -19,11 +19,11 @@ Elke duif (0–100 per waarde):
 |---|---|---|
 | **Snelheid** | vaardigheid | Rauwe snelheid. Weegt het zwaarst op korte vluchten. |
 | **Conditie** | vaardigheid | Fitheid/uithouding. Laat een duif haar snelheid **aanhouden** op lange vluchten; verbetert door te vliegen; tilt gezondheid en libido op. |
-| **Oriëntatie** | vaardigheid | Navigatie. Weegt zwaarder op lange vluchten. |
+| **Oriëntatie** | vaardigheid | Navigatie. **Maakt niet sneller** — bepaalt of je duif omvliegt of de weg kwijtraakt (§3.5). Weegt zwaarder op lange vluchten en bij slecht weer. |
 | **Energie** | dynamisch | "Fut". Daalt door vluchten, stijgt door rust + eten. Lage energie = slechtere prestaties, meer kans op ziekte/blessure, minder kans op broeden. |
 | **Gezondheid** | dynamisch | Algemene gezondheid. Vermenigvuldigt de vluchtsnelheid; laag = niet vluchtklaar. |
 | **Libido** | dynamisch | Broeddrift. Volgt conditie + energie (met een frisse minderheid als uitzondering). |
-| **Ervaring** | groeit | Zelfvertrouwen. Betere prestaties, sneller energieherstel én **minder energieverbruik per vlucht**. Groeit door te vliegen, te trainen en met een coach — **snel bij een groentje, steeds trager bij een routinier** (§3.6). |
+| **Ervaring** | groeit | Zelfvertrouwen. Betere prestaties, sneller energieherstel én **minder energieverbruik per vlucht**. Groeit door te vliegen, te trainen en met een coach — **snel bij een groentje, steeds trager bij een routinier** (§3.7). |
 
 Een duif is **vluchtklaar** als: niet gepensioneerd, geen ziekte/kwetsuur, niet
 in de ziekenboeg, minstens **8 weken** oud en gezondheid > 15.
@@ -89,11 +89,11 @@ Per duif, bevroren bij de start:
 
 ```
 gewicht(afstand): t = clamp((afstand − 100) / 600, 0, 1)
-  gewicht.snelheid   = 0.65 + (0.20 − 0.65)·t
-  gewicht.conditie   = 0.13 + (0.45 − 0.13)·t
-  gewicht.oriëntatie = 0.22 + (0.35 − 0.22)·t
+  gewicht.snelheid = 0.83 + (0.31 − 0.83)·t
+  gewicht.conditie = 0.17 + (0.69 − 0.17)·t
 
-basisscore = gewicht.snelheid·Snelheid + gewicht.conditie·Conditie + gewicht.oriëntatie·Oriëntatie
+basisscore = gewicht.snelheid·Snelheid + gewicht.conditie·Conditie
+# Oriëntatie zit hier BEWUST niet in — zie §3.5.
 
 # Energie doseren met ervaring:
 effectieve_energie = Energie + (Ervaring/100)·(100 − Energie)·0.35
@@ -111,9 +111,14 @@ geluk          = willekeurig 0.90 … 1.10
 snelheid = (700 + basisscore·9) · energiefactor · gezondheidsf. · ervaringfactor · leeftijdfactor · weerfactor · geluk
 ```
 
-**Alle drie de vaardigheden tellen mee**, met **snelheid als sprint-eigenschap die
-op korte vluchten het zwaarst weegt** (0.65) en conditie & oriëntatie die op lange
-vluchten belangrijker worden.
+**Je tempo komt van snelheid en conditie**: snelheid is de sprint-eigenschap die
+op korte vluchten het zwaarst weegt (0.83), conditie neemt het over naarmate de
+vlucht langer wordt (tot 0.69).
+
+> **Oriëntatie maakt een duif niet sneller.** Ze bepaalt of je duif de weg vindt —
+> of ze omvliegt, of zelfs helemaal de weg kwijtraakt. Zie **§3.5**. Vroeger telde
+> oriëntatie wél mee in de snelheid (op de fond zelfs zwaarder dan snelheid zelf),
+> en dat klopte niet: navigeren is iets anders dan snel vliegen.
 
 **Energie werkt afstandsafhankelijk:** op een **korte** vlucht wordt een futloze
 duif maar licht afgestraft (ze kan er nog goed presteren); vanaf **middellange tot
@@ -310,7 +315,7 @@ Per deelnemende duif:
 | **Energie** (verbruik) | −((10 + afstand/30) · ervaringsfactor + willekeurig 0…10) | **geleidelijk tijdens de vlucht** (zie hieronder) |
 | **Conditie** (opbouw) | +(0.3 + afstand/500 + willekeurig 0…0.4) | na afloop |
 | **Gezondheid** | −(0,5 + afstand/250) × (1 + leegte van de tank) — zie §4.4 | na afloop |
-| **Ervaring** | +(2 + afstand/100) × **leerfactor** (§3.6) | na afloop |
+| **Ervaring** | +(2 + afstand/100) × **leerfactor** (§3.7) | na afloop |
 
 **Ervaring bepaalt mee hoeveel energie een vlucht kost.** Een ervaren duif vliegt
 efficiënter en verbruikt **minder**; een onervaren duif verbruikt **meer**. De
@@ -394,7 +399,7 @@ Of een duif een **blessure** oploopt, hangt af van één cijfer: haar
 door de andere.
 
 ```
-vluchtvorm = (2 × laagste(energie, gezondheid) + hoogste) / 3   − rustaftrek (§3.5)
+vluchtvorm = (2 × laagste(energie, gezondheid) + hoogste) / 3   − rustaftrek (§3.6)
 ```
 
 | Energie / Gezondheid | Vluchtvorm | |
@@ -492,7 +497,59 @@ Handig als je vroeg merkt dat een duif toch niet gaat scoren en je haar zoveel
 mogelijk fris wil houden voor de volgende vlucht, in plaats van haar helemaal
 leeg te laten lopen.
 
-### 3.5 Twee dagen op rij vliegen kost vorm
+### 3.5 Oriëntatie: verdwalen, omvliegen en de weg kwijtraken
+
+Oriëntatie is je **navigatie-eigenschap** en doet niets met je snelheid. Ze bepaalt
+of je duif rechtstreeks naar huis vliegt — of kilometers omvliegt en soms de weg
+helemaal kwijtraakt.
+
+**Kans dat een duif van koers raakt** (mooi weer):
+
+| Oriëntatie | 150 km | 300 km | 500 km | 700 km | 1000 km |
+|---|---|---|---|---|---|
+| 95 | 0,4 % | 0,6 % | 0,7 % | 0,9 % | 1,2 % |
+| 85 | 1,0 % | 1,3 % | 1,8 % | 2,2 % | 2,8 % |
+| 70 | 3,4 % | 4,4 % | 5,7 % | 7,0 % | 9,0 % |
+| 50 | 9,7 % | 12,5 % | 16,2 % | 20,0 % | 25,6 % |
+| 30 | 19,8 % | 25,6 % | 33,3 % | 41,0 % | 52,5 % |
+
+**Hoe verder de vlucht, hoe groter de kans** — meer kilometers, meer gelegenheid
+om af te dwalen.
+
+**Slecht weer maakt het veel erger, maar niet voor iedereen.** Mist, regen en harde
+wind verhogen de kans met tot 75 %. Op 700 km gaat een duif met oriëntatie 95 van
+0,9 % naar 1,6 %; een duif met oriëntatie 30 springt van 41 % naar **72 %**. Een
+goede navigator merkt er nauwelijks iets van, een slechte is bij ruw weer nagenoeg
+kansloos.
+
+**Meestal is het een omweg.** Echte extra kilometers: dus echt tijdverlies, een
+forse val in de stand, én **extra energie** — die kilometers moeten gevlogen worden.
+
+| Oriëntatie | Omweg op 300 km | Omweg op 1000 km |
+|---|---|---|
+| 95 | ~7 km | ~23 km |
+| 70 | ~11 km | ~38 km |
+| 30 | ~19 km | ~62 km |
+
+**Soms raakt ze de weg helemaal kwijt.** Dan komt ze die dag niet thuis en telt ze
+als DNF. **Je duif is nooit voorgoed weg** — duiven vinden hun weg terug — maar het
+duurt een **paar dagen**, en ze komt binnen met een **lege tank**, fors minder
+gezondheid en vaak een kwetsuur of ziekte. Zolang ze onderweg is kan ze niets: niet
+vliegen, trainen, koppelen, op rustkuur of verkocht worden. Ze eet ook niets van je
+voorraad en lijdt geen honger — ze is er simpelweg niet.
+
+| Oriëntatie | Kans dat ze niet thuiskomt (300 km) | Idem (1000 km, slecht weer) |
+|---|---|---|
+| 95 | praktisch nul | praktisch nul |
+| 70 | 0,02 % | 0,1 % |
+| 50 | 0,4 % | 1,4 % |
+| 30 | 2,6 % | 8,5 % |
+
+**Oriëntatie groeit door te vliegen**, en het snelst op **lange vluchten**. Je kan
+haar ook trainen (tot 80), en een **privécoach** werkt er eveneens aan tot het
+genetische plafond.
+
+### 3.6 Twee dagen op rij vliegen kost vorm
 
 **Rust kan je niet kopen.** Energie wel: met Herstelvoer en een apart hok komt er
 tot ~14 energie per nacht bij, genoeg om een korte vlucht dag na dag te doen
@@ -512,7 +569,7 @@ het inschrijven staat het erbij: *"net gevlogen, −15"*.
 > Wie zijn duiven laat roteren in plaats van dezelfde vogel elke dag op te
 > offeren, heeft dus meetbaar minder blessures.
 
-### 3.6 Ervaring: een groentje leert snel, een veteraan amper nog
+### 3.7 Ervaring: een groentje leert snel, een veteraan amper nog
 
 Ervaring stijgt **niet** aan een vast tempo. Élke ervaringswinst — een vlucht, een
 oefenvlucht, een trainingsbeurt, een dag privécoach, een gebeurtenis — wordt
@@ -1002,7 +1059,7 @@ Een vaardigheid groeit in **drie trappen**:
 | **90 → gen-cap** | enkel een **privécoach** (§13) |
 
 **Handmatig trainen** verbruikt **15 energie**, geeft ~**+1** aan de gekozen
-vaardigheid (+**4 ervaring**, ×de leerfactor van §3.6 — bij een routinier dus
+vaardigheid (+**4 ervaring**, ×de leerfactor van §3.7 — bij een routinier dus
 merkbaar minder) en kan **tot 80** (of de gen-cap als die lager is —
 79→80 is dus de hoogste handmatige stap). Je kan enkel trainen als de duif **thuis**
 is, en **elke eigenschap maar 1× per week** (aparte teller per categorie).
@@ -1317,7 +1374,7 @@ Verdiend geld kan je investeren in je hok en je duiven (bij *Mijn hok*, de
   effectief vliegt. De concrete winst per dag zie je op de **duifpagina** (onder de
   coach-knop); zitten alle drie de vaardigheden al op hun gen-cap, dan meldt de pagina
   dat de coach niets meer kan toevoegen. Zijn dagelijkse **ervaringswinst** volgt de
-  leerfactor van §3.6: bij een groentje bijna een punt per dag, bij een veteraan nog
+  leerfactor van §3.7: bij een groentje bijna een punt per dag, bij een veteraan nog
   maar een fractie — de duifpagina toont het exacte cijfer voor déze duif.
 - **Trainingsplafonds (samengevat).** Zelf **trainen** tot **80**, **vluchten** tot
   **90**, **premiumvoer** bouwt conditie mee op tot **80**, en enkel de **coach** gaat
