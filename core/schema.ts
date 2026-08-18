@@ -99,6 +99,9 @@ export interface Pigeon {
   hungerDays: number; // consecutive days with no food in stock (0 = fed); drives starvation
   restDays: number; // consecutive fed days at home without racing; every 3rd gives an energie bonus
   cureUntil?: string | null; // ISO time a paid rest cure completes (bird rests, can't race)
+  /** ISO time this bird's last rest cure STARTED. Every bird may take a cure, but
+   *  only one a week — the cooldown is per pigeon, not per loft. */
+  lastRestCureAt?: string | null;
   /** ISO time of the last race this bird flew, and whether that was an oefenvlucht.
    *  Drives the RECOVERY penalty on the vluchtvorm for racing on consecutive days.
    *  Stored on the bird (not derived from db.flights) because finished flights are

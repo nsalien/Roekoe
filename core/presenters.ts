@@ -115,6 +115,15 @@ export function pigeonDTO(db: Database, p: Pigeon, viewerId?: string) {
     compartment: revealed ? (!!p.compartment && !p.inInfirmary) : false,
     cureUntil: revealed ? (p.cureUntil ?? null) : null,
     onCure: revealed ? (!!p.cureUntil && Date.parse(p.cureUntil) > Date.now()) : false,
+    // One cure per BIRD per week: when this pigeon may have its next one (null =
+    // right now). The loft-wide lock is gone.
+    restCureAvailableAt: (() => {
+      if (!revealed) return null;
+      const last = p.lastRestCureAt ? Date.parse(p.lastRestCureAt) : NaN;
+      if (Number.isNaN(last)) return null;
+      const next = last + REST_CURE.cooldownDays * 86400000;
+      return next > Date.now() ? new Date(next).toISOString() : null;
+    })(),
     // Per-attribute training cooldown (own birds only).
     trainAvailableAt: (() => {
       if (!revealed) return { speed: null, endurance: null, orientation: null };

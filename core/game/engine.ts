@@ -381,16 +381,26 @@ export function startRestCure(store: Store, userId: string, pigeonId: string): s
     if (pigeon.cureUntil && Date.parse(pigeon.cureUntil) > Date.now())
       return 'Deze duif is al op rustkuur';
     if (pigeon.form >= 100 && pigeon.health >= 100) return 'Deze duif zit al vol energie en gezondheid';
-    // ANY bird may go on a cure — the per-loft weekly limit is gone. The €300 and
-    // the two days out of racing are the brake now.
+    // EVERY bird may go on a cure (the old one-per-loft-per-week limit is gone), but
+    // each bird only once a week — the cooldown runs per pigeon, from the start of
+    // its previous cure. So a big loft can rest several birds at once, yet no single
+    // bird can be topped up over and over.
     const now = Date.now();
+    const lastCure = pigeon.lastRestCureAt ? Date.parse(pigeon.lastRestCureAt) : NaN;
+    if (!Number.isNaN(lastCure) && now - lastCure < REST_CURE.cooldownDays * 86400000) {
+      const nextDate = new Date(lastCure + REST_CURE.cooldownDays * 86400000).toLocaleDateString('nl-BE', {
+        timeZone: 'Europe/Brussels', day: 'numeric', month: 'long',
+      });
+      return `${pigeon.name} had deze week al een rustkuur — de volgende kan vanaf ${nextDate}`;
+    }
     const racing = db.flights.some(
       (f) => f.status !== 'completed' && f.entries.some((e) => e.pigeonId === pigeonId),
     );
     if (racing) return 'Deze duif is ingeschreven voor een vlucht — schrijf ze eerst uit';
     if (loft.money < REST_CURE.cost) return `Niet genoeg geld — een rustkuur kost €${REST_CURE.cost}`;
     loft.money -= REST_CURE.cost;
-    loft.lastRestCure = new Date(now).toISOString(); // kept for the history/DTO, no longer a gate
+    loft.lastRestCure = new Date(now).toISOString(); // loft history only — the gate is per bird
+    pigeon.lastRestCureAt = new Date(now).toISOString();
     pigeon.cureUntil = new Date(now + REST_CURE.durationHours * 3600000).toISOString();
     return null;
   });

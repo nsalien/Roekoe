@@ -367,7 +367,8 @@ export function WikiPage() {
           <strong>Strategie:</strong> kijk naar de stip, niet naar de energiebalk alleen. Zet een
           🔴-duif niet in — zeker niet op een lange vlucht. Wil je er toch een snel klaarstomen,
           dan is de <strong>rustkuur</strong> (2 dagen, +40 energie én +15 gezondheid) de
-          snelste weg terug naar groen; elke duif mag er op, zo vaak je wil.
+          snelste weg terug naar groen. Elke duif mag er op — ook meerdere tegelijk — maar
+          <strong> elke duif maar één keer per week</strong>.
         </p>
       </Section>
 

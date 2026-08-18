@@ -331,6 +331,7 @@ app.get('/state', (c) => {
       restCureEnergy: REST_CURE.energy,
       restCureHealth: REST_CURE.health,
       restCureHours: REST_CURE.durationHours,
+      restCureCooldownDays: REST_CURE.cooldownDays,
       restaurantName: PIGEON_RESTAURANT.name,
       restaurantPayout: PIGEON_RESTAURANT.payout,
       restaurantMoraleMin: PIGEON_RESTAURANT.moraleEnergyMin,
