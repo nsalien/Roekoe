@@ -641,7 +641,10 @@ export function tickFlights(db: Database, nowMs: number, weatherByFlight?: Map<s
       const total = flightTotalSeconds(flight);
       if (nowMs >= startMs + total * 1000) {
         const sim = finalizeFlight(flight, db.pigeons);
-        applyFlightEffects(sim, db.pigeons, db.lofts);
+        applyFlightEffects(sim, db.pigeons, db.lofts, {
+          at: flight.startAt,
+          practice: !!flight.practice,
+        });
         emitFlightNotifications(db, flight, sim);
         // Remove birds that died on the flight and clean up their references.
         for (const dead of sim.deaths) {
@@ -1736,10 +1739,13 @@ export function tickRestCures(db: Database, nowMs: number): void {
     if (Number.isNaN(done) || nowMs < done) continue;
     p.cureUntil = null;
     p.form = round1(clamp(p.form + REST_CURE.energy, 0, 100));
+    // Real rest mends the bird, not just its tank — gezondheid drives the injury
+    // and illness odds now, so a cure has to move it too.
+    p.health = round1(clamp(p.health + REST_CURE.health, 0, 100));
     if (humanIds.has(p.ownerId)) {
       pushNotification(
         db, p.ownerId, 'info', `🛌 ${p.name} is uitgerust`,
-        `De rustkuur zit erop: ${p.name} kreeg er ${REST_CURE.energy} energie bij en is weer inzetbaar.`,
+        `De rustkuur zit erop: ${p.name} kreeg er ${REST_CURE.energy} energie en ${REST_CURE.health} gezondheid bij en is weer inzetbaar.`,
         null, `ntf:cure:${p.id}:${done}`,
       );
     }

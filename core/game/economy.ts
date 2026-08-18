@@ -5,6 +5,7 @@ import {
   COACH,
   COMPARTMENT,
   DAILY_UPKEEP_BASE,
+  HEALTH,
   pigeonUpkeepBands,
   type UpkeepBandCost,
   FEED_RATIONS,
@@ -108,7 +109,13 @@ export function applyDayOfCare(
       const energyGain =
         (ration.formRecovery / 7) * (1 + p.experience / 200) * formMult * infirmaryEnergyMult; // exp + compartment speed recovery
       p.form = round1(clamp(p.form + energyGain, 0, 100));
-      p.health = round1(clamp(p.health + (ration.healthRecovery / 7) * healthMult + p.endurance / 280, 0, 100));
+      // Health recovery REBOUNDS: the further a bird has dropped, the faster it
+      // comes back. Without that, the health a race now costs would be a one-way
+      // ratchet for anyone flying a full calendar (see HEALTH.reboundFactor).
+      const healthRebound = 1 + ((100 - p.health) / 100) * HEALTH.reboundFactor;
+      p.health = round1(
+        clamp(p.health + (ration.healthRecovery / 7) * healthRebound * healthMult + p.endurance / 280, 0, 100),
+      );
       // Premium feed slowly builds conditie — but only up to the MANUAL tier
       // (min(80, geneCap)); passive feeding, like training, cannot push a skill
       // into the 80→90 racing band. Never lowers a bird already built higher.
@@ -252,7 +259,8 @@ export function projectDailyCare(loft: Loft, p: Pigeon, live = false, covered = 
     // projected ▲ on the day it lands. Not while convalescing in the infirmary.
     if (!live && !p.inInfirmary && ((p.restDays ?? 0) + 1) % REST_BONUS.everyDays === 0) rawForm += REST_BONUS.energy;
     form = rise(p.form, rawForm, 100);
-    health = rise(p.health, (ration.healthRecovery / 7) * healthMult + p.endurance / 280, 100);
+    const healthRebound = 1 + ((100 - p.health) / 100) * HEALTH.reboundFactor;
+    health = rise(p.health, (ration.healthRecovery / 7) * healthRebound * healthMult + p.endurance / 280, 100);
     // Conditie from premium feed — only up to the manual tier (min(80, geneCap)),
     // never lowering a bird already built higher.
     let enduranceRaw = 0;

@@ -112,6 +112,11 @@ export interface Pigeon {
   // Coach's daily polish per skill (0 at the gene cap) + the ervaring it adds,
   // which shrinks as the bird gets more experienced.
   coachGain: { speed: number; endurance: number; orientation: number; experience: number } | null;
+  /** Vluchtvorm: energie + gezondheid (laagste telt dubbel) − rustaftrek. Drives
+   *  the injury odds; null for another player's hidden bird. */
+  flightForm: number | null;
+  formLabel: 'fris' | 'matig' | 'risico' | null;
+  restPenalty: number; // vorm docked for having raced in the last couple of days
 }
 
 export interface Trade {
@@ -201,6 +206,7 @@ export interface EconomyCosts {
   betWindowHours: number;
   restCureCost: number;
   restCureEnergy: number;
+  restCureHealth: number;
   restCureHours: number;
   restaurantName: string; // the local pigeon-soup restaurant
   restaurantPayout: number; // fixed coins for selling a bird there

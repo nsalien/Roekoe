@@ -203,7 +203,15 @@ export function FlightsPage() {
                   ) : (
                     <EnterControl
                       disabled={busy}
-                      options={available.map((p) => ({ id: p.id, label: `${p.name} (★${p.talent}, energie ${Math.round(p.form ?? 0)})` }))}
+                      options={available.map((p) => ({
+                        id: p.id,
+                        // Show the VLUCHTVORM here, not just energie: it is what decides
+                        // the injury risk, and an invisible penalty reads as bad luck.
+                        label:
+                          `${p.formLabel === 'fris' ? '🟢' : p.formLabel === 'matig' ? '🟡' : '🔴'} ${p.name} ` +
+                          `(★${p.talent} · vorm ${p.flightForm ?? '?'}` +
+                          `${p.restPenalty > 0 ? ` — net gevlogen, −${p.restPenalty}` : ''})`,
+                      }))}
                       onEnter={(pigeonId) => act(() => api(`/flights/${f.id}/enter`, { method: 'POST', body: { pigeonId } }), 'Ingeschreven!')}
                     />
                   )}

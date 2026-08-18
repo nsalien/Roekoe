@@ -149,6 +149,26 @@ export function PigeonPage() {
                 )}
                 {p.inInfirmary && <span className="badge" style={{ background: 'var(--brand-soft)', color: 'var(--brand-ink)' }}>🏥 in ziekenboeg</span>}
                 {p.coached && <span className="badge" style={{ background: 'var(--gold-soft)', color: 'var(--gold)' }}>🎯 coach</span>}
+                {p.revealed && p.formLabel && (
+                  <span
+                    className="badge"
+                    title={
+                      `Vluchtvorm ${p.flightForm} — energie en gezondheid samen, de laagste van de twee telt dubbel.` +
+                      (p.restPenalty > 0 ? ` Er ging ${p.restPenalty} af omdat ze net gevlogen heeft.` : '') +
+                      ' Hoe lager, hoe groter de kans op een blessure door overbelasting.'
+                    }
+                    style={
+                      p.formLabel === 'fris'
+                        ? { background: 'var(--good-soft)', color: 'var(--good)' }
+                        : p.formLabel === 'matig'
+                          ? { background: 'var(--gold-soft)', color: 'var(--gold)' }
+                          : { background: 'var(--bad-soft)', color: 'var(--bad)' }
+                    }
+                  >
+                    {p.formLabel === 'fris' ? '🟢' : p.formLabel === 'matig' ? '🟡' : '🔴'} vorm {p.flightForm}
+                    {p.restPenalty > 0 ? ` (−${p.restPenalty} rust)` : ''}
+                  </span>
+                )}
               </div>
               <p className="muted" style={{ marginTop: 8 }}>
                 {Math.floor(p.ageWeeks / 52) > 0 ? `${Math.floor(p.ageWeeks / 52)}j ` : ''}{p.ageWeeks % 52} wk oud ·
@@ -411,22 +431,19 @@ export function PigeonPage() {
 
               <hr className="sep" />
 
-              {/* Rustkuur — max. één per hok per week */}
+              {/* Rustkuur — elke duif mag, twee dagen, energie + gezondheid */}
               {(() => {
-                const lockedUntil = !p.onCure ? state?.loft?.restCureAvailableAt ?? null : null;
-                const weeklyLock = !!lockedUntil;
+                const full = (p.form ?? 0) >= 100 && (p.health ?? 0) >= 100;
                 return (
                   <div className="row" style={{ justifyContent: 'space-between', gap: 10, alignItems: 'flex-start' }}>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <strong>🛌 Rustkuur</strong>
                       <div className="faint" style={{ fontSize: '0.85rem' }}>
                         {p.onCure
-                          ? <>Deze duif rust en kan niet vliegen tot <strong>{formatFlightTime(p.cureUntil ?? '')}</strong>. Daarna krijgt ze er energie bij.</>
-                          : weeklyLock
-                            ? <>Je gebruikte je rustkuur van deze week al. Er kan er <strong>maar één per week</strong> — de volgende vanaf <strong>{formatFlightTime(lockedUntil!)}</strong>.</>
-                            : state?.economy
-                              ? <>Een dag verplicht rusten voor <Money value={state.economy.restCureCost} />: daarna +{state.economy.restCureEnergy} energie. Ze kan tijdens de kuur niet vliegen. <strong>Max. één duif per week.</strong></>
-                              : 'Een dag rust die energie oplevert, maar geld kost. Max. één per week.'}
+                          ? <>Deze duif rust en kan niet vliegen tot <strong>{formatFlightTime(p.cureUntil ?? '')}</strong>. Daarna krijgt ze er energie én gezondheid bij.</>
+                          : state?.economy
+                            ? <><strong>Twee dagen</strong> verplicht rusten voor <Money value={state.economy.restCureCost} />: daarna +{state.economy.restCureEnergy} energie en +{state.economy.restCureHealth} gezondheid. Ze kan tijdens de kuur niet vliegen, trainen of koppelen — maar <strong>elke duif mag op kuur</strong>, zo vaak je wil.</>
+                            : 'Twee dagen rust die energie en gezondheid oplevert, maar geld kost.'}
                       </div>
                     </div>
                     {p.onCure ? (
@@ -435,8 +452,8 @@ export function PigeonPage() {
                       <button
                         className="btn sm"
                         style={{ flexShrink: 0 }}
-                        disabled={busy || (p.form ?? 0) >= 100 || p.racing || weeklyLock}
-                        title={(p.form ?? 0) >= 100 ? 'Al vol energie' : p.racing ? 'Schrijf ze eerst uit voor haar vlucht' : weeklyLock ? 'Je rustkuur van deze week is op' : 'Start een rustkuur'}
+                        disabled={busy || full || p.racing}
+                        title={full ? 'Al vol energie en gezondheid' : p.racing ? 'Schrijf ze eerst uit voor haar vlucht' : 'Start een rustkuur'}
                         onClick={() => startRestCure()}
                       >
                         Start rustkuur

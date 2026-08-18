@@ -818,6 +818,61 @@ npx tsx names.test.mts             # elke duivennaam blijft uniek
 Alles hieronder staat **live** op de deploy-branch. Data-migraties liepen door tot
 **`dataVersion = 36`**.
 
+**Blessures & ziektes op vluchtvorm (energie + gezondheid) — nieuwste**
+- **Aanleiding:** de blessurekans was in de praktijk een **vaste tol op ver vliegen**, niet
+  op slecht beheer (op 1000 km had een duif met vólle energie nog 20,5 %), de **ernst werd
+  uniform geloot** (28,6 % ernstig, terwijl ziektes al een gewogen verdeling hadden), en
+  een goed uitgeruste duif kon dag na dag starten zonder dat haar tank het liet zien.
+- **Kern: `flightForm(p, nowMs)`** (`pigeon.ts`) = `conditionScore(p) − restPenalty(p)`, met
+  `conditionScore = (2·min(energie,gezondheid) + max)/3` (`FORM`). Eén getal stuurt de
+  blessurekans, de ernst, de ziektekans en het zichtbare label.
+- **Blessure gesplitst** (`AilmentTemplate.cause` op elke entry van `INJURIES`):
+  - **`overbelasting`** — `(INJURY.floor 0,015 + INJURY.max 0,9 · ((100−vorm)/100)^2,4) ×
+    (0,6 + km·0,001)`. Ernst via **`injurySeverityWeights(vorm)`** (`randomStrainInjury`).
+  - **`pech`** — vlakke `INJURY.luckBase 0,01 × afstandsfactor`, **uniform** uit de eigen pool
+    (`randomLuckInjury`): sperwer/botsing/slagpen. Nooit nul, dus een perfect hok blijft
+    niet onaantastbaar.
+  - Gemeten: vorm 90 → 3 % op 500 km (was 16,7 %), vorm 30 (**E20/H50**, de ijkgrens van de
+    eigenaar) → 44 % op 500 km en 64 % op 1000 km.
+- **Ziekte op dezelfde score** (`ILLNESS.floor 0,01 / max 0,55 / curve 2,4 / contagionFloor
+  0,15`, in `runHealthDay`): vorm 90 → ~1 %/week, vorm 30 → ~24 %/week. `randomDisease` neemt
+  nu de **conditie-score** i.p.v. enkel gezondheid.
+- **Gezondheid is nu een echte resource:** `HEALTH.flightHealthBase 0,5 / flightHealthPerKm
+  1/250 / emptyTankFactor 0,8` — een vlucht kost 2 (regio) tot 7 (fond) gezondheid, méér als
+  de duif leeg thuiskomt. Tegengewicht: **rebound** (`HEALTH.reboundFactor 1` — herstel ×
+  `(1 + (100−gezondheid)/100)`) en **Herstelvoer `healthRecovery 3 → 12`** (dat gaf voordien
+  het mínste gezondheid van alle voeders).
+- **Rustaftrek (`RECOVERY`)**: gisteren gevlogen −15 vorm, eergisteren −7, oefenvlucht ×⅓.
+  Gemeten ×2,2 op de blessurekans — **zelfschalend** (×2,5 voor een frisse duif, ×1,6 voor een
+  al wankele) en **niet weg te kopen** met Herstelvoer of een apart hok, wat het punt was.
+  Nieuwe velden `Pigeon.lastRaceAt`/`lastRaceWasPractice` (kolommen `last_race_at` +
+  `last_race_practice`), gezet in `applyFlightEffects` — **bewust niet** afgeleid uit
+  `db.flights`, want die worden na 2 dagen geprunet.
+- **`SimEntry.startVorm`** bevriest de vluchtvorm bij de lossing, zodat de blessureworp
+  deterministisch blijft als twee verzoeken tegelijk afronden (legacy-vluchten vallen terug
+  op de huidige conditie).
+- **Rustkuur (`REST_CURE`)**: **elke duif mag, zo vaak je wil** (weeklimiet + `cooldownDays`
+  weg), duurt nu **48 u**, geeft **+40 energie én +15 gezondheid**. Lopende kuren houden hun
+  einde (`cureUntil` is absoluut), dus wie nu op de oude 24-uurskuur zit blijft ongemoeid.
+  `loftDTO.restCureAvailableAt` blijft bestaan maar is altijd `null` (oude open tab).
+- **`TOURNEY_RISK` ingekort**: de extra licht/matig-worp onder 20/10 energie is weg (dubbelop
+  nu de vorm dat al stuurt); **de sterfteworp onder 5 blijft**.
+- **Zichtbaar** (essentieel — een onzichtbare straf leest als willekeur): `pigeonDTO` stuurt
+  `flightForm`/`formLabel`/`restPenalty`; badge op `PigeonPage` en 🟢/🟡/🔴 + vorm in de
+  inschrijflijst op `FlightsPage`. Wiki-sectie 🎯 **Vluchtvorm & blessures**, spelregels
+  **§3.2**, **§3.5** (rustaftrek), **§4.3/§4.4**, **§5.1/§5.2**.
+- **Geen migratie, geen `dataVersion`-bump.** `lastRaceAt` staat leeg bij uitrol (dus geen
+  rustaftrek met terugwerkende kracht) en iedereen zit rond gezondheid 100, dus de
+  gezondheidskost bouwt pas over enkele weken op — geen schok, maar de tuning is ook pas na
+  2–3 weken echt te beoordelen.
+- ⚠️ **Om op te volgen:** lagere gezondheid voedt de ziektekans, dus die twee versterken
+  elkaar. Meten vóór er nog aan gedraaid wordt.
+- **Geverifieerd** met een wegwerpscript (30 controles): vorm-formule, de ijkgrens E20/H50,
+  fitte duif <5 % op 500 km, kans nooit nul, monotoniciteit van beide curves, rustaftrek per
+  dag + oefenvluchtfactor + de ×2,2, pech/overbelasting trekken enkel uit hun eigen pool,
+  ernst schuift mee, gezondheidsbalans houdbaar bij 2 vluchten/week, rustkuur. De vier vaste
+  regressietests + beide typechecks + build groen.
+
 **Migratie v36 — kwetsuur van Tinne teruggenomen (nieuwste)**
 - Op verzoek van de eigenaar: de **kwetsuur** van "Tinne de Doodskist-Ontwijker" wordt
   weggenomen. Ze kwam met **21 energie over** thuis en raakte toch geblesseerd — precies

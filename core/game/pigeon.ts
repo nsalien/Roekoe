@@ -5,7 +5,9 @@ import {
   BREED_RARITY,
   DEFAULT_BREED_ID,
   EXPERIENCE,
+  FORM,
   GENE,
+  RECOVERY,
   MORTALITY_CURVE,
   PIGEON_BREEDS,
   RACE_AGE_WEEKS,
@@ -83,6 +85,49 @@ export function experienceGain(current: number, raw: number): number {
   const factor =
     EXPERIENCE.minFactor + (EXPERIENCE.maxFactor - EXPERIENCE.minFactor) * Math.pow(room, EXPERIENCE.curve);
   return raw * factor;
+}
+
+/**
+ * CONDITIE-SCORE: how well this bird is being kept right now, from the two things
+ * the fancier manages — energie and gezondheid. The LOWER of the two counts double,
+ * so one weak link is never masked by the other (a rested but sickly bird is as
+ * much a liability as a healthy but empty one).
+ *
+ * This is the raw score, without the rest deduction. It drives ILLNESS (a bird
+ * standing in the loft can fall ill regardless of when it last raced).
+ */
+export function conditionScore(p: Pigeon): number {
+  const lo = Math.min(p.form, p.health);
+  const hi = Math.max(p.form, p.health);
+  const total = FORM.lowWeight + FORM.highWeight;
+  return clamp((FORM.lowWeight * lo + FORM.highWeight * hi) / total, 0, 100);
+}
+
+/**
+ * How much vluchtvorm this bird loses for having raced recently. Energie recovery
+ * can be bought (Herstelvoer + a private compartment), rest cannot — so flying on
+ * consecutive days is docked here rather than through the energie tank.
+ */
+export function restPenalty(p: Pigeon, nowMs: number = Date.now()): number {
+  if (!p.lastRaceAt) return 0;
+  const last = Date.parse(p.lastRaceAt);
+  if (Number.isNaN(last)) return 0;
+  const days = Math.floor((nowMs - last) / 86400000);
+  let penalty = 0;
+  if (days <= 0) penalty = RECOVERY.penaltyYesterday; // raced today (relay legs, re-runs)
+  else if (days === 1) penalty = RECOVERY.penaltyYesterday;
+  else if (days === 2) penalty = RECOVERY.penaltyTwoDays;
+  if (penalty === 0) return 0;
+  return p.lastRaceWasPractice ? penalty * RECOVERY.practiceFactor : penalty;
+}
+
+/**
+ * VLUCHTVORM: the conditie-score minus the rest deduction. This one number decides
+ * a bird's strain-injury odds, how bad that injury turns out, and the risk badge the
+ * player sees before entering a race. See INJURY/RECOVERY in gameConfig.
+ */
+export function flightForm(p: Pigeon, nowMs: number = Date.now()): number {
+  return clamp(conditionScore(p) - restPenalty(p, nowMs), 0, 100);
 }
 
 /** The (level-scaled, exponential) cost of the next manual training step. */

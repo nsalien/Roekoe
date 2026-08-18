@@ -143,6 +143,8 @@ function rowToPigeon(r: any): Pigeon {
     hungerDays: r.hunger_days ?? 0,
     restDays: r.rest_days ?? 0,
     cureUntil: r.cure_until ?? null,
+    lastRaceAt: r.last_race_at ?? null,
+    lastRaceWasPractice: !!r.last_race_practice,
     seasonPeakSpeed: r.season_peak_speed ?? 0,
     seasonPodiums: r.season_podiums ?? 0,
     seasonStartScore: r.season_start_score ?? undefined,
@@ -299,7 +301,7 @@ const PIGEON_COLUMNS = [
   'retired', 'ailment', 'in_infirmary', 'races', 'ever_ailed', 'breed', 'coached', 'ration',
   'compartment', 'hunger_days', 'rest_days', 'cure_until', 'season_peak_speed', 'season_podiums',
   'season_start_score', 'season_practice_gain', 'trained_at', 'race_log', 'genes', 'decline_rate',
-  'attr_log', 'care_assigned',
+  'attr_log', 'care_assigned', 'last_race_at', 'last_race_practice',
 ];
 
 function pigeonRow(p: Pigeon): unknown[] {
@@ -314,7 +316,7 @@ function pigeonRow(p: Pigeon): unknown[] {
     p.genes ? JSON.stringify(p.genes) : null,
     typeof p.declineRate === 'number' ? p.declineRate : null,
     p.attrLog && p.attrLog.length ? JSON.stringify(p.attrLog) : null,
-    b(p.careAssigned),
+    b(p.careAssigned), p.lastRaceAt ?? null, b(p.lastRaceWasPractice),
   ];
 }
 
@@ -780,6 +782,8 @@ const SCHEMA_STEPS: string[] = [
     'ALTER TABLE pigeons ADD COLUMN care_assigned INTEGER NOT NULL DEFAULT 0',
     'ALTER TABLE auction_bids ADD COLUMN late_bids INTEGER NOT NULL DEFAULT 0',
     'ALTER TABLE trades ADD COLUMN talent REAL',
+    'ALTER TABLE pigeons ADD COLUMN last_race_at TEXT',
+    'ALTER TABLE pigeons ADD COLUMN last_race_practice INTEGER NOT NULL DEFAULT 0',
   ] as string[]),
 ];
 

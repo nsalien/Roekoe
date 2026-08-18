@@ -15,6 +15,7 @@ const SECTIONS = [
   { id: 'ervaring', icon: '🎓', label: 'Ervaring' },
   { id: 'energie', icon: '⚡', label: 'Energie & herstel' },
   { id: 'vlucht', icon: '🏁', label: 'Energie per vlucht' },
+  { id: 'vorm', icon: '🎯', label: 'Vluchtvorm & blessures' },
   { id: 'lage-energie', icon: '🪫', label: 'Lage energie' },
   { id: 'broeden', icon: '🥚', label: 'Broeden' },
   { id: 'ziekte', icon: '🤒', label: 'Ziekte' },
@@ -258,6 +259,116 @@ export function WikiPage() {
         <p><strong>Strategie:</strong> zet je sterkste duif op de <em>zwaarste</em> etappe (die met tegenwind) — daar
           verlies je met haar het minst. Bij overal hetzelfde weer maakt de volgorde niets uit. En kijk vooral naar je
           <em> zwakste</em> schakel: die bepaalt evenveel van de ploegtijd als je kampioen.</p>
+      </Section>
+
+      <Section id="vorm" icon="🎯" title="Vluchtvorm: waarom duiven geblesseerd raken">
+        <p className="muted" style={{ marginTop: 0 }}>
+          Blessures en ziektes zijn geen loterij meer. Ze hangen af van één cijfer dat je
+          zelf stuurt: de <strong>vluchtvorm</strong> van je duif. Je ziet ze op de duifpagina
+          en in de keuzelijst bij het inschrijven, met een 🟢/🟡/🔴-stip.
+        </p>
+        <p>
+          <strong>Hoe ze berekend wordt.</strong> Vluchtvorm combineert <strong>energie</strong> en{' '}
+          <strong>gezondheid</strong>, waarbij de <strong>laagste van de twee dubbel telt</strong>.
+          Eén zwakke schakel wordt dus niet verstopt door de andere: een uitgeruste maar zieke duif
+          is even kwetsbaar als een kerngezonde die op haar tandvlees zit.
+        </p>
+        <MiniTable
+          head={['Energie / Gezondheid', 'Vluchtvorm', 'Beoordeling']}
+          rows={[
+            ['90 / 95', '≈ 92', '🟢 fris'],
+            ['80 / 90', '≈ 83', '🟢 fris'],
+            ['60 / 85', '≈ 68', '🟡 matig'],
+            ['40 / 70', '≈ 50', '🔴 risico'],
+            ['20 / 50', '≈ 30', '🔴 gevaarlijk'],
+          ]}
+        />
+
+        <p style={{ marginTop: 14 }}>
+          <strong>Twee soorten blessures.</strong> Niet elke blessure zegt iets over je verzorging:
+        </p>
+        <ul>
+          <li>
+            <strong>Overbelasting</strong> — verrekte borstspier, verstuikte vleugel,
+            borstbeenkneuzing, botbreuk. Die krijg je omdat de inspanning te zwaar was voor
+            de duif: <strong>hoe lager de vluchtvorm, hoe groter de kans</strong>, en hoe
+            zwaarder het letsel uitvalt.
+          </li>
+          <li>
+            <strong>Pech</strong> — een sperwer, een botsing, een afgebroken slagpen. Dat
+            overkomt een topduif net zo goed als een sukkelaar: een <strong>kleine, vaste
+            kans</strong> die je met geen enkele verzorging wegkrijgt. Bij een duif in
+            topvorm is dít de reden dat ze toch eens gehavend thuiskomt.
+          </li>
+        </ul>
+        <MiniTable
+          head={['Vluchtvorm', '150 km', '300 km', '500 km', '1000 km']}
+          rows={[
+            ['90 (top)', '2 %', '3 %', '3 %', '5 %'],
+            ['75 (goed)', '4 %', '5 %', '6 %', '9 %'],
+            ['65 (normaal)', '7 %', '9 %', '11 %', '15 %'],
+            ['45 (zwak)', '18 %', '21 %', '26 %', '38 %'],
+            ['30 (gevaarlijk)', '30 %', '36 %', '44 %', '64 %'],
+          ]}
+        />
+        <p className="muted" style={{ fontSize: '0.85rem' }}>
+          Afstand telt nog mee, maar veel minder dan vroeger: een fitte duif kan de grote fond
+          aan, een uitgeputte duif is zelfs op een regiovlucht een risico.
+        </p>
+
+        <p style={{ marginTop: 14 }}>
+          <strong>Hoe erg wordt het?</strong> Bij overbelasting hangt ook de <em>ernst</em> van
+          de vluchtvorm af — en dat scheelt dagen uitval (licht ≈ 1,5 dag met volle zorg,
+          ernstig ≈ 6 dagen):
+        </p>
+        <MiniTable
+          head={['Vluchtvorm', 'Licht', 'Matig', 'Ernstig']}
+          rows={[
+            ['90', '66 %', '26 %', '8 %'],
+            ['70', '58 %', '28 %', '14 %'],
+            ['50', '50 %', '30 %', '20 %'],
+            ['30', '42 %', '32 %', '26 %'],
+          ]}
+        />
+
+        <p style={{ marginTop: 14 }}>
+          <strong>Twee dagen op rij vliegen kost je.</strong> Rust kan je niet kopen. Vloog je
+          duif <strong>gisteren</strong>, dan gaat er <strong>15 vluchtvorm</strong> af;
+          eergisteren nog 7. Een oefenvlucht telt maar voor een derde. In de praktijk{' '}
+          <strong>verdubbelt dat haar blessurekans</strong> — ook als haar energiebalk er
+          door goed voer weer prima uitziet.
+        </p>
+
+        <p style={{ marginTop: 14 }}>
+          <strong>Ziek worden werkt net zo.</strong> Dezelfde combinatie van energie en
+          gezondheid bepaalt hoe vatbaar een duif is. Een kerngezond hok ziet zelden iets;
+          een verwaarloosd hok gaat snel onderuit, en besmetting doet de rest:
+        </p>
+        <MiniTable
+          head={['Vluchtvorm', 'Kans ziek te worden, per week']}
+          rows={[
+            ['90 (top)', '≈ 1 %'],
+            ['75 (goed)', '≈ 3 %'],
+            ['65 (normaal)', '≈ 5 %'],
+            ['45 (zwak)', '≈ 14 %'],
+            ['30 (gevaarlijk)', '≈ 24 %'],
+          ]}
+        />
+
+        <p style={{ marginTop: 14 }}>
+          <strong>Wat kost een wedstrijd aan gezondheid?</strong> Een race slijt je duif echt:
+          ongeveer <strong>−2</strong> op een regiovlucht tot <strong>−7</strong> op de grote
+          fond, en <strong>extra als ze leeg thuiskomt</strong>. Gezondheid komt vanzelf terug
+          met voer (het snelst met <em>Herstelvoer</em>, en sneller naarmate ze verder gezakt
+          is), maar één à twee wedstrijden per week is wat een duif duurzaam aankan.
+        </p>
+
+        <p>
+          <strong>Strategie:</strong> kijk naar de stip, niet naar de energiebalk alleen. Zet een
+          🔴-duif niet in — zeker niet op een lange vlucht. Wil je er toch een snel klaarstomen,
+          dan is de <strong>rustkuur</strong> (2 dagen, +40 energie én +15 gezondheid) de
+          snelste weg terug naar groen; elke duif mag er op, zo vaak je wil.
+        </p>
       </Section>
 
       <Section id="lage-energie" icon="🪫" title="Vliegen op lage energie: DNF, blessure & dood">

@@ -13,18 +13,20 @@
 
 import {
   diseaseSeverityWeights,
+  injurySeverityWeights,
   AGING,
   COMPARTMENT,
   DISEASES,
   HEALING,
   HEALTH,
+  ILLNESS,
   INFIRMARY,
   INJURIES,
   type AilmentTemplate,
 } from '../config/gameConfig.js';
 import type { Ailment, Database, Loft, Pigeon } from '../schema.js';
 import { newId } from '../store.js';
-import { ageInWeeks, ageMortality, noteAttrChange } from './pigeon.js';
+import { ageInWeeks, ageMortality, conditionScore, noteAttrChange } from './pigeon.js';
 import { awardBadge, evaluateBadges } from './badges.js';
 import { clamp, pick, pickWith, round1 } from './util.js';
 
@@ -41,19 +43,54 @@ function makeAilment(kind: 'ziekte' | 'kwetsuur', t: AilmentTemplate, week: numb
   return { kind, name: t.name, severity: t.severity, description: t.description, sinceWeek: week };
 }
 
-/** A fresh random injury (used by flights) or disease. Pass a seeded `rng` to
- *  make the choice deterministic (so a re-run picks the same injury). */
+/** Injuries you can only get by wearing the bird out (see AilmentTemplate.cause). */
+const STRAIN_INJURIES = INJURIES.filter((i) => i.cause !== 'pech');
+/** Injuries that are plain bad luck — a hawk, a collision. */
+const LUCK_INJURIES = INJURIES.filter((i) => i.cause === 'pech');
+
+/**
+ * A BAD-LUCK injury: a sperwer, a collision. Drawn UNIFORMLY from its own pool,
+ * because luck does not care how well the bird is kept — this is exactly why a
+ * perfectly managed loft can still lose a bird to a hawk. Pass a seeded `rng` to
+ * keep a re-run deterministic.
+ */
+export function randomLuckInjury(week: number, rng?: () => number): Ailment {
+  const pool = LUCK_INJURIES.length > 0 ? LUCK_INJURIES : INJURIES;
+  return makeAilment('kwetsuur', rng ? pickWith(rng, pool) : pick(pool), week);
+}
+
+/**
+ * A STRAIN injury: the effort broke the bird down. HOW BAD it is follows the bird's
+ * vluchtvorm — a bird in good shape strains a muscle, a spent one breaks a wing
+ * (see INJURY_SEVERITY). Mirrors randomDisease, including spreading a severity's
+ * weight over the injuries carrying it so adding one never shifts the mix.
+ */
+export function randomStrainInjury(week: number, form: number, rng: () => number = Math.random): Ailment {
+  const pool = STRAIN_INJURIES.length > 0 ? STRAIN_INJURIES : INJURIES;
+  const weights = injurySeverityWeights(form);
+  const weighted = pool.map((t) => ({
+    t,
+    w: weights[t.severity] / Math.max(1, pool.filter((x) => x.severity === t.severity).length),
+  }));
+  let r = rng() * weighted.reduce((sum, x) => sum + x.w, 0);
+  for (const x of weighted) {
+    if ((r -= x.w) <= 0) return makeAilment('kwetsuur', x.t, week);
+  }
+  return makeAilment('kwetsuur', pool[pool.length - 1], week);
+}
+
+/** Legacy entry point (kept for the admin week-runner): a uniform random injury. */
 export function randomInjury(week: number, rng?: () => number): Ailment {
   return makeAilment('kwetsuur', rng ? pickWith(rng, INJURIES) : pick(INJURIES), week);
 }
 /**
- * A disease to strike a bird with. Pass the bird's `health` to weight HOW BAD it
- * is: a bird in good shape mostly picks up something light, a run-down one is
- * the one that catches something serious (see DISEASE_SEVERITY). Without a
- * health the mix is the healthy one.
+ * A disease to strike a bird with. Pass the bird's CONDITIE-SCORE (energie +
+ * gezondheid, see pigeon.conditionScore) to weight HOW BAD it is: a bird in good
+ * shape mostly picks up something light, a run-down one is the one that catches
+ * something serious (see DISEASE_SEVERITY). Without a score the mix is the mildest.
  */
-export function randomDisease(week: number, health = 100): Ailment {
-  const weights = diseaseSeverityWeights(health);
+export function randomDisease(week: number, condition = 100): Ailment {
+  const weights = diseaseSeverityWeights(condition);
   // Split the weight of a severity evenly over the diseases that carry it, so
   // adding a disease to the catalogue never silently shifts the severity mix.
   const pool = DISEASES.map((d) => ({
@@ -255,18 +292,22 @@ export function runHealthDay(db: Database, week: number): void {
     const sources = alive.filter((p) => p.ailment?.kind === 'ziekte' && !p.inInfirmary).length;
     for (const p of alive) {
       if (p.ailment || p.inInfirmary) continue; // already ailing, or safely isolated
-      const energyRisk = clamp(1.3 - p.form / 100, 0.3, 1.3);
-      const perSource = weeklyToDaily(HEALTH.contagionPerSource) * clamp(1.2 - p.health / 100, 0.1, 1.2) * energyRisk;
+      // Falling ill runs on the SAME conditie-score as a strain injury does (energie
+      // + gezondheid, lower of the two counting double), so "how well am I keeping
+      // this bird" answers both questions at once. The floor means a bird in perfect
+      // shape still carries a small weekly risk — no loft is sterile.
+      const condition = conditionScore(p);
+      const frailty = Math.pow(clamp((100 - condition) / 100, 0, 1), ILLNESS.curve);
+      const spontaneous = weeklyToDaily(ILLNESS.floor + ILLNESS.max * frailty);
+      // Contagion rides on the same frailty, but never drops to nothing: a fit bird
+      // sharing a loft with a sick one can still catch it.
+      const susceptibility = ILLNESS.contagionFloor + (1 - ILLNESS.contagionFloor) * frailty;
+      const perSource = weeklyToDaily(HEALTH.contagionPerSource) * susceptibility;
       const fromOthers = sources > 0 ? 1 - Math.pow(1 - perSource, sources) : 0;
-      // Health is the dominant lever, but never a full shield: the frailty factor
-      // bottoms out at HEALTH.illnessBaselineRisk, so even a bird in perfect shape
-      // can have bad luck now and then.
-      const frailty = clamp(1 - p.health / 100, HEALTH.illnessBaselineRisk, 1);
-      const spontaneous = weeklyToDaily(HEALTH.spontaneousIllness) * frailty * energyRisk;
       const compartmentGuard = p.compartment ? 1 - COMPARTMENT.diseaseReduction : 1;
       const chance = clamp(1 - (1 - fromOthers) * (1 - spontaneous), 0, 0.85) * compartmentGuard;
       if (Math.random() < chance) {
-        const disease = randomDisease(week, p.health);
+        const disease = randomDisease(week, condition);
         applyAilment(p, disease);
         if (human) {
           pushHealthNote(

@@ -329,6 +329,7 @@ app.get('/state', (c) => {
       betWindowHours: BETTING.windowHours,
       restCureCost: REST_CURE.cost,
       restCureEnergy: REST_CURE.energy,
+      restCureHealth: REST_CURE.health,
       restCureHours: REST_CURE.durationHours,
       restaurantName: PIGEON_RESTAURANT.name,
       restaurantPayout: PIGEON_RESTAURANT.payout,

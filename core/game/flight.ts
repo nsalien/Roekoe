@@ -15,6 +15,7 @@ import {
   FLIGHT_DYNAMICS,
   FLIGHT_FATIGUE,
   FLIGHT_RISK,
+  INJURY,
   HEALTH,
   IMPROVE,
   IMPROVE_ATTR_LABEL,
@@ -29,8 +30,8 @@ import {
 import { RELAY } from '../config/gameConfig.js';
 import type { Ailment, Flight, FlightResult, Loft, Pigeon, SimEntry } from '../schema.js';
 import { relayEntryTeams, relayLegKm, relaySimTeams } from './relay.js';
-import { ageMultiplier, experienceGain, noteAttrChange, raceCeil } from './pigeon.js';
-import { applyAilment, randomAilmentOfSeverity, randomInjury } from './health.js';
+import { ageMultiplier, conditionScore, experienceGain, flightForm, noteAttrChange, raceCeil } from './pigeon.js';
+import { applyAilment, randomLuckInjury, randomStrainInjury } from './health.js';
 import { randomWeather, type WeatherResult } from './weather.js';
 import { clamp, hashString, interpolate, pickWith, randFloat, round1, seededRng } from './util.js';
 
@@ -344,6 +345,8 @@ export function startLiveFlight(flight: Flight, entries: Entry[], week: number, 
   const w = weather ?? randomWeather();
   flight.weather = w.label;
   flight.weatherFactor = w.factor;
+  // Reference moment for the rest deduction: when THIS race starts (see RECOVERY).
+  const startMs = Date.parse(flight.startAt) || Date.now();
   flight.sim = entries.map((e) => {
     const prof = buildPaceProfile(flight.id, e.pigeon, flight.distanceKm, week, w.factor, !!flight.practice);
     // Freeze the total energie this bird spends flying the full route. It is
@@ -368,6 +371,7 @@ export function startLiveFlight(flight: Flight, entries: Entry[], week: number, 
       dnfKind: prof.dnfKind,
       lost: prof.lost,
       startForm: e.pigeon.form,
+      startVorm: flightForm(e.pigeon, startMs),
       formCost,
       formDrained: 0,
     };
@@ -508,6 +512,7 @@ export function relayStandings(flight: Flight): RelayTeam[] {
  */
 function startLiveRelay(flight: Flight, entries: Entry[], week: number): void {
   const legKm = relayLegKm(flight);
+  const startMs = Date.parse(flight.startAt) || Date.now();
   const byId = new Map(entries.map((e) => [e.pigeon.id, e]));
   const sim: SimEntry[] = [];
   for (const [, teamEntries] of relayEntryTeams(flight)) {
@@ -535,6 +540,7 @@ function startLiveRelay(flight: Flight, entries: Entry[], week: number): void {
         dnfKind: prof.dnfKind,
         lost: prof.lost,
         startForm: e.pigeon.form,
+        startVorm: flightForm(e.pigeon, startMs),
         formCost,
         formDrained: 0,
         leg: legIndex,
@@ -636,7 +642,9 @@ export function finalizeFlight(flight: Flight, pigeons: Pigeon[]): SimulatedFlig
   const injuries: FlightInjury[] = [];
   const deaths: SimulatedFlight['deaths'] = [];
   const w = weightsForDistance(flight.distanceKm);
-  const injuryChance = HEALTH.flightInjuryBase + flight.distanceKm * HEALTH.flightInjuryPerKm;
+  // Distance is only a MODIFIER now (×0.75 at 150 km to ×1.6 at 1000 km); what
+  // actually decides a strain injury is the bird's vluchtvorm (see INJURY).
+  const distanceFactor = INJURY.distBase + flight.distanceKm * INJURY.distPerKm;
 
   // Seed all randomness on the flight id so finalizing is DETERMINISTIC: if two
   // concurrent requests both finalize this flight (a race), they produce the
@@ -728,7 +736,17 @@ export function finalizeFlight(flight: Flight, pigeons: Pigeon[]): SimulatedFlig
       formDelta = -round1(Math.max(0, flownTarget - drained));
     }
     const enduranceDelta = isDnf ? 0 : round1(0.3 + flight.distanceKm / 500 + rf(0, 0.4));
-    const healthDelta = gaveUp ? 0 : -round1(rf(0, flight.distanceKm / 200) + (isDnf ? rf(4, 9) : 0));
+    // Racing is real wear: the further it flew AND the emptier it came home, the
+    // more health it costs. This is what turns gezondheid into a resource you
+    // manage over weeks instead of a number pinned at 100.
+    const endEnergie = clamp((s.startForm ?? 100) - (s.formCost ?? 0), 0, 100);
+    const healthDelta = gaveUp
+      ? 0
+      : -round1(
+          (HEALTH.flightHealthBase + flight.distanceKm * HEALTH.flightHealthPerKm) *
+            (1 + ((100 - endEnergie) / 100) * HEALTH.emptyTankFactor) +
+            (isDnf ? rf(4, 9) : 0),
+        );
     const pigeon = pigeons.find((p) => p.id === s.pigeonId);
     // Ervaring has diminishing returns: the same ride teaches a rookie far more
     // than a veteran (experienceGain scales the raw gain by the room left).
@@ -780,45 +798,44 @@ export function finalizeFlight(flight: Flight, pigeons: Pigeon[]): SimulatedFlig
         died = true;
       }
 
-      // Rough flights leave birds hurt. Low energie ramps up the risk; an
-      // exhausted bird that flew itself to a standstill is very likely injured.
-      // A bird pulled by its owner (gaveUp) is spared the strain — no injury.
-      // Risk is based on the energie the bird STARTED with (its live `form` has
-      // already been drained down during the race).
-      const lowEnergie = startForm < FLIGHT_RISK.lowEnergieInjuryThreshold
-        ? ((FLIGHT_RISK.lowEnergieInjuryThreshold - startForm) / FLIGHT_RISK.lowEnergieInjuryThreshold) * FLIGHT_RISK.lowEnergieInjuryBonus
-        : 0;
-      let perBirdInjury = gaveUp ? 0 : injuryChance * (1 + (100 - startForm) / 100) + lowEnergie;
-      if (exhausted.has(s.pigeonId)) perBirdInjury = Math.max(perBirdInjury, 0.8);
+      // TWO separate ways to come home hurt (see INJURY in gameConfig):
+      //
+      //  1. OVERBELASTING — the effort broke the bird down. Runs on the vluchtvorm
+      //     it STARTED with (energie + gezondheid, minus the rest deduction for
+      //     racing on consecutive days), so keeping a bird well is what protects it.
+      //     Its severity follows the same form, so a fit bird strains a muscle where
+      //     a spent one breaks a wing.
+      //  2. PECH — a hawk, a collision. A small FLAT chance that no amount of care
+      //     removes; at top form this is where most of the few injuries come from.
+      //
+      // A bird its owner pulled (gaveUp) is spared the strain, but a sperwer does
+      // not care that you called your bird in — bad luck still applies.
+      // The vluchtvorm frozen at release. Legacy flights (started before this
+      // existed) fall back to the bird's current condition, which is close enough.
+      const startForms = s.startVorm ?? conditionScore(pigeon);
+      const strainRoom = Math.max(0, (100 - startForms) / 100);
+      let strainChance = gaveUp
+        ? 0
+        : (INJURY.floor + INJURY.max * Math.pow(strainRoom, INJURY.curve)) * distanceFactor;
+      if (exhausted.has(s.pigeonId)) strainChance = Math.max(strainChance, 0.8);
       // A bird that gave out from an injury mid-flight is (almost) certainly hurt.
-      if (gaveOut.has(s.pigeonId) && s.dnfKind === 'injury') perBirdInjury = Math.max(perBirdInjury, 0.95);
-      let hurt = false;
-      if (!died && !pigeon.ailment && rng() < clamp(perBirdInjury, 0, 0.95)) {
-        injuries.push({
-          pigeonId: pigeon.id,
-          ownerId: pigeon.ownerId,
-          pigeonName: pigeon.name,
-          ailment: randomInjury(flight.week, rng),
-        });
-        hurt = true;
-      }
+      if (gaveOut.has(s.pigeonId) && s.dnfKind === 'injury') strainChance = Math.max(strainChance, 0.95);
+      const luckChance = INJURY.luckBase * distanceFactor;
 
-      // Graded low-energie danger for tournament flights, by the energie the bird
-      // STARTED with: under 20 → kans op een LICHT letsel/ziekte; under 10 → kans
-      // op een MATIG letsel/ziekte. (Under 5 is the death roll above.) Skipped for
-      // a pulled bird, a bird that already died, or one that is already hurt.
-      if (!gaveUp && !died && !hurt && !pigeon.ailment) {
-        let severity: Severity | null = null;
-        let chance = 0;
-        if (startForm < TOURNEY_RISK.moderateThreshold) { severity = 'matig'; chance = TOURNEY_RISK.moderateChance; }
-        else if (startForm < TOURNEY_RISK.lightThreshold) { severity = 'licht'; chance = TOURNEY_RISK.lightChance; }
-        if (severity && rng() < chance) {
-          const kind: Ailment['kind'] = rng() < 0.5 ? 'ziekte' : 'kwetsuur';
+      if (!died && !pigeon.ailment) {
+        if (rng() < clamp(strainChance, 0, 0.95)) {
           injuries.push({
             pigeonId: pigeon.id,
             ownerId: pigeon.ownerId,
             pigeonName: pigeon.name,
-            ailment: randomAilmentOfSeverity(kind, severity, flight.week, rng),
+            ailment: randomStrainInjury(flight.week, startForms, rng),
+          });
+        } else if (rng() < clamp(luckChance, 0, 0.95)) {
+          injuries.push({
+            pigeonId: pigeon.id,
+            ownerId: pigeon.ownerId,
+            pigeonName: pigeon.name,
+            ailment: randomLuckInjury(flight.week, rng),
           });
         }
       }
@@ -851,7 +868,7 @@ function finalizeRelayFlight(flight: Flight, pigeons: Pigeon[]): SimulatedFlight
   const injuries: FlightInjury[] = [];
   const deaths: SimulatedFlight['deaths'] = [];
   const w = weightsForDistance(legKm);
-  const injuryChance = HEALTH.flightInjuryBase + legKm * HEALTH.flightInjuryPerKm;
+  const distanceFactor = INJURY.distBase + legKm * INJURY.distPerKm;
   const rng = seededRng(hashString(flight.id + ':finalize'));
   const rf = (a: number, b: number) => a + (b - a) * rng();
 
@@ -910,7 +927,14 @@ function finalizeRelayFlight(flight: Flight, pigeons: Pigeon[]): SimulatedFlight
         formDelta = -round1(Math.max(0, flownTarget - drained));
       }
       const enduranceDelta = completed ? round1(0.3 + legKm / 500 + rf(0, 0.4)) : 0;
-      const healthDelta = gaveUp ? 0 : -round1(rf(0, legKm / 200) + (completed ? 0 : rf(4, 9)));
+      const endEnergie = clamp((s.startForm ?? 100) - (s.formCost ?? 0), 0, 100);
+      const healthDelta = gaveUp
+        ? 0
+        : -round1(
+            (HEALTH.flightHealthBase + legKm * HEALTH.flightHealthPerKm) *
+              (1 + ((100 - endEnergie) / 100) * HEALTH.emptyTankFactor) +
+              (completed ? 0 : rf(4, 9)),
+          );
       const pigeon = pigeons.find((p) => p.id === s.pigeonId);
       // Diminishing returns on ervaring — same curve as a solo race.
       const experienceDelta = round1(experienceGain(pigeon?.experience ?? 0, (completed ? 2 : 1) + legKm / 100));
@@ -944,28 +968,25 @@ function finalizeRelayFlight(flight: Flight, pigeons: Pigeon[]): SimulatedFlight
         deaths.push({ pigeonId: pigeon.id, ownerId: pigeon.ownerId, pigeonName: pigeon.name });
         died = true;
       }
-      const lowEnergie = startForm < FLIGHT_RISK.lowEnergieInjuryThreshold
-        ? ((FLIGHT_RISK.lowEnergieInjuryThreshold - startForm) / FLIGHT_RISK.lowEnergieInjuryThreshold) * FLIGHT_RISK.lowEnergieInjuryBonus
-        : 0;
-      let perBirdInjury = gaveUp ? 0 : injuryChance * (1 + (100 - startForm) / 100) + lowEnergie;
+      // Strain runs on the vluchtvorm frozen at the start of the leg; bad luck is a
+      // small flat chance on top. Same rules as a solo race (see INJURY).
+      const startForms = s.startVorm ?? conditionScore(pigeon);
+      let strainChance = gaveUp
+        ? 0
+        : (INJURY.floor + INJURY.max * Math.pow(Math.max(0, (100 - startForms) / 100), INJURY.curve)) * distanceFactor;
       if (!completed && !gaveUp) {
-        perBirdInjury = Math.max(perBirdInjury, s.dnfKind === 'injury' ? 0.95 : 0.8);
+        strainChance = Math.max(strainChance, s.dnfKind === 'injury' ? 0.95 : 0.8);
       }
-      let hurt = false;
-      if (!died && !pigeon.ailment && rng() < clamp(perBirdInjury, 0, 0.95)) {
-        injuries.push({ pigeonId: pigeon.id, ownerId: pigeon.ownerId, pigeonName: pigeon.name, ailment: randomInjury(flight.week, rng) });
-        hurt = true;
-      }
-      if (!gaveUp && !died && !hurt && !pigeon.ailment) {
-        let severity: Severity | null = null;
-        let chance = 0;
-        if (startForm < TOURNEY_RISK.moderateThreshold) { severity = 'matig'; chance = TOURNEY_RISK.moderateChance; }
-        else if (startForm < TOURNEY_RISK.lightThreshold) { severity = 'licht'; chance = TOURNEY_RISK.lightChance; }
-        if (severity && rng() < chance) {
-          const kind: Ailment['kind'] = rng() < 0.5 ? 'ziekte' : 'kwetsuur';
+      if (!died && !pigeon.ailment) {
+        if (rng() < clamp(strainChance, 0, 0.95)) {
           injuries.push({
             pigeonId: pigeon.id, ownerId: pigeon.ownerId, pigeonName: pigeon.name,
-            ailment: randomAilmentOfSeverity(kind, severity, flight.week, rng),
+            ailment: randomStrainInjury(flight.week, startForms, rng),
+          });
+        } else if (rng() < clamp(INJURY.luckBase * distanceFactor, 0, 0.95)) {
+          injuries.push({
+            pigeonId: pigeon.id, ownerId: pigeon.ownerId, pigeonName: pigeon.name,
+            ailment: randomLuckInjury(flight.week, rng),
           });
         }
       }
@@ -1564,11 +1585,18 @@ export function applyFlightEffects(
   sim: SimulatedFlight,
   pigeons: Pigeon[],
   lofts: Loft[],
+  /** The flight these effects come from, so each bird can remember when it last
+   *  raced (drives the RECOVERY deduction for racing on consecutive days). */
+  raced?: { at: string; practice?: boolean },
 ): void {
   for (const f of sim.fatigue) {
     const p = pigeons.find((x) => x.id === f.pigeonId);
     if (!p) continue;
     p.restDays = 0; // raced → the rest-bonus streak restarts
+    if (raced) {
+      p.lastRaceAt = raced.at;
+      p.lastRaceWasPractice = !!raced.practice;
+    }
     p.form = round1(clamp(p.form + f.formDelta, 0, 100)); // energie
     // Conditie built by racing respects the per-bird racing ceiling (min(90,cap));
     // a grandfathered bird already above it keeps its value (no growth, no drop).
