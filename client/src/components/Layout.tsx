@@ -7,7 +7,7 @@ import { useGame } from '../game/GameContext';
 import { api } from '../api/client';
 import { useToast } from './ui';
 import { NotificationsBell } from './NotificationsBell';
-import { Tour, RELAY_NEWS_STEPS } from './Tour';
+import { Tour, REST_CURE_NEWS_STEPS } from './Tour';
 
 interface NavItem { to: string; label: string; short: string; icon: string; end?: boolean }
 
@@ -58,11 +58,11 @@ export function Layout() {
     return () => window.removeEventListener('roekoe:start-tour', start);
   }, []);
   // One-time "what's new" announcement — reuses the tour's spotlight mechanism
-  // with just the new steps (currently: the estafettevlucht, the new weekend
-  // format that alternates with the titanenwedstrijd). Separate key so it also
-  // reaches players who already finished the main welcome tour or an earlier
-  // announcement. Bump the key suffix for a next announcement.
-  const newsKey = user?.id ? `roekoe.newsSeen.relay.${user.id}` : null;
+  // with just the new steps (currently: the reworked rustkuur — every bird may
+  // take one a week, it restores gezondheid too, and it runs two days). Separate
+  // key so it also reaches players who already finished the main welcome tour or
+  // an earlier announcement. Bump the key suffix for a next announcement.
+  const newsKey = user?.id ? `roekoe.newsSeen.restcure.${user.id}` : null;
   const [showNews, setShowNews] = useState(false);
 
   function closeTour() {
@@ -168,7 +168,7 @@ export function Layout() {
       <BottomNav items={navItems} />
 
       {showTour && <Tour onClose={closeTour} />}
-      {showNews && !showTour && <Tour steps={RELAY_NEWS_STEPS} onClose={closeNews} />}
+      {showNews && !showTour && <Tour steps={REST_CURE_NEWS_STEPS} onClose={closeNews} />}
       {state?.pendingEvent && !showTour && !showNews && <EventModal />}
     </div>
   );
