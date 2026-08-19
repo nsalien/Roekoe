@@ -1526,6 +1526,44 @@ function runDataMigrations(db: Database): void {
     }
     db.world.dataVersion = 36;
   }
+  if ((db.world.dataVersion ?? 0) < 37) {
+    // One-off (owner request): move TODAY's nationale vlucht from 08:00 to 10:00.
+    // Purely this one edition — REAL_SCHEDULE keeps `wed-national` on 08:00, and the
+    // templateKey is what dedupes a calendar day, so shifting startAt cannot make
+    // ensureFlightsScheduled bolt a second national race onto the same day.
+    //
+    // Targets the still-SCHEDULED wed-national flight starting within a day of now,
+    // so it catches this edition whether the deploy lands well before 08:00 or just
+    // after, and never next week's (which is not even planned yet). Safe no-op once
+    // the race has gone live (frozen sim), and the new time is only applied while it
+    // still lies in the future — a flight is never moved into the past.
+    const now = Date.now();
+    for (const f of db.flights) {
+      if (f.status !== 'scheduled' || !f.templateKey.startsWith('wed-national:')) continue;
+      const start = Date.parse(f.startAt);
+      if (Number.isNaN(start) || start < now - 2 * 3600_000 || start > now + 24 * 3600_000) continue;
+      const { y, m, d } = tzDateParts(TIMEZONE, start);
+      const moved = wallToUtcMs(TIMEZONE, y, m, d, 10, 0);
+      if (moved <= now || moved === start) continue;
+      f.startAt = new Date(moved).toISOString();
+      // Tell whoever already entered: they picked a bird for an 08:00 lossing.
+      // Open weddenschappen stay valid — the betting window simply runs two hours
+      // longer, and the flight itself is unchanged apart from its start.
+      for (const ownerId of new Set(f.entries.map((e) => e.ownerId))) {
+        const loft = db.lofts.find((l) => l.userId === ownerId);
+        if (!loft || loft.isBot) continue;
+        pushNotification(
+          db, ownerId, 'info', `⏰ ${f.name} start om 10:00`,
+          `De lossing van de ${f.name.toLowerCase()} (${f.fromCity} → ${f.toCity}) is eenmalig ` +
+            `verzet van 08:00 naar 10:00. Je inschrijving blijft gewoon staan, net als een ` +
+            `weddenschap die je al plaatste. Vanaf volgende week vertrekt de nationale vlucht ` +
+            `op woensdag weer om 08:00.`,
+          f.id, `ntf:admin:delay10:${f.id}:${ownerId}`,
+        );
+      }
+    }
+    db.world.dataVersion = 37;
+  }
 }
 
 /** The pre-v32 weekly stipends, kept only so migration v32 can tell whether a
