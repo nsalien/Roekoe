@@ -15,16 +15,16 @@
 
 | Rol | Branch | Doel |
 |-----|--------|------|
-| **Dev** | `claude/hallo-pvwabx` | Alle ontwikkeling/commits komen hier **eerst**. |
+| **Dev** | `claude/hallo-rkr49f` | Alle ontwikkeling/commits komen hier **eerst**. |
 | **Prod** | `claude/roekoe-game-website-jwa0vo` | Elke commit wordt hierheen **gecherry-pickt**; deze branch triggert de **Cloudflare Pages**-deploy naar productie. |
 
-> Vorige dev-branches (niet meer gebruiken): `claude/context-spelregels-q2ywtx`,
-> `claude/hallo-49m6hj`, `claude/hallo-xifh0c`. Ontwikkelt een sessie op een nieuwe
+> Vorige dev-branches (niet meer gebruiken): `claude/hallo-pvwabx`,
+> `claude/context-spelregels-q2ywtx`, `claude/hallo-49m6hj`, `claude/hallo-xifh0c`. Ontwikkelt een sessie op een nieuwe
 > `claude/…`-branch, gebruik die dan als dev-branch en **werk deze tabel meteen bij** —
 > de prod-branch hierboven verandert nooit.
 
 **Workflow per wijziging (zie §7 voor de exacte commando's):**
-1. Commit op **dev** (`claude/hallo-pvwabx`) + push.
+1. Commit op **dev** (`claude/hallo-rkr49f`) + push.
 2. `git checkout` **prod** → `git cherry-pick <commit>` → push naar prod
    (`claude/roekoe-game-website-jwa0vo`) → Cloudflare bouwt.
 3. Terug naar **dev**.
@@ -50,7 +50,7 @@ Een online **duivenmelker-managementspel** voor een groepje vrienden (~10 speler
 geld verdienen → kopen/kweken/uitbreiden → herhalen.** Bots vullen het veld.
 
 - **Repo:** `nsalien/roekoe` (GitHub).
-- **Ontwikkelbranch:** `claude/hallo-pvwabx` — hier ontwikkelen en committen.
+- **Ontwikkelbranch:** `claude/hallo-rkr49f` — hier ontwikkelen en committen.
 - **Productie/deploy-branch:** `claude/roekoe-game-website-jwa0vo` — een push
   hiernaartoe triggert de **Cloudflare Pages** build (= live). Elke wijziging
   wordt via cherry-pick naar deze branch gebracht en gepusht (zie §7).
@@ -124,7 +124,7 @@ krijgen.**
 `core/game/schedule.ts` → `advanceRealtime(db, nowMs, weatherByFlight)` roept in
 volgorde:
 1. `runDataMigrations(db)` — eenmalige datafixes, **gated op `world.dataVersion`**
-   (staat nu op **36**; nieuwe migratie = nieuw `if ((db.world.dataVersion ?? 0) < N)`
+   (staat nu op **37**; nieuwe migratie = nieuw `if ((db.world.dataVersion ?? 0) < N)`
    blok + `db.world.dataVersion = N`). v21 zet **bestaande geplande vluchten terug naar de
    OUDE, kortere afstanden** (regio 30–160 / nat 60–290 / intl 180–950 km): elke nog-
    geplande niet-titan-vlucht buiten haar legacy-venster wordt her-routeerd via
@@ -785,8 +785,8 @@ npx tsx names.test.mts             # elke duivennaam blijft uniek
 (Beide staan buiten `tsconfig.json` (`include` = `core/` + `functions/`), dus tsc raakt ze niet.)
 
 ### Git + deploy (ALTIJD, zie §0)
-1. Ontwikkel + commit op **`claude/hallo-pvwabx`**; push met
-   `git push -u origin claude/hallo-pvwabx` (retry met backoff).
+1. Ontwikkel + commit op **`claude/hallo-rkr49f`**; push met
+   `git push -u origin claude/hallo-rkr49f` (retry met backoff).
 2. **Deploy meteen naar productie** door de commit op de deploy-branch te zetten:
    ```bash
    git fetch origin claude/roekoe-game-website-jwa0vo
@@ -795,7 +795,7 @@ npx tsx names.test.mts             # elke duivennaam blijft uniek
    git cherry-pick <commit>        # of meerdere
    # typecheck + build ter controle
    git push -u origin claude/roekoe-game-website-jwa0vo   # triggert Cloudflare Pages
-   git checkout claude/hallo-pvwabx           # terug naar dev
+   git checkout claude/hallo-rkr49f           # terug naar dev
    ```
 3. **Geen PR** tenzij expliciet gevraagd.
 4. Commit messages in het **Nederlands**, en eindig met de footer:
@@ -816,7 +816,32 @@ npx tsx names.test.mts             # elke duivennaam blijft uniek
 ## 8. Belangrijkste wijzigingen deze sessie (achtergrond)
 
 Alles hieronder staat **live** op de deploy-branch. Data-migraties liepen door tot
-**`dataVersion = 36`**.
+**`dataVersion = 37`**.
+
+**Migratie v37 — nationale vlucht van woensdag 19 aug eenmalig naar 10:00 (nieuwste)**
+- Op verzoek van de eigenaar: de **nationale vlucht van vandaag** vertrekt om **10:00**
+  i.p.v. 08:00. **Enkel deze editie** — `REAL_SCHEDULE` houdt `wed-national` gewoon op
+  08:00, dus vanaf volgende week is alles weer als vroeger.
+- Werkt omdat **`templateKey` een kalenderdag dedupet, niet `startAt`**: het opschuiven
+  van de starttijd kan `ensureFlightsScheduled` dus nooit een tweede nationale vlucht op
+  dezelfde dag laten bijplannen. Match op `templateKey.startsWith('wed-national:')` +
+  status `scheduled` + start binnen `[nu − 2 u, nu + 24 u]`, zodat ze deze editie pakt of
+  de deploy nu ruim vóór of net ná 08:00 landt en **nooit** die van volgende week (die
+  staat trouwens nog niet op de kalender — horizon is 4 dagen). De nieuwe tijd wordt enkel
+  toegepast als ze **nog in de toekomst** ligt; is de vlucht al **live** (bevroren sim),
+  dan is de migratie een veilige no-op die enkel `dataVersion` bumpt.
+- **Melding aan wie al ingeschreven is** (stabiele id `ntf:admin:delay10:<flightId>:<userId>`,
+  bots niet): zij kozen hun duif voor een lossing om 08:00. **Open weddenschappen blijven
+  gewoon staan** — het wedvenster (12 u vóór de start) loopt simpelweg twee uur langer, en
+  het weer wordt sowieso pas bij de start opgehaald (`flightsAwaitingStart` leest `startAt`).
+  **dataVersion → 37.**
+- Geverifieerd met een wegwerptest tegen de échte `advanceRealtime` (21 controles): de
+  vlucht staat op 10:00 dezelfde dag, idempotent over meerdere polls, geen dubbele melding,
+  een al verzette vlucht schuift niet nog eens op, live blijft ongemoeid, op de **echte**
+  door `REAL_SCHEDULE` gebouwde kalender beweegt **precies één** van de zeven geplande
+  vluchten, bots krijgen niets, twee duiven van dezelfde speler geven één melding, en de
+  woensdag van volgende week blijft op 08:00. De vier vaste regressietests + beide
+  typechecks + build groen.
 
 **Oriëntatie is een navigatie-eigenschap geworden (nieuwste)**
 - **Probleem:** oriëntatie zat als volwaardige term in `pigeonVelocity` (gewicht 0,22 kort →
