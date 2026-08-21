@@ -15,16 +15,17 @@
 
 | Rol | Branch | Doel |
 |-----|--------|------|
-| **Dev** | `claude/hallo-rkr49f` | Alle ontwikkeling/commits komen hier **eerst**. |
+| **Dev** | `claude/hallo-w97s85` | Alle ontwikkeling/commits komen hier **eerst**. |
 | **Prod** | `claude/roekoe-game-website-jwa0vo` | Elke commit wordt hierheen **gecherry-pickt**; deze branch triggert de **Cloudflare Pages**-deploy naar productie. |
 
 > Vorige dev-branches (niet meer gebruiken): `claude/hallo-pvwabx`,
-> `claude/context-spelregels-q2ywtx`, `claude/hallo-49m6hj`, `claude/hallo-xifh0c`. Ontwikkelt een sessie op een nieuwe
+> `claude/context-spelregels-q2ywtx`, `claude/hallo-49m6hj`, `claude/hallo-xifh0c`,
+> `claude/hallo-rkr49f`. Ontwikkelt een sessie op een nieuwe
 > `claude/…`-branch, gebruik die dan als dev-branch en **werk deze tabel meteen bij** —
 > de prod-branch hierboven verandert nooit.
 
 **Workflow per wijziging (zie §7 voor de exacte commando's):**
-1. Commit op **dev** (`claude/hallo-rkr49f`) + push.
+1. Commit op **dev** (`claude/hallo-w97s85`) + push.
 2. `git checkout` **prod** → `git cherry-pick <commit>` → push naar prod
    (`claude/roekoe-game-website-jwa0vo`) → Cloudflare bouwt.
 3. Terug naar **dev**.
@@ -50,7 +51,7 @@ Een online **duivenmelker-managementspel** voor een groepje vrienden (~10 speler
 geld verdienen → kopen/kweken/uitbreiden → herhalen.** Bots vullen het veld.
 
 - **Repo:** `nsalien/roekoe` (GitHub).
-- **Ontwikkelbranch:** `claude/hallo-rkr49f` — hier ontwikkelen en committen.
+- **Ontwikkelbranch:** `claude/hallo-w97s85` — hier ontwikkelen en committen.
 - **Productie/deploy-branch:** `claude/roekoe-game-website-jwa0vo` — een push
   hiernaartoe triggert de **Cloudflare Pages** build (= live). Elke wijziging
   wordt via cherry-pick naar deze branch gebracht en gepusht (zie §7).
@@ -124,7 +125,7 @@ krijgen.**
 `core/game/schedule.ts` → `advanceRealtime(db, nowMs, weatherByFlight)` roept in
 volgorde:
 1. `runDataMigrations(db)` — eenmalige datafixes, **gated op `world.dataVersion`**
-   (staat nu op **37**; nieuwe migratie = nieuw `if ((db.world.dataVersion ?? 0) < N)`
+   (staat nu op **38**; nieuwe migratie = nieuw `if ((db.world.dataVersion ?? 0) < N)`
    blok + `db.world.dataVersion = N`). v21 zet **bestaande geplande vluchten terug naar de
    OUDE, kortere afstanden** (regio 30–160 / nat 60–290 / intl 180–950 km): elke nog-
    geplande niet-titan-vlucht buiten haar legacy-venster wordt her-routeerd via
@@ -147,7 +148,9 @@ volgorde:
    aantal gepasseerde middernachten sinds `world.lastDailyTick` wordt ingehaald,
    tot 30 dagen; `world.lastDailyTick` staat telkens op de laatst verwerkte
    lokale middernacht).
-   Verhongerde duiven worden hier verwijderd. **Rekent ook alle vaste onkosten dagelijks
+   Verhongerde duiven worden hier verwijderd. **Draait per bothok ook
+   `botDailyActions`** (bots.ts): voer/ziekenboeg/rustkuur/coach/hokuitbreiding/
+   kweek — bewust op de dagovergang en niet per verzoek, want het schrijft rijen. **Rekent ook alle vaste onkosten dagelijks
    af** (`dailyRunningCost`: onderhoud + coach + ziekenboegstaf/medicatie) en betaalt
    **sponsorbijdragen dagelijks** (weekbedrag ÷ 7). `advanceWeek` doet dit **niet** meer.
    Roept per gepasseerde dag ook **`runHealthDay(db, week)`** (health.ts) aan: dáár
@@ -184,6 +187,10 @@ volgorde:
    gestuurd (stabiele id `ntf:prize:<flightId>:<pigeonId>`). Veilig want een finisher-rank
    ligt vast zodra ze finisht (een snellere duif die opgeeft, geeft op vóór haar finish).
    Punten/medailles/bets/prestaties blijven bij de afronding.
+9c. `tickBotEntries(db, nowMs)` — geeft **elke bot opnieuw de kans** om in te
+   schrijven voor élke nog niet gestarte vlucht, tot vlak vóór de lossing (zie
+   §Bots). Idempotent (een hok met een inschrijving wordt overgeslagen), dus een
+   uitgekristalliseerde vlucht schrijft 0 rijen.
 10. `tickFlights(db, nowMs, ...)` — laat vluchten `scheduled → live → completed`
    overgaan (deterministische `finalizeFlight`; **oefenvluchten** via
    `finalizePracticeFlight`; dode duiven uit `sim.deaths` worden verwijderd; werkt
@@ -647,6 +654,14 @@ Entiteiten: `Pigeon`, `Loft`, `User`, `BreedingPair`, `Flight` (+ `SimEntry`,
   **één fee per ploeg**. Bots schrijven 3 duiven in of doen niet mee.
 - **Migratie v31:** een reeds geplande **titan op een estafette-zaterdag** wordt verwijderd,
   inschrijfgeld terugbetaald + melding (en open weddenschappen erop terugbetaald). **dataVersion → 31.**
+- **Bots (`BOT`, nieuwste — de "knoppen" van het botgedrag):** `DEFAULT_BOT_COUNT` **8**.
+  `reserve 1500` (kasvloer), `raceHeadroom 1.15` + `minFormRegular 12` (inschrijven op
+  routekost i.p.v. een vlakke 45), **`minFormRelay 0`** (geen drempel voor de estafette),
+  `minHealthRace 45`, `breedReserveFlock 8` (houdt een koppel thuis als het hok dun wordt),
+  `restCureBelowForm 28`/`restCureReserve 3000`, `maxCoached 2`/`coachReserve 8000`,
+  `capacityReserveFactor 2.5`/**`maxCapacity 12`** (platformgrens, zie §Performance),
+  `maxPairs 2`/`breedReserve 2500`/`breedMinLibido 35`, `foodWeeksBuffer 3`,
+  **`goodFeedFrom 2500`** (vanaf dat bedrag Herstelvoer i.p.v. Normaal).
 - **Schema (`REAL_SCHEDULE`, nieuwste — vaste weekkalender):** één vast programma per
   weekdag i.p.v. het oude dagelijkse lang+kort-ritme. **ma** 08:00 intl · **di** 10:00 regio
   + 12:00 oefenvlucht · **wo** 08:00 nat · **do** 08:00 intl · **vr** 10:00 regio + 12:00
@@ -811,8 +826,8 @@ npx tsx names.test.mts             # elke duivennaam blijft uniek
 (Beide staan buiten `tsconfig.json` (`include` = `core/` + `functions/`), dus tsc raakt ze niet.)
 
 ### Git + deploy (ALTIJD, zie §0)
-1. Ontwikkel + commit op **`claude/hallo-rkr49f`**; push met
-   `git push -u origin claude/hallo-rkr49f` (retry met backoff).
+1. Ontwikkel + commit op **`claude/hallo-w97s85`**; push met
+   `git push -u origin claude/hallo-w97s85` (retry met backoff).
 2. **Deploy meteen naar productie** door de commit op de deploy-branch te zetten:
    ```bash
    git fetch origin claude/roekoe-game-website-jwa0vo
@@ -821,7 +836,7 @@ npx tsx names.test.mts             # elke duivennaam blijft uniek
    git cherry-pick <commit>        # of meerdere
    # typecheck + build ter controle
    git push -u origin claude/roekoe-game-website-jwa0vo   # triggert Cloudflare Pages
-   git checkout claude/hallo-rkr49f           # terug naar dev
+   git checkout claude/hallo-w97s85           # terug naar dev
    ```
 3. **Geen PR** tenzij expliciet gevraagd.
 4. Commit messages in het **Nederlands**, en eindig met de footer:
@@ -842,9 +857,67 @@ npx tsx names.test.mts             # elke duivennaam blijft uniek
 ## 8. Belangrijkste wijzigingen deze sessie (achtergrond)
 
 Alles hieronder staat **live** op de deploy-branch. Data-migraties liepen door tot
-**`dataVersion = 37`**.
+**`dataVersion = 38`**.
 
-**Duif weer beschikbaar zodra ze thuis is (nieuwste)**
+**Bots zijn echte tegenstanders geworden — 8 bots, eigen hokbeheer, late inschrijving (nieuwste)**
+- **Aanleiding:** de estafette van 22 aug kreeg maar **5 ploegen**. Drie oorzaken, gemeten
+  met een wegwerpsimulatie tegen de echte engine:
+  1. `DEFAULT_BOT_COUNT` was **6** → hoogstens 6 botploegen, terwijl een bot bij een gewone
+     vlucht 1–2 duiven levert en bij een estafette maar **één ploeg**.
+  2. `botsEnterFlight` draaide **enkel bij het aanmaken** van de vlucht (tot
+     `SCHEDULE_HORIZON_DAYS` = 4 dagen vooraf) en eiste **3 duiven boven 45 energie op dat
+     ene moment**. Midden in een week met 8 wedstrijden haalde bijna geen enkel bothok dat.
+  3. **Bothokken konden alleen krimpen**: bots kweekten niet, kochten niet en boden niet.
+     Gemeten: 41 → 14 duiven in 4 maanden, **0/6 botploegen** vanaf eind september, terwijl
+     elke bot op €20.000–30.000 zat.
+- **`DEFAULT_BOT_COUNT` 6 → 8** + **migratie v38** die de twee ontbrekende hokken aanmaakt
+  (seedWorld draait maar één keer). **Stabiele ids** (`bot_seed_7/8`, duiven
+  `pig_bot_seed_N_i`) en een **deterministisch** duivenaantal (`STARTING_PIGEONS + i % 3`),
+  zodat twee gelijktijdige verzoeken die de migratie allebei draaien op dezelfde rijen
+  landen i.p.v. dubbele hokken te maken. Duiven zijn meteen vluchtklaar
+  (`generatePigeon` dateert 8–130 weken terug), dus ze doen mee aan een vlucht die al op
+  de kalender staat. **dataVersion → 38.**
+- **Late inschrijving:** nieuwe tick **`tickBotEntries`** (§2, 9c) laat elke bot élke nog
+  niet gestarte vlucht opnieuw bekijken, tot vlak vóór de lossing. `botsEnterFlight` slaat
+  een hok met een bestaande inschrijving over → idempotent, 0 rijen als er niets verandert.
+- **Geen energiedrempel voor de estafette** (`BOT.minFormRelay 0`): drie duiven aan de
+  start krijgen is daar het punt, en hoeveel energie een duif nodig heeft is de keuze van
+  de melker — precies zoals een speler een duif met 5 energie mag inschrijven. De enige
+  echte regel (1 energie, `enterFlight`) blijft gelden.
+- **Voor gewone vluchten oordeelt een bot op de route** i.p.v. een vlakke 45: nieuwe helper
+  **`expectedFlightEnergyCost(pigeon, km)`** (flight.ts) × `BOT.raceHeadroom` (1,15). Op
+  100 km is dat ~21 (méér deelname dan vroeger), op 1000 km ~55 (méér discipline). Plus
+  `BOT.minHealthRace` 45 — een versleten duif wordt gerust, niet geracet.
+- **`botDailyActions`** (bots.ts, uit `tickDailyCare`, dus **één keer per dagovergang**):
+  voer, ziekenboeg + personeel + bedden, rustkuur, coach, hokuitbreiding en **kweek**.
+  Alles achter een kasdrempel (`BOT.reserve` + per-actie-reserves) zodat een bot nooit
+  negatief gaat — negatief = geen inschrijvingen meer.
+- ⚠️ **Twee valstrikken die de simulatie blootlegde** (beide opgelost):
+  1. **Bots kweekten nooit**, ook met geld en plaats zat: ze zetten élke fitte duif in een
+     vlucht, dus er was nooit een koppel vrij (`koppels 0` maandenlang). Fix:
+     `BOT.breedReserveFlock` (8) — onder die hokgrootte houdt een bot zijn beste doffer
+     én duivin **uit de racepool**.
+  2. **Hokken stortten alsnog in (12 → 0)**, en niet door geld: ze aten **Normaal**
+     (+5 gezondheid/week) terwijl ze 2–3× per week vlogen (−9 tot −12/week, spelregels
+     §4.4). Gezondheid zakte naar 30–50, dan ziektes, dan dood. Fix: **`BOT.goodFeedFrom`
+     (€2.500) → Herstelvoer**, zelfde €3/kg maar +42 energie/+12 gezondheid.
+- **`BOT.maxCapacity` 12** — géén economische regel maar een **platformregel**: elke duif
+  wordt bij élk verzoek gelezen en om 00:00 herschreven, en die tick loopt rond ~350 duiven
+  tegen de 50-querylimiet aan. 8 bots die vrij naar 20 groeien zetten er ~100 bij.
+- **Gemeten na de wijziging** (halfjaarsimulatie, 3 runs): **7,8–7,9 botploegen per
+  estafette** (was 6 → 2 → 0), alle bothokken stabiel op 12 duiven, laagste kas €5.097, geen
+  enkele instorting. Velden: regio 11,6 · nationaal 11,9 · internationaal 11,5 · titan 8,0 ·
+  estafette 23,6 duiven aan de start (bots alleen).
+- **Geverifieerd** met een wegwerpscript tegen de echte `advanceRealtime` (33 controles):
+  migratie voegt exact 2 bots toe en is idempotent over 20 polls, twee gelijktijdige runs
+  geven geen dubbele rijen, alle namen/ids blijven uniek, de 8 bots hebben morgen een
+  ploeg van 3 met etappenummers, herhaald pollen schrijft niemand dubbel in, met 6 energie
+  komen er tóch 8 ploegen maar nooit een duif onder 1 energie, een leeggevlogen bot
+  schrijft niet in maar wél zodra ze uitgerust is, een koppelende duif wordt nooit
+  ingeschreven, en over 2,5 maand blijft geen enkele bot negatief of uitgedund. De vier
+  vaste regressietests + beide typechecks + build groen. Spelregels **§17**.
+
+**Duif weer beschikbaar zodra ze thuis is**
 - Probleem: sinds de finish-timer weg is, loopt een vlucht door tot de **traagste**
   finisher binnen is — op 1000 km uren. Elke "is deze duif bezet?"-check keek naar
   `flight.status !== 'completed'`, dus een duif die al lang thuis was kon niet
@@ -1843,6 +1916,11 @@ geladen wordt, (b) `persist` **niets** wist wat niet geladen was, (c) de opruimi
 tabellen aftopt zonder open weddenschappen te raken, en (d) het inlogpad 2 rijen kost.
 Query-plannen gecontroleerd met `EXPLAIN QUERY PLAN` — alles index-gedekt behalve
 `lower(username)` bij login, en dat is een scan over ~16 rijen.
+
+> **Bots tellen mee in dat plafond.** 8 bots × `BOT.maxCapacity` (12) = ~96 duiven die
+> élk verzoek gelezen en om 00:00 herschreven worden. Daarom staat er een plafond op het
+> bothok; verhoog `BOT.maxCapacity` of `DEFAULT_BOT_COUNT` niet zonder
+> `query-budget.test.mts` opnieuw te draaien (ook met `PIGEONS=350`).
 
 **Nog beschikbare hefbomen als het toch weer krap wordt:** `advanceRealtime` throttlen
 (bv. max. 1×/20 s via een `world.lastAdvance`-guard); `/state` kort cachen (Cache API);
