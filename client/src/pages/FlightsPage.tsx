@@ -52,13 +52,16 @@ export function FlightsPage() {
     return () => clearInterval(t);
   }, [load]);
 
+  // Birds already entered in a flight that has not started yet. Live flights are
+  // NOT included here: a bird that has already crossed the line is free again, and
+  // the server's `pigeon.racing` flag (used below) is what tracks that per bird.
   const committed = useMemo(() => {
     const set = new Set<string>();
-    for (const f of [...scheduled, ...live]) {
+    for (const f of scheduled) {
       for (const e of f.entries) if (e.ownerId === user?.id) set.add(e.pigeonId);
     }
     return set;
-  }, [scheduled, live, user]);
+  }, [scheduled, user]);
 
   // Flights the player already has an open bet on (max one bet per flight).
   const betFlights = useMemo(() => {
@@ -132,7 +135,7 @@ export function FlightsPage() {
           {scheduled.map((f, idx) => {
             const myEntries = f.entries.filter((e) => e.ownerId === user?.id);
             const available = state.pigeons.filter(
-              (p) => p.canRace && !committed.has(p.id) && !p.breeding && (p.form ?? 0) >= 1,
+              (p) => p.canRace && !p.racing && !committed.has(p.id) && !p.breeding && (p.form ?? 0) >= 1,
             );
             return (
               <div key={f.id} className="card" data-tour={idx === 0 && live.length === 0 ? 'flights' : undefined}>

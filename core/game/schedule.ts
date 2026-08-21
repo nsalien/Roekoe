@@ -61,6 +61,7 @@ import { progressMissions } from './missions.js';
 import { activeContracts, evaluateSponsorOffers } from './sponsors.js';
 import {
   applyFlightEffects,
+  birdStillOut,
   computeFinishPayouts,
   finalizeFlight,
   flightTotalSeconds,
@@ -253,10 +254,13 @@ function botsEnterFlight(db: Database, flight: Flight): void {
   if (flight.practice) return; // oefenvluchten zijn voor de speler, bots doen niet mee
   const week = db.world.currentWeek;
   const day = flight.startAt.slice(0, 10); // one race per bird per day
+  // Only birds whose race that day is still running are off-limits — one that is
+  // already home may be entered again (same rule as for human players).
+  const nowMs = Date.now();
   const committed = new Set<string>(
     db.flights
       .filter((f) => f.status !== 'completed' && f.startAt.slice(0, 10) === day)
-      .flatMap((f) => f.entries.map((e) => e.pigeonId)),
+      .flatMap((f) => f.entries.map((e) => e.pigeonId).filter((id) => birdStillOut(f, id, nowMs))),
   );
   for (const loft of db.lofts.filter((l) => l.isBot)) {
     if (loft.money < flight.entryFee) continue;

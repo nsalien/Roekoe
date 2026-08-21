@@ -260,6 +260,32 @@ Tekstpools in `gameConfig.COMMENTARY` (categorieën `overtake`/`overtakeSurge`/
 `overtakeTired`/`overtakeLost`/`leadChange`/`stray`/`dnfExhausted`/`dnfInjury`/
 `pulled`/`start`/`finish`).
 
+**Duif is weer vrij zodra háár race erop zit (`birdStillOut` / `pigeonCommittedToFlight`
+in `flight.ts`).** Een vlucht eindigt pas bij de traagste finisher (geen cutoff meer), dus
+op 1000 km kan de staart uren duren. De "is deze duif bezet?"-check keek naar
+`flight.status !== 'completed'` en hield een duif dus gegijzeld tot de laatste binnen was.
+Nu leidt `birdStillOut(flight, pigeonId, nowMs)` het **einde van haar eigen race** af uit het
+**bevroren sim**: `legStartSeconds + (gaveUpAtSeconds | min(dnfAtSeconds, durationSeconds))`.
+`scheduled` = altijd bezet, `completed` = altijd vrij, geen sim-entry = vrij (legacy zonder
+`segMult` werkt op `durationSeconds`). **Estafette-bewust:** de timers zijn **leg-lokaal**
+(zie `giveUpFlight`) en `legStartSeconds` zet ze op de raceklok, dus een duif die op leg 3
+op haar beurt wacht is **bezet**, en een duif achter een uitgevallen ploegmaat komt vrij op
+`team.outSeconds` (ze wordt nooit meer gelost) — via `relayTeams(flight)`.
+`pigeonCommittedToFlight(db, pigeonId, nowMs?)` is de db-brede versie en **vervangt overal**
+het oude `db.flights.some(f => f.status !== 'completed' && …)`-patroon: `engine.ts` (rustkuur,
+listForSale, trainPigeon, setInfirmary, `pigeonBusy` → release/restaurant, startBreeding),
+`offers.ts`, `presenters.ts` (`pigeonDTO.racing`). Ook de **1-race-per-dag-regel** in
+`enterFlight` en de bot-`committed`-set in `botsEnterFlight` (schedule.ts) filteren op
+`birdStillOut`. **Veilig qua energie:** `tickFlightEnergy` zet een gestopte duif op de **volle**
+`formCost` (`stopped` → fractie 1) en draait in `advanceRealtime` vóór elke handler, dus een
+duif kan nooit ingeschreven worden vóór haar energie afgerekend is; `finalizeFlight` settelt
+dan nog 0. De "gisteren gevlogen"-vormaftrek blijft ook gewoon gelden. **Bewuste keerzijde:**
+de post-vlucht-effecten (conditie/ervaring/gezondheid, verbeterworp, aandoening) landen nog
+steeds pas bij de **afronding**, dus die kunnen aankomen terwijl de duif al aan een volgende
+vlucht bezig is. `giveUpFlight` weigert nu een duif waarvan de race al voorbij is (dat maakte
+van een al uitbetaalde finisher retroactief een DNF). Duiven die **de weg kwijt** zijn blijven
+onbeschikbaar via de aparte `isAway`-check.
+
 **Verbeteren schaalt met (zwakte × prestatie)** (`IMPROVE`, `finalizeFlight`): de kans
 dat een duif door een vlucht een eigenschap verbetert = `base·(0.4+room)·(0.5+zwakte·
 weaknessWeight)·(0.6+plaats·0.8)`, met een grotere *gain* voor zwakkere duiven
@@ -817,6 +843,29 @@ npx tsx names.test.mts             # elke duivennaam blijft uniek
 
 Alles hieronder staat **live** op de deploy-branch. Data-migraties liepen door tot
 **`dataVersion = 37`**.
+
+**Duif weer beschikbaar zodra ze thuis is (nieuwste)**
+- Probleem: sinds de finish-timer weg is, loopt een vlucht door tot de **traagste**
+  finisher binnen is — op 1000 km uren. Elke "is deze duif bezet?"-check keek naar
+  `flight.status !== 'completed'`, dus een duif die al lang thuis was kon niet
+  ingeschreven, getraind, gekoppeld, in de ziekenboeg gezet, op rustkuur gezet, te koop
+  gezet of verkocht worden tot de laatste sukkelaar binnen was.
+- Opgelost met `birdStillOut` + `pigeonCommittedToFlight` (flight.ts, zie §2): het einde
+  van de **eigen** race komt uit het bevroren sim. Vrij bij **finish**, bij een **DNF
+  onderweg** en meteen bij **opgeven** (dat laatste was net de bedoeling van opgeven).
+  Alle guards in `engine.ts`/`offers.ts`/`presenters.ts` gebruiken die helper, net als de
+  1-race-per-dag-regel en de bot-inschrijving. **Estafette** werkt op leg-klokken (leg 3
+  wacht = bezet; ploegmaat valt uit = meteen vrij).
+- Client: `FlightsPage` bouwde zijn `committed`-set uit de rauwe entries van **scheduled +
+  live** vluchten en verborg de duif dus alsnog. De set kijkt nu enkel naar **scheduled**;
+  voor live vluchten telt het server-vlaggetje `pigeon.racing`. De rest van de UI
+  (PigeonCard 🏁, PigeonPage, BreedingPage) hangt al aan `pigeon.racing` en volgt vanzelf.
+- `giveUpFlight` weigert voortaan een duif waarvan de race al voorbij is — dat maakte van
+  een al uitbetaalde finisher retroactief een DNF (bestaande bug).
+- Geen schema-/configwijziging, **geen migratie** (puur afgeleid uit `sim`); `dataVersion`
+  blijft **37**. Geverifieerd met tsx (32 gevallen: scheduled/live/completed, finish-moment,
+  straggler, opgegeven, DNF, legacy-sim zonder `segMult`, onbekende duif, en zes estafette-
+  scenario's). Spelregels **§3.8**.
 
 **Migratie v37 — nationale vlucht van woensdag 19 aug eenmalig naar 10:00 (nieuwste)**
 - Op verzoek van de eigenaar: de **nationale vlucht van vandaag** vertrekt om **10:00**

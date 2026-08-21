@@ -30,7 +30,7 @@ import {
   TOURNEY_RISK,
 } from '../config/gameConfig.js';
 import { RELAY } from '../config/gameConfig.js';
-import type { Ailment, Flight, FlightResult, Loft, Pigeon, SimEntry } from '../schema.js';
+import type { Ailment, Database, Flight, FlightResult, Loft, Pigeon, SimEntry } from '../schema.js';
 import { relayEntryTeams, relayLegKm, relaySimTeams } from './relay.js';
 import { ageMultiplier, conditionScore, experienceGain, flightForm, noteAttrChange, raceCeil } from './pigeon.js';
 import { applyAilment, randomLuckInjury, randomStrainInjury } from './health.js';
@@ -593,6 +593,59 @@ function startLiveRelay(flight: Flight, entries: Entry[], week: number): void {
     flight.weatherFactor = round1((flight.legs ?? []).reduce((s, l) => s + l.weatherFactor, 0) / (flight.legs?.length || 1));
   }
   flight.status = 'live';
+}
+
+/**
+ * Is this bird STILL out on this flight, or is its own race already over?
+ *
+ * A flight only ends when its slowest finisher is home (there is no cutoff any
+ * more), and on a 1000 km fond flight that tail can run for hours. A bird that
+ * crossed the line long before that is home in every sense — its energie is fully
+ * drained (tickFlightEnergy settles a bird the moment it stops) and its placing is
+ * locked in (computeFinishPayouts already banked its prize) — so it should not stay
+ * tied up waiting for a straggler.
+ *
+ * The end of a bird's own race is read from the FROZEN sim, so this is exact and
+ * deterministic: it crossed the line (durationSeconds), it gave out mid-flight
+ * (dnfAtSeconds), or its owner pulled it (gaveUpAtSeconds).
+ *
+ * An estafettevlucht runs on leg clocks: a bird is committed from the start (it
+ * still has to fly its leg) until `legStartSeconds` + its own leg time. If a
+ * team-mate ahead of it never makes it, the team is out and the birds behind are
+ * never released at all — they come free the moment the team drops out.
+ */
+export function birdStillOut(flight: Flight, pigeonId: string, nowMs: number): boolean {
+  if (flight.status === 'completed') return false;
+  if (flight.status !== 'live') return true; // scheduled: the race is still ahead of it
+  const s = flight.sim.find((x) => x.pigeonId === pigeonId);
+  if (!s) return false; // no frozen profile → it isn't flying this one
+  const startMs = flight.startAt ? Date.parse(flight.startAt) : NaN;
+  if (Number.isNaN(startMs)) return false;
+  const elapsed = (nowMs - startMs) / 1000;
+  // Leg-local end of this bird's own effort (both timers are leg-local, see
+  // giveUpFlight); for a normal flight legStartSeconds is 0 and this is the race clock.
+  const localEnd = s.gaveUp
+    ? s.gaveUpAtSeconds ?? 0
+    : Math.min(s.dnfAtSeconds ?? Infinity, s.durationSeconds);
+  if (flight.relay) {
+    const team = relayTeams(flight).find((t) => t.legs.some((l) => l.pigeonId === pigeonId));
+    if (!team) return false;
+    // A team-mate on an EARLIER leg never made it: this bird is never released.
+    if (team.outSeconds != null && (s.leg ?? 0) > (team.outAtLeg ?? 0)) return elapsed < team.outSeconds;
+  }
+  return elapsed < (s.legStartSeconds ?? 0) + localEnd;
+}
+
+/**
+ * Is this bird tied up by a flight right now — entered in one that has not started
+ * yet, or still out on a live one? Once its own race is over (see birdStillOut) it is
+ * FREE again even though the flight itself runs on: it can be entered for a new race,
+ * trained, paired, put in the infirmary, given a rest cure, listed or sold.
+ */
+export function pigeonCommittedToFlight(db: Database, pigeonId: string, nowMs: number = Date.now()): boolean {
+  return db.flights.some(
+    (f) => f.status !== 'completed' && f.entries.some((e) => e.pigeonId === pigeonId) && birdStillOut(f, pigeonId, nowMs),
+  );
 }
 
 /** Pick which attribute a bird gets a chance to grow in, weighted by distance. */

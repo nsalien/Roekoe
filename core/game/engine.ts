@@ -41,6 +41,7 @@ import { applyAcceptSponsor, applyCancelSponsor, applyRefuseSponsor } from './sp
 import { careSlots, runHealthWeek } from './health.js';
 import { nameKey, namesInUse } from './names.js';
 import { voidBetsForWithdrawnPigeon } from './betting.js';
+import { birdStillOut, pigeonCommittedToFlight } from './flight.js';
 import {
   canRace,
   experienceGain,
@@ -398,9 +399,7 @@ export function startRestCure(store: Store, userId: string, pigeonId: string): s
       });
       return `${pigeon.name} had deze week al een rustkuur — de volgende kan vanaf ${nextDate}`;
     }
-    const racing = db.flights.some(
-      (f) => f.status !== 'completed' && f.entries.some((e) => e.pigeonId === pigeonId),
-    );
+    const racing = pigeonCommittedToFlight(db, pigeonId);
     if (racing) return 'Deze duif is ingeschreven voor een vlucht — schrijf ze eerst uit';
     if (loft.money < REST_CURE.cost) return `Niet genoeg geld — een rustkuur kost €${REST_CURE.cost}`;
     loft.money -= REST_CURE.cost;
@@ -459,14 +458,17 @@ export function enterFlight(
     const ownEntries = flight.entries.filter((e) => e.ownerId === userId);
     if (flight.relay && ownEntries.length >= RELAY.teamSize)
       return `Je ploeg is al volledig (${RELAY.teamSize} duiven) — haal er eerst een duif uit`;
-    // A pigeon may race at most once per day.
+    // A pigeon may race at most once per day — but only while that other race is
+    // still running FOR IT. Once it is home (or out), the rest of the day is its own.
     const day = flight.startAt.slice(0, 10);
+    const nowMs = Date.now();
     const racingElsewhere = db.flights.some(
       (f) =>
         f.id !== flight.id &&
         f.status !== 'completed' &&
         f.startAt.slice(0, 10) === day &&
-        f.entries.some((e) => e.pigeonId === pigeonId),
+        f.entries.some((e) => e.pigeonId === pigeonId) &&
+        birdStillOut(f, pigeonId, nowMs),
     );
     if (racingElsewhere) return 'Deze duif vliegt die dag al een andere vlucht';
     // A relay team pays one fee for the whole team, when its first bird is entered.
@@ -547,6 +549,10 @@ export function giveUpFlight(store: Store, userId: string, flightId: string, pig
     const entry = flight.sim.find((s) => s.pigeonId === pigeonId && s.ownerId === userId);
     if (!entry) return 'Duif niet gevonden in deze vlucht';
     if (entry.gaveUp) return 'Deze duif is al opgegeven';
+    // Its race is already over (it finished, or it gave out): pulling it now would
+    // retroactively turn a paid finisher into a DNF.
+    if (!birdStillOut(flight, pigeonId, Date.now()))
+      return 'Deze duif heeft haar vlucht al achter de rug — opgeven kan niet meer';
     entry.gaveUp = true;
     // Freeze where it was when pulled, so the live board shows it stop there.
     // A relay bird runs on its OWN leg clock (it is released at the handover), so
@@ -569,9 +575,7 @@ export function listForSale(store: Store, userId: string, pigeonId: string, pric
     if (price <= 0) return 'Ongeldige prijs';
     if (isAway(pigeon)) return `${AWAY_MSG} — je kan haar pas verkopen als ze terug is`;
     // A pigeon that is currently racing or breeding cannot be sold.
-    const racing = db.flights.some(
-      (f) => f.status !== 'completed' && f.entries.some((e) => e.pigeonId === pigeonId),
-    );
+    const racing = pigeonCommittedToFlight(db, pigeonId);
     if (racing) return 'Deze duif staat ingeschreven voor een vlucht';
     const breeding = db.breedingPairs.some((bp) => bp.sireId === pigeonId || bp.damId === pigeonId);
     if (breeding) return 'Deze duif koppelt momenteel';
@@ -646,9 +650,7 @@ export function buyPigeon(store: Store, userId: string, pigeonId: string): strin
 function pigeonBusy(db: Database, pigeonId: string): string | null {
   const bird = db.pigeons.find((p) => p.id === pigeonId);
   if (bird && isAway(bird)) return `${AWAY_MSG} — wacht tot ze terug is`;
-  const racing = db.flights.some(
-    (f) => f.status !== 'completed' && f.entries.some((e) => e.pigeonId === pigeonId),
-  );
+  const racing = pigeonCommittedToFlight(db, pigeonId);
   if (racing) return 'Deze duif staat ingeschreven voor een vlucht — schrijf ze eerst uit';
   const breeding = db.breedingPairs.some((bp) => bp.sireId === pigeonId || bp.damId === pigeonId);
   if (breeding) return 'Deze duif koppelt momenteel — stop eerst het broeden';
@@ -734,9 +736,7 @@ export function trainPigeon(
     if (pigeon.ailment || pigeon.inInfirmary) return 'Een zieke, gekwetste of herstellende duif kan niet trainen';
     if (onRestCure(pigeon)) return 'Deze duif is op rustkuur — ze kan pas weer trainen als de kuur voorbij is';
     if (isAway(pigeon)) return `${AWAY_MSG}`;
-    const racing = db.flights.some(
-      (f) => f.status !== 'completed' && f.entries.some((e) => e.pigeonId === pigeonId),
-    );
+    const racing = pigeonCommittedToFlight(db, pigeonId);
     if (racing) return 'Deze duif is ingeschreven voor een vlucht — trainen kan pas als ze weer thuis is';
     // Manual training only reaches min(80, geneCap); beyond that only racing (→90)
     // and the coach (→gene cap) can grow the skill.
@@ -793,9 +793,7 @@ export function startBreeding(
       (bp) => bp.sireId === sireId || bp.damId === sireId || bp.sireId === damId || bp.damId === damId,
     );
     if (alreadyBreeding) return 'Een van deze duiven koppelt al';
-    const racing = db.flights.some(
-      (f) => f.status !== 'completed' && f.entries.some((e) => e.pigeonId === sireId || e.pigeonId === damId),
-    );
+    const racing = pigeonCommittedToFlight(db, sireId) || pigeonCommittedToFlight(db, damId);
     if (racing) return 'Een ingeschreven duif kan niet koppelen — schrijf ze eerst uit voor een vlucht';
     if (loft.money < BREEDING.cost) return 'Niet genoeg geld om te koppelen';
     loft.money -= BREEDING.cost;
@@ -849,9 +847,7 @@ export function setInfirmary(
     const inCount = db.pigeons.filter((p) => p.ownerId === userId && p.inInfirmary).length;
     if (loft && inCount >= loft.infirmaryCapacity)
       return `De ziekenboeg zit vol (max ${loft.infirmaryCapacity} duiven)`;
-    const racing = db.flights.some(
-      (f) => f.status !== 'completed' && f.entries.some((e) => e.pigeonId === pigeonId),
-    );
+    const racing = pigeonCommittedToFlight(db, pigeonId);
     if (racing) return 'Deze duif staat ingeschreven voor een vlucht';
     pigeon.inInfirmary = true;
     // The bird KEEPS its compartment flag while isolated in the infirmary, but the
