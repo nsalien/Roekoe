@@ -625,7 +625,85 @@ export const AGING = {
 export const NPC_MARKET_LISTINGS_PER_WEEK = 4;
 
 /** Number of bot lofts the world is seeded with on first boot. */
-export const DEFAULT_BOT_COUNT = 6;
+export const DEFAULT_BOT_COUNT = 8;
+
+/**
+ * How a bot loft runs itself. Bots used to do nothing but eat and occasionally
+ * train, so their flocks only ever shrank (deaths subtract, nothing adds) and
+ * the field thinned out season after season. These knobs let them spend the
+ * money they earn on the same things a player would: staff, cures, a coach, a
+ * bigger loft and young birds.
+ *
+ * Every action is gated on a cash floor so a bot can never spend itself into
+ * the red — a negative till would lock it out of entering flights entirely.
+ */
+export const BOT = {
+  /** Cash a bot always keeps in hand; it never spends below this. */
+  reserve: 1500,
+  /**
+   * A bot only enters a bird that can actually fly the route: it wants this much
+   * energie relative to what the distance is expected to cost it
+   * (`expectedFlightEnergyCost`). Replaces the old flat floor of 45, which was
+   * both too strict on a 100 km regiovlucht (~18 energie) and far too lax on the
+   * grote fond (~48) — bots kept sending near-empty birds to Barcelona, and a
+   * bird flown to 0 is the one that gets injured, falls ill and dies. That was
+   * the engine of the bot-flock decay.
+   */
+  raceHeadroom: 1.15,
+  /** Absolute floor regardless of distance; the game's own rule is 1 energie. */
+  minFormRegular: 12,
+  /**
+   * The estafettevlucht has NO energie floor. Fielding three birds is the whole
+   * point of the format, and how much energie a bird needs for its leg is the
+   * owner's own call — a player may enter a bird with 5 energie too. Bots still
+   * pick their freshest three; they just are not blocked.
+   */
+  minFormRelay: 0,
+  /**
+   * Below this flock size a bot holds its best doffer and duivin OUT of the race
+   * pool so a pair is always free to breed. Without it a bot races every fit
+   * bird, leaves only the exhausted ones at home, and so never breeds at all —
+   * measured: thinning lofts sat at "koppels 0" for months while their bank grew.
+   */
+  breedReserveFlock: 8,
+  /** A bot puts a bird on a rest cure once its energie drops below this. */
+  restCureBelowForm: 28,
+  /** Cash a bot wants free before paying for a rest cure. */
+  restCureReserve: 3000,
+  /** How many birds a bot coaches at once, and the cash it wants free for it. */
+  maxCoached: 2,
+  coachReserve: 8000,
+  /** A bot only upgrades its loft when it can pay this multiple of the price. */
+  capacityReserveFactor: 2.5,
+  /**
+   * Ceiling on a bot's loft. Not an economic rule but a platform one: every bird
+   * in the world is read on every request and rewritten at the 00:00 tick, and
+   * that tick runs out of D1's 50 queries per invocation somewhere around 350
+   * birds (see context.md § Performance). Eight bots free to climb to 20 would
+   * add ~100 birds on their own. Twelve keeps them real competitors — a full
+   * band-2 loft — without eating the headroom.
+   */
+  maxCapacity: 12,
+  /** Breeding: at most this many pairs at once, and only with room to spare. */
+  maxPairs: 2,
+  breedReserve: 2500,
+  /** A parent must have at least this much libido before a bot pairs it up. */
+  breedMinLibido: 35,
+  /** Weeks of food a bot keeps in stock (it buys when it drops below one week). */
+  foodWeeksBuffer: 3,
+  /**
+   * From this much cash a bot switches its loft to Herstelvoer. It costs the
+   * same €3/kg as Normaal and returns +42 energie / +12 gezondheid a week
+   * instead of +21/+5. A bot racing two or three times a week loses more health
+   * per week than Normaal puts back (spelregels §4.4), so its flock quietly
+   * wasted away — measured: healthy-looking lofts drifting to gezondheid 30-50,
+   * then dying of ailments, while sitting on €26.000. This is the cheapest
+   * possible fix and exactly what a player with that bank would do.
+   */
+  goodFeedFrom: 2500,
+  /** A bot rests a bird rather than racing it when its gezondheid is under this. */
+  minHealthRace: 45,
+} as const;
 
 /** Pool of names used when generating pigeons and bots. */
 export const PIGEON_NAMES = [

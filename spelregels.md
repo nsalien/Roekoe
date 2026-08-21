@@ -1585,5 +1585,40 @@ Rassen verzamelen is een eigen prestige-doel. In **Prestaties** vind je onder
 
 ---
 
+## 17. De computermelkers (bots)
+
+Naast de echte spelers rijden er **acht computermelkers** mee. Ze zijn er om het
+deelnemersveld te vullen: zonder hen zou een vlucht met drie inschrijvingen aan
+de start staan. Ze spelen met **exact dezelfde regels** als jij — geen extra
+geld, geen betere duiven, geen vrijstellingen.
+
+**Ze runnen hun hok net als jij.** Een bot koopt voer (en schakelt over op
+**Herstelvoer** zodra hij het kan betalen), zet zieke duiven in de **ziekenboeg**,
+neemt een **dokter** of **kinesist** in dienst, koopt er **bedden** bij, geeft een
+uitgeputte duif een **rustkuur**, huurt een **privécoach** voor zijn beste duiven,
+**breidt zijn hok uit** en **kweekt jongen**. Dat laatste is belangrijk voor jou:
+vroeger konden bothokken alleen maar krimpen — duiven gingen dood en er kwam
+niets bij — waardoor het veld seizoen na seizoen dunner werd. Nu houden ze zichzelf
+op peil, dus je blijft echte tegenstand houden.
+
+**Ze schrijven in tot vlak voor de lossing.** Een bot bekijkt elke geplande
+vlucht opnieuw zolang ze nog niet vertrokken is. Zie je vandaag pas drie
+inschrijvingen voor de vlucht van overmorgen, dan zegt dat dus niets — er komen
+er nog bij naarmate hun duiven uitrusten.
+
+**Ze kiezen hun duiven met verstand.** Een bot zet een duif enkel in als ze de
+route ook echt aankan (genoeg energie voor de afstand) en niet als haar
+gezondheid te ver gezakt is. Hij houdt bovendien een **koppel thuis** wanneer zijn
+hok dun wordt, om te kunnen kweken. **Behalve bij de estafettevlucht** — daar
+geldt geen enkele energiedrempel, net zoals bij jou (§2.9): drie duiven aan de
+start krijgen is daar het punt, en hoeveel energie een duif voor haar etappe
+nodig heeft, beslist de melker zelf.
+
+**Ze winnen ook.** Bots pakken prijzengeld, seizoenspunten, Roekoes en Vleugels
+als ze het verdienen (§15). Ze doen niet mee aan **oefenvluchten** en je kan geen
+bod uitbrengen op hun duiven.
+
+---
+
 *Alle getallen hierboven zijn de tuning-constanten; pas ze aan in
 `core/config/gameConfig.ts` om het spel te herbalanceren.*

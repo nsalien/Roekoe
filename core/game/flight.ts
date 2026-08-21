@@ -637,6 +637,20 @@ export function birdStillOut(flight: Flight, pigeonId: string, nowMs: number): b
 }
 
 /**
+ * Roughly what a route will cost this bird in energie — the same formula the sim
+ * freezes at the lossing (minus the detour, which is not knowable up front), with
+ * the random jitter taken at its mean. Handy for deciding, before entering, whether
+ * a bird can actually fly the distance. Never used for the flight itself.
+ */
+export function expectedFlightEnergyCost(pigeon: Pigeon, distanceKm: number): number {
+  const expRelief = 1 - (clamp(pigeon.experience, 0, 100) / 100 - 0.5) * FLIGHT_FATIGUE.experienceReliefSpread;
+  return (
+    (FLIGHT_FATIGUE.base + distanceKm / FLIGHT_FATIGUE.perKmDivisor) * expRelief +
+    FLIGHT_FATIGUE.jitter / 2
+  );
+}
+
+/**
  * Is this bird tied up by a flight right now — entered in one that has not started
  * yet, or still out on a live one? Once its own race is over (see birdStillOut) it is
  * FREE again even though the flight itself runs on: it can be entered for a new race,
