@@ -8,7 +8,7 @@
  * Run: npx tsx d1-partial-load.test.mts
  */
 import { DatabaseSync } from 'node:sqlite';
-import { D1Store, ensureSchema, findUserById, findUserByUsername } from './core/d1.js';
+import { D1Store, TRADE_LOAD_LIMIT, ensureSchema, findUserById, findUserByUsername } from './core/d1.js';
 import { readFileSync } from 'node:fs';
 
 let rowsRead = 0;
@@ -133,7 +133,8 @@ const loadQueries = queries;
 assert(store.data.notifications.length === 40 || store.data.notifications.length === 60,
   `alleen alice's inbox geladen (${store.data.notifications.length} rijen, geen 180)`);
 assert(store.data.notifications.every((n) => n.userId === 'usr_alice'), 'geen inbox van andere spelers geladen');
-assert(store.data.trades.length === 100, `trades afgetopt op 100 (van ${count('trades')} op schijf)`);
+assert(store.data.trades.length === TRADE_LOAD_LIMIT,
+  `trades afgetopt op ${TRADE_LOAD_LIMIT} (van ${count('trades')} op schijf)`);
 assert(store.data.trades[store.data.trades.length - 1].id === 'trd_249', 'nieuwste trade zit erbij (juiste kant van de LIMIT)');
 assert(store.data.bets.filter((b) => b.status === 'open').length === 3, 'álle open weddenschappen geladen (ook van anderen)');
 assert(store.data.bets.filter((b) => b.status !== 'open').every((b) => b.userId === 'usr_alice'),
@@ -179,7 +180,7 @@ const carolInbox = db._raw.prepare('SELECT COUNT(*) c FROM notifications WHERE u
 const bobInbox = db._raw.prepare('SELECT COUNT(*) c FROM notifications WHERE user_id = ?').get('usr_bob').c as number;
 assert(carolInbox <= 41, `carol's inbox afgetopt na haar nieuwe melding (${carolInbox})`);
 assert(bobInbox === 60, `bob kreeg niets, dus zijn inbox is niet aangeraakt (${bobInbox})`);
-assert(count('trades') <= 101, `trades afgetopt (${count('trades')})`);
+assert(count('trades') <= TRADE_LOAD_LIMIT + 1, `trades afgetopt (${count('trades')})`);
 assert(db._raw.prepare("SELECT COUNT(*) c FROM bets WHERE status = 'open'").get().c === 3, 'open weddenschappen overleven de opruiming');
 assert(count('bets') <= 104, `afgehandelde weddenschappen afgetopt (${count('bets')})`);
 

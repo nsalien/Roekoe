@@ -1826,7 +1826,8 @@ moet gewoon efficiënt zijn.
    **inloggen blijft werken** ook als de spelstate zwaar is. De handlers persisten zelf.
 5. **Client logt niet meer uit bij 5xx** — `AuthContext` wist het token **enkel bij
    401** (niet bij 503/netwerkfout) → geen willekeurige uitlogs/lock-outs meer.
-6. **Rustiger pollen** — LiveFlightPage 8s→**20s**, FlightsPage 15s→**40s**.
+6. **Rustiger pollen** — LiveFlightPage 8s→20s→**60s**, FlightsPage 15s→40s→**90s**
+   (verder verruimd in 503-fix ronde 5, zie onderaan).
 
 **Terugkeer van de 503 — tweede ronde (nieuwste)**
 **Symptoom (identiek):** 503 op alles, spelers zien plots het inlogscherm en
@@ -1959,6 +1960,57 @@ rustige wereld en faalt zodra een poll zonder gebeurtenissen ook maar één rij 
 **Regel voor nieuwe code: stempel nooit `Date.now()` in een rij op elk verzoek** — geef
 zo'n klok altijd een minimuminterval.
 
+### 503-fix ronde 5: de estafette duurt een halve dag (nieuwste)
+
+**Symptoom:** site "constant niet aan het laden", tijdens een **live estafettevlucht**.
+
+**Wat het NIET was** (gemeten, niet gegokt):
+- **50-querylimiet:** een live-estafettepoll kost **13–16 queries**, het duurste verzoek
+  van de hele race (start/afronding) **38–39**. Ruim onder de 50.
+- **Schrijflimiet:** een live-estafettepoll tussen de energie-ticks schrijft **0 rijen**
+  (8× gemeten). `tickBotEntries` is idempotent zoals bedoeld.
+
+**Wat het wél is: het leesbudget (5 M rijen/dag) × de duur van een estafette.**
+Élk verzoek leest de wereld (~350 rijen). Een estafette is **850–950 km in drie etappes**
+en duurt gemeten **16–19 uur** — veruit de langste vlucht in het spel. Het live-bord
+pollde elke **20 s** = 180 verzoeken/uur:
+
+| | rijen |
+|---|---|
+| 1 speler die één estafette volledig volgt (19 u × 180 × 352) | **1,2 M** |
+| 4–5 spelers die dat samen doen | **5–6 M** → **over de daglimiet** |
+
+Dat is exact het scenario dat §"De tweede limiet" al voorspelde ("tien spelers die samen
+een namiddag naar een fondvlucht kijken zitten al aan het dagbudget"); de estafette maakt
+er een hele *dag* van. Loopt het budget leeg, dan faalt **élk** verzoek — ook het lichte
+inlogpad — tot de reset om middernacht UTC.
+
+**Verzwarend (eerlijk): de bot-uitbreiding van dezelfde dag.** 8 bots i.p.v. 6, en hun
+hokken groeien naar `BOT.maxCapacity` (12) → tot ~96 botduiven i.p.v. ~40. Dat is **+15
+à +25 % rijen per verzoek**, en met 13 ploegen i.p.v. 5 kijken er ook meer mensen mee.
+Het heeft het probleem niet veroorzaakt (de kosten per verzoek zijn structureel), maar
+het at wel de marge op.
+
+**Gefixt (hefbomen 1 en 4 uit de lijst hieronder):**
+12. **Pollintervallen verruimd** — live-bord **20 s → 60 s** (`LiveFlightPage`), kalender
+    **40 s → 90 s** (`FlightsPage`). Factor **3×** resp. **2,25×** minder verzoeken.
+    `MarketPage` (15 s) blijft: die pollt enkel in de laatste 6 min van een veiling.
+13. **`TRADE_LOAD_LIMIT` 100 → 40** (`core/d1.ts`, nu **geëxporteerd** zodat
+    `d1-partial-load.test.mts` de constante volgt i.p.v. 100 te hardcoderen). De
+    marktwaardering weegt een verkoop toch al op recentheid (halfwaardetijd 10 dagen,
+    venster 28 dagen), dus de oudste 60 bewogen de curve nauwelijks.
+
+**Resultaat (gemeten met `limits-report.mts`):** **352 → 293 rijen** per poll, dagbudget
+**14.204 → 17.064** verzoeken. Eén speler die een volledige estafette volgt gaat van
+**1,2 M → 0,33 M rijen** (**3,6× minder**); vijf tegelijk passen nu binnen de daglimiet.
+
+> ⚠️ **Nog niet gedaan — de echte fix.** `/flights/:id/live` laadt de **hele wereld**
+> (~293 rijen) om **één** vlucht te tonen, en dat is het heetste endpoint dat er is. De
+> structurele oplossing is een **smalle load** voor die route (vlucht + deelnemende duiven
+> + hoknamen ≈ 70 rijen) of `advanceRealtime` **throttlen** (`world.lastAdvance`, max.
+> 1×/20–30 s) zodat een poll de wereld niet meer hoeft te laden. Dat is hefboom 3+5
+> hieronder en zou nog eens ~4× schelen — dan kan het pollinterval ook weer omlaag.
+
 ### De tweede limiet: rijen gelezen per dag (meting `limits-report.mts`)
 
 Gemeten op een productiewereld (200 duiven, 16 hokken, 250 trades, 40 meldingen/speler):
@@ -1971,12 +2023,12 @@ Gemeten op een productiewereld (200 duiven, 16 hokken, 250 trades, 40 meldingen/
 | Vluchtafronding | 43 | 350 | 429 |
 | Dagovergang 00:00 | 41 | 351 | 377 |
 
-**Élk** verzoek leest ~350 rijen, want de middleware laadt de wereld: ~200 duiven +
-100 trades (`TRADE_LOAD_LIMIT`) + tot 40 meldingen + 16 hokken + 16 users + vluchten.
-Bij 5 M rijen/dag is dat een **plafond van ~14.000 verzoeken per dag** — véél lager dan
-de 100.000 Worker-verzoeken/dag. De client pollt `/flights/:id/live` elke **20 s** en
-`/flights` elke **40 s**, dus één open live-bord = 180 verzoeken/uur. Tien spelers die
-samen een namiddag naar een fondvlucht kijken zitten al aan het dagbudget.
+**Élk** verzoek leest ~290 rijen, want de middleware laadt de wereld: ~200 duiven +
+40 trades (`TRADE_LOAD_LIMIT`) + tot 40 meldingen + hokken + users + vluchten.
+Bij 5 M rijen/dag is dat een **plafond van ~17.000 verzoeken per dag** — véél lager dan
+de 100.000 Worker-verzoeken/dag. De client pollt `/flights/:id/live` elke **60 s** en
+`/flights` elke **90 s** (verruimd in ronde 5), dus één open live-bord = 60 verzoeken/uur.
+Een **estafette duurt 16–19 uur**: één speler die er één volledig volgt kost ~0,33 M rijen.
 
 > **Belangrijk:** als het leesbudget op is, faalt **ook het lichte inlogpad** (dat leest
 > nog altijd één rij). Vandaar "niemand raakt er nog in" tot de reset om **middernacht
