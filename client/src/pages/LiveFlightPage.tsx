@@ -42,12 +42,16 @@ export function LiveFlightPage() {
 
   useEffect(() => {
     load();
-    // Flights run in real time (hours), so a gentle poll keeps the board fresh
-    // without hammering the server. We stop polling once the race is over.
+    // Flights run in real time (hours — an estafettevlucht runs the best part of
+    // a DAY), so a gentle poll keeps the board fresh without hammering the
+    // server. Every poll reads the whole world (~350 D1 rows), and D1's free
+    // plan allows 5M rows a day: at the old 20 s one open board for a single
+    // long race burned over a million rows on its own, which is what took the
+    // site down. 60 s costs a third of that and the board is still live.
     const t = setInterval(() => {
       if (wasCompleted.current) return;
       load();
-    }, 20000);
+    }, 60000);
     return () => clearInterval(t);
   }, [load]);
 

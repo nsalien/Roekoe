@@ -46,9 +46,11 @@ export function FlightsPage() {
     loadBets();
   }, [load, loadBets, state?.world.currentWeek]);
 
-  // Reload periodically so flights flip to live / completed without a manual refresh.
+  // Reload periodically so flights flip to live / completed without a manual
+  // refresh. Kept deliberately slow — see the note in LiveFlightPage: every poll
+  // costs ~350 D1 rows and the daily read budget is the binding limit.
   useEffect(() => {
-    const t = setInterval(() => load(), 40000);
+    const t = setInterval(() => load(), 90000);
     return () => clearInterval(t);
   }, [load]);
 

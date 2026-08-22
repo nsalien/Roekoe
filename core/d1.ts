@@ -45,8 +45,11 @@ import type { Store } from './store.js';
 
 const b = (v: unknown) => (v ? 1 : 0);
 
-/** Newest trades kept in memory (and on disk). Feeds the sale history views. */
-const TRADE_LOAD_LIMIT = 100;
+/** Newest trades kept in memory (and on disk). Feeds the sale history views and
+ *  the market valuation (`market.ts`). Lowered 100 → 40: every request pays for
+ *  these rows, and the valuation weights a sale by recency anyway (10-day half
+ *  life, 28-day window), so the oldest of a hundred barely moved the curve. */
+export const TRADE_LOAD_LIMIT = 40;
 /** Settled bets kept on disk; open ones are always kept, whatever their age. */
 const BET_KEEP_LIMIT = 100;
 /** Notifications kept per user — matches the engine's own in-memory inbox trim
