@@ -360,6 +360,7 @@ Roekoe/
 ├── query-budget.test.mts        regressietest: queries per verzoek < 50 (D1-limiet)
 ├── idle-writes.test.mts         regressietest: idle poll schrijft 0 rijen (D1-schrijflimiet)
 ├── names.test.mts               regressietest: duivennamen zijn uniek
+├── advance-throttle.test.mts    regressietest: advanceRealtime-throttle (CPU)
 ├── limits-report.mts            meet queries/rijen gelezen/geschreven per verzoek
 ├── migrations/0001_init.sql     D1-schema voor verse installatie
 ├── spelregels.md                spelregels + formules (Nederlands, speler-gericht)
@@ -822,6 +823,7 @@ npx tsx d1-partial-load.test.mts   # persistentie: laadt/schrijft de juiste slic
 npx tsx query-budget.test.mts      # D1: geen enkel verzoek over de 50 queries
 npx tsx idle-writes.test.mts       # D1: een poll zonder gebeurtenissen schrijft niets
 npx tsx names.test.mts             # elke duivennaam blijft uniek
+npx tsx advance-throttle.test.mts  # CPU: een leespoll slaat de engine over
 ```
 (Beide staan buiten `tsconfig.json` (`include` = `core/` + `functions/`), dus tsc raakt ze niet.)
 
@@ -2070,10 +2072,53 @@ ruis, wel algoritmisch juist.
 > `/state`) of **`advanceRealtime` throttlen** (`world.lastAdvance`, max 1×/20–30 s) zodat
 > een poll de wereld helemaal niet meer hoeft aan te raken.
 
-> ⚠️ **Wat nog NIET vaststaat:** of verzoeken effectief fáálden, en waarmee. Het
-> account-dashboard toont geen foutpercentage en geen D1-metrics. Te checken bij een
-> volgende storing: **Pages → roekoe → Functions** (foutpercentage, Error 1102 = CPU over
-> de limiet) en **D1 → roekoe-db → Metrics** (rijen gelezen/geschreven die dag).
+**BEVESTIGD op 23 aug** — het Functions-paneel liet er geen twijfel over bestaan:
+
+| Errors (23 aug) | |
+|---|---|
+| **Exceeded CPU Time Limits** | **69** |
+| Internal / Script Threw Exception / Exceeded Memory / Client Disconnected | 0 |
+
+| CPU per verzoek (µs) | |
+|---|---|
+| p50 | 25.985 → **26 ms** |
+| p75 | 33.690 → **34 ms** |
+| p99 | 68.257 → **68 ms** |
+| p99.9 | 96.434 → **96 ms** |
+
+Dus: **de CPU is de oorzaak**, en de staart is wat sterft. Mijn lokale ~14 ms was nog
+optimistisch — de Workers-runtime en een grotere wereld maken er in productie ~26 ms van.
+Alle andere fouttellers staan op 0, dus D1-quota, geheugen en exceptions vallen af.
+
+### 503-fix ronde 7: `advanceRealtime` throttlen (dé CPU-fix, nieuwste)
+
+**Oorzaak staat vast** (zie ronde 6): Error 1102, 69× op één dag, p50 26 ms per verzoek.
+
+**De fix: een read-only verzoek binnen `ADVANCE_THROTTLE_SECONDS` (20) van de vorige
+run slaat `advanceRealtime` én `persist` volledig over.** Nieuw veld
+**`World.lastAdvance`** (kolom `last_advance TEXT`, achteraan `SCHEMA_STEPS` — de
+append-only regel), gestempeld in de middleware ná de engine-run.
+
+- **Alleen leesverzoeken** (GET/HEAD) worden gethrotteld. Élke POST/PUT/DELETE draait
+  eerst de engine, zodat een speleractie nooit op een verouderde wereld werkt.
+- **Niets gaat verloren.** De hele wereldklok is afgeleid uit tijdstempels (vluchten,
+  dagverzorging, herstel, seizoen), dus later draaien verandert geen uitkomst — het
+  verschuift alleen wanneer iets *opgemerkt* wordt, met hoogstens 20 s.
+- **Veilige terugval:** staat de kolom er nog niet, dan is `lastAdvance` leeg →
+  `Date.parse('')` is NaN → nooit "fresh" → exact het oude gedrag tot de migratie liep.
+- **Schrijfkost:** een advance schrijft nu ook de wereldrij (`lastAdvance` bewoog), dus
+  hoogstens 1 rij per 20 s ≈ **4.300/dag** van de 100.000. Doorgethrottelde polls
+  schrijven **0** rijen (er wordt niet eens gepersist).
+
+**Gemeten:** een doorgethrotteld leesverzoek gaat van **5,24 → 2,48 ms** (−53 %) op een
+wereld van 200 duiven; van 30 polls over 60 s draait de engine er nog **3**. Wat overblijft
+is `D1Store.load` — dát is de volgende hefboom (smalle load voor `/flights/:id/live` en
+`/state`), en pas als die er is kunnen de pollintervallen van ronde 5 weer omlaag.
+
+**Nieuwe blijvende test `advance-throttle.test.mts`** (10 controles): leespolls binnen het
+venster slaan de engine over, net erbuiten weer niet, een POST draait altijd, doorgethrottelde
+polls schrijven niets, en — het belangrijkste — een vlucht gaat gewoon **live** terwijl er
+uitsluitend leespolls binnenkomen.
 
 ### De tweede limiet: rijen gelezen per dag (meting `limits-report.mts`)
 

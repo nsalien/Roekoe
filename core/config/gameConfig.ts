@@ -723,6 +723,23 @@ export const BOT_LOFT_NAMES = [
 // Real-time flights
 // ===========================================================================
 
+/**
+ * How long a run of `advanceRealtime` stays "fresh enough". A READ-ONLY request
+ * that arrives within this window skips the engine AND the persist entirely and
+ * just serves what is already in the world.
+ *
+ * Why: Cloudflare kills a Worker that runs out of CPU (Error 1102 — measured 69
+ * of them in one day, with p50 26 ms / p99 68 ms per request). Of the ~14 ms a
+ * request costs, `advanceRealtime` + `persist` are ~9 ms, and on a poll where
+ * nothing has happened that work is thrown away. Everything in the world clock
+ * is derived from timestamps (flights, care, healing, seasons), so running it a
+ * few seconds later changes no outcome — it only moves when it is noticed.
+ *
+ * Any request that CHANGES something (POST/PUT/DELETE) always advances first, so
+ * a player action never acts on a stale world.
+ */
+export const ADVANCE_THROTTLE_SECONDS = 20;
+
 /** Time zone flights are scheduled in (wall-clock hours below are in this zone). */
 export const TIMEZONE = 'Europe/Brussels';
 
