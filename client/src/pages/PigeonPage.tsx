@@ -163,7 +163,10 @@ export function PigeonPage() {
                     className="badge"
                     title={
                       `Vluchtvorm ${p.flightForm} — energie en gezondheid samen, de laagste van de twee telt dubbel.` +
-                      (p.restPenalty > 0 ? ` Er ging ${p.restPenalty} af omdat ze net gevlogen heeft.` : '') +
+                      (p.restPenalty > 0
+                        ? ` Dit is het cijfer NA aftrek: er ging al ${p.restPenalty} af omdat ze net gevlogen heeft` +
+                          ` (zonder die aftrek stond ze op ${(p.flightForm ?? 0) + p.restPenalty}).`
+                        : '') +
                       ' Hoe lager, hoe groter de kans op een blessure door overbelasting.'
                     }
                     style={
@@ -175,7 +178,7 @@ export function PigeonPage() {
                     }
                   >
                     {p.formLabel === 'fris' ? '🟢' : p.formLabel === 'matig' ? '🟡' : '🔴'} vorm {p.flightForm}
-                    {p.restPenalty > 0 ? ` (−${p.restPenalty} rust)` : ''}
+                    {p.restPenalty > 0 ? ` · incl. −${p.restPenalty} rust` : ''}
                   </span>
                 )}
               </div>

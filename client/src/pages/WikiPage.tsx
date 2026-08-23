@@ -425,7 +425,9 @@ export function WikiPage() {
           duif <strong>gisteren</strong>, dan gaat er <strong>15 vluchtvorm</strong> af;
           eergisteren nog 7. Een oefenvlucht telt maar voor een derde. In de praktijk{' '}
           <strong>verdubbelt dat haar blessurekans</strong> — ook als haar energiebalk er
-          door goed voer weer prima uitziet.
+          door goed voer weer prima uitziet. Het vormcijfer dat je op de duifpagina en bij
+          het inschrijven ziet is <strong>al na die aftrek</strong>; staat er
+          &laquo;incl. −15&raquo; bij, dan zit die 15 er dus al in.
         </p>
 
         <p style={{ marginTop: 14 }}>
