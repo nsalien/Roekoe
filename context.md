@@ -1965,7 +1965,7 @@ rustige wereld en faalt zodra een poll zonder gebeurtenissen ook maar één rij 
 **Regel voor nieuwe code: stempel nooit `Date.now()` in een rij op elk verzoek** — geef
 zo'n klok altijd een minimuminterval.
 
-### 503-fix ronde 5: de estafette duurt een halve dag (nieuwste)
+### 503-fix ronde 5: de estafette duurt een halve dag (⚠️ diagnose achteraf weerlegd — zie ronde 6)
 
 **Symptoom:** site "constant niet aan het laden", tijdens een **live estafettevlucht**.
 
@@ -1975,7 +1975,8 @@ zo'n klok altijd een minimuminterval.
 - **Schrijflimiet:** een live-estafettepoll tussen de energie-ticks schrijft **0 rijen**
   (8× gemeten). `tickBotEntries` is idempotent zoals bedoeld.
 
-**Wat het wél is: het leesbudget (5 M rijen/dag) × de duur van een estafette.**
+**Wat het volgens deze redenering was — en achteraf NIET bleek (zie ronde 6): het
+leesbudget (5 M rijen/dag) × de duur van een estafette.**
 Élk verzoek leest de wereld (~350 rijen). Een estafette is **850–950 km in drie etappes**
 en duurt gemeten **16–19 uur** — veruit de langste vlucht in het spel. Het live-bord
 pollde elke **20 s** = 180 verzoeken/uur:
@@ -2015,6 +2016,64 @@ het at wel de marge op.
 > + hoknamen ≈ 70 rijen) of `advanceRealtime` **throttlen** (`world.lastAdvance`, max.
 > 1×/20–30 s) zodat een poll de wereld niet meer hoeft te laden. Dat is hefboom 3+5
 > hieronder en zou nog eens ~4× schelen — dan kan het pollinterval ook weer omlaag.
+
+### ⚠️ Correctie op ronde 5 + 503-fix ronde 6: CPU en trage weer-fetches (nieuwste)
+
+**De diagnose van ronde 5 was fout.** Ze was gebaseerd op een redenering, niet op de
+metrics — precies de fout waar §ronde 2 al voor waarschuwt. De Cloudflare-cijfers
+(1–23 aug) weerleggen ze:
+
+| Meting | Waarde | Betekenis |
+|---|---|---|
+| Verzoeken | **29,06 k / 23 dagen = ~1.263 per dag** | ~1 % van de 100.000/dag |
+| Rijen gelezen (afgeleid) | ~380 k/dag | **7,6 %** van de 5 M — het leesbudget was nooit in gevaar |
+| **CPU-tijd** | **516.350 ms / 29.060 = 17,8 ms per verzoek** | dít is het uitschieter-cijfer |
+
+Het pollinterval verruimen (ronde 5) was dus geen oplossing voor dít probleem. Het is
+op zich geen slechte maatregel — minder verzoeken is minder kosten — maar het raakte de
+oorzaak niet. **Les: haal de metrics vóór je een oorzaak benoemt, ook als de theorie mooi klopt.**
+
+**Bevinding 1 — het verzoek kán hangen (dit past op "blijft laden").**
+De middleware deed de weer-fetches **sequentieel**, elk met een eigen timeout van 4 s.
+Een estafette heeft **drie etappevoorspellingen**, in de laatste 2 u vóór de start
+**elk uur** ververst (`relayLegsNeedingForecast`), plus een fetch per startende vlucht.
+Worst case zat één verzoek dus 12–20 s te wachten op Open-Meteo — geen foutmelding, maar
+een spinner. **Gefixt:** alles draait nu in één `Promise.all`, dus het hele blok is
+begrensd op **één** timeout i.p.v. één per call. Ruim binnen de 50 subrequests.
+
+**Bevinding 2 — de CPU per verzoek is structureel hoog.** Lokaal gemeten op een
+productiewereld (167 duiven), en het komt opvallend goed overeen met de 17,8 ms uit het
+dashboard:
+
+| Onderdeel | ms |
+|---|---|
+| `D1Store.load` (query + JSON.parse + snapshot) | ~4,2 |
+| `advanceRealtime` (alle ticks samen) | ~3,4 |
+| `persist` (diff + stringify) | ~5,8 |
+| `/state` DTO's (duiven, vluchten, ranglijsten) | ~0,8 |
+| **totaal** | **~14 ms** |
+
+Dat is **het D1Store-patroon zelf**, niet één hete tick: élk verzoek — ook een poll waar
+niets gebeurt — laadt, parset, snapshot, diff't en stringify't de hele wereld. De DTO-laag
+is verwaarloosbaar (0,8 ms), dus daar valt niets te halen. Losse ticks meten lukte niet:
+alle metingen kwamen op ~0,9 ms uit, ook `pruneOldFlights` die vrijwel niets doet — dat is
+de ruisvloer van de meting, geen signaal. **Claim dus niet dat één tick de boosdoener is.**
+
+**Meegenomen:** `tickBotEntries` slaat nu eerst goedkoop af (staan alle bots al
+ingeschreven → meteen klaar) en `botEntryContext` groepeert de duiven **één keer** per
+pas i.p.v. per bot per vlucht (was O(bots × vluchten × duiven)). Niet meetbaar boven de
+ruis, wel algoritmisch juist.
+
+> **Nog open — dit is de echte fix voor de CPU.** Zolang élk verzoek de hele wereld
+> laadt+persist, kost het ~14 ms en is er geen marge. De twee wegen zijn dezelfde als in
+> hefboom 3/5 hieronder: een **smalle load** voor de hete routes (`/flights/:id/live`,
+> `/state`) of **`advanceRealtime` throttlen** (`world.lastAdvance`, max 1×/20–30 s) zodat
+> een poll de wereld helemaal niet meer hoeft aan te raken.
+
+> ⚠️ **Wat nog NIET vaststaat:** of verzoeken effectief fáálden, en waarmee. Het
+> account-dashboard toont geen foutpercentage en geen D1-metrics. Te checken bij een
+> volgende storing: **Pages → roekoe → Functions** (foutpercentage, Error 1102 = CPU over
+> de limiet) en **D1 → roekoe-db → Metrics** (rijen gelezen/geschreven die dag).
 
 ### De tweede limiet: rijen gelezen per dag (meting `limits-report.mts`)
 

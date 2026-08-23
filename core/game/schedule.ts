@@ -52,7 +52,8 @@ import { applyDayOfCare, dailyRunningCost } from './economy.js';
 import { breed } from './breeding.js';
 import { awardBadge, awardFlightBadges, evaluateBadges } from './badges.js';
 import { ensureAuctions } from './auction.js';
-import { botDailyActions, botRaceCandidates } from './bots.js';
+import { botDailyActions, botEntryContext, botRaceCandidates } from './bots.js';
+import type { BotEntryContext } from './bots.js';
 import { settleFlightBets, voidOrphanedBets, refundFlightBets } from './betting.js';
 import {
   applyAilment,
@@ -267,7 +268,7 @@ function makeRealtimeFlight(
  * rested for by the time it starts. A loft that already has an entry here is
  * skipped, so this is idempotent and a settled flight writes nothing.
  */
-function botsEnterFlight(db: Database, flight: Flight): void {
+function botsEnterFlight(db: Database, flight: Flight, ctx: BotEntryContext = botEntryContext(db)): void {
   if (flight.practice) return; // oefenvluchten zijn voor de speler, bots doen niet mee
   if (flight.status !== 'scheduled') return;
   const day = flight.startAt.slice(0, 10); // one race per bird per day
@@ -285,7 +286,7 @@ function botsEnterFlight(db: Database, flight: Flight): void {
   for (const loft of db.lofts.filter((l) => l.isBot)) {
     if (loft.money < flight.entryFee) continue;
     if (flight.entries.some((e) => e.ownerId === loft.userId)) continue;
-    const eligible = botRaceCandidates(db, loft, flight, committed);
+    const eligible = botRaceCandidates(ctx, loft, flight, committed);
     // A titanenwedstrijd allows only ONE bird per loft; an estafettevlucht needs
     // a full team of exactly RELAY.teamSize (a short-handed bot would only get
     // refunded at the start); otherwise 1-2.
@@ -316,12 +317,25 @@ function botsEnterFlight(db: Database, flight: Flight): void {
  * poll still writes zero rows (`idle-writes.test.mts` guards this).
  */
 export function tickBotEntries(db: Database, nowMs: number): void {
-  for (const flight of db.flights) {
-    if (flight.status !== 'scheduled' || flight.practice) continue;
+  // Cheap gate FIRST. This runs on every single request, and almost always every
+  // bot has long since entered every flight on the calendar — in that state the
+  // work below (a per-flight `committed` set plus a scan of the whole pigeon
+  // table per bot) is pure waste, and it measured ~1.2 ms of a request that has
+  // roughly 10 ms of CPU to spend in total. Comparing owner ids is ~free.
+  const botIds = db.lofts.filter((l) => l.isBot).map((l) => l.userId);
+  if (botIds.length === 0) return;
+  const open = db.flights.filter((flight) => {
+    if (flight.status !== 'scheduled' || flight.practice) return false;
     const start = Date.parse(flight.startAt);
-    if (!Number.isNaN(start) && start < nowMs) continue; // tickFlights is about to start it
-    botsEnterFlight(db, flight);
-  }
+    if (!Number.isNaN(start) && start < nowMs) return false; // tickFlights is about to start it
+    const entered = new Set(flight.entries.map((e) => e.ownerId));
+    return !botIds.every((id) => entered.has(id)); // something still to decide
+  });
+  if (open.length === 0) return;
+  // Group the pigeons by owner once for the whole pass instead of re-scanning
+  // the table per bot per flight.
+  const ctx = botEntryContext(db);
+  for (const flight of open) botsEnterFlight(db, flight, ctx);
 }
 
 /** Small stable hash of a calendar day, for per-day tier rotation. */

@@ -156,23 +156,26 @@ app.use('*', async (c, next) => {
     // Real-time flight lifecycle + one-time data migrations. Persist any changes.
     // Fetch real weather for any flight about to start, so it's frozen against
     // actual conditions in the release region (falls back to a random sky).
-    const due = flightsAwaitingStart(store.data, nowMs);
-    const weatherByFlight = new Map<string, WeatherResult>();
-    for (const f of due) {
-      // A relay freezes against its own per-leg forecasts, refreshed below.
-      if (f.relay) continue;
-      weatherByFlight.set(f.id, await fetchFlightWeather(f.fromCity, f.toCity));
-    }
-    // Per-leg forecast for an upcoming estafettevlucht: published days ahead so
-    // players can pick their running order, refreshed while it can still change.
+    // These are the only outbound calls in the request path, and they used to run
+    // ONE AFTER THE OTHER, each with its own 4 s timeout. An estafettevlucht needs
+    // three leg forecasts (refreshed hourly in the last two hours before the
+    // lossing), so a single unlucky request could sit there for 12 s or more with
+    // the player staring at a spinner. Running them together bounds the whole
+    // block at one timeout instead of one per call. Well within the 50-subrequest
+    // budget: at most three legs plus the handful of flights starting at once.
+    const due = flightsAwaitingStart(store.data, nowMs).filter((f) => !f.relay);
+    // A relay freezes against its own per-leg forecasts, fetched alongside.
     const legs = relayLegsNeedingForecast(store.data, nowMs);
-    if (legs.length > 0) {
-      const forecasts = new Map<string, WeatherResult>();
-      for (const leg of legs) {
-        forecasts.set(`${leg.flightId}:${leg.legIndex}`, await fetchLegForecast(leg.from, leg.to, leg.atMs));
-      }
-      applyRelayForecasts(store.data, forecasts, nowMs);
-    }
+    const [dueWeather, legWeather] = await Promise.all([
+      Promise.all(due.map(async (f) => [f.id, await fetchFlightWeather(f.fromCity, f.toCity)] as const)),
+      Promise.all(
+        legs.map(async (leg) =>
+          [`${leg.flightId}:${leg.legIndex}`, await fetchLegForecast(leg.from, leg.to, leg.atMs)] as const,
+        ),
+      ),
+    ]);
+    const weatherByFlight = new Map<string, WeatherResult>(dueWeather);
+    if (legWeather.length > 0) applyRelayForecasts(store.data, new Map(legWeather), nowMs);
     advanceRealtime(store.data, nowMs, weatherByFlight);
     await store.persist();
   }
