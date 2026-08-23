@@ -281,22 +281,47 @@ export function botTakeWeeklyActions(
  * `committed` holds the birds already tied up on that flight's calendar day —
  * the caller owns that set because it also grows as birds are entered.
  */
+/**
+ * Everything the entry pass needs that is the same for every bot and every
+ * flight, worked out ONCE. Rebuilding this per bot per flight meant scanning the
+ * whole pigeon table thousands of times on a request that has ~10 ms of CPU to
+ * spend in total — see `tickBotEntries`.
+ */
+export interface BotEntryContext {
+  week: number;
+  byOwner: Map<string, Pigeon[]>;
+  onNest: Set<string>;
+}
+
+export function botEntryContext(db: Database): BotEntryContext {
+  const byOwner = new Map<string, Pigeon[]>();
+  for (const p of db.pigeons) {
+    const list = byOwner.get(p.ownerId);
+    if (list) list.push(p);
+    else byOwner.set(p.ownerId, [p]);
+  }
+  const onNest = new Set<string>();
+  for (const bp of db.breedingPairs) {
+    onNest.add(bp.sireId);
+    onNest.add(bp.damId);
+  }
+  return { week: db.world.currentWeek, byOwner, onNest };
+}
+
 export function botRaceCandidates(
-  db: Database,
+  ctx: BotEntryContext,
   loft: Loft,
   flight: Flight,
   committed: Set<string>,
 ): Pigeon[] {
-  const week = db.world.currentWeek;
-  const owned = db.pigeons.filter((p) => p.ownerId === loft.userId);
-  const onNest = (p: Pigeon) => db.breedingPairs.some((bp) => bp.sireId === p.id || bp.damId === p.id);
+  const owned = ctx.byOwner.get(loft.userId) ?? [];
   const free = owned.filter(
     (p) =>
-      canRace(p, week) &&
+      canRace(p, ctx.week) &&
       !committed.has(p.id) &&
       // Bots breed now, and a bird on a nest is no more available than a
       // player's would be (`enterFlight` refuses one).
-      !onNest(p),
+      !ctx.onNest.has(p.id),
   );
 
   // A thinning loft keeps a breeding pair at home. Racing every fit bird leaves
