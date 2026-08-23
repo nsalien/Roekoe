@@ -566,10 +566,9 @@ af** als een duif net gevlogen heeft:
 Een **oefenvlucht** telt maar voor een derde (−5). In de praktijk **verdubbelt**
 zo'n aftrek de kans op een blessure — ook al ziet je duif er verder prima uit.
 
-> **Het vormcijfer dat je ziet is al ná die aftrek.** Op de duifpagina en in de
-> inschrijflijst staat er dan *"vorm 68 · incl. −15 rust"*: die 15 is er dus al
-> van af (zonder de aftrek zou ze op 83 staan). Je hoeft zelf niets meer af te
-> trekken — de 🟢/🟡/🔴-stip hoort ook al bij het cijfer ná aftrek.
+> **Je hoeft er zelf niet mee te rekenen.** Het vormcijfer op de duifpagina en in
+> de inschrijflijst is **al ná die aftrek**, net als de 🟢/🟡/🔴-stip. Vloog je duif
+> gisteren, dan zie je haar vorm gewoon lager staan.
 
 > Wie zijn duiven laat roteren in plaats van dezelfde vogel elke dag op te
 > offeren, heeft dus meetbaar minder blessures.

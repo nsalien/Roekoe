@@ -1066,10 +1066,11 @@ Alles hieronder staat **live** op de deploy-branch. Data-migraties liepen door t
 - **Zichtbaar** (essentieel — een onzichtbare straf leest als willekeur): `pigeonDTO` stuurt
   `flightForm`/`formLabel`/`restPenalty`; badge op `PigeonPage` en 🟢/🟡/🔴 + vorm in de
   inschrijflijst op `FlightsPage`. **Let op:** `flightForm` is de waarde **ná** de
-  rustaftrek (`flightForm = conditionScore − restPenalty`). De UI zei eerst
-  "vorm 68 — net gevlogen, −15", wat las alsof die 15 er nog áf moest; overal vervangen
-  door **"incl. −15"** (+ tooltip die de waarde zonder aftrek noemt). Wiki en spelregels
-  §3.6 zeggen het nu ook expliciet. Wiki-sectie 🎯 **Vluchtvorm & blessures**, spelregels
+  rustaftrek (`flightForm = conditionScore − restPenalty`), en de UI toont **enkel dat
+  ene cijfer**. Eerst stond er "— net gevlogen, −15" achter, wat las alsof die 15 er nog
+  áf moest; op vraag van de eigenaar is die tekst **helemaal weg** — de speler hoeft zich
+  er niets bij af te vragen, het is verrekend. `pigeonDTO.restPenalty` blijft wél bestaan
+  (server-waarheid, nu ongebruikt door de client). Wiki + spelregels §3.6 idem. Wiki-sectie 🎯 **Vluchtvorm & blessures**, spelregels
   **§3.2**, **§3.5** (rustaftrek), **§4.3/§4.4**, **§5.1/§5.2**.
 - **Geen migratie, geen `dataVersion`-bump.** `lastRaceAt` staat leeg bij uitrol (dus geen
   rustaftrek met terugwerkende kracht) en iedereen zit rond gezondheid 100, dus de
