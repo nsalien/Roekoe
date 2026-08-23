@@ -388,6 +388,7 @@ export class D1Store implements Store {
         seasonStartedAt: worldRow.season_started_at ?? '',
         seasonEndsAt: worldRow.season_ends_at ?? '',
         seasonWeek: worldRow.season_week ?? 1,
+        lastAdvance: worldRow.last_advance ?? '',
       };
     }
 
@@ -486,16 +487,16 @@ export class D1Store implements Store {
     const wd = w.world;
     if (!this.worldExisted) {
       stmts.push(
-        db.prepare('INSERT INTO world (id, current_week, season_year, seeded, data_version, last_daily_tick, last_shelter_spawn, season_started_at, season_ends_at, season_week, version) VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)')
-          .bind(wd.currentWeek, wd.seasonYear, b(wd.seeded), wd.dataVersion ?? 0, wd.lastDailyTick ?? '', wd.lastShelterSpawn ?? '', wd.seasonStartedAt ?? '', wd.seasonEndsAt ?? '', wd.seasonWeek ?? 1),
+        db.prepare('INSERT INTO world (id, current_week, season_year, seeded, data_version, last_daily_tick, last_shelter_spawn, season_started_at, season_ends_at, season_week, last_advance, version) VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)')
+          .bind(wd.currentWeek, wd.seasonYear, b(wd.seeded), wd.dataVersion ?? 0, wd.lastDailyTick ?? '', wd.lastShelterSpawn ?? '', wd.seasonStartedAt ?? '', wd.seasonEndsAt ?? '', wd.seasonWeek ?? 1, wd.lastAdvance ?? ''),
       );
     } else if (JSON.stringify(wd) !== this.worldSnapshot) {
       // Only write the world row when something in it actually changed. Previously
       // this ran on EVERY request (even read-only polls), burning the write quota
       // and making `world` (id=1) a hot row that concurrent requests locked on.
       stmts.push(
-        db.prepare('UPDATE world SET current_week = ?, season_year = ?, seeded = ?, data_version = ?, last_daily_tick = ?, last_shelter_spawn = ?, season_started_at = ?, season_ends_at = ?, season_week = ?, version = version + 1 WHERE id = 1')
-          .bind(wd.currentWeek, wd.seasonYear, b(wd.seeded), wd.dataVersion ?? 0, wd.lastDailyTick ?? '', wd.lastShelterSpawn ?? '', wd.seasonStartedAt ?? '', wd.seasonEndsAt ?? '', wd.seasonWeek ?? 1),
+        db.prepare('UPDATE world SET current_week = ?, season_year = ?, seeded = ?, data_version = ?, last_daily_tick = ?, last_shelter_spawn = ?, season_started_at = ?, season_ends_at = ?, season_week = ?, last_advance = ?, version = version + 1 WHERE id = 1')
+          .bind(wd.currentWeek, wd.seasonYear, b(wd.seeded), wd.dataVersion ?? 0, wd.lastDailyTick ?? '', wd.lastShelterSpawn ?? '', wd.seasonStartedAt ?? '', wd.seasonEndsAt ?? '', wd.seasonWeek ?? 1, wd.lastAdvance ?? ''),
       );
     }
 
@@ -792,6 +793,7 @@ const SCHEMA_STEPS: string[] = [
     'ALTER TABLE pigeons ADD COLUMN last_race_practice INTEGER NOT NULL DEFAULT 0',
     'ALTER TABLE pigeons ADD COLUMN last_rest_cure_at TEXT',
     'ALTER TABLE pigeons ADD COLUMN away_until TEXT',
+    "ALTER TABLE world ADD COLUMN last_advance TEXT NOT NULL DEFAULT ''",
   ] as string[]),
 ];
 

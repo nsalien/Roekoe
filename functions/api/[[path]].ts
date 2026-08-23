@@ -16,6 +16,7 @@ import type { User } from '../../core/schema.js';
 import { hashPassword, verifyPassword, signToken, verifyToken } from '../../core/auth.js';
 import { newId } from '../../core/store.js';
 import {
+  ADVANCE_THROTTLE_SECONDS,
   AGING,
   BETTING,
   BREEDING,
@@ -152,7 +153,20 @@ app.use('*', async (c, next) => {
   // still persists what it changes.
   const light = path.startsWith('/api/auth/');
 
-  if (!light) {
+  // Skip the engine on a read-only request that arrives while a recent run is
+  // still fresh (see ADVANCE_THROTTLE_SECONDS). This is the CPU fix: `advance`
+  // + `persist` are ~9 ms of a ~14 ms request, and on a poll where nothing
+  // happened that work is discarded anyway. A mutating request always advances
+  // first so it never acts on a stale world.
+  const lastAdvance = Date.parse(store.data.world.lastAdvance ?? '');
+  const fresh =
+    !Number.isNaN(lastAdvance) &&
+    nowMs - lastAdvance >= 0 &&
+    nowMs - lastAdvance < ADVANCE_THROTTLE_SECONDS * 1000;
+  const readOnly = c.req.method === 'GET' || c.req.method === 'HEAD';
+  const throttled = fresh && readOnly;
+
+  if (!light && !throttled) {
     // Real-time flight lifecycle + one-time data migrations. Persist any changes.
     // Fetch real weather for any flight about to start, so it's frozen against
     // actual conditions in the release region (falls back to a random sky).
@@ -177,6 +191,8 @@ app.use('*', async (c, next) => {
     const weatherByFlight = new Map<string, WeatherResult>(dueWeather);
     if (legWeather.length > 0) applyRelayForecasts(store.data, new Map(legWeather), nowMs);
     advanceRealtime(store.data, nowMs, weatherByFlight);
+    // Stamp it AFTER the engine ran, so a slow run does not shorten the window.
+    store.data.world.lastAdvance = new Date(nowMs).toISOString();
     await store.persist();
   }
   c.set('store', store);

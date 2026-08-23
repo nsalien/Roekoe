@@ -567,6 +567,14 @@ export interface World {
   seasonEndsAt: string;
   /** Week within the current season (1..SEASON.weeks), derived from real time. */
   seasonWeek: number;
+  /**
+   * ISO timestamp of the last time `advanceRealtime` actually ran. Read-only
+   * requests inside ADVANCE_THROTTLE_SECONDS of this skip the engine and the
+   * persist entirely — see the middleware in functions/api. The world clock is
+   * derived from timestamps, so running it a few seconds late changes nothing;
+   * running it on every poll cost ~9 ms of CPU that we do not have.
+   */
+  lastAdvance?: string;
 }
 
 /** The full database document persisted to disk. */
@@ -604,7 +612,7 @@ export function emptyStats(): PlayerStats {
 
 export function emptyDatabase(): Database {
   return {
-    world: { currentWeek: 1, seasonYear: 1, seeded: false, dataVersion: 0, lastDailyTick: '', lastShelterSpawn: '', seasonStartedAt: '', seasonEndsAt: '', seasonWeek: 1 },
+    world: { currentWeek: 1, seasonYear: 1, seeded: false, dataVersion: 0, lastDailyTick: '', lastShelterSpawn: '', seasonStartedAt: '', seasonEndsAt: '', seasonWeek: 1, lastAdvance: '' },
     users: [],
     lofts: [],
     pigeons: [],
