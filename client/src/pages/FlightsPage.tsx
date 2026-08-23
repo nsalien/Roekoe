@@ -213,10 +213,13 @@ export function FlightsPage() {
                         // Energie AND vluchtvorm: the tank on its own says nothing about
                         // the injury risk (that is energie + gezondheid, minus the rest
                         // deduction), and an invisible penalty just reads as bad luck.
+                        // `flightForm` is the value AFTER the deduction, so the suffix
+                        // spells that out ("incl.") — "vorm 68 — net gevlogen, −15" read
+                        // as if the 15 still had to come off.
                         label:
                           `${p.formLabel === 'fris' ? '🟢' : p.formLabel === 'matig' ? '🟡' : '🔴'} ${p.name} ` +
                           `(★${p.talent} · energie ${Math.round(p.form ?? 0)} · vorm ${p.flightForm ?? '?'}` +
-                          `${p.restPenalty > 0 ? ` — net gevlogen, −${p.restPenalty}` : ''})`,
+                          `${p.restPenalty > 0 ? `, incl. −${p.restPenalty} net gevlogen` : ''})`,
                       }))}
                       onEnter={(pigeonId) => act(() => api(`/flights/${f.id}/enter`, { method: 'POST', body: { pigeonId } }), 'Ingeschreven!')}
                     />
