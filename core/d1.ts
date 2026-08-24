@@ -284,6 +284,30 @@ export async function findUserById(db: D1Database, id: string): Promise<User | n
   return row ? rowToUser(row) : null;
 }
 
+/**
+ * The live board, without loading the world: the world row (for the engine's
+ * throttle clock) plus the one flight being watched. **Two rows.**
+ *
+ * This is the single hottest route in the game — during a fondvlucht every
+ * player keeps it open and polls it for hours — and a full load costs ~350 rows,
+ * of which ~64% is the entire `pigeons` table. The live board needs none of it:
+ * the positions, names and owners all ride in the flight's own frozen `sim` and
+ * `results`, and the page never reads `entrants`/`teams`. D1's free plan bills
+ * **rows read** (5M/day), so this is what keeps a long race from eating the
+ * day's budget. See `liveBoardDTO` for the matching slim response.
+ */
+export async function loadLiveFlight(
+  db: D1Database,
+  flightId: string,
+): Promise<{ lastAdvance: string; flight: Flight } | null> {
+  const [worldRow, flightRow] = await Promise.all([
+    db.prepare('SELECT last_advance FROM world WHERE id = 1').first() as Promise<any>,
+    db.prepare('SELECT * FROM flights WHERE id = ?').bind(flightId).first() as Promise<any>,
+  ]);
+  if (!flightRow) return null;
+  return { lastAdvance: worldRow?.last_advance ?? '', flight: rowToFlight(flightRow) };
+}
+
 /** Same, by name. Case-insensitive and never matches a bot. */
 export async function findUserByUsername(db: D1Database, username: string): Promise<User | null> {
   const row = (await db

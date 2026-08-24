@@ -383,8 +383,30 @@ export interface CommentLine {
   text: string;
 }
 
+/**
+ * The live board answers from the flight row alone (two D1 rows instead of ~350
+ * — see loadLiveFlight/liveBoardDTO on the server), so it carries only the
+ * fields this page actually renders. Deliberately NOT the full `Flight`: if the
+ * page ever needs `entrants`/`teams`, add them on the server rather than falling
+ * back to the full load — that route is polled by every player at once.
+ */
+export interface LiveFlight {
+  id: string;
+  name: string;
+  fromCity: string;
+  toCity: string;
+  distanceKm: number;
+  startAt: string;
+  status: FlightStatus;
+  weather: string;
+  relay: boolean;
+  entries: FlightEntry[];
+  results: FlightResult[];
+  recap: string | null;
+}
+
 export interface LiveResponse {
-  flight: Flight;
+  flight: LiveFlight;
   live: LiveSnapshot | null;
   commentary: CommentLine[];
 }

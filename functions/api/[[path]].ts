@@ -11,7 +11,7 @@ import { cors } from 'hono/cors';
 import { handle } from 'hono/cloudflare-pages';
 import type { D1Database } from '@cloudflare/workers-types';
 
-import { D1Store, ensureSchema, findUserById, findUserByUsername } from '../../core/d1.js';
+import { D1Store, ensureSchema, findUserById, findUserByUsername, loadLiveFlight } from '../../core/d1.js';
 import type { User } from '../../core/schema.js';
 import { hashPassword, verifyPassword, signToken, verifyToken } from '../../core/auth.js';
 import { newId } from '../../core/store.js';
@@ -84,6 +84,7 @@ import {
   auctionsDTO,
   flightDTO,
   liveFlightDTO,
+  liveBoardDTO,
   loftDTO,
   notificationsFor,
   pigeonDTO,
@@ -143,6 +144,28 @@ app.use('*', async (c, next) => {
     }
     await next();
     return;
+  }
+
+  // THE hot route: during a fondvlucht every player keeps the live board open
+  // and polls it for hours, and a full world load costs ~350 D1 rows (64% of it
+  // the whole `pigeons` table) against a free-plan budget of 5M rows a DAY.
+  // The board needs nothing but its own flight row, so when the engine has run
+  // recently we answer from two rows and skip the world entirely. If the engine
+  // is due we fall through to the normal path, so the race clock keeps ticking
+  // even when live polls are the only traffic.
+  const liveMatch = /^\/api\/flights\/([A-Za-z0-9_-]+)\/live$/.exec(path);
+  if (liveMatch && payload && (c.req.method === 'GET' || c.req.method === 'HEAD')) {
+    const lite = await loadLiveFlight(c.env.DB, liveMatch[1]);
+    if (lite) {
+      const last = Date.parse(lite.lastAdvance);
+      const engineFresh =
+        !Number.isNaN(last) && nowMs - last >= 0 && nowMs - last < ADVANCE_THROTTLE_SECONDS * 1000;
+      if (engineFresh) {
+        // The JWT was verified above (pure crypto), so we know who is asking
+        // without reading the users table. The board is the same for everyone.
+        return c.json(liveBoardDTO(lite.flight, nowMs));
+      }
+    }
   }
 
   let store = await D1Store.load(c.env.DB, payload?.sub);

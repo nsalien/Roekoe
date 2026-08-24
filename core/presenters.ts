@@ -318,6 +318,42 @@ export function liveFlightDTO(db: Database, f: Flight, nowMs: number) {
   };
 }
 
+/**
+ * The live board, derived from the flight row ALONE — no `db`.
+ *
+ * Everything the live page renders already rides in the flight itself: the
+ * frozen `sim` carries each bird's name, owner and position, and `results`
+ * carries the finish. It never reads `entrants`/`teams` (those exist for the
+ * betting UI on a *scheduled* flight), so this leaves them out rather than
+ * inventing them from a database we deliberately did not load.
+ *
+ * That is what lets `/flights/:id/live` answer from two rows instead of ~350
+ * (see `loadLiveFlight`). Keep this in step with what `LiveFlightPage` uses: if
+ * the page starts needing a field, add it here, not by falling back to the full
+ * `flightDTO`.
+ */
+export function liveBoardDTO(f: Flight, nowMs: number) {
+  const isRunning = f.status === 'live' || f.status === 'completed';
+  return {
+    flight: {
+      id: f.id,
+      name: f.name,
+      fromCity: f.fromCity,
+      toCity: f.toCity,
+      distanceKm: f.distanceKm,
+      startAt: f.startAt,
+      status: f.status,
+      weather: f.weather,
+      relay: !!f.relay,
+      entries: f.entries,
+      results: f.results,
+      recap: f.recap ?? null,
+    },
+    live: isRunning ? liveSnapshot(f, nowMs) : null,
+    commentary: isRunning ? flightCommentary(f, nowMs) : [],
+  };
+}
+
 export function tradeDTO(t: Trade) {
   return {
     id: t.id,
