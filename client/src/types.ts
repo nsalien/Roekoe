@@ -597,6 +597,9 @@ export interface Sponsor {
   // Present on offers/available (a same-category rival you'd have to drop):
   conflictWith?: string | null;
   conflictPenalty?: number;
+  /** Refusing is definitive: this offer pays less than the sponsor you already
+   *  have in the same category, so they will not come back. */
+  refusalIsFinal?: boolean;
 }
 
 export interface SponsorView {

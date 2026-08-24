@@ -249,6 +249,10 @@ export interface DeclinedSponsor {
   id: string;
   at: string; // ISO timestamp it was refused/cancelled
   perf: number; // loft performance score at that moment (for re-offer scaling)
+  /** Refused while it was a WORSE competitor of a sponsor you already had — so
+   *  taking it would have cost a break fee for less money. That is a definitive
+   *  no: this sponsor never offers again. (Rides in the sponsorship JSON.) */
+  permanent?: boolean;
 }
 
 /** Everything about a loft's sponsors: active contracts + offer bookkeeping. */

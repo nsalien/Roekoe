@@ -317,6 +317,10 @@ export function WikiPage() {
             estafettevlucht leveren <strong>geen</strong> sponsorgeld op.</li>
           <li>Je kan <strong>meerdere sponsors</strong> tegelijk hebben, maar per categorie maar één.</li>
           <li>Presteer je een heel seizoen fors minder, dan kan een sponsor er zelf mee stoppen.</li>
+          <li><strong>Nee is nee bij een slechtere concurrent.</strong> Weiger je een sponsor uit een categorie
+            waar je er al één hebt (overstappen kost een verbrekingsvergoeding) en betaalt hij <strong>niet
+            meer</strong> dan die, dan komt hij <strong>nooit meer terug</strong> — je zou immers betalen om er
+            op achteruit te gaan. Biedt de concurrent wél méér, dan klopt hij later gewoon opnieuw aan.</li>
         </ul>
         <p><strong>Strategie:</strong> een portefeuille sponsors dekt een flink deel van je dagelijkse kosten, en de
           premie maakt de zware internationale vluchten extra de moeite. Grote sponsors komen enkel op je af ná een

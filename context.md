@@ -369,6 +369,7 @@ Roekoe/
 ├── advance-throttle.test.mts    regressietest: advanceRealtime-throttle (CPU)
 ├── cpu-budget.test.mts          regressietest: geen pad over de 10 ms CPU (koud + warm)
 ├── daily-budget.test.mts        regressietest: D1-daglimieten (5M gelezen / 100k geschreven)
+├── sponsor-refusal.test.mts     regressietest: "nee is nee" bij een slechtere concurrent
 ├── commentary.test.mts          regressietest: live verslag groeit aan, herschrijft niet
 ├── betting-odds.test.mts        regressietest: weddenschapskansen kloppen + zijn stabiel
 ├── limits-report.mts            meet queries/rijen gelezen/geschreven per verzoek
@@ -843,6 +844,7 @@ npx tsx names.test.mts             # elke duivennaam blijft uniek
 npx tsx advance-throttle.test.mts  # CPU: een leespoll slaat de engine over
 npx tsx cpu-budget.test.mts        # CPU: geen enkel pad over de 10 ms (koud!)
 npx tsx daily-budget.test.mts      # D1-DAGlimieten: een drukke dag < 50% van 5M/100k
+npx tsx sponsor-refusal.test.mts   # een slechtere concurrent-sponsor komt niet terug
 npx tsx commentary.test.mts        # het live verslag groeit aan, herschrijft niet
 npx tsx betting-odds.test.mts      # weddenschapskansen kloppen en zijn stabiel
 ```
@@ -884,7 +886,36 @@ eerst) en `npx tsx limits-report.mts` (queries/rijen per verzoek).
 Alles hieronder staat **live** op de deploy-branch. Data-migraties liepen door tot
 **`dataVersion = 38`**.
 
-**Daglimieten van D1: het live-bord uit de hete weg gehaald (nieuwste)**
+**Sponsors: een slechtere concurrent weigeren is definitief (nieuwste)**
+- **Op verzoek van de eigenaar:** weiger je een sponsor die in dezelfde categorie zit
+  als een sponsor die je al hebt (overstappen kost dus een verbrekingsvergoeding) én
+  die **niet meer** betaalt, dan komt die sponsor **nooit meer terug**. Zo'n aanbod is
+  puur slechter — je zou betalen om er op achteruit te gaan — dus hoeft de speler er
+  niet om de paar dagen opnieuw nee tegen te zeggen.
+- **Nieuw veld `DeclinedSponsor.permanent?`** (rijdt mee in de `sponsorship`-JSON,
+  **geen kolom, geen migratie**). Gezet door `applyRefuseSponsor` wanneer
+  `refusalIsFinal(st, def, offer)` waar is; `evaluateSponsorOffers` slaat zo'n
+  ingang over (`if (d.permanent) continue`).
+- ⚠️ **Bewust NIET definitief: een concurrent die méér biedt.** De code weet niet
+  "slechter", ze weet "conflict + boete". Een speler kan een **betere** concurrent
+  weigeren omdat de boete er die dag niet in zit — de beste sponsor van een categorie
+  dan voorgoed wegsluiten zou een val zijn. Daarom vergelijkt `refusalIsFinal` de
+  **dagbijdrage** met het lopende contract (podiumpremie als tiebreak) en is enkel
+  "niet meer dan" definitief. Gelijk telt óók als definitief: overstappen zou dan
+  enkel de boete kosten.
+- **Zichtbaar vóór de klik:** `sponsorView` stuurt `refusalIsFinal` mee per aanbod; de
+  kaart zet er "ze bieden **minder** … komen **niet meer terug**" bij, de knop heet
+  **"Definitief weigeren"** en vraagt een bevestiging. Een permanente nee mag nooit
+  een verrassing zijn.
+- **Ongemoeid:** een opgezegd contract, een sponsor die zelf opstapt na een
+  seizoensreview, en een gewone weigering zonder concurrent blijven allemaal
+  terugkeerbaar na de afkoelperiode.
+- **Nieuwe blijvende test `sponsor-refusal.test.mts`** (13 controles): slechter →
+  definitief en na 40 kansen nooit meer aangeboden; beter → blijft terugkomen; geen
+  concurrent → tijdelijk; gelijk → definitief; en de vlag overleeft een JSON-ronde
+  (zoals de rit door D1). Spelregels **§12**, wiki-sectie 🤝 **Sponsors**.
+
+**Daglimieten van D1: het live-bord uit de hete weg gehaald**
 - **Aanleiding:** Cloudflare kondigde aan dat de **daglimieten van D1** vanaf **1 sep
   2026** hard afgedwongen worden op het gratis plan: **5.000.000 rijen gelezen** en
   **100.000 rijen geschreven** per dag, reset om 00:00 UTC. Loopt een van beide vol,
