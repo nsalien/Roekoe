@@ -1811,104 +1811,80 @@ export const EPITHETS = {
 } as const;
 
 // ===========================================================================
-// Live race commentary (dark-ish Flemish humour). The feed reports REAL events
-// from the frozen pace profiles — overtakes and their cause — so it tells you
-// something useful, not just jokes. {name} = the bird acting, {name2} = the one
-// it passes, {km} = a rough detour distance (for a strayed bird).
+// Live race commentary — FACTUAL ONLY.
+//
+// Every line reports something that actually happened in the frozen pace
+// profiles: the lossing, a pass (and its cause), a detour, a bird lost, giving
+// out, a pull, an arrival. Nothing else. The feed used to carry flavour tails
+// ("de melker pinkt een traantje weg") and an opening standings line that just
+// repeated the board — on a 90-bird fondvlucht that is 150 lines of which most
+// said nothing the player could act on, re-sent on every poll.
+//
+// Keep new lines SHORT and factual: they are read at a glance, dozens at a
+// time, and the whole feed rides along in every live-board response.
+// {name} = the bird acting, {name2} = the one it passes, {km} = detour distance
+// (or, for a relay, the swap point).
 // ===========================================================================
 export const COMMENTARY = {
   start: [
-    'De manden gaan open — daar vliegen ze, richting huis!',
-    'Lossing! De hemel kleurt grijs van de duiven.',
-    'En ze zijn vertrokken, zat van de vrijheid.',
+    'De duiven zijn gelost.',
   ],
   // A clean pass, no obvious cause.
   overtake: [
-    '{name} steekt {name2} voorbij en pakt de plek.',
-    '{name} duikt onder {name2} door — plaats gewonnen.',
-    '{name} wringt zich langs {name2}.',
-    '{name} laat {name2} achter zich en schuift op.',
+    '{name} steekt {name2} voorbij.',
+    '{name} gaat over {name2} heen.',
   ],
   // {name} passes {name2} because {name} is accelerating.
   overtakeSurge: [
-    '{name} zet een tussensprint in en wipt over {name2}.',
-    '{name} versnelt fors en steekt {name2} voorbij.',
-    '{name} vindt een tweede adem en rondt {name2}.',
-    '{name} schakelt een tandje bij en gaat over {name2} heen.',
+    '{name} versnelt en steekt {name2} voorbij.',
   ],
   // {name} passes {name2} because {name2} is fading / running out of legs.
   overtakeTired: [
-    '{name2} zakt weg door vermoeidheid — {name} gaat er moeiteloos over.',
-    '{name2} verliest tempo, {name} glipt voorbij.',
-    '{name2} vliegt plots met de handrem op; {name} neemt de plek over.',
-    '{name2} raakt op, {name} profiteert en steekt voorbij.',
+    '{name2} zakt weg; {name} gaat voorbij.',
   ],
   // {name} passes {name2} because {name2} strayed off course (~{km} km detour).
   overtakeLost: [
-    '{name2} is van koers (~{km} km omweg) — {name} steekt zonder moeite voorbij.',
-    '{name2} dwaalt af en verliest ~{km} km; {name} pikt de plaats in.',
-    '{name2} zoekt de weg kwijt, {name} gaat er vlotjes over.',
+    '{name2} is van koers (~{km} km omweg); {name} gaat voorbij.',
   ],
   // A pass that takes over the lead of the race.
   leadChange: [
-    '{name} grijpt de kop! {name2} moet lossen.',
-    'Nieuwe leider: {name} gaat over {name2} heen.',
     '{name} neemt de leiding over van {name2}.',
-    'Wissel aan de kop — {name} kopt {name2} eraf.',
   ],
   // A bird wanders off course (~{km} km extra) and slides down the field.
   stray: [
-    '{name} twijfelt aan de route en draait een lus — een omweg van ~{km} km, en zakt weg in de stand.',
-    '{name} raakt van koers en vliegt ~{km} km te veel. Kostbare minuten verspeeld.',
-    '{name} verliest het noorden, ~{km} km omweg, en valt terug.',
+    '{name} raakt van koers — omweg van ~{km} km.',
   ],
   // A bird collapses from exhaustion mid-flight (a DNF you can see happen).
   dnfExhausted: [
-    '{name} valt stil — de tank is leeg. Ze geraakt niet meer thuis.',
-    '{name} strijkt onderweg neer, doodop. Einde vlucht.',
-    '{name} kan niet meer, uitgeput langs de kant. Geen finish.',
+    '{name} valt stil door uitputting — geen finish.',
   ],
   // A bird loses the way completely — she is not hurt, she simply has no idea
   // where she is. She turns up at the loft days later (see LOST).
   dnfLost: [
-    '{name} is het noorden volledig kwijt en verdwijnt uit beeld. Ze raakt vandaag niet meer thuis.',
-    '{name} draait rondjes, kiest de verkeerde richting en is weg. Wachten wordt het.',
-    '{name} verliest alle houvast en vliegt de horizon in — die komt hier vandaag niet meer aan.',
+    '{name} is de weg kwijt en komt vandaag niet thuis.',
   ],
   // A bird pulls up injured mid-flight.
   dnfInjury: [
-    '{name} grijpt naar een vleugel — kramp! Ze moet opgeven.',
-    '{name} plooit door met een blessure en staakt de vlucht.',
-    '{name} loopt een kwetsuur op en komt niet verder.',
+    '{name} loopt een kwetsuur op en staakt de vlucht.',
   ],
   // The owner pulls the bird from the race.
   pulled: [
-    'De melker roept {name} terug — energie sparen voor de volgende keer.',
-    '{name} wordt uit de wedstrijd gehaald en spaart haar krachten.',
+    '{name} wordt teruggeroepen door de melker.',
   ],
   finish: [
-    '{name} valt in! Klok gedrukt!',
-    '{name} plooit de vleugels en duikt het hok in. Binnen!',
-    'Daar is {name}! De melker pinkt een traantje weg.',
-    '{name} landt en vraagt meteen om eten. Typisch.',
+    '{name} is binnen.',
   ],
   // --- Estafettevlucht ------------------------------------------------------
   // A relay handover: {name} arrives at the swap point, {name2} takes over.
   handover: [
-    '{name} raakt het wisselpunt {km} — {name2} neemt over en vertrekt.',
-    'Wissel {km}: {name} lost af, {name2} pakt de draad op.',
-    '{name} komt binnen bij het wisselpunt {km} en stuurt {name2} de baan op.',
+    'Wisselpunt {km}: {name} lost af, {name2} vertrekt.',
   ],
   // A relay team is eliminated because one of its birds never made it.
   relayOut: [
-    'Drama voor de ploeg van {name2}: {name} raakt er niet, en daarmee ligt de hele ploeg eruit.',
-    '{name} strandt — de ploeg van {name2} is uitgeschakeld.',
-    'Einde verhaal voor {name2}: zonder {name} raakt de estafette niet thuis.',
+    '{name} raakt er niet — ploeg {name2} is uitgeschakeld.',
   ],
   // A relay team completes the full route.
   relayFinish: [
-    'De ploeg van {name2} is compleet binnen — {name} drukt de klok!',
-    '{name} sluit af voor {name2}: de estafette zit erop!',
-    'Daar is {name}! De ploeg van {name2} heeft de volle route uitgevlogen.',
+    'Ploeg {name2} is binnen; {name} sluit af.',
   ],
 } as const;

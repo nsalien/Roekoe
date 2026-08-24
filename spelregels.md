@@ -152,9 +152,10 @@ eigenschappen, vorm-van-de-dag en het weer op het stuk dat ze op dat moment vlie
 geen opsmuk. Om het rustig leesbaar te houden **verspringt het cijfer om de ~5
 minuten** in plaats van elke seconde te flikkeren.
 
-**📻 Live verslag.** Het verslag naast het bord is geen willekeurige grap meer: het
-meldt de **échte gebeurtenissen** uit de vlucht, afgeleid uit hoe de duiven vliegen.
-Vooral **wie wie voorbijsteekt** — en, als de reden duidelijk is, **waaróm**:
+**📻 Live verslag.** Het verslag naast het bord meldt **enkel wat er echt gebeurt**,
+kort en zakelijk — geen sfeerzinnen, geen herhaling van wat het bord al toont. Je
+leest er alleen feiten: de lossing, aankomsten, en onderweg vooral **wie wie
+voorbijsteekt** — en, als de reden duidelijk is, **waaróm**:
 - een duif **versnelt** / zet een tussensprint in en gaat erover;
 - een duif **zakt weg** (verliest tempo) en wordt ingehaald;
 - een duif **raakt van koers** en maakt een omweg (met een ruwe **~X km te veel**),
