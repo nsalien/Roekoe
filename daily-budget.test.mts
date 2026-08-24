@@ -216,7 +216,10 @@ const equivalence: { label: string; same: boolean; detail: string }[] = [];
   for (const [status, f] of byStatus) {
     const full = liveFlightDTO(s.data, f, now);
     const lite = liveBoardDTO(f, now);
-    const fields = ['id', 'name', 'fromCity', 'toCity', 'distanceKm', 'startAt', 'status', 'weather', 'relay', 'entries', 'results', 'recap'] as const;
+    // `entries` is the ONE deliberate difference: the live page reads it only to
+    // label relay legs, so a normal flight gets an empty list instead of ~90
+    // objects it would never look at. Checked separately, below.
+    const fields = ['id', 'name', 'fromCity', 'toCity', 'distanceKm', 'startAt', 'status', 'weather', 'relay', 'results', 'recap'] as const;
     const diffs: string[] = [];
     for (const k of fields) {
       const a = JSON.stringify((full.flight as any)[k] ?? null);
@@ -225,6 +228,10 @@ const equivalence: { label: string; same: boolean; detail: string }[] = [];
     }
     if (JSON.stringify(full.live) !== JSON.stringify(lite.live)) diffs.push('live');
     if (JSON.stringify(full.commentary) !== JSON.stringify(lite.commentary)) diffs.push('commentary');
+    const entriesOk = f.relay
+      ? JSON.stringify(lite.flight.entries) === JSON.stringify(f.entries)
+      : lite.flight.entries.length === 0;
+    if (!entriesOk) diffs.push('entries');
     equivalence.push({ label: `${status}-vlucht: smal == volledig`, same: diffs.length === 0, detail: diffs.join(', ') });
   }
 }

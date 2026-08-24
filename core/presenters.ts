@@ -345,7 +345,11 @@ export function liveBoardDTO(f: Flight, nowMs: number) {
       status: f.status,
       weather: f.weather,
       relay: !!f.relay,
-      entries: f.entries,
+      // Only a relay needs this: the page reads it purely to label which leg a
+      // bird flew. For a normal flight every entrant is already in `live.birds`
+      // with its position, so shipping the entry list again is ~90 objects of
+      // dead weight in a response that is re-sent on every poll.
+      entries: f.relay ? f.entries : [],
       results: f.results,
       recap: f.recap ?? null,
     },

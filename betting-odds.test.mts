@@ -151,10 +151,13 @@ console.log('\nDeterministisch: dezelfde vraag geeft altijd hetzelfde antwoord')
   ok('na verdringing uit de cache (koude weg)', first === afterEvict, `${first} vs ${afterEvict}`);
 
   // Een tweede vlucht met dezelfde duiven maar een andere id hoort een ANDERE
-  // trekking te geven: de seed hangt aan de vlucht.
+  // trekking te geven: de seed hangt aan de vlucht. Vergelijk het HELE veld —
+  // één duif met een kans van een fractie van een procent kan bij twee losse
+  // trekkingen best toevallig op hetzelfde aantal uitkomen.
   const twin = { ...flight, id: 'flt_15_twin' } as Flight;
-  const twinProb = P(db, twin, 'win', p.ownerId, p.id)!;
-  ok('een andere vlucht-id geeft een eigen trekking', twinProb !== first || first === 0, `${first} vs ${twinProb}`);
+  const here = birds.map((b) => P(db, flight, 'win', b.ownerId, b.id));
+  const there = birds.map((b) => P(db, twin, 'win', b.ownerId, b.id));
+  ok('een andere vlucht-id geeft een eigen trekking', JSON.stringify(here) !== JSON.stringify(there));
 }
 
 console.log('\nDe cache reageert op wijzigingen');

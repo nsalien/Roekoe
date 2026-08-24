@@ -886,7 +886,41 @@ eerst) en `npx tsx limits-report.mts` (queries/rijen per verzoek).
 Alles hieronder staat **live** op de deploy-branch. Data-migraties liepen door tot
 **`dataVersion = 38`**.
 
-**Sponsors: een slechtere concurrent weigeren is definitief (nieuwste)**
+**Live verslag: enkel nog feiten (nieuwste)**
+- **Op verzoek van de eigenaar:** het 📻-verslag toont enkel nog **functionele** regels
+  — lossing, voorbijsteken (met reden), omweg, verdwaald, uitputting, blessure,
+  opgeven, aankomst. Alle sfeer eruit.
+- **Wat weg is:** de flavour-staarten in `COMMENTARY` ("de melker pinkt een traantje
+  weg", "vraagt meteen om eten. Typisch.", "zat van de vrijheid") en de openingsregel
+  **"Vroege stand: X op kop, gevolgd door…"** — die herhaalde letterlijk wat het
+  live-bord ernaast continu toont. Elke pool is nu 1–2 korte, feitelijke zinnen
+  (`{name} is binnen.` i.p.v. vier grappige varianten).
+- **Meegenomen: `entries` gaat niet meer mee bij een gewone vlucht.** `LiveFlightPage`
+  leest dat veld **alleen** om estafette-etappes te labelen (beide gebruiken zitten
+  achter `flight.relay`); voor een normale vlucht staat elke deelnemer al in
+  `live.birds` mét positie. Dat scheelde ~90 objecten per poll.
+- **Gemeten** op een fondvlucht van 900 km met 90 duiven, aan het eind van de race:
+
+  | | vóór | na |
+  |---|---|---|
+  | verslag | 14,0 KB | 9,9 KB |
+  | bord | 25,5 KB | 20,9 KB |
+  | **antwoord per poll** | **39,4 KB** | **30,8 KB (−22 %)** |
+
+- ⚠️ **Eerlijk over de winst:** dit is **payload**, geen D1-rijen en geen CPU. Na de
+  twee vorige rondes kost het verslag nog 0,05 ms warm en 1 ms koud, en de live-route
+  leest 2 rijen. Dit is dus vooral **leesbaarheid** (150 regels waarvan 88 aankomsten
+  is een muur) met een bescheiden bandbreedtewinst erbovenop.
+- **`daily-budget.test.mts`** vergelijkt `entries` nu apart: bij een estafette moet de
+  lijst kloppen, bij een gewone vlucht moet ze **leeg** zijn. De rest van de
+  gelijkwaardigheidscontrole blijft veld voor veld.
+- **Meegenomen fix:** `betting-odds.test.mts` was flaky (~1 op 25). De controle "een
+  andere vlucht-id geeft een eigen trekking" keek naar één duif, en bij een kans van
+  0,13 % kunnen twee losse trekkingen toevallig op hetzelfde aantal uitkomen. Ze
+  vergelijkt nu het hele veld. 30/30 groen.
+- **Geen migratie, geen schemawijziging.**
+
+**Sponsors: een slechtere concurrent weigeren is definitief**
 - **Op verzoek van de eigenaar:** weiger je een sponsor die in dezelfde categorie zit
   als een sponsor die je al hebt (overstappen kost dus een verbrekingsvergoeding) én
   die **niet meer** betaalt, dan komt die sponsor **nooit meer terug**. Zo'n aanbod is

@@ -1579,12 +1579,10 @@ function scanCommentary(flight: Flight, total: number, dist: number, upTo: numbe
     const rng = seededRng(hashString(flight.id + ':ov'));
     const step = commentaryStep(total);
     const first = rankAtTime(flight, dist, 1);
+    // Only the lossing itself. The old "Vroege stand: X op kop, gevolgd door
+    // Y en Z" line is gone: the live board right next to the feed already shows
+    // the standings, continuously and for the whole field.
     const lines: CommentLine[] = [{ atSeconds: 0, text: pickWith(rng, COMMENTARY.start) }];
-    if (first.length >= 2) {
-      const names = first.slice(0, 3).map((r) => r.s.pigeonName);
-      const tail = names.length >= 3 ? ` en ${names[2]}` : '';
-      lines.push({ atSeconds: 1, text: `Vroege stand: ${names[0]} op kop, gevolgd door ${names[1]}${tail}.` });
-    }
     sc = { sig, step, lines, prev: first, nextT: step, interval: 0, pairMutedUntil: new Map(), rng };
     if (commentaryCache.size >= COMMENTARY_CACHE_MAX) {
       commentaryCache.delete(commentaryCache.keys().next().value as string);
