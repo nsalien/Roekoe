@@ -24,10 +24,57 @@ export function bettingOpen(flight: Flight, nowMs: number): boolean {
   return nowMs >= start - BETTING.windowHours * 3600000 && nowMs < start;
 }
 
+/**
+ * The Monte-Carlo, reduced to the COUNTS the odds actually need.
+ *
+ * The old version built a full finishing order per draw — 1500 sorts of up to
+ * 140 birds — and that alone cost 15–27 ms on a big field, against a Workers
+ * budget of 10 ms per request. But no bet kind needs the whole order: `win` and
+ * `mine_wins` need the first finisher, `top3`/`own_top3` the first three, `last`
+ * the slowest finisher. So one O(birds) pass per draw tracks exactly those and
+ * sorts nothing.
+ *
+ * `head2head` is the exception (it compares two arbitrary birds), which is why
+ * every bird draws from its OWN rng stream, seeded on flight + bird: bird i's
+ * draws can then be replayed on their own, without re-running the whole field.
+ */
 interface SimResult {
-  orders: { order: string[]; finishers: number }[];
-  owner: Map<string, string>;
-  ids: string[];
+  iterations: number;
+  n: number;
+  ids: string[]; // index → pigeonId
+  ownerOf: string[]; // index → ownerId
+  indexOf: Map<string, number>;
+  winCount: Int32Array; // draws this bird came home first
+  top3Count: Int32Array; // draws it was in the first min(3, finishers)
+  lastCount: Int32Array; // draws it was the slowest finisher
+  ownerWin: Map<string, number>; // draws won by any bird of this owner
+  vel: Float64Array; // per-bird constants, kept for the head2head replay
+  dnfChance: Float64Array;
+  seedBase: string;
+}
+
+/**
+ * The run is fully determined by the flight (seeded on its id) and by the birds
+ * that are entered, so within one isolate we compute it ONCE and reuse it. The
+ * bet panel refetches its odds on every change, and re-running the Monte-Carlo
+ * per request costs ~18 ms on a big field — over the whole 10 ms budget by
+ * itself. Keyed on a cheap signature of everything the draw depends on, so a
+ * bird entering, leaving or changing energie invalidates it.
+ */
+const simCache = new Map<string, { sig: number; res: SimResult }>();
+const SIM_CACHE_MAX = 8;
+
+/** Cheap numeric fingerprint of every input the Monte-Carlo actually reads. */
+function simSignature(db: Database, flight: Flight, birds: Pigeon[]): number {
+  let h = (hashString(flight.id) ^ Math.round(flight.distanceKm * 10) ^ (flight.week << 5)) >>> 0;
+  for (const p of birds) {
+    h = (Math.imul(h, 31) + hashString(p.id)) >>> 0;
+    // Only the fields pigeonVelocity + the DNF roll depend on.
+    h = (Math.imul(h, 31) + Math.round((p.speed + p.endurance + p.orientation) * 10)) >>> 0;
+    h = (Math.imul(h, 31) + Math.round((p.form + p.health + p.experience) * 10)) >>> 0;
+    h = (Math.imul(h, 31) + p.birthWeek) >>> 0;
+  }
+  return h;
 }
 
 /**
@@ -41,23 +88,75 @@ function simulate(db: Database, flight: Flight): SimResult {
     const p = db.pigeons.find((x) => x.id === e.pigeonId);
     if (p) base.push(p);
   }
-  const owner = new Map(base.map((p) => [p.id, p.ownerId]));
-  const vel = new Map(base.map((p) => [p.id, pigeonVelocity(p, flight.distanceKm, flight.week, 1, 1)]));
-  const rng = seededRng(hashString(flight.id));
-  const orders: { order: string[]; finishers: number }[] = [];
+  const sig = simSignature(db, flight, base);
+  const hit = simCache.get(flight.id);
+  if (hit && hit.sig === sig) return hit.res;
 
-  for (let it = 0; it < BETTING.simIterations; it++) {
-    const scored = base.map((p) => {
-      const luck = 0.9 + rng() * 0.2;
-      const dnfChance = clamp((FLIGHT_RISK.dnfFormThreshold - p.form) / FLIGHT_RISK.dnfFormThreshold, 0, FLIGHT_RISK.dnfMaxChance);
-      const dnf = rng() < dnfChance;
-      return { id: p.id, score: (vel.get(p.id) ?? 1) * luck, dnf };
-    });
-    const fin = scored.filter((x) => !x.dnf).sort((a, b) => b.score - a.score).map((x) => x.id);
-    const nf = scored.filter((x) => x.dnf).map((x) => x.id);
-    orders.push({ order: [...fin, ...nf], finishers: fin.length });
+  const n = base.length;
+  const iterations = BETTING.simIterations;
+  const ids = base.map((p) => p.id);
+  const ownerOf = base.map((p) => p.ownerId);
+  const indexOf = new Map(ids.map((id, i) => [id, i]));
+
+  // Per-bird constants, hoisted out of the draw loop.
+  const vel = new Float64Array(n);
+  const dnfChance = new Float64Array(n);
+  for (let i = 0; i < n; i++) {
+    vel[i] = pigeonVelocity(base[i], flight.distanceKm, flight.week, 1, 1);
+    dnfChance[i] = clamp(
+      (FLIGHT_RISK.dnfFormThreshold - base[i].form) / FLIGHT_RISK.dnfFormThreshold,
+      0,
+      FLIGHT_RISK.dnfMaxChance,
+    );
   }
-  return { orders, owner, ids: base.map((p) => p.id) };
+
+  // One independent stream per bird (see SimResult) so head2head can replay two
+  // birds without re-running the field.
+  const seedBase = flight.id + ':bet:';
+  const rngs: (() => number)[] = new Array(n);
+  for (let i = 0; i < n; i++) rngs[i] = seededRng(hashString(seedBase + ids[i]));
+
+  const winCount = new Int32Array(n);
+  const top3Count = new Int32Array(n);
+  const lastCount = new Int32Array(n);
+  const ownerWin = new Map<string, number>();
+
+  for (let it = 0; it < iterations; it++) {
+    // Track only the podium and the tail — no sort, no allocation.
+    let i1 = -1, i2 = -1, i3 = -1;
+    let s1 = -Infinity, s2 = -Infinity, s3 = -Infinity;
+    let iLast = -1, sLast = Infinity;
+    let finCount = 0;
+    for (let i = 0; i < n; i++) {
+      const r = rngs[i];
+      const luck = 0.9 + r() * 0.2;
+      if (r() < dnfChance[i]) continue; // did not finish this draw
+      finCount++;
+      const score = vel[i] * luck;
+      if (score > s1) { i3 = i2; s3 = s2; i2 = i1; s2 = s1; i1 = i; s1 = score; }
+      else if (score > s2) { i3 = i2; s3 = s2; i2 = i; s2 = score; }
+      else if (score > s3) { i3 = i; s3 = score; }
+      if (score < sLast) { iLast = i; sLast = score; }
+    }
+    if (finCount > 0) {
+      winCount[i1]++;
+      ownerWin.set(ownerOf[i1], (ownerWin.get(ownerOf[i1]) ?? 0) + 1);
+      lastCount[iLast]++;
+      // "Top 3" is the first min(3, finishers) home.
+      top3Count[i1]++;
+      if (finCount > 1 && i2 >= 0) top3Count[i2]++;
+      if (finCount > 2 && i3 >= 0) top3Count[i3]++;
+    }
+  }
+
+  const res: SimResult = {
+    iterations, n, ids, ownerOf, indexOf,
+    winCount, top3Count, lastCount, ownerWin, vel, dnfChance, seedBase,
+  };
+  // Keep the map small: a handful of flights can have an open betting window.
+  if (simCache.size >= SIM_CACHE_MAX) simCache.delete(simCache.keys().next().value as string);
+  simCache.set(flight.id, { sig, res });
+  return res;
 }
 
 /** The probability of a given wager, or null if the bet is invalid. */
@@ -70,46 +169,46 @@ export function betProbability(
   rivalId: string | null,
 ): number | null {
   const sim = simulate(db, flight);
-  const N = sim.orders.length;
-  if (sim.ids.length < 2 || N === 0) return null;
-  const has = (id: string | null): id is string => !!id && sim.ids.includes(id);
-  let count = 0;
+  const { iterations: N, n } = sim;
+  if (n < 2 || N === 0) return null;
+  const idx = (id: string | null): number => (id == null ? -1 : sim.indexOf.get(id) ?? -1);
+  const target = idx(pigeonId);
+  const rival = idx(rivalId);
 
   switch (kind) {
-    case 'win': {
-      if (!has(pigeonId)) return null;
-      for (const o of sim.orders) if (o.finishers > 0 && o.order[0] === pigeonId) count++;
-      return count / N;
-    }
-    case 'own_top3': {
-      if (!has(pigeonId) || sim.owner.get(pigeonId) !== userId) return null;
-      for (const o of sim.orders) {
-        const k = Math.min(3, o.finishers);
-        if (o.order.slice(0, k).includes(pigeonId)) count++;
-      }
-      return count / N;
-    }
-    case 'top3': {
-      if (!has(pigeonId)) return null;
-      for (const o of sim.orders) {
-        const k = Math.min(3, o.finishers);
-        if (o.order.slice(0, k).includes(pigeonId)) count++;
-      }
-      return count / N;
-    }
-    case 'last': {
-      if (!has(pigeonId)) return null;
-      for (const o of sim.orders) if (o.finishers > 0 && o.order[o.finishers - 1] === pigeonId) count++;
-      return count / N;
-    }
-    case 'mine_wins': {
-      if (!sim.ids.some((id) => sim.owner.get(id) === userId)) return null;
-      for (const o of sim.orders) if (o.finishers > 0 && sim.owner.get(o.order[0]) === userId) count++;
-      return count / N;
-    }
+    case 'win':
+      if (target < 0) return null;
+      return sim.winCount[target] / N;
+    case 'own_top3':
+      if (target < 0 || sim.ownerOf[target] !== userId) return null;
+      return sim.top3Count[target] / N;
+    case 'top3':
+      if (target < 0) return null;
+      return sim.top3Count[target] / N;
+    case 'last':
+      if (target < 0) return null;
+      return sim.lastCount[target] / N;
+    case 'mine_wins':
+      if (!sim.ownerOf.some((o) => o === userId)) return null;
+      return (sim.ownerWin.get(userId) ?? 0) / N;
     case 'head2head': {
-      if (!has(pigeonId) || !has(rivalId) || pigeonId === rivalId) return null;
-      for (const o of sim.orders) if (o.order.indexOf(pigeonId) < o.order.indexOf(rivalId)) count++;
+      if (target < 0 || rival < 0 || target === rival) return null;
+      // Replay just these two birds' streams (they are seeded per bird, so this
+      // reproduces exactly the draws the field pass used) and count who is ahead.
+      // A bird that finishes always beats one that doesn't; if neither finishes
+      // the draw is a wash and counts for neither.
+      const ra = seededRng(hashString(sim.seedBase + sim.ids[target]));
+      const rb = seededRng(hashString(sim.seedBase + sim.ids[rival]));
+      let count = 0;
+      for (let it = 0; it < N; it++) {
+        const la = 0.9 + ra() * 0.2;
+        const aOut = ra() < sim.dnfChance[target];
+        const lb = 0.9 + rb() * 0.2;
+        const bOut = rb() < sim.dnfChance[rival];
+        if (aOut && bOut) continue;
+        if (aOut !== bOut) { if (bOut) count++; continue; }
+        if (sim.vel[target] * la > sim.vel[rival] * lb) count++;
+      }
       return count / N;
     }
     default:

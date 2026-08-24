@@ -367,7 +367,11 @@ Roekoe/
 ├── idle-writes.test.mts         regressietest: idle poll schrijft 0 rijen (D1-schrijflimiet)
 ├── names.test.mts               regressietest: duivennamen zijn uniek
 ├── advance-throttle.test.mts    regressietest: advanceRealtime-throttle (CPU)
+├── cpu-budget.test.mts          regressietest: geen pad over de 10 ms CPU (koud + warm)
+├── commentary.test.mts          regressietest: live verslag groeit aan, herschrijft niet
+├── betting-odds.test.mts        regressietest: weddenschapskansen kloppen + zijn stabiel
 ├── limits-report.mts            meet queries/rijen gelezen/geschreven per verzoek
+├── cpu-sweep.mts                meet CPU per operatie (duurste eerst) — diagnose
 ├── migrations/0001_init.sql     D1-schema voor verse installatie
 ├── spelregels.md                spelregels + formules (Nederlands, speler-gericht)
 ├── README.md / DEPLOY.md        opzet + telefoon-only deploy-gids
@@ -836,7 +840,12 @@ npx tsx query-budget.test.mts      # D1: geen enkel verzoek over de 50 queries
 npx tsx idle-writes.test.mts       # D1: een poll zonder gebeurtenissen schrijft niets
 npx tsx names.test.mts             # elke duivennaam blijft uniek
 npx tsx advance-throttle.test.mts  # CPU: een leespoll slaat de engine over
+npx tsx cpu-budget.test.mts        # CPU: geen enkel pad over de 10 ms (koud!)
+npx tsx commentary.test.mts        # het live verslag groeit aan, herschrijft niet
+npx tsx betting-odds.test.mts      # weddenschapskansen kloppen en zijn stabiel
 ```
+Diagnose zonder assertie: `npx tsx cpu-sweep.mts` (CPU per operatie, duurste
+eerst) en `npx tsx limits-report.mts` (queries/rijen per verzoek).
 (Beide staan buiten `tsconfig.json` (`include` = `core/` + `functions/`), dus tsc raakt ze niet.)
 
 ### Git + deploy (ALTIJD, zie §0)
@@ -872,6 +881,81 @@ npx tsx advance-throttle.test.mts  # CPU: een leespoll slaat de engine over
 
 Alles hieronder staat **live** op de deploy-branch. Data-migraties liepen door tot
 **`dataVersion = 38`**.
+
+**CPU-fix ronde 2: het live verslag en de weddenschapsodds (nieuwste)**
+- **Aanleiding:** "Exceeded CPU Time Limits" bleef terugkomen, vooral **rond grote
+  vluchten** — precies de waarneming van de eigenaar. De vorige ronde (throttle op
+  `advanceRealtime`) haalde de basiskost omlaag maar raakte de échte pieken niet.
+- **Gemeten** met een nieuwe `cpu-sweep.mts` op een productiewereld (~90 duiven aan
+  de start, 950 km). Twee operaties zaten **elk afzonderlijk boven het volledige
+  budget van 10 ms**, nog vóór het laden van de wereld:
+
+  | Operatie | Vóór | Na |
+  |---|---|---|
+  | `previewBet` (Monte-Carlo) | **18,3 ms** | 0,09 ms warm · ≤1,7 ms koud |
+  | `flightCommentary` | **12–15 ms** | 0,05 ms warm · ≈1 ms koud |
+  | `liveFlightDTO` (= `/flights/:id/live`) | **12,3 ms** | 0,15 ms |
+  | `liveSnapshot` | 0,06 ms | ongewijzigd |
+
+- **Oorzaak 1 — het live verslag rekende élke poll de hele race door.**
+  `flightCommentary` liep `for (t = 600; t <= total; t += 600)` — dus **tot het
+  einde van de race, ongeacht `elapsed`** — en gooide daarna alles weg wat nog niet
+  gebeurd was. Een fondvlucht van 50 uur = **300 bemonsteringen**, elk met een
+  volledige rangschikking van het veld **plus een O(n²) zoektocht** naar wie wie
+  voorbijstak. Bij 95 duiven is dat ~9.000 vergelijkingen per bemonstering, 300 keer,
+  **per poll**. Dat schaalt met afstand én deelnemers: exact "grote vluchten".
+  - **Nu:** de scan stopt bij `elapsed`, het aantal bemonsteringen is begrensd op
+    **`COMMENTARY_LIMITS.maxSamples` (60)** — een lange race wordt gewoon per uur
+    bemonsterd i.p.v. per 10 minuten — en overtake-detectie kijkt enkel naar de
+    **kopgroep** (`COMMENTARY_LIMITS.field`, 15). Dat laatste maakt het verslag ook
+    léésbaarder: "#77 passeert #78" was nooit een regel waard.
+  - **Plus een cache** (`commentaryCache`, per vlucht, op een signatuur van `sim`):
+    de scan wordt **uitgebreid** i.p.v. herbouwd, dus herhaalde polls binnen hetzelfde
+    venster kosten niets.
+  - ⚠️ **Waar dit bijna misging:** de scan doet loterijtrekkingen voor de
+    formuleringen, en het aantal trekkingen groeit nu tijdens de race. Deelde ze die
+    stroom met de gebeurtenisregels (finish/DNF/opgeven), dan zou **het hele verslag
+    zichzelf bij elke poll herschrijven**. Daarom nu **drie apart geseede stromen**
+    (`:ov` / `:ev` / `:fin`), en hetzelfde in `relayCommentary` (`:relay:ov` /
+    `:relay:ev`). `commentary.test.mts` bewaakt precies dat.
+- **Oorzaak 2 — de odds herrekenden een volledige Monte-Carlo per toetsaanslag.**
+  `simulate` deed **1500 trekkingen × een volledige sortering** van het veld, met
+  ~3 arrays + n objecten per trekking (≈140.000 korte allocaties). En de client
+  hervroeg `/bets/preview` bij **elke wijziging van de inzet** — terwijl de kans
+  helemaal niet van de inzet afhangt.
+  - **Nu:** geen enkele inzetsoort heeft de volledige aankomstvolgorde nodig, dus
+    één O(duiven)-pass per trekking houdt enkel het **podium en de traagste
+    finisher** bij. Geen sortering, geen allocatie. Elke duif trekt uit haar **eigen**
+    rng-stroom, zodat `head2head` twee duiven kan naspelen zonder het veld opnieuw
+    te draaien.
+  - **Cache** per vlucht (`simCache`, op een signatuur van de ingeschreven duiven +
+    hun energie/gezondheid), dus een tweede vraag is gratis.
+  - **Client:** `stake` is uit de dependency-array van de odds-`useEffect` gehaald;
+    de mogelijke winst is gewoon `inzet × ratio`, lokaal gerekend.
+  - **`/api/bets/preview` telt nu als read-only** (`READ_ONLY_POSTS`): het muteert
+    niets, dus het valt onder dezelfde throttle als een GET en slaat `advanceRealtime`
+    + `persist` over.
+- **Wat NIET het probleem was** (gemeten, niet aangenomen): `liveSnapshot` (0,06 ms),
+  de DTO's, de ranglijsten, `finalizeFlight` (0,6 ms). En het **snapshot-blok in
+  `D1Store.load`** kost maar **0,32 ms** van de 2,2 ms — de rest is SQL + rij-naar-
+  entiteit parsen. Dat lui maken zou `d1.ts` risico geven voor bijna niets, dus
+  bewust **niet** gedaan. `D1Store.load` (~2,5 ms) is nu de grootste post en blijft
+  de structurele bodem van het D1Store-patroon.
+- **Drie nieuwe blijvende tests.** `cpu-budget.test.mts` is de wacht: hij toetst
+  **structureel** (bemonsteringen begrensd, kopgroep begrensd, verslag groeit
+  monotoon) én **op tijd**, en meet expliciet de **KOUDE** weg — het eerste verzoek
+  na een isolate-recycle, want daar helpt geen enkele cache. `commentary.test.mts`
+  bewaakt dat het verslag aangroeit zonder zichzelf te herschrijven (ook estafette).
+  `betting-odds.test.mts` bewaakt de kansen zelf: winkansen tellen op tot 1,
+  top-3 tot 3, sterker = meer kans, `mine_wins` == de som van je eigen duiven,
+  kop-aan-kop is transitief en telt tot 1, en de cache invalideert op energie en
+  op een uitgeschreven duif.
+- **Geen schema-/configwijziging behalve de nieuwe knop `COMMENTARY_LIMITS`, geen
+  migratie**, `dataVersion` blijft **38**. Alle acht regressietests + beide
+  typechecks + build groen.
+- ⚠️ **Om te onthouden bij nieuwe code:** alles wat over **alle duiven van een
+  vlucht** of over **de hele racetijd** itereert, hoort begrensd te zijn en bij
+  voorkeur gecachet. Draai `cpu-sweep.mts` als je zoiets toevoegt.
 
 **De beheerder ziet alle duiven volledig (nieuwste)**
 - **Probleem:** de **Duif-inspector** (`/beheer` → tab Duif-inspector) toont wél de rauwe
@@ -2032,6 +2116,14 @@ duiven kosten nu ~12 rijen per kwartier (~1.150/dag) i.p.v. per verzoek.
 rustige wereld en faalt zodra een poll zonder gebeurtenissen ook maar één rij schrijft.
 **Regel voor nieuwe code: stempel nooit `Date.now()` in een rij op elk verzoek** — geef
 zo'n klok altijd een minimuminterval.
+
+**Tweede regel, voor CPU (zie CPU-fix ronde 2 bovenaan §8): niets in het verzoekpad mag
+schalen met de racelengte of kwadratisch met het aantal duiven.** Een lus over "alle
+duiven van een vlucht" of over "de hele racetijd" hoort een **harde bovengrens** te
+hebben, en het resultaat hoort gecachet te worden als het tussen polls niet verandert.
+Twee keer is het spel hierop platgegaan (het live verslag, de weddenschapsodds).
+Meet met `npx tsx cpu-sweep.mts`, en laat `cpu-budget.test.mts` het bewaken — die test
+meet bewust de **koude** weg, want een cache redt je niet na een isolate-recycle.
 
 ### 503-fix ronde 5: de estafette duurt een halve dag (⚠️ diagnose achteraf weerlegd — zie ronde 6)
 

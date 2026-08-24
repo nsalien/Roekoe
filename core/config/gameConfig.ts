@@ -753,6 +753,26 @@ export const MIN_FLIGHT_SECONDS = 300;
 /** Live commentary is emitted every this many real seconds (10 minutes). */
 export const COMMENTARY_INTERVAL_SECONDS = 600;
 
+/**
+ * Hard ceiling on how many times the live report samples the field during ONE
+ * race, and how deep into the standings it looks for overtakes.
+ *
+ * Both exist to keep the report's cost BOUNDED. Sampling every 10 minutes over a
+ * 50-hour fondvlucht is 300 samples, and looking for passes across a 95-bird
+ * field is quadratic — together that was ~15 ms of CPU per poll, on a Workers
+ * budget of 10 ms (see the note on flightCommentary). Above `maxSamples` the
+ * step is stretched proportionally, so a long race is sampled hourly instead of
+ * every 10 minutes: deterministic (derived from the race length alone) and
+ * bounded no matter how far or how full the flight is.
+ *
+ * They also make the feed READABLE: 300 sample points × 2 lines is a wall of
+ * text nobody scrolls through, and "#77 passeert #78" was never worth a line.
+ */
+export const COMMENTARY_LIMITS = {
+  maxSamples: 60, // at most this many field samples per race
+  field: 15, // only passes inside the leading N positions are reported
+} as const;
+
 /** How many days of flights are kept on the calendar ahead of "now". */
 export const SCHEDULE_HORIZON_DAYS = 4;
 

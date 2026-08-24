@@ -348,6 +348,12 @@ function BetPanel({ flight, meId, onPlaced }: { flight: Flight; meId?: string; o
   }, [kind, flight.id]);
 
   // Live odds preview.
+  //
+  // Deliberately NOT dependent on `stake`: the probability and the ratio depend
+  // only on the flight and the birds, and the potential win is just stake × ratio
+  // (computed below). Refetching per keystroke fired a fresh Monte-Carlo on the
+  // server for a number that never changed — the single easiest way to blow the
+  // 10 ms CPU budget on a big flight.
   useEffect(() => {
     let cancelled = false;
     async function run() {
@@ -356,7 +362,7 @@ function BetPanel({ flight, meId, onPlaced }: { flight: Flight; meId?: string; o
       try {
         const p = await api<BetPreview>('/bets/preview', {
           method: 'POST',
-          body: { flightId: flight.id, kind, pigeonId: needsTarget ? pigeonId : null, rivalId: needsRival ? rivalId : null, stake },
+          body: { flightId: flight.id, kind, pigeonId: needsTarget ? pigeonId : null, rivalId: needsRival ? rivalId : null, stake: 0 },
         });
         if (!cancelled) setPreview(p);
       } catch {
@@ -365,7 +371,7 @@ function BetPanel({ flight, meId, onPlaced }: { flight: Flight; meId?: string; o
     }
     run();
     return () => { cancelled = true; };
-  }, [kind, pigeonId, rivalId, stake, flight.id, needsTarget, needsRival]);
+  }, [kind, pigeonId, rivalId, flight.id, needsTarget, needsRival]);
 
   async function confirm() {
     setBusy(true);
@@ -437,7 +443,8 @@ function BetPanel({ flight, meId, onPlaced }: { flight: Flight; meId?: string; o
       <div className="row" style={{ justifyContent: 'space-between', marginTop: 10, gap: 8, flexWrap: 'wrap' }}>
         <span className="faint">
           {preview
-            ? <>Kans ~{Math.round(preview.prob * 100)}% · ratio <strong>{preview.ratio}×</strong> · winst <strong><Money value={preview.potentialWin} /></strong></>
+            ? <>Kans ~{Math.round(preview.prob * 100)}% · ratio <strong>{preview.ratio}×</strong> · winst{' '}
+                <strong><Money value={Math.round(clampStake(stake) * preview.ratio)} /></strong></>
             : 'Kies je weddenschap…'}
         </span>
         <button className="btn accent sm" disabled={busy || !preview} onClick={confirm}>Bevestig</button>
