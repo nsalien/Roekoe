@@ -98,7 +98,12 @@ function state(loft: Loft): SponsorState {
   }
   const declined = (Array.isArray(raw.declined) ? raw.declined : [])
     .filter((d: any) => d && BY_ID.has(d.id))
-    .map((d: any) => ({ id: d.id, at: d.at ?? '', perf: typeof d.perf === 'number' ? d.perf : 0 }));
+    .map((d: any) => ({
+      id: d.id,
+      at: d.at ?? '',
+      perf: typeof d.perf === 'number' ? d.perf : 0,
+      ...(d.permanent ? { permanent: true as const } : {}),
+    }));
   const signed = (Array.isArray(raw.signed) ? raw.signed : []).filter((id: any) => typeof id === 'string');
   const lastOfferAt = typeof raw.lastOfferAt === 'string' ? raw.lastOfferAt : undefined;
 
@@ -242,6 +247,9 @@ export function evaluateSponsorOffers(db: Database, loft: Loft, nowMs: number): 
     const declinedIdx = st.declined.findIndex((d) => d.id === def.id);
     if (declinedIdx >= 0) {
       const d = st.declined[declinedIdx];
+      // Turned down as a worse competitor of a sponsor you already had: that is a
+      // definitive no, so this one never knocks again (see applyRefuseSponsor).
+      if (d.permanent) continue;
       const ageH = d.at ? (nowMs - Date.parse(d.at)) / 3600000 : Infinity;
       if (!(ageH >= SPONSOR_REOFFER_COOLDOWN_HOURS)) continue; // still cooling off
       const mult = clamp(perf / Math.max(1, d.perf), SPONSOR_REOFFER_MULT_MIN, SPONSOR_REOFFER_MULT_MAX);
@@ -270,6 +278,36 @@ function rivalFor(st: SponsorState, def: SponsorDef): SponsorDef | undefined {
     if (d && d.id !== def.id && d.category === def.category) return d;
   }
   return undefined;
+}
+
+/** The running contract in the same category as `def`, if any. */
+function rivalContract(st: SponsorState, def: SponsorDef): ActiveSponsorship | undefined {
+  for (const a of st.active) {
+    const d = BY_ID.get(a.id);
+    if (d && d.id !== def.id && d.category === def.category) return a;
+  }
+  return undefined;
+}
+
+/**
+ * Is refusing this offer a DEFINITIVE no?
+ *
+ * Only when the offer competes with a sponsor you already have (same category,
+ * so switching costs a break fee) **and** pays no better than that sponsor. Then
+ * saying no is not a matter of timing or budget — the deal is simply worse, and
+ * having them keep knocking is nagging, not opportunity. So they never return.
+ *
+ * A competitor that pays BETTER is deliberately excluded: a player may well
+ * refuse it today only because the break fee is out of reach right now, and
+ * locking the best sponsor of a category out forever over that would be a trap.
+ * Comparison is on the daily stipend first — the recurring money the player sees
+ * — with the podium premium as the tie-breaker.
+ */
+function refusalIsFinal(st: SponsorState, def: SponsorDef, offer: SponsorOffer): boolean {
+  const rival = rivalContract(st, def);
+  if (!rival) return false; // no conflict, no break fee — a normal "not now"
+  if (offer.dailyStipend !== rival.dailyStipend) return offer.dailyStipend < rival.dailyStipend;
+  return offer.podiumBase <= rival.podiumBase;
 }
 
 /**
@@ -315,15 +353,29 @@ export function applyAcceptSponsor(db: Database, loft: Loft, sponsorId: string, 
   return `${def.name} is opnieuw een van je sponsors (geen nieuw tekengeld).`;
 }
 
-/** Refuse a pending offer. It disappears but may return later (rescaled). */
+/**
+ * Refuse a pending offer. It disappears and normally may return later (rescaled
+ * to how the loft performed since) — unless it was a worse competitor of a
+ * sponsor you already hold, in which case no means no (see `refusalIsFinal`).
+ */
 export function applyRefuseSponsor(db: Database, loft: Loft, sponsorId: string): string {
   const st = state(loft);
-  if (!st.offers.some((o) => o.id === sponsorId)) return '!Er is geen openstaand aanbod van deze sponsor';
+  const offer = st.offers.find((o) => o.id === sponsorId);
+  if (!offer) return '!Er is geen openstaand aanbod van deze sponsor';
+  const def = BY_ID.get(sponsorId);
+  const final = def ? refusalIsFinal(st, def, offer) : false;
   st.offers = st.offers.filter((o) => o.id !== sponsorId);
   st.declined = st.declined.filter((d) => d.id !== sponsorId);
-  st.declined.push({ id: sponsorId, at: new Date().toISOString(), perf: perfScore(loft, ownedBestTalent(db, loft.userId)) });
-  const def = BY_ID.get(sponsorId);
-  return `Aanbod van ${def?.name ?? 'de sponsor'} geweigerd. Misschien komen ze later met een nieuw voorstel.`;
+  st.declined.push({
+    id: sponsorId,
+    at: new Date().toISOString(),
+    perf: perfScore(loft, ownedBestTalent(db, loft.userId)),
+    ...(final ? { permanent: true as const } : {}),
+  });
+  const name = def?.name ?? 'de sponsor';
+  return final
+    ? `Aanbod van ${name} geweigerd. Ze boden minder dan je huidige sponsor in dezelfde sector — ze komen niet meer terug.`
+    : `Aanbod van ${name} geweigerd. Misschien komen ze later met een nieuw voorstel.`;
 }
 
 /** Terminate an active contract, paying its break penalty. */
@@ -435,6 +487,10 @@ export function sponsorView(db: Database, loft: Loft) {
         ...sponsorDTO(def, o, st.signed.includes(o.id)),
         conflictWith: rival?.name ?? null,
         conflictPenalty: rival?.breakPenalty ?? 0,
+        // Refusing this one is definitive (it pays less than the sponsor you
+        // already have in this category). The page warns before you click, so a
+        // permanent no is never a surprise.
+        refusalIsFinal: refusalIsFinal(st, def, o),
       };
     })
     .filter((x): x is NonNullable<typeof x> => x != null)

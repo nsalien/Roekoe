@@ -1361,6 +1361,15 @@ kwetsuur, ziekte, herstel, sterfte en geboorte van jongen.
     schaalt met je prestaties intussen: beter gepresteerd → een rijker aanbod,
     minder goed → een magerder aanbod. Het tekengeld krijg je maar één keer per
     sponsor. Ook een opgezegd contract kan later opnieuw aangeboden worden.
+  - **Eén uitzondering: nee is nee.** Komt het aanbod van een **concurrent** van
+    een sponsor die je al hebt (zelfde categorie, dus overstappen kost een
+    verbrekingsvergoeding) én betalen ze **niet meer** dan die sponsor, dan is
+    weigeren **definitief**: die sponsor klopt nooit meer aan. Zo'n aanbod is
+    immers gewoon slechter — je zou geld betalen om er op achteruit te gaan — en
+    dan hoef je er niet elke paar dagen opnieuw nee tegen te zeggen. De
+    sponsorpagina waarschuwt je vooraf en vraagt een bevestiging.
+    Een concurrent die **méér** biedt blijft wél terugkomen: die weiger je
+    misschien alleen omdat de boete er nú niet in zit.
   - **Een sponsor kan zélf opstappen na een seizoen.** Bij de seizoenswissel (§15)
     vergelijkt elke sponsor je seizoenspunten met die van het **vorige** seizoen.
     Zakken ze tot **onder 60%** daarvan, dan vindt de sponsor dat je niet meer zo

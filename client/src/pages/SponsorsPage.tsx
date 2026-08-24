@@ -171,6 +171,7 @@ function SponsorCard({
       {!active && s.conflictWith && (
         <div className="faint" style={{ marginTop: 8, fontSize: '0.82rem', color: 'var(--bad)' }}>
           ⚠️ Concurrent van {s.conflictWith} — overstappen kost <Money value={s.conflictPenalty ?? 0} /> boete.
+          {s.refusalIsFinal && <> Ze bieden <strong>minder</strong> dan {s.conflictWith}: weiger je, dan komen ze <strong>niet meer terug</strong>.</>}
         </div>
       )}
 
@@ -181,7 +182,18 @@ function SponsorCard({
           </button>
         )}
         {onRefuse && (
-          <button className="btn ghost" disabled={busy} onClick={onRefuse}>Weigeren</button>
+          // A definitive refusal is worth one confirmation — it removes the
+          // sponsor from the game for this loft.
+          <button
+            className="btn ghost"
+            disabled={busy}
+            onClick={() => {
+              if (s.refusalIsFinal && !window.confirm(`${s.name} definitief weigeren? Ze bieden minder dan ${s.conflictWith} en komen dan niet meer terug.`)) return;
+              onRefuse();
+            }}
+          >
+            {s.refusalIsFinal ? 'Definitief weigeren' : 'Weigeren'}
+          </button>
         )}
         {onCancel && (
           <button className="btn ghost" style={{ flex: 1 }} disabled={busy} onClick={onCancel}>Opzeggen</button>
