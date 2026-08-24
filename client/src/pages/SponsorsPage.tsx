@@ -3,6 +3,7 @@
  * (a competitor costs a break penalty to switch). */
 
 import { useCallback, useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { api } from '../api/client';
 import { useGame } from '../game/GameContext';
 import { Money, Spinner, useToast } from '../components/ui';
@@ -63,10 +64,11 @@ export function SponsorsPage() {
       <div className="page-head" data-tour="sponsors">
         <div>
           <h1>Sponsors</h1>
-          <p className="muted">
-            Bedrijven kloppen pas aan als je hok hun aandacht verdient — hoe beter je duiven en resultaten,
-            hoe grotere sponsors zich melden. Je kan meerdere sponsors hebben, maar per categorie (café,
-            frituur…) telkens maar één. Je beste duif heeft nu talent {view.bestTalent}.
+          <p className="muted" style={{ marginBottom: 4 }}>
+            Sponsors kloppen pas aan ná een podium. Eén per categorie. Je beste duif heeft talent {view.bestTalent}.
+          </p>
+          <p className="faint" style={{ margin: 0, fontSize: '0.82rem' }}>
+            <Link to="/wiki#sponsors">Meer over sponsors &amp; podiumpremies →</Link>
           </p>
         </div>
       </div>
@@ -160,8 +162,10 @@ function SponsorCard({
           </tbody>
         </table>
       </div>
+      {/* The "only competition flights pay" caveat used to sit on EVERY card;
+          it is a rule of the game, not of this sponsor — it lives in the wiki now. */}
       <p className="faint" style={{ margin: '6px 0 0', fontSize: '0.8rem' }}>
-        Enkel wedstrijdvluchten tellen — een oefenvlucht, de titanenwedstrijd en de estafettevlucht leveren geen premie op.
+        Enkel wedstrijdvluchten betalen een premie.
       </p>
 
       {!active && s.conflictWith && (

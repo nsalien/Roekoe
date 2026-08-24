@@ -31,12 +31,8 @@ export function DashboardPage() {
   const topPigeons = pigeons.slice(0, 3);
   const now = Date.now();
   const avgForm = pigeons.length ? Math.round(pigeons.reduce((s, p) => s + (p.form ?? 0), 0) / pigeons.length) : 0;
-  const coachedCount = pigeons.filter((p) => p.coached).length;
   const eco = state.economy;
   const inf = state.infirmary;
-  // Headline "vaste dagkost": base + the progressive per-pigeon upkeep (same
-  // source as what is actually deducted) + coach salaries.
-  const dailyFixed = eco.dailyUpkeepBase + (loft.dailyCosts.upkeepPerPigeon ?? 0) + coachedCount * eco.coachSalary;
   // Full cumulative daily-cost breakdown (from the loft DTO, same source as what
   // is actually deducted each day). Each row: label, count context, and amount.
   const costs = loft.dailyCosts;
@@ -211,9 +207,8 @@ export function DashboardPage() {
             <button className="btn ghost sm" onClick={() => setShowCosts(false)}>Sluiten</button>
           </div>
           <p className="faint" style={{ margin: '4px 0 10px', fontSize: '0.82rem' }}>
-            Deze kosten worden <strong>elke dag automatisch</strong> van je kassa afgehouden en je
-            sponsorbijdragen komen er diezelfde dag bij (exclusief voer, dat apart uit je voorraad
-            gaat). Prijzengeld en podiumpremies staan hier niet in — die hangen van je uitslagen af.
+            Elke dag automatisch verrekend. Voer, prijzengeld en podiumpremies staan hier niet in.{' '}
+            <Link to="/wiki#hok">Meer over de onderhoudskosten →</Link>
           </p>
           {/* Flex rows (not a table) so it fits narrow phones: the label/detail on
               the left may wrap/shrink, the amount on the right stays put — no
@@ -333,13 +328,11 @@ export function DashboardPage() {
         {/* Care panel */}
         <div className="card">
           <h2>Verzorging</h2>
-          <p className="muted" style={{ marginBottom: 6 }}>
-            Gemiddelde energie <strong>{avgForm}</strong>. Voedsel wordt <strong>per type apart</strong> beheerd — elke duif eet van haar eigen type (in te stellen bij <strong>Mijn hok</strong>).
-          </p>
-          <p className="faint" style={{ marginBottom: 10, fontSize: '0.82rem' }}>
-            Vaste dagkost: <strong><Money value={dailyFixed} /></strong> (onderhoud
-            {coachedCount > 0 ? ` + ${coachedCount} coach${coachedCount === 1 ? '' : 'es'}` : ''}) — automatisch dagelijks
-            afgerekend, exclusief voer & ziekenboegstaf.
+          {/* Keep this to the state of the loft + the buy control. The how-it-works
+              (per-type stock, honger, rustbonus) sits in the wiki; the daily money
+              side already has its own Dagbalans tile above. */}
+          <p className="muted" style={{ marginBottom: 8 }}>
+            Gemiddelde energie <strong>{avgForm}</strong> · elke duif eet van <strong>haar eigen voertype</strong>.
           </p>
 
           {hungry.length > 0 && (
@@ -374,7 +367,8 @@ export function DashboardPage() {
             })}
           </div>
           <p className="faint" style={{ margin: '0 0 12px', fontSize: '0.8rem' }}>
-            Waarden per duif per <strong>dag</strong> (energie · gezondheid · conditie · libido). Geen voorraad van een type = die duiven lijden honger (−energie, −gezondheid, −conditie & −libido, oplopend tot de dood).
+            Waarden per duif per <strong>dag</strong>. Voorraad op = honger.{' '}
+            <Link to="/wiki#energie">Meer over voer, honger &amp; rust →</Link>
           </p>
 
           <label>Voer bijkopen</label>
@@ -451,9 +445,7 @@ export function DashboardPage() {
         <div className="card" style={{ marginTop: 18, borderStyle: 'dashed' }}>
           <strong>Beheerder</strong>
           <p className="muted" style={{ margin: '4px 0 0' }}>
-            Jij bent de spelleider. Vluchten, voeding, <strong>vaste onkosten</strong> (onderhoud, coach, ziekenboegstaf)
-            en broedsels lopen nu <strong>dagelijks vanzelf</strong> in echte tijd; ook seizoenen vorderen automatisch.
-            <em> “Volgende week”</em> bovenaan verwerkt enkel nog ziekte/sterfte-rondes. Week {world.currentWeek}.
+            Alles loopt dagelijks vanzelf. <em>“Volgende week”</em> verwerkt enkel nog ziekte/sterfte. Week {world.currentWeek}.
           </p>
           <AdminAuctions />
         </div>

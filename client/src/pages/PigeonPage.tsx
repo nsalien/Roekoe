@@ -198,13 +198,19 @@ export function PigeonPage() {
           </div>
 
           <hr className="sep" />
+          {/* An admin sees every bird's attributes (the Duif-inspector links here);
+              flag it so it is clear this view is not what other players get. */}
+          {p.revealed && !mine && state?.isAdmin && (
+            <p className="faint" style={{ margin: '0 0 8px', fontSize: '0.8rem' }}>
+              🛠️ Je ziet deze eigenschappen als <strong>beheerder</strong> — gewone spelers zien enkel ★ talent.
+            </p>
+          )}
           {p.revealed ? (
             <PigeonStats pigeon={p} />
           ) : (
             <p className="muted" style={{ margin: 0 }}>
-              🔒 De precieze eigenschappen van andermans duiven zijn niet zichtbaar. Enkel de
-              algemene score (★ talent {p.talent}) is gekend. Bekijk de <Link to="/ranglijst">ranglijst</Link>{' '}
-              of specifieke vluchtresultaten om een idee te vormen voor je een bod doet.
+              🔒 Eigenschappen van andermans duiven zijn verborgen — enkel ★ talent {p.talent} is gekend.
+              Kijk naar de <Link to="/ranglijst">ranglijst</Link> of haar vluchtresultaten.
             </p>
           )}
         </div>
@@ -263,12 +269,11 @@ export function PigeonPage() {
           {mine && !p.ailment && !p.inInfirmary && !p.onCure && !p.racing && (
             <div className="card">
               <h2>Training</h2>
-              <p className="muted">
-                Trainen geeft een kleine blijvende verbetering (~+1) en kan <strong>1× per week</strong> per eigenschap.
-                De <strong>kost stijgt exponentieel met het niveau</strong>. Handmatig trainen gaat tot <strong>80</strong>;
-                daarna groeit een duif enkel via <strong>vluchten</strong> (tot 90) en de <strong>privécoach</strong> (tot
-                haar gen-cap). Het <span style={{ color: 'var(--bad)', fontWeight: 700 }}>rode streepje</span> op elke balk
-                toont waar déze duif genetisch capt.
+              <p className="muted" style={{ marginBottom: 4 }}>
+                ~+1 per beurt · <strong>1× per week</strong> per eigenschap · tot <strong>80</strong>.
+              </p>
+              <p className="faint" style={{ margin: 0, fontSize: '0.82rem' }}>
+                <Link to="/wiki#genen">Meer over training &amp; plafonds →</Link>
               </p>
               <div className="stack" style={{ marginTop: 8 }}>
                 {([
@@ -313,8 +318,8 @@ export function PigeonPage() {
               <div className="card">
                 <h2>🤝 Bied op deze duif</h2>
                 <p className="faint" style={{ fontSize: '0.85rem', marginTop: 0 }}>
-                  Je kan {p.ownerName} een bod doen, ook al staat {p.name} niet te koop. Het bod blijft geldig tot
-                  {' '}{p.ownerName} het aanvaardt of weigert; je kan het altijd intrekken via de <strong>Markt</strong>.
+                  Ook al staat {p.name} niet te koop. Je bod blijft staan tot {p.ownerName} antwoordt — intrekken kan
+                  via de <strong>Markt</strong>.
                 </p>
                 {myOffer ? (
                   <div className="row" style={{ justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
@@ -355,36 +360,30 @@ export function PigeonPage() {
               <div className="row" style={{ justifyContent: 'space-between', gap: 10, alignItems: 'flex-start' }}>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <strong>🎯 Privécoach</strong>
+                  {/* Keep this to the two things that decide the click: what it costs
+                      per day and what THIS bird gains. The mechanics live in the wiki. */}
                   <div className="faint" style={{ fontSize: '0.85rem' }}>
-                    Traint deze duif <strong>elke dag</strong> in snelheid, conditie én oriëntatie richting hun{' '}
-                    <strong>genetische plafond</strong> (nooit hoger), plus ervaring — puur om te racen, niet voor libido. Werkt op{' '}
-                    <strong>elk niveau</strong>, maar de winst wordt <strong>kleiner naarmate een eigenschap haar cap nadert</strong>{' '}
-                    en <strong>stopt op de cap</strong>. Enkel de coach gaat <strong>boven 90</strong> (zelf trainen stopt op 80,
-                    vluchten op 90).
-                    {state?.economy && (
-                      <> Geen instapkost — enkel <Money value={state.economy.coachSalary} />/dag zolang de coach aan het werk is.</>
-                    )}
+                    Traint deze duif elke dag richting haar genetische plafond — de enige weg <strong>boven 90</strong>.
+                    {state?.economy && <> <Money value={state.economy.coachSalary} />/dag, geen instapkost.</>}
                   </div>
                   {p.revealed && p.coachGain && (() => {
                     const cg = p.coachGain;
                     const any = cg.speed > 0 || cg.endurance > 0 || cg.orientation > 0;
                     return any ? (
                       <div className="notice" style={{ margin: '8px 0 0', fontSize: '0.82rem', lineHeight: 1.5 }}>
-                        <strong>Voor {p.name} nu:</strong> per dag ± snelheid <strong>+{cg.speed.toFixed(2)}</strong>, conditie{' '}
-                        <strong>+{cg.endurance.toFixed(2)}</strong>, oriëntatie <strong>+{cg.orientation.toFixed(2)}</strong>
-                        , ervaring <strong>+{(cg.experience ?? 0).toFixed(2)}</strong>.
-                        <br />
-                        De winst wordt <strong>kleiner naarmate een eigenschap haar gen-cap nadert</strong>, en een eigenschap die
-                        haar cap al bereikt heeft stijgt niet meer (de andere wél). Ook <strong>ervaring</strong> groeit trager
-                        naarmate de duif er meer heeft.
+                        <strong>Voor {p.name}, per dag:</strong> snelheid <strong>+{cg.speed.toFixed(2)}</strong> · conditie{' '}
+                        <strong>+{cg.endurance.toFixed(2)}</strong> · oriëntatie <strong>+{cg.orientation.toFixed(2)}</strong> ·
+                        ervaring <strong>+{(cg.experience ?? 0).toFixed(2)}</strong>
                       </div>
                     ) : (
                       <div className="notice" style={{ margin: '8px 0 0', fontSize: '0.82rem', lineHeight: 1.5 }}>
-                        Voor {p.name} heeft een coach <strong>geen effect meer</strong>: snelheid, conditie én oriëntatie zitten al
-                        op hun genetische plafond.
+                        Voor {p.name} heeft een coach <strong>geen effect meer</strong> — alle drie de vaardigheden zitten op hun cap.
                       </div>
                     );
                   })()}
+                  <div className="faint" style={{ fontSize: '0.82rem', marginTop: 6 }}>
+                    <Link to="/wiki#coach">Meer info over de privécoach →</Link>
+                  </div>
                 </div>
                 {p.coached ? (
                   <button className="btn ghost sm" style={{ flexShrink: 0 }} disabled={busy} onClick={() => setCoach(false)}>Ontslaan</button>
@@ -454,9 +453,14 @@ export function PigeonPage() {
                           : locked
                             ? <>{p.name} had deze week al een rustkuur. Elke duif kan er <strong>één per week</strong> — de volgende kan vanaf <strong>{formatFlightTime(lockedUntil!)}</strong>.</>
                             : state?.economy
-                              ? <><strong>Twee dagen</strong> verplicht rusten voor <Money value={state.economy.restCureCost} />: daarna +{state.economy.restCureEnergy} energie en +{state.economy.restCureHealth} gezondheid. Ze kan tijdens de kuur niet vliegen, trainen of koppelen. <strong>Elke duif mag op kuur, maar elk maar één keer per week.</strong></>
+                              ? <><strong>Twee dagen</strong> rust voor <Money value={state.economy.restCureCost} /> → +{state.economy.restCureEnergy} energie en +{state.economy.restCureHealth} gezondheid. Max. 1× per duif per week.</>
                               : 'Twee dagen rust die energie en gezondheid oplevert, maar geld kost. Eén per duif per week.'}
                       </div>
+                      {!p.onCure && !locked && (
+                        <div className="faint" style={{ fontSize: '0.8rem', marginTop: 4 }}>
+                          <Link to="/wiki#energie">Meer over rust &amp; herstel →</Link>
+                        </div>
+                      )}
                     </div>
                     {p.onCure ? (
                       <span className="badge" style={{ background: 'var(--brand-soft)', color: 'var(--brand-ink)', flexShrink: 0 }}>🛌 op rustkuur</span>
@@ -519,7 +523,7 @@ export function PigeonPage() {
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <strong>🕊️ Vrijlaten</strong>
                       <div className="faint" style={{ fontSize: '0.85rem' }}>
-                        Laat {p.name} vrij als je van haar af wil. Ze verdwijnt uit je hok — je krijgt er <strong>geen geld</strong> voor terug.
+                        {p.name} verdwijnt uit je hok. <strong>Geen geld</strong>, geen bijwerkingen.
                       </div>
                     </div>
                     {confirmPart === 'release' ? (
@@ -541,13 +545,13 @@ export function PigeonPage() {
                       <div className="faint" style={{ fontSize: '0.85rem' }}>
                         {state?.economy ? (
                           <>
-                            Levert een vast bedrag van <Money value={state.economy.restaurantPayout} /> op — er wordt duivensoep
-                            van {p.name} gemaakt. Maar het <strong>drukt de moraal</strong> van je hok: elke andere duif verliest{' '}
-                            {state.economy.restaurantMoraleMin}–{state.economy.restaurantMoraleMax} energie.
+                            Vast <Money value={state.economy.restaurantPayout} />, maar elke andere duif verliest{' '}
+                            {state.economy.restaurantMoraleMin}–{state.economy.restaurantMoraleMax} energie (moraalklap).
                           </>
                         ) : (
-                          <>Levert een klein vast bedrag op, maar drukt de moraal van je hele hok (elke andere duif verliest wat energie).</>
-                        )}
+                          <>Levert een klein vast bedrag op, maar drukt de moraal van je hele hok.</>
+                        )}{' '}
+                        <Link to="/wiki#afscheid">Meer info →</Link>
                       </div>
                     </div>
                     {confirmPart === 'restaurant' ? (

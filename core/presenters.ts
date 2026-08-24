@@ -41,8 +41,12 @@ import { round1 } from './game/util.js';
  * publicly known about someone else's pigeon: its general score (talent) and
  * estimated value, plus what races/rankings reveal. Own birds (or no viewer)
  * are fully revealed.
+ *
+ * `viewerIsAdmin` lifts the veil for the game master only: the admin console must
+ * be able to audit ANY bird (the Duif-inspector links straight to a pigeon page),
+ * so an admin sees every attribute. Regular players never do.
  */
-export function pigeonDTO(db: Database, p: Pigeon, viewerId?: string) {
+export function pigeonDTO(db: Database, p: Pigeon, viewerId?: string, viewerIsAdmin = false) {
   const week = db.world.currentWeek;
   const owner = db.lofts.find((l) => l.userId === p.ownerId);
   // Attributes are public when: there is no specific viewer (server-internal),
@@ -52,7 +56,8 @@ export function pigeonDTO(db: Database, p: Pigeon, viewerId?: string) {
   // anywhere, viewed by someone else (to make a private/direct offer), hides its
   // attributes.
   const onAuction = db.auctions.some((a) => a.status === 'open' && a.pigeonId === p.id);
-  const revealed = viewerId === undefined || p.ownerId === viewerId || p.forSale || onAuction;
+  const publiclyRevealed = viewerId === undefined || p.ownerId === viewerId || p.forSale || onAuction;
+  const revealed = publiclyRevealed || viewerIsAdmin;
   const live = db.flights.some((f) => f.status === 'live' && f.entries.some((e) => e.pigeonId === p.id));
   // Only an infirmary bird's energie recovery depends on staff coverage, so we
   // only run the (rare) coverage scan for those — the common path stays cheap.
@@ -60,7 +65,10 @@ export function pigeonDTO(db: Database, p: Pigeon, viewerId?: string) {
     p.inInfirmary && owner
       ? coveredInInfirmary(owner, db.pigeons.filter((x) => x.ownerId === owner.userId)).has(p.id)
       : false;
-  const dailyCare = revealed && owner && !owner.isBot ? projectDailyCare(owner, p, live, infirmaryCovered) : null;
+  // Deliberately on the PUBLIC reveal, not the admin one: this is the owner's own
+  // care projection (useless to a viewer), and running it for every bird would add
+  // real CPU to /market — which an admin loads like anyone else.
+  const dailyCare = publiclyRevealed && owner && !owner.isBot ? projectDailyCare(owner, p, live, infirmaryCovered) : null;
   const hide = <T,>(v: T): T | null => (revealed ? v : null);
   return {
     id: p.id,

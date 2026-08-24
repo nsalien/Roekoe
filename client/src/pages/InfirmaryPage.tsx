@@ -170,7 +170,8 @@ export function InfirmaryPage() {
           <strong><Money value={dailyCost} /></strong>
         </div>
         <p className="faint" style={{ margin: '6px 0 0', fontSize: '0.8rem' }}>
-          De kosten worden <strong>dagelijks automatisch</strong> afgehouden. Zonder behandeling herstelt een duif traag en riskeert ze te bezwijken — vooral bij ernstige aandoeningen.
+          Dagelijks automatisch afgehouden. Zonder behandeling herstelt een duif traag en riskeert ze te bezwijken.{' '}
+          <Link to="/wiki#ziekenboeg">Meer over de ziekenboeg →</Link>
         </p>
       </div>
 
@@ -211,7 +212,7 @@ export function InfirmaryPage() {
           </div>
           <div className="card" style={{ marginBottom: 12, borderColor: 'var(--bad)' }}>
             <p className="muted" style={{ margin: 0 }}>
-              Deze duiven zijn níét afgezonderd. Zieke duiven kunnen de rest van je hok besmetten — hoe lager de gezondheid van een duif, hoe groter het risico. Verplaats ze naar de ziekenboeg.
+              Níét afgezonderd — deze duiven kunnen de rest van je hok besmetten. Verplaats ze naar de ziekenboeg.
             </p>
           </div>
           <div className="grid pigeons">
@@ -237,39 +238,18 @@ function InfirmaryIntro({ cfg, onClose }: { cfg: InfirmaryConfig; onClose: () =>
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
         <h2 style={{ marginTop: 0 }}>🏥 Welkom in de Ziekenboeg</h2>
-        <p className="muted" style={{ marginTop: 0 }}>
-          Even kort uitleggen waar deze afdeling voor dient — je ziet dit maar één keer.
-        </p>
 
+        {/* Three bullets, no more — a wall of text on first arrival is exactly
+            what makes players skip it. The details live in /wiki#ziekenboeg. */}
         <ul className="intro-list">
-          <li>
-            <strong>Herstelplek.</strong> Hier laat je <em>zieke of gekwetste</em> duiven bijkomen,
-            afgezonderd van de rest van je hok.
-          </li>
-          <li>
-            <strong>Stopt besmetting.</strong> Een zieke duif die in je gewone hok blijft, kan
-            hokgenoten aansteken — hoe lager hun gezondheid, hoe groter het risico. In de ziekenboeg
-            besmet ze niemand.
-          </li>
-          <li>
-            <strong>Sneller genezen.</strong> Duiven herstellen hier veel sneller dan in het hok,
-            en nóg sneller met de juiste verzorging.
-          </li>
-          <li>
-            <strong>Verzorging (zoals het voedersysteem):</strong> 💊 medicinaal voer verhoogt de
-            herstelkans van iedereen, een 🩺 duivendokter geneest ziektes ({cfg.birdsPerDoctor} per dokter)
-            en een 🦴 duivenkinesist geneest kwetsuren ({cfg.birdsPerPhysio} per kinesist). Personeel kost
-            weeksalaris.
-          </li>
-          <li>
-            <strong>Let op.</strong> Onbehandelde ernstige aandoeningen (of hoge ouderdom) kunnen
-            dodelijk zijn. Duiven in de ziekenboeg kunnen niet vliegen, trainen of kweken.
-          </li>
+          <li><strong>Zonder je zieke duiven af</strong> zodat ze de rest van je hok niet besmetten.</li>
+          <li><strong>Ze genezen hier sneller</strong> — en nóg sneller met 💊 medicinaal voer, een 🩺 dokter
+            ({cfg.birdsPerDoctor} zieke duiven) of een 🦴 kinesist ({cfg.birdsPerPhysio} gekwetste duiven).</li>
+          <li><strong>Onbehandeld is gevaarlijk:</strong> een ernstige aandoening kan dodelijk aflopen.</li>
         </ul>
 
         <p className="faint" style={{ fontSize: '0.82rem' }}>
-          Je verplaatst een duif hierheen via haar eigen pagina, of via de knoppen op deze pagina.
-          De ziekenboeg heeft momenteel plaats voor {cfg.baseCapacity} duiven.
+          Plaats voor {cfg.baseCapacity} duiven. <Link to="/wiki#ziekenboeg">Volledige uitleg in de wiki →</Link>
         </p>
 
         <button className="btn accent block" onClick={onClose}>Begrepen! 🕊️</button>

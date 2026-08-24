@@ -88,9 +88,7 @@ export function PigeonCard({
         </div>
       ) : (
         <div className="faint" style={{ marginTop: 8, fontSize: '0.85rem', lineHeight: 1.4 }}>
-          🔒 De precieze eigenschappen van andermans duiven zijn niet zichtbaar. Enkel de
-          algemene score (★ {pigeon.talent}) is gekend. Bekijk de ranglijst of vluchtresultaten
-          voor meer info.
+          🔒 Eigenschappen verborgen — enkel ★ {pigeon.talent} is gekend.
         </div>
       )}
 

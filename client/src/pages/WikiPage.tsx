@@ -12,15 +12,19 @@ import { useEffect } from 'react';
 
 const SECTIONS = [
   { id: 'genen', icon: '🧬', label: 'Genen & training' },
+  { id: 'coach', icon: '🎯', label: 'Privécoach' },
   { id: 'ervaring', icon: '🎓', label: 'Ervaring' },
-  { id: 'energie', icon: '⚡', label: 'Energie & herstel' },
+  { id: 'energie', icon: '⚡', label: 'Energie, voer & rust' },
   { id: 'vlucht', icon: '🏁', label: 'Energie per vlucht' },
   { id: 'eigenschappen', icon: '📋', label: 'Wat doet elke eigenschap?' },
   { id: 'verdwalen', icon: '🧭', label: 'Verdwalen' },
   { id: 'vorm', icon: '🎯', label: 'Vluchtvorm & blessures' },
   { id: 'lage-energie', icon: '🪫', label: 'Lage energie' },
-  { id: 'broeden', icon: '🥚', label: 'Broeden' },
+  { id: 'titan', icon: '🏆', label: 'Titanenwedstrijd' },
+  { id: 'estafette', icon: '🔗', label: 'Estafettevlucht' },
+  { id: 'broeden', icon: '🥚', label: 'Kweken & broeden' },
   { id: 'ziekte', icon: '🤒', label: 'Ziekte' },
+  { id: 'ziekenboeg', icon: '🏥', label: 'De ziekenboeg' },
   { id: 'sterfte', icon: '🕯️', label: 'Sterfte' },
   { id: 'rassen', icon: '🎨', label: 'Rassen' },
   { id: 'veilingen', icon: '🔨', label: 'Veilingen & bieden' },
@@ -117,6 +121,40 @@ export function WikiPage() {
         <p><strong>Strategie:</strong> een jonge duif met hoge genen maar lage stats is goud waard — bouw ze op. Bewaar je coach-budget voor duiven die genetisch écht boven 90 kunnen, en fok met je best gegende koppels.</p>
       </Section>
 
+      <Section id="coach" icon="🎯" title="De privécoach">
+        <p className="muted" style={{ marginTop: 0 }}>
+          Een privécoach werkt voor <strong>één duif</strong>. Hij traint haar <strong>elke dag</strong> in snelheid,
+          conditie én oriëntatie (plus wat ervaring) — puur om te racen, nooit libido. Er is <strong>geen
+          instapkost</strong>: je betaalt enkel <strong>€80 per dag</strong> zolang hij in dienst is, automatisch van
+          je kassa. Ontslaan kan op elk moment.
+        </p>
+        <p><strong>Hij duwt richting de gen-cap, en dooft daar uit.</strong> De dagwinst is het grootst bij een lage
+          waarde en wordt kleiner naarmate een eigenschap haar plafond nadert; op de cap stopt ze helemaal. Elke
+          eigenschap telt apart — een duif die op snelheid al capt, kan op oriëntatie nog vlot bijleren.</p>
+        <MiniTable
+          head={['Huidige waarde (cap 90)', 'Winst per dag', 'Tempo']}
+          rows={[
+            ['50', '≈ +0,5', 'vlot'],
+            ['70', '≈ +0,25', 'trager'],
+            ['85', '≈ +0,06', 'traag'],
+            ['90 (op de cap)', '0', 'gestopt'],
+          ]}
+        />
+        <ul style={{ marginTop: 12 }}>
+          <li><strong>Enkel de coach gaat boven 90.</strong> Zelf trainen stopt op 80, vluchten op 90 — voor de laatste
+            punten tot de gen-cap is hij de enige weg (zie <a href="#genen">Genen &amp; training</a>).</li>
+          <li><strong>Hij werkt niet terwijl de duif vliegt</strong> — een duif die de hele dag onderweg is, leert die
+            dag niets van hem bij.</li>
+          <li><strong>Zijn ervaringswinst volgt de leerfactor</strong> (<a href="#ervaring">Ervaring</a>): bij een
+            groentje bijna een punt per dag, bij een veteraan nog een fractie.</li>
+          <li><strong>Op de duifpagina staat het exacte cijfer</strong> voor déze duif, per eigenschap per dag — zit
+            alles al op de cap, dan zegt de pagina dat een coach niets meer toevoegt.</li>
+        </ul>
+        <p><strong>Strategie:</strong> €80/dag is ± €560 per week — dat is echt geld. Zet een coach op duiven die
+          genetisch nog ruimte hebben (zeker boven 90, waar niets anders werkt) en ontsla hem zodra de winst tot
+          bijna niets herleid is. Op een duif die al op haar cap zit, verbrand je puur budget.</p>
+      </Section>
+
       <Section id="ervaring" icon="🎓" title="Ervaring: snel geleerd, traag vervolmaakt">
         <p className="muted" style={{ marginTop: 0 }}>
           Ervaring maakt een duif sneller (tot <strong>+33 %</strong>), zuiniger op de vlucht en vlotter in
@@ -150,7 +188,7 @@ export function WikiPage() {
         </p>
       </Section>
 
-      <Section id="energie" icon="⚡" title="Energie & herstel">
+      <Section id="energie" icon="⚡" title="Energie, voer & rust">
         <p className="muted" style={{ marginTop: 0 }}>
           Energie (de &laquo;fut&raquo; van een duif) daalt door vluchten en stijgt door voer en rust.
           Lage energie = slechtere prestaties, meer kans op ziekte en blessure, en minder kans op broeden.
@@ -174,6 +212,50 @@ export function WikiPage() {
           <li><strong>Apart hok:</strong> een duif in een apart hok herstelt sneller energie.</li>
         </ul>
         <p><strong>Strategie:</strong> laat een topduif af en toe bewust een dag thuis voor de rustbonus, en zet <em>Herstelvoer</em> op wie net een zware fondvlucht deed.</p>
+
+        <h3 style={{ marginBottom: 4 }}>Voorraad: elk voertype apart</h3>
+        <p className="muted" style={{ marginTop: 0 }}>
+          <strong>Elke duif eet van haar eigen voertype</strong> (in te stellen bij <em>Mijn hok</em> of op de
+          duifpagina), en elk type heeft een <strong>aparte voorraad</strong> die je op het overzicht bijkoopt. Is de
+          voorraad van één type op, dan lijden precies die duiven honger — de rest van je hok merkt er niets van.
+        </p>
+        <MiniTable
+          head={['Voer', 'Prijs/kg', 'Verbruik/duif/dag']}
+          rows={[
+            ['Normaal', '€3', '≈ 0,14 kg'],
+            ['Premium', '€6', '≈ 0,21 kg'],
+            ['Libido-mix', '€4,5', '≈ 0,20 kg'],
+            ['Herstelvoer', '€3', '≈ 0,21 kg'],
+          ]}
+        />
+
+        <h3 style={{ marginBottom: 4 }}>Honger: de gevaarlijkste fout</h3>
+        <p className="muted" style={{ marginTop: 0 }}>
+          Geen voorraad = geen eten, en dat wordt <strong>elke dag erger</strong>: de daling versnelt zolang er niets
+          bijkomt. <strong>Getrainde vaardigheden</strong> (snelheid/conditie/oriëntatie) blijven ongemoeid — honger
+          vreet enkel energie, gezondheid en libido, maar kan wél dodelijk zijn.
+        </p>
+        <MiniTable
+          head={['Dag zonder eten', 'Energie', 'Gezondheid', 'Sterftekans']}
+          rows={[
+            ['1', '−8', '−5', 'geen'],
+            ['2', '−16', '−10', 'geen'],
+            ['3', '−24', '−15', '± 25%'],
+            ['4', '−32', '−20', '± 50%'],
+            ['7', '—', '—', 'zeker'],
+          ]}
+        />
+        <p style={{ marginTop: 12 }}>Koop je bij, dan springt de teller meteen terug op 0 en herstelt ze weer normaal.</p>
+
+        <h3 style={{ marginBottom: 4 }}>Rustkuur: tijd omzetten in vorm</h3>
+        <ul style={{ marginTop: 0 }}>
+          <li><strong>€300 voor twee volle dagen rust.</strong> Daarna in één keer <strong>+40 energie</strong> en
+            <strong> +15 gezondheid</strong> — de snelste weg terug naar een groene vluchtvorm.</li>
+          <li>Tijdens de kuur kan de duif <strong>niets</strong>: niet vliegen, trainen of koppelen.</li>
+          <li><strong>Elke duif mag op kuur</strong>, en gerust meerdere tegelijk — maar <strong>elke duif maar één keer
+            per week</strong>. Die teller loopt per duif, vanaf de start van haar vorige kuur.</li>
+          <li>Geen kuur voor een duif die al ingeschreven staat, of die al vol energie én gezondheid zit.</li>
+        </ul>
       </Section>
 
       <Section id="vlucht" icon="🏁" title="Energie per vlucht">
@@ -240,6 +322,35 @@ export function WikiPage() {
           podium — dus goed presteren betaalt zichzelf dubbel terug.</p>
       </Section>
 
+      <Section id="titan" icon="🏆" title="De titanenwedstrijd (om de week, zaterdag)">
+        <p className="muted" style={{ marginTop: 0 }}>
+          De zaterdagwedstrijd wisselt week na week: de ene week de <strong>titanenwedstrijd</strong>, de andere week
+          de <a href="#estafette">estafettevlucht</a>. Welke er aankomt, zie je op de vluchtkalender. De titan vraagt
+          je <strong>beste duif</strong>, de estafette de <em>diepte</em> van je hok — samen dwingen ze je dus twee
+          verschillende hokken te bouwen.
+        </p>
+        <ul>
+          <li><strong>Eén duif per hok.</strong> Geen tactiek met aantallen: je zet je kampioen in, of niets.</li>
+          <li><strong>Middellange tot lange afstand</strong> (± 200 – 600 km). Inschrijfgeld <strong>€50</strong>.</li>
+          <li>Deze wedstrijd <strong>vervangt die dag alle andere vluchten</strong>.</li>
+        </ul>
+        <MiniTable
+          head={['Plaats', 'Prijzengeld']}
+          rows={[['1e', '€1.800'], ['2e', '€1.200'], ['3e', '€900']]}
+        />
+        <ul style={{ marginTop: 12 }}>
+          <li><strong>Enkel geld.</strong> Geen seizoenspunten en geen medailles, dus de titan beweegt de
+            melkerranglijst (de Roekoe) <strong>niet</strong>. Er kan ook niet op gewed worden, en sponsors betalen er
+            geen podiumpremie voor.</li>
+          <li><strong>De duivenranglijsten (de Vleugel) tellen hem wél volwaardig mee</strong>: snelheid, podiums en
+            vooruitgang van je duif tellen gewoon.</li>
+          <li>Je duif gaat er, zoals bij elke vlucht, gewoon op vooruit.</li>
+        </ul>
+        <p><strong>Strategie:</strong> €1.800 voor één start is de rijkste enkele prijs van de week, maar je hebt maar
+          één schot. Kijk naar de <a href="#vorm">vluchtvorm</a> van je kampioen: op zaterdag met een duif die vrijdag
+          nog vloog, gooi je je beste kans weg.</p>
+      </Section>
+
       <Section id="estafette" icon="🔗" title="De estafettevlucht (om de week, zaterdag)">
         <p className="muted" style={{ marginTop: 0 }}>
           Zaterdag wisselt de prestigewedstrijd af: de ene week de <strong>titanenwedstrijd</strong> (één topduif),
@@ -255,9 +366,20 @@ export function WikiPage() {
             uitgeschakeld. Duiven die nog niet aan de beurt waren, vliegen dan gewoon niet (en verliezen niets).</li>
           <li>Elke etappe heeft <strong>haar eigen weer</strong>, en dat weerbericht staat er dagen op voorhand bij.
             Daarom mag je je volgorde tot de start nog wisselen.</li>
+          <li>Inschrijfgeld <strong>€100 voor de hele ploeg</strong> (niet per duif). Haal je één duif weg, dan is je
+            hele ploeg uitgeschreven en krijg je dat geld terug.</li>
           <li>Enkel <strong>prijzengeld</strong> (top 5), geen seizoenspunten en geen weddenschappen. De snelheid van je
             duiven op hun etappe telt wél mee voor de duivenranglijsten.</li>
         </ul>
+        <MiniTable
+          head={['Plaats', 'Prijzengeld']}
+          rows={[['1e', '€3.000'], ['2e', '€2.000'], ['3e', '€1.500'], ['4e', '€1.100'], ['5e', '€800']]}
+        />
+        <p style={{ marginTop: 12 }}>
+          <strong>Uitslag:</strong> eerst de ploegen die <em>compleet</em> thuis raken, op tijd. Daarna de uitgeschakelde
+          ploegen, op hoe ver ze geraakt zijn — die kunnen dus nog in de prijzen vallen, maar nooit vóór een ploeg die
+          het wél haalde.
+        </p>
         <p><strong>Strategie:</strong> zet je sterkste duif op de <em>zwaarste</em> etappe (die met tegenwind) — daar
           verlies je met haar het minst. Bij overal hetzelfde weer maakt de volgorde niets uit. En kijk vooral naar je
           <em> zwakste</em> schakel: die bepaalt evenveel van de ploegtijd als je kampioen.</p>
@@ -475,9 +597,22 @@ export function WikiPage() {
         <p><strong>Strategie:</strong> race nooit een uitgeputte duif. Het levert amper punten op én riskeert een blessure of erger — laat haar eerst herstellen.</p>
       </Section>
 
-      <Section id="broeden" icon="🥚" title="Kans op broeden">
+      <Section id="broeden" icon="🥚" title="Kweken & broeden">
         <p className="muted" style={{ marginTop: 0 }}>
-          Een koppel levert <strong>niet gegarandeerd</strong> jongen op. De <strong>libido</strong> én de
+          Koppelen kost <strong>€200</strong> en <strong>−15 energie per ouder</strong>. Beide ouders hebben minstens
+          <strong> 20 energie</strong> nodig, mogen niet ziek of gekwetst zijn, niet in de ziekenboeg zitten en niet
+          ingeschreven staan voor een vlucht. Een broedende duif <strong>kan niet vliegen</strong> — stop het koppel
+          als je haar terug wil inzetten (het vervalt dan zonder jongen).
+        </p>
+        <p><strong>Wat een jong erft:</strong> elke vaardigheid is het <strong>gemiddelde van beide ouders ± een
+          mutatie</strong> (tot ±8), begrensd op haar eigen gen-cap. Ook de <a href="#genen">genen</a> zelf — de
+          plafonds én het verouderingstempo — erven zo over. Twee ouders van hetzelfde <a href="#rassen">ras</a> geven
+          dat ras door; verschillende ouders geven een <em>Gemengd</em> jong.</p>
+        <p><strong>Uitkomen duurt onvoorspelbaar lang.</strong> Er is geen aftelklok: elk moment is er een kans, groter
+          naarmate libido en energie van de ouders hoger zijn. Een topfit koppel komt gemiddeld na ± 1 dag uit, een
+          lusteloos koppel kan tot ± 6 dagen duren.</p>
+        <p style={{ marginTop: 12 }}>
+          <strong>Een koppel levert niet gegarandeerd jongen op.</strong> De <strong>libido</strong> én de
           <strong> energie</strong> van béide ouders bepalen de kans.
         </p>
         <ul>
@@ -522,6 +657,50 @@ export function WikiPage() {
           <li>Een ernstige ziekte blijft altijd mogelijk, ook bij een topduif — ze is alleen zeldzaam.</li>
         </ul>
         <p><strong>Strategie:</strong> houd gezondheid en energie op peil, en zet een zieke duif <em>meteen</em> in de ziekenboeg — anders is de kans groot dat het overslaat op de rest van je hok.</p>
+      </Section>
+
+      <Section id="ziekenboeg" icon="🏥" title="De ziekenboeg: personeel & herstel">
+        <p className="muted" style={{ marginTop: 0 }}>
+          De ziekenboeg doet twee dingen: ze <strong>zondert een zieke duif af</strong> (zo besmet ze niemand en wordt
+          ze zelf niet besmet) en ze <strong>versnelt het herstel</strong>. Ze start met <strong>2 bedden</strong>,
+          uitbreidbaar tot 6. Duiven in de boeg kunnen niet vliegen, trainen of kweken.
+        </p>
+        <MiniTable
+          head={['Verzorging', 'Kost/dag', 'Wat het doet']}
+          rows={[
+            ['💊 Medicinaal voer', '€6 per duif in de boeg', 'sneller herstel voor iedereen in de boeg'],
+            ['🩺 Duivendokter', '€57', 'behandelt 2 zieke duiven'],
+            ['🦴 Duivenkinesist', '€50', 'behandelt 2 gekwetste duiven'],
+          ]}
+        />
+        <p style={{ marginTop: 12 }}>
+          <strong>Hoe lang duurt genezen?</strong> Rustend in het gewone hok gaat het traag; de effecten van de
+          ziekenboeg, de juiste staf en medicinaal voer <em>stapelen</em>:
+        </p>
+        <MiniTable
+          head={['Ernst', 'Enkel rustend in het hok', 'Met volle zorg']}
+          rows={[
+            ['Licht', '± 5 dagen', '± 1,5 dag'],
+            ['Matig', '± 11 dagen', '± 3,5 dagen'],
+            ['Ernstig', '± 18 dagen', '± 6 dagen'],
+          ]}
+        />
+        <ul style={{ marginTop: 12 }}>
+          <li><strong>Meer patiënten dan plaatsen? Jij kiest.</strong> Eén dokter behandelt er maar 2. Met de knop
+            <strong> 📌 Deze duif laten behandelen</strong> zet je zelf iemand vast; de overige plaatsen vult het spel
+            automatisch met de <em>ernstigste</em> gevallen. Kies je niets, dan gaat alles automatisch — precies zoals
+            vroeger. Een tweede dokter of kinesist geeft er telkens twee plaatsen bij.</li>
+          <li><strong>Energie herstelt er trager.</strong> Een duif in de boeg krijgt maar <strong>50 %</strong> van het
+            normale voer-herstel, en <strong>enkel als ze door de juiste staf gedekt is</strong> (dokter bij ziekte,
+            kinesist bij een kwetsuur). Ongedekt krijgt ze er <strong>niets</strong> bij. De rustbonus telt er ook niet.</li>
+          <li><strong>Een apart hok komt vrij</strong> zodra een duif naar de boeg gaat, en ze pakt het automatisch
+            terug bij haar genezing als er nog eentje vrij is.</li>
+          <li><strong>Elke 12 uur</strong> krijg je per herstellende duif een statusbericht met het herstelpercentage
+            en een schatting hoe lang het nog duurt.</li>
+        </ul>
+        <p><strong>Strategie:</strong> personeel kost geld per dag, maar een onbehandelde ernstige aandoening kost je
+          soms de duif (zie <a href="#sterfte">Sterfte</a>) én ondermijnt intussen elke dag haar gezondheid. Neem staf
+          in dienst zolang je patiënten hebt, en ontsla ze weer als de boeg leeg is.</p>
       </Section>
 
       <Section id="sterfte" icon="🕯️" title="Sterfte">
