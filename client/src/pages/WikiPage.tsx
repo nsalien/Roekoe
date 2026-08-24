@@ -20,6 +20,7 @@ const SECTIONS = [
   { id: 'verdwalen', icon: '🧭', label: 'Verdwalen' },
   { id: 'vorm', icon: '🎯', label: 'Vluchtvorm & blessures' },
   { id: 'lage-energie', icon: '🪫', label: 'Lage energie' },
+  { id: 'sponsors', icon: '🤝', label: 'Sponsors' },
   { id: 'titan', icon: '🏆', label: 'Titanenwedstrijd' },
   { id: 'estafette', icon: '🔗', label: 'Estafettevlucht' },
   { id: 'broeden', icon: '🥚', label: 'Kweken & broeden' },
