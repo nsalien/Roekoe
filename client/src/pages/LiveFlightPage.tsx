@@ -203,8 +203,8 @@ export function LiveFlightPage() {
             })}
           </div>
           <p className="faint" style={{ marginTop: 10, marginBottom: 0 }}>
-            Per ploeg vliegt er één duif tegelijk; op elk wisselpunt neemt de volgende over. Geeft één duif op of raakt ze
-            er niet, dan valt de hele ploeg uit.
+            Eén duif tegelijk per ploeg; valt er één weg, dan valt de hele ploeg uit.{' '}
+            <Link to="/wiki#estafette">Meer info →</Link>
           </p>
         </div>
       )}

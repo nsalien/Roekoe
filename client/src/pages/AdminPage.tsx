@@ -129,11 +129,8 @@ function PigeonInspector() {
           style={{ maxWidth: '100%' }}
         />
         <p className="faint" style={{ fontSize: '0.82rem', marginBottom: 0 }}>
-          Dit toont de <strong>exacte opgeslagen waarden</strong> (op 0,1 nauwkeurig — het spel rondt af voor de
-          weergave), de <strong>gen-caps</strong> per vaardigheid, en de veroudering. Een vaardigheid daalt <strong>alleen
-          door leeftijd</strong> zodra een duif ouder is dan <strong>{peak} weken</strong> (haar piek). Staat er bij
-          <strong> Veroudert</strong> "nee", dan kan haar snelheid/conditie/oriëntatie <em>niet</em> zakken door
-          leeftijd. Zo verifieer je of een duif terecht (of onterecht) achteruitgaat.
+          Exacte opgeslagen waarden (op 0,1) + gen-caps. <strong>Veroudert</strong> staat op "ja" vanaf {peak} weken —
+          alleen dán kan een vaardigheid door leeftijd zakken. Klik een naam voor de volledige duifpagina.
         </p>
       </div>
 

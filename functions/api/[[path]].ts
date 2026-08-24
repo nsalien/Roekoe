@@ -314,7 +314,7 @@ app.get('/state', (c) => {
   const loft = db.lofts.find((l) => l.userId === user.id);
   const pigeons = db.pigeons
     .filter((p) => p.ownerId === user.id)
-    .map((p) => pigeonDTO(db, p, user.id))
+    .map((p) => pigeonDTO(db, p, user.id, user.isAdmin))
     .sort((a, b) => b.talent - a.talent);
   const upcoming = db.flights
     .filter((f) => f.status === 'scheduled' || f.status === 'live')
@@ -462,9 +462,9 @@ app.get('/pigeons/:id', (c) => {
   const sire = p.sireId ? db.pigeons.find((x) => x.id === p.sireId) : null;
   const dam = p.damId ? db.pigeons.find((x) => x.id === p.damId) : null;
   return c.json({
-    pigeon: pigeonDTO(db, p, user.id),
-    sire: sire ? pigeonDTO(db, sire, user.id) : null,
-    dam: dam ? pigeonDTO(db, dam, user.id) : null,
+    pigeon: pigeonDTO(db, p, user.id, user.isAdmin),
+    sire: sire ? pigeonDTO(db, sire, user.id, user.isAdmin) : null,
+    dam: dam ? pigeonDTO(db, dam, user.id, user.isAdmin) : null,
     mine: p.ownerId === user.id,
     history: pigeonRaceHistory(db, p.id),
   });
@@ -654,13 +654,13 @@ app.get('/market', (c) => {
   const botIds = new Set(db.lofts.filter((l) => l.isBot).map((l) => l.userId));
   const listings = db.pigeons
     .filter((p) => p.forSale && p.ownerId !== user.id)
-    .map((p) => pigeonDTO(db, p, user.id))
+    .map((p) => pigeonDTO(db, p, user.id, user.isAdmin))
     .sort((a, b) => (a.price ?? 0) - (b.price ?? 0));
   // Every other real player's pigeon that is NOT already listed — you can make a
   // private offer on these (see offers.ts). For-sale ones are in `listings`.
   const biddable = db.pigeons
     .filter((p) => p.ownerId !== user.id && !botIds.has(p.ownerId) && !p.forSale)
-    .map((p) => pigeonDTO(db, p, user.id))
+    .map((p) => pigeonDTO(db, p, user.id, user.isAdmin))
     .sort((a, b) => b.talent - a.talent);
   return c.json({ listings, biddable, trades: recentTrades(db), auctions: auctionsDTO(db, user.id) });
 });

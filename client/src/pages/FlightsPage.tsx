@@ -230,25 +230,23 @@ export function FlightsPage() {
                   </span>
                 </div>
 
+                {/* One line with the rules that change what you DO here; the full
+                    format (prizes, ranking rules, tactics) lives in the wiki. */}
                 {f.relay && (
                   <p className="faint" style={{ marginTop: 10, marginBottom: 0 }}>
-                    🔗 De estafettevlucht: <strong>één ploeg van {f.teamSize} duiven per hok</strong>, die elkaar aflossen —
-                    elke duif vliegt exact {f.legKm} km, en er is er altijd maar één tegelijk in de lucht. Valt er één weg,
-                    dan ligt de <strong>hele ploeg</strong> eruit. Enkel prijzengeld (€3000 / €2000 / €1500 / €1100 / €800
-                    voor de top 5), <strong>geen</strong> rangschikkingspunten en geen weddenschappen. Je duiven gaan er wel
-                    op vooruit, en hun snelheid telt mee voor de duivenranglijsten.
+                    🔗 Ploeg van <strong>{f.teamSize} duiven</strong>, elk {f.legKm} km — één weg = hele ploeg weg. Enkel
+                    prijzengeld (top 5), geen punten. <Link to="/wiki#estafette">Meer over de estafettevlucht →</Link>
                   </p>
                 )}
                 {f.titan && (
                   <p className="faint" style={{ marginTop: 10, marginBottom: 0 }}>
-                    🏆 De titanenwedstrijd: middellange tot lange afstand, <strong>één duif per hok</strong>. Enkel prijzengeld
-                    (€1400 / €1200 / €1000 voor de top 3), <strong>geen</strong> rangschikkingspunten. Je duif traint wel bij.
-                    Deze wedstrijd vervangt vandaag alle andere vluchten.
+                    🏆 <strong>Eén duif per hok</strong>, enkel prijzengeld (top 3), geen punten. De enige vlucht vandaag.{' '}
+                    <Link to="/wiki#titan">Meer over de titanenwedstrijd →</Link>
                   </p>
                 )}
                 {f.practice && (
                   <p className="faint" style={{ marginTop: 10, marginBottom: 0 }}>
-                    🌤️ Een korte training: lage energiekost, geen geldkosten, en levert geen punten of prijzen op.
+                    🌤️ Korte training: lage energiekost, gratis, geen punten of prijzen — en geen risico.
                   </p>
                 )}
                 {!f.practice && !f.titan && !f.relay && (() => {

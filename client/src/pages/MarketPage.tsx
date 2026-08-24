@@ -481,8 +481,8 @@ function AuctionCard({
         </div>
       ) : (
         <p className="faint" style={{ margin: '0 0 10px', fontSize: '0.8rem' }}>
-          Vrij bieden tot {auction.finalPhaseMinutes} minuten voor het einde. Daarna heeft
-          elke speler nog maar <strong>{auction.maxBids}</strong> biedingen op deze duif.
+          Vanaf {auction.finalPhaseMinutes} min voor het einde: nog <strong>{auction.maxBids}</strong> biedingen per
+          speler. <Link to="/wiki#veilingen">Hoe bieden werkt →</Link>
         </p>
       )}
 
@@ -507,8 +507,7 @@ function AuctionCard({
       </div>
       {closingSoon && !outOfBids && (
         <p className="faint" style={{ margin: '8px 0 0', fontSize: '0.78rem' }}>
-          Bied je nu nog, dan schuift de klok terug naar {auction.antiSnipeMinutes} minuten —
-          winnen op de valreep lukt dus niet.
+          Een bod nu zet de klok terug op {auction.antiSnipeMinutes} min — winnen op de valreep lukt niet.
         </p>
       )}
     </div>

@@ -1,6 +1,7 @@
 /** Kweek: pair a doffer and a duivin to produce young that inherit attributes. */
 
 import { useCallback, useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { api } from '../api/client';
 import { useGame } from '../game/GameContext';
 import { Money, Spinner, useToast } from '../components/ui';
@@ -71,10 +72,14 @@ export function BreedingPage() {
       <div className="grid cols-2">
         <div className="card" data-tour="breed">
           <h2>Nieuw koppel</h2>
-          <p className="muted">
-            Kost <Money value={BREED_COST} />. De jongen erven het gemiddelde van beide ouders, met wat variatie —
-            koppel je besten voor de sterkste nakomelingen. Een hoog <strong>❤ libido</strong> en voldoende
-            <strong> ⚡ energie</strong> vergroten de kans op (meer) jongen; te weinig energie levert soms niets op.
+          {/* Two sentences: what it costs and what drives the odds. The rest
+              (overerving, genen, uitkomsttijd) staat in de wiki. */}
+          <p className="muted" style={{ marginBottom: 4 }}>
+            Kost <Money value={BREED_COST} /> + 15 energie per ouder. Hoog <strong>❤ libido</strong> en veel
+            <strong> ⚡ energie</strong> = meer kans op (twee) jongen.
+          </p>
+          <p className="faint" style={{ margin: '0 0 12px', fontSize: '0.82rem' }}>
+            <Link to="/wiki#broeden">Meer over kweken &amp; overerving →</Link>
           </p>
 
           <div className="field">

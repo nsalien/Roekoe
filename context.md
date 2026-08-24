@@ -41,6 +41,12 @@
 2. **Deploy direct naar productie** zodra je een aanpassing hebt gedaan (zie §7
    voor de exacte flow). Niet wachten tot de speler erom vraagt.
 3. Verifieer altijd met typecheck + build (§7) vóór je commit + deployt.
+4. **Tekstbudget in de UI.** Een scherm toont enkel wat de beslissing van dít moment
+   stuurt (kost, opbrengst voor déze duif, harde beperking). Mechaniek, kansen,
+   tabellen en tactiek horen in **`WikiPage`** (`client/src/pages/WikiPage.tsx`), met
+   in het scherm een link **"Meer info over … →"** naar `/wiki#<sectie>`. Blokken tekst
+   in het spel worden niet gelezen. Zet **getallen bij voorkeur enkel in de wiki**, zodat
+   er één plek is om met `gameConfig.ts` te synchroniseren.
 
 ---
 
@@ -334,7 +340,7 @@ Roekoe/
 │   │                            boundedCleanups/findUserBy*, auction_bids); diff schrijft
 │   │                            gegroepeerd + kolom-smal (zie §8 503-fix ronde 3)
 │   ├── auth.ts                  wachtwoord-hash + JWT via Web Crypto
-│   ├── presenters.ts            entiteit → client-DTO (pigeonDTO(db,p,viewerId?) → dailyCare + info-hiding)
+│   ├── presenters.ts            entiteit → client-DTO (pigeonDTO(db,p,viewerId?,isAdmin?) → dailyCare + info-hiding)
 │   └── game/
 │       ├── engine.ts            speler-acties (buy/train/enter/giveUpFlight/breed/…)
 │       ├── schedule.ts          advanceRealtime + data-migraties + alle ticks
@@ -742,11 +748,15 @@ Entiteiten: `Pigeon`, `Loft`, `User`, `BreedingPair`, `Flight` (+ `SimEntry`,
 - `AchievementsPage` (Prestaties) — tabs Badges · Trofeeën · **Seizoensprijzen**
   (Roekoes + Vleugels: tellingen goud/zilver/brons + erelijst uit `profile.awards`).
 - `WikiPage` (`/wiki`, nav 📖 **Wiki**) — **statische**, client-only uitlegpagina van
-  de strategie-bepalende mechanismen + kansen (energie/herstel, **ervaring/leerfactor**,
-  vlucht-verbruik, DNF/blessure/dood bij lage energie, broedkans, ziektekans, sterfte,
-  ras-rariteit). Bewust
+  de strategie-bepalende mechanismen + kansen. **Dé plek voor lange uitleg** (zie
+  §Tekstbudget): elk scherm houdt het bij het minimum en linkt hierheen. Secties (`id`):
+  `genen` · **`coach`** · `ervaring` · `energie` (energie/voer/honger/rustkuur) · `vlucht` ·
+  `eigenschappen` · `verdwalen` · `vorm` · `lage-energie` · **`titan`** · `estafette` ·
+  `broeden` (kweken/overerving) · `ziekte` · **`ziekenboeg`** · `sterfte` · `rassen` ·
+  `veilingen` · `hok` · `waarde` · `afscheid`. Bewust
   **niet 100% transparant**: richtwaarden i.p.v. exacte formules, geluk blijft benoemd.
   Geen backend/kosten. Cijfers **handmatig** in sync houden met `core/config/gameConfig.ts`.
+  `WikiPage` scrollt naar de hash bij mount, dus `/wiki#coach` landt op de juiste sectie.
 - `AdminPage` (`/beheer`, **enkel admins**) — uitbreidbare **beheerconsole** (tabs).
   Eerste tool **Vlucht-analyse**: per duif van een afgeronde vlucht de volledige
   snelheidsontleding (eigenschappen + weging + energie/gezondheid/ervaring/leeftijd-
@@ -758,7 +768,8 @@ Entiteiten: `Pigeon`, `Loft`, `User`, `BreedingPair`, `Flight` (+ `SimEntry`,
   `declineRate` + **verouderingsdiagnose** (`aging` enkel > `AGING.peakEndWeeks`, met de
   exacte `declinePerWeek`), plus een **uitklapbaar wijzigingslogboek** (`Pigeon.attrLog`):
   elke skill-verandering met reden + tijdstip. Zo verifieerbaar óf, wanneer én waardoor
-  een duif zakt/stijgt.
+  een duif zakt/stijgt. De duifnaam linkt naar `/duif/:id`, en **de admin ziet daar álle
+  eigenschappen** (zie §8, admin-doorbraak op de info-hiding).
 - `MarketPage` (Markt) — koop van spelers + veilingen (zondag/opvangcentrum) + de
   **privé-biedingen**: "Biedingen op jouw duiven" (accepteer/weiger), "Jouw
   uitgebrachte biedingen" (intrekken), én een **getrapte kiezer `BidCascade`**
@@ -806,7 +817,8 @@ is verwijderd — alles zit nu in `Tour`.)
 Logica in `core/game/` + knoppen in `core/config/gameConfig.ts`, endpoint in
 `functions/api/[[path]].ts`, DTO in `core/presenters.ts` + `client/src/types.ts`,
 UI in `client/src/pages/`. Update **`spelregels.md`** bij een regel/formule, en
-**altijd `context.md`** (§0).
+**altijd `context.md`** (§0). Hoort er uitleg bij? Die gaat in **`WikiPage.tsx`**;
+het scherm zelf blijft kort en linkt ernaar (§0, punt 4).
 
 ### Verifiëren vóór commit
 ```bash
@@ -861,7 +873,60 @@ npx tsx advance-throttle.test.mts  # CPU: een leespoll slaat de engine over
 Alles hieronder staat **live** op de deploy-branch. Data-migraties liepen door tot
 **`dataVersion = 38`**.
 
-**Bots zijn echte tegenstanders geworden — 8 bots, eigen hokbeheer, late inschrijving (nieuwste)**
+**De beheerder ziet alle duiven volledig (nieuwste)**
+- **Probleem:** de **Duif-inspector** (`/beheer` → tab Duif-inspector) toont wél de rauwe
+  waarden in zijn eigen tabel, maar de duifnaam linkt naar `/duif/:id` — en dáár sloeg de
+  info-hiding toe: `revealed=false`, dus statbalken weg, "🔒 eigenschappen onbekend".
+  De beheerder kon andermans duiven dus niet echt inspecteren. Dat de admin álles moet
+  kunnen nakijken en gewone spelers níét, is expliciet de bedoeling.
+- **Fix:** `pigeonDTO` kreeg een vierde parameter **`viewerIsAdmin = false`**. Intern nu
+  twee begrippen: **`publiclyRevealed`** (de oude regel: geen viewer / eigenaar / `forSale`
+  / `onAuction`) en **`revealed = publiclyRevealed || viewerIsAdmin`**. Alle API-call sites
+  in `functions/api/[[path]].ts` geven `user.isAdmin` mee (`/state`, `/pigeons/:id` incl.
+  beide ouders, `/market` listings + biddable).
+- ⚠️ **Bewust: `dailyCare` hangt aan `publiclyRevealed`, niet aan `revealed`.** Dat is de
+  verzorgingsprojectie van de **eigenaar** (nutteloos voor een kijker), en `projectDailyCare`
+  voor élke duif op `/market` zou de admin een CPU-piek geven op een pad met een **10 ms**-
+  limiet. De admin ziet dus alle stats, maar geen ▲▼-projectie van andermans duif.
+- **Client:** `PigeonPage` zet er een regeltje boven wanneer een admin een vreemde duif
+  bekijkt ("🛠️ Je ziet dit als beheerder — gewone spelers zien enkel ★ talent"), zodat de
+  admin niet denkt dat iederéén dit ziet.
+- **Geen schema-/configwijziging, geen migratie**, `dataVersion` blijft ongewijzigd (**38**). Geverifieerd
+  met een wegwerp-tsx-script tegen de échte `pigeonDTO` (19 controles): eigenaar ziet alles,
+  gewone speler niets behalve talent, admin alle zeven stats + genen + vluchtvorm, `dailyCare`
+  blijft null voor de admin maar niet voor de eigenaar, eigen duif van de admin ongewijzigd,
+  en **zonder** de vlag gedraagt de admin zich exact als een gewone speler (regressie).
+
+**Tekstbudget: schermen kort houden, uitleg naar de wiki (nieuwste)**
+- **Aanleiding (eigenaar):** blokken tekst in de UI worden niet gelezen. De privécoach-kaart
+  op de duifpagina, de estafette-/titan-blokjes onder een vlucht, de Verzorging-kaart op het
+  overzicht en de kweekpagina stonden vol regelverklaring die niemand ter plekke nodig heeft.
+- **Regel voor nieuwe UI-tekst:** een scherm toont enkel wat de **beslissing van dít moment**
+  stuurt (wat kost het, wat levert het déze duif op, wat is de harde beperking). Alle
+  mechaniek, kansen, tabellen en tactiek horen in **`WikiPage`**, met eronder een link
+  **"Meer info over … →"** naar `/wiki#<sectie>` (patroon dat `LoftPage` al gebruikte met
+  "Hoe de schijven werken →").
+- **Nieuwe/uitgebreide wiki-secties:** **`coach`** (🎯 privécoach: dagkost, afnemende winst
+  richting de gen-cap, enige weg boven 90), **`titan`** (🏆 prijzentabel, één duif per hok,
+  telt wel voor de Vleugel niet voor de Roekoe), **`ziekenboeg`** (🏥 personeel + kosten,
+  genezingsduur rustend vs. volle zorg, 📌 vastzetten, halve energierecuperatie),
+  `energie` verbreed naar **"Energie, voer & rust"** (voorraad per type, hongertabel,
+  rustkuur), `broeden` verbreed naar **"Kweken & broeden"** (kost, overerving, uitkomsttijd)
+  en `estafette` kreeg zijn **prijzentabel + uitslagregel**.
+- **Ingekort:** `PigeonPage` (coach, training, rustkuur, afscheid, bod, 🔒-melding),
+  `FlightsPage` (estafette/titan/oefenvlucht → één regel + wikilink), `DashboardPage`
+  (Verzorging + dagbalans-intro + beheerderskaart), `BreedingPage`, `InfirmaryPage`
+  (introdialoog van 5 lange bullets → 3 korte + wikilink), `SponsorsPage`, `MarketPage`
+  (veilingregels), `LiveFlightPage`, `PigeonCard`, `AdminPage` (inspector-uitleg).
+- **Meegenomen bugfix:** het titan-blokje op `FlightsPage` toonde nog **€1400/€1200/€1000**
+  terwijl `TITAN.prizes` al lang `[1800, 1200, 900]` is. Bedragen staan nu **enkel nog in de
+  wiki**, zodat er maar één plek is om te synchroniseren.
+- **Opgeruimd:** `DashboardPage.dailyFixed`/`coachedCount` zijn weg — die berekenden een
+  dagkost die de **Dagbalans**-tegel er al volledig uit haalt (`loft.dailyCosts`).
+- **Geen gedragswijziging**, enkel copy/markup. Beide typechecks, de build en de vier vaste
+  regressietests groen.
+
+**Bots zijn echte tegenstanders geworden — 8 bots, eigen hokbeheer, late inschrijving**
 - **Aanleiding:** de estafette van 22 aug kreeg maar **5 ploegen**. Drie oorzaken, gemeten
   met een wegwerpsimulatie tegen de echte engine:
   1. `DEFAULT_BOT_COUNT` was **6** → hoogstens 6 botploegen, terwijl een bot bij een gewone
@@ -1785,9 +1850,10 @@ Alles hieronder staat **live** op de deploy-branch. Data-migraties liepen door t
     + nav-badge; uitkomsten (aanvaard/geweigerd/vervallen) gaan wél als bel-melding naar
     de bieder. Endpoints: `POST /pigeons/:id/offer`, `/offers/:id/withdraw`,
     `/offers/:id/respond`. In `/state.offers`. `pigeonDTO.ownerIsBot` toegevoegd.
-- **Info-hiding bij bieden (nieuwste):** `pigeonDTO(db, p, viewerId?)` verbergt de
-  **privé-eigenschappen** van andermans duiven. `revealed = viewerId===undefined ||
-  p.ownerId===viewerId || p.forSale` — **een duif die te koop staat op de markt is
+- **Info-hiding bij bieden:** `pigeonDTO(db, p, viewerId?, viewerIsAdmin?)` verbergt de
+  **privé-eigenschappen** van andermans duiven. `publiclyRevealed = viewerId===undefined ||
+  p.ownerId===viewerId || p.forSale || onAuction`, en `revealed = publiclyRevealed ||
+  viewerIsAdmin` (zie de admin-doorbraak bovenaan §8) — **een duif die te koop staat op de markt is
   dus volledig zichtbaar** (koper moet zien wat hij koopt), net als **veilingduiven**
   (`auctionsDTO` roept `pigeonDTO(db, p)` zónder viewer → altijd revealed). Enkel een
   duif die **niet** te koop staat blijft verborgen wanneer een ander ze bekijkt om een
