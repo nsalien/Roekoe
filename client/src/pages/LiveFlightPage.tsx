@@ -6,10 +6,10 @@ import { api } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
 import { useGame } from '../game/GameContext';
 import { Money, Spinner, countdownTo, formatFlightTime, useToast } from '../components/ui';
-import type { Flight, LiveResponse } from '../types';
+import type { LiveFlight, LiveResponse } from '../types';
 
 /** Which leg of an estafettevlucht a bird flew (undefined for normal flights). */
-function legOf(flight: Flight, pigeonId: string): number | undefined {
+function legOf(flight: LiveFlight, pigeonId: string): number | undefined {
   return flight.entries.find((e) => e.pigeonId === pigeonId)?.leg;
 }
 

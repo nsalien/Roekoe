@@ -368,6 +368,7 @@ Roekoe/
 ├── names.test.mts               regressietest: duivennamen zijn uniek
 ├── advance-throttle.test.mts    regressietest: advanceRealtime-throttle (CPU)
 ├── cpu-budget.test.mts          regressietest: geen pad over de 10 ms CPU (koud + warm)
+├── daily-budget.test.mts        regressietest: D1-daglimieten (5M gelezen / 100k geschreven)
 ├── commentary.test.mts          regressietest: live verslag groeit aan, herschrijft niet
 ├── betting-odds.test.mts        regressietest: weddenschapskansen kloppen + zijn stabiel
 ├── limits-report.mts            meet queries/rijen gelezen/geschreven per verzoek
@@ -841,6 +842,7 @@ npx tsx idle-writes.test.mts       # D1: een poll zonder gebeurtenissen schrijft
 npx tsx names.test.mts             # elke duivennaam blijft uniek
 npx tsx advance-throttle.test.mts  # CPU: een leespoll slaat de engine over
 npx tsx cpu-budget.test.mts        # CPU: geen enkel pad over de 10 ms (koud!)
+npx tsx daily-budget.test.mts      # D1-DAGlimieten: een drukke dag < 50% van 5M/100k
 npx tsx commentary.test.mts        # het live verslag groeit aan, herschrijft niet
 npx tsx betting-odds.test.mts      # weddenschapskansen kloppen en zijn stabiel
 ```
@@ -882,7 +884,55 @@ eerst) en `npx tsx limits-report.mts` (queries/rijen per verzoek).
 Alles hieronder staat **live** op de deploy-branch. Data-migraties liepen door tot
 **`dataVersion = 38`**.
 
-**CPU-fix ronde 2: het live verslag en de weddenschapsodds (nieuwste)**
+**Daglimieten van D1: het live-bord uit de hete weg gehaald (nieuwste)**
+- **Aanleiding:** Cloudflare kondigde aan dat de **daglimieten van D1** vanaf **1 sep
+  2026** hard afgedwongen worden op het gratis plan: **5.000.000 rijen gelezen** en
+  **100.000 rijen geschreven** per dag, reset om 00:00 UTC. Loopt een van beide vol,
+  dan faalt élke query en is het spel onbereikbaar tot middernacht. Dit is een
+  **andere** limiet dan de CPU-fix hierboven, en die was nog niet bewaakt.
+- **Gemeten met een nieuwe `daily-budget.test.mts`** — een volledige, bewust
+  pessimistische speeldag door de echte engine (10 spelers, 300 duiven, volle inboxen,
+  10 kijkers die 8 uur een live-bord openhouden, 2 achtergrondverzoeken/min):
+
+  | | vóór | na |
+  |---|---|---|
+  | rijen gelezen/dag | **2,73 M (54,7 %)** — marge 1,8× | **1,21 M (24,2 %)** — marge 4,1× |
+  | rijen geschreven/dag | 6,5 % | 7,1 % (ongewijzigd, marge 14×) |
+  | rijen per verzoek | 349 | 158 |
+
+- **Oorzaak: élk verzoek las de hele wereld, en 64 % daarvan was de tabel `pigeons`.**
+  Uitgesplitst per verzoek: pigeons 224 · notifications 41 · trades 40 · users 18 ·
+  lofts 18 · flights 7. Het **live-bord** was veruit het meeste verkeer (4.800 van de
+  7.681 verzoeken) en had van dat alles **niets** nodig: posities, namen en eigenaars
+  rijden allemaal mee in de bevroren `sim` en `results` van de vlucht zelf, en de
+  pagina leest `entrants`/`teams` niet (die bestaan voor het weddenschapspaneel op een
+  *geplande* vlucht).
+- **Fix:** `loadLiveFlight` (`core/d1.ts`) haalt de wereldrij + die ene vlucht op —
+  **2 rijen** — en `liveBoardDTO` (`presenters.ts`) bouwt het antwoord uit de vlucht
+  alleen, zonder `db`. De middleware bedient `GET /api/flights/:id/live` daarmee vóór
+  de wereld geladen wordt. Client: `LiveResponse.flight` is nu het smalle type
+  `LiveFlight` i.p.v. `Flight`, zodat de compiler afdwingt dat de pagina niets
+  gebruikt wat we niet sturen.
+- ⚠️ **De valkuil, en hoe ze afgedekt is:** als het live-bord de wereld nooit meer
+  laadt, draait `advanceRealtime` niet meer en **stopt de spelklok** wanneer dat het
+  enige verkeer is (precies tijdens een fondvlucht!). Daarom neemt de smalle weg het
+  alleen over zolang de engine **recent gedraaid heeft** (`ADVANCE_THROTTLE_SECONDS`,
+  20 s); is hij toe aan een ronde, dan valt het verzoek gewoon terug op de volle weg.
+  Geverifieerd tegen een draaiende server: met uitsluitend live-polls schuift
+  `world.last_advance` gewoon door.
+- **`daily-budget.test.mts` toetst ook de gelijkwaardigheid**: voor een geplande, een
+  lopende én een afgeronde vlucht moet `liveBoardDTO` veld voor veld hetzelfde
+  opleveren als de volle `liveFlightDTO`. De smalle weg mag goedkoper zijn, niet anders.
+- **Groeitest:** 300 duiven → 24 %, 600 → 36 %, 900 → 47 %. Het praktische plafond van
+  het spel ligt rond **264** duiven (10 spelers × capaciteit 20 + 8 bots × 8), dus er is
+  ruimte over.
+- **Geen migratie, geen schemawijziging**, `dataVersion` blijft **38**.
+- **Wat nog steeds de hete weg is:** `/state` en `/flights` laden wél de hele wereld
+  (~349 rijen). Dat is nu de grootste post. Volgende hefboom als het ooit weer krap
+  wordt: `entrants` uit `/flights` halen en pas ophalen wanneer het weddenschapspaneel
+  opengaat — dan hoeft die route `pigeons` niet meer te laden.
+
+**CPU-fix ronde 2: het live verslag en de weddenschapsodds**
 - **Aanleiding:** "Exceeded CPU Time Limits" bleef terugkomen, vooral **rond grote
   vluchten** — precies de waarneming van de eigenaar. De vorige ronde (throttle op
   `advanceRealtime`) haalde de basiskost omlaag maar raakte de échte pieken niet.
@@ -2038,8 +2088,8 @@ je eroverheen gaat. Minder rijen = minder parse/stringify, dus dit blijft nuttig
 |---|---|---|
 | D1 **queries per Worker-invocatie** | **50** | `ensureSchema` (71!), en een `batch()` met veel statements |
 | Workers **CPU per invocatie** | **10 ms** | de hele wereld parsen/stringify'en → Error 1102 |
-| D1 rijen gelezen/dag | 5 M | wás de oorzaak in ronde 1, níet in ronde 2 |
-| D1 rijen geschreven/dag | 100 k | zat op 37 k tijdens de storing |
+| D1 rijen gelezen/dag | 5 M | **hard afgedwongen vanaf 1 sep 2026**; drukke dag zit op 24% — `daily-budget.test.mts` |
+| D1 rijen geschreven/dag | 100 k | idem; drukke dag zit op 7% |
 | D1 databasegrootte | 500 MB | zat op ~0,7 MB |
 | Externe `fetch`-subrequests | 50 | `fetchFlightWeather` (1 per startende vlucht) |
 
