@@ -107,6 +107,9 @@ app.use('*', cors());
 
 let schemaReady = false;
 
+/** POSTs that only compute and return a value — safe to throttle like a GET. */
+const READ_ONLY_POSTS = new Set(['/api/bets/preview']);
+
 // Load the world, seed on first ever request, run the real-time clock (schedule
 // flights, start/finish live races, bots auto-enter), and resolve the user.
 app.use('*', async (c, next) => {
@@ -153,6 +156,7 @@ app.use('*', async (c, next) => {
   // still persists what it changes.
   const light = path.startsWith('/api/auth/');
 
+
   // Skip the engine on a read-only request that arrives while a recent run is
   // still fresh (see ADVANCE_THROTTLE_SECONDS). This is the CPU fix: `advance`
   // + `persist` are ~9 ms of a ~14 ms request, and on a poll where nothing
@@ -163,7 +167,12 @@ app.use('*', async (c, next) => {
     !Number.isNaN(lastAdvance) &&
     nowMs - lastAdvance >= 0 &&
     nowMs - lastAdvance < ADVANCE_THROTTLE_SECONDS * 1000;
-  const readOnly = c.req.method === 'GET' || c.req.method === 'HEAD';
+  // A couple of POSTs are pure reads (they only compute a number and return it),
+  // so they get the same throttle as a GET. The odds preview matters most: it is
+  // refetched while the bet panel is open, and on a big field the Monte-Carlo
+  // already fills a good part of the budget on its own.
+  const readOnly =
+    c.req.method === 'GET' || c.req.method === 'HEAD' || READ_ONLY_POSTS.has(path);
   const throttled = fresh && readOnly;
 
   if (!light && !throttled) {

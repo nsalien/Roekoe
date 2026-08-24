@@ -168,6 +168,14 @@ Twee gelijkwaardige duiven die telkens van plaats wisselen worden even **gedempt
 (niet elke 10 min dezelfde ruil), behalve bij een koploperwissel of een verdwaalde
 duif — die zijn altijd het vermelden waard.
 
+**Het verslag houdt de kopgroep in de gaten, niet het hele veld.** Voorbijsteken
+wordt gemeld voor de duiven die vooraan meedoen; dat iemand van de 77e naar de 76e
+plaats gaat, is geen nieuws. En bij een **lange fondvlucht** (die uren of zelfs een
+halve dag duurt) wordt de stand **minder vaak** bemonsterd — grofweg elk uur in
+plaats van elke tien minuten — zodat het verslag leesbaar blijft in plaats van
+honderden regels lang te worden. Aankomsten, uitvallers, opgevers en verdwaalde
+duiven worden nog altijd **op hun eigen moment** gemeld, exact wanneer het gebeurt.
+
 ### 2.5 Weer
 Het echte windbeeld op de startplaats (Open-Meteo) wordt omgezet naar een factor:
 ```

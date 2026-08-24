@@ -10,6 +10,7 @@
 import {
   COMMENTARY,
   COMMENTARY_INTERVAL_SECONDS,
+  COMMENTARY_LIMITS,
   DISTANCE_WEIGHTING,
   ENERGIE_IMPACT,
   FLIGHT_DYNAMICS,
@@ -1456,6 +1457,58 @@ interface RankRow {
   stopped: boolean; // pulled by owner or gave out mid-flight
 }
 
+const fillLine = (tpl: string, a: string, b?: string, km?: number | string) =>
+  tpl.replace('{name}', a).replace('{name2}', b ?? '').replace('{km}', String(km ?? ''));
+
+/**
+ * How often the report samples the field for THIS race.
+ *
+ * A fixed 10-minute step means a 50-hour fondvlucht is sampled 300 times, and
+ * every poll re-derived all of them — the single biggest CPU cost in the game.
+ * Above `COMMENTARY_LIMITS.maxSamples` the step is stretched proportionally, so
+ * the work is bounded whatever the distance. Derived from the race length alone,
+ * so it is deterministic and the feed stays stable across polls.
+ */
+function commentaryStep(total: number): number {
+  const wanted = Math.ceil(total / COMMENTARY_INTERVAL_SECONDS);
+  const factor = Math.max(1, Math.ceil(wanted / COMMENTARY_LIMITS.maxSamples));
+  return COMMENTARY_INTERVAL_SECONDS * factor;
+}
+
+/**
+ * The interval scan is the expensive half of the report and only changes when the
+ * race clock crosses a sample point — but a poll arrives every few seconds. So we
+ * keep the scan per flight and EXTEND it, instead of rebuilding it every request.
+ *
+ * The cached entry carries its own rng closure so continuing the scan produces
+ * exactly the same phrasing a full rebuild would: the overtake stream is seeded
+ * separately from the event/finish streams (below), so those stay stable no
+ * matter how far the scan has run.
+ */
+interface CommentaryScan {
+  sig: number;
+  step: number;
+  lines: CommentLine[];
+  prev: RankRow[];
+  nextT: number;
+  interval: number;
+  pairMutedUntil: Map<string, number>;
+  rng: () => number;
+}
+const commentaryCache = new Map<string, CommentaryScan>();
+const COMMENTARY_CACHE_MAX = 4;
+
+/** Everything the scan reads: a changed sim (a bird pulled out) invalidates it. */
+function commentarySignature(flight: Flight): number {
+  let h = (hashString(flight.id) ^ Math.round(flight.distanceKm * 10)) >>> 0;
+  for (const s of flight.sim) {
+    h = (Math.imul(h, 31) + s.durationSeconds) >>> 0;
+    h = (Math.imul(h, 31) + (s.gaveUpAtSeconds ?? -1)) >>> 0;
+    h = (Math.imul(h, 31) + (s.dnfAtSeconds ?? -1)) >>> 0;
+  }
+  return h;
+}
+
 /**
  * Deterministic, growing commentary feed for a live/completed flight.
  *
@@ -1465,6 +1518,12 @@ interface RankRow {
  * straying off course (with the rough extra distance), giving out from exhaustion,
  * cramping up, or being pulled by its owner. Seeded on the flight id so it is
  * stable across polls, and grows monotonically (each line has a fixed time).
+ *
+ * COST: this runs on every live-board poll. The interval scan is cached and
+ * extended (see CommentaryScan), bounded to COMMENTARY_LIMITS.maxSamples samples
+ * and to passes inside the leading COMMENTARY_LIMITS.field positions. The event
+ * and finish lines are O(birds) and recomputed each call so their timing stays
+ * exact to the second.
  */
 export function flightCommentary(flight: Flight, nowMs: number): CommentLine[] {
   if (flight.sim.length === 0) return [];
@@ -1473,110 +1532,17 @@ export function flightCommentary(flight: Flight, nowMs: number): CommentLine[] {
   const elapsed = Math.max(0, (nowMs - startMs) / 1000);
   const total = flightTotalSeconds(flight);
   const dist = flight.distanceKm;
-  const rng = seededRng(hashString(flight.id));
-  const pick = <T>(pool: readonly T[]): T => pickWith(rng, pool);
-  const fill = (tpl: string, a: string, b?: string, km?: number) =>
-    tpl.replace('{name}', a).replace('{name2}', b ?? '').replace('{km}', String(km ?? ''));
 
-  // Rank the field exactly like liveSnapshot at an arbitrary elapsed time.
-  const rankAt = (t: number): RankRow[] =>
-    flight.sim
-      .map((s) => {
-        const { kmDone, finished, stopped, curMult } = raceProgress(s, dist, t);
-        return { s, kmDone, curMult, finished, stopped: stopped || !!s.gaveUp };
-      })
-      .sort((a, b) => {
-        if (a.stopped !== b.stopped) return a.stopped ? 1 : -1;
-        const af = a.finished ? 0 : 1, bf = b.finished ? 0 : 1;
-        if (af !== bf) return af - bf;
-        if (a.finished && b.finished) return a.s.durationSeconds - b.s.durationSeconds;
-        return b.kmDone - a.kmDone;
-      });
+  // Three INDEPENDENT streams. Splitting them is what lets the scan be cached:
+  // the event/finish phrasing no longer depends on how many intervals ran.
+  const evRng = seededRng(hashString(flight.id + ':ev'));
+  const finRng = seededRng(hashString(flight.id + ':fin'));
 
-  const lines: CommentLine[] = [];
-
-  // Scene-setter + an opening standings line so the reader knows the order.
-  lines.push({ atSeconds: 0, text: pick(COMMENTARY.start) });
-  const opening = rankAt(1);
-  if (opening.length >= 2) {
-    const names = opening.slice(0, 3).map((r) => r.s.pigeonName);
-    const tail = names.length >= 3 ? ` en ${names[2]}` : '';
-    lines.push({ atSeconds: 1, text: `Vroege stand: ${names[0]} op kop, gevolgd door ${names[1]}${tail}.` });
-  }
-
-  // Overtaking: sample the field every interval and report the notable places
-  // that changed hands between two still-airborne birds (a bird flowing past a
-  // stopped/finished rival isn't a duel — those get their own event lines below).
-  const airborne = (r: RankRow) => !r.finished && !r.stopped;
-  // Cooldown so two evenly-matched birds that keep trading places aren't reported
-  // every single interval (pure oscillation reads as padding). A pair is muted for
-  // a few intervals after a pass — unless the pass has a real cause (a lead change
-  // or a rival going off course), which is always worth a line.
-  const PAIR_COOLDOWN = 3;
-  const pairMutedUntil = new Map<string, number>();
-  const pairKey = (x: string, y: string) => (x < y ? `${x}|${y}` : `${y}|${x}`);
-  let prev = rankAt(1);
-  let interval = 0;
-  for (let t = COMMENTARY_INTERVAL_SECONDS; t <= total; t += COMMENTARY_INTERVAL_SECONDS) {
-    interval++;
-    const now = rankAt(t);
-    const prevIdx = new Map(prev.map((r, i) => [r.s.pigeonId, i]));
-    const nowIdx = new Map(now.map((r, i) => [r.s.pigeonId, i]));
-    const rowNow = new Map(now.map((r) => [r.s.pigeonId, r]));
-    const wasAirborne = new Map(prev.map((r) => [r.s.pigeonId, airborne(r)]));
-
-    // For each riser, the single biggest scalp it took this interval.
-    type Pass = { a: RankRow; b: RankRow; climb: number };
-    const passes: Pass[] = [];
-    for (const a of now) {
-      if (!airborne(a) || !wasAirborne.get(a.s.pigeonId)) continue;
-      const aNow = nowIdx.get(a.s.pigeonId)!, aPrev = prevIdx.get(a.s.pigeonId)!;
-      if (aNow >= aPrev) continue; // didn't move up
-      let scalp: RankRow | null = null, scalpPrev = -1;
-      for (const b of now) {
-        if (b === a || !airborne(b) || !wasAirborne.get(b.s.pigeonId)) continue;
-        const bNow = nowIdx.get(b.s.pigeonId)!, bPrev = prevIdx.get(b.s.pigeonId)!;
-        if (bPrev < aPrev && bNow > aNow && bPrev > scalpPrev) { scalp = b; scalpPrev = bPrev; }
-      }
-      if (scalp) passes.push({ a, b: scalp, climb: aPrev - aNow });
-    }
-
-    // Keep the two most significant, no bird reused within the interval.
-    passes.sort((x, y) => y.climb - x.climb || x.a.s.pigeonId.localeCompare(y.a.s.pigeonId));
-    const used = new Set<string>();
-    let emitted = 0;
-    for (const p of passes) {
-      if (emitted >= 2) break;
-      if (used.has(p.a.s.pigeonId) || used.has(p.b.s.pigeonId)) continue;
-      const A = rowNow.get(p.a.s.pigeonId)!, B = rowNow.get(p.b.s.pigeonId)!;
-      const bLost = B.s.lost && t >= B.s.lost.atSeconds && B.curMult < 0.95;
-      const isLead = nowIdx.get(A.s.pigeonId) === 0;
-      const key = pairKey(A.s.pigeonId, B.s.pigeonId);
-      const strongCause = isLead || bLost;
-      if (!strongCause && interval < (pairMutedUntil.get(key) ?? 0)) continue;
-      used.add(p.a.s.pigeonId); used.add(p.b.s.pigeonId);
-      pairMutedUntil.set(key, interval + PAIR_COOLDOWN);
-      emitted++;
-      let text: string;
-      if (isLead) {
-        text = fill(pick(COMMENTARY.leadChange), A.s.pigeonName, B.s.pigeonName);
-      } else if (bLost) {
-        text = fill(pick(COMMENTARY.overtakeLost), A.s.pigeonName, B.s.pigeonName, B.s.lost!.detourKm);
-      } else if (B.curMult < 0.8) {
-        text = fill(pick(COMMENTARY.overtakeTired), A.s.pigeonName, B.s.pigeonName);
-      } else if (A.curMult > 1.15) {
-        text = fill(pick(COMMENTARY.overtakeSurge), A.s.pigeonName, B.s.pigeonName);
-      } else {
-        text = fill(pick(COMMENTARY.overtake), A.s.pigeonName, B.s.pigeonName);
-      }
-      lines.push({ atSeconds: t, text });
-    }
-    prev = now;
-  }
+  const lines: CommentLine[] = scanCommentary(flight, total, dist, Math.min(elapsed, total)).slice();
 
   // Event lines with a clear cause, at the moment they happen.
   for (const s of flight.sim) {
-    if (s.lost) lines.push({ atSeconds: s.lost.atSeconds, text: fill(pick(COMMENTARY.stray), s.pigeonName, undefined, s.lost.detourKm) });
+    if (s.lost) lines.push({ atSeconds: s.lost.atSeconds, text: fillLine(pickWith(evRng, COMMENTARY.stray), s.pigeonName, undefined, s.lost.detourKm) });
     if (s.dnfAtSeconds != null) {
       const pool =
         s.dnfKind === 'lost'
@@ -1584,22 +1550,137 @@ export function flightCommentary(flight: Flight, nowMs: number): CommentLine[] {
           : s.dnfKind === 'injury'
             ? COMMENTARY.dnfInjury
             : COMMENTARY.dnfExhausted;
-      lines.push({ atSeconds: s.dnfAtSeconds, text: fill(pick(pool), s.pigeonName) });
+      lines.push({ atSeconds: s.dnfAtSeconds, text: fillLine(pickWith(evRng, pool), s.pigeonName) });
     }
     if (s.gaveUp && s.gaveUpAtSeconds != null) {
-      lines.push({ atSeconds: s.gaveUpAtSeconds, text: fill(pick(COMMENTARY.pulled), s.pigeonName) });
+      lines.push({ atSeconds: s.gaveUpAtSeconds, text: fillLine(pickWith(evRng, COMMENTARY.pulled), s.pigeonName) });
     }
   }
 
   // Finishers: a line as each bird that actually makes it home clocks in.
   for (const s of flight.sim) {
     if (s.gaveUp || s.dnfAtSeconds != null || s.durationSeconds > total + 0.5) continue;
-    lines.push({ atSeconds: s.durationSeconds, text: fill(pick(COMMENTARY.finish), s.pigeonName) });
+    lines.push({ atSeconds: s.durationSeconds, text: fillLine(pickWith(finRng, COMMENTARY.finish), s.pigeonName) });
   }
 
   return lines
     .filter((l) => l.atSeconds <= elapsed + 0.5)
     .sort((a, b) => a.atSeconds - b.atSeconds);
+}
+
+/**
+ * The overtake scan up to `upTo` seconds of race clock, cached and extended in
+ * place. Returns the scan's own lines (opening lines included).
+ */
+function scanCommentary(flight: Flight, total: number, dist: number, upTo: number): CommentLine[] {
+  const sig = commentarySignature(flight);
+  let sc = commentaryCache.get(flight.id);
+  if (!sc || sc.sig !== sig) {
+    const rng = seededRng(hashString(flight.id + ':ov'));
+    const step = commentaryStep(total);
+    const first = rankAtTime(flight, dist, 1);
+    const lines: CommentLine[] = [{ atSeconds: 0, text: pickWith(rng, COMMENTARY.start) }];
+    if (first.length >= 2) {
+      const names = first.slice(0, 3).map((r) => r.s.pigeonName);
+      const tail = names.length >= 3 ? ` en ${names[2]}` : '';
+      lines.push({ atSeconds: 1, text: `Vroege stand: ${names[0]} op kop, gevolgd door ${names[1]}${tail}.` });
+    }
+    sc = { sig, step, lines, prev: first, nextT: step, interval: 0, pairMutedUntil: new Map(), rng };
+    if (commentaryCache.size >= COMMENTARY_CACHE_MAX) {
+      commentaryCache.delete(commentaryCache.keys().next().value as string);
+    }
+    commentaryCache.set(flight.id, sc);
+  }
+
+  // Cooldown so two evenly-matched birds that keep trading places aren't reported
+  // every single sample (pure oscillation reads as padding). A pair is muted for
+  // a few samples after a pass — unless the pass has a real cause (a lead change
+  // or a rival going off course), which is always worth a line.
+  const PAIR_COOLDOWN = 3;
+  const FIELD = COMMENTARY_LIMITS.field;
+  const airborne = (r: RankRow) => !r.finished && !r.stopped;
+  const pairKey = (x: string, y: string) => (x < y ? `${x}|${y}` : `${y}|${x}`);
+  const pick = <T>(pool: readonly T[]): T => pickWith(sc!.rng, pool);
+
+  for (let t = sc.nextT; t <= Math.min(upTo, total); t += sc.step) {
+    sc.interval++;
+    const now = rankAtTime(flight, dist, t);
+    // Only the leading group is interesting — and bounding it here is what keeps
+    // the scan linear instead of quadratic in the size of the field.
+    const head = now.slice(0, FIELD);
+    const prevIdx = new Map<string, number>();
+    for (let i = 0; i < sc.prev.length && i < FIELD; i++) prevIdx.set(sc.prev[i].s.pigeonId, i);
+    const wasAirborne = new Map<string, boolean>();
+    for (let i = 0; i < sc.prev.length && i < FIELD; i++) wasAirborne.set(sc.prev[i].s.pigeonId, airborne(sc.prev[i]));
+
+    type Pass = { a: RankRow; b: RankRow; climb: number };
+    const passes: Pass[] = [];
+    for (let ai = 0; ai < head.length; ai++) {
+      const a = head[ai];
+      if (!airborne(a) || !wasAirborne.get(a.s.pigeonId)) continue;
+      const aPrev = prevIdx.get(a.s.pigeonId);
+      if (aPrev === undefined || ai >= aPrev) continue; // didn't move up
+      let scalp: RankRow | null = null, scalpPrev = -1;
+      for (let bi = 0; bi < head.length; bi++) {
+        const b = head[bi];
+        if (b === a || !airborne(b) || !wasAirborne.get(b.s.pigeonId)) continue;
+        const bPrev = prevIdx.get(b.s.pigeonId);
+        if (bPrev === undefined) continue;
+        if (bPrev < aPrev && bi > ai && bPrev > scalpPrev) { scalp = b; scalpPrev = bPrev; }
+      }
+      if (scalp) passes.push({ a, b: scalp, climb: aPrev - ai });
+    }
+
+    passes.sort((x, y) => y.climb - x.climb || x.a.s.pigeonId.localeCompare(y.a.s.pigeonId));
+    const used = new Set<string>();
+    let emitted = 0;
+    for (const p of passes) {
+      if (emitted >= 2) break;
+      if (used.has(p.a.s.pigeonId) || used.has(p.b.s.pigeonId)) continue;
+      const A = p.a, B = p.b;
+      const bLost = B.s.lost && t >= B.s.lost.atSeconds && B.curMult < 0.95;
+      const isLead = head[0] === A;
+      const key = pairKey(A.s.pigeonId, B.s.pigeonId);
+      const strongCause = isLead || bLost;
+      if (!strongCause && sc.interval < (sc.pairMutedUntil.get(key) ?? 0)) continue;
+      used.add(A.s.pigeonId); used.add(B.s.pigeonId);
+      sc.pairMutedUntil.set(key, sc.interval + PAIR_COOLDOWN);
+      emitted++;
+      let text: string;
+      if (isLead) {
+        text = fillLine(pick(COMMENTARY.leadChange), A.s.pigeonName, B.s.pigeonName);
+      } else if (bLost) {
+        text = fillLine(pick(COMMENTARY.overtakeLost), A.s.pigeonName, B.s.pigeonName, B.s.lost!.detourKm);
+      } else if (B.curMult < 0.8) {
+        text = fillLine(pick(COMMENTARY.overtakeTired), A.s.pigeonName, B.s.pigeonName);
+      } else if (A.curMult > 1.15) {
+        text = fillLine(pick(COMMENTARY.overtakeSurge), A.s.pigeonName, B.s.pigeonName);
+      } else {
+        text = fillLine(pick(COMMENTARY.overtake), A.s.pigeonName, B.s.pigeonName);
+      }
+      sc.lines.push({ atSeconds: t, text });
+    }
+    sc.prev = now;
+    sc.nextT = t + sc.step;
+  }
+
+  return sc.lines;
+}
+
+/** Rank the field exactly like liveSnapshot at an arbitrary elapsed time. */
+function rankAtTime(flight: Flight, dist: number, t: number): RankRow[] {
+  return flight.sim
+    .map((s) => {
+      const { kmDone, finished, stopped, curMult } = raceProgress(s, dist, t);
+      return { s, kmDone, curMult, finished, stopped: stopped || !!s.gaveUp };
+    })
+    .sort((a, b) => {
+      if (a.stopped !== b.stopped) return a.stopped ? 1 : -1;
+      const af = a.finished ? 0 : 1, bf = b.finished ? 0 : 1;
+      if (af !== bf) return af - bf;
+      if (a.finished && b.finished) return a.s.durationSeconds - b.s.durationSeconds;
+      return b.kmDone - a.kmDone;
+    });
 }
 
 /**
@@ -1615,8 +1696,14 @@ function relayCommentary(flight: Flight, nowMs: number): CommentLine[] {
   const elapsed = Math.max(0, (nowMs - startMs) / 1000);
   const total = flightTotalSeconds(flight);
   const legKm = relayLegKm(flight);
-  const rng = seededRng(hashString(flight.id));
-  const pickLine = <T>(pool: readonly T[]): T => pickWith(rng, pool);
+  // TWO independent streams, as in the individual report: the scan below stops at
+  // `elapsed`, so the number of draws it makes grows during the race. Sharing one
+  // stream with the event lines would re-roll THEIR wording on every poll — the
+  // feed would visibly rewrite itself. Seeding them apart keeps every line fixed.
+  const ovRng = seededRng(hashString(flight.id + ':relay:ov'));
+  const evRng = seededRng(hashString(flight.id + ':relay:ev'));
+  const pickLine = <T>(pool: readonly T[]): T => pickWith(ovRng, pool);
+  const pickEvent = <T>(pool: readonly T[]): T => pickWith(evRng, pool);
   const fill = (tpl: string, a: string, b?: string, km?: string | number) =>
     tpl.replace('{name}', a).replace('{name2}', b ?? '').replace('{km}', String(km ?? ''));
 
@@ -1642,7 +1729,12 @@ function relayCommentary(flight: Flight, nowMs: number): CommentLine[] {
   const pairKey = (x: string, y: string) => (x < y ? `${x}|${y}` : `${y}|${x}`);
   let prev = rankAt(1);
   let interval = 0;
-  for (let t = COMMENTARY_INTERVAL_SECONDS; t <= total; t += COMMENTARY_INTERVAL_SECONDS) {
+  // Same bound as the individual report: a relay runs ~900 km, so a fixed
+  // 10-minute step would sample the field 60+ times per poll. Stop at `elapsed`
+  // too — sampling the future only to filter it away afterwards is free work.
+  const step = commentaryStep(total);
+  const scanTo = Math.min(total, elapsed);
+  for (let t = step; t <= scanTo; t += step) {
     interval++;
     const now = rankAt(t);
     const prevIdx = new Map(prev.map((r, i) => [r.team.ownerId, i]));
@@ -1699,14 +1791,14 @@ function relayCommentary(flight: Flight, nowMs: number): CommentLine[] {
       if (legNo > outAt) break;
       const legStart = s.legStartSeconds ?? 0;
       if (s.lost && legNo <= outAt) {
-        lines.push({ atSeconds: legStart + s.lost.atSeconds, text: fill(pickLine(COMMENTARY.stray), s.pigeonName, undefined, s.lost.detourKm) });
+        lines.push({ atSeconds: legStart + s.lost.atSeconds, text: fill(pickEvent(COMMENTARY.stray), s.pigeonName, undefined, s.lost.detourKm) });
       }
       if (legNo === outAt) {
         const at = legStart + (s.gaveUp ? (s.gaveUpAtSeconds ?? 0) : s.dnfAtSeconds ?? 0);
         const cause = s.gaveUp
-          ? fill(pickLine(COMMENTARY.pulled), s.pigeonName)
+          ? fill(pickEvent(COMMENTARY.pulled), s.pigeonName)
           : fill(
-              pickLine(
+              pickEvent(
                 s.dnfKind === 'lost'
                   ? COMMENTARY.dnfLost
                   : s.dnfKind === 'injury'
@@ -1716,7 +1808,7 @@ function relayCommentary(flight: Flight, nowMs: number): CommentLine[] {
               s.pigeonName,
             );
         lines.push({ atSeconds: at, text: cause });
-        lines.push({ atSeconds: at + 1, text: fill(pickLine(COMMENTARY.relayOut), s.pigeonName, team.ownerName) });
+        lines.push({ atSeconds: at + 1, text: fill(pickEvent(COMMENTARY.relayOut), s.pigeonName, team.ownerName) });
         break;
       }
       // Completed its leg: either a handover or the team coming home.
@@ -1724,9 +1816,9 @@ function relayCommentary(flight: Flight, nowMs: number): CommentLine[] {
       const next = team.legs[i + 1];
       if (next) {
         const point = flight.legs?.[legNo - 1]?.toName ?? `${legNo}`;
-        lines.push({ atSeconds: at, text: fill(pickLine(COMMENTARY.handover), s.pigeonName, next.pigeonName, point) });
+        lines.push({ atSeconds: at, text: fill(pickEvent(COMMENTARY.handover), s.pigeonName, next.pigeonName, point) });
       } else {
-        lines.push({ atSeconds: at, text: fill(pickLine(COMMENTARY.relayFinish), s.pigeonName, team.ownerName) });
+        lines.push({ atSeconds: at, text: fill(pickEvent(COMMENTARY.relayFinish), s.pigeonName, team.ownerName) });
       }
     }
   }
