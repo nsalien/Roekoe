@@ -46,19 +46,24 @@ export function FlightsPage() {
     loadBets();
   }, [load, loadBets, state?.world.currentWeek]);
 
-  // Reload periodically so flights flip to live / completed without a manual refresh.
+  // Reload periodically so flights flip to live / completed without a manual
+  // refresh. Kept deliberately slow — see the note in LiveFlightPage: every poll
+  // costs ~350 D1 rows and the daily read budget is the binding limit.
   useEffect(() => {
-    const t = setInterval(() => load(), 40000);
+    const t = setInterval(() => load(), 90000);
     return () => clearInterval(t);
   }, [load]);
 
+  // Birds already entered in a flight that has not started yet. Live flights are
+  // NOT included here: a bird that has already crossed the line is free again, and
+  // the server's `pigeon.racing` flag (used below) is what tracks that per bird.
   const committed = useMemo(() => {
     const set = new Set<string>();
-    for (const f of [...scheduled, ...live]) {
+    for (const f of scheduled) {
       for (const e of f.entries) if (e.ownerId === user?.id) set.add(e.pigeonId);
     }
     return set;
-  }, [scheduled, live, user]);
+  }, [scheduled, user]);
 
   // Flights the player already has an open bet on (max one bet per flight).
   const betFlights = useMemo(() => {
@@ -132,7 +137,7 @@ export function FlightsPage() {
           {scheduled.map((f, idx) => {
             const myEntries = f.entries.filter((e) => e.ownerId === user?.id);
             const available = state.pigeons.filter(
-              (p) => p.canRace && !committed.has(p.id) && !p.breeding && (p.form ?? 0) >= 1,
+              (p) => p.canRace && !p.racing && !committed.has(p.id) && !p.breeding && (p.form ?? 0) >= 1,
             );
             return (
               <div key={f.id} className="card" data-tour={idx === 0 && live.length === 0 ? 'flights' : undefined}>
@@ -207,11 +212,13 @@ export function FlightsPage() {
                         id: p.id,
                         // Energie AND vluchtvorm: the tank on its own says nothing about
                         // the injury risk (that is energie + gezondheid, minus the rest
-                        // deduction), and an invisible penalty just reads as bad luck.
+                        // deduction for a recent race). `flightForm` is the value AFTER
+                        // that deduction, so it is shown on its own — naming the
+                        // deduction next to it only raised the question of whether it
+                        // still had to come off.
                         label:
                           `${p.formLabel === 'fris' ? '🟢' : p.formLabel === 'matig' ? '🟡' : '🔴'} ${p.name} ` +
-                          `(★${p.talent} · energie ${Math.round(p.form ?? 0)} · vorm ${p.flightForm ?? '?'}` +
-                          `${p.restPenalty > 0 ? ` — net gevlogen, −${p.restPenalty}` : ''})`,
+                          `(★${p.talent} · energie ${Math.round(p.form ?? 0)} · vorm ${p.flightForm ?? '?'})`,
                       }))}
                       onEnter={(pigeonId) => act(() => api(`/flights/${f.id}/enter`, { method: 'POST', body: { pigeonId } }), 'Ingeschreven!')}
                     />

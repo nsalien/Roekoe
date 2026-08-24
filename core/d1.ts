@@ -45,8 +45,11 @@ import type { Store } from './store.js';
 
 const b = (v: unknown) => (v ? 1 : 0);
 
-/** Newest trades kept in memory (and on disk). Feeds the sale history views. */
-const TRADE_LOAD_LIMIT = 100;
+/** Newest trades kept in memory (and on disk). Feeds the sale history views and
+ *  the market valuation (`market.ts`). Lowered 100 → 40: every request pays for
+ *  these rows, and the valuation weights a sale by recency anyway (10-day half
+ *  life, 28-day window), so the oldest of a hundred barely moved the curve. */
+export const TRADE_LOAD_LIMIT = 40;
 /** Settled bets kept on disk; open ones are always kept, whatever their age. */
 const BET_KEEP_LIMIT = 100;
 /** Notifications kept per user — matches the engine's own in-memory inbox trim
@@ -385,6 +388,7 @@ export class D1Store implements Store {
         seasonStartedAt: worldRow.season_started_at ?? '',
         seasonEndsAt: worldRow.season_ends_at ?? '',
         seasonWeek: worldRow.season_week ?? 1,
+        lastAdvance: worldRow.last_advance ?? '',
       };
     }
 
@@ -483,16 +487,16 @@ export class D1Store implements Store {
     const wd = w.world;
     if (!this.worldExisted) {
       stmts.push(
-        db.prepare('INSERT INTO world (id, current_week, season_year, seeded, data_version, last_daily_tick, last_shelter_spawn, season_started_at, season_ends_at, season_week, version) VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)')
-          .bind(wd.currentWeek, wd.seasonYear, b(wd.seeded), wd.dataVersion ?? 0, wd.lastDailyTick ?? '', wd.lastShelterSpawn ?? '', wd.seasonStartedAt ?? '', wd.seasonEndsAt ?? '', wd.seasonWeek ?? 1),
+        db.prepare('INSERT INTO world (id, current_week, season_year, seeded, data_version, last_daily_tick, last_shelter_spawn, season_started_at, season_ends_at, season_week, last_advance, version) VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)')
+          .bind(wd.currentWeek, wd.seasonYear, b(wd.seeded), wd.dataVersion ?? 0, wd.lastDailyTick ?? '', wd.lastShelterSpawn ?? '', wd.seasonStartedAt ?? '', wd.seasonEndsAt ?? '', wd.seasonWeek ?? 1, wd.lastAdvance ?? ''),
       );
     } else if (JSON.stringify(wd) !== this.worldSnapshot) {
       // Only write the world row when something in it actually changed. Previously
       // this ran on EVERY request (even read-only polls), burning the write quota
       // and making `world` (id=1) a hot row that concurrent requests locked on.
       stmts.push(
-        db.prepare('UPDATE world SET current_week = ?, season_year = ?, seeded = ?, data_version = ?, last_daily_tick = ?, last_shelter_spawn = ?, season_started_at = ?, season_ends_at = ?, season_week = ?, version = version + 1 WHERE id = 1')
-          .bind(wd.currentWeek, wd.seasonYear, b(wd.seeded), wd.dataVersion ?? 0, wd.lastDailyTick ?? '', wd.lastShelterSpawn ?? '', wd.seasonStartedAt ?? '', wd.seasonEndsAt ?? '', wd.seasonWeek ?? 1),
+        db.prepare('UPDATE world SET current_week = ?, season_year = ?, seeded = ?, data_version = ?, last_daily_tick = ?, last_shelter_spawn = ?, season_started_at = ?, season_ends_at = ?, season_week = ?, last_advance = ?, version = version + 1 WHERE id = 1')
+          .bind(wd.currentWeek, wd.seasonYear, b(wd.seeded), wd.dataVersion ?? 0, wd.lastDailyTick ?? '', wd.lastShelterSpawn ?? '', wd.seasonStartedAt ?? '', wd.seasonEndsAt ?? '', wd.seasonWeek ?? 1, wd.lastAdvance ?? ''),
       );
     }
 
@@ -789,6 +793,7 @@ const SCHEMA_STEPS: string[] = [
     'ALTER TABLE pigeons ADD COLUMN last_race_practice INTEGER NOT NULL DEFAULT 0',
     'ALTER TABLE pigeons ADD COLUMN last_rest_cure_at TEXT',
     'ALTER TABLE pigeons ADD COLUMN away_until TEXT',
+    "ALTER TABLE world ADD COLUMN last_advance TEXT NOT NULL DEFAULT ''",
   ] as string[]),
 ];
 

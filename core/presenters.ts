@@ -30,7 +30,7 @@ import { nextCapacityTier, nextInfirmaryTier, ownerName } from './game/engine.js
 import { coachDailyGain, dailyRunningCostBreakdown, projectDailyCare } from './game/economy.js';
 import { coveredInInfirmary } from './game/health.js';
 import { valuePigeon } from './game/market.js';
-import { flightCommentary, liveSnapshot } from './game/flight.js';
+import { flightCommentary, liveSnapshot, pigeonCommittedToFlight } from './game/flight.js';
 import { relayEntryTeams, relayLegKm } from './game/relay.js';
 import { BADGES, levelForXp } from './game/badges.js';
 import { round1 } from './game/util.js';
@@ -154,7 +154,9 @@ export function pigeonDTO(db: Database, p: Pigeon, viewerId?: string) {
         restPenalty: Math.round(restPenalty(p)),
       };
     })(),
-    racing: db.flights.some((f) => f.status !== 'completed' && f.entries.some((e) => e.pigeonId === p.id)),
+    // Only true while the bird is genuinely tied up: one that already crossed the
+    // line is free again, even though its flight runs on for the stragglers.
+    racing: pigeonCommittedToFlight(db, p.id),
     breeding: revealed && db.breedingPairs.some((bp) => bp.sireId === p.id || bp.damId === p.id),
     dailyCare,
     // GENETICS (own birds only): the per-skill ceilings for the red cap markers,

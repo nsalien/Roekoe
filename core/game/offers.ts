@@ -14,6 +14,7 @@ import type { Database, Loft, Pigeon, PigeonOffer } from '../schema.js';
 import { newId } from '../store.js';
 import { awardBadge, evaluateBadges } from './badges.js';
 import { progressMissions } from './missions.js';
+import { pigeonCommittedToFlight } from './flight.js';
 import { isAway, talent } from './pigeon.js';
 
 function notify(db: Database, userId: string, title: string, body: string): void {
@@ -118,7 +119,7 @@ export function respondOffer(db: Database, ownerId: string, offerId: string, acc
   const seller = db.lofts.find((l) => l.userId === ownerId);
   if (!buyer || !seller) { remove(); return 'Speler niet gevonden'; }
   // The pigeon must be free to move.
-  const racing = db.flights.some((f) => f.status !== 'completed' && f.entries.some((e) => e.pigeonId === pigeon.id));
+  const racing = pigeonCommittedToFlight(db, pigeon.id);
   if (racing) return 'Deze duif staat ingeschreven voor een vlucht — schrijf ze eerst uit';
   const breeding = db.breedingPairs.some((bp) => bp.sireId === pigeon.id || bp.damId === pigeon.id);
   if (breeding) return 'Deze duif koppelt momenteel — stop eerst het broeden';

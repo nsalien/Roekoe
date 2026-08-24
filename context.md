@@ -15,16 +15,17 @@
 
 | Rol | Branch | Doel |
 |-----|--------|------|
-| **Dev** | `claude/hallo-rkr49f` | Alle ontwikkeling/commits komen hier **eerst**. |
+| **Dev** | `claude/hallo-w97s85` | Alle ontwikkeling/commits komen hier **eerst**. |
 | **Prod** | `claude/roekoe-game-website-jwa0vo` | Elke commit wordt hierheen **gecherry-pickt**; deze branch triggert de **Cloudflare Pages**-deploy naar productie. |
 
 > Vorige dev-branches (niet meer gebruiken): `claude/hallo-pvwabx`,
-> `claude/context-spelregels-q2ywtx`, `claude/hallo-49m6hj`, `claude/hallo-xifh0c`. Ontwikkelt een sessie op een nieuwe
+> `claude/context-spelregels-q2ywtx`, `claude/hallo-49m6hj`, `claude/hallo-xifh0c`,
+> `claude/hallo-rkr49f`. Ontwikkelt een sessie op een nieuwe
 > `claude/…`-branch, gebruik die dan als dev-branch en **werk deze tabel meteen bij** —
 > de prod-branch hierboven verandert nooit.
 
 **Workflow per wijziging (zie §7 voor de exacte commando's):**
-1. Commit op **dev** (`claude/hallo-rkr49f`) + push.
+1. Commit op **dev** (`claude/hallo-w97s85`) + push.
 2. `git checkout` **prod** → `git cherry-pick <commit>` → push naar prod
    (`claude/roekoe-game-website-jwa0vo`) → Cloudflare bouwt.
 3. Terug naar **dev**.
@@ -50,7 +51,7 @@ Een online **duivenmelker-managementspel** voor een groepje vrienden (~10 speler
 geld verdienen → kopen/kweken/uitbreiden → herhalen.** Bots vullen het veld.
 
 - **Repo:** `nsalien/roekoe` (GitHub).
-- **Ontwikkelbranch:** `claude/hallo-rkr49f` — hier ontwikkelen en committen.
+- **Ontwikkelbranch:** `claude/hallo-w97s85` — hier ontwikkelen en committen.
 - **Productie/deploy-branch:** `claude/roekoe-game-website-jwa0vo` — een push
   hiernaartoe triggert de **Cloudflare Pages** build (= live). Elke wijziging
   wordt via cherry-pick naar deze branch gebracht en gepusht (zie §7).
@@ -124,7 +125,7 @@ krijgen.**
 `core/game/schedule.ts` → `advanceRealtime(db, nowMs, weatherByFlight)` roept in
 volgorde:
 1. `runDataMigrations(db)` — eenmalige datafixes, **gated op `world.dataVersion`**
-   (staat nu op **37**; nieuwe migratie = nieuw `if ((db.world.dataVersion ?? 0) < N)`
+   (staat nu op **38**; nieuwe migratie = nieuw `if ((db.world.dataVersion ?? 0) < N)`
    blok + `db.world.dataVersion = N`). v21 zet **bestaande geplande vluchten terug naar de
    OUDE, kortere afstanden** (regio 30–160 / nat 60–290 / intl 180–950 km): elke nog-
    geplande niet-titan-vlucht buiten haar legacy-venster wordt her-routeerd via
@@ -147,7 +148,9 @@ volgorde:
    aantal gepasseerde middernachten sinds `world.lastDailyTick` wordt ingehaald,
    tot 30 dagen; `world.lastDailyTick` staat telkens op de laatst verwerkte
    lokale middernacht).
-   Verhongerde duiven worden hier verwijderd. **Rekent ook alle vaste onkosten dagelijks
+   Verhongerde duiven worden hier verwijderd. **Draait per bothok ook
+   `botDailyActions`** (bots.ts): voer/ziekenboeg/rustkuur/coach/hokuitbreiding/
+   kweek — bewust op de dagovergang en niet per verzoek, want het schrijft rijen. **Rekent ook alle vaste onkosten dagelijks
    af** (`dailyRunningCost`: onderhoud + coach + ziekenboegstaf/medicatie) en betaalt
    **sponsorbijdragen dagelijks** (weekbedrag ÷ 7). `advanceWeek` doet dit **niet** meer.
    Roept per gepasseerde dag ook **`runHealthDay(db, week)`** (health.ts) aan: dáár
@@ -184,6 +187,10 @@ volgorde:
    gestuurd (stabiele id `ntf:prize:<flightId>:<pigeonId>`). Veilig want een finisher-rank
    ligt vast zodra ze finisht (een snellere duif die opgeeft, geeft op vóór haar finish).
    Punten/medailles/bets/prestaties blijven bij de afronding.
+9c. `tickBotEntries(db, nowMs)` — geeft **elke bot opnieuw de kans** om in te
+   schrijven voor élke nog niet gestarte vlucht, tot vlak vóór de lossing (zie
+   §Bots). Idempotent (een hok met een inschrijving wordt overgeslagen), dus een
+   uitgekristalliseerde vlucht schrijft 0 rijen.
 10. `tickFlights(db, nowMs, ...)` — laat vluchten `scheduled → live → completed`
    overgaan (deterministische `finalizeFlight`; **oefenvluchten** via
    `finalizePracticeFlight`; dode duiven uit `sim.deaths` worden verwijderd; werkt
@@ -260,6 +267,32 @@ Tekstpools in `gameConfig.COMMENTARY` (categorieën `overtake`/`overtakeSurge`/
 `overtakeTired`/`overtakeLost`/`leadChange`/`stray`/`dnfExhausted`/`dnfInjury`/
 `pulled`/`start`/`finish`).
 
+**Duif is weer vrij zodra háár race erop zit (`birdStillOut` / `pigeonCommittedToFlight`
+in `flight.ts`).** Een vlucht eindigt pas bij de traagste finisher (geen cutoff meer), dus
+op 1000 km kan de staart uren duren. De "is deze duif bezet?"-check keek naar
+`flight.status !== 'completed'` en hield een duif dus gegijzeld tot de laatste binnen was.
+Nu leidt `birdStillOut(flight, pigeonId, nowMs)` het **einde van haar eigen race** af uit het
+**bevroren sim**: `legStartSeconds + (gaveUpAtSeconds | min(dnfAtSeconds, durationSeconds))`.
+`scheduled` = altijd bezet, `completed` = altijd vrij, geen sim-entry = vrij (legacy zonder
+`segMult` werkt op `durationSeconds`). **Estafette-bewust:** de timers zijn **leg-lokaal**
+(zie `giveUpFlight`) en `legStartSeconds` zet ze op de raceklok, dus een duif die op leg 3
+op haar beurt wacht is **bezet**, en een duif achter een uitgevallen ploegmaat komt vrij op
+`team.outSeconds` (ze wordt nooit meer gelost) — via `relayTeams(flight)`.
+`pigeonCommittedToFlight(db, pigeonId, nowMs?)` is de db-brede versie en **vervangt overal**
+het oude `db.flights.some(f => f.status !== 'completed' && …)`-patroon: `engine.ts` (rustkuur,
+listForSale, trainPigeon, setInfirmary, `pigeonBusy` → release/restaurant, startBreeding),
+`offers.ts`, `presenters.ts` (`pigeonDTO.racing`). Ook de **1-race-per-dag-regel** in
+`enterFlight` en de bot-`committed`-set in `botsEnterFlight` (schedule.ts) filteren op
+`birdStillOut`. **Veilig qua energie:** `tickFlightEnergy` zet een gestopte duif op de **volle**
+`formCost` (`stopped` → fractie 1) en draait in `advanceRealtime` vóór elke handler, dus een
+duif kan nooit ingeschreven worden vóór haar energie afgerekend is; `finalizeFlight` settelt
+dan nog 0. De "gisteren gevlogen"-vormaftrek blijft ook gewoon gelden. **Bewuste keerzijde:**
+de post-vlucht-effecten (conditie/ervaring/gezondheid, verbeterworp, aandoening) landen nog
+steeds pas bij de **afronding**, dus die kunnen aankomen terwijl de duif al aan een volgende
+vlucht bezig is. `giveUpFlight` weigert nu een duif waarvan de race al voorbij is (dat maakte
+van een al uitbetaalde finisher retroactief een DNF). Duiven die **de weg kwijt** zijn blijven
+onbeschikbaar via de aparte `isAway`-check.
+
 **Verbeteren schaalt met (zwakte × prestatie)** (`IMPROVE`, `finalizeFlight`): de kans
 dat een duif door een vlucht een eigenschap verbetert = `base·(0.4+room)·(0.5+zwakte·
 weaknessWeight)·(0.6+plaats·0.8)`, met een grotere *gain* voor zwakkere duiven
@@ -327,6 +360,7 @@ Roekoe/
 ├── query-budget.test.mts        regressietest: queries per verzoek < 50 (D1-limiet)
 ├── idle-writes.test.mts         regressietest: idle poll schrijft 0 rijen (D1-schrijflimiet)
 ├── names.test.mts               regressietest: duivennamen zijn uniek
+├── advance-throttle.test.mts    regressietest: advanceRealtime-throttle (CPU)
 ├── limits-report.mts            meet queries/rijen gelezen/geschreven per verzoek
 ├── migrations/0001_init.sql     D1-schema voor verse installatie
 ├── spelregels.md                spelregels + formules (Nederlands, speler-gericht)
@@ -621,6 +655,14 @@ Entiteiten: `Pigeon`, `Loft`, `User`, `BreedingPair`, `Flight` (+ `SimEntry`,
   **één fee per ploeg**. Bots schrijven 3 duiven in of doen niet mee.
 - **Migratie v31:** een reeds geplande **titan op een estafette-zaterdag** wordt verwijderd,
   inschrijfgeld terugbetaald + melding (en open weddenschappen erop terugbetaald). **dataVersion → 31.**
+- **Bots (`BOT`, nieuwste — de "knoppen" van het botgedrag):** `DEFAULT_BOT_COUNT` **8**.
+  `reserve 1500` (kasvloer), `raceHeadroom 1.15` + `minFormRegular 12` (inschrijven op
+  routekost i.p.v. een vlakke 45), **`minFormRelay 0`** (geen drempel voor de estafette),
+  `minHealthRace 45`, `breedReserveFlock 8` (houdt een koppel thuis als het hok dun wordt),
+  `restCureBelowForm 28`/`restCureReserve 3000`, `maxCoached 2`/`coachReserve 8000`,
+  `capacityReserveFactor 2.5`/**`maxCapacity 12`** (platformgrens, zie §Performance),
+  `maxPairs 2`/`breedReserve 2500`/`breedMinLibido 35`, `foodWeeksBuffer 3`,
+  **`goodFeedFrom 2500`** (vanaf dat bedrag Herstelvoer i.p.v. Normaal).
 - **Schema (`REAL_SCHEDULE`, nieuwste — vaste weekkalender):** één vast programma per
   weekdag i.p.v. het oude dagelijkse lang+kort-ritme. **ma** 08:00 intl · **di** 10:00 regio
   + 12:00 oefenvlucht · **wo** 08:00 nat · **do** 08:00 intl · **vr** 10:00 regio + 12:00
@@ -781,12 +823,13 @@ npx tsx d1-partial-load.test.mts   # persistentie: laadt/schrijft de juiste slic
 npx tsx query-budget.test.mts      # D1: geen enkel verzoek over de 50 queries
 npx tsx idle-writes.test.mts       # D1: een poll zonder gebeurtenissen schrijft niets
 npx tsx names.test.mts             # elke duivennaam blijft uniek
+npx tsx advance-throttle.test.mts  # CPU: een leespoll slaat de engine over
 ```
 (Beide staan buiten `tsconfig.json` (`include` = `core/` + `functions/`), dus tsc raakt ze niet.)
 
 ### Git + deploy (ALTIJD, zie §0)
-1. Ontwikkel + commit op **`claude/hallo-rkr49f`**; push met
-   `git push -u origin claude/hallo-rkr49f` (retry met backoff).
+1. Ontwikkel + commit op **`claude/hallo-w97s85`**; push met
+   `git push -u origin claude/hallo-w97s85` (retry met backoff).
 2. **Deploy meteen naar productie** door de commit op de deploy-branch te zetten:
    ```bash
    git fetch origin claude/roekoe-game-website-jwa0vo
@@ -795,7 +838,7 @@ npx tsx names.test.mts             # elke duivennaam blijft uniek
    git cherry-pick <commit>        # of meerdere
    # typecheck + build ter controle
    git push -u origin claude/roekoe-game-website-jwa0vo   # triggert Cloudflare Pages
-   git checkout claude/hallo-rkr49f           # terug naar dev
+   git checkout claude/hallo-w97s85           # terug naar dev
    ```
 3. **Geen PR** tenzij expliciet gevraagd.
 4. Commit messages in het **Nederlands**, en eindig met de footer:
@@ -816,7 +859,88 @@ npx tsx names.test.mts             # elke duivennaam blijft uniek
 ## 8. Belangrijkste wijzigingen deze sessie (achtergrond)
 
 Alles hieronder staat **live** op de deploy-branch. Data-migraties liepen door tot
-**`dataVersion = 37`**.
+**`dataVersion = 38`**.
+
+**Bots zijn echte tegenstanders geworden — 8 bots, eigen hokbeheer, late inschrijving (nieuwste)**
+- **Aanleiding:** de estafette van 22 aug kreeg maar **5 ploegen**. Drie oorzaken, gemeten
+  met een wegwerpsimulatie tegen de echte engine:
+  1. `DEFAULT_BOT_COUNT` was **6** → hoogstens 6 botploegen, terwijl een bot bij een gewone
+     vlucht 1–2 duiven levert en bij een estafette maar **één ploeg**.
+  2. `botsEnterFlight` draaide **enkel bij het aanmaken** van de vlucht (tot
+     `SCHEDULE_HORIZON_DAYS` = 4 dagen vooraf) en eiste **3 duiven boven 45 energie op dat
+     ene moment**. Midden in een week met 8 wedstrijden haalde bijna geen enkel bothok dat.
+  3. **Bothokken konden alleen krimpen**: bots kweekten niet, kochten niet en boden niet.
+     Gemeten: 41 → 14 duiven in 4 maanden, **0/6 botploegen** vanaf eind september, terwijl
+     elke bot op €20.000–30.000 zat.
+- **`DEFAULT_BOT_COUNT` 6 → 8** + **migratie v38** die de twee ontbrekende hokken aanmaakt
+  (seedWorld draait maar één keer). **Stabiele ids** (`bot_seed_7/8`, duiven
+  `pig_bot_seed_N_i`) en een **deterministisch** duivenaantal (`STARTING_PIGEONS + i % 3`),
+  zodat twee gelijktijdige verzoeken die de migratie allebei draaien op dezelfde rijen
+  landen i.p.v. dubbele hokken te maken. Duiven zijn meteen vluchtklaar
+  (`generatePigeon` dateert 8–130 weken terug), dus ze doen mee aan een vlucht die al op
+  de kalender staat. **dataVersion → 38.**
+- **Late inschrijving:** nieuwe tick **`tickBotEntries`** (§2, 9c) laat elke bot élke nog
+  niet gestarte vlucht opnieuw bekijken, tot vlak vóór de lossing. `botsEnterFlight` slaat
+  een hok met een bestaande inschrijving over → idempotent, 0 rijen als er niets verandert.
+- **Geen energiedrempel voor de estafette** (`BOT.minFormRelay 0`): drie duiven aan de
+  start krijgen is daar het punt, en hoeveel energie een duif nodig heeft is de keuze van
+  de melker — precies zoals een speler een duif met 5 energie mag inschrijven. De enige
+  echte regel (1 energie, `enterFlight`) blijft gelden.
+- **Voor gewone vluchten oordeelt een bot op de route** i.p.v. een vlakke 45: nieuwe helper
+  **`expectedFlightEnergyCost(pigeon, km)`** (flight.ts) × `BOT.raceHeadroom` (1,15). Op
+  100 km is dat ~21 (méér deelname dan vroeger), op 1000 km ~55 (méér discipline). Plus
+  `BOT.minHealthRace` 45 — een versleten duif wordt gerust, niet geracet.
+- **`botDailyActions`** (bots.ts, uit `tickDailyCare`, dus **één keer per dagovergang**):
+  voer, ziekenboeg + personeel + bedden, rustkuur, coach, hokuitbreiding en **kweek**.
+  Alles achter een kasdrempel (`BOT.reserve` + per-actie-reserves) zodat een bot nooit
+  negatief gaat — negatief = geen inschrijvingen meer.
+- ⚠️ **Twee valstrikken die de simulatie blootlegde** (beide opgelost):
+  1. **Bots kweekten nooit**, ook met geld en plaats zat: ze zetten élke fitte duif in een
+     vlucht, dus er was nooit een koppel vrij (`koppels 0` maandenlang). Fix:
+     `BOT.breedReserveFlock` (8) — onder die hokgrootte houdt een bot zijn beste doffer
+     én duivin **uit de racepool**.
+  2. **Hokken stortten alsnog in (12 → 0)**, en niet door geld: ze aten **Normaal**
+     (+5 gezondheid/week) terwijl ze 2–3× per week vlogen (−9 tot −12/week, spelregels
+     §4.4). Gezondheid zakte naar 30–50, dan ziektes, dan dood. Fix: **`BOT.goodFeedFrom`
+     (€2.500) → Herstelvoer**, zelfde €3/kg maar +42 energie/+12 gezondheid.
+- **`BOT.maxCapacity` 12** — géén economische regel maar een **platformregel**: elke duif
+  wordt bij élk verzoek gelezen en om 00:00 herschreven, en die tick loopt rond ~350 duiven
+  tegen de 50-querylimiet aan. 8 bots die vrij naar 20 groeien zetten er ~100 bij.
+- **Gemeten na de wijziging** (halfjaarsimulatie, 3 runs): **7,8–7,9 botploegen per
+  estafette** (was 6 → 2 → 0), alle bothokken stabiel op 12 duiven, laagste kas €5.097, geen
+  enkele instorting. Velden: regio 11,6 · nationaal 11,9 · internationaal 11,5 · titan 8,0 ·
+  estafette 23,6 duiven aan de start (bots alleen).
+- **Geverifieerd** met een wegwerpscript tegen de echte `advanceRealtime` (33 controles):
+  migratie voegt exact 2 bots toe en is idempotent over 20 polls, twee gelijktijdige runs
+  geven geen dubbele rijen, alle namen/ids blijven uniek, de 8 bots hebben morgen een
+  ploeg van 3 met etappenummers, herhaald pollen schrijft niemand dubbel in, met 6 energie
+  komen er tóch 8 ploegen maar nooit een duif onder 1 energie, een leeggevlogen bot
+  schrijft niet in maar wél zodra ze uitgerust is, een koppelende duif wordt nooit
+  ingeschreven, en over 2,5 maand blijft geen enkele bot negatief of uitgedund. De vier
+  vaste regressietests + beide typechecks + build groen. Spelregels **§17**.
+
+**Duif weer beschikbaar zodra ze thuis is**
+- Probleem: sinds de finish-timer weg is, loopt een vlucht door tot de **traagste**
+  finisher binnen is — op 1000 km uren. Elke "is deze duif bezet?"-check keek naar
+  `flight.status !== 'completed'`, dus een duif die al lang thuis was kon niet
+  ingeschreven, getraind, gekoppeld, in de ziekenboeg gezet, op rustkuur gezet, te koop
+  gezet of verkocht worden tot de laatste sukkelaar binnen was.
+- Opgelost met `birdStillOut` + `pigeonCommittedToFlight` (flight.ts, zie §2): het einde
+  van de **eigen** race komt uit het bevroren sim. Vrij bij **finish**, bij een **DNF
+  onderweg** en meteen bij **opgeven** (dat laatste was net de bedoeling van opgeven).
+  Alle guards in `engine.ts`/`offers.ts`/`presenters.ts` gebruiken die helper, net als de
+  1-race-per-dag-regel en de bot-inschrijving. **Estafette** werkt op leg-klokken (leg 3
+  wacht = bezet; ploegmaat valt uit = meteen vrij).
+- Client: `FlightsPage` bouwde zijn `committed`-set uit de rauwe entries van **scheduled +
+  live** vluchten en verborg de duif dus alsnog. De set kijkt nu enkel naar **scheduled**;
+  voor live vluchten telt het server-vlaggetje `pigeon.racing`. De rest van de UI
+  (PigeonCard 🏁, PigeonPage, BreedingPage) hangt al aan `pigeon.racing` en volgt vanzelf.
+- `giveUpFlight` weigert voortaan een duif waarvan de race al voorbij is — dat maakte van
+  een al uitbetaalde finisher retroactief een DNF (bestaande bug).
+- Geen schema-/configwijziging, **geen migratie** (puur afgeleid uit `sim`); `dataVersion`
+  blijft **37**. Geverifieerd met tsx (32 gevallen: scheduled/live/completed, finish-moment,
+  straggler, opgegeven, DNF, legacy-sim zonder `segMult`, onbekende duif, en zes estafette-
+  scenario's). Spelregels **§3.8**.
 
 **Migratie v37 — nationale vlucht van woensdag 19 aug eenmalig naar 10:00 (nieuwste)**
 - Op verzoek van de eigenaar: de **nationale vlucht van vandaag** vertrekt om **10:00**
@@ -943,7 +1067,12 @@ Alles hieronder staat **live** op de deploy-branch. Data-migraties liepen door t
   nu de vorm dat al stuurt); **de sterfteworp onder 5 blijft**.
 - **Zichtbaar** (essentieel — een onzichtbare straf leest als willekeur): `pigeonDTO` stuurt
   `flightForm`/`formLabel`/`restPenalty`; badge op `PigeonPage` en 🟢/🟡/🔴 + vorm in de
-  inschrijflijst op `FlightsPage`. Wiki-sectie 🎯 **Vluchtvorm & blessures**, spelregels
+  inschrijflijst op `FlightsPage`. **Let op:** `flightForm` is de waarde **ná** de
+  rustaftrek (`flightForm = conditionScore − restPenalty`), en de UI toont **enkel dat
+  ene cijfer**. Eerst stond er "— net gevlogen, −15" achter, wat las alsof die 15 er nog
+  áf moest; op vraag van de eigenaar is die tekst **helemaal weg** — de speler hoeft zich
+  er niets bij af te vragen, het is verrekend. `pigeonDTO.restPenalty` blijft wél bestaan
+  (server-waarheid, nu ongebruikt door de client). Wiki + spelregels §3.6 idem. Wiki-sectie 🎯 **Vluchtvorm & blessures**, spelregels
   **§3.2**, **§3.5** (rustaftrek), **§4.3/§4.4**, **§5.1/§5.2**.
 - **Geen migratie, geen `dataVersion`-bump.** `lastRaceAt` staat leeg bij uitrol (dus geen
   rustaftrek met terugwerkende kracht) en iedereen zit rond gezondheid 100, dus de
@@ -1704,7 +1833,8 @@ moet gewoon efficiënt zijn.
    **inloggen blijft werken** ook als de spelstate zwaar is. De handlers persisten zelf.
 5. **Client logt niet meer uit bij 5xx** — `AuthContext` wist het token **enkel bij
    401** (niet bij 503/netwerkfout) → geen willekeurige uitlogs/lock-outs meer.
-6. **Rustiger pollen** — LiveFlightPage 8s→**20s**, FlightsPage 15s→**40s**.
+6. **Rustiger pollen** — LiveFlightPage 8s→20s→**60s**, FlightsPage 15s→40s→**90s**
+   (verder verruimd in 503-fix ronde 5, zie onderaan).
 
 **Terugkeer van de 503 — tweede ronde (nieuwste)**
 **Symptoom (identiek):** 503 op alles, spelers zien plots het inlogscherm en
@@ -1795,6 +1925,11 @@ tabellen aftopt zonder open weddenschappen te raken, en (d) het inlogpad 2 rijen
 Query-plannen gecontroleerd met `EXPLAIN QUERY PLAN` — alles index-gedekt behalve
 `lower(username)` bij login, en dat is een scan over ~16 rijen.
 
+> **Bots tellen mee in dat plafond.** 8 bots × `BOT.maxCapacity` (12) = ~96 duiven die
+> élk verzoek gelezen en om 00:00 herschreven worden. Daarom staat er een plafond op het
+> bothok; verhoog `BOT.maxCapacity` of `DEFAULT_BOT_COUNT` niet zonder
+> `query-budget.test.mts` opnieuw te draaien (ook met `PIGEONS=350`).
+
 **Nog beschikbare hefbomen als het toch weer krap wordt:** `advanceRealtime` throttlen
 (bv. max. 1×/20 s via een `world.lastAdvance`-guard); `/state` kort cachen (Cache API);
 `TRADE_LOAD_LIMIT` verlagen. **Structureel** blijft `pigeons` (~200 rijen) de grootste
@@ -1832,6 +1967,159 @@ rustige wereld en faalt zodra een poll zonder gebeurtenissen ook maar één rij 
 **Regel voor nieuwe code: stempel nooit `Date.now()` in een rij op elk verzoek** — geef
 zo'n klok altijd een minimuminterval.
 
+### 503-fix ronde 5: de estafette duurt een halve dag (⚠️ diagnose achteraf weerlegd — zie ronde 6)
+
+**Symptoom:** site "constant niet aan het laden", tijdens een **live estafettevlucht**.
+
+**Wat het NIET was** (gemeten, niet gegokt):
+- **50-querylimiet:** een live-estafettepoll kost **13–16 queries**, het duurste verzoek
+  van de hele race (start/afronding) **38–39**. Ruim onder de 50.
+- **Schrijflimiet:** een live-estafettepoll tussen de energie-ticks schrijft **0 rijen**
+  (8× gemeten). `tickBotEntries` is idempotent zoals bedoeld.
+
+**Wat het volgens deze redenering was — en achteraf NIET bleek (zie ronde 6): het
+leesbudget (5 M rijen/dag) × de duur van een estafette.**
+Élk verzoek leest de wereld (~350 rijen). Een estafette is **850–950 km in drie etappes**
+en duurt gemeten **16–19 uur** — veruit de langste vlucht in het spel. Het live-bord
+pollde elke **20 s** = 180 verzoeken/uur:
+
+| | rijen |
+|---|---|
+| 1 speler die één estafette volledig volgt (19 u × 180 × 352) | **1,2 M** |
+| 4–5 spelers die dat samen doen | **5–6 M** → **over de daglimiet** |
+
+Dat is exact het scenario dat §"De tweede limiet" al voorspelde ("tien spelers die samen
+een namiddag naar een fondvlucht kijken zitten al aan het dagbudget"); de estafette maakt
+er een hele *dag* van. Loopt het budget leeg, dan faalt **élk** verzoek — ook het lichte
+inlogpad — tot de reset om middernacht UTC.
+
+**Verzwarend (eerlijk): de bot-uitbreiding van dezelfde dag.** 8 bots i.p.v. 6, en hun
+hokken groeien naar `BOT.maxCapacity` (12) → tot ~96 botduiven i.p.v. ~40. Dat is **+15
+à +25 % rijen per verzoek**, en met 13 ploegen i.p.v. 5 kijken er ook meer mensen mee.
+Het heeft het probleem niet veroorzaakt (de kosten per verzoek zijn structureel), maar
+het at wel de marge op.
+
+**Gefixt (hefbomen 1 en 4 uit de lijst hieronder):**
+12. **Pollintervallen verruimd** — live-bord **20 s → 60 s** (`LiveFlightPage`), kalender
+    **40 s → 90 s** (`FlightsPage`). Factor **3×** resp. **2,25×** minder verzoeken.
+    `MarketPage` (15 s) blijft: die pollt enkel in de laatste 6 min van een veiling.
+13. **`TRADE_LOAD_LIMIT` 100 → 40** (`core/d1.ts`, nu **geëxporteerd** zodat
+    `d1-partial-load.test.mts` de constante volgt i.p.v. 100 te hardcoderen). De
+    marktwaardering weegt een verkoop toch al op recentheid (halfwaardetijd 10 dagen,
+    venster 28 dagen), dus de oudste 60 bewogen de curve nauwelijks.
+
+**Resultaat (gemeten met `limits-report.mts`):** **352 → 293 rijen** per poll, dagbudget
+**14.204 → 17.064** verzoeken. Eén speler die een volledige estafette volgt gaat van
+**1,2 M → 0,33 M rijen** (**3,6× minder**); vijf tegelijk passen nu binnen de daglimiet.
+
+> ⚠️ **Nog niet gedaan — de echte fix.** `/flights/:id/live` laadt de **hele wereld**
+> (~293 rijen) om **één** vlucht te tonen, en dat is het heetste endpoint dat er is. De
+> structurele oplossing is een **smalle load** voor die route (vlucht + deelnemende duiven
+> + hoknamen ≈ 70 rijen) of `advanceRealtime` **throttlen** (`world.lastAdvance`, max.
+> 1×/20–30 s) zodat een poll de wereld niet meer hoeft te laden. Dat is hefboom 3+5
+> hieronder en zou nog eens ~4× schelen — dan kan het pollinterval ook weer omlaag.
+
+### ⚠️ Correctie op ronde 5 + 503-fix ronde 6: CPU en trage weer-fetches (nieuwste)
+
+**De diagnose van ronde 5 was fout.** Ze was gebaseerd op een redenering, niet op de
+metrics — precies de fout waar §ronde 2 al voor waarschuwt. De Cloudflare-cijfers
+(1–23 aug) weerleggen ze:
+
+| Meting | Waarde | Betekenis |
+|---|---|---|
+| Verzoeken | **29,06 k / 23 dagen = ~1.263 per dag** | ~1 % van de 100.000/dag |
+| Rijen gelezen (afgeleid) | ~380 k/dag | **7,6 %** van de 5 M — het leesbudget was nooit in gevaar |
+| **CPU-tijd** | **516.350 ms / 29.060 = 17,8 ms per verzoek** | dít is het uitschieter-cijfer |
+
+Het pollinterval verruimen (ronde 5) was dus geen oplossing voor dít probleem. Het is
+op zich geen slechte maatregel — minder verzoeken is minder kosten — maar het raakte de
+oorzaak niet. **Les: haal de metrics vóór je een oorzaak benoemt, ook als de theorie mooi klopt.**
+
+**Bevinding 1 — het verzoek kán hangen (dit past op "blijft laden").**
+De middleware deed de weer-fetches **sequentieel**, elk met een eigen timeout van 4 s.
+Een estafette heeft **drie etappevoorspellingen**, in de laatste 2 u vóór de start
+**elk uur** ververst (`relayLegsNeedingForecast`), plus een fetch per startende vlucht.
+Worst case zat één verzoek dus 12–20 s te wachten op Open-Meteo — geen foutmelding, maar
+een spinner. **Gefixt:** alles draait nu in één `Promise.all`, dus het hele blok is
+begrensd op **één** timeout i.p.v. één per call. Ruim binnen de 50 subrequests.
+
+**Bevinding 2 — de CPU per verzoek is structureel hoog.** Lokaal gemeten op een
+productiewereld (167 duiven), en het komt opvallend goed overeen met de 17,8 ms uit het
+dashboard:
+
+| Onderdeel | ms |
+|---|---|
+| `D1Store.load` (query + JSON.parse + snapshot) | ~4,2 |
+| `advanceRealtime` (alle ticks samen) | ~3,4 |
+| `persist` (diff + stringify) | ~5,8 |
+| `/state` DTO's (duiven, vluchten, ranglijsten) | ~0,8 |
+| **totaal** | **~14 ms** |
+
+Dat is **het D1Store-patroon zelf**, niet één hete tick: élk verzoek — ook een poll waar
+niets gebeurt — laadt, parset, snapshot, diff't en stringify't de hele wereld. De DTO-laag
+is verwaarloosbaar (0,8 ms), dus daar valt niets te halen. Losse ticks meten lukte niet:
+alle metingen kwamen op ~0,9 ms uit, ook `pruneOldFlights` die vrijwel niets doet — dat is
+de ruisvloer van de meting, geen signaal. **Claim dus niet dat één tick de boosdoener is.**
+
+**Meegenomen:** `tickBotEntries` slaat nu eerst goedkoop af (staan alle bots al
+ingeschreven → meteen klaar) en `botEntryContext` groepeert de duiven **één keer** per
+pas i.p.v. per bot per vlucht (was O(bots × vluchten × duiven)). Niet meetbaar boven de
+ruis, wel algoritmisch juist.
+
+> **Nog open — dit is de echte fix voor de CPU.** Zolang élk verzoek de hele wereld
+> laadt+persist, kost het ~14 ms en is er geen marge. De twee wegen zijn dezelfde als in
+> hefboom 3/5 hieronder: een **smalle load** voor de hete routes (`/flights/:id/live`,
+> `/state`) of **`advanceRealtime` throttlen** (`world.lastAdvance`, max 1×/20–30 s) zodat
+> een poll de wereld helemaal niet meer hoeft aan te raken.
+
+**BEVESTIGD op 23 aug** — het Functions-paneel liet er geen twijfel over bestaan:
+
+| Errors (23 aug) | |
+|---|---|
+| **Exceeded CPU Time Limits** | **69** |
+| Internal / Script Threw Exception / Exceeded Memory / Client Disconnected | 0 |
+
+| CPU per verzoek (µs) | |
+|---|---|
+| p50 | 25.985 → **26 ms** |
+| p75 | 33.690 → **34 ms** |
+| p99 | 68.257 → **68 ms** |
+| p99.9 | 96.434 → **96 ms** |
+
+Dus: **de CPU is de oorzaak**, en de staart is wat sterft. Mijn lokale ~14 ms was nog
+optimistisch — de Workers-runtime en een grotere wereld maken er in productie ~26 ms van.
+Alle andere fouttellers staan op 0, dus D1-quota, geheugen en exceptions vallen af.
+
+### 503-fix ronde 7: `advanceRealtime` throttlen (dé CPU-fix, nieuwste)
+
+**Oorzaak staat vast** (zie ronde 6): Error 1102, 69× op één dag, p50 26 ms per verzoek.
+
+**De fix: een read-only verzoek binnen `ADVANCE_THROTTLE_SECONDS` (20) van de vorige
+run slaat `advanceRealtime` én `persist` volledig over.** Nieuw veld
+**`World.lastAdvance`** (kolom `last_advance TEXT`, achteraan `SCHEMA_STEPS` — de
+append-only regel), gestempeld in de middleware ná de engine-run.
+
+- **Alleen leesverzoeken** (GET/HEAD) worden gethrotteld. Élke POST/PUT/DELETE draait
+  eerst de engine, zodat een speleractie nooit op een verouderde wereld werkt.
+- **Niets gaat verloren.** De hele wereldklok is afgeleid uit tijdstempels (vluchten,
+  dagverzorging, herstel, seizoen), dus later draaien verandert geen uitkomst — het
+  verschuift alleen wanneer iets *opgemerkt* wordt, met hoogstens 20 s.
+- **Veilige terugval:** staat de kolom er nog niet, dan is `lastAdvance` leeg →
+  `Date.parse('')` is NaN → nooit "fresh" → exact het oude gedrag tot de migratie liep.
+- **Schrijfkost:** een advance schrijft nu ook de wereldrij (`lastAdvance` bewoog), dus
+  hoogstens 1 rij per 20 s ≈ **4.300/dag** van de 100.000. Doorgethrottelde polls
+  schrijven **0** rijen (er wordt niet eens gepersist).
+
+**Gemeten:** een doorgethrotteld leesverzoek gaat van **5,24 → 2,48 ms** (−53 %) op een
+wereld van 200 duiven; van 30 polls over 60 s draait de engine er nog **3**. Wat overblijft
+is `D1Store.load` — dát is de volgende hefboom (smalle load voor `/flights/:id/live` en
+`/state`), en pas als die er is kunnen de pollintervallen van ronde 5 weer omlaag.
+
+**Nieuwe blijvende test `advance-throttle.test.mts`** (10 controles): leespolls binnen het
+venster slaan de engine over, net erbuiten weer niet, een POST draait altijd, doorgethrottelde
+polls schrijven niets, en — het belangrijkste — een vlucht gaat gewoon **live** terwijl er
+uitsluitend leespolls binnenkomen.
+
 ### De tweede limiet: rijen gelezen per dag (meting `limits-report.mts`)
 
 Gemeten op een productiewereld (200 duiven, 16 hokken, 250 trades, 40 meldingen/speler):
@@ -1844,12 +2132,12 @@ Gemeten op een productiewereld (200 duiven, 16 hokken, 250 trades, 40 meldingen/
 | Vluchtafronding | 43 | 350 | 429 |
 | Dagovergang 00:00 | 41 | 351 | 377 |
 
-**Élk** verzoek leest ~350 rijen, want de middleware laadt de wereld: ~200 duiven +
-100 trades (`TRADE_LOAD_LIMIT`) + tot 40 meldingen + 16 hokken + 16 users + vluchten.
-Bij 5 M rijen/dag is dat een **plafond van ~14.000 verzoeken per dag** — véél lager dan
-de 100.000 Worker-verzoeken/dag. De client pollt `/flights/:id/live` elke **20 s** en
-`/flights` elke **40 s**, dus één open live-bord = 180 verzoeken/uur. Tien spelers die
-samen een namiddag naar een fondvlucht kijken zitten al aan het dagbudget.
+**Élk** verzoek leest ~290 rijen, want de middleware laadt de wereld: ~200 duiven +
+40 trades (`TRADE_LOAD_LIMIT`) + tot 40 meldingen + hokken + users + vluchten.
+Bij 5 M rijen/dag is dat een **plafond van ~17.000 verzoeken per dag** — véél lager dan
+de 100.000 Worker-verzoeken/dag. De client pollt `/flights/:id/live` elke **60 s** en
+`/flights` elke **90 s** (verruimd in ronde 5), dus één open live-bord = 60 verzoeken/uur.
+Een **estafette duurt 16–19 uur**: één speler die er één volledig volgt kost ~0,33 M rijen.
 
 > **Belangrijk:** als het leesbudget op is, faalt **ook het lichte inlogpad** (dat leest
 > nog altijd één rij). Vandaar "niemand raakt er nog in" tot de reset om **middernacht

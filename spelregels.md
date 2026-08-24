@@ -477,7 +477,8 @@ duur_wedstrijd = de traagste duif die thuis raakt
 Enkel duiven die **echt niet thuis raken** blijven DNF: wie je **zelf opgeeft**
 (§3.4), of wie **onderweg uitvalt** door uitputting of een blessure (§3.2). Dat een
 race daardoor wat langer kan duren (zeker met een verdwaalde duif) is de bewuste
-prijs: iedereen mag uitvliegen.
+prijs: iedereen mag uitvliegen. Je hoeft daar zelf **niet** op te wachten: een duif
+die binnen is, is meteen weer vrij (§3.8).
 
 ### 3.4 Zelf opgeven om energie te sparen
 
@@ -563,8 +564,11 @@ af** als een duif net gevlogen heeft:
 | langer geleden | geen |
 
 Een **oefenvlucht** telt maar voor een derde (−5). In de praktijk **verdubbelt**
-zo'n aftrek de kans op een blessure — ook al ziet je duif er verder prima uit. Bij
-het inschrijven staat het erbij: *"net gevlogen, −15"*.
+zo'n aftrek de kans op een blessure — ook al ziet je duif er verder prima uit.
+
+> **Je hoeft er zelf niet mee te rekenen.** Het vormcijfer op de duifpagina en in
+> de inschrijflijst is **al ná die aftrek**, net als de 🟢/🟡/🔴-stip. Vloog je duif
+> gisteren, dan zie je haar vorm gewoon lager staan.
 
 > Wie zijn duiven laat roteren in plaats van dezelfde vogel elke dag op te
 > offeren, heeft dus meetbaar minder blessures.
@@ -614,6 +618,47 @@ vroeger, terwijl de eerste helft juist **sneller** gaat dan vroeger.
 > **Bestaande duiven** behouden hun opgebouwde ervaring; enkel de groei **vanaf nu**
 > volgt de leerfactor. Een doorwinterde duif verliest dus niets, maar haar voorsprong
 > is voortaan wél moeilijker in te halen.
+
+### 3.8 Thuis = meteen weer beschikbaar
+
+Een vlucht loopt door tot de **laatste** duif thuis is (§3.3). Op een fondvlucht van
+1000 km kan die staart **uren** duren. Je duif hoeft daar niet op te wachten:
+**zodra haar eigen race erop zit, is ze weer vrij** — ook al staat de vlucht nog
+"live" op het bord.
+
+Vrij betekent **alles wat normaal kan, kan weer**: haar **inschrijven voor een
+volgende wedstrijd**, **trainen**, **koppelen**, in de **ziekenboeg** zetten, een
+**rustkuur** geven, te koop zetten of verkopen.
+
+Haar race zit erop zodra ze:
+- **over de finish** komt, of
+- **onderweg uitvalt** (uitputting of blessure, §3.2), of
+- door jou **opgegeven** wordt (§3.4) — precies waar opgeven voor dient: ze staat
+  meteen weer paraat i.p.v. de rest van de vlucht geblokkeerd te zijn.
+
+Ook de regel **"één wedstrijd per duif per dag"** volgt dit: die geldt zolang haar
+andere race van die dag nog **bezig** is. Is ze binnen, dan mag ze diezelfde dag
+gerust nog een vlucht doen — als ze er de energie en de vluchtvorm (§3.6) nog voor heeft.
+
+**Estafettevlucht** (§2.9): daar telt je **eigen leg**. Wie leg 1 gevlogen heeft, is
+vrij zodra ze het stokje doorgeeft; wie op leg 3 staat te wachten blijft geblokkeerd
+tot haar beurt geweest is. Valt een ploegmaat vóór haar uit, dan vliegt ze die dag
+niet meer en is ze op dat moment meteen vrij.
+
+> **Let op — je energie is al betaald.** Een duif die finisht heeft op dat moment de
+> **volledige** energiekost van haar rit al betaald (die loopt geleidelijk mee, §3).
+> Je wint dus niets door haar vroeg terug in te zetten: na een zware fondvlucht staat
+> ze gewoon leeg, en de aftrek op haar **vluchtvorm** (§3.6) voor "gisteren gevlogen"
+> geldt onverkort.
+>
+> De rest van de afrekening — **ranglijstpunten, medailles, weddenschappen,
+> prestaties** en de **conditie-/ervaringswinst** van de rit — volgt nog altijd bij de
+> **afronding** van de hele vlucht. Je **prijzengeld** krijg je wél al meteen bij het
+> finishen (§2.6).
+
+Twee uitzonderingen blijven staan: een duif die **de weg helemaal kwijt** is (§3.5) is
+pas beschikbaar als ze een paar dagen later thuiskomt, en wie al binnen of al
+uitgevallen is kan je **niet meer opgeven** — haar uitslag ligt dan vast.
 
 ---
 
@@ -1540,6 +1585,41 @@ Rassen verzamelen is een eigen prestige-doel. In **Prestaties** vind je onder
   plus **Mengelmoes** voor een zelf-gekweekte **Gemengde** duif.
 - **Alle rassen** — de kapstok-badge **Rassenverzamelaar**: bezit **tegelijk**
   een duif van **elk** ras (+500 XP).
+
+---
+
+## 17. De computermelkers (bots)
+
+Naast de echte spelers rijden er **acht computermelkers** mee. Ze zijn er om het
+deelnemersveld te vullen: zonder hen zou een vlucht met drie inschrijvingen aan
+de start staan. Ze spelen met **exact dezelfde regels** als jij — geen extra
+geld, geen betere duiven, geen vrijstellingen.
+
+**Ze runnen hun hok net als jij.** Een bot koopt voer (en schakelt over op
+**Herstelvoer** zodra hij het kan betalen), zet zieke duiven in de **ziekenboeg**,
+neemt een **dokter** of **kinesist** in dienst, koopt er **bedden** bij, geeft een
+uitgeputte duif een **rustkuur**, huurt een **privécoach** voor zijn beste duiven,
+**breidt zijn hok uit** en **kweekt jongen**. Dat laatste is belangrijk voor jou:
+vroeger konden bothokken alleen maar krimpen — duiven gingen dood en er kwam
+niets bij — waardoor het veld seizoen na seizoen dunner werd. Nu houden ze zichzelf
+op peil, dus je blijft echte tegenstand houden.
+
+**Ze schrijven in tot vlak voor de lossing.** Een bot bekijkt elke geplande
+vlucht opnieuw zolang ze nog niet vertrokken is. Zie je vandaag pas drie
+inschrijvingen voor de vlucht van overmorgen, dan zegt dat dus niets — er komen
+er nog bij naarmate hun duiven uitrusten.
+
+**Ze kiezen hun duiven met verstand.** Een bot zet een duif enkel in als ze de
+route ook echt aankan (genoeg energie voor de afstand) en niet als haar
+gezondheid te ver gezakt is. Hij houdt bovendien een **koppel thuis** wanneer zijn
+hok dun wordt, om te kunnen kweken. **Behalve bij de estafettevlucht** — daar
+geldt geen enkele energiedrempel, net zoals bij jou (§2.9): drie duiven aan de
+start krijgen is daar het punt, en hoeveel energie een duif voor haar etappe
+nodig heeft, beslist de melker zelf.
+
+**Ze winnen ook.** Bots pakken prijzengeld, seizoenspunten, Roekoes en Vleugels
+als ze het verdienen (§15). Ze doen niet mee aan **oefenvluchten** en je kan geen
+bod uitbrengen op hun duiven.
 
 ---
 

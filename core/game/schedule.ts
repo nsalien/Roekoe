@@ -13,8 +13,11 @@
  */
 
 import {
+  BOT,
   BOT_LOFT_CAPACITY,
+  BOT_LOFT_NAMES,
   BREEDING,
+  DEFAULT_BOT_COUNT,
   FEED_RATIONS,
   FLIGHT_FATIGUE,
   FLIGHT_TIERS,
@@ -33,18 +36,24 @@ import {
   SPONSOR_OFFER_ON_PERFORMANCE,
   SPONSORS,
   sponsorPodiumBonus,
+  STARTING_FOOD_STOCK,
   STARTING_LOFT_CAPACITY,
+  STARTING_MONEY,
+  STARTING_PIGEONS,
   TIMEZONE,
   TITAN,
   type FlightTier,
   type RaceCity,
 } from '../config/gameConfig.js';
 import type { Database, Flight, FlightResult, RaceLogEntry } from '../schema.js';
+import { emptySponsorState, emptyStats } from '../schema.js';
 import { newId } from '../store.js';
 import { applyDayOfCare, dailyRunningCost } from './economy.js';
 import { breed } from './breeding.js';
 import { awardBadge, awardFlightBadges, evaluateBadges } from './badges.js';
 import { ensureAuctions } from './auction.js';
+import { botDailyActions, botEntryContext, botRaceCandidates } from './bots.js';
+import type { BotEntryContext } from './bots.js';
 import { settleFlightBets, voidOrphanedBets, refundFlightBets } from './betting.js';
 import {
   applyAilment,
@@ -61,6 +70,7 @@ import { progressMissions } from './missions.js';
 import { activeContracts, evaluateSponsorOffers } from './sponsors.js';
 import {
   applyFlightEffects,
+  birdStillOut,
   computeFinishPayouts,
   finalizeFlight,
   flightTotalSeconds,
@@ -72,7 +82,7 @@ import {
 } from './flight.js';
 import type { WeatherResult } from './weather.js';
 import { generatePigeonName, isLegacyName, isWrongGenderName, nameKey, namesInUse } from './names.js';
-import { canRace, conditionScore, noteAttrChange, rollBreed, rollGenes, talent } from './pigeon.js';
+import { canRace, conditionScore, generatePigeon, noteAttrChange, rollBreed, rollGenes, talent } from './pigeon.js';
 import { NPC_OWNER_ID, ownerName } from './engine.js';
 import { pickRelayRoute, relayEntryTeams, relayLegKm, relayTeamComplete } from './relay.js';
 import { bell, clamp, hashString, haversineKm, pick, randFloat, round1, seededRng } from './util.js';
@@ -248,22 +258,35 @@ function makeRealtimeFlight(
   };
 }
 
-/** Each bot enters its 1-2 best rested birds into a freshly-created flight. */
-function botsEnterFlight(db: Database, flight: Flight): void {
+/**
+ * Each bot enters its best available birds into a still-scheduled flight.
+ *
+ * Runs both when a flight is first put on the calendar AND on every tick right
+ * up to the lossing (`tickBotEntries`). That second chance matters: the calendar
+ * is built up to SCHEDULE_HORIZON_DAYS ahead, and a bot judged on the energie it
+ * happened to have four days early would sit out a race its birds are perfectly
+ * rested for by the time it starts. A loft that already has an entry here is
+ * skipped, so this is idempotent and a settled flight writes nothing.
+ */
+function botsEnterFlight(db: Database, flight: Flight, ctx: BotEntryContext = botEntryContext(db)): void {
   if (flight.practice) return; // oefenvluchten zijn voor de speler, bots doen niet mee
-  const week = db.world.currentWeek;
+  if (flight.status !== 'scheduled') return;
   const day = flight.startAt.slice(0, 10); // one race per bird per day
+  // Only birds whose race that day is still running are off-limits — one that is
+  // already home may be entered again (same rule as for human players).
+  const nowMs = Date.now();
   const committed = new Set<string>(
     db.flights
       .filter((f) => f.status !== 'completed' && f.startAt.slice(0, 10) === day)
-      .flatMap((f) => f.entries.map((e) => e.pigeonId)),
+      .flatMap((f) => f.entries.map((e) => e.pigeonId).filter((id) => birdStillOut(f, id, nowMs))),
   );
+  // Birds a bot already put on THIS flight count as tied up even before the
+  // start (birdStillOut reports a scheduled flight as busy, but be explicit).
+  for (const e of flight.entries) committed.add(e.pigeonId);
   for (const loft of db.lofts.filter((l) => l.isBot)) {
     if (loft.money < flight.entryFee) continue;
     if (flight.entries.some((e) => e.ownerId === loft.userId)) continue;
-    const eligible = db.pigeons
-      .filter((p) => p.ownerId === loft.userId && canRace(p, week) && p.form > 45 && !committed.has(p.id))
-      .sort((a, b) => talent(b) + b.form - (talent(a) + a.form));
+    const eligible = botRaceCandidates(ctx, loft, flight, committed);
     // A titanenwedstrijd allows only ONE bird per loft; an estafettevlucht needs
     // a full team of exactly RELAY.teamSize (a short-handed bot would only get
     // refunded at the start); otherwise 1-2.
@@ -286,6 +309,33 @@ function botsEnterFlight(db: Database, flight: Flight): void {
       loft.money -= flight.entryFee;
     }
   }
+}
+
+/**
+ * Give every bot a fresh look at each flight that has not started yet. Pure
+ * no-op once every bot has either entered or has nothing to enter, so an idle
+ * poll still writes zero rows (`idle-writes.test.mts` guards this).
+ */
+export function tickBotEntries(db: Database, nowMs: number): void {
+  // Cheap gate FIRST. This runs on every single request, and almost always every
+  // bot has long since entered every flight on the calendar — in that state the
+  // work below (a per-flight `committed` set plus a scan of the whole pigeon
+  // table per bot) is pure waste, and it measured ~1.2 ms of a request that has
+  // roughly 10 ms of CPU to spend in total. Comparing owner ids is ~free.
+  const botIds = db.lofts.filter((l) => l.isBot).map((l) => l.userId);
+  if (botIds.length === 0) return;
+  const open = db.flights.filter((flight) => {
+    if (flight.status !== 'scheduled' || flight.practice) return false;
+    const start = Date.parse(flight.startAt);
+    if (!Number.isNaN(start) && start < nowMs) return false; // tickFlights is about to start it
+    const entered = new Set(flight.entries.map((e) => e.ownerId));
+    return !botIds.every((id) => entered.has(id)); // something still to decide
+  });
+  if (open.length === 0) return;
+  // Group the pigeons by owner once for the whole pass instead of re-scanning
+  // the table per bot per flight.
+  const ctx = botEntryContext(db);
+  for (const flight of open) botsEnterFlight(db, flight, ctx);
 }
 
 /** Small stable hash of a calendar day, for per-day tier rotation. */
@@ -1564,6 +1614,80 @@ function runDataMigrations(db: Database): void {
     }
     db.world.dataVersion = 37;
   }
+
+  if ((db.world.dataVersion ?? 0) < 38) {
+    // The world was seeded with 6 bots and they only ever shrank — deaths take
+    // birds, nothing put any back — so the field kept thinning and an estafette
+    // (which needs THREE birds from one loft) barely got a team together. Bots
+    // now run their own loft (bots.ts) and can enter right up to the lossing,
+    // but that alone does not conjure the two lofts DEFAULT_BOT_COUNT gained.
+    // Add them here, seeded exactly like the originals.
+    //
+    // Stable ids throughout: ensureAuctions-style races (two requests both
+    // running this migration) would otherwise create two sets of lofts. With
+    // fixed ids INSERT OR REPLACE collapses them onto the same rows.
+    const botCount = db.lofts.filter((l) => l.isBot).length;
+    const usedNames = new Set(db.lofts.map((l) => l.name));
+    const taken = namesInUse(db.pigeons);
+    for (let i = botCount; i < DEFAULT_BOT_COUNT; i++) {
+      const userId = `bot_seed_${i + 1}`;
+      if (db.users.some((u) => u.id === userId)) continue;
+      db.users.push({
+        id: userId,
+        username: `bot_${i + 1}`,
+        passwordHash: '!', // bots cannot log in
+        isAdmin: false,
+        isBot: true,
+        createdAt: new Date().toISOString(),
+      });
+      const name = BOT_LOFT_NAMES.find((n) => !usedNames.has(n)) ?? `Hok ${i + 1}`;
+      usedNames.add(name);
+      db.lofts.push({
+        userId,
+        name,
+        money: STARTING_MONEY,
+        food: { ...STARTING_FOOD_STOCK },
+        feedRation: 'normal',
+        capacity: BOT_LOFT_CAPACITY,
+        compartments: 0,
+        seasonPoints: 0,
+        totalWins: 0,
+        isBot: true,
+        infirmaryCapacity: INFIRMARY.baseCapacity,
+        medicatedFood: false,
+        doctors: 0,
+        physios: 0,
+        xp: 0,
+        level: 1,
+        stats: emptyStats(),
+        badges: [],
+        missions: [],
+        missionsDay: '',
+        streak: 0,
+        pendingEvent: null,
+        sponsorship: emptySponsorState(),
+      });
+      // Same headroom and quality as the other bots — no edge over a player.
+      // generatePigeon dates a fresh bird 8..130 weeks back, so these are
+      // race-ready at once and can join a flight that is already on the board.
+      // The COUNT is derived from the index, not rolled: two concurrent runs
+      // must agree on how many rows exist, or the loser leaves a stray bird
+      // behind that the id-collapse cannot absorb.
+      const count = STARTING_PIGEONS + (i % 3); // 6..8, deterministic
+      for (let j = 0; j < count; j++) {
+        const p = generatePigeon({
+          ownerId: userId,
+          currentWeek: db.world.currentWeek,
+          quality: randFloat(0.4, 0.6),
+          taken,
+        });
+        p.id = `pig_${userId}_${j}`; // stable, so a double run overwrites instead of duplicating
+        taken.add(nameKey(p.name));
+        db.pigeons.push(p);
+      }
+    }
+    db.world.dataVersion = 38;
+  }
 }
 
 /** The pre-v32 weekly stipends, kept only so migration v32 can tell whether a
@@ -1692,18 +1816,10 @@ export function tickDailyCare(db: Database, nowMs: number): void {
     for (const loft of db.lofts) {
       const owned = db.pigeons.filter((p) => p.ownerId === loft.userId);
       if (owned.length === 0) continue;
-      // Bots eat 'normal' and restock that type in real time so they don't
-      // starve between weeks.
-      if (loft.isBot) {
-        const weeklyNeed = owned.length * FEED_RATIONS.normal.foodPerPigeon;
-        if ((loft.food.normal ?? 0) < weeklyNeed && loft.money > 400) {
-          const buy = Math.min(weeklyNeed * 3, Math.floor((loft.money - 300) / FOOD_PRICE_PER_KG));
-          if (buy > 0) {
-            loft.food.normal = round1((loft.food.normal ?? 0) + buy);
-            loft.money -= Math.round(buy * FOOD_PRICE_PER_KG);
-          }
-        }
-      }
+      // A bot runs its loft here, once per day boundary: food, infirmary staff
+      // and beds, rest cures, a coach, loft space and breeding. Deliberately on
+      // the daily tick and not per request — it writes rows (see bots.ts).
+      if (loft.isBot) botDailyActions(db, loft, owned, dayMidnight);
       // Infirmary birds only recover energie (at a reduced rate) when properly
       // staffed — same coverage rule that speeds their healing.
       const coveredInfirmaryIds = coveredInInfirmary(loft, owned);
@@ -1962,6 +2078,7 @@ export function advanceRealtime(
   tickHealing(db, nowMs);
   tickRestCures(db, nowMs);
   tickStrayReturn(db, nowMs); // birds that lost their way find their way home
+  tickBotEntries(db, nowMs); // bots may still enter right up to the lossing
   tickSeason(db, nowMs);
   payFinishedFlightPrizes(db, nowMs); // pay prize money the moment a bird finishes
   tickFlights(db, nowMs, weatherByFlight);
