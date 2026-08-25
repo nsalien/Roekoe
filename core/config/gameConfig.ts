@@ -583,6 +583,14 @@ export const BREEDING = {
   // is no fixed timer and no countdown — it can come sooner or later.
   hatchMinMeanDays: 0.75,
   hatchMaxMeanDays: 6,
+  /**
+   * Minimum gap between hatch checks. Without it `tickBreedingHatch` restamped
+   * `hatchAt` on EVERY request, so each active pair wrote a row on every poll —
+   * the same trap as the two clocks in the 503-fix of ronde 4. Skipping a check
+   * costs nothing: the elapsed time simply accumulates until the next one, and
+   * because hatching is memoryless the average time to hatch is unchanged.
+   */
+  hatchCheckMinutes: 15,
   minYoung: 1,
   maxYoung: 2,
   /** Random mutation range (+/-) applied to inherited attributes. */
@@ -739,6 +747,27 @@ export const BOT_LOFT_NAMES = [
  * a player action never acts on a stale world.
  */
 export const ADVANCE_THROTTLE_SECONDS = 20;
+
+/**
+ * How many lofts one request may give a day of care before it hands the rest to
+ * the next request (see `tickDailyCare`). The daily tick touches EVERY bird in
+ * the world — feeding, health, upkeep, sponsors, bot loft management — and that
+ * is by far the biggest single lump of work the engine does.
+ *
+ * Why it must be chunked: measured on a world of 200 birds, one pending midnight
+ * took a request from ~3,4 ms to ~6,3 ms locally, which is ~6 ms → ~12 ms in the
+ * Workers runtime. Over the 10 ms limit, so the request was killed (Error 1102)
+ * — and since the anchor only moved when the whole day was done, NOTHING was
+ * persisted and the next request repeated the same doomed work. The game could
+ * not recover on its own, and every further midnight made it worse.
+ *
+ * Keep this low enough that a slice plus the ~6 ms baseline stays inside the
+ * budget. The backlog drains over consecutive requests instead of in one go.
+ */
+export const DAILY_CARE_LOFTS_PER_RUN = 2;
+
+/** Never replay more than this many missed days of care after a long outage. */
+export const DAILY_CARE_MAX_CATCHUP_DAYS = 30;
 
 /** Time zone flights are scheduled in (wall-clock hours below are in this zone). */
 export const TIMEZONE = 'Europe/Brussels';

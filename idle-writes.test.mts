@@ -104,6 +104,7 @@ async function poll(nowMs: number, label: string, mustBeQuiet: boolean) {
   const bad = mustBeQuiet && total > 0;
   if (bad) failures += 1;
   console.log(`  ${label.padEnd(34)} ${String(total).padStart(4)} rijen  ${(bad ? '✗ schrijft terwijl er niets gebeurt  ' : mustBeQuiet ? '✓  ' : '   ')}${detail}`);
+  return total;
 }
 
 console.log('\nOpeenvolgende polls tijdens een live vlucht (1 minuut uit elkaar):');
@@ -113,7 +114,18 @@ for (let i = 1; i <= 6; i++) await poll(startMs + (10 + i) * 60_000, `poll ${i} 
 
 console.log('\nOpeenvolgende polls met de vlucht al afgelopen:');
 const done = startMs + 20 * 3600_000;
-for (let i = 1; i <= 4; i++) await poll(done + i * 60_000, `poll ${i} (rustige wereld)`, i > 2);
+// Twintig uur verder ligt er een dagovergang open, en die wordt sinds de CPU-fix
+// in stukjes ingehaald (DAILY_CARE_LOFTS_PER_RUN hokken per verzoek). Zulke polls
+// schrijven terecht rijen — ze doen echt werk. Laat de achterstand eerst leeglopen
+// en eis daarna stilte: dát is wat deze test bewaakt (geen klok die bij élk
+// verzoek een rij stempelt).
+let drained = 0;
+while (drained < 60) {
+  const n = await poll(done + (drained + 1) * 60_000, `inhalen ${drained + 1}`, false);
+  drained += 1;
+  if (n === 0) break;
+}
+for (let i = 1; i <= 3; i++) await poll(done + (drained + i) * 60_000, `poll ${i} (rustige wereld)`, true);
 
 // Which field of the world row keeps changing?
 console.log('\nWereldrij: welk veld beweegt er per poll?');

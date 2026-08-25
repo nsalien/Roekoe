@@ -23,6 +23,8 @@ import {
   FLIGHT_TIERS,
   FOOD_PRICE_PER_KG,
   GAME_WEEKS_PER_REAL_WEEK,
+  DAILY_CARE_LOFTS_PER_RUN,
+  DAILY_CARE_MAX_CATCHUP_DAYS,
   HEALTH,
   INFIRMARY,
   LOST,
@@ -1781,26 +1783,50 @@ export function tickDailyCare(db: Database, nowMs: number): void {
   if (Number.isNaN(parsed)) {
     // Fresh world: mark today as already handled; first recovery is tomorrow 00:00.
     db.world.lastDailyTick = new Date(todayMidnight).toISOString();
+    db.world.dailyCareCursor = '';
     return;
   }
   // Normalize any legacy anchor (an arbitrary time-of-day from the old rolling
   // 24 h scheme) to its local midnight, then count the day boundaries since.
-  let cursor = startOfLocalDayMs(TIMEZONE, parsed);
-  let days = 0;
-  while (cursor < todayMidnight && days < 30) { // cap catch-up after a long absence
-    cursor = nextLocalMidnightMs(TIMEZONE, cursor);
-    days++;
+  let anchor = startOfLocalDayMs(TIMEZONE, parsed);
+  let pending = 0;
+  let probe = anchor;
+  // Bounded probe so a wildly stale anchor can never spin here.
+  while (probe < todayMidnight && pending < 400) {
+    probe = nextLocalMidnightMs(TIMEZONE, probe);
+    pending++;
   }
-  if (days <= 0) return;
+  if (pending <= 0) return;
+  // Far behind (a long outage): skip the excess rather than replay months of
+  // care. The anchor stays parked on a midnight.
+  if (pending > DAILY_CARE_MAX_CATCHUP_DAYS) {
+    for (let i = 0; i < pending - DAILY_CARE_MAX_CATCHUP_DAYS; i++) {
+      anchor = nextLocalMidnightMs(TIMEZONE, anchor);
+    }
+    db.world.lastDailyTick = new Date(anchor).toISOString();
+    db.world.dailyCareCursor = '';
+  }
+
+  // ONE pending day per request, and within it only a bounded slice of lofts.
+  // A full day of care costs about as much as the rest of the request put
+  // together, so doing several at once is what pushed us over the CPU limit.
+  const dayMidnight = nextLocalMidnightMs(TIMEZONE, anchor);
+  const resumeAfter = db.world.dailyCareCursor ?? '';
+
+  // Stable order, so the cursor means the same thing on the next request even
+  // though SQL gives no ordering guarantee. Comparing by userId (rather than an
+  // index) means a loft created mid-day can never shift the window and get a
+  // second helping of food and upkeep — the worst outcome here.
+  const ordered = [...db.lofts].sort((a, b) => (a.userId < b.userId ? -1 : a.userId > b.userId ? 1 : 0));
+  const remaining = resumeAfter ? ordered.filter((l) => l.userId > resumeAfter) : ordered;
 
   // Birds currently away on a live flight — their coach can't drill them.
   const livePigeonIds = new Set<string>(
     db.flights.filter((f) => f.status === 'live').flatMap((f) => f.entries.map((e) => e.pigeonId)),
   );
 
-  let dayMidnight = startOfLocalDayMs(TIMEZONE, parsed);
-  for (let i = 0; i < days; i++) {
-    dayMidnight = nextLocalMidnightMs(TIMEZONE, dayMidnight);
+  if (!resumeAfter) {
+    // Start of this day — the world-wide steps run once, before any loft.
     // Pigeons AGE in real time: roll the monotonic game-week counter forward at
     // GAME_WEEKS_PER_REAL_WEEK weeks per real week, spread evenly over the days.
     // Old-age mortality runs once per rolled week (true to the per-week curve).
@@ -1813,7 +1839,11 @@ export function tickDailyCare(db: Database, nowMs: number): void {
       runAgeMortality(db, db.world.currentWeek);
       runAgeDecline(db, db.world.currentWeek); // skills fade past the prime (real time)
     }
-    for (const loft of db.lofts) {
+  }
+
+  {
+    const slice = remaining.slice(0, DAILY_CARE_LOFTS_PER_RUN);
+    for (const loft of slice) {
       const owned = db.pigeons.filter((p) => p.ownerId === loft.userId);
       if (owned.length === 0) continue;
       // A bot runs its loft here, once per day boundary: food, infirmary staff
@@ -1852,11 +1882,21 @@ export function tickDailyCare(db: Database, nowMs: number): void {
         if (stipend > 0) loft.money += stipend;
       }
     }
-    // One real-time day of health for the whole world: birds actually fall ill,
-    // ailments keep draining health, and an untreated ailment can turn fatal.
-    runHealthDay(db, db.world.currentWeek);
+    if (slice.length < remaining.length) {
+      // More lofts still owed this day. Park the cursor on the last one handled
+      // and let the next request continue; the anchor stays put, so the day is
+      // not counted as done. This is what keeps any single request bounded.
+      db.world.dailyCareCursor = slice[slice.length - 1].userId;
+      return;
+    }
   }
-  db.world.lastDailyTick = new Date(cursor).toISOString();
+
+  // Every loft has now had this day — close it out.
+  // One real-time day of health for the whole world: birds actually fall ill,
+  // ailments keep draining health, and an untreated ailment can turn fatal.
+  runHealthDay(db, db.world.currentWeek);
+  db.world.lastDailyTick = new Date(dayMidnight).toISOString();
+  db.world.dailyCareCursor = '';
   // Catch state badges that daily recovery may have unlocked (topfit, kerngezond).
   for (const loft of db.lofts) if (!loft.isBot) evaluateBadges(db, loft);
 }
@@ -2004,6 +2044,10 @@ export function tickBreedingHatch(db: Database, nowMs: number): void {
     }
     const dtHours = (nowMs - checkedAt) / 3600000;
     if (dtHours <= 0) continue;
+    // Only check every so often. Restamping `hatchAt` on every request made each
+    // pair write a row on every poll (see BREEDING.hatchCheckMinutes). Leaving the
+    // clock alone lets the elapsed hours accumulate, so nothing is lost.
+    if (dtHours * 60 < BREEDING.hatchCheckMinutes) continue;
 
     // Fertility from current libido + energie → mean days → hatch rate per hour.
     const fertility = clamp(
