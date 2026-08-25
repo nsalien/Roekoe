@@ -15,12 +15,12 @@
 
 | Rol | Branch | Doel |
 |-----|--------|------|
-| **Dev** | `claude/hallo-w97s85` | Alle ontwikkeling/commits komen hier **eerst**. |
+| **Dev** | `claude/hallo-rkr49f` | Alle ontwikkeling/commits komen hier **eerst**. |
 | **Prod** | `claude/roekoe-game-website-jwa0vo` | Elke commit wordt hierheen **gecherry-pickt**; deze branch triggert de **Cloudflare Pages**-deploy naar productie. |
 
 > Vorige dev-branches (niet meer gebruiken): `claude/hallo-pvwabx`,
 > `claude/context-spelregels-q2ywtx`, `claude/hallo-49m6hj`, `claude/hallo-xifh0c`,
-> `claude/hallo-rkr49f`. Ontwikkelt een sessie op een nieuwe
+> `claude/hallo-w97s85`. Ontwikkelt een sessie op een nieuwe
 > `claude/…`-branch, gebruik die dan als dev-branch en **werk deze tabel meteen bij** —
 > de prod-branch hierboven verandert nooit.
 
@@ -886,7 +886,55 @@ eerst) en `npx tsx limits-report.mts` (queries/rijen per verzoek).
 Alles hieronder staat **live** op de deploy-branch. Data-migraties liepen door tot
 **`dataVersion = 38`**.
 
-**Live verslag: enkel nog feiten (nieuwste)**
+**503-fix ronde 8: de dagovergang zette het spel vast (nieuwste)**
+- **Symptoom:** het spel bleef "laden". Gemeten tegen productie: de statische site,
+  `/api/health` en `/api/auth/login` antwoordden gewoon, maar **élke route die de wereld
+  laadt** gaf `503` met **`error code: 1102`** — de CPU-limiet, niet D1. Login werkt en
+  leest een rij, dus een quotum-lockout viel meteen af.
+- **Oorzaak: `tickDailyCare` deed een hele dag in één verzoek.** Die tick raakt élke duif
+  in de wereld (voer, gezondheid, onkosten, sponsors, botbeheer). Gemeten op 200 duiven:
+  een verzoek gaat van **3,4 ms → 6,3 ms lokaal** zodra er één middernacht openstaat, en
+  lokaal ≈ 1,9× sneller dan de Workers-runtime (ronde 6: lokaal 14 ms = productie 26 ms).
+  Dus ~12 ms in productie → over de 10 ms → verzoek afgeschoten.
+- ⚠️ **En daarom herstelde het niet vanzelf.** `world.lastDailyTick` werd pas geschreven
+  **ná** de volledige dag, en `world.lastAdvance` pas ná de engine-run. Sterft het verzoek,
+  dan is er **niets** gepersisteerd: het volgende verzoek doet exact hetzelfde werk en sterft
+  ook. Beide besparingen bewapenen zichzelf pas ná één geslaagde run, dus het spel zat in een
+  put waar het niet uit kon — en elke gepasseerde middernacht maakte de hap groter.
+- **Fix: de dagverzorging is hervatbaar**, net als `ensureSchema` in ronde 2. Per verzoek
+  hoogstens **`DAILY_CARE_LOFTS_PER_RUN` (2)** hokken van **één** openstaande dag; het
+  vervolgpunt staat in **`World.dailyCareCursor`** (kolom `daily_care_cursor`, achteraan
+  `SCHEMA_STEPS`). De wereldbrede stappen blijven precies één keer per dag lopen:
+  weekrol + `runAgeMortality`/`runAgeDecline` bij de **start** van de dag (cursor leeg),
+  `runHealthDay` + badges bij het **afsluiten**. Pas dan schuift `lastDailyTick` op.
+- **De cursor is een `userId`, geen index.** Hokken worden gesorteerd op `userId` verwerkt en
+  het vervolg pakt alles `> cursor`. Een hok dat middenin de dag bijkomt kan zo nooit het
+  venster verschuiven en een **tweede** portie voer + daghuur krijgen — dat is hier de ergste
+  uitkomst. `DAILY_CARE_MAX_CATCHUP_DAYS` (30) vervangt de oude harde `days < 30`.
+- **Gemeten na de fix** (200 duiven, medianen — lokale p90/max zijn GC-ruis en zeggen niets):
+  rustig verzoek **3,4 ms**, verzoek mét dagverzorging **3,9 ms** (bij 4 hokken: 4,4; bij 8:
+  4,7). Eén dag loopt leeg over ~9 verzoeken; met de 20 s-throttle is dat hooguit enkele
+  minuten. **Belangrijker dan de milliseconden:** een verzoek dat toch sneuvelt, blokkeert
+  niets meer — het volgende hervat waar het stopte. De harde storing is daarmee omgezet in
+  hoogstens een trager tikkende klok.
+- **Meegenomen — een bestaand schrijflek op het hete pad.** `tickBreedingHatch` stempelde
+  `bp.hatchAt` bij **élk** verzoek voor elk niet-uitgekomen koppel: één rij per koppel per
+  poll, precies het patroon dat ronde 4 verbood. Nu gequantiseerd met
+  **`BREEDING.hatchCheckMinutes` (15)**; overslaan kost niets want de verstreken uren
+  stapelen op en uitkomen is memoryless, dus de gemiddelde uitkomsttijd verandert niet.
+  Dit lek zat er al en werd zichtbaar doordat `idle-writes` nu langer doorpollt.
+- **`idle-writes.test.mts` aangepast**, niet verzwakt: de test ging ervan uit dat één poll
+  een hele dagovergang absorbeert. Hij laat de achterstand nu eerst leeglopen (polls die
+  écht werk doen) en eist **daarna** stilte — de eigenlijke bewaking (geen klok die per
+  verzoek een rij stempelt) blijft volledig staan, en die ving meteen het koppel-lek.
+- **Geen migratie, `dataVersion` blijft 38** (alleen de nieuwe kolom, append-only). Alle
+  tien de regressietests + beide typechecks + build groen.
+- ⚠️ **Wat hiermee NIET opgelost is:** het rustige verzoek zit nog altijd rond **~6,5 ms in
+  productie** van de 10. De marge blijft dun, en de oorzaak is onveranderd het D1Store-patroon
+  (elk verzoek laadt+persist de hele wereld). De volgende hefboom blijft de **smalle load**
+  voor `/state` en `/flights` — zie de hefbomenlijst verderop.
+
+**Live verslag: enkel nog feiten**
 - **Op verzoek van de eigenaar:** het 📻-verslag toont enkel nog **functionele** regels
   — lossing, voorbijsteken (met reden), omweg, verdwaald, uitputting, blessure,
   opgeven, aankomst. Alle sfeer eruit.

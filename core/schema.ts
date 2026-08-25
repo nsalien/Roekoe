@@ -579,6 +579,17 @@ export interface World {
    * running it on every poll cost ~9 ms of CPU that we do not have.
    */
   lastAdvance?: string;
+  /**
+   * Resume point for the daily care tick, WITHIN one pending midnight: the
+   * `userId` of the last loft already handled for that day (empty = the day has
+   * not been started). A day of care touches every bird in the world, which on
+   * its own doubles the cost of a request and blows the 10 ms CPU budget — and
+   * because the anchor only moved after the whole day finished, a request that
+   * died took the whole game down with it (nothing advanced, so the next request
+   * retried exactly the same work). Lofts are handled in a bounded slice per
+   * request, in a stable order, so no single request can exceed the budget.
+   */
+  dailyCareCursor?: string;
 }
 
 /** The full database document persisted to disk. */
@@ -616,7 +627,7 @@ export function emptyStats(): PlayerStats {
 
 export function emptyDatabase(): Database {
   return {
-    world: { currentWeek: 1, seasonYear: 1, seeded: false, dataVersion: 0, lastDailyTick: '', lastShelterSpawn: '', seasonStartedAt: '', seasonEndsAt: '', seasonWeek: 1, lastAdvance: '' },
+    world: { currentWeek: 1, seasonYear: 1, seeded: false, dataVersion: 0, lastDailyTick: '', lastShelterSpawn: '', seasonStartedAt: '', seasonEndsAt: '', seasonWeek: 1, lastAdvance: '', dailyCareCursor: '' },
     users: [],
     lofts: [],
     pigeons: [],
