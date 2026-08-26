@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../api/client';
 import { useGame } from '../game/GameContext';
+import { useVisiblePoll } from '../game/useVisiblePoll';
 import { BreedBadge, Money, PigeonStats, Spinner, countdownTo, useToast } from '../components/ui';
 import { PigeonCard } from '../components/PigeonCard';
 import { PigeonAvatar } from '../components/PigeonAvatar';
@@ -42,15 +43,13 @@ export function MarketPage() {
 
   // While any auction is in its final minutes, gently poll the board so other
   // players' bids and anti-snipe extensions appear without a manual refresh.
-  useEffect(() => {
-    const soon = auctions.some((a) => {
-      const r = Date.parse(a.endAt) - Date.now();
-      return r > 0 && r <= 6 * 60 * 1000;
-    });
-    if (!soon) return;
-    const t = setInterval(() => void load(), 15000);
-    return () => clearInterval(t);
-  }, [auctions, load]);
+  // This is the fastest poll in the app, so it is doubly gated: only during the
+  // closing window, and only while the tab is actually in view.
+  const auctionClosingSoon = auctions.some((a) => {
+    const r = Date.parse(a.endAt) - Date.now();
+    return r > 0 && r <= 6 * 60 * 1000;
+  });
+  useVisiblePoll(() => void load(), 15000, auctionClosingSoon);
 
   async function buy(p: Pigeon) {
     setBusy(true);

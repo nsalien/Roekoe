@@ -86,6 +86,8 @@ import { sponsorView } from '../../core/game/sponsors.js';
 import {
   auctionsDTO,
   broodYoungDTO,
+  cachedLeaderboard,
+  computeLeaderboard,
   flightDTO,
   liveFlightDTO,
   liveBoardDTO,
@@ -116,6 +118,20 @@ let schemaReady = false;
 const READ_ONLY_POSTS = new Set(['/api/bets/preview']);
 
 // Load the world, seed on first ever request, run the real-time clock (schedule
+/**
+ * Routes that may be served from a NARROWED world (see core/d1.ts). Each one has
+ * been checked to reference no pigeon beyond the viewer's own and the entrants
+ * of unfinished flights. `/state` is the one that matters: it is fetched on
+ * every navigation and after every action, and it used to read all ~264 pigeons
+ * for two top-10 lists that are now cached.
+ */
+const NARROW_PATHS = new Set(['/api/state', '/api/flights', '/api/bets', '/api/notifications']);
+
+/** GET/HEAD only — a write never runs on a narrowed world. */
+function readOnlyPath(path: string): boolean {
+  return NARROW_PATHS.has(path);
+}
+
 // flights, start/finish live races, bots auto-enter), and resolve the user.
 app.use('*', async (c, next) => {
   // The schema upgrade is chunked to stay inside D1's per-invocation query budget
@@ -172,7 +188,16 @@ app.use('*', async (c, next) => {
     }
   }
 
-  let store = await D1Store.load(c.env.DB, payload?.sub);
+  // Which routes may run on a NARROWED world (viewer's own pigeons + flight
+  // entrants instead of all ~264). An allowlist, not a rule: a route only
+  // belongs here once it is checked to name no other player's bird. The load
+  // narrows only if the engine is ALSO fresh, so a narrowed store never runs
+  // the engine — see core/d1.ts.
+  const narrowable = readOnlyPath(path) && NARROW_PATHS.has(path);
+  let store = await D1Store.load(c.env.DB, payload?.sub, {
+    narrowWhenIdle: narrowable && (c.req.method === 'GET' || c.req.method === 'HEAD'),
+    nowMs,
+  });
   if (!store.data.world.seeded) {
     seedWorld(store);
     await store.persist();
@@ -202,7 +227,11 @@ app.use('*', async (c, next) => {
     c.req.method === 'GET' || c.req.method === 'HEAD' || READ_ONLY_POSTS.has(path);
   const throttled = fresh && readOnly;
 
-  if (!light && !throttled) {
+  // A narrowed store does not hold the whole world, so the engine must not run
+  // on it. That is already implied (narrowing requires a fresh engine, which
+  // makes `throttled` true for these read-only routes), but state this outright
+  // rather than leave correctness resting on two conditions agreeing.
+  if (!light && !throttled && !store.narrowed) {
     // Real-time flight lifecycle + one-time data migrations. Persist any changes.
     // Fetch real weather for any flight about to start, so it's frozen against
     // actual conditions in the release region (falls back to a random sky).
@@ -227,6 +256,12 @@ app.use('*', async (c, next) => {
     const weatherByFlight = new Map<string, WeatherResult>(dueWeather);
     if (legWeather.length > 0) applyRelayForecasts(store.data, new Map(legWeather), nowMs);
     advanceRealtime(store.data, nowMs, weatherByFlight);
+    // The full world is in memory and the engine just ran, so this is the one
+    // moment the world-wide leaderboards can change AND can be computed
+    // correctly. Refresh the cache that /state serves (see World.leaderboard);
+    // `persist` only writes the world row when something in it changed, so an
+    // unchanged board costs nothing.
+    store.data.world.leaderboard = JSON.stringify(computeLeaderboard(store.data));
     // Stamp it AFTER the engine ran, so a slow run does not shorten the window.
     store.data.world.lastAdvance = new Date(nowMs).toISOString();
     await store.persist();
@@ -362,8 +397,9 @@ app.get('/state', (c) => {
     loft: loft ? loftDTO(db, loft) : null,
     pigeons,
     scheduledFlights: upcoming,
-    rankings: rankingRows(db),
-    pigeonRankings: pigeonSeasonRankings(db),
+    // Cached: computing these reads every pigeon in the world, which is exactly
+    // what /state must not do. Refreshed whenever the engine runs (middleware).
+    ...cachedLeaderboard(db),
     feedRations: FEED_RATIONS,
     infirmary: INFIRMARY,
     economy: {

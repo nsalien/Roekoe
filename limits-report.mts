@@ -4,8 +4,10 @@
  * Builds a production-shaped world (200 birds, 16 lofts, a trade history and a
  * full inbox) and reports queries / rows read / rows written per request kind,
  * then works out how many requests a day each limit allows. The binding limit is
- * **D1 rows read**: every request loads the world, so a plain poll costs ~350
- * rows and the 5M/day budget runs out at ~14k requests.
+ * **D1 rows read**. It used to be brutal: every request loaded the whole world,
+ * so a plain poll cost ~300 rows and the 5M/day budget — shared by ALL players —
+ * ran out at ~17k requests. Read-only routes now get a narrowed pigeon load (see
+ * core/d1.ts), which is why the last row of the table is the one that matters.
  *
  * Run: npx tsx limits-report.mts
  */
@@ -125,6 +127,9 @@ async function request(nowMs: number, viewer?: string, label?: string) {
   queries += 1; rowsRead += 1; // gated ensureSchema
   const s = await D1Store.load(db, viewer);
   advanceRealtime(s.data, nowMs, new Map());
+  // De middleware stempelt dit na de engine-run; zonder die stempel zou de
+  // smalle load hieronder nooit aanslaan (zie ADVANCE_THROTTLE_SECONDS).
+  s.data.world.lastAdvance = new Date(nowMs).toISOString();
   await s.persist();
   if (label) rows.push({ label, q: queries, r: rowsRead, w: rowsWritten });
   return s;
@@ -158,9 +163,24 @@ for (const r of rows) {
   console.log(`${pad(r.label, 44)} ${String(r.q).padStart(6)} ${String(r.r).padStart(14)} ${String(r.w).padStart(17)}`);
 }
 
-const poll = rows.find((r) => r.label === 'poll, niets te doen')!;
+// Wat een gewone lees-poll ECHT kost sinds de smalle load: /state, /flights,
+// /bets en /notifications krijgen enkel de eigen duiven + de deelnemers van
+// lopende vluchten zodra de engine vers is (zie core/d1.ts).
+queries = 0; rowsRead = 0; rowsWritten = 0;
+queries += 1; rowsRead += 1; // gated ensureSchema
+// Vlak NA het vorige verzoek, binnen het verse-venster van de engine.
+const idleMs = Date.parse('2026-08-17T22:00:10Z');
+const narrowStore = await D1Store.load(db, humans[0], { narrowWhenIdle: true, nowMs: idleMs });
+rows.push({ label: `poll op een SMALLE load${narrowStore.narrowed ? '' : ' (NIET versmald!)'}`, q: queries, r: rowsRead, w: rowsWritten });
+
+const pad2 = (s: string, n: number) => s.padEnd(n);
+console.log(`${pad2(rows[rows.length - 1].label, 44)} ${String(rows[rows.length - 1].q).padStart(6)} ${String(rows[rows.length - 1].r).padStart(14)} ${String(rows[rows.length - 1].w).padStart(17)}`);
+
+const poll = rows[rows.length - 1];
+const fullPoll = rows.find((r) => r.label === 'poll, niets te doen')!;
 console.log(`\nStorage: ${(db._raw.prepare('SELECT page_count * page_size AS b FROM pragma_page_count(), pragma_page_size()').get() as any).b} bytes bij ${store.data.pigeons.length} duiven`);
-console.log('\n--- Hoeveel verzoeken/dag haalt elke limiet? (o.b.v. een gewone poll) ---');
+console.log('\n--- Hoeveel verzoeken/dag haalt elke limiet? (o.b.v. een gewone lees-poll) ---');
 console.log(`  Workers verzoeken/dag (100.000)      : 100000 verzoeken`);
 console.log(`  D1 rijen gelezen/dag (5.000.000)     : ${Math.floor(5_000_000 / poll.r)} verzoeken  (${poll.r} rijen/poll)`);
+console.log(`     ter vergelijking, op een VOLLE load : ${Math.floor(5_000_000 / fullPoll.r)} verzoeken  (${fullPoll.r} rijen/poll)`);
 console.log(`  D1 rijen geschreven/dag (100.000)    : ${poll.w > 0 ? Math.floor(100_000 / poll.w) : '∞'} verzoeken  (${poll.w} rijen/poll)`);
