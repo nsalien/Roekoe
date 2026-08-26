@@ -35,6 +35,7 @@ import type {
   Loft,
   Notification,
   Pigeon,
+  PendingBrood,
   PigeonOffer,
   SponsorState,
   Trade,
@@ -91,6 +92,7 @@ function rowToLoft(r: any): Loft {
     missionsDay: r.missions_day ?? '',
     streak: r.streak ?? 0,
     pendingEvent: r.pending_event ? JSON.parse(r.pending_event) : null,
+    pendingBroods: r.pending_broods ? (JSON.parse(r.pending_broods) as PendingBrood[]) : [],
     sponsorship: parseSponsorship(r),
     awards: r.awards ? JSON.parse(r.awards) : [],
   };
@@ -354,7 +356,7 @@ const LOFT_COLUMNS = [
   'user_id', 'name', 'money', 'food', 'food_stock', 'feed_ration', 'capacity', 'compartments',
   'season_points', 'total_wins', 'is_bot', 'infirmary_capacity', 'medicated_food', 'doctors',
   'physios', 'xp', 'level', 'stats', 'badges', 'missions', 'missions_day', 'streak',
-  'pending_event', 'sponsorship', 'last_rest_cure', 'awards',
+  'pending_event', 'sponsorship', 'last_rest_cure', 'awards', 'pending_broods',
 ];
 
 function loftRow(l: Loft): unknown[] {
@@ -367,6 +369,9 @@ function loftRow(l: Loft): unknown[] {
     JSON.stringify(l.sponsorship ?? emptySponsorState()),
     l.lastRestCure ?? null,
     JSON.stringify(l.awards ?? []),
+    // '' rather than '[]' for the common empty case, so an untouched loft's
+    // column-narrowed UPDATE keeps skipping this column.
+    l.pendingBroods?.length ? JSON.stringify(l.pendingBroods) : '',
   ];
 }
 
@@ -473,7 +478,6 @@ export class D1Store implements Store {
     } catch {
       dbObj.offers = [];
     }
-
     const snapshots: Record<string, Map<string, string>> = {
       users: snapshot(dbObj.users, (u) => u.id),
       lofts: snapshot(dbObj.lofts, (l) => l.userId),
@@ -821,6 +825,12 @@ const SCHEMA_STEPS: string[] = [
     "ALTER TABLE world ADD COLUMN last_advance TEXT NOT NULL DEFAULT ''",
     "ALTER TABLE world ADD COLUMN daily_care_cursor TEXT NOT NULL DEFAULT ''",
   ] as string[]),
+
+  // Held clutches (see `PendingBrood`) ride along on the loft row, next to
+  // `pending_event`: the lofts table is already loaded on every request, so a
+  // separate table would have cost one more query per request — and the worst
+  // request is already at ~42 of the 50 a Worker invocation may spend.
+  "ALTER TABLE lofts ADD COLUMN pending_broods TEXT NOT NULL DEFAULT ''",
 ];
 
 /**

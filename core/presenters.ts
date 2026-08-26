@@ -191,6 +191,34 @@ export function pigeonDTO(db: Database, p: Pigeon, viewerId?: string, viewerIsAd
   };
 }
 
+/**
+ * A youngster in a HELD clutch (`PendingBrood`): hatched, but not in the loft yet
+ * and so not in `db.pigeons`. It gets its own DTO rather than `pigeonDTO`, which
+ * assumes an owned bird (market listings, flight entries, daily-care projection —
+ * none of which a bird still in the nest has).
+ *
+ * The genes are shown in full: which youngster to keep is a bet on its ceilings,
+ * so the owner has to be able to see them before deciding.
+ */
+export function broodYoungDTO(p: Pigeon) {
+  const b = breedInfo(p.breed);
+  return {
+    id: p.id,
+    name: p.name,
+    sex: p.sex,
+    speed: p.speed,
+    endurance: p.endurance,
+    orientation: p.orientation,
+    libido: p.libido,
+    form: p.form,
+    health: p.health,
+    talent: talent(p),
+    breed: { id: b.id, name: b.name, rarity: b.rarity, rarityLabel: BREED_RARITY[b.rarity].label, image: b.image },
+    genes: p.genes ?? null,
+    declineRate: p.declineRate ?? 1,
+  };
+}
+
 export function loftDTO(db: Database, loft: Loft) {
   const pigeons = db.pigeons.filter((p) => p.ownerId === loft.userId);
   const infirmary = pigeons.filter((p) => p.inInfirmary);

@@ -192,6 +192,7 @@ export interface Loft {
   missionsDay: string; // date key (yyyy-mm-dd, Brussels) the missions belong to
   streak: number; // consecutive active days
   pendingEvent: EventCard | null; // an unresolved dilemma awaiting the player
+  pendingBroods: PendingBrood[]; // hatched young awaiting a keep/let-go choice
   // Sponsoring: companies that offer to back the loft once it performs well.
   sponsorship: SponsorState;
   // Season prizes won at each rollover (Roekoes + Vleugels) — see season.ts.
@@ -326,6 +327,35 @@ export interface BreedingPair {
   sireId: string;
   damId: string;
   hatchAt: string; // ISO timestamp the young arrive (real time)
+  createdAtWeek: number;
+}
+
+/**
+ * A hatched clutch that did not fit in the loft and is waiting on the owner's
+ * decision: which youngsters to keep (freeing perches first if needed) and which
+ * to let go. The young are NOT in `db.pigeons` yet — they live on `Loft.pendingBroods`
+ * until the owner resolves the nest, so nothing is ever silently lost to a full loft.
+ *
+ * It hangs off the loft (like `pendingEvent`) rather than living in its own table
+ * because the lofts row is loaded on every request anyway, and the heaviest request
+ * already spends ~42 of the 50 queries a Worker invocation gets.
+ *
+ * Only human lofts get one; a bot's overflowing clutch is still truncated
+ * (see `tickBreedingHatch`), because a bot has no UI to decide with.
+ */
+export interface PendingBrood {
+  id: string;
+  /** Parents, by id and by name: either may be gone by the time the owner picks. */
+  sireId: string;
+  damId: string;
+  sireName: string;
+  damName: string;
+  /** The full clutch, ready to be inserted into `db.pigeons` on the keep choice. */
+  young: Pigeon[];
+  /** Whether a grandparent was still in the loft at hatch — the `dynastie` badge
+   *  is awarded on resolve, when the parents may no longer be around to ask. */
+  dynasty: boolean;
+  createdAt: string;
   createdAtWeek: number;
 }
 

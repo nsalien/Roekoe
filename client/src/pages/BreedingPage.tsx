@@ -6,25 +6,28 @@ import { api } from '../api/client';
 import { useGame } from '../game/GameContext';
 import { Money, Spinner, useToast } from '../components/ui';
 import { PigeonAvatar } from '../components/PigeonAvatar';
-import type { BreedingPair } from '../types';
+import { NestChoice } from '../components/NestChoice';
+import type { BreedingView } from '../types';
 
 export function BreedingPage() {
   const { state, loading, refresh } = useGame();
   const toast = useToast();
-  const [pairs, setPairs] = useState<BreedingPair[]>([]);
+  const [view, setView] = useState<BreedingView | null>(null);
   const [sireId, setSireId] = useState('');
   const [damId, setDamId] = useState('');
   const [busy, setBusy] = useState(false);
 
   const loadPairs = useCallback(async () => {
-    const res = await api<{ pairs: BreedingPair[] }>('/breeding');
-    setPairs(res.pairs);
+    setView(await api<BreedingView>('/breeding'));
   }, []);
   useEffect(() => {
     loadPairs();
   }, [loadPairs, state?.world.currentWeek]);
 
   if (loading || !state) return <Spinner />;
+  const pairs = view?.pairs ?? [];
+  const nests = view?.nests ?? [];
+  const freeSpace = view?.freeSpace ?? 0;
   const BREED_COST = state.economy.breedCost;
   const eligible = (p: (typeof state.pigeons)[number]) => !p.ailment && !p.inInfirmary && !p.breeding && !p.racing && !p.onCure;
   const doffers = state.pigeons.filter((p) => p.sex === 'doffer' && eligible(p));
@@ -69,6 +72,15 @@ export function BreedingPage() {
         <h1>Kweek</h1>
       </div>
 
+      {/* A held clutch comes first: it blocks new pairs and the young are waiting. */}
+      {nests.length > 0 && (
+        <div className="stack" style={{ marginBottom: 16 }}>
+          {nests.map((nest) => (
+            <NestChoice key={nest.id} nest={nest} freeSpace={freeSpace} onDone={loadPairs} />
+          ))}
+        </div>
+      )}
+
       <div className="grid cols-2">
         <div className="card" data-tour="breed">
           <h2>Nieuw koppel</h2>
@@ -112,7 +124,12 @@ export function BreedingPage() {
             </div>
           )}
 
-          <button className="btn block" disabled={busy || !sireId || !damId} onClick={start}>
+          {nests.length > 0 && (
+            <p className="muted" style={{ fontSize: '0.85rem' }}>
+              Er wacht nog een nest op je keuze — beslis daar eerst over voor je opnieuw koppelt.
+            </p>
+          )}
+          <button className="btn block" disabled={busy || !sireId || !damId || nests.length > 0} onClick={start}>
             Koppelen · <Money value={BREED_COST} />
           </button>
         </div>

@@ -626,6 +626,20 @@ export function WikiPage() {
           <li>Een tweede jong komt er alleen bij <strong>hoge libido</strong> (tot ± 70% kans op een tweede).</li>
         </ul>
         <p><strong>Strategie:</strong> koppel duiven met <em>hoge libido en goede energie</em>, en zet <em>Libido-mix</em> voer in tijdens de kweekperiode.</p>
+        <p style={{ marginTop: 12 }}>
+          <strong>Zit je hok vol wanneer de jongen uitkomen? Dan kies jij.</strong> Er gaat niets verloren: het hele
+          nest blijft op de Kweek-pagina wachten tot je beslist hebt. Je ziet van elk jong de score én de{' '}
+          <a href="#genen">gen-caps</a>, en je houdt er zoveel als je wil — <strong>alles, een deel of niets</strong>.
+        </p>
+        <ul>
+          <li>Wat je <strong>niet</strong> kiest, vliegt weg. Dat brengt niets op.</li>
+          <li>
+            <strong>Plaats maken</strong> kan meteen vanuit hetzelfde scherm: laat een duif vrij (€0) of verkoop haar
+            aan het duivenrestaurant (vast bedrag, maar een <em>moraalklap</em> voor je hele hok).
+          </li>
+          <li>Zolang een nest op je keuze wacht, kan je <strong>geen nieuw koppel</strong> starten.</li>
+          <li>Er is <strong>geen tijdslimiet</strong> — een nest verloopt nooit.</li>
+        </ul>
       </Section>
 
       <Section id="ziekte" icon="🤒" title="Kans op ziekte">

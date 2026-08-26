@@ -59,6 +59,7 @@ import {
   setPigeonCompartment,
   setPigeonRation,
   setRelayOrder,
+  resolveBrood,
   startBreeding,
   startRestCure,
   stopBreeding,
@@ -82,6 +83,7 @@ import { refreshDailyMissions } from '../../core/game/missions.js';
 import { sponsorView } from '../../core/game/sponsors.js';
 import {
   auctionsDTO,
+  broodYoungDTO,
   flightDTO,
   liveFlightDTO,
   liveBoardDTO,
@@ -391,6 +393,7 @@ app.get('/state', (c) => {
     missions: loft?.missions ?? [],
     streak: loft?.streak ?? 0,
     pendingEvent: loft?.pendingEvent ?? null,
+    pendingNests: loft?.pendingBroods?.length ?? 0,
     unreadNotifications: notificationsFor(db, user.id).unread,
     offers: offersFor(db, user.id),
   });
@@ -659,7 +662,40 @@ app.get('/breeding', (c) => {
       dam: db.pigeons.find((p) => p.id === bp.damId)?.name ?? '?',
       hatchAt: bp.hatchAt,
     }));
-  return c.json({ pairs });
+  // Held clutches waiting on a keep/let-go choice. The young are not in the loft
+  // yet, so they get their own DTO rather than going through `pigeonDTO`.
+  const loft = db.lofts.find((l) => l.userId === user.id);
+  const owned = db.pigeons.filter((p) => p.ownerId === user.id).length;
+  const nests = (loft?.pendingBroods ?? [])
+    .map((b) => ({
+      id: b.id,
+      sire: b.sireName,
+      dam: b.damName,
+      createdAt: b.createdAt,
+      young: b.young.map((y) => broodYoungDTO(y)),
+    }));
+  return c.json({
+    pairs,
+    nests,
+    // What the choice screen needs to show how many perches are free right now.
+    capacity: loft?.capacity ?? 0,
+    pigeonCount: owned,
+    freeSpace: Math.max(0, (loft?.capacity ?? 0) - owned),
+  });
+});
+
+/**
+ * Keep the named young from a held clutch; everything else in the nest flies off.
+ * An empty `keep` is a valid answer — the owner may want none of them.
+ */
+app.post('/breeding/nest/:id', async (c) => {
+  const user = requireUser(c);
+  const body = await c.req.json().catch(() => ({}));
+  const keep = Array.isArray(body.keep) ? body.keep.map((x: unknown) => String(x)) : [];
+  const store = c.get('store');
+  const err = resolveBrood(store, user.id, c.req.param('id'), keep);
+  await store.persist();
+  return err ? c.json({ error: err }, 400) : c.json({ ok: true });
 });
 
 app.post('/breeding', async (c) => {
