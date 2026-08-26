@@ -25,6 +25,7 @@ import {
 const FORM_GOOD = 70;
 const FORM_FAIR = 45;
 import { auctionKind } from './game/auction.js';
+import { pigeonSeasonRankings } from './game/season.js';
 import { bettingOpen } from './game/betting.js';
 import { nextCapacityTier, nextInfirmaryTier, ownerName } from './game/engine.js';
 import { coachDailyGain, dailyRunningCostBreakdown, projectDailyCare } from './game/economy.js';
@@ -280,7 +281,12 @@ export function flightDTO(db: Database, f: Flight) {
     teamSize: f.relay ? RELAY.teamSize : undefined,
     legKm: f.relay ? relayLegKm(f) : undefined,
     // The entered teams, in running order, so the page can show who flies what.
-    teams: f.relay
+    // Both this and `entrants` below name birds by id, which is the ONLY place
+    // this DTO reaches outside the viewer's own loft. A finished flight needs
+    // neither (betting is closed, the running order is fixed, and the results
+    // carry their own names), so they are dropped there — which is what lets
+    // /api/flights run on a narrowed world. See core/d1.ts.
+    teams: f.relay && f.status !== 'completed'
       ? [...relayEntryTeams(f)].map(([ownerId, entries]) => ({
           ownerId,
           ownerName: ownerName(db, ownerId),
@@ -296,7 +302,8 @@ export function flightDTO(db: Database, f: Flight) {
     entryCount: f.entries.length,
     entries: f.entries,
     // Enough info about every entrant for the betting UI (names, owners, talent).
-    entrants: f.entries.map((e) => {
+    // Empty once the flight is over — see the note on `teams`.
+    entrants: f.status === 'completed' ? [] : f.entries.map((e) => {
       const p = db.pigeons.find((x) => x.id === e.pigeonId);
       return {
         pigeonId: e.pigeonId,
@@ -471,6 +478,36 @@ export function pigeonRaceHistory(db: Database, pigeonId: string) {
 }
 
 /** Season ranking rows sorted by points, humans and bots together. */
+/**
+ * The two world-wide leaderboards, computed from every pigeon in the game.
+ *
+ * Only call this when the FULL world is in memory (see `World.leaderboard`):
+ * on a narrowed load `db.pigeons` holds the viewer's birds and little else, so
+ * the result would silently be wrong rather than merely stale.
+ */
+export function computeLeaderboard(db: Database) {
+  return { rankings: rankingRows(db), pigeonRankings: pigeonSeasonRankings(db) };
+}
+
+export type Leaderboard = ReturnType<typeof computeLeaderboard>;
+
+/**
+ * The cached leaderboard, or a freshly computed one when there is no cache yet.
+ * A brand-new world has never completed a flight, so an empty cache is normal
+ * and the fallback is cheap.
+ */
+export function cachedLeaderboard(db: Database): Leaderboard {
+  const raw = db.world.leaderboard;
+  if (raw) {
+    try {
+      return JSON.parse(raw) as Leaderboard;
+    } catch {
+      // Corrupt cache: fall through and recompute from whatever is loaded.
+    }
+  }
+  return computeLeaderboard(db);
+}
+
 export function rankingRows(db: Database) {
   return db.lofts
     .map((l) => ({

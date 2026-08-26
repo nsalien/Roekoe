@@ -5,6 +5,7 @@ import { Link } from 'react-router-dom';
 import { api } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
 import { useGame } from '../game/GameContext';
+import { useVisiblePoll } from '../game/useVisiblePoll';
 import { Money, Spinner, countdownTo, formatDuration, formatFlightTime, tierLabel, useToast } from '../components/ui';
 import type { BetKind, BetPreview, BetView, Flight } from '../types';
 
@@ -48,11 +49,9 @@ export function FlightsPage() {
 
   // Reload periodically so flights flip to live / completed without a manual
   // refresh. Kept deliberately slow — see the note in LiveFlightPage: every poll
-  // costs ~350 D1 rows and the daily read budget is the binding limit.
-  useEffect(() => {
-    const t = setInterval(() => load(), 90000);
-    return () => clearInterval(t);
-  }, [load]);
+  // costs ~350 D1 rows and the daily read budget is the binding limit. A tab
+  // left open in the background polls not at all.
+  useVisiblePoll(() => load(), 90000);
 
   // Birds already entered in a flight that has not started yet. Live flights are
   // NOT included here: a bird that has already crossed the line is free again, and

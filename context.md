@@ -401,6 +401,9 @@ Entiteiten: `Pigeon`, `Loft`, `User`, `BreedingPair`, `PendingBrood`, `Flight` (
 - `Loft.food` is een **`FoodStock` = Record<FeedRationKey, number>** (kg per type).
   Bijkopen aan `FEED_RATIONS[k].pricePerKg`, terugverkopen aan **`FOOD_RESALE_RATE` (0,8)**
   daarvan — verkopen levert dus altijd een klein verlies op.
+- `World.leaderboard` = **JSON-cache** van de twee wereldwijde ranglijsten (hokken +
+  duiven). `/state` mag die niet zelf berekenen: dat leest élke duif, en juist dat maakte
+  het leesbudget op. Ververst door `computeLeaderboard` bij elke volle engine-run.
 - `Loft.pendingBroods` = **`PendingBrood[]`** — uitgekomen jongen die nog **niet** in
   `db.pigeons` zitten omdat het hok vol was. Ze wachten op de keuze van de speler.
   Hangt bewust aan de **loft-rij** (kolom `pending_broods` JSON, net als `pending_event`)
@@ -901,7 +904,44 @@ eerst) en `npx tsx limits-report.mts` (queries/rijen per verzoek).
 Alles hieronder staat **live** op de deploy-branch. Data-migraties liepen door tot
 **`dataVersion = 38`**.
 
-**Voer kan terug naar de handelaar, aan 80% (nieuwste)**
+**Leesbudget: het spel lag plat omdat élk verzoek de hele duivenpopulatie las (nieuwste)**
+- **Symptoom:** het spel werd onbereikbaar nadat een nieuwe speler een tijd had rondgeklikt.
+  Niet de CPU: de bindende limiet is **D1 rijen gelezen**, 5M/dag, en die is **gedeeld door
+  alle spelers samen**.
+- **Gemeten oorzaak.** Per verzoek: **264 van de ~300 rijen was `SELECT * FROM pigeons`** —
+  de complete duivenpopulatie, bij élk verzoek, ongeacht de route. Dat gaf ~17k verzoeken
+  per dag voor iedereen samen. Daar bovenop pollden **verborgen tabs gewoon door**: er was
+  nergens `visibilitychange`-afhandeling, dus een vergeten Vluchten-tab kostte 960
+  verzoeken/dag voor niemand.
+- **Client — `useVisiblePoll` (`client/src/game/useVisiblePoll.ts`).** Een poll draait enkel
+  terwijl de tab zichtbaar is, en doet één inhaalslag bij terugkomst (met een drempel van
+  één interval, zodat tabben geen burst geeft). Toegepast op `FlightsPage` (90 s),
+  `LiveFlightPage` (60 s) en `MarketPage` (15 s, enkel in de veiling-slotfase).
+- **Client — `/state` ontdubbeld.** `GameContext.refresh` deelt de lopende fetch, want
+  pagina's vuurden routinematig hun eigen `load()` én een `refresh()` voor dezelfde actie.
+- **Server — smalle duiven-load (`LoadOptions.narrowWhenIdle` in `d1.ts`).** Een verzoek op
+  een **allowlist** (`NARROW_PATHS`: `/state`, `/flights`, `/bets`, `/notifications`) dat
+  **GET/HEAD** is **én** binnenkomt terwijl de engine nog vers is (`ADVANCE_THROTTLE_SECONDS`),
+  krijgt enkel **de eigen duiven + de deelnemers van niet-afgelopen vluchten**, in één
+  index-gedekte `UNION` (een `OR` over kolommen zou terugvallen op een full scan). Boven 400
+  deelnemers valt hij terug op de volle tabel.
+- **`store.narrowed`** is publiek en de middleware weigert de engine te draaien op zo'n
+  store — expliciet, in plaats van te vertrouwen op twee voorwaarden die toevallig samenvallen.
+- **Wat de versmalling mogelijk maakte:** `/state` had alle duiven nodig voor twee top-10-
+  lijsten. Die zitten nu in **`World.leaderboard`** (JSON op de world-rij, kolom `leaderboard`),
+  ververst door `computeLeaderboard` op élke volle engine-run — precies de momenten waarop
+  ze kunnen veranderen. En `flightDTO` levert `entrants`/`teams` niet meer voor **afgelopen**
+  vluchten: daar waren ze dood (wedden is dicht, resultaten dragen hun eigen namen), en ze
+  waren de enige plek waar die route buiten de smalle set keek.
+- **Resultaat (`poll-budget.test.mts`, 264 duiven):** smal **51 rijen** vs. vol **300**.
+  Het ergste realistische geval (10 spelers, hele dag een zichtbare tab + 300 handelingen elk)
+  gaat van **162% → 13%** van het dagbudget.
+- **Bewaakt door `poll-budget.test.mts`:** geen kale `setInterval` die het netwerk raakt,
+  geen poll sneller dan 60 s (behalve de veiling-slotfase), en — het echte risico —
+  **een smalle load mag bij `persist` nooit andermans duiven wissen**, een schrijf-verzoek
+  krijgt altijd de volle wereld, en een verlopen engine dwingt een volle load af.
+
+**Voer kan terug naar de handelaar, aan 80%**
 - **Waarom:** voer kopen was eenrichtingsverkeer. Te veel gekocht, of een voertype dat je
   niet meer gebruikt (bv. Libido-mix na de kweekperiode), zat voorgoed vast in je voorraad.
 - **`FOOD_RESALE_RATE = 0.8`** in `gameConfig.ts`. `sellFood` + `foodResaleValue` in

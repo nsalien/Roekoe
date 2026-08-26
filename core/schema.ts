@@ -620,6 +620,19 @@ export interface World {
    * request, in a stable order, so no single request can exceed the budget.
    */
   dailyCareCursor?: string;
+  /**
+   * Cached public leaderboard (loft rankings + pigeon rankings) as JSON.
+   *
+   * These are the only things `/state` needs that look at EVERY pigeon in the
+   * world, and `/state` is the hottest route in the game. Recomputing them meant
+   * every navigation had to read the whole `pigeons` table — ~264 of the ~300
+   * rows a request costs, against a daily budget shared by all players.
+   *
+   * The numbers only move when a flight completes or a day rolls over, and both
+   * of those happen on a request that loads the full world anyway, so the cache
+   * is refreshed exactly then and served in between.
+   */
+  leaderboard?: string;
 }
 
 /** The full database document persisted to disk. */
@@ -657,7 +670,7 @@ export function emptyStats(): PlayerStats {
 
 export function emptyDatabase(): Database {
   return {
-    world: { currentWeek: 1, seasonYear: 1, seeded: false, dataVersion: 0, lastDailyTick: '', lastShelterSpawn: '', seasonStartedAt: '', seasonEndsAt: '', seasonWeek: 1, lastAdvance: '', dailyCareCursor: '' },
+    world: { currentWeek: 1, seasonYear: 1, seeded: false, dataVersion: 0, lastDailyTick: '', lastShelterSpawn: '', seasonStartedAt: '', seasonEndsAt: '', seasonWeek: 1, lastAdvance: '', dailyCareCursor: '', leaderboard: '' },
     users: [],
     lofts: [],
     pigeons: [],
