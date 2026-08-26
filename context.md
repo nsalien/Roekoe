@@ -15,17 +15,17 @@
 
 | Rol | Branch | Doel |
 |-----|--------|------|
-| **Dev** | `claude/hallo-rkr49f` | Alle ontwikkeling/commits komen hier **eerst**. |
+| **Dev** | `claude/hallo-su75jy` | Alle ontwikkeling/commits komen hier **eerst**. |
 | **Prod** | `claude/roekoe-game-website-jwa0vo` | Elke commit wordt hierheen **gecherry-pickt**; deze branch triggert de **Cloudflare Pages**-deploy naar productie. |
 
-> Vorige dev-branches (niet meer gebruiken): `claude/hallo-pvwabx`,
+> Vorige dev-branches (niet meer gebruiken): `claude/hallo-rkr49f`, `claude/hallo-pvwabx`,
 > `claude/context-spelregels-q2ywtx`, `claude/hallo-49m6hj`, `claude/hallo-xifh0c`,
 > `claude/hallo-w97s85`. Ontwikkelt een sessie op een nieuwe
 > `claude/…`-branch, gebruik die dan als dev-branch en **werk deze tabel meteen bij** —
 > de prod-branch hierboven verandert nooit.
 
 **Workflow per wijziging (zie §7 voor de exacte commando's):**
-1. Commit op **dev** (`claude/hallo-w97s85`) + push.
+1. Commit op **dev** (zie de tabel hierboven) + push.
 2. `git checkout` **prod** → `git cherry-pick <commit>` → push naar prod
    (`claude/roekoe-game-website-jwa0vo`) → Cloudflare bouwt.
 3. Terug naar **dev**.
@@ -388,7 +388,7 @@ Roekoe/
 
 ## 4. Datamodel (`core/schema.ts`)
 
-Entiteiten: `Pigeon`, `Loft`, `User`, `BreedingPair`, `Flight` (+ `SimEntry`,
+Entiteiten: `Pigeon`, `Loft`, `User`, `BreedingPair`, `PendingBrood`, `Flight` (+ `SimEntry`,
 `FlightEntry`, `FlightResult`), `Trade`, `Auction` (+ `AuctionBid`), `Bet`,
 `PigeonOffer`, `Notification`, `SponsorState`/`SponsorOffer`/`ActiveSponsorship`,
 `DailyMission`, `EventCard`, `PlayerStats`/`EarnedBadge`, `World`, `Database`.
@@ -399,6 +399,12 @@ Entiteiten: `Pigeon`, `Loft`, `User`, `BreedingPair`, `Flight` (+ `SimEntry`,
 - `Pigeon.orientation` = oriëntatie, `speed` = snelheid, `libido`, `health`,
   `experience`, `talent`.
 - `Loft.food` is een **`FoodStock` = Record<FeedRationKey, number>** (kg per type).
+- `Loft.pendingBroods` = **`PendingBrood[]`** — uitgekomen jongen die nog **niet** in
+  `db.pigeons` zitten omdat het hok vol was. Ze wachten op de keuze van de speler.
+  Hangt bewust aan de **loft-rij** (kolom `pending_broods` JSON, net als `pending_event`)
+  en níet in een eigen tabel: de lofts worden toch al elk verzoek geladen, en het duurste
+  verzoek zit al op **~42 van de 50** queries die één Worker-invocatie mag doen — een
+  eigen tabel kostte er structureel één extra.
 
 **Recent toegevoegde velden (rijden mee in bestaande kolommen/JSON — geen migratie):**
 - `Pigeon.breed?` — **ras** (breed-id, kolom `breed TEXT`; zie §Rassen). Puur
@@ -788,7 +794,12 @@ Entiteiten: `Pigeon`, `Loft`, `User`, `BreedingPair`, `Flight` (+ `SimEntry`,
 - `PigeonPage` bij andermans (niet-bot) duif: kaart **"Bied op deze duif"** (bod
   uitbrengen / lopend bod intrekken). Statbalken verborgen (`revealed:false`) →
   enkel ★talent + "eigenschappen onbekend"-melding.
-- Verder: `BreedingPage`, `SponsorsPage`, `LoginPage`.
+- `BreedingPage`: nieuw koppel + lopende broedsels, én bovenaan het **nest-keuzescherm**
+  (`components/NestChoice.tsx`) zodra een worp op een keuze wacht. Dat scherm toont per
+  jong de score **en de gen-caps** (daar gaat de keuze over), heeft een uitklapbaar
+  *Maak plaats* met 🕊️/🍲 per volwassen duif, en blokkeert het koppelformulier zolang het
+  nest openstaat. Nav-teller op **Kweek** = `state.pendingNests`.
+- Verder: `SponsorsPage`, `LoginPage`.
 
 **Rondleiding (`components/Tour.tsx`):** interactieve spotlight-tour die per stap
 naar de juiste pagina navigeert en het relevante element highlight via
@@ -886,7 +897,42 @@ eerst) en `npx tsx limits-report.mts` (queries/rijen per verzoek).
 Alles hieronder staat **live** op de deploy-branch. Data-migraties liepen door tot
 **`dataVersion = 38`**.
 
-**503-fix ronde 8: de dagovergang zette het spel vast (nieuwste)**
+**Vol hok bij het uitkomen: de speler kiest, in plaats van stil verlies (nieuwste)**
+- **Wat er misging.** `tickBreedingHatch` deed `young.slice(0, capacity - owned)`: paste de
+  worp niet, dan werden de overtallige jongen **weggegooid**. Erger nog, de meldingstakken
+  waren `admitted.length > 0` en `else if (young.length === 0)` — het geval *"er waren
+  jongen, maar er paste er geen"* viel door beide heen. Geen duif, geen melding, en de
+  €200 + 2×15 energie weg. `startBreeding` controleerde de capaciteit ook niet; enkel
+  `bots.ts:maybeBreed` beschermde zichzelf al (`pairs >= capacity - pigeons.length`).
+- **Nu:** past de worp niet, dan wordt **de hele worp** vastgehouden als `PendingBrood` op
+  `loft.pendingBroods` (niet de eerste N ervan — anders is de keuze niet echt van de
+  speler). De speler kiest per jong houden of niet: **alles, een deel, of niets**. Wat
+  niet gekozen is, vliegt weg (€0 — het restaurant blijft voor volwassen duiven).
+- **Plaats maken** gebeurt in hetzelfde scherm via de bestaande `/pigeons/:id/release` en
+  `/pigeons/:id/restaurant` — geen nieuwe economie, geen nieuwe exploit.
+- **Geen deadline, wel een slot:** zolang er een nest openstaat weigert `startBreeding`
+  een nieuw koppel (*"Er wacht nog een nest op je keuze"*). Zo hangt er nooit een vergeten
+  nest, en verlies je nooit een topjong door even niet in te loggen.
+- **Bots** houden het oude afkappen: ze hebben geen UI om mee te kiezen (en `maybeBreed`
+  koppelt sowieso nooit meer dan er vrije plaatsen zijn).
+- **Een jong in het nest staat niet in `db.pigeons`**, dus het eet niet, veroudert niet mee
+  in de verzorgingstick en kan niet ziek worden. `birthWeek` staat wél vast vanaf het
+  uitkomen, dus lang wachten levert een oudere duif op — dat is de enige kost van talmen.
+- **Badges/statistiek:** `awardBroodBadges` (in `breeding.ts`, gedeeld door het directe
+  uitkomen en `resolveBrood`) telt enkel de **gehouden** jongen in `stats.babies`.
+  `tweeling` gaat over de wórp (dus ook als je er één houdt); `dynastie` wordt bij het
+  uitkomen als boolean op het nest vastgelegd, want bij het beslissen kunnen de ouders
+  al weg zijn.
+- **Bestanden:** `schema.ts` (`PendingBrood`, `Loft.pendingBroods`), `schedule.ts`
+  (`tickBreedingHatch`), `breeding.ts` (`awardBroodBadges`), `engine.ts` (`resolveBrood`,
+  slot in `startBreeding`), `d1.ts` (kolom `pending_broods`), `presenters.ts`
+  (`broodYoungDTO`), API `GET /breeding` (nu `{pairs, nests, capacity, pigeonCount,
+  freeSpace}`) + `POST /breeding/nest/:id` `{keep: string[]}`, `/state` → `pendingNests`,
+  client `NestChoice.tsx` + `BreedingPage` + nav-teller in `Layout`.
+- **Test:** `brood-choice.test.mts` (29 checks, incl. de D1-round trip en dat je het nest
+  van een ander niet kan afhandelen). Query-budget onveranderd: 42–43 bij `PIGEONS=200`.
+
+**503-fix ronde 8: de dagovergang zette het spel vast**
 - **Symptoom:** het spel bleef "laden". Gemeten tegen productie: de statische site,
   `/api/health` en `/api/auth/login` antwoordden gewoon, maar **élke route die de wereld
   laadt** gaf `503` met **`error code: 1102`** — de CPU-limiet, niet D1. Login werkt en

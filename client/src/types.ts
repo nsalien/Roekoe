@@ -532,6 +532,8 @@ export interface GameState {
   missions: DailyMission[];
   streak: number;
   pendingEvent: EventCard | null;
+  /** Held clutches awaiting a keep/let-go choice — a nag badge on Kweek. */
+  pendingNests: number;
   unreadNotifications: number;
 }
 
@@ -630,4 +632,38 @@ export interface BreedingPair {
   sire: string;
   dam: string;
   hatchAt: string;
+}
+
+/** A youngster in a held nest: hatched, but not in the loft until you keep it. */
+export interface BroodYoung {
+  id: string;
+  name: string;
+  sex: Sex;
+  speed: number;
+  endurance: number;
+  orientation: number;
+  libido: number;
+  form: number;
+  health: number;
+  talent: number;
+  breed: Pigeon['breed'];
+  genes: { speed: number; endurance: number; orientation: number } | null;
+  declineRate: number;
+}
+
+/** A clutch that hatched into a full loft and is waiting on your keep/let-go choice. */
+export interface PendingNest {
+  id: string;
+  sire: string;
+  dam: string;
+  createdAt: string;
+  young: BroodYoung[];
+}
+
+export interface BreedingView {
+  pairs: BreedingPair[];
+  nests: PendingNest[];
+  capacity: number;
+  pigeonCount: number;
+  freeSpace: number;
 }

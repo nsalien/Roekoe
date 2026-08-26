@@ -1,9 +1,10 @@
 /** Breeding: pairing pigeons and producing young that inherit attributes. */
 
 import { BREEDING, DEFAULT_BREED_ID, GENE, MIXED_BREED_ID } from '../config/gameConfig.js';
-import type { Pigeon, PigeonGenes } from '../schema.js';
+import type { Database, Loft, Pigeon, PigeonGenes } from '../schema.js';
 import { newId } from '../store.js';
-import { geneCap } from './pigeon.js';
+import { awardBadge, evaluateBadges } from './badges.js';
+import { geneCap, talent } from './pigeon.js';
 import { generatePigeonName, nameKey } from './names.js';
 import { clamp, randFloat, round1 } from './util.js';
 
@@ -122,4 +123,26 @@ export function breed(
     });
   }
   return young;
+}
+
+/**
+ * Award the breeding badges + the babies counter for young that actually entered
+ * the loft. Shared by the immediate hatch and by a held clutch resolved later
+ * (`resolveBrood`), so both paths credit a breeder identically.
+ *
+ * `clutchSize` is the size of the whole clutch, not just what was admitted: the
+ * `tweeling` badge is for producing twins, however many of them you kept.
+ */
+export function awardBroodBadges(
+  db: Database,
+  loft: Loft,
+  admitted: Pigeon[],
+  clutchSize: number,
+  dynasty: boolean,
+): void {
+  loft.stats.babies += admitted.length;
+  if (clutchSize >= 2) awardBadge(db, loft, 'tweeling');
+  if (admitted.some((y) => talent(y) > 85)) awardBadge(db, loft, 'topfokker');
+  if (dynasty) awardBadge(db, loft, 'dynastie');
+  evaluateBadges(db, loft);
 }

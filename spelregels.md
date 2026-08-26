@@ -1064,6 +1064,40 @@ gebeurt.
 > per moment is, weet je nooit exact wanneer — soms is het er al in enkele uren,
 > soms pas na een week.
 
+### 7.1 Een vol hok bij het uitkomen: jij kiest
+
+Je mag **altijd** koppelen, ook als je hok al vol zit. Komen de jongen uit terwijl
+er geen plaats is, dan gaan ze **niet verloren** — het hele nest blijft wachten
+tot jij beslist. Je krijgt een melding, en bij *Kweek* verschijnt het nest met
+alle jongen erin: naam, geslacht, algemene score én hun **gen-caps**, zodat je
+ziet welk jong een plaats waard is.
+
+Per jong kies je **houden** of niet. Wat je niet kiest, **vliegt weg** — dat
+brengt niets op (het duivenrestaurant is enkel voor volwassen duiven, §9.2). Je
+mag:
+
+- **alle jongen houden** — als je genoeg plaatsen vrijmaakt;
+- **een deel houden** — bij een tweeling bijvoorbeeld enkel de duivin met de
+  betere genen;
+- **geen enkel jong houden** — een volwaardige keuze.
+
+**Plaats maken doe je vanuit hetzelfde scherm.** Onder *Maak plaats* staan je
+duiven met dezelfde twee knoppen als bij *Afscheid nemen* (§9.2): 🕊️ vrijlaten
+(€0) of 🍲 verkopen aan het duivenrestaurant (€50, maar **elke andere duif
+verliest 1–5 energie**). Een duif die ingeschreven staat voor een vlucht of zelf
+koppelt, kan niet weg.
+
+> **Zolang een nest op je keuze wacht, kan je geen nieuw koppel starten.** Zo
+> blijft er nooit een vergeten nest hangen. Er staat een teller op *Kweek* in het
+> menu tot je beslist hebt. Het nest **verloopt niet** — er is geen klok, je
+> verliest dus nooit een topjong omdat je even niet inlogde.
+>
+> Jongen in het nest zitten nog niet in je hok: ze **eten niet**, kosten geen
+> onderhoud en kunnen niet ziek worden. Hun **geboortedatum ligt wel vast** vanaf
+> het uitkomen — wacht je weken, dan komen ze navenant ouder binnen.
+
+---
+
 **Overerving:** elke vaardigheid = gemiddelde van beide ouders ± willekeurige
 mutatie (±8), begrensd op de **gen-cap** van het jong (zie §7bis). Ook de
 **genen zelf** (de plafonds + het verouderingstempo) erven over — gemiddelde van

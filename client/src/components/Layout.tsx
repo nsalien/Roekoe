@@ -115,11 +115,18 @@ export function Layout() {
                 ? state?.loft?.sponsorOfferCount ?? 0
                 : n.to === '/markt'
                   ? state?.offers?.received.length ?? 0
-                  : 0;
+                  // A held clutch is waiting on a decision and blocks new pairs,
+                  // so Kweek nags until it is resolved.
+                  : n.to === '/kweek'
+                    ? state?.pendingNests ?? 0
+                    : 0;
+              const dotTitle = n.to === '/kweek'
+                ? `${offers} nest${offers === 1 ? '' : 'en'} wacht${offers === 1 ? '' : 'en'} op je keuze`
+                : `${offers} nieuw aanbod`;
               return (
                 <NavLink key={n.to} to={n.to} end={n.end} className={({ isActive }) => (isActive ? 'active' : '')}>
                   {n.label}
-                  {offers > 0 && <span className="nav-dot" title={`${offers} nieuw aanbod`}>{offers}</span>}
+                  {offers > 0 && <span className="nav-dot" title={dotTitle}>{offers}</span>}
                 </NavLink>
               );
             })}

@@ -47,11 +47,11 @@ import {
   type FlightTier,
   type RaceCity,
 } from '../config/gameConfig.js';
-import type { Database, Flight, FlightResult, RaceLogEntry } from '../schema.js';
+import type { Database, Flight, FlightResult, Loft, Pigeon, RaceLogEntry } from '../schema.js';
 import { emptySponsorState, emptyStats } from '../schema.js';
 import { newId } from '../store.js';
 import { applyDayOfCare, dailyRunningCost } from './economy.js';
-import { breed } from './breeding.js';
+import { awardBroodBadges, breed } from './breeding.js';
 import { awardBadge, awardFlightBadges, evaluateBadges } from './badges.js';
 import { ensureAuctions } from './auction.js';
 import { botDailyActions, botEntryContext, botRaceCandidates } from './bots.js';
@@ -1667,6 +1667,7 @@ function runDataMigrations(db: Database): void {
         missionsDay: '',
         streak: 0,
         pendingEvent: null,
+        pendingBroods: [],
         sponsorship: emptySponsorState(),
       });
       // Same headroom and quality as the other bots — no edge over a player.
@@ -2069,20 +2070,45 @@ export function tickBreedingHatch(db: Database, nowMs: number): void {
     const loft = db.lofts.find((l) => l.userId === bp.ownerId);
     const owned = db.pigeons.filter((p) => p.ownerId === bp.ownerId).length;
     const space = (loft?.capacity ?? 0) - owned;
-    const admitted = young.slice(0, Math.max(0, space));
-    db.pigeons.push(...admitted);
+    const isHuman = !!loft && humanIds.has(loft.userId);
+    // A grandparent still in the world at hatch time earns the `dynastie` badge.
+    // Recorded now because a held clutch is awarded on resolve, by which time the
+    // parents (and so the route to the grandparents) may be gone.
+    const grandIds = [sire.sireId, sire.damId, dam.sireId, dam.damId].filter(Boolean) as string[];
+    const dynasty = grandIds.some((gid) => db.pigeons.some((p) => p.id === gid));
 
-    // Breeding badges.
-    if (loft && admitted.length > 0) {
-      loft.stats.babies += admitted.length;
-      if (young.length >= 2) awardBadge(db, loft, 'tweeling');
-      if (admitted.some((y) => talent(y) > 85)) awardBadge(db, loft, 'topfokker');
-      const grandIds = [sire.sireId, sire.damId, dam.sireId, dam.damId].filter(Boolean) as string[];
-      if (grandIds.some((gid) => db.pigeons.some((p) => p.id === gid))) awardBadge(db, loft, 'dynastie');
-      evaluateBadges(db, loft);
+    // The clutch does not fit. A human owner decides which young to keep — the
+    // whole clutch is held (not the first `space` of it), so the choice is really
+    // theirs. Bots have no UI, so their overflow is still dropped.
+    if (loft && isHuman && young.length > Math.max(0, space)) {
+      loft.pendingBroods = [...(loft.pendingBroods ?? []), {
+        id: newId('brood'),
+        sireId: sire.id,
+        damId: dam.id,
+        sireName: sire.name,
+        damName: dam.name,
+        young,
+        dynasty,
+        createdAt: new Date(nowMs).toISOString(),
+        createdAtWeek: db.world.currentWeek,
+      }];
+      pushNotification(
+        db, loft.userId, 'info',
+        `🐣 ${young.length === 1 ? 'Een jong' : `${young.length} jongen`} geboren — je hok zit vol`,
+        `${sire.name} × ${dam.name} bracht ${young.length === 1 ? 'een jong' : `${young.length} jongen`} voort, maar er is geen plaats. ` +
+          'Kies bij Kweek welke je houdt — maak eerst plaats door een duif vrij te laten of te verkopen.',
+        null,
+      );
+      continue;
     }
 
-    if (loft && humanIds.has(loft.userId)) {
+    const admitted = young.slice(0, Math.max(0, space));
+    db.pigeons.push(...admitted);
+    if (loft && admitted.length > 0) {
+      awardBroodBadges(db, loft, admitted, young.length, dynasty);
+    }
+
+    if (loft && isHuman) {
       if (admitted.length > 0) {
         const names = admitted.map((p) => p.name).join(' en ');
         pushNotification(
