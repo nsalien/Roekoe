@@ -14,6 +14,7 @@ import {
   DEFAULT_BOT_COUNT,
   FEED_RATIONS,
   FOOD_PRICE_PER_KG,
+  FOOD_RESALE_RATE,
   INFIRMARY,
   INFIRMARY_CAPACITY_TIERS,
   LOFT_CAPACITY_TIERS,
@@ -483,6 +484,34 @@ export function buyFood(store: Store, userId: string, type: string, kg: number):
     loft.money -= cost;
     loft.food[key] = round1((loft.food[key] ?? 0) + kg);
     progressMissions(db, loft, 'buyfood', 1);
+    return null;
+  });
+}
+
+/** What the merchant pays for `kg` of `type` — the buy price minus the resale cut. */
+export function foodResaleValue(type: FeedRationKey, kg: number): number {
+  return Math.round(kg * FEED_RATIONS[type].pricePerKg * FOOD_RESALE_RATE);
+}
+
+/**
+ * Sell unused feed back to the merchant at `FOOD_RESALE_RATE` of what it cost.
+ * You always take a small loss, so this is a way out of overbuying (or of a ration
+ * you stopped using) rather than a way to park money.
+ */
+export function sellFood(store: Store, userId: string, type: string, kg: number): string | null {
+  return store.mutate((db) => {
+    const loft = db.lofts.find((l) => l.userId === userId);
+    if (!loft) return 'Geen hok gevonden';
+    if (!(type in FEED_RATIONS)) return 'Ongeldig voedingstype';
+    if (!(kg > 0)) return 'Ongeldige hoeveelheid';
+    const key = type as FeedRationKey;
+    const stock = loft.food[key] ?? 0;
+    // round1, because that is the precision the stock itself is kept at: without
+    // it a "sell everything" of 3.4000000000000004 kg would be refused.
+    if (round1(kg) > round1(stock))
+      return `Je hebt maar ${round1(stock)} kg ${FEED_RATIONS[key].label} in voorraad`;
+    loft.food[key] = round1(Math.max(0, stock - kg));
+    loft.money += foodResaleValue(key, kg);
     return null;
   });
 }

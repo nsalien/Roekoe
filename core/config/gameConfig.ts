@@ -311,6 +311,14 @@ export const STARTING_FOOD_STOCK = { normal: 50, premium: 0, libido: 0, herstel:
 /** Price of one kg of pigeon food when buying from the supply store. */
 export const FOOD_PRICE_PER_KG = 3;
 
+/**
+ * What the feed merchant pays to take unused stock back, as a fraction of that
+ * type's own `pricePerKg`. Deliberately below 1: overbuying should cost you a
+ * little, so stock planning stays a real decision and food can never be used as
+ * a money store. Buying 100 kg Premium and selling it straight back loses €120.
+ */
+export const FOOD_RESALE_RATE = 0.8;
+
 /** Fixed DAILY overhead per player (loft maintenance, bedding, etc.), charged
  *  automatically each real day in tickDailyCare. */
 export const DAILY_UPKEEP_BASE = 22;

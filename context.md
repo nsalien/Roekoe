@@ -399,6 +399,8 @@ Entiteiten: `Pigeon`, `Loft`, `User`, `BreedingPair`, `PendingBrood`, `Flight` (
 - `Pigeon.orientation` = oriëntatie, `speed` = snelheid, `libido`, `health`,
   `experience`, `talent`.
 - `Loft.food` is een **`FoodStock` = Record<FeedRationKey, number>** (kg per type).
+  Bijkopen aan `FEED_RATIONS[k].pricePerKg`, terugverkopen aan **`FOOD_RESALE_RATE` (0,8)**
+  daarvan — verkopen levert dus altijd een klein verlies op.
 - `Loft.pendingBroods` = **`PendingBrood[]`** — uitgekomen jongen die nog **niet** in
   `db.pigeons` zitten omdat het hok vol was. Ze wachten op de keuze van de speler.
   Hangt bewust aan de **loft-rij** (kolom `pending_broods` JSON, net als `pending_event`)
@@ -724,7 +726,9 @@ Entiteiten: `Pigeon`, `Loft`, `User`, `BreedingPair`, `PendingBrood`, `Flight` (
 
 - `DashboardPage` — home. **Seizoen-sectie** onder de stat-tegels: "Seizoen X · week
   Y/4" + badge met **dagen tot de volgende speelweek** (`nextPlayWeek`+`timeUntil` in
-  `ui.tsx`; week 4 → "nieuw seizoen"). Voorraad per voertype (kopen), voer-effecten **per dag** in
+  `ui.tsx`; week 4 → "nieuw seizoen"). Voorraad per voertype met een **voerbalie die twee
+  kanten op werkt** (Kopen/Verkopen-schakelaar; verkopen aan `FOOD_RESALE_RATE` = 80%, met
+  een *Alles*-knop voor de hele voorraad van dat type), voer-effecten **per dag** in
   **tekst** (energie/gezondheid/conditie/libido). Tegel "**Ziek/gewond in je hok**"
   (ziekenboeg telt niet mee). **Klikbare tegel "Dagelijkse kosten"** — **full-width,
   onderaan de tegelrij** (`gridColumn: 1 / -1`, zodat het oneven tegelaantal er niet
@@ -897,7 +901,25 @@ eerst) en `npx tsx limits-report.mts` (queries/rijen per verzoek).
 Alles hieronder staat **live** op de deploy-branch. Data-migraties liepen door tot
 **`dataVersion = 38`**.
 
-**Vol hok bij het uitkomen: de speler kiest, in plaats van stil verlies (nieuwste)**
+**Voer kan terug naar de handelaar, aan 80% (nieuwste)**
+- **Waarom:** voer kopen was eenrichtingsverkeer. Te veel gekocht, of een voertype dat je
+  niet meer gebruikt (bv. Libido-mix na de kweekperiode), zat voorgoed vast in je voorraad.
+- **`FOOD_RESALE_RATE = 0.8`** in `gameConfig.ts`. `sellFood` + `foodResaleValue` in
+  `engine.ts`, route `POST /loft/food/sell` `{type, kg}`, tarief in `/state` als
+  `economy.foodResaleRate`.
+- **Bewust onder 1:** een rondje kopen → verkopen moet **altijd** geld kosten, anders is
+  voer een spaarpot en is overkopen gratis. 100 kg Premium heen en weer = **−€120**.
+  `food-resale.test.mts` bewaakt dat voor elk voertype en elke hoeveelheid.
+- **Geen missievoortgang op verkopen** (enkel `buyfood` bij kopen), zodat een koop/verkoop-
+  lus de dagmissie niet kan uitmelken.
+- **UI:** de bestaande voerbalie op `DashboardPage` (kaart *Verzorging*) heeft nu een
+  Kopen/Verkopen-schakelaar. In verkoopmodus toont de dropdown de **terugkoopprijs**, staat
+  er een **Alles**-knop (hele voorraad van dat type) en wordt de knop geblokkeerd zodra je
+  meer opgeeft dan je hebt. Getallen staan verder in de wiki (§Energie, voer & rust).
+- **`round1` bij de voorraadcontrole**, want de stock zelf wordt op één decimaal gehouden:
+  zonder dat werd "verkoop alles" van 3.4000000000000004 kg geweigerd.
+
+**Vol hok bij het uitkomen: de speler kiest, in plaats van stil verlies**
 - **Wat er misging.** `tickBreedingHatch` deed `young.slice(0, capacity - owned)`: paste de
   worp niet, dan werden de overtallige jongen **weggegooid**. Erger nog, de meldingstakken
   waren `admitted.length > 0` en `else if (young.length === 0)` — het geval *"er waren

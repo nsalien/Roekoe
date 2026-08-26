@@ -707,6 +707,24 @@ De tabel toont **weekwaarden**; in het spel (Overzicht) zie je ze **per dag** (1
 Iedereen start (na de overstap) met **50 kg Normaal**; alle duiven staan standaard
 op Normaal.
 
+**Voer kopen én terugverkopen.** Op de **Overzicht**-pagina (Verzorging) staat een
+voerbalie die twee kanten op werkt. Kopen gebeurt aan de prijs uit de tabel
+hierboven. Te veel gekocht, of een voertype dat je niet meer gebruikt? Dan neemt de
+voerhandelaar het terug aan **80 % van de aankoopprijs** — je maakt op een verkoop
+dus **altijd een klein verlies**. Met de knop *Alles* verkoop je in één keer je hele
+voorraad van dat type.
+
+| Type | Koopprijs/kg | Terugkoopprijs/kg | Verlies per kg |
+|---|---|---|---|
+| Normaal | €3 | €2,40 | €0,60 |
+| Premium | €6 | €4,80 | €1,20 |
+| Libido-mix | €4,50 | €3,60 | €0,90 |
+| Herstel | €3 | €2,40 | €0,60 |
+
+> Voer is dus **geen spaarpot**: 100 kg Premium kopen en meteen terugverkopen kost
+> je €120. Koop wat je de komende dagen nodig hebt — de terugkoop is een uitweg uit
+> een misrekening, geen handel.
+
 Per dag, per gevoerde duif (weekwaarden gedeeld door 7):
 ```
 Energie   += (energie_per_week / 7) · (1 + Ervaring/200)   // ervaring = sneller herstel

@@ -221,14 +221,21 @@ export function WikiPage() {
           voorraad van één type op, dan lijden precies die duiven honger — de rest van je hok merkt er niets van.
         </p>
         <MiniTable
-          head={['Voer', 'Prijs/kg', 'Verbruik/duif/dag']}
+          head={['Voer', 'Prijs/kg', 'Terugkoop/kg', 'Verbruik/duif/dag']}
           rows={[
-            ['Normaal', '€3', '≈ 0,14 kg'],
-            ['Premium', '€6', '≈ 0,21 kg'],
-            ['Libido-mix', '€4,5', '≈ 0,20 kg'],
-            ['Herstelvoer', '€3', '≈ 0,21 kg'],
+            ['Normaal', '€3', '€2,40', '≈ 0,14 kg'],
+            ['Premium', '€6', '€4,80', '≈ 0,21 kg'],
+            ['Libido-mix', '€4,5', '€3,60', '≈ 0,20 kg'],
+            ['Herstelvoer', '€3', '€2,40', '≈ 0,21 kg'],
           ]}
         />
+        <p style={{ marginTop: 10 }}>
+          <strong>Te veel gekocht? Je kan voer terugverkopen.</strong> Dezelfde balie op het overzicht schakelt met één
+          klik naar <em>Verkopen</em>, en de knop <em>Alles</em> zet er meteen je hele voorraad van dat type in. De
+          voerhandelaar betaalt <strong>80%</strong> van de aankoopprijs terug, dus je maakt op een verkoop{' '}
+          <strong>altijd een klein verlies</strong>. Voer is daarom geen spaarpot: 100 kg Premium kopen en meteen
+          terugverkopen kost je €120.
+        </p>
 
         <h3 style={{ marginBottom: 4 }}>Honger: de gevaarlijkste fout</h3>
         <p className="muted" style={{ marginTop: 0 }}>
