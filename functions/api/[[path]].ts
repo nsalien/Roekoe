@@ -22,6 +22,7 @@ import {
   BREEDING,
   COACH,
   FEED_RATIONS,
+  FOOD_RESALE_RATE,
   GENE,
   INFIRMARY,
   PIGEON_RESTAURANT,
@@ -50,6 +51,7 @@ import {
   renameLoft,
   renamePigeon,
   seedWorld,
+  sellFood,
   sellToRestaurant,
   setCoach,
   setInfirmary,
@@ -385,6 +387,7 @@ app.get('/state', (c) => {
       restCureHealth: REST_CURE.health,
       restCureHours: REST_CURE.durationHours,
       restCureCooldownDays: REST_CURE.cooldownDays,
+      foodResaleRate: FOOD_RESALE_RATE,
       restaurantName: PIGEON_RESTAURANT.name,
       restaurantPayout: PIGEON_RESTAURANT.payout,
       restaurantMoraleMin: PIGEON_RESTAURANT.moraleEnergyMin,
@@ -539,6 +542,18 @@ app.post('/loft/food', async (c) => {
   if (!(kg > 0) || kg > 10000) return c.json({ error: 'Ongeldige hoeveelheid' }, 400);
   const store = c.get('store');
   const err = buyFood(store, user.id, String(body.type ?? 'normal'), kg);
+  await store.persist();
+  return err ? c.json({ error: err }, 400) : c.json({ ok: true });
+});
+
+/** Sell feed back to the merchant at FOOD_RESALE_RATE — always a small loss. */
+app.post('/loft/food/sell', async (c) => {
+  const user = requireUser(c);
+  const body = await c.req.json().catch(() => ({}));
+  const kg = Number(body.kg);
+  if (!(kg > 0) || kg > 10000) return c.json({ error: 'Ongeldige hoeveelheid' }, 400);
+  const store = c.get('store');
+  const err = sellFood(store, user.id, String(body.type ?? 'normal'), kg);
   await store.persist();
   return err ? c.json({ error: err }, 400) : c.json({ ok: true });
 });
