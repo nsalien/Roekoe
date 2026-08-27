@@ -75,6 +75,24 @@ export function LiveFlightPage() {
     }
   }
 
+  // Admin only: end a live flight now instead of waiting for the stragglers.
+  // The standings were frozen at release, so this only skips the waiting.
+  async function finishNow(name: string) {
+    if (!id) return;
+    if (!window.confirm(`Ben je zeker dat je deze match wil beëindigen?\n\n${name} wordt meteen afgerond. De duiven eindigen op de plaatsen die nu al vastliggen en krijgen hun gewone punten en prijzengeld — er wordt niemand geschrapt.`)) return;
+    setBusy(true);
+    try {
+      const res = await api<{ results: number }>(`/admin/flights/${id}/finish`, { method: 'POST' });
+      toast.show(`Vlucht afgerond — ${res.results} duiven in de uitslag 🏁`, 'ok');
+      await load();
+      refresh();
+    } catch (e) {
+      toast.show(e instanceof Error ? e.message : 'Mislukt', 'err');
+    } finally {
+      setBusy(false);
+    }
+  }
+
   if (err) {
     return (
       <div className="card">
@@ -111,6 +129,17 @@ export function LiveFlightPage() {
             <strong>{formatFlightTime(flight.startAt)}</strong>
           </div>
         </div>
+
+        {flight.status === 'live' && user?.isAdmin && (
+          <div className="row" style={{ marginTop: 10, gap: 8, alignItems: 'center' }}>
+            <button className="btn danger sm" disabled={busy} onClick={() => finishNow(flight.name)}>
+              ⏩ Match beëindigen
+            </button>
+            <span className="faint sm">
+              Beheerder — rondt de vlucht nu af op de stand die al vastligt.
+            </span>
+          </div>
+        )}
 
         {isScheduled && (
           <div style={{ textAlign: 'center', padding: '18px 0' }}>
