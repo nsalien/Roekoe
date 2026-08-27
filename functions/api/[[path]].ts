@@ -22,6 +22,7 @@ import {
   BREEDING,
   COACH,
   FEED_RATIONS,
+  FOOD_RESALE_RATE,
   GENE,
   INFIRMARY,
   PIGEON_RESTAURANT,
@@ -50,6 +51,7 @@ import {
   renameLoft,
   renamePigeon,
   seedWorld,
+  sellFood,
   sellToRestaurant,
   setCoach,
   setInfirmary,
@@ -59,6 +61,7 @@ import {
   setPigeonCompartment,
   setPigeonRation,
   setRelayOrder,
+  resolveBrood,
   startBreeding,
   startRestCure,
   stopBreeding,
@@ -82,7 +85,11 @@ import { refreshDailyMissions } from '../../core/game/missions.js';
 import { sponsorView } from '../../core/game/sponsors.js';
 import {
   auctionsDTO,
+  broodYoungDTO,
+  cachedLeaderboard,
+  computeLeaderboard,
   flightDTO,
+  flightEntrantsDTO,
   liveFlightDTO,
   liveBoardDTO,
   loftDTO,
@@ -112,6 +119,20 @@ let schemaReady = false;
 const READ_ONLY_POSTS = new Set(['/api/bets/preview']);
 
 // Load the world, seed on first ever request, run the real-time clock (schedule
+/**
+ * Routes that may be served from a NARROWED world (see core/d1.ts). Each one has
+ * been checked to reference no pigeon beyond the viewer's own and the entrants
+ * of unfinished flights. `/state` is the one that matters: it is fetched on
+ * every navigation and after every action, and it used to read all ~264 pigeons
+ * for two top-10 lists that are now cached.
+ */
+const NARROW_PATHS = new Set(['/api/state', '/api/flights', '/api/bets', '/api/notifications']);
+
+/** GET/HEAD only — a write never runs on a narrowed world. */
+function readOnlyPath(path: string): boolean {
+  return NARROW_PATHS.has(path);
+}
+
 // flights, start/finish live races, bots auto-enter), and resolve the user.
 app.use('*', async (c, next) => {
   // The schema upgrade is chunked to stay inside D1's per-invocation query budget
@@ -168,7 +189,16 @@ app.use('*', async (c, next) => {
     }
   }
 
-  let store = await D1Store.load(c.env.DB, payload?.sub);
+  // Which routes may run on a NARROWED world (viewer's own pigeons + flight
+  // entrants instead of all ~264). An allowlist, not a rule: a route only
+  // belongs here once it is checked to name no other player's bird. The load
+  // narrows only if the engine is ALSO fresh, so a narrowed store never runs
+  // the engine — see core/d1.ts.
+  const narrowable = readOnlyPath(path) && NARROW_PATHS.has(path);
+  let store = await D1Store.load(c.env.DB, payload?.sub, {
+    narrowWhenIdle: narrowable && (c.req.method === 'GET' || c.req.method === 'HEAD'),
+    nowMs,
+  });
   if (!store.data.world.seeded) {
     seedWorld(store);
     await store.persist();
@@ -198,7 +228,11 @@ app.use('*', async (c, next) => {
     c.req.method === 'GET' || c.req.method === 'HEAD' || READ_ONLY_POSTS.has(path);
   const throttled = fresh && readOnly;
 
-  if (!light && !throttled) {
+  // A narrowed store does not hold the whole world, so the engine must not run
+  // on it. That is already implied (narrowing requires a fresh engine, which
+  // makes `throttled` true for these read-only routes), but state this outright
+  // rather than leave correctness resting on two conditions agreeing.
+  if (!light && !throttled && !store.narrowed) {
     // Real-time flight lifecycle + one-time data migrations. Persist any changes.
     // Fetch real weather for any flight about to start, so it's frozen against
     // actual conditions in the release region (falls back to a random sky).
@@ -223,6 +257,12 @@ app.use('*', async (c, next) => {
     const weatherByFlight = new Map<string, WeatherResult>(dueWeather);
     if (legWeather.length > 0) applyRelayForecasts(store.data, new Map(legWeather), nowMs);
     advanceRealtime(store.data, nowMs, weatherByFlight);
+    // The full world is in memory and the engine just ran, so this is the one
+    // moment the world-wide leaderboards can change AND can be computed
+    // correctly. Refresh the cache that /state serves (see World.leaderboard);
+    // `persist` only writes the world row when something in it changed, so an
+    // unchanged board costs nothing.
+    store.data.world.leaderboard = JSON.stringify(computeLeaderboard(store.data));
     // Stamp it AFTER the engine ran, so a slow run does not shorten the window.
     store.data.world.lastAdvance = new Date(nowMs).toISOString();
     await store.persist();
@@ -358,8 +398,9 @@ app.get('/state', (c) => {
     loft: loft ? loftDTO(db, loft) : null,
     pigeons,
     scheduledFlights: upcoming,
-    rankings: rankingRows(db),
-    pigeonRankings: pigeonSeasonRankings(db),
+    // Cached: computing these reads every pigeon in the world, which is exactly
+    // what /state must not do. Refreshed whenever the engine runs (middleware).
+    ...cachedLeaderboard(db),
     feedRations: FEED_RATIONS,
     infirmary: INFIRMARY,
     economy: {
@@ -383,6 +424,7 @@ app.get('/state', (c) => {
       restCureHealth: REST_CURE.health,
       restCureHours: REST_CURE.durationHours,
       restCureCooldownDays: REST_CURE.cooldownDays,
+      foodResaleRate: FOOD_RESALE_RATE,
       restaurantName: PIGEON_RESTAURANT.name,
       restaurantPayout: PIGEON_RESTAURANT.payout,
       restaurantMoraleMin: PIGEON_RESTAURANT.moraleEnergyMin,
@@ -391,6 +433,7 @@ app.get('/state', (c) => {
     missions: loft?.missions ?? [],
     streak: loft?.streak ?? 0,
     pendingEvent: loft?.pendingEvent ?? null,
+    pendingNests: loft?.pendingBroods?.length ?? 0,
     unreadNotifications: notificationsFor(db, user.id).unread,
     offers: offersFor(db, user.id),
   });
@@ -540,6 +583,18 @@ app.post('/loft/food', async (c) => {
   return err ? c.json({ error: err }, 400) : c.json({ ok: true });
 });
 
+/** Sell feed back to the merchant at FOOD_RESALE_RATE — always a small loss. */
+app.post('/loft/food/sell', async (c) => {
+  const user = requireUser(c);
+  const body = await c.req.json().catch(() => ({}));
+  const kg = Number(body.kg);
+  if (!(kg > 0) || kg > 10000) return c.json({ error: 'Ongeldige hoeveelheid' }, 400);
+  const store = c.get('store');
+  const err = sellFood(store, user.id, String(body.type ?? 'normal'), kg);
+  await store.persist();
+  return err ? c.json({ error: err }, 400) : c.json({ ok: true });
+});
+
 app.post('/loft/capacity', async (c) => {
   const user = requireUser(c);
   const store = c.get('store');
@@ -659,7 +714,40 @@ app.get('/breeding', (c) => {
       dam: db.pigeons.find((p) => p.id === bp.damId)?.name ?? '?',
       hatchAt: bp.hatchAt,
     }));
-  return c.json({ pairs });
+  // Held clutches waiting on a keep/let-go choice. The young are not in the loft
+  // yet, so they get their own DTO rather than going through `pigeonDTO`.
+  const loft = db.lofts.find((l) => l.userId === user.id);
+  const owned = db.pigeons.filter((p) => p.ownerId === user.id).length;
+  const nests = (loft?.pendingBroods ?? [])
+    .map((b) => ({
+      id: b.id,
+      sire: b.sireName,
+      dam: b.damName,
+      createdAt: b.createdAt,
+      young: b.young.map((y) => broodYoungDTO(y)),
+    }));
+  return c.json({
+    pairs,
+    nests,
+    // What the choice screen needs to show how many perches are free right now.
+    capacity: loft?.capacity ?? 0,
+    pigeonCount: owned,
+    freeSpace: Math.max(0, (loft?.capacity ?? 0) - owned),
+  });
+});
+
+/**
+ * Keep the named young from a held clutch; everything else in the nest flies off.
+ * An empty `keep` is a valid answer — the owner may want none of them.
+ */
+app.post('/breeding/nest/:id', async (c) => {
+  const user = requireUser(c);
+  const body = await c.req.json().catch(() => ({}));
+  const keep = Array.isArray(body.keep) ? body.keep.map((x: unknown) => String(x)) : [];
+  const store = c.get('store');
+  const err = resolveBrood(store, user.id, c.req.param('id'), keep);
+  await store.persist();
+  return err ? c.json({ error: err }, 400) : c.json({ ok: true });
 });
 
 app.post('/breeding', async (c) => {
@@ -788,6 +876,22 @@ app.get('/flights/:id', (c) => {
   const f = db.flights.find((x) => x.id === c.req.param('id'));
   if (!f) return c.json({ error: 'Vlucht niet gevonden' }, 404);
   return c.json({ flight: flightDTO(db, f) });
+});
+
+/**
+ * The named entrant list for one flight — what the betting panel picks from.
+ *
+ * Deliberately NOT on `/api/flights` and NOT in NARROW_PATHS: naming another
+ * loft's bird needs the full pigeon table, and `/api/flights` is polled by every
+ * open tab. This route is hit only when a player actually opens the betting
+ * panel, so it can afford the full load. See presenters.flightEntrantsDTO.
+ */
+app.get('/flights/:id/entrants', (c) => {
+  requireUser(c);
+  const db = c.get('store').data;
+  const f = db.flights.find((x) => x.id === c.req.param('id'));
+  if (!f) return c.json({ error: 'Vlucht niet gevonden' }, 404);
+  return c.json({ entrants: flightEntrantsDTO(db, f) });
 });
 
 /** Live positions + commentary for a flight (polled by the client). */

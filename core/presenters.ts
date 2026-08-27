@@ -25,6 +25,7 @@ import {
 const FORM_GOOD = 70;
 const FORM_FAIR = 45;
 import { auctionKind } from './game/auction.js';
+import { pigeonSeasonRankings } from './game/season.js';
 import { bettingOpen } from './game/betting.js';
 import { nextCapacityTier, nextInfirmaryTier, ownerName } from './game/engine.js';
 import { coachDailyGain, dailyRunningCostBreakdown, projectDailyCare } from './game/economy.js';
@@ -191,6 +192,34 @@ export function pigeonDTO(db: Database, p: Pigeon, viewerId?: string, viewerIsAd
   };
 }
 
+/**
+ * A youngster in a HELD clutch (`PendingBrood`): hatched, but not in the loft yet
+ * and so not in `db.pigeons`. It gets its own DTO rather than `pigeonDTO`, which
+ * assumes an owned bird (market listings, flight entries, daily-care projection —
+ * none of which a bird still in the nest has).
+ *
+ * The genes are shown in full: which youngster to keep is a bet on its ceilings,
+ * so the owner has to be able to see them before deciding.
+ */
+export function broodYoungDTO(p: Pigeon) {
+  const b = breedInfo(p.breed);
+  return {
+    id: p.id,
+    name: p.name,
+    sex: p.sex,
+    speed: p.speed,
+    endurance: p.endurance,
+    orientation: p.orientation,
+    libido: p.libido,
+    form: p.form,
+    health: p.health,
+    talent: talent(p),
+    breed: { id: b.id, name: b.name, rarity: b.rarity, rarityLabel: BREED_RARITY[b.rarity].label, image: b.image },
+    genes: p.genes ?? null,
+    declineRate: p.declineRate ?? 1,
+  };
+}
+
 export function loftDTO(db: Database, loft: Loft) {
   const pigeons = db.pigeons.filter((p) => p.ownerId === loft.userId);
   const infirmary = pigeons.filter((p) => p.inInfirmary);
@@ -252,7 +281,11 @@ export function flightDTO(db: Database, f: Flight) {
     teamSize: f.relay ? RELAY.teamSize : undefined,
     legKm: f.relay ? relayLegKm(f) : undefined,
     // The entered teams, in running order, so the page can show who flies what.
-    teams: f.relay
+    // This is the ONLY place this DTO names a bird outside the viewer's own
+    // loft, and it is why the narrowed load still has to fetch relay entrants
+    // (see core/d1.ts). A finished flight needs it neither (the running order is
+    // fixed and the results carry their own names), so it is dropped there.
+    teams: f.relay && f.status !== 'completed'
       ? [...relayEntryTeams(f)].map(([ownerId, entries]) => ({
           ownerId,
           ownerName: ownerName(db, ownerId),
@@ -267,22 +300,36 @@ export function flightDTO(db: Database, f: Flight) {
     weather: f.weather,
     entryCount: f.entries.length,
     entries: f.entries,
-    // Enough info about every entrant for the betting UI (names, owners, talent).
-    entrants: f.entries.map((e) => {
-      const p = db.pigeons.find((x) => x.id === e.pigeonId);
-      return {
-        pigeonId: e.pigeonId,
-        name: p?.name ?? 'duif',
-        ownerId: e.ownerId,
-        ownerName: ownerName(db, e.ownerId),
-        talent: p ? talent(p) : 0,
-      };
-    }),
     bettingOpen: bettingOpen(f, Date.now()),
     results: f.results,
     recap: f.recap,
     createdAt: f.createdAt,
   };
+}
+
+/**
+ * Every entrant of a flight, named — the list the betting panel picks from.
+ *
+ * This is deliberately NOT part of `flightDTO`. Naming a bird means looking it
+ * up in `db.pigeons`, so a route that carries this needs every entrant of every
+ * running flight loaded. On `/api/flights` — polled every 90 s by every open tab
+ * — that pulls practically the whole population back into the read budget and
+ * undoes the narrowed load (measured: a narrow poll goes from 73 to 242 rows at
+ * the design ceiling, leaving it only 7 % cheaper than a full load). Betting is
+ * opened a handful of times a day, so it pays for its own full load instead.
+ */
+export function flightEntrantsDTO(db: Database, f: Flight) {
+  if (f.status === 'completed') return [];
+  return f.entries.map((e) => {
+    const p = db.pigeons.find((x) => x.id === e.pigeonId);
+    return {
+      pigeonId: e.pigeonId,
+      name: p?.name ?? 'duif',
+      ownerId: e.ownerId,
+      ownerName: ownerName(db, e.ownerId),
+      talent: p ? talent(p) : 0,
+    };
+  });
 }
 
 export function notificationDTO(n: Notification) {
@@ -443,6 +490,36 @@ export function pigeonRaceHistory(db: Database, pigeonId: string) {
 }
 
 /** Season ranking rows sorted by points, humans and bots together. */
+/**
+ * The two world-wide leaderboards, computed from every pigeon in the game.
+ *
+ * Only call this when the FULL world is in memory (see `World.leaderboard`):
+ * on a narrowed load `db.pigeons` holds the viewer's birds and little else, so
+ * the result would silently be wrong rather than merely stale.
+ */
+export function computeLeaderboard(db: Database) {
+  return { rankings: rankingRows(db), pigeonRankings: pigeonSeasonRankings(db) };
+}
+
+export type Leaderboard = ReturnType<typeof computeLeaderboard>;
+
+/**
+ * The cached leaderboard, or a freshly computed one when there is no cache yet.
+ * A brand-new world has never completed a flight, so an empty cache is normal
+ * and the fallback is cheap.
+ */
+export function cachedLeaderboard(db: Database): Leaderboard {
+  const raw = db.world.leaderboard;
+  if (raw) {
+    try {
+      return JSON.parse(raw) as Leaderboard;
+    } catch {
+      // Corrupt cache: fall through and recompute from whatever is loaded.
+    }
+  }
+  return computeLeaderboard(db);
+}
+
 export function rankingRows(db: Database) {
   return db.lofts
     .map((l) => ({

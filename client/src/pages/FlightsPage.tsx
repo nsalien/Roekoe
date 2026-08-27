@@ -5,8 +5,9 @@ import { Link } from 'react-router-dom';
 import { api } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
 import { useGame } from '../game/GameContext';
+import { useVisiblePoll } from '../game/useVisiblePoll';
 import { Money, Spinner, countdownTo, formatDuration, formatFlightTime, tierLabel, useToast } from '../components/ui';
-import type { BetKind, BetPreview, BetView, Flight } from '../types';
+import type { BetKind, BetPreview, BetView, Flight, FlightEntrant } from '../types';
 
 /** A ticking clock so countdowns update every second. */
 function useNow(intervalMs = 1000): number {
@@ -48,11 +49,9 @@ export function FlightsPage() {
 
   // Reload periodically so flights flip to live / completed without a manual
   // refresh. Kept deliberately slow — see the note in LiveFlightPage: every poll
-  // costs ~350 D1 rows and the daily read budget is the binding limit.
-  useEffect(() => {
-    const t = setInterval(() => load(), 90000);
-    return () => clearInterval(t);
-  }, [load]);
+  // costs ~350 D1 rows and the daily read budget is the binding limit. A tab
+  // left open in the background polls not at all.
+  useVisiblePoll(() => load(), 90000);
 
   // Birds already entered in a flight that has not started yet. Live flights are
   // NOT included here: a bird that has already crossed the line is free again, and
@@ -334,18 +333,37 @@ function BetPanel({ flight, meId, onPlaced }: { flight: Flight; meId?: string; o
   const [busy, setBusy] = useState(false);
   const clampStake = (v: number) => Math.min(maxStake, Math.max(minStake, Math.round(v) || minStake));
 
-  const entrants = flight.entrants;
-  const mine = entrants.filter((e) => e.ownerId === meId);
-  const targets = kind === 'own_top3' ? mine : entrants;
+  // The named entrant list is fetched only when the panel opens.
+  //
+  // It used to ride along on `/flights`, which every open tab polls every 90 s.
+  // Naming another loft's bird forces the server to load the whole pigeon table,
+  // so that one convenience put practically the entire population into the read
+  // budget of the most-polled route in the game. Here it costs one full load per
+  // opened panel — a handful a day. See core/presenters.ts::flightEntrantsDTO.
+  const [entrants, setEntrants] = useState<FlightEntrant[] | null>(null);
+  const [entrantsError, setEntrantsError] = useState(false);
+  useEffect(() => {
+    if (!open) return;
+    let cancelled = false;
+    setEntrantsError(false);
+    api<{ entrants: FlightEntrant[] }>(`/flights/${flight.id}/entrants`)
+      .then((r) => { if (!cancelled) setEntrants(r.entrants); })
+      .catch(() => { if (!cancelled) setEntrantsError(true); });
+    return () => { cancelled = true; };
+  }, [open, flight.id]);
+
+  const loaded = entrants ?? [];
+  const mine = loaded.filter((e) => e.ownerId === meId);
+  const targets = kind === 'own_top3' ? mine : loaded;
   const needsTarget = kind !== 'mine_wins';
   const needsRival = kind === 'head2head';
 
-  // Keep target valid for the chosen kind.
+  // Keep target valid for the chosen kind — also once the entrants land.
   useEffect(() => {
     if (!needsTarget) return;
     if (!targets.some((t) => t.pigeonId === pigeonId)) setPigeonId(targets[0]?.pigeonId ?? '');
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [kind, flight.id]);
+  }, [kind, flight.id, entrants]);
 
   // Live odds preview.
   //
@@ -398,6 +416,21 @@ function BetPanel({ flight, meId, onPlaced }: { flight: Flight; meId?: string; o
 
   const availableKinds: BetKind[] = ['win', 'top3', 'last', 'head2head', ...(mine.length > 0 ? (['own_top3', 'mine_wins'] as BetKind[]) : [])];
 
+  // Nothing to choose from until the deelnemerslijst is in.
+  if (entrants === null || entrantsError) {
+    return (
+      <div className="card" style={{ marginTop: 10, background: 'var(--surface-2)', boxShadow: 'none' }}>
+        <div className="row" style={{ justifyContent: 'space-between' }}>
+          <strong>🎲 Weddenschap</strong>
+          <button className="btn ghost sm" onClick={() => setOpen(false)}>×</button>
+        </div>
+        <p className="faint" style={{ marginTop: 8 }}>
+          {entrantsError ? 'De deelnemers konden niet geladen worden.' : 'Deelnemers laden…'}
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div className="card" style={{ marginTop: 10, background: 'var(--surface-2)', boxShadow: 'none' }}>
       <div className="row" style={{ justifyContent: 'space-between' }}>
@@ -423,7 +456,7 @@ function BetPanel({ flight, meId, onPlaced }: { flight: Flight; meId?: string; o
           <label style={{ marginTop: 8 }}>Tegenstander</label>
           <select value={rivalId} onChange={(e) => setRivalId(e.target.value)} disabled={busy}>
             <option value="">— kies —</option>
-            {entrants.filter((t) => t.pigeonId !== pigeonId).map((t) => <option key={t.pigeonId} value={t.pigeonId}>{t.name} ({t.ownerName})</option>)}
+            {loaded.filter((t) => t.pigeonId !== pigeonId).map((t) => <option key={t.pigeonId} value={t.pigeonId}>{t.name} ({t.ownerName})</option>)}
           </select>
         </>
       )}

@@ -15,17 +15,17 @@
 
 | Rol | Branch | Doel |
 |-----|--------|------|
-| **Dev** | `claude/hallo-rkr49f` | Alle ontwikkeling/commits komen hier **eerst**. |
+| **Dev** | `claude/hallo-mzjn0e` | Alle ontwikkeling/commits komen hier **eerst**. |
 | **Prod** | `claude/roekoe-game-website-jwa0vo` | Elke commit wordt hierheen **gecherry-pickt**; deze branch triggert de **Cloudflare Pages**-deploy naar productie. |
 
-> Vorige dev-branches (niet meer gebruiken): `claude/hallo-pvwabx`,
+> Vorige dev-branches (niet meer gebruiken): `claude/hallo-su75jy`, `claude/hallo-rkr49f`, `claude/hallo-pvwabx`,
 > `claude/context-spelregels-q2ywtx`, `claude/hallo-49m6hj`, `claude/hallo-xifh0c`,
 > `claude/hallo-w97s85`. Ontwikkelt een sessie op een nieuwe
 > `claude/…`-branch, gebruik die dan als dev-branch en **werk deze tabel meteen bij** —
 > de prod-branch hierboven verandert nooit.
 
 **Workflow per wijziging (zie §7 voor de exacte commando's):**
-1. Commit op **dev** (`claude/hallo-w97s85`) + push.
+1. Commit op **dev** (zie de tabel hierboven) + push.
 2. `git checkout` **prod** → `git cherry-pick <commit>` → push naar prod
    (`claude/roekoe-game-website-jwa0vo`) → Cloudflare bouwt.
 3. Terug naar **dev**.
@@ -57,7 +57,7 @@ Een online **duivenmelker-managementspel** voor een groepje vrienden (~10 speler
 geld verdienen → kopen/kweken/uitbreiden → herhalen.** Bots vullen het veld.
 
 - **Repo:** `nsalien/roekoe` (GitHub).
-- **Ontwikkelbranch:** `claude/hallo-w97s85` — hier ontwikkelen en committen.
+- **Ontwikkelbranch:** zie de tabel in §0 — hier ontwikkelen en committen.
 - **Productie/deploy-branch:** `claude/roekoe-game-website-jwa0vo` — een push
   hiernaartoe triggert de **Cloudflare Pages** build (= live). Elke wijziging
   wordt via cherry-pick naar deze branch gebracht en gepusht (zie §7).
@@ -372,6 +372,7 @@ Roekoe/
 ├── sponsor-refusal.test.mts     regressietest: "nee is nee" bij een slechtere concurrent
 ├── commentary.test.mts          regressietest: live verslag groeit aan, herschrijft niet
 ├── betting-odds.test.mts        regressietest: weddenschapskansen kloppen + zijn stabiel
+├── poll-budget.test.mts         regressietest: pollritme + de smalle load (deelnemerslijst!)
 ├── force-finish.test.mts        regressietest: admin-"match beëindigen" == natuurlijk uitvliegen
 ├── limits-report.mts            meet queries/rijen gelezen/geschreven per verzoek
 ├── cpu-sweep.mts                meet CPU per operatie (duurste eerst) — diagnose
@@ -389,7 +390,7 @@ Roekoe/
 
 ## 4. Datamodel (`core/schema.ts`)
 
-Entiteiten: `Pigeon`, `Loft`, `User`, `BreedingPair`, `Flight` (+ `SimEntry`,
+Entiteiten: `Pigeon`, `Loft`, `User`, `BreedingPair`, `PendingBrood`, `Flight` (+ `SimEntry`,
 `FlightEntry`, `FlightResult`), `Trade`, `Auction` (+ `AuctionBid`), `Bet`,
 `PigeonOffer`, `Notification`, `SponsorState`/`SponsorOffer`/`ActiveSponsorship`,
 `DailyMission`, `EventCard`, `PlayerStats`/`EarnedBadge`, `World`, `Database`.
@@ -400,6 +401,17 @@ Entiteiten: `Pigeon`, `Loft`, `User`, `BreedingPair`, `Flight` (+ `SimEntry`,
 - `Pigeon.orientation` = oriëntatie, `speed` = snelheid, `libido`, `health`,
   `experience`, `talent`.
 - `Loft.food` is een **`FoodStock` = Record<FeedRationKey, number>** (kg per type).
+  Bijkopen aan `FEED_RATIONS[k].pricePerKg`, terugverkopen aan **`FOOD_RESALE_RATE` (0,8)**
+  daarvan — verkopen levert dus altijd een klein verlies op.
+- `World.leaderboard` = **JSON-cache** van de twee wereldwijde ranglijsten (hokken +
+  duiven). `/state` mag die niet zelf berekenen: dat leest élke duif, en juist dat maakte
+  het leesbudget op. Ververst door `computeLeaderboard` bij elke volle engine-run.
+- `Loft.pendingBroods` = **`PendingBrood[]`** — uitgekomen jongen die nog **niet** in
+  `db.pigeons` zitten omdat het hok vol was. Ze wachten op de keuze van de speler.
+  Hangt bewust aan de **loft-rij** (kolom `pending_broods` JSON, net als `pending_event`)
+  en níet in een eigen tabel: de lofts worden toch al elk verzoek geladen, en het duurste
+  verzoek zit al op **~42 van de 50** queries die één Worker-invocatie mag doen — een
+  eigen tabel kostte er structureel één extra.
 
 **Recent toegevoegde velden (rijden mee in bestaande kolommen/JSON — geen migratie):**
 - `Pigeon.breed?` — **ras** (breed-id, kolom `breed TEXT`; zie §Rassen). Puur
@@ -719,7 +731,9 @@ Entiteiten: `Pigeon`, `Loft`, `User`, `BreedingPair`, `Flight` (+ `SimEntry`,
 
 - `DashboardPage` — home. **Seizoen-sectie** onder de stat-tegels: "Seizoen X · week
   Y/4" + badge met **dagen tot de volgende speelweek** (`nextPlayWeek`+`timeUntil` in
-  `ui.tsx`; week 4 → "nieuw seizoen"). Voorraad per voertype (kopen), voer-effecten **per dag** in
+  `ui.tsx`; week 4 → "nieuw seizoen"). Voorraad per voertype met een **voerbalie die twee
+  kanten op werkt** (Kopen/Verkopen-schakelaar; verkopen aan `FOOD_RESALE_RATE` = 80%, met
+  een *Alles*-knop voor de hele voorraad van dat type), voer-effecten **per dag** in
   **tekst** (energie/gezondheid/conditie/libido). Tegel "**Ziek/gewond in je hok**"
   (ziekenboeg telt niet mee). **Klikbare tegel "Dagelijkse kosten"** — **full-width,
   onderaan de tegelrij** (`gridColumn: 1 / -1`, zodat het oneven tegelaantal er niet
@@ -791,7 +805,12 @@ Entiteiten: `Pigeon`, `Loft`, `User`, `BreedingPair`, `Flight` (+ `SimEntry`,
 - `PigeonPage` bij andermans (niet-bot) duif: kaart **"Bied op deze duif"** (bod
   uitbrengen / lopend bod intrekken). Statbalken verborgen (`revealed:false`) →
   enkel ★talent + "eigenschappen onbekend"-melding.
-- Verder: `BreedingPage`, `SponsorsPage`, `LoginPage`.
+- `BreedingPage`: nieuw koppel + lopende broedsels, én bovenaan het **nest-keuzescherm**
+  (`components/NestChoice.tsx`) zodra een worp op een keuze wacht. Dat scherm toont per
+  jong de score **en de gen-caps** (daar gaat de keuze over), heeft een uitklapbaar
+  *Maak plaats* met 🕊️/🍲 per volwassen duif, en blokkeert het koppelformulier zolang het
+  nest openstaat. Nav-teller op **Kweek** = `state.pendingNests`.
+- Verder: `SponsorsPage`, `LoginPage`.
 
 **Rondleiding (`components/Tour.tsx`):** interactieve spotlight-tour die per stap
 naar de juiste pagina navigeert en het relevante element highlight via
@@ -850,6 +869,7 @@ npx tsx daily-budget.test.mts      # D1-DAGlimieten: een drukke dag < 50% van 5M
 npx tsx sponsor-refusal.test.mts   # een slechtere concurrent-sponsor komt niet terug
 npx tsx commentary.test.mts        # het live verslag groeit aan, herschrijft niet
 npx tsx betting-odds.test.mts      # weddenschapskansen kloppen en zijn stabiel
+npx tsx poll-budget.test.mts       # polls + smalle load blijven binnen het dagbudget
 npx tsx force-finish.test.mts      # admin-"match beëindigen" == natuurlijk uitvliegen
 ```
 Diagnose zonder assertie: `npx tsx cpu-sweep.mts` (CPU per operatie, duurste
@@ -857,8 +877,8 @@ eerst) en `npx tsx limits-report.mts` (queries/rijen per verzoek).
 (Beide staan buiten `tsconfig.json` (`include` = `core/` + `functions/`), dus tsc raakt ze niet.)
 
 ### Git + deploy (ALTIJD, zie §0)
-1. Ontwikkel + commit op **`claude/hallo-w97s85`**; push met
-   `git push -u origin claude/hallo-w97s85` (retry met backoff).
+1. Ontwikkel + commit op de **dev-branch uit §0**; push met
+   `git push -u origin <dev-branch>` (retry met backoff).
 2. **Deploy meteen naar productie** door de commit op de deploy-branch te zetten:
    ```bash
    git fetch origin claude/roekoe-game-website-jwa0vo
@@ -867,7 +887,7 @@ eerst) en `npx tsx limits-report.mts` (queries/rijen per verzoek).
    git cherry-pick <commit>        # of meerdere
    # typecheck + build ter controle
    git push -u origin claude/roekoe-game-website-jwa0vo   # triggert Cloudflare Pages
-   git checkout claude/hallo-w97s85           # terug naar dev
+   git checkout <dev-branch>                  # terug naar dev
    ```
 3. **Geen PR** tenzij expliciet gevraagd.
 4. Commit messages in het **Nederlands**, en eindig met de footer:
@@ -925,6 +945,145 @@ Alles hieronder staat **live** op de deploy-branch. Data-migraties liepen door t
   je ook de races die de kalender intussen zelf start, en dat maakt hem flaky.
 - **`payFinishedFlightPrizes` is nu geëxporteerd** (was module-privé) zodat de test het
   live-verloop kan naspelen. Alle elf regressietests + beide typechecks + build groen.
+
+**Weddenschappen waren stuk, en de smalle load was minder smal dan gedacht**
+- **Symptoom (eigenaar):** in het weddenschapspaneel heette **elke** deelnemer `duif`
+  met **★0** — enkel de eigen duiven klopten. Wedden was daardoor onbruikbaar.
+- **Oorzaak: één regel op de verkeerde plaats.** In `d1.ts::load` leidde het smalle
+  duiven-blok de extra ids af uit `dbObj.flights`, maar die array werd **twintig regels
+  later** pas gevuld. `entrantIds` was dus **altijd leeg** en de `UNION` haalde enkel
+  `WHERE owner_id = ?` op. `flightDTO.entrants` viel voor elke andere duif terug op
+  `p?.name ?? 'duif'` / `talent 0`. Gemeten: 33 van de 35 deelnemers naamloos.
+- ⚠️ **De duurdere ontdekking: de naïeve fix mag níet.** `entrants` naamgeven betekent
+  élke deelnemer van élke lopende vlucht laden, en dat is zowat de hele populatie. Met
+  enkel de volgorde-fix, gemeten op het ontwerpplafond:
+
+  | Duiven per hok per vlucht | Smalle poll | Volle load | Winst van "smal" |
+  |---|---|---|---|
+  | kapot (de oude toestand) | 73 rijen | 261 | 72 % |
+  | 1 | 190 | 263 | 28 % |
+  | 2 | 243 | 264 | 8 % |
+  | 3 (realistisch) | 242 | 260 | **7 %** |
+
+  De hele winst van de vorige ronde zou dus verdampen: `/api/flights` wordt door élke
+  open tab elke 90 s gepolld.
+- **Waarom niemand dat zag:** `poll-budget.test.mts` schreef **geen enkele duif in op een
+  vlucht** (geen `enterFlight`, geen `entries`). De entrant-helft van de `UNION` was in
+  die test altijd leeg, dus de test kon dit per constructie niet meten — zijn cijfer was
+  identiek mét en zónder de bug. **Nu bouwt hij een echte kalender** (6 vluchten, 184
+  ingeschreven duiven) en bewaakt hij precies dit.
+- **De fix: `entrants` van het hete pad halen** — de hefboom die verderop al als
+  "volgende stap" stond. `flightDTO` draagt het veld niet meer; de lijst komt van de
+  nieuwe route **`GET /api/flights/:id/entrants`** (`flightEntrantsDTO` in
+  `presenters.ts`), **bewust níet** in `NARROW_PATHS`, dus met een volle load. Die route
+  gaat enkel af **wanneer iemand het weddenschapspaneel opent** — een handvol keer per
+  dag i.p.v. elke 90 s per tab. `BetPanel` (`FlightsPage.tsx`) haalt ze op bij het openen
+  en toont zolang "Deelnemers laden…".
+- **De smalle load laadt nu enkel nog wat een smalle-pad-DTO écht noemt:** de eigen duiven
+  plus de **estafetteploegen** van niet-afgelopen vluchten (`flightDTO.teams` is de enige
+  overgebleven plek die een vreemde duif bij naam noemt). Dat is één ploeg van 3 per hok,
+  om de week — begrensd door het spelersaantal i.p.v. door de kalender.
+- **Gemeten na de fix** (204 duiven, 6 geplande vluchten, **184 ingeschreven duiven**):
+  smalle poll **71 rijen** vs. volle load **261** — de smalle load blijft op **14 eigen
+  duiven** staan, ongeacht hoeveel er ingeschreven is. Het ergste realistische geval zit
+  op **18 %** van het dagbudget. `previewBet` zelf is goedkoop: **0,05 ms** met cache,
+  **~1,1 ms** bij een cache-miss (≈2,1 ms in productie, van de 10).
+- **Om te onthouden:** een DTO die een duif **bij naam** noemt buiten het eigen hok,
+  trekt de volle `pigeons`-tabel mee. Zet zoiets nooit op een gepollde route — geef het
+  een eigen route die pas afgaat als de speler er om vraagt.
+- **Geen migratie, geen schemawijziging**, `dataVersion` blijft **38**. Alle dertien
+  regressietests + beide typechecks + build groen.
+
+**Leesbudget: het spel lag plat omdat élk verzoek de hele duivenpopulatie las**
+- **Symptoom:** het spel werd onbereikbaar nadat een nieuwe speler een tijd had rondgeklikt.
+  Niet de CPU: de bindende limiet is **D1 rijen gelezen**, 5M/dag, en die is **gedeeld door
+  alle spelers samen**.
+- **Gemeten oorzaak.** Per verzoek: **264 van de ~300 rijen was `SELECT * FROM pigeons`** —
+  de complete duivenpopulatie, bij élk verzoek, ongeacht de route. Dat gaf ~17k verzoeken
+  per dag voor iedereen samen. Daar bovenop pollden **verborgen tabs gewoon door**: er was
+  nergens `visibilitychange`-afhandeling, dus een vergeten Vluchten-tab kostte 960
+  verzoeken/dag voor niemand.
+- **Client — `useVisiblePoll` (`client/src/game/useVisiblePoll.ts`).** Een poll draait enkel
+  terwijl de tab zichtbaar is, en doet één inhaalslag bij terugkomst (met een drempel van
+  één interval, zodat tabben geen burst geeft). Toegepast op `FlightsPage` (90 s),
+  `LiveFlightPage` (60 s) en `MarketPage` (15 s, enkel in de veiling-slotfase).
+- **Client — `/state` ontdubbeld.** `GameContext.refresh` deelt de lopende fetch, want
+  pagina's vuurden routinematig hun eigen `load()` én een `refresh()` voor dezelfde actie.
+- **Server — smalle duiven-load (`LoadOptions.narrowWhenIdle` in `d1.ts`).** Een verzoek op
+  een **allowlist** (`NARROW_PATHS`: `/state`, `/flights`, `/bets`, `/notifications`) dat
+  **GET/HEAD** is **én** binnenkomt terwijl de engine nog vers is (`ADVANCE_THROTTLE_SECONDS`),
+  krijgt enkel **de eigen duiven + de estafetteploegen van niet-afgelopen vluchten**, in één
+  index-gedekte `UNION` (een `OR` over kolommen zou terugvallen op een full scan). Boven 400
+  deelnemers valt hij terug op de volle tabel. (Oorspronkelijk **alle** deelnemers — dat
+  bleek zowat de hele populatie en maakte de versmalling zinloos; zie het kopstuk van §8.)
+- **`store.narrowed`** is publiek en de middleware weigert de engine te draaien op zo'n
+  store — expliciet, in plaats van te vertrouwen op twee voorwaarden die toevallig samenvallen.
+- **Wat de versmalling mogelijk maakte:** `/state` had alle duiven nodig voor twee top-10-
+  lijsten. Die zitten nu in **`World.leaderboard`** (JSON op de world-rij, kolom `leaderboard`),
+  ververst door `computeLeaderboard` op élke volle engine-run — precies de momenten waarop
+  ze kunnen veranderen. En `flightDTO` levert `teams` niet meer voor **afgelopen**
+  vluchten: daar was het dood (de volgorde ligt vast, resultaten dragen hun eigen namen).
+  `entrants` is intussen **helemaal uit `flightDTO` verdwenen** — zie het kopstuk van §8.
+- **Resultaat (`poll-budget.test.mts`, 264 duiven):** smal **51 rijen** vs. vol **300**.
+  Het ergste realistische geval (10 spelers, hele dag een zichtbare tab + 300 handelingen elk)
+  gaat van **162% → 13%** van het dagbudget.
+- **Bewaakt door `poll-budget.test.mts`:** geen kale `setInterval` die het netwerk raakt,
+  geen poll sneller dan 60 s (behalve de veiling-slotfase), en — het echte risico —
+  **een smalle load mag bij `persist` nooit andermans duiven wissen**, een schrijf-verzoek
+  krijgt altijd de volle wereld, en een verlopen engine dwingt een volle load af.
+
+**Voer kan terug naar de handelaar, aan 80%**
+- **Waarom:** voer kopen was eenrichtingsverkeer. Te veel gekocht, of een voertype dat je
+  niet meer gebruikt (bv. Libido-mix na de kweekperiode), zat voorgoed vast in je voorraad.
+- **`FOOD_RESALE_RATE = 0.8`** in `gameConfig.ts`. `sellFood` + `foodResaleValue` in
+  `engine.ts`, route `POST /loft/food/sell` `{type, kg}`, tarief in `/state` als
+  `economy.foodResaleRate`.
+- **Bewust onder 1:** een rondje kopen → verkopen moet **altijd** geld kosten, anders is
+  voer een spaarpot en is overkopen gratis. 100 kg Premium heen en weer = **−€120**.
+  `food-resale.test.mts` bewaakt dat voor elk voertype en elke hoeveelheid.
+- **Geen missievoortgang op verkopen** (enkel `buyfood` bij kopen), zodat een koop/verkoop-
+  lus de dagmissie niet kan uitmelken.
+- **UI:** de bestaande voerbalie op `DashboardPage` (kaart *Verzorging*) heeft nu een
+  Kopen/Verkopen-schakelaar. In verkoopmodus toont de dropdown de **terugkoopprijs**, staat
+  er een **Alles**-knop (hele voorraad van dat type) en wordt de knop geblokkeerd zodra je
+  meer opgeeft dan je hebt. Getallen staan verder in de wiki (§Energie, voer & rust).
+- **`round1` bij de voorraadcontrole**, want de stock zelf wordt op één decimaal gehouden:
+  zonder dat werd "verkoop alles" van 3.4000000000000004 kg geweigerd.
+
+**Vol hok bij het uitkomen: de speler kiest, in plaats van stil verlies**
+- **Wat er misging.** `tickBreedingHatch` deed `young.slice(0, capacity - owned)`: paste de
+  worp niet, dan werden de overtallige jongen **weggegooid**. Erger nog, de meldingstakken
+  waren `admitted.length > 0` en `else if (young.length === 0)` — het geval *"er waren
+  jongen, maar er paste er geen"* viel door beide heen. Geen duif, geen melding, en de
+  €200 + 2×15 energie weg. `startBreeding` controleerde de capaciteit ook niet; enkel
+  `bots.ts:maybeBreed` beschermde zichzelf al (`pairs >= capacity - pigeons.length`).
+- **Nu:** past de worp niet, dan wordt **de hele worp** vastgehouden als `PendingBrood` op
+  `loft.pendingBroods` (niet de eerste N ervan — anders is de keuze niet echt van de
+  speler). De speler kiest per jong houden of niet: **alles, een deel, of niets**. Wat
+  niet gekozen is, vliegt weg (€0 — het restaurant blijft voor volwassen duiven).
+- **Plaats maken** gebeurt in hetzelfde scherm via de bestaande `/pigeons/:id/release` en
+  `/pigeons/:id/restaurant` — geen nieuwe economie, geen nieuwe exploit.
+- **Geen deadline, wel een slot:** zolang er een nest openstaat weigert `startBreeding`
+  een nieuw koppel (*"Er wacht nog een nest op je keuze"*). Zo hangt er nooit een vergeten
+  nest, en verlies je nooit een topjong door even niet in te loggen.
+- **Bots** houden het oude afkappen: ze hebben geen UI om mee te kiezen (en `maybeBreed`
+  koppelt sowieso nooit meer dan er vrije plaatsen zijn).
+- **Een jong in het nest staat niet in `db.pigeons`**, dus het eet niet, veroudert niet mee
+  in de verzorgingstick en kan niet ziek worden. `birthWeek` staat wél vast vanaf het
+  uitkomen, dus lang wachten levert een oudere duif op — dat is de enige kost van talmen.
+- **Badges/statistiek:** `awardBroodBadges` (in `breeding.ts`, gedeeld door het directe
+  uitkomen en `resolveBrood`) telt enkel de **gehouden** jongen in `stats.babies`.
+  `tweeling` gaat over de wórp (dus ook als je er één houdt); `dynastie` wordt bij het
+  uitkomen als boolean op het nest vastgelegd, want bij het beslissen kunnen de ouders
+  al weg zijn.
+- **Bestanden:** `schema.ts` (`PendingBrood`, `Loft.pendingBroods`), `schedule.ts`
+  (`tickBreedingHatch`), `breeding.ts` (`awardBroodBadges`), `engine.ts` (`resolveBrood`,
+  slot in `startBreeding`), `d1.ts` (kolom `pending_broods`), `presenters.ts`
+  (`broodYoungDTO`), API `GET /breeding` (nu `{pairs, nests, capacity, pigeonCount,
+  freeSpace}`) + `POST /breeding/nest/:id` `{keep: string[]}`, `/state` → `pendingNests`,
+  client `NestChoice.tsx` + `BreedingPage` + nav-teller in `Layout`.
+- **Test:** `brood-choice.test.mts` (29 checks, incl. de D1-round trip en dat je het nest
+  van een ander niet kan afhandelen). Query-budget onveranderd: 42–43 bij `PIGEONS=200`.
 
 **503-fix ronde 8: de dagovergang zette het spel vast**
 - **Symptoom:** het spel bleef "laden". Gemeten tegen productie: de statische site,
@@ -1080,10 +1239,10 @@ Alles hieronder staat **live** op de deploy-branch. Data-migraties liepen door t
   het spel ligt rond **264** duiven (10 spelers × capaciteit 20 + 8 bots × 8), dus er is
   ruimte over.
 - **Geen migratie, geen schemawijziging**, `dataVersion` blijft **38**.
-- **Wat nog steeds de hete weg is:** `/state` en `/flights` laden wél de hele wereld
-  (~349 rijen). Dat is nu de grootste post. Volgende hefboom als het ooit weer krap
-  wordt: `entrants` uit `/flights` halen en pas ophalen wanneer het weddenschapspaneel
-  opengaat — dan hoeft die route `pigeons` niet meer te laden.
+- **Wat toen nog de hete weg was:** `/state` en `/flights` laadden de hele wereld
+  (~349 rijen). De genoemde volgende hefboom — `entrants` uit `/flights` halen en pas
+  ophalen wanneer het weddenschapspaneel opengaat — **is intussen uitgevoerd**; zie het
+  kopstuk van §8.
 
 **CPU-fix ronde 2: het live verslag en de weddenschapsodds**
 - **Aanleiding:** "Exceeded CPU Time Limits" bleef terugkomen, vooral **rond grote

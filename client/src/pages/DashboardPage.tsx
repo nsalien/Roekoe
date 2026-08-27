@@ -20,6 +20,8 @@ export function DashboardPage() {
   const toast = useToast();
   const [buyKg, setBuyKg] = useState(50);
   const [buyType, setBuyType] = useState<FeedRation>('normal');
+  /** The feed counter works both ways: buy at the list price, sell back below it. */
+  const [foodMode, setFoodMode] = useState<'buy' | 'sell'>('buy');
   const [busy, setBusy] = useState(false);
   const [showCosts, setShowCosts] = useState(false);
 
@@ -33,6 +35,12 @@ export function DashboardPage() {
   const avgForm = pigeons.length ? Math.round(pigeons.reduce((s, p) => s + (p.form ?? 0), 0) / pigeons.length) : 0;
   const eco = state.economy;
   const inf = state.infirmary;
+  // Feed counter (buy/sell). The resale rate is deliberately < 1, so selling back
+  // always costs a little — see FOOD_RESALE_RATE in gameConfig.
+  const selling = foodMode === 'sell';
+  const resaleRate = eco.foodResaleRate ?? 0.8;
+  const foodStock = loft.food[buyType] ?? 0;
+  const sellValue = Math.round(buyKg * feedRations[buyType].pricePerKg * resaleRate);
   // Full cumulative daily-cost breakdown (from the loft DTO, same source as what
   // is actually deducted each day). Each row: label, count context, and amount.
   const costs = loft.dailyCosts;
@@ -371,11 +379,31 @@ export function DashboardPage() {
             <Link to="/wiki#energie">Meer over voer, honger &amp; rust →</Link>
           </p>
 
-          <label>Voer bijkopen</label>
+          <div className="row" style={{ justifyContent: 'space-between', gap: 8 }}>
+            <label style={{ margin: 0 }}>{selling ? 'Voer verkopen' : 'Voer bijkopen'}</label>
+            <div className="row" style={{ gap: 4 }}>
+              <button
+                className={`btn sm ${selling ? 'ghost' : ''}`}
+                disabled={busy}
+                onClick={() => setFoodMode('buy')}
+              >
+                Kopen
+              </button>
+              <button
+                className={`btn sm ${selling ? '' : 'ghost'}`}
+                disabled={busy}
+                onClick={() => setFoodMode('sell')}
+              >
+                Verkopen
+              </button>
+            </div>
+          </div>
           <div className="row" style={{ flexWrap: 'wrap' }}>
             <select value={buyType} onChange={(e) => setBuyType(e.target.value as FeedRation)} style={{ width: 'auto' }}>
               {(Object.keys(feedRations) as FeedRation[]).map((key) => (
-                <option key={key} value={key}>{feedRations[key].label} (€{feedRations[key].pricePerKg}/kg)</option>
+                <option key={key} value={key}>
+                  {feedRations[key].label} (€{selling ? Math.round(feedRations[key].pricePerKg * resaleRate * 100) / 100 : feedRations[key].pricePerKg}/kg)
+                </option>
               ))}
             </select>
             <input
@@ -385,14 +413,46 @@ export function DashboardPage() {
               onChange={(e) => setBuyKg(Number(e.target.value))}
               style={{ maxWidth: 90 }}
             />
-            <button
-              className="btn"
-              disabled={busy || buyKg <= 0}
-              onClick={() => act(() => api('/loft/food', { method: 'POST', body: { type: buyType, kg: buyKg } }), `${buyKg} kg ${feedRations[buyType].label} gekocht`)}
-            >
-              Kopen · <Money value={Math.round(buyKg * feedRations[buyType].pricePerKg)} />
-            </button>
+            {selling && (
+              <button
+                className="btn ghost sm"
+                disabled={busy || foodStock <= 0}
+                onClick={() => setBuyKg(Math.round(foodStock * 10) / 10)}
+                title="Verkoop je hele voorraad van dit type"
+              >
+                Alles ({Math.round(foodStock * 10) / 10} kg)
+              </button>
+            )}
+            {selling ? (
+              <button
+                className="btn"
+                disabled={busy || buyKg <= 0 || buyKg > foodStock}
+                onClick={() => act(
+                  () => api('/loft/food/sell', { method: 'POST', body: { type: buyType, kg: buyKg } }),
+                  `${buyKg} kg ${feedRations[buyType].label} verkocht`,
+                )}
+              >
+                Verkopen · <Money value={sellValue} />
+              </button>
+            ) : (
+              <button
+                className="btn"
+                disabled={busy || buyKg <= 0}
+                onClick={() => act(() => api('/loft/food', { method: 'POST', body: { type: buyType, kg: buyKg } }), `${buyKg} kg ${feedRations[buyType].label} gekocht`)}
+              >
+                Kopen · <Money value={Math.round(buyKg * feedRations[buyType].pricePerKg)} />
+              </button>
+            )}
           </div>
+          {selling && (
+            <p className="faint" style={{ margin: '6px 0 0', fontSize: '0.8rem' }}>
+              De voerhandelaar betaalt <strong>{Math.round(resaleRate * 100)}%</strong> van de aankoopprijs terug — op
+              voer verkopen verlies je dus altijd een beetje.
+              {buyKg > foodStock && (
+                <> Je hebt maar <strong>{Math.round(foodStock * 10) / 10} kg</strong> {feedRations[buyType].label}.</>
+              )}
+            </p>
+          )}
         </div>
 
         {/* Upcoming flights */}

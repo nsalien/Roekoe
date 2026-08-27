@@ -14,6 +14,7 @@ import {
   DEFAULT_BOT_COUNT,
   FEED_RATIONS,
   FOOD_PRICE_PER_KG,
+  FOOD_RESALE_RATE,
   INFIRMARY,
   INFIRMARY_CAPACITY_TIERS,
   LOFT_CAPACITY_TIERS,
@@ -34,6 +35,7 @@ import type { Database, Loft, Pigeon, User } from '../schema.js';
 import { emptySponsorState, emptyStats } from '../schema.js';
 import { newId, type Store } from '../store.js';
 import { awardBadge, evaluateBadges } from './badges.js';
+import { awardBroodBadges } from './breeding.js';
 import { botTakeWeeklyActions } from './bots.js';
 import { progressMissions } from './missions.js';
 import { resolveEvent as resolveEventCard } from './events.js';
@@ -115,6 +117,7 @@ export function createLoftForUser(store: Store, user: User, loftName: string): L
       missionsDay: '',
       streak: 0,
       pendingEvent: null,
+      pendingBroods: [],
       sponsorship: emptySponsorState(),
     };
     db.lofts.push(loft);
@@ -167,6 +170,7 @@ export function seedWorld(store: Store): void {
         missionsDay: '',
         streak: 0,
         pendingEvent: null,
+        pendingBroods: [],
         sponsorship: emptySponsorState(),
       };
       db.lofts.push(loft);
@@ -249,6 +253,63 @@ export function stopBreeding(store: Store, userId: string, pairId: string): stri
     const idx = db.breedingPairs.findIndex((bp) => bp.id === pairId && bp.ownerId === userId);
     if (idx === -1) return 'Koppel niet gevonden';
     db.breedingPairs.splice(idx, 1);
+    return null;
+  });
+}
+
+/**
+ * Resolve a held clutch (see `PendingBrood`): the owner names the young they want
+ * to keep, and everything else in the nest flies off. Keeping nothing is a valid
+ * choice, and so is keeping every youngster — provided the perches are there by
+ * now, which is why the space check runs against the CURRENT loft rather than
+ * against whatever was free at hatch time.
+ *
+ * Freeing those perches is the ordinary business of `releasePigeon` /
+ * `sellToRestaurant`; this function only admits and drops.
+ */
+export function resolveBrood(
+  store: Store,
+  userId: string,
+  broodId: string,
+  keepIds: string[],
+): string | null {
+  return store.mutate((db) => {
+    const loft = db.lofts.find((l) => l.userId === userId);
+    const brood = loft?.pendingBroods?.find((b) => b.id === broodId);
+    if (!loft || !brood) return 'Nest niet gevonden';
+
+    // De-duplicate: a doubled id must not buy a second perch for one bird.
+    const wanted = new Set(keepIds);
+    const keep = brood.young.filter((y) => wanted.has(y.id));
+    if (keep.length !== wanted.size) return 'Onbekend jong in je keuze';
+
+    const owned = db.pigeons.filter((p) => p.ownerId === userId).length;
+    const space = loft.capacity - owned;
+    if (keep.length > space) {
+      return space <= 0
+        ? 'Je hok zit vol — laat eerst een duif vrij of verkoop er een'
+        : `Er is nog maar plaats voor ${space} ${space === 1 ? 'jong' : 'jongen'} — maak meer plaats of houd er minder`;
+    }
+
+    db.pigeons.push(...keep);
+    loft.pendingBroods = loft.pendingBroods.filter((b) => b.id !== brood.id);
+
+    if (keep.length > 0) {
+      awardBroodBadges(db, loft, keep, brood.young.length, brood.dynasty);
+      const names = keep.map((y) => y.name).join(' en ');
+      notify(
+        db, userId, 'info', `🐣 ${keep.length === 1 ? 'Een jong' : `${keep.length} jongen`} in het hok`,
+        `${names} ${keep.length === 1 ? 'hoort' : 'horen'} nu bij ${loft.name}.`,
+      );
+    }
+    const released = brood.young.length - keep.length;
+    if (released > 0) {
+      notify(
+        db, userId, 'info', '🕊️ Jongen vrijgelaten',
+        `${released === 1 ? 'Eén jong' : `${released} jongen`} uit het nest van ${brood.sireName} × ${brood.damName} ` +
+          `${released === 1 ? 'vloog' : 'vlogen'} uit — je krijgt er niets voor terug.`,
+      );
+    }
     return null;
   });
 }
@@ -423,6 +484,34 @@ export function buyFood(store: Store, userId: string, type: string, kg: number):
     loft.money -= cost;
     loft.food[key] = round1((loft.food[key] ?? 0) + kg);
     progressMissions(db, loft, 'buyfood', 1);
+    return null;
+  });
+}
+
+/** What the merchant pays for `kg` of `type` — the buy price minus the resale cut. */
+export function foodResaleValue(type: FeedRationKey, kg: number): number {
+  return Math.round(kg * FEED_RATIONS[type].pricePerKg * FOOD_RESALE_RATE);
+}
+
+/**
+ * Sell unused feed back to the merchant at `FOOD_RESALE_RATE` of what it cost.
+ * You always take a small loss, so this is a way out of overbuying (or of a ration
+ * you stopped using) rather than a way to park money.
+ */
+export function sellFood(store: Store, userId: string, type: string, kg: number): string | null {
+  return store.mutate((db) => {
+    const loft = db.lofts.find((l) => l.userId === userId);
+    if (!loft) return 'Geen hok gevonden';
+    if (!(type in FEED_RATIONS)) return 'Ongeldig voedingstype';
+    if (!(kg > 0)) return 'Ongeldige hoeveelheid';
+    const key = type as FeedRationKey;
+    const stock = loft.food[key] ?? 0;
+    // round1, because that is the precision the stock itself is kept at: without
+    // it a "sell everything" of 3.4000000000000004 kg would be refused.
+    if (round1(kg) > round1(stock))
+      return `Je hebt maar ${round1(stock)} kg ${FEED_RATIONS[key].label} in voorraad`;
+    loft.food[key] = round1(Math.max(0, stock - kg));
+    loft.money += foodResaleValue(key, kg);
     return null;
   });
 }
@@ -795,6 +884,8 @@ export function startBreeding(
     if (alreadyBreeding) return 'Een van deze duiven koppelt al';
     const racing = pigeonCommittedToFlight(db, sireId) || pigeonCommittedToFlight(db, damId);
     if (racing) return 'Een ingeschreven duif kan niet koppelen — schrijf ze eerst uit voor een vlucht';
+    if (loft.pendingBroods?.length)
+      return 'Er wacht nog een nest op je keuze — beslis eerst welke jongen je houdt';
     if (loft.money < BREEDING.cost) return 'Niet genoeg geld om te koppelen';
     loft.money -= BREEDING.cost;
     // Breeding costs the parents some energie.

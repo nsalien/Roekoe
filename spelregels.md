@@ -707,6 +707,24 @@ De tabel toont **weekwaarden**; in het spel (Overzicht) zie je ze **per dag** (1
 Iedereen start (na de overstap) met **50 kg Normaal**; alle duiven staan standaard
 op Normaal.
 
+**Voer kopen én terugverkopen.** Op de **Overzicht**-pagina (Verzorging) staat een
+voerbalie die twee kanten op werkt. Kopen gebeurt aan de prijs uit de tabel
+hierboven. Te veel gekocht, of een voertype dat je niet meer gebruikt? Dan neemt de
+voerhandelaar het terug aan **80 % van de aankoopprijs** — je maakt op een verkoop
+dus **altijd een klein verlies**. Met de knop *Alles* verkoop je in één keer je hele
+voorraad van dat type.
+
+| Type | Koopprijs/kg | Terugkoopprijs/kg | Verlies per kg |
+|---|---|---|---|
+| Normaal | €3 | €2,40 | €0,60 |
+| Premium | €6 | €4,80 | €1,20 |
+| Libido-mix | €4,50 | €3,60 | €0,90 |
+| Herstel | €3 | €2,40 | €0,60 |
+
+> Voer is dus **geen spaarpot**: 100 kg Premium kopen en meteen terugverkopen kost
+> je €120. Koop wat je de komende dagen nodig hebt — de terugkoop is een uitweg uit
+> een misrekening, geen handel.
+
 Per dag, per gevoerde duif (weekwaarden gedeeld door 7):
 ```
 Energie   += (energie_per_week / 7) · (1 + Ervaring/200)   // ervaring = sneller herstel
@@ -1063,6 +1081,40 @@ gebeurt.
 > bij een futloos koppel (fertiliteit ~20) eerder ~4,9 dag. Omdat het een kans
 > per moment is, weet je nooit exact wanneer — soms is het er al in enkele uren,
 > soms pas na een week.
+
+### 7.1 Een vol hok bij het uitkomen: jij kiest
+
+Je mag **altijd** koppelen, ook als je hok al vol zit. Komen de jongen uit terwijl
+er geen plaats is, dan gaan ze **niet verloren** — het hele nest blijft wachten
+tot jij beslist. Je krijgt een melding, en bij *Kweek* verschijnt het nest met
+alle jongen erin: naam, geslacht, algemene score én hun **gen-caps**, zodat je
+ziet welk jong een plaats waard is.
+
+Per jong kies je **houden** of niet. Wat je niet kiest, **vliegt weg** — dat
+brengt niets op (het duivenrestaurant is enkel voor volwassen duiven, §9.2). Je
+mag:
+
+- **alle jongen houden** — als je genoeg plaatsen vrijmaakt;
+- **een deel houden** — bij een tweeling bijvoorbeeld enkel de duivin met de
+  betere genen;
+- **geen enkel jong houden** — een volwaardige keuze.
+
+**Plaats maken doe je vanuit hetzelfde scherm.** Onder *Maak plaats* staan je
+duiven met dezelfde twee knoppen als bij *Afscheid nemen* (§9.2): 🕊️ vrijlaten
+(€0) of 🍲 verkopen aan het duivenrestaurant (€50, maar **elke andere duif
+verliest 1–5 energie**). Een duif die ingeschreven staat voor een vlucht of zelf
+koppelt, kan niet weg.
+
+> **Zolang een nest op je keuze wacht, kan je geen nieuw koppel starten.** Zo
+> blijft er nooit een vergeten nest hangen. Er staat een teller op *Kweek* in het
+> menu tot je beslist hebt. Het nest **verloopt niet** — er is geen klok, je
+> verliest dus nooit een topjong omdat je even niet inlogde.
+>
+> Jongen in het nest zitten nog niet in je hok: ze **eten niet**, kosten geen
+> onderhoud en kunnen niet ziek worden. Hun **geboortedatum ligt wel vast** vanaf
+> het uitkomen — wacht je weken, dan komen ze navenant ouder binnen.
+
+---
 
 **Overerving:** elke vaardigheid = gemiddelde van beide ouders ± willekeurige
 mutatie (±8), begrensd op de **gen-cap** van het jong (zie §7bis). Ook de

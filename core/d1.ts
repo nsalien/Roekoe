@@ -15,9 +15,23 @@
  *  - `bets`          — only still-open bets plus the viewer's own.
  *  - `trades`        — only the newest `TRADE_LOAD_LIMIT` (index on `at`).
  *
- * Everything the engine reasons about globally (users, lofts, pigeons, flights,
- * auctions, …) is still loaded whole; those are bounded by the number of players
- * and the 2-day flight retention.
+ * Everything the engine reasons about globally (users, lofts, flights, auctions,
+ * …) is still loaded whole; those are bounded by the number of players and the
+ * 2-day flight retention.
+ *
+ * `pigeons` is the exception, because it is by far the biggest of them: at the
+ * design ceiling of ~264 birds it is **264 of the ~300 rows a request costs**.
+ * A request that only READS, and arrives while the engine's last run is still
+ * fresh, cannot touch the rest of the world — so those get a NARROW pigeon load
+ * (`loadNarrow`): the viewer's own birds, plus the relay teams of any unfinished
+ * flight (the one remaining place a narrow-path DTO names a foreign bird). The
+ * world-wide leaderboards that used to force a full read are served from
+ * `World.leaderboard`, refreshed on every full load.
+ *
+ * Keeping that extra set SMALL is the whole game: every entrant of every running
+ * flight is most of the population, and pulling them in costs as much as a full
+ * load. That is why the betting entrant list lives on its own full-load route
+ * (`GET /api/flights/:id/entrants`) instead of riding along on `/api/flights`.
  *
  * Because these three tables are no longer fully in memory, the engine can't
  * bound them by rewriting the array. `persist()` therefore appends bounded SQL
@@ -35,6 +49,7 @@ import type {
   Loft,
   Notification,
   Pigeon,
+  PendingBrood,
   PigeonOffer,
   SponsorState,
   Trade,
@@ -42,6 +57,7 @@ import type {
 } from './schema.js';
 import { emptyDatabase, emptyFoodStock, emptySponsorState, emptyStats } from './schema.js';
 import type { Store } from './store.js';
+import { ADVANCE_THROTTLE_SECONDS } from './config/gameConfig.js';
 
 const b = (v: unknown) => (v ? 1 : 0);
 
@@ -91,6 +107,7 @@ function rowToLoft(r: any): Loft {
     missionsDay: r.missions_day ?? '',
     streak: r.streak ?? 0,
     pendingEvent: r.pending_event ? JSON.parse(r.pending_event) : null,
+    pendingBroods: r.pending_broods ? (JSON.parse(r.pending_broods) as PendingBrood[]) : [],
     sponsorship: parseSponsorship(r),
     awards: r.awards ? JSON.parse(r.awards) : [],
   };
@@ -354,7 +371,7 @@ const LOFT_COLUMNS = [
   'user_id', 'name', 'money', 'food', 'food_stock', 'feed_ration', 'capacity', 'compartments',
   'season_points', 'total_wins', 'is_bot', 'infirmary_capacity', 'medicated_food', 'doctors',
   'physios', 'xp', 'level', 'stats', 'badges', 'missions', 'missions_day', 'streak',
-  'pending_event', 'sponsorship', 'last_rest_cure', 'awards',
+  'pending_event', 'sponsorship', 'last_rest_cure', 'awards', 'pending_broods',
 ];
 
 function loftRow(l: Loft): unknown[] {
@@ -367,7 +384,21 @@ function loftRow(l: Loft): unknown[] {
     JSON.stringify(l.sponsorship ?? emptySponsorState()),
     l.lastRestCure ?? null,
     JSON.stringify(l.awards ?? []),
+    // '' rather than '[]' for the common empty case, so an untouched loft's
+    // column-narrowed UPDATE keeps skipping this column.
+    l.pendingBroods?.length ? JSON.stringify(l.pendingBroods) : '',
   ];
+}
+
+/** How `D1Store.load` should size the pigeon read — see the file header. */
+export interface LoadOptions {
+  /**
+   * The caller vouches that this request only READS the viewer's own world. The
+   * narrow load still only happens when the engine is also fresh.
+   */
+  narrowWhenIdle?: boolean;
+  /** Injectable clock, so tests can drive the freshness window. */
+  nowMs?: number;
 }
 
 export class D1Store implements Store {
@@ -381,6 +412,12 @@ export class D1Store implements Store {
     private readonly worldSnapshot: string,
     /** Whose inbox/bets were loaded; the bounded cleanups key off this. */
     private readonly viewerId: string | undefined,
+    /**
+     * True when `pigeons` holds only the viewer's own birds plus flight
+     * entrants. Callers MUST NOT run the engine or any world-wide computation
+     * on such a store — see the file header.
+     */
+    readonly narrowed: boolean = false,
   ) {}
 
   get data(): Database {
@@ -396,7 +433,7 @@ export class D1Store implements Store {
    * database). It narrows the per-user tables to that player's rows; pass
    * nothing for an anonymous request and those tables come back empty.
    */
-  static async load(db: D1Database, viewerId?: string): Promise<D1Store> {
+  static async load(db: D1Database, viewerId?: string, opts?: LoadOptions): Promise<D1Store> {
     const worldRow = (await db.prepare('SELECT * FROM world WHERE id = 1').first()) as any;
     const dbObj = emptyDatabase();
     let worldExisted = false;
@@ -414,17 +451,33 @@ export class D1Store implements Store {
         seasonWeek: worldRow.season_week ?? 1,
         lastAdvance: worldRow.last_advance ?? '',
         dailyCareCursor: worldRow.daily_care_cursor ?? '',
+        leaderboard: worldRow.leaderboard ?? '',
       };
     }
 
     // The per-user tables are queried through their indexes, never scanned. An
     // anonymous request binds '' and matches nothing, which is what we want.
     const viewer = viewerId ?? '';
+
+    // Narrow the pigeon read? Only when the CALLER says this request is a pure
+    // read of the viewer's own world (an allowlisted path — see NARROW_PATHS in
+    // the API) AND the engine's last run is still fresh, so `advanceRealtime`
+    // will be skipped and nothing will reason over the birds we leave out.
+    // Anything else, including every write, still gets the whole table.
+    const lastAdvance = Date.parse(dbObj.world.lastAdvance ?? '');
+    const engineFresh =
+      !Number.isNaN(lastAdvance) &&
+      (opts?.nowMs ?? Date.now()) - lastAdvance >= 0 &&
+      (opts?.nowMs ?? Date.now()) - lastAdvance < ADVANCE_THROTTLE_SECONDS * 1000;
+    // `let`: an oversized entrant list downgrades this back to a full read below.
+    let narrowed = !!opts?.narrowWhenIdle && !!viewerId && engineFresh;
     const [users, lofts, pigeons, breeding, flights, notifications, trades, auctions, openBets, myBets] =
       await Promise.all([
         db.prepare('SELECT * FROM users').all(),
         db.prepare('SELECT * FROM lofts').all(),
-        db.prepare('SELECT * FROM pigeons').all(),
+        // On a narrowed load the pigeons come from a second, index-backed query
+        // that needs the flight rows first (for the entrants), so skip it here.
+        narrowed ? Promise.resolve({ results: [] }) : db.prepare('SELECT * FROM pigeons').all(),
         db.prepare('SELECT * FROM breeding_pairs').all(),
         db.prepare('SELECT * FROM flights').all(),
         db.prepare('SELECT * FROM notifications WHERE user_id = ?').bind(viewer).all(),
@@ -439,8 +492,41 @@ export class D1Store implements Store {
     dbObj.users = (users.results as any[]).map(rowToUser);
     dbObj.lofts = (lofts.results as any[]).map(rowToLoft);
     dbObj.pigeons = (pigeons.results as any[]).map(rowToPigeon);
-    dbObj.breedingPairs = (breeding.results as any[]).map(rowToBreeding);
+    // Flights must be parsed BEFORE the narrow pigeon read below, which derives
+    // the extra ids it needs from them. (This assignment used to sit twenty
+    // lines further down, so the set was always empty and every foreign bird on
+    // a narrowed load came back unnamed.)
     dbObj.flights = (flights.results as any[]).map(rowToFlight);
+    if (narrowed) {
+      // The viewer's own birds (idx_pigeons_owner) plus the relay teams of any
+      // flight that has not finished. Those teams are the ONLY birds outside the
+      // viewer's loft that a narrow-path DTO still names (flightDTO.teams — see
+      // core/presenters.ts); the betting entrant list has its own full-load
+      // route precisely so this stays small. A relay is one team of three per
+      // loft on alternating Saturdays, so this is bounded by the player count.
+      // One statement, both halves index-backed: an OR across columns would drop
+      // SQLite back to a full scan, which is the very thing we are avoiding.
+      const entrantIds = new Set<string>();
+      for (const f of dbObj.flights) {
+        if (f.status === 'completed' || !f.relay) continue;
+        for (const e of f.entries ?? []) entrantIds.add(e.pigeonId);
+      }
+      // Above a few hundred entrants the narrow read stops being narrow, and the
+      // bound parameters start approaching SQLite's variable limit. At that point
+      // the whole table is cheaper and simpler than a giant IN list.
+      if (entrantIds.size > 400) {
+        narrowed = false;
+        dbObj.pigeons = ((await db.prepare('SELECT * FROM pigeons').all()).results as any[]).map(rowToPigeon);
+      } else {
+        const ids = [...entrantIds];
+        const sql = ids.length
+          ? `SELECT * FROM pigeons WHERE owner_id = ? UNION SELECT * FROM pigeons WHERE id IN (${ids.map(() => '?').join(',')})`
+          : 'SELECT * FROM pigeons WHERE owner_id = ?';
+        const mine = await db.prepare(sql).bind(viewer, ...ids).all();
+        dbObj.pigeons = (mine.results as any[]).map(rowToPigeon);
+      }
+    }
+    dbObj.breedingPairs = (breeding.results as any[]).map(rowToBreeding);
     dbObj.notifications = (notifications.results as any[]).map(rowToNotification);
     dbObj.trades = (trades.results as any[]).map(rowToTrade).reverse(); // oldest → newest, as before
     dbObj.auctions = (auctions.results as any[]).map(rowToAuction);
@@ -473,7 +559,6 @@ export class D1Store implements Store {
     } catch {
       dbObj.offers = [];
     }
-
     const snapshots: Record<string, Map<string, string>> = {
       users: snapshot(dbObj.users, (u) => u.id),
       lofts: snapshot(dbObj.lofts, (l) => l.userId),
@@ -495,7 +580,7 @@ export class D1Store implements Store {
       lofts: rowSnapshot(dbObj.lofts, (l) => l.userId, loftRow),
     };
 
-    return new D1Store(db, dbObj, snapshots, rowSnapshots, worldExisted, JSON.stringify(dbObj.world), viewerId);
+    return new D1Store(db, dbObj, snapshots, rowSnapshots, worldExisted, JSON.stringify(dbObj.world), viewerId, narrowed);
   }
 
   /** Write back only what changed. */
@@ -512,16 +597,16 @@ export class D1Store implements Store {
     const wd = w.world;
     if (!this.worldExisted) {
       stmts.push(
-        db.prepare('INSERT INTO world (id, current_week, season_year, seeded, data_version, last_daily_tick, last_shelter_spawn, season_started_at, season_ends_at, season_week, last_advance, daily_care_cursor, version) VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)')
-          .bind(wd.currentWeek, wd.seasonYear, b(wd.seeded), wd.dataVersion ?? 0, wd.lastDailyTick ?? '', wd.lastShelterSpawn ?? '', wd.seasonStartedAt ?? '', wd.seasonEndsAt ?? '', wd.seasonWeek ?? 1, wd.lastAdvance ?? '', wd.dailyCareCursor ?? ''),
+        db.prepare('INSERT INTO world (id, current_week, season_year, seeded, data_version, last_daily_tick, last_shelter_spawn, season_started_at, season_ends_at, season_week, last_advance, daily_care_cursor, leaderboard, version) VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)')
+          .bind(wd.currentWeek, wd.seasonYear, b(wd.seeded), wd.dataVersion ?? 0, wd.lastDailyTick ?? '', wd.lastShelterSpawn ?? '', wd.seasonStartedAt ?? '', wd.seasonEndsAt ?? '', wd.seasonWeek ?? 1, wd.lastAdvance ?? '', wd.dailyCareCursor ?? '', wd.leaderboard ?? ''),
       );
     } else if (JSON.stringify(wd) !== this.worldSnapshot) {
       // Only write the world row when something in it actually changed. Previously
       // this ran on EVERY request (even read-only polls), burning the write quota
       // and making `world` (id=1) a hot row that concurrent requests locked on.
       stmts.push(
-        db.prepare('UPDATE world SET current_week = ?, season_year = ?, seeded = ?, data_version = ?, last_daily_tick = ?, last_shelter_spawn = ?, season_started_at = ?, season_ends_at = ?, season_week = ?, last_advance = ?, daily_care_cursor = ?, version = version + 1 WHERE id = 1')
-          .bind(wd.currentWeek, wd.seasonYear, b(wd.seeded), wd.dataVersion ?? 0, wd.lastDailyTick ?? '', wd.lastShelterSpawn ?? '', wd.seasonStartedAt ?? '', wd.seasonEndsAt ?? '', wd.seasonWeek ?? 1, wd.lastAdvance ?? '', wd.dailyCareCursor ?? ''),
+        db.prepare('UPDATE world SET current_week = ?, season_year = ?, seeded = ?, data_version = ?, last_daily_tick = ?, last_shelter_spawn = ?, season_started_at = ?, season_ends_at = ?, season_week = ?, last_advance = ?, daily_care_cursor = ?, leaderboard = ?, version = version + 1 WHERE id = 1')
+          .bind(wd.currentWeek, wd.seasonYear, b(wd.seeded), wd.dataVersion ?? 0, wd.lastDailyTick ?? '', wd.lastShelterSpawn ?? '', wd.seasonStartedAt ?? '', wd.seasonEndsAt ?? '', wd.seasonWeek ?? 1, wd.lastAdvance ?? '', wd.dailyCareCursor ?? '', wd.leaderboard ?? ''),
       );
     }
 
@@ -821,6 +906,16 @@ const SCHEMA_STEPS: string[] = [
     "ALTER TABLE world ADD COLUMN last_advance TEXT NOT NULL DEFAULT ''",
     "ALTER TABLE world ADD COLUMN daily_care_cursor TEXT NOT NULL DEFAULT ''",
   ] as string[]),
+
+  // Held clutches (see `PendingBrood`) ride along on the loft row, next to
+  // `pending_event`: the lofts table is already loaded on every request, so a
+  // separate table would have cost one more query per request — and the worst
+  // request is already at ~42 of the 50 a Worker invocation may spend.
+  "ALTER TABLE lofts ADD COLUMN pending_broods TEXT NOT NULL DEFAULT ''",
+
+  // Cached world-wide leaderboards, so /state no longer has to read every pigeon
+  // just to render two top-10 lists (see World.leaderboard).
+  "ALTER TABLE world ADD COLUMN leaderboard TEXT NOT NULL DEFAULT ''",
 ];
 
 /**

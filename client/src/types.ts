@@ -214,12 +214,19 @@ export interface EconomyCosts {
   restCureHealth: number;
   restCureHours: number;
   restCureCooldownDays: number;
+  foodResaleRate: number; // what the feed merchant pays back, as a fraction of the buy price
   restaurantName: string; // the local pigeon-soup restaurant
   restaurantPayout: number; // fixed coins for selling a bird there
   restaurantMoraleMin: number; // each remaining bird loses this much energie…
   restaurantMoraleMax: number; // …up to this much (random per bird)
 }
 
+/**
+ * One named entrant of a flight. Deliberately NOT part of `Flight`: naming a
+ * bird costs the server a full pigeon load, and `/flights` is polled by every
+ * open tab. Fetched from `GET /flights/:id/entrants` when the betting panel
+ * opens — see core/presenters.ts::flightEntrantsDTO.
+ */
 export interface FlightEntrant {
   pigeonId: string;
   name: string;
@@ -299,7 +306,6 @@ export interface Flight {
   weather: string;
   entryCount: number;
   entries: FlightEntry[];
-  entrants: FlightEntrant[];
   bettingOpen: boolean;
   results: FlightResult[];
   recap: string;
@@ -532,6 +538,8 @@ export interface GameState {
   missions: DailyMission[];
   streak: number;
   pendingEvent: EventCard | null;
+  /** Held clutches awaiting a keep/let-go choice — a nag badge on Kweek. */
+  pendingNests: number;
   unreadNotifications: number;
 }
 
@@ -630,4 +638,38 @@ export interface BreedingPair {
   sire: string;
   dam: string;
   hatchAt: string;
+}
+
+/** A youngster in a held nest: hatched, but not in the loft until you keep it. */
+export interface BroodYoung {
+  id: string;
+  name: string;
+  sex: Sex;
+  speed: number;
+  endurance: number;
+  orientation: number;
+  libido: number;
+  form: number;
+  health: number;
+  talent: number;
+  breed: Pigeon['breed'];
+  genes: { speed: number; endurance: number; orientation: number } | null;
+  declineRate: number;
+}
+
+/** A clutch that hatched into a full loft and is waiting on your keep/let-go choice. */
+export interface PendingNest {
+  id: string;
+  sire: string;
+  dam: string;
+  createdAt: string;
+  young: BroodYoung[];
+}
+
+export interface BreedingView {
+  pairs: BreedingPair[];
+  nests: PendingNest[];
+  capacity: number;
+  pigeonCount: number;
+  freeSpace: number;
 }

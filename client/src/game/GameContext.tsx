@@ -3,7 +3,7 @@
  * `refresh()` used after any action that changes the world.
  */
 
-import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import { api } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
 import type { GameState } from '../types';
@@ -23,17 +23,34 @@ export function GameProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  /**
+   * One `/state` call at a time. Pages routinely fire their own `load()` and a
+   * `refresh()` for the same action, and several components share this context,
+   * so the same instant could ask for the world two or three times over. Every
+   * one of those is a full world load (~300 D1 rows) against a budget shared by
+   * all players, so callers that arrive while a fetch is in flight now wait for
+   * that one instead of starting another.
+   */
+  const inFlight = useRef<Promise<void> | null>(null);
+
   const refresh = useCallback(async () => {
     if (!user) return;
-    try {
-      const s = await api<GameState>('/state');
-      setState(s);
-      setError(null);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Kon spelstatus niet laden');
-    } finally {
-      setLoading(false);
-    }
+    if (inFlight.current) return inFlight.current;
+    const run = (async () => {
+      try {
+        const s = await api<GameState>('/state');
+        setState(s);
+        setError(null);
+      } catch (e) {
+        setError(e instanceof Error ? e.message : 'Kon spelstatus niet laden');
+      } finally {
+        setLoading(false);
+      }
+    })().finally(() => {
+      inFlight.current = null;
+    });
+    inFlight.current = run;
+    return run;
   }, [user]);
 
   useEffect(() => {

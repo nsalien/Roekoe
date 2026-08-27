@@ -221,14 +221,21 @@ export function WikiPage() {
           voorraad van één type op, dan lijden precies die duiven honger — de rest van je hok merkt er niets van.
         </p>
         <MiniTable
-          head={['Voer', 'Prijs/kg', 'Verbruik/duif/dag']}
+          head={['Voer', 'Prijs/kg', 'Terugkoop/kg', 'Verbruik/duif/dag']}
           rows={[
-            ['Normaal', '€3', '≈ 0,14 kg'],
-            ['Premium', '€6', '≈ 0,21 kg'],
-            ['Libido-mix', '€4,5', '≈ 0,20 kg'],
-            ['Herstelvoer', '€3', '≈ 0,21 kg'],
+            ['Normaal', '€3', '€2,40', '≈ 0,14 kg'],
+            ['Premium', '€6', '€4,80', '≈ 0,21 kg'],
+            ['Libido-mix', '€4,5', '€3,60', '≈ 0,20 kg'],
+            ['Herstelvoer', '€3', '€2,40', '≈ 0,21 kg'],
           ]}
         />
+        <p style={{ marginTop: 10 }}>
+          <strong>Te veel gekocht? Je kan voer terugverkopen.</strong> Dezelfde balie op het overzicht schakelt met één
+          klik naar <em>Verkopen</em>, en de knop <em>Alles</em> zet er meteen je hele voorraad van dat type in. De
+          voerhandelaar betaalt <strong>80%</strong> van de aankoopprijs terug, dus je maakt op een verkoop{' '}
+          <strong>altijd een klein verlies</strong>. Voer is daarom geen spaarpot: 100 kg Premium kopen en meteen
+          terugverkopen kost je €120.
+        </p>
 
         <h3 style={{ marginBottom: 4 }}>Honger: de gevaarlijkste fout</h3>
         <p className="muted" style={{ marginTop: 0 }}>
@@ -626,6 +633,20 @@ export function WikiPage() {
           <li>Een tweede jong komt er alleen bij <strong>hoge libido</strong> (tot ± 70% kans op een tweede).</li>
         </ul>
         <p><strong>Strategie:</strong> koppel duiven met <em>hoge libido en goede energie</em>, en zet <em>Libido-mix</em> voer in tijdens de kweekperiode.</p>
+        <p style={{ marginTop: 12 }}>
+          <strong>Zit je hok vol wanneer de jongen uitkomen? Dan kies jij.</strong> Er gaat niets verloren: het hele
+          nest blijft op de Kweek-pagina wachten tot je beslist hebt. Je ziet van elk jong de score én de{' '}
+          <a href="#genen">gen-caps</a>, en je houdt er zoveel als je wil — <strong>alles, een deel of niets</strong>.
+        </p>
+        <ul>
+          <li>Wat je <strong>niet</strong> kiest, vliegt weg. Dat brengt niets op.</li>
+          <li>
+            <strong>Plaats maken</strong> kan meteen vanuit hetzelfde scherm: laat een duif vrij (€0) of verkoop haar
+            aan het duivenrestaurant (vast bedrag, maar een <em>moraalklap</em> voor je hele hok).
+          </li>
+          <li>Zolang een nest op je keuze wacht, kan je <strong>geen nieuw koppel</strong> starten.</li>
+          <li>Er is <strong>geen tijdslimiet</strong> — een nest verloopt nooit.</li>
+        </ul>
       </Section>
 
       <Section id="ziekte" icon="🤒" title="Kans op ziekte">
