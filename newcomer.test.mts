@@ -13,13 +13,15 @@
  *     je kan nooit meer uitgeven dan je hebt;
  *  3. de tijdgebonden helft: gratis coach + dubbele winst tijdens, en **niet** erna;
  *  4. de afloopmelding valt exact één keer;
- *  5. bestaande spelers (zonder pakket) veranderen niet.
+ *  5. bestaande spelers (zonder pakket) veranderen niet;
+ *  6. migratie v39 kent het pakket toe aan twee met naam genoemde spelers.
  *
  * Run: npx tsx newcomer.test.mts
  */
 import { MemoryStore, newId } from './core/store.js';
 import { emptyDatabase } from './core/schema.js';
 import { seedWorld, createLoftForUser } from './core/game/engine.js';
+import { advanceRealtime } from './core/game/schedule.js';
 import {
   billableCoachedCount,
   newcomerActive,
@@ -187,6 +189,63 @@ console.log('\nBestaande spelers');
   const seen: string[] = [];
   tickNewcomerExpiry({ ...w8.db, lofts: [veteran] } as Database, T0 + 999 * DAY, (_d, _u, _t, _b, id) => seen.push(id));
   ok(seen.length === 0, 'en krijgt nooit een afloopmelding');
+}
+
+// --- 6. Migratie v39: het pakket met terugwerkende kracht -----------------
+console.log('\nMigratie v39 (twee bestaande spelers)');
+{
+  const store = new MemoryStore(emptyDatabase());
+  seedWorld(store);
+  // Drie bestaande spelers: twee doelwitten (een op hoknaam, een op gebruikers-
+  // naam) en een derde die volledig ongemoeid moet blijven.
+  const mk = (username: string, loftName: string) => {
+    const u: User = { id: newId('usr'), username, passwordHash: 'x', isAdmin: false, isBot: false, createdAt: new Date(T0).toISOString() };
+    store.mutate((d) => d.users.push(u));
+    const l = createLoftForUser(store, u, loftName);
+    l.newcomer = undefined; // registreerde vóór het pakket bestond
+    l.sponsorship.offers = [];
+    return l;
+  };
+  const a = mk('nicolai', 'Vleugels Inc.');    // match op HOKNAAM
+  const b = mk('Roekoeloos', 'Het Derde Hok'); // match op GEBRUIKERSNAAM
+  const c = mk('iemand', 'Onaangeroerd');      // moet ongemoeid blijven
+  // Een bot die toevallig zo heet mag niets krijgen.
+  const bot = store.data.lofts.find((l) => l.isBot)!;
+  bot.name = 'Roekoeloos';
+  // Halflege tanks, zodat het bijtanken zichtbaar is.
+  for (const p of store.data.pigeons) p.form = 40;
+  store.data.world.dataVersion = 38;
+
+  advanceRealtime(store.data, Date.now());
+
+  ok(store.data.world.dataVersion >= 39, 'de migratie is gedraaid (dataVersion 39)');
+  ok(!!a.newcomer, 'Vleugels Inc. (hoknaam) krijgt het pakket');
+  ok(!!b.newcomer, 'Roekoeloos (gebruikersnaam) krijgt het pakket');
+  ok(!c.newcomer, 'een andere speler krijgt NIETS');
+  ok(!bot.newcomer, 'een bot met dezelfde naam krijgt niets');
+  ok(
+    a.newcomer?.expPoints === NEWCOMER.expPoints && a.newcomer?.attrPoints === NEWCOMER.attrPoints,
+    'met de volle punten',
+  );
+  ok(newcomerActive(a, Date.now()), 'en het venster van 28 dagen loopt vanaf nu');
+
+  const tanked = (l: Loft) => store.data.pigeons.filter((p) => p.ownerId === l.userId).every((p) => p.form === 100);
+  ok(tanked(a) && tanked(b), 'hun duiven zijn bijgetankt naar 100 energie');
+  ok(
+    store.data.pigeons.filter((p) => p.ownerId === c.userId).every((p) => p.form === 40),
+    'de duiven van de andere speler blijven op 40',
+  );
+
+  const grants = () => store.data.notifications.filter((n) => n.id.startsWith('ntf:admin:newcomergrant:'));
+  ok(grants().length === 2, `precies twee meldingen (${grants().length})`);
+  ok(a.sponsorship.offers.length === 1, 'en er ligt een sponsoraanbod klaar');
+
+  // Nog een ronde: de migratie mag niets verdubbelen.
+  const moneyBefore = store.data.lofts.map((l) => l.money).join(',');
+  advanceRealtime(store.data, Date.now() + 1000);
+  ok(grants().length === 2, 'een tweede run stuurt geen extra melding (idempotent)');
+  ok(a.newcomer?.expPoints === NEWCOMER.expPoints, 'en kent de punten niet nog eens toe');
+  ok(store.data.lofts.map((l) => l.money).join(',') === moneyBefore, 'en verplaatst geen geld');
 }
 
 console.log(`\n${fail === 0 ? '✅' : '❌'} ${pass} geslaagd, ${fail} gefaald`);

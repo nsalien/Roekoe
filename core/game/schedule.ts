@@ -32,6 +32,7 @@ import {
   IMPROVE_ATTR_LABEL,
   RACE_CITIES,
   REAL_SCHEDULE,
+  NEWCOMER,
   RELAY,
   isRelayWeek,
   SCHEDULE_HORIZON_DAYS,
@@ -51,7 +52,7 @@ import type { Database, Flight, FlightResult, Loft, Pigeon, RaceLogEntry } from 
 import { emptySponsorState, emptyStats } from '../schema.js';
 import { newId } from '../store.js';
 import { applyDayOfCare, dailyRunningCost } from './economy.js';
-import { billableCoachedCount, tickNewcomerExpiry, winningsMultiplier } from './newcomer.js';
+import { billableCoachedCount, newNewcomerPerks, tickNewcomerExpiry, winningsMultiplier } from './newcomer.js';
 import { awardBroodBadges, breed } from './breeding.js';
 import { awardBadge, awardFlightBadges, evaluateBadges } from './badges.js';
 import { ensureAuctions } from './auction.js';
@@ -70,7 +71,7 @@ import {
 } from './health.js';
 import { tickSeason } from './season.js';
 import { progressMissions } from './missions.js';
-import { activeContracts, evaluateSponsorOffers } from './sponsors.js';
+import { activeContracts, evaluateSponsorOffers, offerStarterSponsor } from './sponsors.js';
 import {
   applyFlightEffects,
   birdStillOut,
@@ -78,6 +79,7 @@ import {
   finalizeFlight,
   flightTotalSeconds,
   generateRecap,
+  pigeonCommittedToFlight,
   relayTeams,
   startLiveFlight,
   type Entry,
@@ -85,7 +87,7 @@ import {
 } from './flight.js';
 import type { WeatherResult } from './weather.js';
 import { generatePigeonName, isLegacyName, isWrongGenderName, nameKey, namesInUse } from './names.js';
-import { canRace, conditionScore, generatePigeon, noteAttrChange, rollBreed, rollGenes, talent } from './pigeon.js';
+import { canRace, conditionScore, generatePigeon, isAway, noteAttrChange, rollBreed, rollGenes, talent } from './pigeon.js';
 import { NPC_OWNER_ID, ownerName } from './engine.js';
 import { pickRelayRoute, relayEntryTeams, relayLegKm, relayTeamComplete } from './relay.js';
 import { bell, clamp, hashString, haversineKm, pick, randFloat, round1, seededRng } from './util.js';
@@ -1711,6 +1713,53 @@ function runDataMigrations(db: Database): void {
       }
     }
     db.world.dataVersion = 38;
+  }
+  if ((db.world.dataVersion ?? 0) < 39) {
+    // One-off (owner request): hand the starter package (NEWCOMER) to two players
+    // who registered before it existed. Real players only, matched on loft name OR
+    // username, case-insensitive — a bot that happens to share a name is untouched.
+    //
+    // Their 28-day window starts NOW, not at their original registration, so they
+    // get a full season out of it. A loft that somehow already has a package keeps
+    // it (`?? ` below) rather than having its clock reset.
+    const now = Date.now();
+    const TARGETS = ['vleugels inc.', 'vleugels inc', 'roekoeloos'];
+    for (const loft of db.lofts) {
+      if (loft.isBot || loft.newcomer) continue;
+      const user = db.users.find((u) => u.id === loft.userId);
+      const names = [loft.name, user?.username ?? ''];
+      if (!names.some((n) => TARGETS.includes(n.trim().toLowerCase()))) continue;
+
+      loft.newcomer = newNewcomerPerks(now);
+      // Top every bird up to a full tank, like a newcomer's starters get. Birds
+      // that are racing or lost are skipped on purpose: a live flight is settling
+      // its energie against a frozen formCost, and a bird that lost its way is
+      // meant to come home empty (§3.5 spelregels).
+      let topped = 0;
+      for (const p of db.pigeons) {
+        if (p.ownerId !== loft.userId) continue;
+        if (isAway(p) || pigeonCommittedToFlight(db, p.id, now)) continue;
+        if (p.form >= NEWCOMER.startEnergie) continue;
+        p.form = NEWCOMER.startEnergie;
+        topped++;
+      }
+      // Sponsors normally only knock after a podium; open that door too. Guarded
+      // internally, so a loft that already has this sponsor gets nothing extra.
+      offerStarterSponsor(db, loft, now);
+      pushNotification(
+        db, loft.userId, 'info',
+        '🎁 Je krijgt het starterspakket',
+        `Het starterspakket voor nieuwe spelers is met terugwerkende kracht aan jouw hok ` +
+          `toegekend. Je hebt ${NEWCOMER.expPoints} ervaringspunten en ${NEWCOMER.attrPoints} ` +
+          `eigenschapspunten om zelf te verdelen (bovenaan het Overzicht), en ${NEWCOMER.days} ` +
+          `dagen lang is je eerste privécoach gratis en verdien je dubbel prijzengeld én ` +
+          `dubbele ranglijstpunten op wedstrijdvluchten.` +
+          (topped > 0 ? ` Je duiven zijn bijgetankt naar volle energie.` : ''),
+        null,
+        `ntf:admin:newcomergrant:${loft.userId}`,
+      );
+    }
+    db.world.dataVersion = 39;
   }
 }
 
