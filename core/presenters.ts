@@ -29,6 +29,13 @@ import { pigeonSeasonRankings } from './game/season.js';
 import { bettingOpen } from './game/betting.js';
 import { nextCapacityTier, nextInfirmaryTier, ownerName } from './game/engine.js';
 import { coachDailyGain, dailyRunningCostBreakdown, projectDailyCare } from './game/economy.js';
+import {
+  billableCoachedCount,
+  freeCoachCount,
+  newcomerActive,
+  newcomerDaysLeft,
+  winningsMultiplier,
+} from './game/newcomer.js';
 import { coveredInInfirmary } from './game/health.js';
 import { valuePigeon } from './game/market.js';
 import { flightCommentary, liveSnapshot, pigeonCommittedToFlight } from './game/flight.js';
@@ -253,10 +260,42 @@ export function loftDTO(db: Database, loft: Loft) {
     // Cumulative recurring cost charged to this loft each day, split per category
     // (upkeep, coaches, infirmary staff, medicated feed) — same source as what
     // schedule.tickDailyCare actually deducts.
-    dailyCosts: dailyRunningCostBreakdown(loft, pigeons.length, coachedCount, infirmary.length),
+    // The bill shows what the loft ACTUALLY pays, so a newcomer's free coach is
+    // already discounted here — otherwise the Dagbalans would contradict the
+    // money that leaves the account.
+    dailyCosts: dailyRunningCostBreakdown(
+      loft,
+      pigeons.length,
+      billableCoachedCount(loft, coachedCount, Date.now()),
+      infirmary.length,
+    ),
     // The weekly rest-cure lock is gone (any bird may go on a cure), but the field
     // stays so an older, still-open tab keeps rendering. Always null now.
     restCureAvailableAt: null as string | null,
+    // Starter package (null for everyone who registered before it shipped).
+    newcomer: newcomerDTO(loft),
+  };
+}
+
+/**
+ * The starter package as the player sees it: what is left to spend, how long the
+ * time-boxed perks still run, and whether they are still running at all. Kept
+ * even after it expires (as `active: false`) so the panel can say so instead of
+ * silently vanishing.
+ */
+function newcomerDTO(loft: Loft) {
+  const n = loft.newcomer;
+  if (!n) return null;
+  const now = Date.now();
+  return {
+    active: newcomerActive(loft, now),
+    endsAt: n.endsAt,
+    daysLeft: newcomerDaysLeft(loft, now),
+    expPoints: n.expPoints,
+    attrPoints: n.attrPoints,
+    expPigeonId: n.expPigeonId ?? null,
+    freeCoaches: freeCoachCount(loft, now),
+    winningsMultiplier: winningsMultiplier(loft, now),
   };
 }
 

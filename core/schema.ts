@@ -197,6 +197,25 @@ export interface Loft {
   sponsorship: SponsorState;
   // Season prizes won at each rollover (Roekoes + Vleugels) — see season.ts.
   awards?: SeasonAward[];
+  // Starter package for an account created after this shipped — see NEWCOMER.
+  newcomer?: NewcomerPerks;
+}
+
+/**
+ * The leg-up a newly registered loft gets for its first season (NEWCOMER).
+ *
+ * `expPoints` and `attrPoints` are a WALLET the player spends where they want;
+ * everything else is time-boxed to `endsAt` and then simply stops. `endNotified`
+ * makes the "your starter package has ended" message fire exactly once — the
+ * player should never quietly discover their coach started costing money.
+ */
+export interface NewcomerPerks {
+  startedAt: string; // ISO — when the account was created
+  endsAt: string; // ISO — startedAt + NEWCOMER.days
+  expPoints: number; // ervaring left to hand out (all of it must go to ONE bird)
+  attrPoints: number; // snelheid/conditie/orientatie points left to hand out
+  expPigeonId?: string | null; // the bird the ervaring went to (locks further spending)
+  endNotified?: boolean; // the end-of-package notification has been sent
 }
 
 /** Which of the three pigeon rankings a Gouden Vleugel was won in. */

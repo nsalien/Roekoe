@@ -35,6 +35,7 @@ import type { Ailment, Database, Flight, FlightResult, Loft, Pigeon, SimEntry } 
 import { relayEntryTeams, relayLegKm, relaySimTeams } from './relay.js';
 import { ageMultiplier, conditionScore, experienceGain, flightForm, noteAttrChange, raceCeil } from './pigeon.js';
 import { applyAilment, randomLuckInjury, randomStrainInjury } from './health.js';
+import { winningsMultiplier } from './newcomer.js';
 import { randomWeather, type WeatherResult } from './weather.js';
 import { clamp, hashString, interpolate, pickWith, randFloat, round1, seededRng } from './util.js';
 
@@ -1872,11 +1873,16 @@ export function applyFlightEffects(
     if (!p || p.ailment) continue;
     applyAilment(p, inj.ailment);
   }
+  // A newcomer banks double for its first season — prize money AND ranking
+  // points. Keyed on the flight's START (not "now"), so a race begun inside the
+  // window still pays double even if its stragglers only land after it closed.
+  const racedAtMs = raced?.at ? Date.parse(raced.at) : NaN;
   for (const pay of sim.payouts) {
     const loft = lofts.find((l) => l.userId === pay.ownerId);
     if (!loft) continue;
-    loft.money += pay.prize;
-    loft.seasonPoints += pay.points;
+    const mult = Number.isNaN(racedAtMs) ? 1 : winningsMultiplier(loft, racedAtMs);
+    loft.money += Math.round(pay.prize * mult);
+    loft.seasonPoints += Math.round(pay.points * mult);
     loft.totalWins += pay.wins;
   }
 }

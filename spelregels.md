@@ -1693,5 +1693,63 @@ bod uitbrengen op hun duiven.
 
 ---
 
+## 18. Startershulp: je eerste seizoen
+
+Kom je binnen in een club die al een tijd draait, dan vlieg je tegen duiven die
+al weken getraind en gecoacht zijn. Zonder hulp is dat geen achterstand maar een
+muur: een vers hok haalt tegen zulke duiven **geen enkele keer** een podium. Elke
+speler die zich vanaf nu registreert krijgt daarom een **starterspakket**.
+
+Je vindt het bovenaan je **Overzicht**, zolang je er nog iets van over hebt.
+
+### 18.1 Punten die je zelf verdeelt
+
+Deze twee zijn een **tegoed**, geen automatische bonus: jij kiest waar ze
+landen. Ze **vervallen niet** — ook na je eerste seizoen kan je ze nog uitgeven.
+
+| Tegoed | Hoeveel | Waar het heen mag |
+|---|---|---|
+| 🎓 **Ervaring** | **30** punten | allemaal naar **één** duif naar keuze |
+| 💪 **Eigenschappen** | **5** punten | vrij te spreiden over duiven én over snelheid/conditie/oriëntatie |
+
+**Waarom ervaring naar één duif?** Ervaring is veruit de grootste rem op een
+nieuw hok — ze telt drie keer mee (§2.3): sneller vliegen, energie beter
+doseren, en minder verbruik per vlucht (§3). Alles op één duif zetten levert je
+één echte kanshebber op in plaats van zes duiven die net iets minder kansloos
+zijn. Kies dus met overleg: eens gekozen, gaan de rest van je punten naar
+diezelfde duif.
+
+Je krijgt de volle 30 punten ervaring; de leerfactor van §3.7 (waardoor een
+routinier steeds trager bijleert) geldt hier **niet** — dat is een voorsprong
+die je cadeau krijgt, geen ervaring die je zelf hebt gevlogen.
+
+**Eigenschapspunten respecteren wél het genetisch plafond** van je duif (§7bis).
+Zit een duif nog maar 2 onder haar cap, dan landen er ook maar 2 punten — de
+overige blijven in je tegoed staan voor een andere duif.
+
+### 18.2 Voordelen voor 28 dagen (één seizoen)
+
+| Voordeel | Wat het doet |
+|---|---|
+| 🎯 **Gratis privécoach** | je **eerste** gecoachte duif kost je niets. Een tweede coach betaal je gewoon (§13) |
+| 💰 **Dubbele winst** | op **wedstrijdvluchten** krijg je **2×** prijzengeld én **2×** ranglijstpunten |
+| ⚡ **Volle duiven** | al je startduiven beginnen op **100 energie**, dus met een groene vluchtvorm (§3.2) |
+| 🤝 **Eerste sponsor** | er ligt meteen een aanbod van een kleine sponsor klaar |
+
+Dat laatste lost meteen een vervelend kip-en-ei-probleem op: sponsors melden
+zich normaal pas **na een podiumplaats** (§12), en die haalt een nieuwe speler
+nu net niet. Zo zie je het sponsorsysteem vanaf dag één.
+
+Je **startgeld blijft €5.000**, net als bij iedereen.
+
+### 18.3 En daarna?
+
+Na 28 dagen stoppen de voordelen uit §18.2 gewoon: je coach kost weer €80 per
+dag en je wint weer enkelvoudig. **Je krijgt daar een melding van** — het is
+niet de bedoeling dat je er pas achter komt als je kassa sneller leegloopt dan
+je gewend was. Punten die je dan nog niet uitgaf, blijven gewoon van jou.
+
+---
+
 *Alle getallen hierboven zijn de tuning-constanten; pas ze aan in
 `core/config/gameConfig.ts` om het spel te herbalanceren.*

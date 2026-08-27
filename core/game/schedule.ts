@@ -51,6 +51,7 @@ import type { Database, Flight, FlightResult, Loft, Pigeon, RaceLogEntry } from 
 import { emptySponsorState, emptyStats } from '../schema.js';
 import { newId } from '../store.js';
 import { applyDayOfCare, dailyRunningCost } from './economy.js';
+import { billableCoachedCount, tickNewcomerExpiry, winningsMultiplier } from './newcomer.js';
 import { awardBroodBadges, breed } from './breeding.js';
 import { awardBadge, awardFlightBadges, evaluateBadges } from './badges.js';
 import { ensureAuctions } from './auction.js';
@@ -634,6 +635,10 @@ export function payFinishedFlightPrizes(db: Database, nowMs: number): void {
       if (!s || s.prizePaid) continue; // already banked
       const loft = db.lofts.find((l) => l.userId === pay.ownerId);
       if (!loft) continue;
+      // A newcomer banks double for its first season (money AND, at finalize,
+      // ranking points). Keyed on the flight's START so a race begun inside the
+      // window pays double even if the stragglers land after it closed.
+      pay.prize = Math.round(pay.prize * winningsMultiplier(loft, startMs));
       loft.money += pay.prize;
       s.prizePaid = true;
       if (!loft.isBot) {
@@ -1892,7 +1897,9 @@ export function tickDailyCare(db: Database, nowMs: number): void {
       if (alive.length > 0) {
         const coachedCount = alive.filter((p) => p.coached).length;
         const infirmaryBirds = alive.filter((p) => p.inInfirmary).length;
-        loft.money -= dailyRunningCost(loft, alive.length, coachedCount, infirmaryBirds);
+        // A newcomer's first coached bird is on the house for one season.
+        const billable = billableCoachedCount(loft, coachedCount, nowMs);
+        loft.money -= dailyRunningCost(loft, alive.length, billable, infirmaryBirds);
         // Sponsors pay a DAILY stipend — same cadence as the running costs, so
         // the player's daily balance is a single honest number (no /7 rounding).
         const stipend = activeContracts(loft).reduce((s, c) => s + c.contract.dailyStipend, 0);
@@ -1912,6 +1919,11 @@ export function tickDailyCare(db: Database, nowMs: number): void {
   // One real-time day of health for the whole world: birds actually fall ill,
   // ailments keep draining health, and an untreated ailment can turn fatal.
   runHealthDay(db, db.world.currentWeek);
+  // A newcomer whose first season just ended is told so — their coach starts
+  // costing money today and their winnings halve, and that must never be a
+  // silent change. Fires exactly once (endNotified).
+  tickNewcomerExpiry(db, nowMs, (d, userId, title, body, stableId) =>
+    pushNotification(d, userId, 'info', title, body, null, stableId));
   db.world.lastDailyTick = new Date(dayMidnight).toISOString();
   db.world.dailyCareCursor = '';
   // Catch state badges that daily recovery may have unlocked (topfit, kerngezond).

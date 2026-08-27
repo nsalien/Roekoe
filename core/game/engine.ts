@@ -18,6 +18,7 @@ import {
   INFIRMARY,
   INFIRMARY_CAPACITY_TIERS,
   LOFT_CAPACITY_TIERS,
+  NEWCOMER,
   PIGEON_RESTAURANT,
   RELAY,
   REST_CURE,
@@ -39,7 +40,8 @@ import { awardBroodBadges } from './breeding.js';
 import { botTakeWeeklyActions } from './bots.js';
 import { progressMissions } from './missions.js';
 import { resolveEvent as resolveEventCard } from './events.js';
-import { applyAcceptSponsor, applyCancelSponsor, applyRefuseSponsor } from './sponsors.js';
+import { applyAcceptSponsor, applyCancelSponsor, applyRefuseSponsor, offerStarterSponsor } from './sponsors.js';
+import { newNewcomerPerks } from './newcomer.js';
 import { careSlots, runHealthWeek } from './health.js';
 import { nameKey, namesInUse } from './names.js';
 import { voidBetsForWithdrawnPigeon } from './betting.js';
@@ -119,15 +121,24 @@ export function createLoftForUser(store: Store, user: User, loftName: string): L
       pendingEvent: null,
       pendingBroods: [],
       sponsorship: emptySponsorState(),
+      // A world that has been running for weeks is otherwise closed to newcomers
+      // — see NEWCOMER in gameConfig for the measurements behind this.
+      ...(user.isBot ? {} : { newcomer: newNewcomerPerks(Date.now()) }),
     };
     db.lofts.push(loft);
     // The set grows as we go, so the six starters can't collide with each other.
     const taken = namesInUse(db.pigeons);
     for (let i = 0; i < STARTING_PIGEONS; i++) {
       const p = generatePigeon({ ownerId: user.id, currentWeek: db.world.currentWeek, quality: randFloat(0.4, 0.6), taken });
+      // Starters begin fully rested: a fresh loft should not lose its first birds
+      // to an injury it had no way to see coming (vluchtvorm, §3.2 spelregels).
+      if (!user.isBot) p.form = NEWCOMER.startEnergie;
       taken.add(nameKey(p.name));
       db.pigeons.push(p);
     }
+    // Sponsors normally only knock AFTER a podium — which a newcomer cannot get,
+    // so the whole system would stay invisible for weeks. Open it with a small one.
+    if (!user.isBot) offerStarterSponsor(db, loft, Date.now());
     return loft;
   });
 }

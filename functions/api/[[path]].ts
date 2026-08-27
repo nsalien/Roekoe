@@ -33,6 +33,7 @@ import {
   DAILY_UPKEEP_BASE,
   DAILY_UPKEEP_PER_PIGEON,
   UPKEEP_BANDS,
+  type RacingAttr,
 } from '../../core/config/gameConfig.js';
 import {
   acceptSponsor,
@@ -73,6 +74,7 @@ import {
 } from '../../core/game/engine.js';
 import { advanceRealtime, applyRelayForecasts, flightsAwaitingStart, relayLegsNeedingForecast, tickFlights } from '../../core/game/schedule.js';
 import { pigeonSeasonRankings } from '../../core/game/season.js';
+import { spendAttribute, spendExperience } from '../../core/game/newcomer.js';
 import { velocityBreakdown, weightsForDistance } from '../../core/game/flight.js';
 import { ageInWeeks } from '../../core/game/pigeon.js';
 import { ownerName } from '../../core/game/engine.js';
@@ -568,6 +570,42 @@ app.post('/pigeons/:id/restcure', async (c) => {
   const user = requireUser(c);
   const store = c.get('store');
   const err = startRestCure(store, user.id, c.req.param('id'));
+  await store.persist();
+  return err ? c.json({ error: err }, 400) : c.json({ ok: true });
+});
+
+/**
+ * Spend starter-package points (see NEWCOMER). Two wallets, one endpoint each:
+ * ervaring goes to a single bird of the player's choosing, attribute points may
+ * be spread freely. Both validate ownership and hand back a plain Dutch reason
+ * on refusal, like every other player action.
+ */
+app.post('/newcomer/experience', async (c) => {
+  const user = requireUser(c);
+  const body = await c.req.json().catch(() => ({}));
+  const store = c.get('store');
+  const err = store.mutate((db) => {
+    const loft = db.lofts.find((l) => l.userId === user.id);
+    if (!loft) return 'Geen hok gevonden';
+    const pigeon = db.pigeons.find((p) => p.id === String(body.pigeonId) && p.ownerId === user.id);
+    if (!pigeon) return 'Dat is niet jouw duif';
+    return spendExperience(loft, pigeon, Number(body.amount));
+  });
+  await store.persist();
+  return err ? c.json({ error: err }, 400) : c.json({ ok: true });
+});
+
+app.post('/newcomer/attribute', async (c) => {
+  const user = requireUser(c);
+  const body = await c.req.json().catch(() => ({}));
+  const store = c.get('store');
+  const err = store.mutate((db) => {
+    const loft = db.lofts.find((l) => l.userId === user.id);
+    if (!loft) return 'Geen hok gevonden';
+    const pigeon = db.pigeons.find((p) => p.id === String(body.pigeonId) && p.ownerId === user.id);
+    if (!pigeon) return 'Dat is niet jouw duif';
+    return spendAttribute(loft, pigeon, body.attr as RacingAttr, Number(body.amount));
+  });
   await store.persist();
   return err ? c.json({ error: err }, 400) : c.json({ ok: true });
 });

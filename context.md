@@ -360,6 +360,7 @@ Roekoe/
 │       ├── missions.ts          dagelijkse opdrachten + streak + dilemma-trigger
 │       ├── events.ts            dilemma-kaarten
 │       ├── pigeon.ts, weather.ts, util.ts (seededRng/hashString/clamp/pickWith)
+│       ├── newcomer.ts          starterspakket nieuwe spelers (punten, gratis coach, 2x winst)
 │       ├── names.ts             naamgenerator — UNIEKE voornaam+bijnaam (namesInUse/nameKey)
 ├── functions/api/[[path]].ts    de HELE API (Hono) — dun laagje op de engine (+ /admin/auctions)
 ├── d1-partial-load.test.mts     regressietest op de partiële load (npx tsx, node:sqlite)
@@ -372,6 +373,7 @@ Roekoe/
 ├── sponsor-refusal.test.mts     regressietest: "nee is nee" bij een slechtere concurrent
 ├── commentary.test.mts          regressietest: live verslag groeit aan, herschrijft niet
 ├── betting-odds.test.mts        regressietest: weddenschapskansen kloppen + zijn stabiel
+├── newcomer.test.mts            regressietest: starterspakket nieuwe spelers (48 checks)
 ├── poll-budget.test.mts         regressietest: pollritme + de smalle load (deelnemerslijst!)
 ├── force-finish.test.mts        regressietest: admin-"match beëindigen" == natuurlijk uitvliegen
 ├── limits-report.mts            meet queries/rijen gelezen/geschreven per verzoek
@@ -871,6 +873,7 @@ npx tsx commentary.test.mts        # het live verslag groeit aan, herschrijft ni
 npx tsx betting-odds.test.mts      # weddenschapskansen kloppen en zijn stabiel
 npx tsx poll-budget.test.mts       # polls + smalle load blijven binnen het dagbudget
 npx tsx force-finish.test.mts      # admin-"match beëindigen" == natuurlijk uitvliegen
+npx tsx newcomer.test.mts          # starterspakket: punten, tijdvenster, afloopmelding
 ```
 Diagnose zonder assertie: `npx tsx cpu-sweep.mts` (CPU per operatie, duurste
 eerst) en `npx tsx limits-report.mts` (queries/rijen per verzoek).
@@ -910,7 +913,70 @@ eerst) en `npx tsx limits-report.mts` (queries/rijen per verzoek).
 Alles hieronder staat **live** op de deploy-branch. Data-migraties liepen door tot
 **`dataVersion = 38`**.
 
-**Beheerder kan een lopende vlucht doorspoelen (nieuwste)**
+**Starterspakket voor nieuwe spelers (nieuwste)**
+- **Aanleiding:** een wereld die al een maand draait is feitelijk **dicht** voor een
+  nieuwkomer. Gemeten tegen de echte engine (6 verse duiven tegen 12 duiven van twee
+  maandveteranen, 20.000 races per afstand): **0,0 % winst, 0,0 % top-3**, en in ~90 %
+  van de races levert de nieuwe speler de **laatste** duif. De veteraan is 44–53 %
+  sneller terwijl geluk maar ±10 % speelt — dat is geen nadeel maar een muur.
+- **De oorzaak is ervaring, niet talent.** Ablatie: betere startduiven geven (quality
+  0,7–0,9 op álle zes) verandert **niets** (0,0 %), want de gen-caps drukken de
+  eigenschappen samen. Ervaring 76 cadeau brengt het op 5,1 % winst / 23,7 % top-3.
+  Ervaring telt namelijk **drie keer** mee: ×1,33 op de snelheid, energie doseren
+  (§2.3 spelregels) én minder verbruik per vlucht (§3). En elke starterduif begon op **0**.
+- **Nieuw config-blok `NEWCOMER`** + nieuw bestand **`core/game/newcomer.ts`** met álle
+  logica op één plek. Het pakket splitst in twee soorten:
+  - een **portemonnee** (`expPoints` 30, `attrPoints` 5) die de speler **zelf richt** en
+    die **niet verloopt** — welke duif je backt is de eerste echte keuze van het spel;
+  - **tijdgebonden** voordelen die op `endsAt` (28 dagen = 1 seizoen) gewoon stoppen:
+    **1 gratis coach** (`billableCoachedCount` trekt er één af vóór `dailyRunningCost`)
+    en **dubbele winst** (`winningsMultiplier`, geld **én** ranglijstpunten).
+  Verder: alle **startduiven op 100 energie** en meteen **één tier-1 sponsoraanbod**
+  (`offerStarterSponsor` in sponsors.ts). Startgeld blijft **€5000**.
+- **Dubbele winst zit op de twee uitbetaalplekken**, niet op één: `payFinishedFlightPrizes`
+  (vroege uitbetaling, geld) en `applyFlightEffects` (afronding, geld + punten). Beide
+  ijken op de **starttijd van de vlucht**, niet op "nu" — een race die binnen het venster
+  begon betaalt dubbel, ook als de staart pas erna binnenkomt. Geen dubbeltelling: een al
+  vroeg uitbetaalde duif draagt 0 bij aan de finalize (`prizePaid`).
+- ⚠️ **Bewuste keuzes die niet vanzelf spreken:**
+  - De 30 ervaringspunten gaan naar **één** duif (`expPigeonId` vergrendelt na de eerste
+    toekenning) — één echte kanshebber is meer waard dan zes iets-minder-hopeloze duiven.
+  - Ze lopen **niet** door `experienceGain`: dit is een voorschot, geen gevlogen ervaring,
+    dus de afnemende leerfactor (§3.7) hoort er niet op te drukken. 30 punten = 30 ervaring.
+  - Eigenschapspunten respecteren **wél** de gen-cap, en er wordt alleen aangerekend wat
+    effectief landde (2 van 5 als de duif na 2 punten haar plafond raakt).
+  - `loftDTO.dailyCosts` rekent al mét de gratis coach, anders spreekt de **Dagbalans** het
+    geld tegen dat er werkelijk afgaat.
+  - Bots krijgen niets van dit alles (`user.isBot`-guard op elk onderdeel).
+- **De afloopmelding is verplicht, niet decoratief.** `tickNewcomerExpiry` draait bij de
+  dagafsluiting in `tickDailyCare` en stuurt **exact één** melding (`endNotified`, stabiele
+  id `ntf:newcomer:end:<userId>`): je coach kost weer €80/dag, je winst is weer enkelvoudig,
+  en je resterende punten blijven geldig. Een coach die stilletjes geld begint te kosten is
+  precies de verrassing die we niet willen.
+- **Persistentie:** nieuwe kolom **`lofts.newcomer TEXT`** achteraan `SCHEMA_STEPS`
+  (append-only), leeg voor élk bestaand hok → bestaande spelers merken niets en hun
+  kolom-smalle UPDATE blijft hem overslaan. **Geen migratie, `dataVersion` blijft 38.**
+- **UI:** `client/src/components/NewcomerPanel.tsx` bovenaan het Overzicht — resterende
+  punten, dagen te gaan, en de twee toekenvelden. Verdwijnt vanzelf zodra het pakket
+  afgelopen is **én** de punten op zijn. Endpoints `POST /newcomer/experience` en
+  `POST /newcomer/attribute`.
+- **Nieuwe blijvende test `newcomer.test.mts`** (48 controles): wat een nieuw hok krijgt,
+  de gen-cap-klem, ervaring naar één duif, nooit meer uitgeven dan je hebt, de vier
+  tijdgebonden gedragingen vóór/na `endsAt`, de afloopmelding (exact één, idempotent, met
+  de juiste inhoud) en — belangrijk — dat een hok **zonder** pakket zich exact als vroeger
+  gedraagt. Alle 15 regressietests + beide typechecks + build groen.
+- ⚠️ **Twee onderdelen zijn tegen mijn advies in meegenomen** (bewuste keuze van de
+  eigenaar, hier genoteerd zodat de afweging niet verloren gaat): de **5 eigenschapspunten**
+  (meetbaar het zwakste onderdeel, en ze voeden `talent()` → marktwaarde, dus in principe
+  door te verkopen) en de **dubbele competitiepunten** (waarmee een nieuwkomer zijn eerste
+  seizoen de Gouden Roekoe kan pakken met objectief mindere duiven). Als de Roekoe scheef
+  gaat lopen, is `NEWCOMER.winningsMultiplier` splitsen in geld/punten de kleinste ingreep.
+- ⚠️ **Het pakket veroudert.** Het is geijkt op "tegen maandveteranen". Wie in november
+  instapt staat tegenover tweemaandsveteranen en de dosering klopt dan niet meer. Wil je dat
+  niet met de hand blijven bijstellen, dan moet het **relatief** worden (ijken op de mediaan
+  van de bestaande hokken) in plaats van op vaste getallen.
+
+**Beheerder kan een lopende vlucht doorspoelen**
 - **Aanleiding (eigenaar):** een vlucht loopt door tot de **traagste** duif binnen is
   (sinds de finish-timer weg is, §3.3 spelregels). Op de fond zijn de winnaars dan al
   uren thuis terwijl er nog twee bots rondjes vliegen. Daar wil je niet op wachten.
