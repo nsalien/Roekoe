@@ -221,6 +221,12 @@ export interface EconomyCosts {
   restaurantMoraleMax: number; // …up to this much (random per bird)
 }
 
+/**
+ * One named entrant of a flight. Deliberately NOT part of `Flight`: naming a
+ * bird costs the server a full pigeon load, and `/flights` is polled by every
+ * open tab. Fetched from `GET /flights/:id/entrants` when the betting panel
+ * opens — see core/presenters.ts::flightEntrantsDTO.
+ */
 export interface FlightEntrant {
   pigeonId: string;
   name: string;
@@ -300,7 +306,6 @@ export interface Flight {
   weather: string;
   entryCount: number;
   entries: FlightEntry[];
-  entrants: FlightEntrant[];
   bettingOpen: boolean;
   results: FlightResult[];
   recap: string;

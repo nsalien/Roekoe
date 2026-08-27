@@ -23,9 +23,15 @@
  * design ceiling of ~264 birds it is **264 of the ~300 rows a request costs**.
  * A request that only READS, and arrives while the engine's last run is still
  * fresh, cannot touch the rest of the world — so those get a NARROW pigeon load
- * (`loadNarrow`): the viewer's own birds plus the ones entered in a flight that
- * has not finished. The world-wide leaderboards that used to force a full read
- * are served from `World.leaderboard`, refreshed on every full load.
+ * (`loadNarrow`): the viewer's own birds, plus the relay teams of any unfinished
+ * flight (the one remaining place a narrow-path DTO names a foreign bird). The
+ * world-wide leaderboards that used to force a full read are served from
+ * `World.leaderboard`, refreshed on every full load.
+ *
+ * Keeping that extra set SMALL is the whole game: every entrant of every running
+ * flight is most of the population, and pulling them in costs as much as a full
+ * load. That is why the betting entrant list lives on its own full-load route
+ * (`GET /api/flights/:id/entrants`) instead of riding along on `/api/flights`.
  *
  * Because these three tables are no longer fully in memory, the engine can't
  * bound them by rewriting the array. `persist()` therefore appends bounded SQL
@@ -486,15 +492,23 @@ export class D1Store implements Store {
     dbObj.users = (users.results as any[]).map(rowToUser);
     dbObj.lofts = (lofts.results as any[]).map(rowToLoft);
     dbObj.pigeons = (pigeons.results as any[]).map(rowToPigeon);
+    // Flights must be parsed BEFORE the narrow pigeon read below, which derives
+    // the extra ids it needs from them. (This assignment used to sit twenty
+    // lines further down, so the set was always empty and every foreign bird on
+    // a narrowed load came back unnamed.)
+    dbObj.flights = (flights.results as any[]).map(rowToFlight);
     if (narrowed) {
-      // The viewer's own birds (idx_pigeons_owner) plus everyone entered in a
-      // flight that has not finished — those are the only other pigeons a
-      // read-only view names (the entrant lists on /state and /flights). One
-      // statement, both halves index-backed: an OR across columns would drop
+      // The viewer's own birds (idx_pigeons_owner) plus the relay teams of any
+      // flight that has not finished. Those teams are the ONLY birds outside the
+      // viewer's loft that a narrow-path DTO still names (flightDTO.teams — see
+      // core/presenters.ts); the betting entrant list has its own full-load
+      // route precisely so this stays small. A relay is one team of three per
+      // loft on alternating Saturdays, so this is bounded by the player count.
+      // One statement, both halves index-backed: an OR across columns would drop
       // SQLite back to a full scan, which is the very thing we are avoiding.
       const entrantIds = new Set<string>();
       for (const f of dbObj.flights) {
-        if (f.status === 'completed') continue;
+        if (f.status === 'completed' || !f.relay) continue;
         for (const e of f.entries ?? []) entrantIds.add(e.pigeonId);
       }
       // Above a few hundred entrants the narrow read stops being narrow, and the
@@ -513,7 +527,6 @@ export class D1Store implements Store {
       }
     }
     dbObj.breedingPairs = (breeding.results as any[]).map(rowToBreeding);
-    dbObj.flights = (flights.results as any[]).map(rowToFlight);
     dbObj.notifications = (notifications.results as any[]).map(rowToNotification);
     dbObj.trades = (trades.results as any[]).map(rowToTrade).reverse(); // oldest → newest, as before
     dbObj.auctions = (auctions.results as any[]).map(rowToAuction);

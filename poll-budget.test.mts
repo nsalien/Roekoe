@@ -17,8 +17,10 @@ import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import { D1Store, ensureSchema } from './core/d1.js';
-import { seedWorld, createLoftForUser } from './core/game/engine.js';
+import { seedWorld, createLoftForUser, enterFlight } from './core/game/engine.js';
+import { advanceRealtime } from './core/game/schedule.js';
 import { generatePigeon } from './core/game/pigeon.js';
+import { flightDTO, flightEntrantsDTO } from './core/presenters.js';
 import { newId } from './core/store.js';
 import type { User } from './core/schema.js';
 
@@ -118,6 +120,36 @@ store.mutate((d) => {
 });
 await store.persist();
 
+// Een échte wedstrijdkalender, met iedereen ingeschreven. Dit ontbrak hier, en
+// dat verborg een dure bug: de smalle load haalde óók elke deelnemer van elke
+// lopende vlucht op, en dat is zowat de hele populatie. Zonder inschrijvingen
+// was die helft altijd leeg, dus de test zag er niets van. Nu wel.
+store = await D1Store.load(d1, undefined);
+store.mutate((d) => advanceRealtime(d, Date.now(), new Map()));
+const scheduledFlights = store.data.flights.filter((f) => f.status === 'scheduled');
+for (const f of scheduledFlights) {
+  for (const loft of store.data.lofts) {
+    const owned = store.data.pigeons.filter((p) => p.ownerId === loft.userId);
+    // Roteer per vlucht, zoals een melker zijn hok laat afwisselen.
+    const start = (scheduledFlights.indexOf(f) * 3) % Math.max(1, owned.length);
+    for (let k = 0; k < 3; k++) {
+      const p = owned[(start + k) % owned.length];
+      if (p) enterFlight(store, loft.userId, f.id, p.id);
+    }
+  }
+}
+store.mutate((d) => { d.world.lastAdvance = new Date().toISOString(); });
+await store.persist();
+store = await D1Store.load(d1, undefined);
+
+const runningEntrants = new Set<string>();
+for (const f of store.data.flights) {
+  if (f.status === 'completed') continue;
+  for (const e of f.entries ?? []) runningEntrants.add(e.pigeonId);
+}
+console.log(`\n  Kalender: ${scheduledFlights.length} geplande vluchten, ${runningEntrants.size} unieke duiven ingeschreven`);
+ok(runningEntrants.size > 100, `genoeg inschrijvingen om de val te spannen (${runningEntrants.size})`);
+
 const pigeonCount = store.data.pigeons.length;
 
 // Een volle load: elke schrijfactie en elke route die de hele wereld nodig heeft.
@@ -200,6 +232,67 @@ await s3.persist();
 const s4 = await D1Store.load(d1, humans[0], { narrowWhenIdle: true });
 ok(!s4.narrowed, 'een verlopen engine dwingt een volle load af');
 ok(s4.data.pigeons.length === totalBefore, 'zodat de engine de hele wereld ziet');
+
+// --- 6. De deelnemerslijst hoort NIET op het hete pad -----------------------
+// Namen geven aan andermans duif kost een volle pigeon-load. Rijdt die lijst mee
+// op /flights — door élke open tab gepolld — dan trekt ze zowat de hele
+// populatie terug in het leesbudget en is de smalle load nog maar ~7% goedkoper
+// dan een volle. Ze hoort dus op een eigen route die pas afgaat als iemand het
+// weddenschapspaneel opent.
+console.log('\nDe deelnemerslijst blijft van het hete pad');
+
+// Sectie 5 heeft de engine bewust laten verlopen; zet de klok terug op vers,
+// anders krijgt dit blok sowieso een volle load en bewijst het niets.
+s4.mutate((d) => { d.world.lastAdvance = new Date().toISOString(); });
+await s4.persist();
+
+const s5 = await D1Store.load(d1, humans[0], { narrowWhenIdle: true });
+ok(s5.narrowed, 'de load is smal');
+const raceFlight = s5.data.flights.find((f) => f.status === 'scheduled' && (f.entries?.length ?? 0) > 0);
+ok(!!raceFlight, 'er is een geplande vlucht met inschrijvingen');
+if (raceFlight) {
+  const dto = flightDTO(s5.data, raceFlight) as Record<string, unknown>;
+  ok(!('entrants' in dto), 'flightDTO draagt geen entrants meer');
+  // Dit is de eigenlijke bewaking: de smalle load mag niet meeschalen met het
+  // aantal inschrijvingen. Zonder dit blijft de winst van de smalle load enkel
+  // op papier bestaan.
+  const mineCount = s5.data.pigeons.filter((p) => p.ownerId === humans[0]).length;
+  ok(
+    s5.data.pigeons.length <= mineCount + 60,
+    `smalle load blijft smal ondanks ${runningEntrants.size} inschrijvingen: ${s5.data.pigeons.length} duiven (eigen ${mineCount})`,
+  );
+  ok(s5.data.pigeons.length < totalBefore / 2, `en ruim onder de volle ${totalBefore}`);
+
+  // Op haar eigen route (volle load) moet ze wél compleet zijn — dat was de
+  // klacht: elke deelnemer heette "duif" met ★0.
+  const full = await D1Store.load(d1, humans[0]);
+  const f2 = full.data.flights.find((f) => f.id === raceFlight.id)!;
+  const named = flightEntrantsDTO(full.data, f2);
+  ok(named.length === f2.entries.length, `${named.length} deelnemers in de lijst`);
+  const nameless = named.filter((e) => e.name === 'duif' || e.talent === 0);
+  ok(nameless.length === 0, `elke deelnemer heeft een naam en ★talent (${nameless.length} naamloos)`);
+  ok(new Set(named.map((e) => e.ownerId)).size > 1, 'en de lijst reikt over meerdere hokken');
+
+  // Een afgelopen vlucht heeft geen lijst nodig: wedden is dicht en de uitslag
+  // draagt haar eigen namen.
+  const done = full.data.flights.find((f) => f.status === 'completed');
+  if (done) ok(flightEntrantsDTO(full.data, done).length === 0, 'een afgelopen vlucht levert een lege lijst');
+
+  // --- De uitzondering: estafetteploegen MOETEN wél mee in de smalle load ----
+  // `flightDTO.teams` noemt de ploegmaten bij naam, ook die van andere hokken.
+  // Dat is de enige plek die dat nog doet, en ze is begrensd (3 duiven per hok,
+  // om de week). Zou die set níet meekomen, dan heette elke ploegmaat "duif".
+  full.mutate((d) => { d.flights.find((f) => f.id === raceFlight.id)!.relay = true; });
+  await full.persist();
+
+  const s6 = await D1Store.load(d1, humans[0], { narrowWhenIdle: true });
+  ok(s6.narrowed, 'de load is nog steeds smal met een estafette op de kalender');
+  const relay = s6.data.flights.find((f) => f.id === raceFlight.id)!;
+  const teamNames = (flightDTO(s6.data, relay) as any).teams?.flatMap((t: any) => t.legs.map((l: any) => l.name)) ?? [];
+  ok(teamNames.length > 0, `${teamNames.length} ploegplaatsen in de DTO`);
+  ok(teamNames.every((n: string) => n !== 'duif'), 'elke ploegmaat heeft een naam, ook bij een ander hok');
+  ok(s6.data.pigeons.length < totalBefore / 2, `en de load blijft smal: ${s6.data.pigeons.length} van ${totalBefore}`);
+}
 
 console.log(failures === 0 ? '\n✅ Alles in orde\n' : `\n❌ ${failures} test(s) gefaald\n`);
 process.exit(failures === 0 ? 0 : 1);

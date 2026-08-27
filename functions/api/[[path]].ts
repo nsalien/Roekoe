@@ -89,6 +89,7 @@ import {
   cachedLeaderboard,
   computeLeaderboard,
   flightDTO,
+  flightEntrantsDTO,
   liveFlightDTO,
   liveBoardDTO,
   loftDTO,
@@ -875,6 +876,22 @@ app.get('/flights/:id', (c) => {
   const f = db.flights.find((x) => x.id === c.req.param('id'));
   if (!f) return c.json({ error: 'Vlucht niet gevonden' }, 404);
   return c.json({ flight: flightDTO(db, f) });
+});
+
+/**
+ * The named entrant list for one flight — what the betting panel picks from.
+ *
+ * Deliberately NOT on `/api/flights` and NOT in NARROW_PATHS: naming another
+ * loft's bird needs the full pigeon table, and `/api/flights` is polled by every
+ * open tab. This route is hit only when a player actually opens the betting
+ * panel, so it can afford the full load. See presenters.flightEntrantsDTO.
+ */
+app.get('/flights/:id/entrants', (c) => {
+  requireUser(c);
+  const db = c.get('store').data;
+  const f = db.flights.find((x) => x.id === c.req.param('id'));
+  if (!f) return c.json({ error: 'Vlucht niet gevonden' }, 404);
+  return c.json({ entrants: flightEntrantsDTO(db, f) });
 });
 
 /** Live positions + commentary for a flight (polled by the client). */
