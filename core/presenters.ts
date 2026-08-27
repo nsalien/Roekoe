@@ -281,11 +281,10 @@ export function flightDTO(db: Database, f: Flight) {
     teamSize: f.relay ? RELAY.teamSize : undefined,
     legKm: f.relay ? relayLegKm(f) : undefined,
     // The entered teams, in running order, so the page can show who flies what.
-    // Both this and `entrants` below name birds by id, which is the ONLY place
-    // this DTO reaches outside the viewer's own loft. A finished flight needs
-    // neither (betting is closed, the running order is fixed, and the results
-    // carry their own names), so they are dropped there — which is what lets
-    // /api/flights run on a narrowed world. See core/d1.ts.
+    // This is the ONLY place this DTO names a bird outside the viewer's own
+    // loft, and it is why the narrowed load still has to fetch relay entrants
+    // (see core/d1.ts). A finished flight needs it neither (the running order is
+    // fixed and the results carry their own names), so it is dropped there.
     teams: f.relay && f.status !== 'completed'
       ? [...relayEntryTeams(f)].map(([ownerId, entries]) => ({
           ownerId,
@@ -301,23 +300,36 @@ export function flightDTO(db: Database, f: Flight) {
     weather: f.weather,
     entryCount: f.entries.length,
     entries: f.entries,
-    // Enough info about every entrant for the betting UI (names, owners, talent).
-    // Empty once the flight is over — see the note on `teams`.
-    entrants: f.status === 'completed' ? [] : f.entries.map((e) => {
-      const p = db.pigeons.find((x) => x.id === e.pigeonId);
-      return {
-        pigeonId: e.pigeonId,
-        name: p?.name ?? 'duif',
-        ownerId: e.ownerId,
-        ownerName: ownerName(db, e.ownerId),
-        talent: p ? talent(p) : 0,
-      };
-    }),
     bettingOpen: bettingOpen(f, Date.now()),
     results: f.results,
     recap: f.recap,
     createdAt: f.createdAt,
   };
+}
+
+/**
+ * Every entrant of a flight, named — the list the betting panel picks from.
+ *
+ * This is deliberately NOT part of `flightDTO`. Naming a bird means looking it
+ * up in `db.pigeons`, so a route that carries this needs every entrant of every
+ * running flight loaded. On `/api/flights` — polled every 90 s by every open tab
+ * — that pulls practically the whole population back into the read budget and
+ * undoes the narrowed load (measured: a narrow poll goes from 73 to 242 rows at
+ * the design ceiling, leaving it only 7 % cheaper than a full load). Betting is
+ * opened a handful of times a day, so it pays for its own full load instead.
+ */
+export function flightEntrantsDTO(db: Database, f: Flight) {
+  if (f.status === 'completed') return [];
+  return f.entries.map((e) => {
+    const p = db.pigeons.find((x) => x.id === e.pigeonId);
+    return {
+      pigeonId: e.pigeonId,
+      name: p?.name ?? 'duif',
+      ownerId: e.ownerId,
+      ownerName: ownerName(db, e.ownerId),
+      talent: p ? talent(p) : 0,
+    };
+  });
 }
 
 export function notificationDTO(n: Notification) {
