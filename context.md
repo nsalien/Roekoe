@@ -373,6 +373,7 @@ Roekoe/
 ├── commentary.test.mts          regressietest: live verslag groeit aan, herschrijft niet
 ├── betting-odds.test.mts        regressietest: weddenschapskansen kloppen + zijn stabiel
 ├── poll-budget.test.mts         regressietest: pollritme + de smalle load (deelnemerslijst!)
+├── force-finish.test.mts        regressietest: admin-"match beëindigen" == natuurlijk uitvliegen
 ├── limits-report.mts            meet queries/rijen gelezen/geschreven per verzoek
 ├── cpu-sweep.mts                meet CPU per operatie (duurste eerst) — diagnose
 ├── migrations/0001_init.sql     D1-schema voor verse installatie
@@ -758,6 +759,8 @@ Entiteiten: `Pigeon`, `Loft`, `User`, `BreedingPair`, `PendingBrood`, `Flight` (
   inschrijfgeld en hebben geen weddenschap-paneel.
 - `LiveFlightPage` — live bord; knop **🏳️ Opgeven** (spaart resterende energie).
   Het **📻 Live verslag** meldt nu échte gebeurtenissen (voorbijsteken + reden), zie §2.
+  **Enkel voor admins** staat er bij een live vlucht ook **⏩ Match beëindigen**
+  (met bevestiging) → `POST /admin/flights/:id/finish`; zie §8.
 - `InfirmaryPage` (Ziekenboeg) — zieke/gekwetste duiven; dokter/kinesist/medicatievoer;
   **herstelbalk per duif** (`ailment.healed`).
 - `ProfilePage` — hoknaam, **thema-toggle (donker/licht)**, **"Start rondleiding"**.
@@ -867,6 +870,7 @@ npx tsx sponsor-refusal.test.mts   # een slechtere concurrent-sponsor komt niet 
 npx tsx commentary.test.mts        # het live verslag groeit aan, herschrijft niet
 npx tsx betting-odds.test.mts      # weddenschapskansen kloppen en zijn stabiel
 npx tsx poll-budget.test.mts       # polls + smalle load blijven binnen het dagbudget
+npx tsx force-finish.test.mts      # admin-"match beëindigen" == natuurlijk uitvliegen
 ```
 Diagnose zonder assertie: `npx tsx cpu-sweep.mts` (CPU per operatie, duurste
 eerst) en `npx tsx limits-report.mts` (queries/rijen per verzoek).
@@ -906,7 +910,43 @@ eerst) en `npx tsx limits-report.mts` (queries/rijen per verzoek).
 Alles hieronder staat **live** op de deploy-branch. Data-migraties liepen door tot
 **`dataVersion = 38`**.
 
-**Weddenschappen waren stuk, en de smalle load was minder smal dan gedacht (nieuwste)**
+**Beheerder kan een lopende vlucht doorspoelen (nieuwste)**
+- **Aanleiding (eigenaar):** een vlucht loopt door tot de **traagste** duif binnen is
+  (sinds de finish-timer weg is, §3.3 spelregels). Op de fond zijn de winnaars dan al
+  uren thuis terwijl er nog twee bots rondjes vliegen. Daar wil je niet op wachten.
+- **Nieuw: `POST /admin/flights/:id/finish`** (403 voor niet-admins, 400 als de vlucht
+  niet `live` is). De knop **⏩ Match beëindigen** staat op `LiveFlightPage`, enkel
+  zichtbaar bij `user.isAdmin`, met een `window.confirm` ("Ben je zeker dat je deze
+  match wil beëindigen?") die uitlegt dat niemand geschrapt wordt.
+- **Bewust géén nieuw afrondingspad.** `tickFlights` kreeg een vierde parameter
+  **`forceFinishId?: string`**, en de bestaande voorwaarde werd
+  `nowMs >= startMs + total*1000 || flight.id === forceFinishId`. Eén regel, en dus
+  per constructie exact dezelfde code als een natuurlijke finish — een apart pad zou
+  op termijn uit elkaar kunnen lopen. Het endpoint roept `tickFlights(db, Date.now(),
+  undefined, flightId)` aan binnen `store.mutate`. **Geen schemakolom, geen migratie**,
+  `dataVersion` blijft **38**.
+- **Waarom dit de uitslag niet verandert:** de hele race wordt bij de lossing bevroren
+  in `flight.sim`, `finalizeFlight(flight, pigeons)` krijgt **geen klok** mee, en de
+  geleidelijk afgetrokken energie wordt daar afgerekend tegen de bevroren `formCost`
+  (`formDelta = −(flownTarget − drained)`). Vroeger afronden slaat dus enkel het
+  wáchten over.
+- ⚠️ **Het echte risico zat bij het prijzengeld**, niet bij de standen:
+  `payFinishedFlightPrizes` betaalt een finisher **meteen** uit en zet `prizePaid`.
+  Rond je af terwijl de koplopers al betaald zijn, dan mag `finalizeFlight` dat niet
+  nog eens doen — dat doet ze ook niet (`acc.prize += s.prizePaid ? 0 : prize`), en de
+  test bewaakt precies dat geval.
+- **Nieuwe blijvende test `force-finish.test.mts`** (14 controles): dezelfde bevroren
+  vlucht wordt twee keer gedraaid — één keer uitgevlogen, één keer afgerond op **85 %**
+  van de race met de koplopers al uitbetaald — en uitslag, geld per hok, seizoenspunten
+  en élke duif (energie/gezondheid/conditie/skills/aandoening) moeten identiek zijn.
+  Plus: niemand geëlimineerd, energie volledig afgerekend, tweede klik idempotent
+  zonder extra geld, en zonder force-id blijft de vlucht gewoon live.
+  De test **isoleert de vlucht** (alle andere vluchten uit de wereld) — anders vergelijk
+  je ook de races die de kalender intussen zelf start, en dat maakt hem flaky.
+- **`payFinishedFlightPrizes` is nu geëxporteerd** (was module-privé) zodat de test het
+  live-verloop kan naspelen. Alle elf regressietests + beide typechecks + build groen.
+
+**Weddenschappen waren stuk, en de smalle load was minder smal dan gedacht**
 - **Symptoom (eigenaar):** in het weddenschapspaneel heette **elke** deelnemer `duif`
   met **★0** — enkel de eigen duiven klopten. Wedden was daardoor onbruikbaar.
 - **Oorzaak: één regel op de verkeerde plaats.** In `d1.ts::load` leidde het smalle

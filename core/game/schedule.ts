@@ -621,7 +621,7 @@ export function pruneOldFlights(db: Database, nowMs: number): void {
  * `prizePaid` flag makes it idempotent, and finalize excludes already-paid prizes.
  * Only real competition/titan flights pay money (practice pays nothing).
  */
-function payFinishedFlightPrizes(db: Database, nowMs: number): void {
+export function payFinishedFlightPrizes(db: Database, nowMs: number): void {
   for (const flight of db.flights) {
     if (flight.status !== 'live' || flight.practice) continue;
     const startMs = flight.startAt ? Date.parse(flight.startAt) : NaN;
@@ -651,7 +651,23 @@ function payFinishedFlightPrizes(db: Database, nowMs: number): void {
   }
 }
 
-export function tickFlights(db: Database, nowMs: number, weatherByFlight?: Map<string, WeatherResult>): void {
+/**
+ * Start flights whose time has come and finalize the ones that are over.
+ *
+ * `forceFinishId` is the admin "beëindig nu"-action (see the endpoint in
+ * functions/api): the named LIVE flight is finalized right away instead of
+ * waiting for its slowest bird. That is safe and gives an IDENTICAL result —
+ * the sim is frozen at release, `finalizeFlight` takes no clock of its own, and
+ * the gradual energie drain is settled here against the frozen `formCost`
+ * (flight.ts). It deliberately runs the exact same code path as the natural
+ * finish so the two can never diverge.
+ */
+export function tickFlights(
+  db: Database,
+  nowMs: number,
+  weatherByFlight?: Map<string, WeatherResult>,
+  forceFinishId?: string,
+): void {
   for (const flight of db.flights) {
     const startMs = flight.startAt ? Date.parse(flight.startAt) : NaN;
 
@@ -719,7 +735,7 @@ export function tickFlights(db: Database, nowMs: number, weatherByFlight?: Map<s
 
     if (flight.status === 'live' && !Number.isNaN(startMs)) {
       const total = flightTotalSeconds(flight);
-      if (nowMs >= startMs + total * 1000) {
+      if (nowMs >= startMs + total * 1000 || flight.id === forceFinishId) {
         const sim = finalizeFlight(flight, db.pigeons);
         applyFlightEffects(sim, db.pigeons, db.lofts, {
           at: flight.startAt,

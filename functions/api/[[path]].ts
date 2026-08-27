@@ -71,7 +71,7 @@ import {
   upgradeInfirmary,
   withdrawFlight,
 } from '../../core/game/engine.js';
-import { advanceRealtime, applyRelayForecasts, flightsAwaitingStart, relayLegsNeedingForecast } from '../../core/game/schedule.js';
+import { advanceRealtime, applyRelayForecasts, flightsAwaitingStart, relayLegsNeedingForecast, tickFlights } from '../../core/game/schedule.js';
 import { pigeonSeasonRankings } from '../../core/game/season.js';
 import { velocityBreakdown, weightsForDistance } from '../../core/game/flight.js';
 import { ageInWeeks } from '../../core/game/pigeon.js';
@@ -1033,6 +1033,41 @@ app.post('/admin/advance-week', async (c) => {
   const summary = advanceWeek(store);
   await store.persist();
   return c.json({ summary, world: store.data.world });
+});
+
+/**
+ * Admin: finish a LIVE flight right now ("doorspoelen") instead of waiting for
+ * its slowest bird — a fondvlucht can trail on for hours behind two bot pigeons
+ * while everyone else is long home.
+ *
+ * This changes NOTHING about the outcome. The whole race is frozen into
+ * `flight.sim` at release, so the standings, prize money, points, improvements
+ * and injuries were already decided the moment the birds were let go; the tick
+ * below runs the exact same `tickFlights` path the natural finish would have
+ * run, only earlier. Nobody is eliminated — every bird lands on the placing it
+ * was always going to get, and the energie still not deducted is settled by
+ * `finalizeFlight` against its frozen `formCost`.
+ */
+app.post('/admin/flights/:id/finish', async (c) => {
+  const user = requireUser(c);
+  if (!user.isAdmin) return c.json({ error: 'Alleen de beheerder mag dit doen' }, 403);
+  const store = c.get('store');
+  const flight = store.data.flights.find((f) => f.id === c.req.param('id'));
+  if (!flight) return c.json({ error: 'Vlucht niet gevonden' }, 404);
+  if (flight.status !== 'live') {
+    return c.json({ error: `Deze vlucht is niet bezig (status: ${flight.status})` }, 400);
+  }
+  store.mutate((db) => {
+    tickFlights(db, Date.now(), undefined, flight.id);
+  });
+  await store.persist();
+  const finished = store.data.flights.find((f) => f.id === flight.id);
+  return c.json({
+    ok: true,
+    name: flight.name,
+    status: finished?.status ?? 'completed',
+    results: finished?.results.length ?? 0,
+  });
 });
 
 // --- Admin console: diagnostics ------------------------------------------
