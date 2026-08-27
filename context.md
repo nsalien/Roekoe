@@ -913,7 +913,28 @@ eerst) en `npx tsx limits-report.mts` (queries/rijen per verzoek).
 Alles hieronder staat **live** op de deploy-branch. Data-migraties liepen door tot
 **`dataVersion = 38`**.
 
-**Starterspakket voor nieuwe spelers (nieuwste)**
+**Migratie v39 — starterspakket voor "Vleugels Inc." en "Roekoeloos" (nieuwste)**
+- Op verzoek van de eigenaar krijgen deze twee bestaande spelers het **volledige
+  starterspakket** met terugwerkende kracht: 30 ervaringspunten, 5 eigenschapspunten,
+  28 dagen gratis coach + dubbele winst, hun duiven bijgetankt naar 100 energie, en een
+  tier-1 sponsoraanbod.
+- Match op **hoknaam óf gebruikersnaam**, hoofdletter-ongevoelig (`'vleugels inc.'` /
+  `'vleugels inc'` / `'roekoeloos'`), **enkel echte spelers** — een bot met dezelfde naam
+  blijft ongemoeid. Stabiele melding-id `ntf:admin:newcomergrant:<userId>`, dus twee
+  gelijktijdige verzoeken geven nooit twee meldingen of een dubbel pakket.
+- **Hun venster van 28 dagen start bij de migratie**, niet bij hun oorspronkelijke
+  registratie — anders zouden ze er niets aan hebben. Een hok dat al een pakket heeft
+  wordt overgeslagen (`if (loft.newcomer) continue`), dus de klok wordt nooit gereset.
+- ⚠️ **Bijtanken slaat twee groepen bewust over:** duiven die **vliegen**
+  (`pigeonCommittedToFlight`) — een live vlucht rekent haar energie af tegen een bevroren
+  `formCost`, daar moet je niet in prikken — en duiven die **de weg kwijt** zijn
+  (`isAway`), want die horen leeg thuis te komen (§3.5 spelregels).
+- **dataVersion → 39.** Geverifieerd in `newcomer.test.mts` (14 extra controles): match op
+  hoknaam én op gebruikersnaam, een derde speler krijgt niets, een gelijknamige bot krijgt
+  niets, de duiven van de anderen blijven op hun energie staan, precies twee meldingen, en
+  een tweede run kent niets nog eens toe en verplaatst geen geld.
+
+**Starterspakket voor nieuwe spelers**
 - **Aanleiding:** een wereld die al een maand draait is feitelijk **dicht** voor een
   nieuwkomer. Gemeten tegen de echte engine (6 verse duiven tegen 12 duiven van twee
   maandveteranen, 20.000 races per afstand): **0,0 % winst, 0,0 % top-3**, en in ~90 %
