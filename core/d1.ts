@@ -110,6 +110,7 @@ function rowToLoft(r: any): Loft {
     pendingBroods: r.pending_broods ? (JSON.parse(r.pending_broods) as PendingBrood[]) : [],
     sponsorship: parseSponsorship(r),
     awards: r.awards ? JSON.parse(r.awards) : [],
+    newcomer: r.newcomer ? JSON.parse(r.newcomer) : undefined,
   };
 }
 
@@ -371,7 +372,7 @@ const LOFT_COLUMNS = [
   'user_id', 'name', 'money', 'food', 'food_stock', 'feed_ration', 'capacity', 'compartments',
   'season_points', 'total_wins', 'is_bot', 'infirmary_capacity', 'medicated_food', 'doctors',
   'physios', 'xp', 'level', 'stats', 'badges', 'missions', 'missions_day', 'streak',
-  'pending_event', 'sponsorship', 'last_rest_cure', 'awards', 'pending_broods',
+  'pending_event', 'sponsorship', 'last_rest_cure', 'awards', 'pending_broods', 'newcomer',
 ];
 
 function loftRow(l: Loft): unknown[] {
@@ -387,6 +388,9 @@ function loftRow(l: Loft): unknown[] {
     // '' rather than '[]' for the common empty case, so an untouched loft's
     // column-narrowed UPDATE keeps skipping this column.
     l.pendingBroods?.length ? JSON.stringify(l.pendingBroods) : '',
+    // Empty for every loft registered before this shipped, so their
+    // column-narrowed UPDATE keeps skipping it.
+    l.newcomer ? JSON.stringify(l.newcomer) : '',
   ];
 }
 
@@ -916,6 +920,9 @@ const SCHEMA_STEPS: string[] = [
   // Cached world-wide leaderboards, so /state no longer has to read every pigeon
   // just to render two top-10 lists (see World.leaderboard).
   "ALTER TABLE world ADD COLUMN leaderboard TEXT NOT NULL DEFAULT ''",
+
+  // Starter package for lofts registered from now on (see NEWCOMER / Loft.newcomer).
+  "ALTER TABLE lofts ADD COLUMN newcomer TEXT NOT NULL DEFAULT ''",
 ];
 
 /**

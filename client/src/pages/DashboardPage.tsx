@@ -7,6 +7,7 @@ import { useAuth } from '../auth/AuthContext';
 import { api } from '../api/client';
 import { Money, Spinner, countdownTo, formatFlightTime, nextPlayWeek, timeUntil, useToast } from '../components/ui';
 import { PigeonCard } from '../components/PigeonCard';
+import { NewcomerPanel } from '../components/NewcomerPanel';
 import type { FeedRation } from '../types';
 
 /** Weekly config figure → per-day, rounded to 1 decimal (feed is applied 1/7 daily). */
@@ -107,6 +108,8 @@ export function DashboardPage() {
           <p className="muted">Welkom terug, {user?.username}! Hier is de stand van zaken.</p>
         </div>
       </div>
+
+      <NewcomerPanel />
 
       {/* Stat tiles */}
       <div className="grid cols-3" style={{ marginBottom: 18 }}>

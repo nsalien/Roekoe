@@ -14,6 +14,7 @@
  */
 
 import {
+  NEWCOMER,
   SPONSORS,
   SPONSOR_MAX_PENDING_OFFERS,
   SPONSOR_OFFER_SPACING_HOURS,
@@ -269,6 +270,30 @@ export function evaluateSponsorOffers(db: Database, loft: Loft, nowMs: number): 
     return true; // exactly one offer per call — the rest trickle in later
   }
   return false;
+}
+
+/**
+ * Put ONE random tier-1 sponsor on the table for a brand-new loft.
+ *
+ * Sponsors normally only come knocking after a podium finish in a competition
+ * flight (see `evaluateSponsorOffers`) — which a newcomer flying against
+ * month-old birds simply cannot get. Without this the entire sponsor system,
+ * and the income that comes with it, would stay invisible for weeks. Terms are
+ * the catalogue terms, unscaled; the player still chooses to accept or refuse.
+ */
+export function offerStarterSponsor(db: Database, loft: Loft, nowMs: number): boolean {
+  if (loft.isBot) return false;
+  const st = state(loft);
+  const candidates = SPONSORS.filter(
+    (d) => d.tier === NEWCOMER.sponsorTier && !st.active.some((a) => a.id === d.id) && !st.offers.some((o) => o.id === d.id),
+  );
+  if (candidates.length === 0) return false;
+  const def = candidates[Math.floor(Math.random() * candidates.length)];
+  st.offers.push({ id: def.id, at: new Date(nowMs).toISOString(), ...scaledTerms(def, 1) });
+  st.lastOfferAt = new Date(nowMs).toISOString();
+  notify(db, loft, `${def.icon} Sponsoraanbod: ${def.name}`,
+    `${def.tagline} Een eerste sponsor voor je nieuwe hok — bekijk en beslis op de sponsorpagina.`);
+  return true;
 }
 
 /** The active sponsor in the same category as `def`, if any (a competitor). */

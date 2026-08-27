@@ -1766,6 +1766,30 @@ export const TOURNEY_RISK = {
  * Rustkuur (rest cure). Pay money to actively recover a tired bird: it rests for
  * `durationHours` (can't race during the cure) and then gets a big energie boost.
  */
+/**
+ * NEWCOMER — the starter package for an account created from now on.
+ *
+ * A world that has been running a month is effectively closed to newcomers: a
+ * fresh loft flies against birds that have been coached toward their gene cap and
+ * carry 70+ ervaring, and ervaring alone is worth up to +33% speed (§2.3
+ * spelregels) on top of dosing energie and cutting flight cost. Measured against
+ * the real engine, a new loft won 0 of 20.000 races and supplied the LAST bird
+ * ~90% of the time. That is not a disadvantage, it is a wall — so a newcomer gets
+ * a leg-up for exactly one season (28 days), and is told when it ends.
+ *
+ * The points are handed to the player to SPEND, not applied automatically: which
+ * bird to back is the first real decision of the game.
+ */
+export const NEWCOMER = {
+  days: 28, // one season — matches SEASON.weeks * SEASON.weekDays
+  expPoints: 30, // ervaring to spread over ONE bird
+  attrPoints: 5, // snelheid/conditie/orientatie points, spreadable over any birds
+  startEnergie: 100, // every starting bird is fully rested
+  freeCoaches: 1, // this many coached birds cost nothing per day
+  winningsMultiplier: 2, // prize money AND ranking points, competition flights only
+  sponsorTier: 1, // a random tier-1 sponsor knocks immediately
+} as const;
+
 export const REST_CURE = {
   cost: 300,
   // Two full days off. EVERY bird may be put on a cure — the old limit of one cure

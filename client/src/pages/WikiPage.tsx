@@ -11,6 +11,7 @@
 import { useEffect } from 'react';
 
 const SECTIONS = [
+  { id: 'starterspakket', icon: '🎁', label: 'Starterspakket' },
   { id: 'genen', icon: '🧬', label: 'Genen & training' },
   { id: 'coach', icon: '🎯', label: 'Privécoach' },
   { id: 'ervaring', icon: '🎓', label: 'Ervaring' },
@@ -95,6 +96,48 @@ export function WikiPage() {
           ))}
         </div>
       </div>
+
+      <Section id="starterspakket" icon="🎁" title="Starterspakket voor nieuwe spelers">
+        <p className="muted" style={{ marginTop: 0 }}>
+          Wie instapt in een club die al draait, vliegt tegen duiven die al weken getraind en
+          gecoacht zijn. Daarom krijgt elke nieuwe speler een <strong>starterspakket</strong>: twee
+          tegoeden die je <strong>zelf verdeelt</strong>, en vier voordelen die <strong>28 dagen</strong>
+          (één seizoen) lopen.
+        </p>
+        <p><strong>Tegoeden — deze vervallen niet.</strong></p>
+        <MiniTable
+          head={['Tegoed', 'Hoeveel', 'Waar het heen mag']}
+          rows={[
+            ['🎓 Ervaring', '30 punten', 'allemaal naar één duif naar keuze'],
+            ['💪 Eigenschappen', '5 punten', 'vrij over duiven én over snelheid/conditie/oriëntatie'],
+          ]}
+        />
+        <p>
+          <strong>Waarom ervaring naar één duif?</strong> Ervaring telt drie keer mee — sneller
+          vliegen, energie beter doseren en minder verbruik per vlucht. Alles op één duif zetten
+          levert je één echte kanshebber op in plaats van zes duiven die net iets minder kansloos
+          zijn. Je krijgt de volle 30 punten: de leerfactor die een routinier afremt geldt hier niet.
+        </p>
+        <p>
+          Eigenschapspunten respecteren <strong>wel</strong> het genetisch plafond van je duif. Zit ze
+          nog maar 2 onder haar cap, dan landen er 2 punten en houd je de rest over voor een andere duif.
+        </p>
+        <p><strong>Voordelen gedurende 28 dagen.</strong></p>
+        <MiniTable
+          head={['Voordeel', 'Wat het doet']}
+          rows={[
+            ['🎯 Gratis privécoach', 'je eerste gecoachte duif kost niets; een tweede betaal je gewoon'],
+            ['💰 Dubbele winst', 'op wedstrijdvluchten: 2× prijzengeld én 2× ranglijstpunten'],
+            ['⚡ Volle duiven', 'je startduiven beginnen op 100 energie, dus met een groene vluchtvorm'],
+            ['🤝 Eerste sponsor', 'er ligt meteen een aanbod klaar van een kleine sponsor'],
+          ]}
+        />
+        <p className="faint">
+          Je startgeld blijft €5.000, net als bij iedereen. Na 28 dagen stoppen de vier voordelen
+          hierboven en krijg je daar een <strong>melding</strong> van — je coach kost dan weer €80 per
+          dag en je wint weer enkelvoudig. Punten die je nog niet uitgaf blijven gewoon van jou.
+        </p>
+      </Section>
 
       <Section id="genen" icon="🧬" title="Genen, plafonds & training">
         <p className="muted" style={{ marginTop: 0 }}>

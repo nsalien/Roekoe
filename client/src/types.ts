@@ -174,6 +174,20 @@ export interface Loft {
   restCureAvailableAt: string | null;
   coachedCount: number;
   dailyCosts: DailyCostBreakdown;
+  /** Starter package — null for every loft registered before it shipped. */
+  newcomer: NewcomerState | null;
+}
+
+/** What is left of the starter package, and how long the timed perks still run. */
+export interface NewcomerState {
+  active: boolean; // are the time-boxed perks (free coach, double winnings) running?
+  endsAt: string;
+  daysLeft: number;
+  expPoints: number; // ervaring left to hand out (all to ONE bird)
+  attrPoints: number; // snelheid/conditie/orientatie points left
+  expPigeonId: string | null; // the bird already chosen for the ervaring, if any
+  freeCoaches: number;
+  winningsMultiplier: number;
 }
 
 /** Cumulative recurring daily costs of a loft, split per category (€ per day). */
