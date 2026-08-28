@@ -13,6 +13,7 @@
  */
 
 import {
+  AGE_CATEGORIES,
   AGE_CUP,
   ageCategoryDef,
   ageCategoryFor,
@@ -1874,6 +1875,47 @@ function runDataMigrations(db: Database): void {
       db.world.ageCupSeasonsDone = 0;
     }
     db.world.dataVersion = 40;
+  }
+  if ((db.world.dataVersion ?? 0) < 41) {
+    // Announce the leeftijdscriterium in the bell inbox.
+    //
+    // The spotlight run in Tour.tsx (AGE_CUP_NEWS_STEPS) is the usual first-login
+    // announcement, but it is gone the moment someone clicks it away. A bell
+    // notification stays put, so the rules are still there when the first
+    // criterium race actually shows up on the calendar.
+    //
+    // Stable id per player, so two concurrent requests running this migration
+    // can never produce two messages.
+    const first = AGE_CATEGORIES[0];
+    for (const loft of db.lofts) {
+      if (loft.isBot) continue;
+      const when = db.world.ageCupStartedAt ? new Date(db.world.ageCupStartedAt) : null;
+      const startsAt = when
+        ? when.toLocaleDateString('nl-BE', { day: 'numeric', month: 'long', timeZone: TIMEZONE })
+        : null;
+      pushNotification(
+        db, loft.userId, 'info',
+        '🏆 Nieuw: het leeftijdscriterium',
+        `Er komt een tweede competitie bij, alleen voor duiven. Vier leeftijdsklassen — ` +
+          `${AGE_CATEGORIES.map((c) => `${c.icon} ${c.label.toLowerCase()}`).join(', ')} — krijgen elk ` +
+          `één eigen vlucht per week om ${String(AGE_CUP.hour).padStart(2, '0')}:${String(AGE_CUP.minute).padStart(2, '0')}, ` +
+          `waar enkel duiven van die leeftijd in mogen. Inschrijven kost €${AGE_CUP.entryFee} en je mag er zoveel ` +
+          `duiven in zetten als je wil. De vlucht wisselt week na week tussen een sprint (100–300 km, tot ` +
+          `€${AGE_CUP.sprint.prizes[0]}) en een grote fond (400–1000 km, tot €${AGE_CUP.fond.prizes[0]}). ` +
+          `\n\nDeze stand loopt ${AGE_CUP.seasons} seizoenen door in plaats van één: met één vlucht per klasse per ` +
+          `week zijn vier resultaten te weinig om iets te bewijzen. Daarna wint de top 3 van elke klasse ` +
+          `€${AGE_CUP.awards.join(' / €')} én een titel op de duif zelf — die blijft bij haar, ook als je haar ` +
+          `later verkoopt.` +
+          `\n\nLet op: het criterium geeft géén seizoenspunten, dus je Roekoe-ranglijst beweegt er niet door. ` +
+          `Omdat duiven ouder worden, klimt een duif tijdens de competitie mee naar de volgende klasse; haar punten ` +
+          `blijven staan waar ze verdiend zijn.` +
+          (startsAt ? `\n\nDe eerste editie (${first.icon} ${first.label.toLowerCase()}) staat op ${startsAt}.` : '') +
+          ` Alle details staan in de wiki onder “Leeftijdscriterium”.`,
+        null,
+        `ntf:news:agecup:${loft.userId}`,
+      );
+    }
+    db.world.dataVersion = 41;
   }
 }
 

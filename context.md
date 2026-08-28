@@ -131,7 +131,7 @@ krijgen.**
 `core/game/schedule.ts` → `advanceRealtime(db, nowMs, weatherByFlight)` roept in
 volgorde:
 1. `runDataMigrations(db)` — eenmalige datafixes, **gated op `world.dataVersion`**
-   (staat nu op **40**; nieuwe migratie = nieuw `if ((db.world.dataVersion ?? 0) < N)`
+   (staat nu op **41**; nieuwe migratie = nieuw `if ((db.world.dataVersion ?? 0) < N)`
    blok + `db.world.dataVersion = N`). v21 zet **bestaande geplande vluchten terug naar de
    OUDE, kortere afstanden** (regio 30–160 / nat 60–290 / intl 180–950 km): elke nog-
    geplande niet-titan-vlucht buiten haar legacy-venster wordt her-routeerd via
@@ -835,18 +835,20 @@ volledige `STEPS`). De volledige tour dekt o.a. **rassen** (`BREED_STEP`, anker
 `[data-tour="pigeon"]`: foto/zeldzaamheid/kans/kweek), oefenvluchten, rustkuur, markt +
 **"🕊️ Bied op andermans duiven"** (anker `[data-tour="market-bid"]`: speler→duif→
 bedrag + verborgen eigenschappen), **seizoen, ranglijst (Roekoe), duivenranglijsten
-(Vleugel)** en de prestige-seizoensprijzen. Eenmalig per speler (localStorage
+(Vleugel)**, het **leeftijdscriterium** (`AGE_CUP_STEP`, anker `[data-tour="age-cup"]`)
+en de prestige-seizoensprijzen. Eenmalig per speler (localStorage
 `roekoe.tourSeen.<id>`), draait vanuit `Layout` (blijft gemonteerd tijdens navigatie);
 de profielknop herhaalt hem via `window.dispatchEvent(new Event('roekoe:start-tour'))`.
 
 **"Wat is nieuw"-melding:** dezelfde `Tour` maar met een **subset** stappen. Actueel
-= **`FAREWELL_NEWS_STEPS`** (afscheid nemen: intro + vrijlaten vs. duivenrestaurant +
-moraal-energieklap). Eigen localStorage-sleutel `roekoe.newsSeen.farewell.<id>`; toont
-pas als de hoofd-tour niet open is. `closeTour` zet ook de news-sleutel, zodat een
+= **`AGE_CUP_NEWS_STEPS`** (leeftijdscriterium: intro + de vier klassen/inschrijven +
+waarom de stand drie seizoenen loopt). Eigen localStorage-sleutel
+`roekoe.newsSeen.agecup.<id>`; toont pas als de hoofd-tour niet open is. `closeTour` zet ook de news-sleutel, zodat een
 nieuwe speler die de volledige tour afrondt niet nog eens de news krijgt. Bump de
 sleutel-suffix + wissel de `steps`-set (import in `Layout`) voor een volgende
-aankondiging. De vorige sets `BREED_NEWS_STEPS`, `BID_NEWS_STEPS` en `SEASON_NEWS_STEPS`
-blijven in `Tour.tsx` als referentie. (De oude `FeatureTour` met gecentreerde kaarten
+aankondiging. De vorige sets `FAREWELL_NEWS_STEPS`, `REST_CURE_NEWS_STEPS`,
+`RELAY_NEWS_STEPS`, `GENES_NEWS_STEPS`, `BREED_NEWS_STEPS`, `BID_NEWS_STEPS` en
+`SEASON_NEWS_STEPS` blijven in `Tour.tsx` als referentie. (De oude `FeatureTour` met gecentreerde kaarten
 is verwijderd — alles zit nu in `Tour`.)
 
 **Thema:** `data-theme` op `<html>` (default **dark**, gezet door inline script in
@@ -927,7 +929,7 @@ eerst) en `npx tsx limits-report.mts` (queries/rijen per verzoek).
 ## 8. Belangrijkste wijzigingen deze sessie (achtergrond)
 
 Alles hieronder staat **live** op de deploy-branch. Data-migraties liepen door tot
-**`dataVersion = 40`**.
+**`dataVersion = 41`**.
 
 **Leeftijdscriterium: vier leeftijdsklassen, één vlucht per week, drie seizoenen (nieuwste)**
 - **Vraag van de eigenaar:** een extra rangschikking per leeftijdsklasse (< 1 j / 1–2 j /
@@ -982,16 +984,31 @@ Alles hieronder staat **live** op de deploy-branch. Data-migraties liepen door t
   badges + regelregel + een gefilterde duivenkiezer op `FlightsPage`, en op `PigeonPage` de
   titels als badge naast de naam plus een `CriteriumCard` met haar huidige klasse en stand per
   klasse. Wiki-sectie 🏆 **Leeftijdscriterium**; spelregels **§2.10** (+ §2.1, §12, §14, §15).
+- **Communicatie naar de spelers, op twee manieren:**
+  1. **Eerste-login-melding** `AGE_CUP_NEWS_STEPS` (Tour.tsx, 3 stappen: wat het is · de vier
+     klassen + inschrijven · waarom de stand drie seizoenen loopt), sleutel
+     `roekoe.newsSeen.agecup.<id>` — vervangt `REST_CURE_NEWS_STEPS` als actieve set in
+     `Layout.tsx`. De gedeelde stap **`AGE_CUP_STEP`** (anker `[data-tour="age-cup"]` op de
+     Criterium-tab) zit óók in de **volledige** tour, na `VLEUGEL_STEP`, dus hij blijft
+     herhaalbaar vanuit het profiel en nieuwe spelers krijgen hem gewoon mee.
+  2. **Migratie v41 — een belmelding** per echte speler (stabiele id
+     `ntf:news:agecup:<userId>`, bots overgeslagen). ⚠️ Bewust náást de tour: die spotlight is
+     wég zodra iemand ze wegklikt, terwijl de eerste criteriumvlucht pas een week later op de
+     kalender staat. De tekst wordt uit `AGE_CUP` opgebouwd (klassen, uur, inschrijfgeld,
+     prijzen, looptijd), dus herbalanceren laat de melding niet liegen. **dataVersion → 41.**
 - ⚠️ **Om op te volgen:** de klasse **> 3 jaar** kan dun bevolkt zijn (startduiven worden
   8–130 gameweken terug gedateerd), en een wedstrijdvlucht met < 2 melkers wordt afgelast. Bots
   doen mee en vangen dat grotendeels op, maar het is het eerste om te meten als die vlucht vaak
   niet doorgaat. Knop daarvoor: de grens van `o3` verlagen of de klassen samenvoegen.
-- **Nieuwe blijvende test `age-cup.test.mts`** (53 controles): het anker, geen vluchten vóór de
+- **Nieuwe blijvende test `age-cup.test.mts`** (61 controles): het anker, geen vluchten vóór de
   start, vier klassen op hun eigen dag met precies één vlucht per week, de 2+2/6+6-afwisseling en
   dat alle klassen dezelfde week hetzelfde format vliegen, de leeftijdsgrens voor speler én bot,
   geen limiet per hok, prijzengeld ja / seizoenspunten en `wins` nee, punten in de juiste klasse
   (én dat ze een rondje door D1 overleven), dat een gewone seizoenswissel de stand **niet** wist,
-  en de reset na drie seizoenen met geld, titel en schone lei.
+  en de reset na drie seizoenen met geld, titel en schone lei. Plus de aankondiging: elke echte
+  speler krijgt er precies één, bots geen, de tekst noemt de dingen die de speler moet weten, en
+  een tweede run stuurt er geen tweede. ⚠️ Die controle leest **rechtstreeks uit SQL** — een
+  viewer-scoped load draagt enkel de inbox van díe speler, dus via de store zou hij altijd 0 zien.
 - ⚠️ **Vijf bestaande tests aangepast, niet verzwakt:** `force-finish`, `advance-throttle`,
   `idle-writes`, `query-budget` en `daily-budget` pakten "de eerste geplande wedstrijdvlucht" en
   schreven er willekeurige duiven in. Dat kan nu een criteriumvlucht zijn, en die weigert een duif

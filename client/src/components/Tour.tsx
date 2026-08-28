@@ -42,6 +42,24 @@ const VLEUGEL_STEP: Step = {
     </>
   ),
 };
+// Leeftijdscriterium — shared by the full tour and the one-time news run below.
+const AGE_CUP_STEP: Step = {
+  route: '/ranglijst', selector: '[data-tour="age-cup"]',
+  title: '🏆 Leeftijdscriterium',
+  body: (
+    <>
+      Onder <strong>Criterium</strong> loopt een tweede competitie, alleen voor duiven. Er zijn{' '}
+      <strong>vier leeftijdsklassen</strong> (onder 1 jaar, 1–2, 2–3 en ouder dan 3), en elke klasse heeft{' '}
+      <strong>één eigen vlucht per week</strong> waar enkel duiven van die leeftijd in mogen — je jonge duif vliegt er
+      dus tegen leeftijdsgenoten in plaats van tegen het hele veld.
+      <br />
+      <span style={{ display: 'inline-block', marginTop: 4 }}>
+        Deze stand loopt <strong>drie seizoenen</strong> door. De top 3 van elke klasse wint dan €2000 / €1600 / €1200
+        én een <strong>titel op de duif zelf</strong>.
+      </span>
+    </>
+  ),
+};
 const PRIZES_STEP: Step = {
   route: '/prestaties', selector: '[data-tour="season-prizes"]',
   title: '🎖️ Je seizoensprijzen',
@@ -197,6 +215,7 @@ const STEPS: Step[] = [
   SEASON_STEP,
   ROEKOE_STEP,
   VLEUGEL_STEP,
+  AGE_CUP_STEP,
   {
     route: '/prestaties', selector: '[data-tour="prestige"]',
     title: '🎖️ Prestige',
@@ -589,6 +608,55 @@ export const REST_CURE_NEWS_STEPS: Step[] = [
         <span style={{ display: 'inline-block', marginTop: 4 }}>
           Een rustkuur is dus de <strong>snelste weg terug naar groen</strong> voor een duif die je hard hebt
           gereden. Alle details staan in de <strong>📖 Wiki</strong>.
+        </span>
+      </>
+    ),
+  },
+];
+
+/**
+ * The leeftijdscriterium: four age brackets, one race each per week, standings
+ * that run for three seasons. Three steps — what it is, how you enter, and why
+ * the horizon is longer than a season.
+ */
+export const AGE_CUP_NEWS_STEPS: Step[] = [
+  {
+    route: '/',
+    title: '🏆 Nieuw: het leeftijdscriterium',
+    body: 'Er is een tweede competitie bijgekomen, alleen voor duiven: vier leeftijdsklassen die elk hun eigen wekelijkse vlucht krijgen. Even kort wat dat inhoudt — je kan deze rondleiding later altijd opnieuw starten via je profiel.',
+  },
+  {
+    route: '/vluchten', selector: '[data-tour="flights"]',
+    title: '🐣 Vier klassen, elk hun eigen vlucht',
+    body: (
+      <>
+        Elke week staan er <strong>vier extra vluchten</strong> op de kalender, telkens om <strong>06:00</strong>:
+        maandag <strong>onder 1 jaar</strong>, woensdag <strong>1–2 jaar</strong>, donderdag <strong>2–3 jaar</strong>{' '}
+        en vrijdag <strong>ouder dan 3 jaar</strong>. Er mogen enkel duiven van die leeftijd in — je jonge duif vliegt
+        er dus tegen leeftijdsgenoten in plaats van tegen doorwinterde routiniers.
+        <br />
+        <span style={{ display: 'inline-block', marginTop: 4 }}>
+          Inschrijven kost <strong>€20</strong> en je mag er <strong>zoveel duiven in zetten als je wil</strong>. De
+          vlucht wisselt week na week tussen een <strong>🏁 sprint</strong> (100–300 km, tot €1000) en een{' '}
+          <strong>🛰️ grote fond</strong> (400–1000 km, tot €1600).
+        </span>
+      </>
+    ),
+  },
+  {
+    route: '/ranglijst', selector: '[data-tour="age-cup"]',
+    title: '⏳ Deze stand loopt drie seizoenen',
+    body: (
+      <>
+        Eén vlucht per klasse per week is maar vier resultaten per seizoen — te weinig om iets te bewijzen. Daarom telt
+        de criteriumstand <strong>drie seizoenen</strong> door voor er een prijsuitreiking en een reset volgt. De top 3
+        van elke klasse wint dan <strong>€2000 / €1600 / €1200</strong>, plus een <strong>titel op de duif zelf</strong>{' '}
+        — die blijft bij haar, ook als je haar later verkoopt.
+        <br />
+        <span style={{ display: 'inline-block', marginTop: 4 }}>
+          Let op: het criterium geeft <strong>geen seizoenspunten</strong>. Je Roekoe-ranglijst beweegt er dus niet door
+          — het is puur een wedstrijd tussen duiven. En omdat je duiven ouder worden, <strong>klimt een duif
+          mid-competitie mee naar de volgende klasse</strong>; haar punten blijven staan waar ze verdiend zijn.
         </span>
       </>
     ),

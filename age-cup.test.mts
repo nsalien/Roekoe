@@ -99,10 +99,36 @@ console.log('\n1. De cyclus start pas op de seizoensgrens');
 {
   const db = await tick(T0);
   const anchor = Date.parse(db.world.ageCupStartedAt ?? '');
-  ok(db.world.dataVersion >= 40, 'migratie v40 is gelopen');
+  ok(db.world.dataVersion >= 41, 'migraties v40 + v41 zijn gelopen');
   ok(anchor === T0 + WEEK, 'de cyclus is verankerd op het einde van het lopende seizoen');
   ok(db.flights.filter((f) => f.ageCat).length === 0, 'vóór de start staan er geen criteriumvluchten op de kalender');
   ok((db.world.ageCupSeasonsDone ?? 0) === 0, 'de seizoensteller staat op 0');
+}
+
+// ---------------------------------------------------------------------------
+console.log('\n1b. De aankondiging in de bel');
+{
+  const db = (await load()).data;
+  // Read straight from SQL: a viewer-scoped load only carries that one player's
+  // inbox, so this is also the honest check that the rows really persisted.
+  const allNews = () =>
+    d1._raw.prepare("SELECT * FROM notifications WHERE id LIKE 'ntf:news:agecup:%'").all() as any[];
+  const news = allNews();
+  const humanLofts = db.lofts.filter((l) => !l.isBot).length;
+  ok(news.length === humanLofts, `elke echte speler kreeg de melding (${news.length} van ${humanLofts})`);
+  const botIds = new Set(db.lofts.filter((l) => l.isBot).map((l) => l.userId));
+  ok(news.every((n) => !botIds.has(n.user_id)), 'geen enkele bot kreeg er een');
+  const body = news[0]?.body ?? '';
+  ok(/leeftijdsklassen/.test(body), 'de melding legt de vier klassen uit');
+  ok(body.includes(`€${AGE_CUP.entryFee}`), `ze noemt het inschrijfgeld (€${AGE_CUP.entryFee})`);
+  ok(body.includes(`${AGE_CUP.seasons} seizoenen`), `ze noemt de looptijd van ${AGE_CUP.seasons} seizoenen`);
+  ok(/géén seizoenspunten/.test(body), 'ze waarschuwt dat er geen seizoenspunten zijn');
+  ok(/klimt een duif/.test(body), 'ze legt uit dat een duif mee opklimt');
+  // Running the migration again must not produce a second copy.
+  const s2 = await load(humans[1]);
+  advanceRealtime(s2.data, T0 + 60_000, new Map());
+  await s2.persist();
+  ok(allNews().length === humanLofts, 'een tweede run stuurt geen tweede melding (idempotent)');
 }
 
 // ---------------------------------------------------------------------------

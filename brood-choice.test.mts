@@ -78,6 +78,17 @@ function primeFullLoftWithPair(s: Store): { sireId: string; damId: string } {
 
 const { sireId, damId } = primeFullLoftWithPair(store);
 ok(startBreeding(store, USER.id, sireId, damId) === null, 'koppelen mag ook met een vol hok');
+// Koppelen kost elke ouder 15 energie, en de kans op jongen hangt af van hun
+// libido EN hun energie op het moment van uitkomen. Op 85 energie mislukt de worp
+// zo'n 7% van de tijd — dan is er geen nest en faalt deze test op iets wat ze niet
+// probeert te toetsen. Tank ze terug bij, zodat de worp gegarandeerd lukt.
+store.mutate((d) => {
+  for (const id of [sireId, damId]) {
+    const p = d.pigeons.find((x) => x.id === id)!;
+    p.form = 100;
+    p.libido = 100;
+  }
+});
 await store.persist();
 
 // --- Hatch into a full loft -------------------------------------------------
