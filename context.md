@@ -131,7 +131,7 @@ krijgen.**
 `core/game/schedule.ts` → `advanceRealtime(db, nowMs, weatherByFlight)` roept in
 volgorde:
 1. `runDataMigrations(db)` — eenmalige datafixes, **gated op `world.dataVersion`**
-   (staat nu op **41**; nieuwe migratie = nieuw `if ((db.world.dataVersion ?? 0) < N)`
+   (staat nu op **42**; nieuwe migratie = nieuw `if ((db.world.dataVersion ?? 0) < N)`
    blok + `db.world.dataVersion = N`). v21 zet **bestaande geplande vluchten terug naar de
    OUDE, kortere afstanden** (regio 30–160 / nat 60–290 / intl 180–950 km): elke nog-
    geplande niet-titan-vlucht buiten haar legacy-venster wordt her-routeerd via
@@ -843,7 +843,8 @@ de profielknop herhaalt hem via `window.dispatchEvent(new Event('roekoe:start-to
 **"Wat is nieuw"-melding:** dezelfde `Tour` maar met een **subset** stappen. Actueel
 = **`AGE_CUP_NEWS_STEPS`** (leeftijdscriterium: intro + de vier klassen/inschrijven +
 waarom de stand drie seizoenen loopt). Eigen localStorage-sleutel
-`roekoe.newsSeen.agecup.<id>`; toont pas als de hoofd-tour niet open is. `closeTour` zet ook de news-sleutel, zodat een
+`roekoe.newsSeen.agecup2.<id>` (de `2` omdat de eerste, te lange versie opnieuw
+getoond moest worden); toont pas als de hoofd-tour niet open is. `closeTour` zet ook de news-sleutel, zodat een
 nieuwe speler die de volledige tour afrondt niet nog eens de news krijgt. Bump de
 sleutel-suffix + wissel de `steps`-set (import in `Layout`) voor een volgende
 aankondiging. De vorige sets `FAREWELL_NEWS_STEPS`, `REST_CURE_NEWS_STEPS`,
@@ -929,7 +930,7 @@ eerst) en `npx tsx limits-report.mts` (queries/rijen per verzoek).
 ## 8. Belangrijkste wijzigingen deze sessie (achtergrond)
 
 Alles hieronder staat **live** op de deploy-branch. Data-migraties liepen door tot
-**`dataVersion = 41`**.
+**`dataVersion = 42`**.
 
 **Leeftijdscriterium: vier leeftijdsklassen, één vlucht per week, drie seizoenen (nieuwste)**
 - **Vraag van de eigenaar:** een extra rangschikking per leeftijdsklasse (< 1 j / 1–2 j /
@@ -985,22 +986,53 @@ Alles hieronder staat **live** op de deploy-branch. Data-migraties liepen door t
   titels als badge naast de naam plus een `CriteriumCard` met haar huidige klasse en stand per
   klasse. Wiki-sectie 🏆 **Leeftijdscriterium**; spelregels **§2.10** (+ §2.1, §12, §14, §15).
 - **Communicatie naar de spelers, op twee manieren:**
-  1. **Eerste-login-melding** `AGE_CUP_NEWS_STEPS` (Tour.tsx, 3 stappen: wat het is · de vier
-     klassen + inschrijven · waarom de stand drie seizoenen loopt), sleutel
-     `roekoe.newsSeen.agecup.<id>` — vervangt `REST_CURE_NEWS_STEPS` als actieve set in
+  1. **Eerste-login-melding** `AGE_CUP_NEWS_STEPS` (Tour.tsx, 3 korte stappen: wat het is · de
+     vier klassen + inschrijven · waarom de stand drie seizoenen loopt), sleutel
+     `roekoe.newsSeen.agecup2.<id>` — vervangt `REST_CURE_NEWS_STEPS` als actieve set in
      `Layout.tsx`. De gedeelde stap **`AGE_CUP_STEP`** (anker `[data-tour="age-cup"]` op de
      Criterium-tab) zit óók in de **volledige** tour, na `VLEUGEL_STEP`, dus hij blijft
      herhaalbaar vanuit het profiel en nieuwe spelers krijgen hem gewoon mee.
   2. **Migratie v41 — een belmelding** per echte speler (stabiele id
-     `ntf:news:agecup:<userId>`, bots overgeslagen). ⚠️ Bewust náást de tour: die spotlight is
-     wég zodra iemand ze wegklikt, terwijl de eerste criteriumvlucht pas een week later op de
-     kalender staat. De tekst wordt uit `AGE_CUP` opgebouwd (klassen, uur, inschrijfgeld,
-     prijzen, looptijd), dus herbalanceren laat de melding niet liegen. **dataVersion → 41.**
+     `ntf:news:agecup:<userId>`, bots overgeslagen), opgebouwd uit `AGE_CUP` door de helper
+     **`announceAgeCup(db, idPrefix)`** zodat herbalanceren de melding niet laat liegen.
+     ⚠️ Bewust náást de tour: die spotlight is wég zodra iemand ze wegklikt, terwijl de eerste
+     criteriumvlucht pas een week later op de kalender staat. **dataVersion → 41.**
+
+**Te veel tekst in het spel — ingekort en opnieuw aangekondigd (nieuwste)**
+- **Aanleiding (eigenaar):** de update was te woordrijk in het spel, en de tourkaart was
+  "moeilijk leesbaar, vooral de 2e stap, want ik kan niet scrollen".
+- ⚠️ **Dat scrollen was een echte bug in `Tour.tsx`, niet enkel te veel tekst.** De kaart had
+  wél `overflow-y: auto`, maar een **vaste** `maxHeight: calc(100vh - 24px)` — en die klopt
+  alleen voor een gecentreerde kaart. Verankerd ónder een doel (`top: rect.bottom + 12`) liep
+  ze gewoon voorbij de onderrand: de Vorige/Volgende-knoppen stonden buiten beeld en de eigen
+  scrollbar kon er niet bij. Nu bepaalt **`popStyle` de hoogte mee**: de beschikbare ruimte
+  boven/onder het doel wordt gemeten, de ruimste kant wint, en past geen van beide (< 180 px)
+  dan wordt de kaart over de spotlight gecentreerd. Plus `overscroll-behavior: contain`.
+  **Dit gold voor élke tourstap, niet enkel deze aankondiging.**
+- **Ingekort volgens de tekstbudgetregel (§0, punt 4):** de belmelding van ~1.100 → **418
+  tekens**, de drie news-stappen tot 1–2 zinnen, `AGE_CUP_STEP` tot twee zinnen, het
+  criterium-blok op `RankingPage` van drie alinea's naar één regel (seizoen X van 3 + wikilink),
+  de regel op `FlightsPage` en de `CriteriumCard` op `PigeonPage`. Alle mechaniek, klassen,
+  prijzentabellen en tactiek staan **enkel** in de wiki.
+- **Migratie v42 — opnieuw aankondigen** aan wie de eerste versie al zag: de news-sleutel is
+  gebumpt naar `agecup2` (tour) en `announceAgeCup` wordt opnieuw gedraaid (bel).
+  ⚠️ **Met dezelfde melding-id, en dat is de hele truc.** Een nieuwe id zou de oude, lange rij
+  laten staan bij iedereen behálve de ene speler wiens verzoek de migratie toevallig draait:
+  `notifications` wordt **per viewer** geladen (`WHERE user_id = ?`), dus `persist` kan enkel
+  wissen wat het geladen heeft — de rest hield er dan **twee**. Dezelfde id maakt er één
+  `INSERT OR REPLACE` per speler van. Daarna wordt `read` expliciet op **false** gezet: voor
+  andere spelers levert `pushNotification` sowieso een verse ongelezen rij, maar voor de viewer
+  behoudt hij bewust de bestaande `read`-vlag — precies de speler die de herschrijving dan
+  nooit zou zien. **dataVersion → 42.**
+- **`age-cup.test.mts` → 68 controles**, met een blok dat de **productiesituatie** naspeelt
+  (wereld al op v41, lange tekst al gelezen, één speler draait de migratie): één rij per speler,
+  bij iedereen vervangen, bij iedereen weer ongelezen. Een verse wereld kan dat geval niet
+  tonen — daar draaien v41 en v42 in hetzelfde verzoek.
 - ⚠️ **Om op te volgen:** de klasse **> 3 jaar** kan dun bevolkt zijn (startduiven worden
   8–130 gameweken terug gedateerd), en een wedstrijdvlucht met < 2 melkers wordt afgelast. Bots
   doen mee en vangen dat grotendeels op, maar het is het eerste om te meten als die vlucht vaak
   niet doorgaat. Knop daarvoor: de grens van `o3` verlagen of de klassen samenvoegen.
-- **Nieuwe blijvende test `age-cup.test.mts`** (61 controles): het anker, geen vluchten vóór de
+- **Nieuwe blijvende test `age-cup.test.mts`** (68 controles): het anker, geen vluchten vóór de
   start, vier klassen op hun eigen dag met precies één vlucht per week, de 2+2/6+6-afwisseling en
   dat alle klassen dezelfde week hetzelfde format vliegen, de leeftijdsgrens voor speler én bot,
   geen limiet per hok, prijzengeld ja / seizoenspunten en `wins` nee, punten in de juiste klasse

@@ -13,7 +13,6 @@
  */
 
 import {
-  AGE_CATEGORIES,
   AGE_CUP,
   ageCategoryDef,
   ageCategoryFor,
@@ -1881,41 +1880,67 @@ function runDataMigrations(db: Database): void {
     //
     // The spotlight run in Tour.tsx (AGE_CUP_NEWS_STEPS) is the usual first-login
     // announcement, but it is gone the moment someone clicks it away. A bell
-    // notification stays put, so the rules are still there when the first
+    // notification stays put, so the pointer is still there when the first
     // criterium race actually shows up on the calendar.
     //
-    // Stable id per player, so two concurrent requests running this migration
-    // can never produce two messages.
-    const first = AGE_CATEGORIES[0];
-    for (const loft of db.lofts) {
-      if (loft.isBot) continue;
-      const when = db.world.ageCupStartedAt ? new Date(db.world.ageCupStartedAt) : null;
-      const startsAt = when
-        ? when.toLocaleDateString('nl-BE', { day: 'numeric', month: 'long', timeZone: TIMEZONE })
-        : null;
-      pushNotification(
-        db, loft.userId, 'info',
-        '🏆 Nieuw: het leeftijdscriterium',
-        `Er komt een tweede competitie bij, alleen voor duiven. Vier leeftijdsklassen — ` +
-          `${AGE_CATEGORIES.map((c) => `${c.icon} ${c.label.toLowerCase()}`).join(', ')} — krijgen elk ` +
-          `één eigen vlucht per week om ${String(AGE_CUP.hour).padStart(2, '0')}:${String(AGE_CUP.minute).padStart(2, '0')}, ` +
-          `waar enkel duiven van die leeftijd in mogen. Inschrijven kost €${AGE_CUP.entryFee} en je mag er zoveel ` +
-          `duiven in zetten als je wil. De vlucht wisselt week na week tussen een sprint (100–300 km, tot ` +
-          `€${AGE_CUP.sprint.prizes[0]}) en een grote fond (400–1000 km, tot €${AGE_CUP.fond.prizes[0]}). ` +
-          `\n\nDeze stand loopt ${AGE_CUP.seasons} seizoenen door in plaats van één: met één vlucht per klasse per ` +
-          `week zijn vier resultaten te weinig om iets te bewijzen. Daarna wint de top 3 van elke klasse ` +
-          `€${AGE_CUP.awards.join(' / €')} én een titel op de duif zelf — die blijft bij haar, ook als je haar ` +
-          `later verkoopt.` +
-          `\n\nLet op: het criterium geeft géén seizoenspunten, dus je Roekoe-ranglijst beweegt er niet door. ` +
-          `Omdat duiven ouder worden, klimt een duif tijdens de competitie mee naar de volgende klasse; haar punten ` +
-          `blijven staan waar ze verdiend zijn.` +
-          (startsAt ? `\n\nDe eerste editie (${first.icon} ${first.label.toLowerCase()}) staat op ${startsAt}.` : '') +
-          ` Alle details staan in de wiki onder “Leeftijdscriterium”.`,
-        null,
-        `ntf:news:agecup:${loft.userId}`,
-      );
-    }
+    // Deliberately SHORT (see the tekstbudget rule in context.md §0): what it is,
+    // when, what it costs, and where the rest lives. Classes, prize tables and
+    // tactics belong in the wiki, which is the one place to keep in sync with
+    // gameConfig — a notification cannot be corrected once it is sent.
+    //
+    // Stable id per player, so two concurrent requests running this migration can
+    // never produce two messages.
+    announceAgeCup(db, 'ntf:news:agecup');
     db.world.dataVersion = 41;
+  }
+  if ((db.world.dataVersion ?? 0) < 42) {
+    // Re-announce the criterium: the first version of this message (and the
+    // matching tour run) was far too long to read, and the tour card could not
+    // even be scrolled to its buttons. Everyone gets the short version, unread.
+    //
+    // ⚠️ It reuses the SAME id on purpose. A new id would leave the old, long row
+    // in place for everyone except the one player whose request happens to run
+    // this migration: notifications load per viewer (`WHERE user_id = ?`), so
+    // `persist` can only delete rows it loaded — the rest would end up holding
+    // both messages. Writing the same id makes it one INSERT OR REPLACE per
+    // player instead: one row, new text.
+    announceAgeCup(db, 'ntf:news:agecup');
+    // ...and force it back to unread. For every other player pushNotification
+    // already produces a fresh, unread row, but for the viewer it deliberately
+    // preserves the existing `read` flag — which would silently hide the rewrite
+    // from the one player who had already opened the first version.
+    for (const n of db.notifications) if (n.id.startsWith('ntf:news:agecup:')) n.read = false;
+    db.world.dataVersion = 42;
+  }
+}
+
+/**
+ * The leeftijdscriterium announcement, in the bell inbox, for every real player.
+ *
+ * Deliberately SHORT (see the tekstbudget rule in context.md §0): what it is,
+ * when, what it costs, and where the rest lives. Classes, prize tables and
+ * tactics belong in the wiki — the one place to keep in sync with gameConfig, and
+ * unlike a notification it can still be corrected after the fact.
+ *
+ * `idPrefix` gives every send its own stable id (one per player), so re-announcing
+ * is a matter of passing a new prefix instead of rewriting a row someone may have
+ * already read.
+ */
+function announceAgeCup(db: Database, idPrefix: string): void {
+  const at = `${String(AGE_CUP.hour).padStart(2, '0')}:${String(AGE_CUP.minute).padStart(2, '0')}`;
+  for (const loft of db.lofts) {
+    if (loft.isBot) continue;
+    pushNotification(
+      db, loft.userId, 'info',
+      '🏆 Nieuw: het leeftijdscriterium',
+      `Een tweede competitie, enkel voor duiven: vier leeftijdsklassen met elk één eigen vlucht per week ` +
+        `(ma/wo/do/vr om ${at}), waar enkel duiven van die leeftijd in mogen. Inschrijven kost €${AGE_CUP.entryFee}.` +
+        `\n\nDeze stand loopt ${AGE_CUP.seasons} seizoenen door en geeft géén seizoenspunten — je Roekoe-ranglijst ` +
+        `beweegt er dus niet door. Je vindt ze bij Ranglijst → Criterium.` +
+        `\n\nAlle klassen, prijzen en tactiek staan in de wiki onder “Leeftijdscriterium”.`,
+      null,
+      `${idPrefix}:${loft.userId}`,
+    );
   }
 }
 

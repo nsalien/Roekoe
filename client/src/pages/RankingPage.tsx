@@ -198,20 +198,11 @@ function AgeCupPanel({ meId }: { meId?: string }) {
       <div className="card">
         <h2 style={{ margin: '0 0 4px' }}>🏆 Leeftijdscriterium</h2>
         <p className="faint" style={{ margin: 0 }}>
-          Elke week één vlucht per leeftijdsklasse — de ene week een <strong>sprint</strong> (100–300 km),
-          de volgende een <strong>grote fond</strong> (400–1000 km). Inschrijven kost €{cup.entryFee}.
-          Er is <strong>prijzengeld</strong>, maar geen seizoenspunten: deze stand telt enkel voor de duif.
-        </p>
-        <p className="faint" style={{ margin: '8px 0 0' }}>
           {notYet
-            ? <>De eerste editie start bij het nieuwe seizoen.</>
-            : <>De stand loopt <strong>{cup.seasons} seizoenen</strong> door — nu bezig aan seizoen{' '}
-                <strong>{Math.min(seasonOf, cup.seasons)} van {cup.seasons}</strong>. Pas daarna volgt de
-                prijsuitreiking en een reset.</>}
-        </p>
-        <p className="faint" style={{ margin: '8px 0 0' }}>
-          🥇 €{cup.awards[0]} · 🥈 €{cup.awards[1]} · 🥉 €{cup.awards[2]} per klasse bij de reset, plus een
-          titel op de duif zelf. <Link to="/wiki#criterium">Meer info over het criterium →</Link>
+            ? <>Start bij het nieuwe seizoen.</>
+            : <>Seizoen <strong>{Math.min(seasonOf, cup.seasons)} van {cup.seasons}</strong> — daarna
+                prijsuitreiking en reset.</>}
+          {' '}<Link to="/wiki#criterium">Meer info over het criterium →</Link>
         </p>
       </div>
       {cup.categories.map((cat: AgeCategoryInfo) => (

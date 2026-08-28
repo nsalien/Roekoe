@@ -48,15 +48,10 @@ const AGE_CUP_STEP: Step = {
   title: '🏆 Leeftijdscriterium',
   body: (
     <>
-      Onder <strong>Criterium</strong> loopt een tweede competitie, alleen voor duiven. Er zijn{' '}
-      <strong>vier leeftijdsklassen</strong> (onder 1 jaar, 1–2, 2–3 en ouder dan 3), en elke klasse heeft{' '}
-      <strong>één eigen vlucht per week</strong> waar enkel duiven van die leeftijd in mogen — je jonge duif vliegt er
-      dus tegen leeftijdsgenoten in plaats van tegen het hele veld.
+      Een tweede competitie, enkel voor duiven: <strong>vier leeftijdsklassen</strong> met elk één eigen vlucht per
+      week. Deze stand loopt <strong>drie seizoenen</strong> door.
       <br />
-      <span style={{ display: 'inline-block', marginTop: 4 }}>
-        Deze stand loopt <strong>drie seizoenen</strong> door. De top 3 van elke klasse wint dan €2000 / €1600 / €1200
-        én een <strong>titel op de duif zelf</strong>.
-      </span>
+      <span className="faint" style={{ display: 'inline-block', marginTop: 4 }}>Alles erover: 📖 Wiki.</span>
     </>
   ),
 };
@@ -489,20 +484,32 @@ export function Tour({ onClose, steps = STEPS }: { onClose: () => void; steps?: 
 
   // Tooltip placement: below the target if there's room, else above; centered
   // when there is no target.
+  //
+  // The card MUST also get a maxHeight that matches where it lands. It used to
+  // carry a flat `calc(100vh - 24px)`, which is only right for a centered card:
+  // anchored under a target it simply ran past the bottom of the screen, so the
+  // Vorige/Volgende buttons sat off-screen and its own scrollbar could not reach
+  // them. A step with a paragraph too many was then a dead end.
+  const MARGIN = 12;
   const vw = typeof window !== 'undefined' ? window.innerWidth : 360;
   const vh = typeof window !== 'undefined' ? window.innerHeight : 640;
   const popW = Math.min(340, vw - 24);
   let popStyle: CSSProperties;
   if (rect) {
-    const left = clamp(rect.left + rect.width / 2 - popW / 2, 12, vw - popW - 12);
-    const spaceBelow = vh - rect.bottom;
-    if (spaceBelow > 210) {
-      popStyle = { left, top: rect.bottom + 12 };
+    const left = clamp(rect.left + rect.width / 2 - popW / 2, MARGIN, vw - popW - MARGIN);
+    const below = vh - rect.bottom - MARGIN * 2;
+    const above = rect.top - MARGIN * 2;
+    if (Math.max(below, above) < 180) {
+      // Target sits mid-screen on a short viewport: neither side can hold a
+      // readable card, so centre it over the spotlight rather than clip it.
+      popStyle = { left, top: '50%', transform: 'translateY(-50%)', maxHeight: vh - MARGIN * 2 };
+    } else if (below >= above) {
+      popStyle = { left, top: rect.bottom + MARGIN, maxHeight: below };
     } else {
-      popStyle = { left, bottom: vh - rect.top + 12 };
+      popStyle = { left, bottom: vh - rect.top + MARGIN, maxHeight: above };
     }
   } else {
-    popStyle = { left: '50%', top: '50%', transform: 'translate(-50%, -50%)' };
+    popStyle = { left: '50%', top: '50%', transform: 'translate(-50%, -50%)', maxHeight: vh - MARGIN * 2 };
   }
 
   return (
@@ -530,7 +537,8 @@ export function Tour({ onClose, steps = STEPS }: { onClose: () => void; steps?: 
       <div
         style={{
           position: 'fixed', width: popW, maxWidth: 'calc(100vw - 24px)', zIndex: 92,
-          maxHeight: 'calc(100vh - 24px)', overflowY: 'auto',
+          overflowY: 'auto', // maxHeight comes from popStyle: it depends on where the card lands
+          overscrollBehavior: 'contain',
           background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r-lg)',
           boxShadow: 'var(--shadow-lg)', padding: 16,
           ...popStyle,
@@ -623,40 +631,29 @@ export const AGE_CUP_NEWS_STEPS: Step[] = [
   {
     route: '/',
     title: '🏆 Nieuw: het leeftijdscriterium',
-    body: 'Er is een tweede competitie bijgekomen, alleen voor duiven: vier leeftijdsklassen die elk hun eigen wekelijkse vlucht krijgen. Even kort wat dat inhoudt — je kan deze rondleiding later altijd opnieuw starten via je profiel.',
+    body: 'Een tweede competitie, enkel voor duiven: vier leeftijdsklassen die elk hun eigen wekelijkse vlucht krijgen.',
   },
   {
     route: '/vluchten', selector: '[data-tour="flights"]',
     title: '🐣 Vier klassen, elk hun eigen vlucht',
     body: (
       <>
-        Elke week staan er <strong>vier extra vluchten</strong> op de kalender, telkens om <strong>06:00</strong>:
-        maandag <strong>onder 1 jaar</strong>, woensdag <strong>1–2 jaar</strong>, donderdag <strong>2–3 jaar</strong>{' '}
-        en vrijdag <strong>ouder dan 3 jaar</strong>. Er mogen enkel duiven van die leeftijd in — je jonge duif vliegt
-        er dus tegen leeftijdsgenoten in plaats van tegen doorwinterde routiniers.
-        <br />
-        <span style={{ display: 'inline-block', marginTop: 4 }}>
-          Inschrijven kost <strong>€20</strong> en je mag er <strong>zoveel duiven in zetten als je wil</strong>. De
-          vlucht wisselt week na week tussen een <strong>🏁 sprint</strong> (100–300 km, tot €1000) en een{' '}
-          <strong>🛰️ grote fond</strong> (400–1000 km, tot €1600).
-        </span>
+        Elke week vier extra vluchten om <strong>06:00</strong> — ma <strong>&lt; 1 j</strong>, wo{' '}
+        <strong>1–2 j</strong>, do <strong>2–3 j</strong>, vr <strong>3 j +</strong> — met enkel duiven van die
+        leeftijd. Inschrijven kost <strong>€20</strong>, zoveel duiven als je wil.
       </>
     ),
   },
   {
     route: '/ranglijst', selector: '[data-tour="age-cup"]',
-    title: '⏳ Deze stand loopt drie seizoenen',
+    title: '⏳ De stand loopt drie seizoenen',
     body: (
       <>
-        Eén vlucht per klasse per week is maar vier resultaten per seizoen — te weinig om iets te bewijzen. Daarom telt
-        de criteriumstand <strong>drie seizoenen</strong> door voor er een prijsuitreiking en een reset volgt. De top 3
-        van elke klasse wint dan <strong>€2000 / €1600 / €1200</strong>, plus een <strong>titel op de duif zelf</strong>{' '}
-        — die blijft bij haar, ook als je haar later verkoopt.
+        Daarna wint de top 3 van elke klasse geld én een <strong>titel op de duif</strong>. Geen seizoenspunten: je
+        Roekoe-ranglijst beweegt er niet door.
         <br />
-        <span style={{ display: 'inline-block', marginTop: 4 }}>
-          Let op: het criterium geeft <strong>geen seizoenspunten</strong>. Je Roekoe-ranglijst beweegt er dus niet door
-          — het is puur een wedstrijd tussen duiven. En omdat je duiven ouder worden, <strong>klimt een duif
-          mid-competitie mee naar de volgende klasse</strong>; haar punten blijven staan waar ze verdiend zijn.
+        <span className="faint" style={{ display: 'inline-block', marginTop: 4 }}>
+          Klassen, prijzen en tactiek: 📖 Wiki → Leeftijdscriterium.
         </span>
       </>
     ),
