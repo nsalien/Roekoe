@@ -18,7 +18,7 @@ interface AdminFlight {
 interface Breakdown {
   weights: { speed: number; endurance: number; orientation: number };
   baseAttr: number; base: number; effectiveForm: number;
-  formFactor: number; healthFactor: number; experienceFactor: number; ageFactor: number; weatherFactor: number;
+  formFactor: number; healthFactor: number; ageFactor: number; weatherFactor: number;
   velocityNoLuck: number;
 }
 interface Row {
@@ -290,7 +290,7 @@ function FlightAnalysis() {
                     <th className="num">Snel</th><th className="num">Cond</th><th className="num">Oriÿ</th>
                     <th className="num">En*</th><th className="num">Gez</th><th className="num">Erv</th><th className="num">Lft</th>
                     <th className="num">Basis</th>
-                    <th className="num">En(eff)</th><th className="num">En×</th><th className="num">Gez×</th><th className="num">Erv×</th><th className="num">Lft×</th>
+                    <th className="num">En(eff)</th><th className="num">En×</th><th className="num">Gez×</th><th className="num">Lft×</th>
                     <th className="num">v (ber.)</th><th className="num">v (echt)</th><th className="num">Residu</th>
                   </tr>
                 </thead>
@@ -317,7 +317,6 @@ function FlightAnalysis() {
                         <td className="num">{b ? b.effectiveForm.toFixed(0) : '—'}</td>
                         <td className="num">{b ? b.formFactor.toFixed(2) : '—'}</td>
                         <td className="num">{b ? b.healthFactor.toFixed(2) : '—'}</td>
-                        <td className="num">{b ? b.experienceFactor.toFixed(2) : '—'}</td>
                         <td className="num">{b ? b.ageFactor.toFixed(2) : '—'}</td>
                         <td className="num">{b ? b.velocityNoLuck.toFixed(0) : '—'}</td>
                         <td className="num"><strong>{r.frozenVelocity != null ? r.frozenVelocity.toFixed(0) : '—'}</strong></td>

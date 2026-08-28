@@ -23,7 +23,7 @@ Elke duif (0–100 per waarde):
 | **Energie** | dynamisch | "Fut". Daalt door vluchten, stijgt door rust + eten. Lage energie = slechtere prestaties, meer kans op ziekte/blessure, minder kans op broeden. |
 | **Gezondheid** | dynamisch | Algemene gezondheid. Vermenigvuldigt de vluchtsnelheid; laag = niet vluchtklaar. |
 | **Libido** | dynamisch | Broeddrift. Volgt conditie + energie (met een frisse minderheid als uitzondering). |
-| **Ervaring** | groeit | Zelfvertrouwen. Betere prestaties, sneller energieherstel én **minder energieverbruik per vlucht**. Groeit door te vliegen, te trainen en met een coach — **snel bij een groentje, steeds trager bij een routinier** (§3.7). |
+| **Ervaring** | groeit | Routine. **Maakt niet sneller** — maakt zuinig: minder energieverbruik per vlucht, sneller energieherstel, en een lage tank beter indelen (§2.3). Groeit door te vliegen, te trainen en met een coach — **snel bij een groentje, steeds trager bij een routinier** (§3.7). |
 
 Een duif is **vluchtklaar** als: niet gepensioneerd, geen ziekte/kwetsuur, niet
 in de ziekenboeg, minstens **8 weken** oud en gezondheid > 15.
@@ -103,12 +103,12 @@ energiefactor_lang = interp: 0→0.45, 50→0.85, 100→1.20
 energiefactor      = energiefactor_kort + (energiefactor_lang − energiefactor_kort)·t
 
 gezondheidsf.  = interp(Gezond.):  0→0.40, 50→0.85, 100→1.00
-ervaringfactor = 1 + Ervaring/300           (tot +33%)
 leeftijdfactor = leeftijdscurve (zie §6)
 weerfactor     = 0.70 … 1.20 (zie §2.5)
 geluk          = willekeurig 0.90 … 1.10
 
-snelheid = (700 + basisscore·9) · energiefactor · gezondheidsf. · ervaringfactor · leeftijdfactor · weerfactor · geluk
+snelheid = (700 + basisscore·9) · energiefactor · gezondheidsf. · leeftijdfactor · weerfactor · geluk
+# Ervaring zit hier BEWUST niet in — zie hieronder en §3.7.
 ```
 
 **Je tempo komt van snelheid en conditie**: snelheid is de sprint-eigenschap die
@@ -124,10 +124,30 @@ vlucht langer wordt (tot 0.69).
 duif maar licht afgestraft (ze kan er nog goed presteren); vanaf **middellange tot
 lange** afstand weegt weinig energie veel zwaarder door.
 
-**Ervaring laat energie doseren:** een ervaren duif presteert alsof ze méér energie
-heeft (tot 35% van haar energietekort wordt "goedgemaakt"). Bij gelijke andere
-eigenschappen kan een **ervaren duif met weinig energie** dus **beter scoren dan een
-onervaren duif met veel energie**. Ervaring helpt daardoor extra op lange vluchten.
+> **Ervaring maakt een duif niet sneller.** Ze telde vroeger als een vaste bonus
+> van tot +33% mee in de formule hierboven, en dat maakte haar in de praktijk een
+> tweede snelheids-eigenschap — een duif met ervaring 0 kon simpelweg niet mee,
+> hoe snel ze ook was. Dat is weg. **Snelheid bepaalt hoe hard een duif vliegt;
+> energie en conditie bepalen hoe lang ze dat tempo volhoudt.** Precies dezelfde
+> opruiming die oriëntatie eerder kreeg (§3.5).
+
+**Wat ervaring wél doet, is je duif zuinig maken.** Ze verbruikt minder energie
+per vlucht (§3), herstelt sneller van haar voer (§4), en kan een **lage tank
+beter indelen**: tot 35% van haar energietekort wordt "goedgemaakt" in de
+energiefactor hierboven. Dat laatste is **voorwaardelijk** — het is een
+rantsoeneringstalent, geen snelheid:
+
+| Energie van je duif | Wat ervaring 0 → 100 oplevert (500 km) |
+|---|---|
+| 100 (volle tank) | **niets** |
+| 70 | +5 km/u |
+| 40 | +10 km/u |
+| 20 (bijna leeg) | +15 km/u |
+
+Een frisse duif haalt dus **geen enkel** voordeel uit ervaring; een uitgeputte
+wel. Bij gelijke andere eigenschappen kan een **ervaren duif met weinig energie**
+daardoor nog steeds beter scoren dan een onervaren duif met weinig energie — maar
+ze wint het nooit van een even snelle duif die gewoon uitgerust is.
 
 > **Voorbeeld.** Een sterke duif (snelheid 80, conditie 70, oriëntatie 65,
 > energie 90, gezondheid 85, ervaring 40) op een vlucht van **300 km**:
