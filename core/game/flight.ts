@@ -100,19 +100,18 @@ export function pigeonVelocity(
     ],
     pigeon.health,
   );
-  // Ervaring = confidence: seasoned birds race noticeably better.
-  const experienceFactor = 1 + clamp(pigeon.experience, 0, 100) / 300; // up to +33%
+  // Ervaring is DELIBERATELY absent here. It used to add a flat multiplier of up
+  // to +33%, which made it a second speed stat — measured, it produced more
+  // spread across a field than snelheid itself, and it made a bird with ervaring
+  // 0 unable to compete at all. Snelheid decides how fast a bird flies; energie
+  // and conditie decide how long it holds that pace. Ervaring still matters, but
+  // only through EFFICIENCY: it lets a bird ration a low tank (energieFactor
+  // above — zero benefit on a full one), costs less energie per flight, and
+  // recovers faster. Same cleanup orientation got, for the same reason.
   const age = ageMultiplier(pigeon, currentWeek);
 
   // Base racing pigeons average ~1200 m/min; scale attribute score around that.
-  const velocity =
-    (700 + baseAttr * 9) *
-    formFactor *
-    healthFactor *
-    experienceFactor *
-    age *
-    weatherFactor *
-    luck;
+  const velocity = (700 + baseAttr * 9) * formFactor * healthFactor * age * weatherFactor * luck;
   return round1(velocity);
 }
 
@@ -121,10 +120,9 @@ export interface VelocityBreakdown {
   weights: { speed: number; endurance: number; orientation: number };
   baseAttr: number; // weighted attribute score
   base: number; // 700 + baseAttr*9
-  effectiveForm: number; // energie after ervaring-dosing (what the factor uses)
+  effectiveForm: number; // energie after ervaring-dosing — the ONLY place ervaring shows up
   formFactor: number; // energie multiplier (distance-blended)
   healthFactor: number;
-  experienceFactor: number;
   ageFactor: number;
   weatherFactor: number;
   velocityNoLuck: number; // base × all factors (luck = 1)
@@ -149,10 +147,10 @@ export function velocityBreakdown(
   const form = formValue ?? pigeon.form;
   const { factor: formFactor, effectiveForm } = energieFactor(form, pigeon.experience, distanceT(distanceKm));
   const healthFactor = interpolate([{ x: 0, y: 0.4 }, { x: 50, y: 0.85 }, { x: 100, y: 1.0 }], pigeon.health);
-  const experienceFactor = 1 + clamp(pigeon.experience, 0, 100) / 300;
   const ageFactor = ageMultiplier(pigeon, currentWeek);
   const base = 700 + baseAttr * 9;
-  const velocityNoLuck = base * formFactor * healthFactor * experienceFactor * ageFactor * weatherFactor;
+  // Mirrors pigeonVelocity exactly — if these two ever drift the tool is lying.
+  const velocityNoLuck = base * formFactor * healthFactor * ageFactor * weatherFactor;
   return {
     weights: { speed: round3(w.speed), endurance: round3(w.endurance), orientation: round3(w.orientation) },
     baseAttr: round1(baseAttr),
@@ -160,7 +158,6 @@ export function velocityBreakdown(
     effectiveForm: round1(effectiveForm),
     formFactor: round3(formFactor),
     healthFactor: round3(healthFactor),
-    experienceFactor: round3(experienceFactor),
     ageFactor: round3(ageFactor),
     weatherFactor: round3(weatherFactor),
     velocityNoLuck: round1(velocityNoLuck),

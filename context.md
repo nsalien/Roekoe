@@ -374,6 +374,7 @@ Roekoe/
 ├── commentary.test.mts          regressietest: live verslag groeit aan, herschrijft niet
 ├── betting-odds.test.mts        regressietest: weddenschapskansen kloppen + zijn stabiel
 ├── newcomer.test.mts            regressietest: starterspakket nieuwe spelers (48 checks)
+├── velocity-model.test.mts      regressietest: snelheid = snelheid, ervaring = efficiëntie
 ├── poll-budget.test.mts         regressietest: pollritme + de smalle load (deelnemerslijst!)
 ├── force-finish.test.mts        regressietest: admin-"match beëindigen" == natuurlijk uitvliegen
 ├── limits-report.mts            meet queries/rijen gelezen/geschreven per verzoek
@@ -874,6 +875,7 @@ npx tsx betting-odds.test.mts      # weddenschapskansen kloppen en zijn stabiel
 npx tsx poll-budget.test.mts       # polls + smalle load blijven binnen het dagbudget
 npx tsx force-finish.test.mts      # admin-"match beëindigen" == natuurlijk uitvliegen
 npx tsx newcomer.test.mts          # starterspakket: punten, tijdvenster, afloopmelding
+npx tsx velocity-model.test.mts    # ervaring raakt de snelheid van een frisse duif niet
 ```
 Diagnose zonder assertie: `npx tsx cpu-sweep.mts` (CPU per operatie, duurste
 eerst) en `npx tsx limits-report.mts` (queries/rijen per verzoek).
@@ -913,7 +915,47 @@ eerst) en `npx tsx limits-report.mts` (queries/rijen per verzoek).
 Alles hieronder staat **live** op de deploy-branch. Data-migraties liepen door tot
 **`dataVersion = 38`**.
 
-**Migratie v39 — starterspakket voor "Vleugels Inc." en "Roekoeloos" (nieuwste)**
+**Ervaring is uit de snelheidsformule (nieuwste)**
+- **Aanleiding (eigenaar):** "ervaring hoort geen invloed te hebben op snelheid, daar is
+  de eigenschap snelheid voor." Terecht — en het was dezelfde fout als bij oriëntatie.
+- **Gemeten vóór de ingreep.** `experienceFactor = 1 + ervaring/300` gaf tot **+33 %**.
+  Per púnt was ervaring niet te zwaar (0,31–0,37 km/u, tegen snelheid 0,19–0,48), maar
+  haar **bereik** wel: ervaring loopt 0→100 (**+31 tot +36 km/u**) terwijl snelheid en
+  conditie in hun gen-band 70–95 zitten (**+12 tot +3 km/u**). In een gemengd veld leverde
+  ervaring **4,35 km/u** spreiding tegen snelheid 3,06 en conditie 3,20 — ze was dus de
+  grootste onderscheider, en een duif met ervaring 0 kon niet mee, hoe snel ook.
+- **Wat weg is:** `experienceFactor` uit `pigeonVelocity` **en** uit `velocityBreakdown`
+  (de admin-ontleding moet de formule exact spiegelen, anders liegt de tool). Het veld
+  `VelocityBreakdown.experienceFactor` bestaat niet meer; `AdminPage` verloor die kolom.
+- **Wat blijft — en dat is het punt:** ervaring is nu puur **efficiëntie**. Minder
+  energie per vlucht (33–37 %), sneller herstel (+50 %), en **energie-dosering** in
+  `energieFactor`. Dat laatste raakt de snelheid nog, maar **voorwaardelijk**: gemeten op
+  500 km levert ervaring 0→100 bij een **volle tank 0,0 km/u** op, bij energie 70 +4,8, bij
+  40 +10,4 en bij 20 +15,1. Een frisse duif haalt er dus niets uit; een lege wel. Dat is
+  precies de rol die de eigenaar beschreef: snelheid bepaalt hoe hard, energie en conditie
+  hoe lang.
+- **Na de ingreep** weegt op 150 km snelheid het zwaarst (10,3 km/u) en op 1000 km conditie
+  (9,3), met ervaring er telkens onder. Het gat tussen ervaring 0 en 90 zakt van **37 % naar
+  5 %** — dat is een grotere hulp voor nieuwkomers én voor elk gekweekt jong dan het hele
+  starterspakket.
+- ⚠️ **Vluchten duren ~27 % langer** en dat is een **bewuste keuze van de eigenschap**: de
+  basisconstante is *niet* gecompenseerd. Gemiddeld veld: 150 km 1,4 → 1,7 u · 500 km
+  4,5 → 5,7 u · 1000 km 8,8 → 11,2 u. Wil je dat ooit terugdraaien zonder ervaring terug te
+  brengen, dan is `(700 + score·9)` → `(890 + score·11,4)` de exacte compensatie.
+  **Gecontroleerd op het leesbudget** (langere races = meer live-polls): `daily-budget`
+  blijft op **24,2 %** van de 5M/dag, dus daar zit geen probleem.
+- **Geen spelersaankondiging** (expliciet niet gewenst), geen migratie, geen schemawijziging,
+  `dataVersion` blijft 39.
+- **Nieuwe blijvende test `velocity-model.test.mts`** (19 controles): een frisse duif haalt
+  niets uit ervaring op 150/500/1000 km, op een lage tank wél en monotoon meer naarmate ze
+  leger staat, snelheid/conditie wegen overal zwaarder dan ervaring, snelheid domineert de
+  sprint en conditie de fond, een **snelle groentje klopt een trage veteraan**, en de
+  admin-ontleding blijft gelijk aan de echte snelheid. Alle 15 andere regressietests +
+  beide typechecks + build groen.
+- Spelregels **§1** en **§2.3** herschreven; wiki-secties 🎓 **Ervaring** (met de
+  doseringstabel) en 📋 **Wat doet elke eigenschap** bijgewerkt.
+
+**Migratie v39 — starterspakket voor "Vleugels Inc." en "Roekoeloos"**
 - Op verzoek van de eigenaar krijgen deze twee bestaande spelers het **volledige
   starterspakket** met terugwerkende kracht: 30 ervaringspunten, 5 eigenschapspunten,
   28 dagen gratis coach + dubbele winst, hun duiven bijgetankt naar 100 energie, en een

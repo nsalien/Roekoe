@@ -201,10 +201,24 @@ export function WikiPage() {
 
       <Section id="ervaring" icon="🎓" title="Ervaring: snel geleerd, traag vervolmaakt">
         <p className="muted" style={{ marginTop: 0 }}>
-          Ervaring maakt een duif sneller (tot <strong>+33 %</strong>), zuiniger op de vlucht en vlotter in
-          haar herstel. Ze groeit door te <strong>vliegen</strong>, te <strong>trainen</strong> en met een
-          <strong> privécoach</strong> — maar niet aan een vast tempo.
+          Ervaring <strong>maakt een duif niet sneller</strong> — daarvoor is er snelheid. Ze maakt haar
+          <strong>zuinig</strong>: minder energie per vlucht, vlotter herstel, en een lage tank die ze beter
+          weet in te delen. Ze groeit door te <strong>vliegen</strong>, te <strong>trainen</strong> en met
+          een <strong>privécoach</strong> — maar niet aan een vast tempo.
         </p>
+        <p>
+          Dat indelen is <strong>voorwaardelijk</strong>: een duif met een volle tank heeft er niets aan,
+          een lege duif veel. Wat ervaring 0 → 100 oplevert op een vlucht van 500 km:
+        </p>
+        <MiniTable
+          head={['Energie van je duif', 'Winst uit ervaring']}
+          rows={[
+            ['100 (volle tank)', 'niets'],
+            ['70', '+5 km/u'],
+            ['40', '+10 km/u'],
+            ['20 (bijna leeg)', '+15 km/u'],
+          ]}
+        />
         <p>
           <strong>Een groentje leert snel, een routinier amper nog.</strong> Elke vlucht en elke
           trainingsbeurt levert dezelfde duif <em>minder</em> op naarmate ze al meer ervaring heeft. De
@@ -453,7 +467,7 @@ export function WikiPage() {
             ['🧭 Oriëntatie', 'De weg vinden. Bepaalt of je duif omvliegt of de weg helemaal kwijtraakt.', 'Lange vluchten en slecht weer'],
             ['❤️ Gezondheid', 'Samen met energie je vluchtvorm: de kans op blessure en ziekte. Heel lage gezondheid maakt een duif zelfs niet-vluchtklaar.', 'Overal'],
             ['🔋 Energie', 'De tank. Samen met gezondheid je vluchtvorm; bij een bijna lege tank valt een duif uit of erger.', 'Overal, zwaarder op lange vluchten'],
-            ['🎓 Ervaring', 'Zuiniger vliegen, sneller herstellen en beter presteren (tot +33 %).', 'Overal'],
+            ['🎓 Ervaring', 'Zuiniger vliegen en sneller herstellen. Maakt niet sneller.', 'Vooral op een lage tank'],
           ]}
         />
       </Section>
