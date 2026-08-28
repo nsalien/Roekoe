@@ -1421,7 +1421,8 @@ de rest — een duif die er een krijgt, mag gezien worden.
 ## 11. Meldingen (belknop)
 
 De speler krijgt een melding bij: vluchtuitslag, verbetering van een duif,
-kwetsuur, ziekte, herstel, sterfte en geboorte van jongen.
+kwetsuur, ziekte, herstel, sterfte en geboorte van jongen. Ook grote nieuwe
+onderdelen van het spel worden er één keer via aangekondigd.
 
 ## 12. Dagopdrachten, gebeurtenissen, veilingen & sponsors
 
