@@ -30,7 +30,7 @@ import {
   TITAN,
   TOURNEY_RISK,
 } from '../config/gameConfig.js';
-import { RELAY } from '../config/gameConfig.js';
+import { AGE_CUP, RELAY } from '../config/gameConfig.js';
 import type { Ailment, Database, Flight, FlightResult, Loft, Pigeon, SimEntry } from '../schema.js';
 import { relayEntryTeams, relayLegKm, relaySimTeams } from './relay.js';
 import { ageMultiplier, conditionScore, experienceGain, flightForm, noteAttrChange, raceCeil } from './pigeon.js';
@@ -696,6 +696,18 @@ export interface FinishPayout {
 }
 
 /**
+ * The money table a flight pays out by placing. Most races use their tier's
+ * PRIZE_MONEY; the two specials bring their own: the titanenwedstrijd, and a
+ * leeftijdscriterium, whose table depends on the week's format (a sprint pays
+ * less than a grote fond).
+ */
+export function flightPrizes(flight: Flight): readonly number[] {
+  if (flight.ageCat) return flight.cupSprint ? AGE_CUP.sprint.prizes : AGE_CUP.fond.prizes;
+  if (flight.titan) return TITAN.prizes;
+  return PRIZE_MONEY[flight.type];
+}
+
+/**
  * The per-finisher prize payouts for a flight, derived purely from the FROZEN sim
  * — so they are known (and final) the moment each bird finishes, long before the
  * slowest straggler is home. Uses the exact same finisher ordering as
@@ -726,7 +738,7 @@ export function computeFinishPayouts(flight: Flight): FinishPayout[] {
         };
       });
   }
-  const prizes = flight.titan ? TITAN.prizes : PRIZE_MONEY[flight.type];
+  const prizes = flightPrizes(flight);
   const isDnf = (s: SimEntry) => s.gaveUp || s.dnfAtSeconds != null;
   const finishers = flight.sim.filter((s) => !isDnf(s)).sort((a, b) => a.durationSeconds - b.durationSeconds);
   return finishers.map((s, i) => ({
@@ -748,8 +760,9 @@ export function computeFinishPayouts(flight: Flight): FinishPayout[] {
 export function finalizeFlight(flight: Flight, pigeons: Pigeon[]): SimulatedFlight {
   if (flight.practice) return finalizePracticeFlight(flight, pigeons);
   if (flight.relay) return finalizeRelayFlight(flight, pigeons);
-  // A titanenwedstrijd pays its own money prizes and NO ranking points.
-  const prizes = flight.titan ? TITAN.prizes : PRIZE_MONEY[flight.type];
+  // A titanenwedstrijd and a leeftijdscriterium both pay their own money prizes
+  // and NO seizoenspunten for the melker standings.
+  const prizes = flightPrizes(flight);
   const results: FlightResult[] = [];
   const payoutMap = new Map<string, { prize: number; points: number; wins: number }>();
   const fatigue: SimulatedFlight['fatigue'] = [];
@@ -798,8 +811,10 @@ export function finalizeFlight(flight: Flight, pigeons: Pigeon[]): SimulatedFlig
     const isDnf = isDnfId(s.pigeonId);
     const gaveUp = gaveUpSet.has(s.pigeonId);
     const rank = i + 1;
-    // De titanenwedstrijd geeft geen rangschikkingspunten (enkel prijzengeld).
-    const points = isDnf || flight.titan ? 0 : RANKING_POINTS[i] ?? 0;
+    // De titanenwedstrijd en het leeftijdscriterium geven geen seizoenspunten voor
+    // de melkerranglijst (enkel prijzengeld). Het criterium kent zijn eigen punten
+    // toe aan de DUIF — dat gebeurt in tickFlights, uit `results[].rank`.
+    const points = isDnf || flight.titan || flight.ageCat ? 0 : RANKING_POINTS[i] ?? 0;
     const prize = isDnf ? 0 : prizes[i] ?? 0;
     results.push({
       pigeonId: s.pigeonId,
@@ -822,8 +837,9 @@ export function finalizeFlight(flight: Flight, pigeons: Pigeon[]): SimulatedFlig
     // money credited at finalize excludes what was already banked.
     acc.prize += s.prizePaid ? 0 : prize;
     acc.points += points;
-    // A titan win is money-only — it does not count as a competition win.
-    if (rank === 1 && !isDnf && !flight.titan) acc.wins += 1;
+    // A titan or criterium win is money-only — it does not count as a competition
+    // win for the loft (those drive badges, level and the melker standings).
+    if (rank === 1 && !isDnf && !flight.titan && !flight.ageCat) acc.wins += 1;
     payoutMap.set(s.ownerId, acc);
 
     // Fatigue: racing drains energie, and a bird pays ONLY for the part it flew.

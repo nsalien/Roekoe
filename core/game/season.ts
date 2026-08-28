@@ -12,7 +12,8 @@
  * monotonic game-week counter (it drives ages, ailments and flight weeks).
  */
 
-import { SEASON, SEASON_AWARDS } from '../config/gameConfig.js';
+import { AGE_CATEGORIES, AGE_CUP, SEASON, SEASON_AWARDS, ageCategoryDef } from '../config/gameConfig.js';
+import type { AgeCategoryId } from '../config/gameConfig.js';
 import type { Database, Loft, Pigeon, SeasonAward, WingCategory } from '../schema.js';
 import { awardBadge } from './badges.js';
 import { ownerName } from './engine.js';
@@ -81,6 +82,44 @@ export function pigeonSeasonRankings(db: Database, limit = 10): PigeonRankings {
   return { fastest, podiums, progress };
 }
 
+/** The four leeftijdscriterium standings, keyed by age bracket. */
+export type CupRankings = Record<AgeCategoryId, PigeonRankRow[]>;
+
+/**
+ * The leeftijdscriterium standings (top `limit` per bracket).
+ *
+ * Unlike the three season rankings above, these run for a full CYCLE of
+ * AGE_CUP.seasons and are keyed by the bracket the points were earned in — a
+ * bird that ages up mid-cycle keeps what she banked and starts a fresh entry one
+ * bracket higher, so she can legitimately appear in two lists at once.
+ *
+ * Ranked on points, then victories, then her best route average in that bracket
+ * — enough to separate birds that ran the same handful of races.
+ */
+export function ageCupRankings(db: Database, limit = 10): CupRankings {
+  const botIds = new Set(db.lofts.filter((l) => l.isBot).map((l) => l.userId));
+  const out = {} as CupRankings;
+  for (const cat of AGE_CATEGORIES) {
+    out[cat.id] = db.pigeons
+      .filter((p) => (p.cup?.[cat.id]?.points ?? 0) > 0)
+      .sort((a, b) => {
+        const x = a.cup![cat.id]!;
+        const y = b.cup![cat.id]!;
+        return y.points - x.points || y.wins - x.wins || y.best - x.best;
+      })
+      .slice(0, limit)
+      .map((p) => ({
+        pigeonId: p.id,
+        name: p.name,
+        ownerId: p.ownerId,
+        ownerName: ownerName(db, p.ownerId),
+        isBot: botIds.has(p.ownerId),
+        value: p.cup![cat.id]!.points,
+      }));
+  }
+  return out;
+}
+
 /** Stable, idempotent season notification (survives a double ceremony run). */
 function seasonNotify(db: Database, userId: string, title: string, body: string, id: string): void {
   const existing = db.notifications.find((n) => n.id === id);
@@ -99,6 +138,74 @@ function seasonNotify(db: Database, userId: string, title: string, body: string,
 
 const ROEKOE_NAME = ['de Gouden Roekoe', 'de Zilveren Roekoe', 'de Bronzen Roekoe'];
 const WING_NAME = ['de Gouden Vleugel', 'de Zilveren Vleugel', 'de Bronzen Vleugel'];
+const CUP_METAL = ['Gouden', 'Zilveren', 'Bronzen'];
+const CUP_MEDAL = ['🥇', '🥈', '🥉'];
+
+/**
+ * Close the leeftijdscriterium cycle if the season that just ended was its last.
+ *
+ * The criterium runs over AGE_CUP.seasons (3) seasons because each bracket gets
+ * only ONE race a week — a single season is 4 races, far too few to separate a
+ * field. When the cycle is up, the top 3 of every bracket pay their owner and,
+ * crucially, engrave a title ON THE BIRD (`Pigeon.titles`), which follows her if
+ * she is ever sold. Then every criterium total is wiped and the next cycle starts.
+ *
+ * Returns the awards it handed out, per loft, so the caller can fold them into
+ * the one consolidated prijsuitreiking message a player gets.
+ */
+function runAgeCupCycleEnd(
+  db: Database,
+  endedSeason: number,
+  atMs: number,
+  atIso: string,
+  give: (loft: Loft, award: SeasonAward) => void,
+): boolean {
+  // Only count seasons the criterium actually ran through. The anchor sits ON a
+  // season boundary, so the season that ends exactly when the cycle STARTS is the
+  // one before it and must not be counted — hence the strict comparison.
+  const started = Date.parse(db.world.ageCupStartedAt ?? '');
+  if (!Number.isFinite(started) || atMs <= started) return false;
+  const done = (db.world.ageCupSeasonsDone ?? 0) + 1;
+  if (done < AGE_CUP.seasons) {
+    db.world.ageCupSeasonsDone = done;
+    return false;
+  }
+
+  const rankings = ageCupRankings(db, db.pigeons.length || 1);
+  for (const cat of AGE_CATEGORIES) {
+    const top = (rankings[cat.id] ?? []).filter((r) => r.value > 0).slice(0, 3);
+    top.forEach((row, i) => {
+      const pigeon = db.pigeons.find((p) => p.id === row.pigeonId);
+      const loft = db.lofts.find((l) => l.userId === row.ownerId);
+      // The title goes on the bird even when her owner has since vanished — it is
+      // hers, not his. The money obviously needs a loft to land in.
+      if (pigeon) {
+        (pigeon.titles ??= []).push({
+          kind: 'criterium',
+          rank: i + 1,
+          label: `${CUP_METAL[i]} Criteriumduif ${cat.short}`,
+          icon: CUP_MEDAL[i],
+          season: endedSeason,
+          at: atIso,
+          ageCat: cat.id,
+          value: row.value,
+        });
+      }
+      if (!loft) return;
+      give(loft, {
+        kind: 'criterium', rank: i + 1, season: endedSeason, at: atIso,
+        reward: AGE_CUP.awards[i], ageCat: cat.id, pigeonName: row.name, value: row.value,
+      });
+    });
+  }
+
+  // Wipe every bracket's totals and re-anchor the next cycle on this boundary, so
+  // its week index — and with it the sprint/fond alternation — restarts cleanly.
+  for (const p of db.pigeons) if (p.cup) p.cup = undefined;
+  db.world.ageCupSeasonsDone = 0;
+  db.world.ageCupStartedAt = atIso;
+  return true;
+}
 
 /**
  * Hold the prijsuitreiking for the season that just ended, then reset all season
@@ -155,17 +262,26 @@ export function runSeasonEnd(db: Database, endedSeason: number, atMs: number): v
     });
   }
 
+  // 2b. Leeftijdscriterium → only every AGE_CUP.seasons seasons, when the cycle
+  //     is up. It shares the prijsuitreiking message below.
+  const cupClosed = runAgeCupCycleEnd(db, endedSeason, atMs, atIso, give);
+
   // 3. Notify each human winner (one consolidated message per loft).
   for (const [userId, awards] of perLoft) {
     const money = awards.reduce((s, a) => s + a.reward, 0);
     const lines = awards.map((a) => {
       if (a.kind === 'roekoe') return `🏆 ${ROEKOE_NAME[a.rank - 1]} (${a.value} punten)`;
+      if (a.kind === 'criterium') {
+        const def = ageCategoryDef(a.ageCat ?? 'u1');
+        return `${CUP_MEDAL[a.rank - 1]} ${CUP_METAL[a.rank - 1]} Criteriumduif ${def.short} met ${a.pigeonName} (${a.value} punten)`;
+      }
       return `🪽 ${WING_NAME[a.rank - 1]} — ${WING_LABEL[a.category!]} met ${a.pigeonName}`;
     });
     seasonNotify(
       db, userId,
       `🎉 Prijsuitreiking seizoen ${endedSeason}!`,
-      `Proficiat! Je won: ${lines.join(' · ')}. Totaal prijzengeld: €${money}. Het nieuwe seizoen ${endedSeason + 1} is begonnen — de ranglijst staat weer op nul.`,
+      `Proficiat! Je won: ${lines.join(' · ')}. Totaal prijzengeld: €${money}. Het nieuwe seizoen ${endedSeason + 1} is begonnen — de ranglijst staat weer op nul.` +
+        (cupClosed ? ' Ook het leeftijdscriterium is afgelopen: die stand begint aan een nieuwe cyclus van drie seizoenen.' : ''),
       `ntf:season:${endedSeason}:${userId}`,
     );
   }

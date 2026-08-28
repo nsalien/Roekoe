@@ -110,7 +110,7 @@ console.log('\nDe wereldklok loopt niet achter');
   // Schrijf iedereen in voor de eerstvolgende vlucht en laat de tijd doorlopen
   // met louter leespolls; de vlucht moet gewoon live gaan en afgerond worden.
   let s = await D1Store.load(db, undefined);
-  const flight = s.data.flights.find((f) => f.status === 'scheduled' && !f.practice && !f.relay);
+  const flight = s.data.flights.find((f) => f.status === 'scheduled' && !f.practice && !f.relay && !f.ageCat);
   ok(!!flight, 'er staat een gewone vlucht op de kalender');
   for (const h of humans) {
     const s2 = await D1Store.load(db, h);

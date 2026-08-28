@@ -177,6 +177,8 @@ function rowToPigeon(r: any): Pigeon {
     genes: r.genes ? JSON.parse(r.genes) : undefined,
     declineRate: typeof r.decline_rate === 'number' ? r.decline_rate : undefined,
     attrLog: r.attr_log ? JSON.parse(r.attr_log) : undefined,
+    cup: r.cup ? JSON.parse(r.cup) : undefined,
+    titles: r.titles ? JSON.parse(r.titles) : undefined,
   };
 }
 function rowToBreeding(r: any): BreedingPair {
@@ -206,6 +208,8 @@ function rowToFlight(r: any): Flight {
     titan: !!r.titan,
     relay: !!r.relay,
     legs: r.legs ? JSON.parse(r.legs) : undefined,
+    ageCat: r.age_cat || undefined,
+    cupSprint: r.age_cat ? !!r.cup_sprint : undefined,
     entries: JSON.parse(r.entries || '[]'),
     sim: JSON.parse(r.sim || '[]'),
     weather: r.weather,
@@ -349,6 +353,7 @@ const PIGEON_COLUMNS = [
   'compartment', 'hunger_days', 'rest_days', 'cure_until', 'season_peak_speed', 'season_podiums',
   'season_start_score', 'season_practice_gain', 'trained_at', 'race_log', 'genes', 'decline_rate',
   'attr_log', 'care_assigned', 'last_race_at', 'last_race_practice', 'last_rest_cure_at', 'away_until',
+  'cup', 'titles',
 ];
 
 function pigeonRow(p: Pigeon): unknown[] {
@@ -365,6 +370,8 @@ function pigeonRow(p: Pigeon): unknown[] {
     p.attrLog && p.attrLog.length ? JSON.stringify(p.attrLog) : null,
     b(p.careAssigned), p.lastRaceAt ?? null, b(p.lastRaceWasPractice), p.lastRestCureAt ?? null,
     p.awayUntil ?? null,
+    p.cup && Object.keys(p.cup).length ? JSON.stringify(p.cup) : null,
+    p.titles && p.titles.length ? JSON.stringify(p.titles) : null,
   ];
 }
 
@@ -456,6 +463,8 @@ export class D1Store implements Store {
         lastAdvance: worldRow.last_advance ?? '',
         dailyCareCursor: worldRow.daily_care_cursor ?? '',
         leaderboard: worldRow.leaderboard ?? '',
+        ageCupStartedAt: worldRow.age_cup_started_at ?? '',
+        ageCupSeasonsDone: worldRow.age_cup_seasons_done ?? 0,
       };
     }
 
@@ -601,16 +610,16 @@ export class D1Store implements Store {
     const wd = w.world;
     if (!this.worldExisted) {
       stmts.push(
-        db.prepare('INSERT INTO world (id, current_week, season_year, seeded, data_version, last_daily_tick, last_shelter_spawn, season_started_at, season_ends_at, season_week, last_advance, daily_care_cursor, leaderboard, version) VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)')
-          .bind(wd.currentWeek, wd.seasonYear, b(wd.seeded), wd.dataVersion ?? 0, wd.lastDailyTick ?? '', wd.lastShelterSpawn ?? '', wd.seasonStartedAt ?? '', wd.seasonEndsAt ?? '', wd.seasonWeek ?? 1, wd.lastAdvance ?? '', wd.dailyCareCursor ?? '', wd.leaderboard ?? ''),
+        db.prepare('INSERT INTO world (id, current_week, season_year, seeded, data_version, last_daily_tick, last_shelter_spawn, season_started_at, season_ends_at, season_week, last_advance, daily_care_cursor, leaderboard, age_cup_started_at, age_cup_seasons_done, version) VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)')
+          .bind(wd.currentWeek, wd.seasonYear, b(wd.seeded), wd.dataVersion ?? 0, wd.lastDailyTick ?? '', wd.lastShelterSpawn ?? '', wd.seasonStartedAt ?? '', wd.seasonEndsAt ?? '', wd.seasonWeek ?? 1, wd.lastAdvance ?? '', wd.dailyCareCursor ?? '', wd.leaderboard ?? '', wd.ageCupStartedAt ?? '', wd.ageCupSeasonsDone ?? 0),
       );
     } else if (JSON.stringify(wd) !== this.worldSnapshot) {
       // Only write the world row when something in it actually changed. Previously
       // this ran on EVERY request (even read-only polls), burning the write quota
       // and making `world` (id=1) a hot row that concurrent requests locked on.
       stmts.push(
-        db.prepare('UPDATE world SET current_week = ?, season_year = ?, seeded = ?, data_version = ?, last_daily_tick = ?, last_shelter_spawn = ?, season_started_at = ?, season_ends_at = ?, season_week = ?, last_advance = ?, daily_care_cursor = ?, leaderboard = ?, version = version + 1 WHERE id = 1')
-          .bind(wd.currentWeek, wd.seasonYear, b(wd.seeded), wd.dataVersion ?? 0, wd.lastDailyTick ?? '', wd.lastShelterSpawn ?? '', wd.seasonStartedAt ?? '', wd.seasonEndsAt ?? '', wd.seasonWeek ?? 1, wd.lastAdvance ?? '', wd.dailyCareCursor ?? '', wd.leaderboard ?? ''),
+        db.prepare('UPDATE world SET current_week = ?, season_year = ?, seeded = ?, data_version = ?, last_daily_tick = ?, last_shelter_spawn = ?, season_started_at = ?, season_ends_at = ?, season_week = ?, last_advance = ?, daily_care_cursor = ?, leaderboard = ?, age_cup_started_at = ?, age_cup_seasons_done = ?, version = version + 1 WHERE id = 1')
+          .bind(wd.currentWeek, wd.seasonYear, b(wd.seeded), wd.dataVersion ?? 0, wd.lastDailyTick ?? '', wd.lastShelterSpawn ?? '', wd.seasonStartedAt ?? '', wd.seasonEndsAt ?? '', wd.seasonWeek ?? 1, wd.lastAdvance ?? '', wd.dailyCareCursor ?? '', wd.leaderboard ?? '', wd.ageCupStartedAt ?? '', wd.ageCupSeasonsDone ?? 0),
       );
     }
 
@@ -658,7 +667,7 @@ export class D1Store implements Store {
       columns: [
         'id', 'week', 'template_key', 'name', 'type', 'distance_km', 'entry_fee', 'from_city',
         'to_city', 'start_at', 'status', 'entries', 'sim', 'weather', 'weather_factor', 'results',
-        'recap', 'created_at', 'practice', 'titan', 'relay', 'legs',
+        'recap', 'created_at', 'practice', 'titan', 'relay', 'legs', 'age_cat', 'cup_sprint',
       ],
       keyColumn: 'id',
       row: (f) => [
@@ -666,7 +675,7 @@ export class D1Store implements Store {
         f.fromCity, f.toCity, f.startAt, f.status,
         JSON.stringify(f.entries), JSON.stringify(f.sim), f.weather, f.weatherFactor,
         JSON.stringify(f.results), f.recap, f.createdAt, b(f.practice), b(f.titan),
-        b(f.relay), f.legs ? JSON.stringify(f.legs) : null,
+        b(f.relay), f.legs ? JSON.stringify(f.legs) : null, f.ageCat ?? null, b(f.cupSprint),
       ],
       stmts,
     });
@@ -923,6 +932,16 @@ const SCHEMA_STEPS: string[] = [
 
   // Starter package for lofts registered from now on (see NEWCOMER / Loft.newcomer).
   "ALTER TABLE lofts ADD COLUMN newcomer TEXT NOT NULL DEFAULT ''",
+
+  // Leeftijdscriterium (AGE_CUP): the age bracket a race is restricted to and the
+  // format of that edition, the bird's standings per bracket and the trophies
+  // engraved on her, plus the cycle anchor/counter on the world row.
+  'ALTER TABLE flights ADD COLUMN age_cat TEXT',
+  'ALTER TABLE flights ADD COLUMN cup_sprint INTEGER NOT NULL DEFAULT 0',
+  'ALTER TABLE pigeons ADD COLUMN cup TEXT',
+  'ALTER TABLE pigeons ADD COLUMN titles TEXT',
+  "ALTER TABLE world ADD COLUMN age_cup_started_at TEXT NOT NULL DEFAULT ''",
+  'ALTER TABLE world ADD COLUMN age_cup_seasons_done INTEGER NOT NULL DEFAULT 0',
 ];
 
 /**

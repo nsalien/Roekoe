@@ -1623,6 +1623,104 @@ export const MORTALITY_CURVE: { weeks: number; p: number }[] = [
 ];
 
 /**
+ * LEEFTIJDSCRITERIUM (AGE_CUP) — a competition that runs ALONGSIDE the normal
+ * season, split into four age brackets.
+ *
+ * Every week each bracket gets exactly one race that only birds of that age may
+ * enter. The format alternates weekly between a SPRINT (100-300 km) and a GROTE
+ * FOND (400-1000 km), so a season (4 weeks) holds 2 of each per bracket and a
+ * full cycle of `seasons` (3) holds 6 of each.
+ *
+ * It is deliberately a PIGEON competition: results pay money and criterium
+ * points to the bird, but no seizoenspunten, medals, wins, sponsor bonuses or
+ * bets — the melkerranglijst (Roekoe) never moves because of it. Because there
+ * is only one race per bracket per week, the standings need much longer than a
+ * normal season to mean anything, which is why they run for THREE seasons before
+ * the ceremony and the reset.
+ *
+ * NOTE ON AGEING: birds age `GAME_WEEKS_PER_REAL_WEEK` (4) game weeks per real
+ * week, so over a full 3-season cycle a bird ages ~48 game weeks — almost a whole
+ * pigeon year. A bird therefore MOVES UP a bracket mid-cycle. That is intended:
+ * the bracket is decided per race, at the moment of entry, and the points a bird
+ * earned stay in the bracket it earned them in (so it can appear in two
+ * standings at once). See `ageCategoryFor`.
+ */
+export type AgeCategoryId = 'u1' | 'y12' | 'y23' | 'o3';
+
+export interface AgeCategoryDef {
+  id: AgeCategoryId;
+  label: string; // full name, used as the flight name
+  short: string; // compact label for tables/badges
+  icon: string;
+  minWeeks: number; // inclusive
+  maxWeeks: number; // exclusive
+  weekday: number; // 0=Sun..6=Sat — the day this bracket races
+}
+
+/** The four age brackets, in order. `maxWeeks` is exclusive; 52 game weeks = 1 year. */
+export const AGE_CATEGORIES: AgeCategoryDef[] = [
+  { id: 'u1', label: 'Onder 1 jaar', short: '< 1 j', icon: '🐣', minWeeks: 0, maxWeeks: 52, weekday: 1 },
+  { id: 'y12', label: '1 tot 2 jaar', short: '1–2 j', icon: '🕊️', minWeeks: 52, maxWeeks: 104, weekday: 3 },
+  { id: 'y23', label: '2 tot 3 jaar', short: '2–3 j', icon: '🦅', minWeeks: 104, maxWeeks: 156, weekday: 4 },
+  { id: 'o3', label: 'Ouder dan 3 jaar', short: '3 j +', icon: '🏅', minWeeks: 156, maxWeeks: Number.MAX_SAFE_INTEGER, weekday: 5 },
+];
+
+export const AGE_CUP = {
+  /** Real weeks the standings run before the ceremony + reset (3 seasons). */
+  seasons: 3,
+  /** Entry fee per bird, same for a sprint and a fond race. */
+  entryFee: 20,
+  /** Release time (Brussels). Early, so even a 1000 km fond race is home by evening. */
+  hour: 6,
+  minute: 0,
+  /**
+   * The two formats the weekly race alternates between. Week 1 of a cycle is a
+   * sprint, week 2 a fond, and so on — which is what makes it 2+2 per season.
+   * Both pay the same ranking points; only the money differs.
+   */
+  sprint: {
+    label: 'Sprint',
+    icon: '🏁',
+    minKm: 100,
+    maxKm: 300,
+    tier: 'national' as FlightTier, // city pool to draw the route from
+    prizes: [1000, 800, 600, 420, 300, 200, 130, 80],
+  },
+  fond: {
+    label: 'Grote fond',
+    icon: '🛰️',
+    minKm: 400,
+    maxKm: 1000,
+    tier: 'international' as FlightTier,
+    prizes: [1600, 1400, 1200, 850, 600, 400, 260, 160],
+  },
+  /** Paid to the OWNER of the top-3 birds of each bracket at the cycle reset. */
+  awards: [2000, 1600, 1200],
+} as const;
+
+/** Look up a bracket definition by id. */
+export function ageCategoryDef(id: AgeCategoryId): AgeCategoryDef {
+  return AGE_CATEGORIES.find((c) => c.id === id) ?? AGE_CATEGORIES[0];
+}
+
+/** Which bracket a bird of `ageWeeks` game weeks belongs to, right now. */
+export function ageCategoryFor(ageWeeks: number): AgeCategoryId {
+  for (const c of AGE_CATEGORIES) {
+    if (ageWeeks >= c.minWeeks && ageWeeks < c.maxWeeks) return c.id;
+  }
+  return AGE_CATEGORIES[AGE_CATEGORIES.length - 1].id;
+}
+
+/**
+ * Is the criterium week `index` (0-based, counted from the cycle start) a sprint?
+ * Week 0 sprint, week 1 fond, ... → 2 of each per 4-week season, 6 of each per
+ * 3-season cycle.
+ */
+export function isCupSprintWeek(weekIndex: number): boolean {
+  return weekIndex % 2 === 0;
+}
+
+/**
  * A recurring slot on the weekly calendar. weekday null = every day. If `tiers`
  * is given, the tier is chosen deterministically per day (so a slot can rotate
  * between, say, national and international long flights). Max two slots a day.
@@ -1636,6 +1734,8 @@ export interface ScheduleSlot {
   minute: number;
   practice?: boolean; // an oefenvlucht: no fee, no prizes/points, gentle training
   titan?: boolean; // a titanenwedstrijd: money-only, one bird per loft (see TITAN)
+  /** A leeftijdscriterium race: only birds in this age bracket may enter (see AGE_CUP). */
+  ageCat?: AgeCategoryId;
   everyNDays?: number; // only schedule this slot every N calendar days (default: every day)
 }
 
@@ -1660,13 +1760,16 @@ export const TITAN = {
 /**
  * The weekly calendar (Brussels time), one fixed line-up per weekday.
  *
- *   ma  08:00 internationaal
+ *   ma  06:00 criterium < 1 j  · 08:00 internationaal
  *   di  10:00 regionaal        · 12:00 oefenvlucht
- *   wo  08:00 nationaal
- *   do  08:00 internationaal
- *   vr  10:00 regionaal        · 12:00 oefenvlucht
+ *   wo  06:00 criterium 1-2 j  · 08:00 nationaal
+ *   do  06:00 criterium 2-3 j  · 08:00 internationaal
+ *   vr  06:00 criterium 3 j +  · 10:00 regionaal · 12:00 oefenvlucht
  *   za  08:00 titanenwedstrijd (replaces everything else that day)
  *   zo  08:00 nationaal        · 17:00 regionaal
+ *
+ * The four 06:00 slots are the leeftijdscriterium (AGE_CUP): age-restricted races
+ * that pay money to the bird's owner but feed only the pigeon standings.
  *
  * Deliberately fewer races than the old daily long+short calendar: every flight
  * draws from the same pool of birds, so a lighter schedule concentrates the
@@ -1727,6 +1830,17 @@ export const REAL_SCHEDULE: ScheduleSlot[] = [
   { key: 'titan', tier: 'international', weekday: TITAN.weekday, hour: TITAN.hour, minute: TITAN.minute, titan: true },
   { key: 'sun-national', tier: 'national', weekday: 0, hour: 8, minute: 0 },
   { key: 'sun-regional', tier: 'regional', weekday: 0, hour: 17, minute: 0 },
+  // Leeftijdscriterium (AGE_CUP): one race per age bracket per week, at 06:00 so a
+  // fond edition is home well before the evening. These slots only produce a flight
+  // once the cycle has started (world.ageCupStartedAt) — see ensureFlightsScheduled.
+  // Their tier/distance is decided by the week (sprint or fond), not by the slot.
+  ...AGE_CATEGORIES.map((c): ScheduleSlot => ({
+    key: `cup-${c.id}`,
+    weekday: c.weekday,
+    hour: AGE_CUP.hour,
+    minute: AGE_CUP.minute,
+    ageCat: c.id,
+  })),
 ];
 
 /**

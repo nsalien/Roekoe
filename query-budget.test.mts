@@ -121,7 +121,7 @@ await request(T0 + 60_000, undefined, 'poll, niets te doen');
 // Everyone enters the 08:00 national flight.
 store = await D1Store.load(db, undefined);
 advanceRealtime(store.data, T0 + 120_000, new Map());
-const flight = store.data.flights.find((f) => f.status === 'scheduled' && !f.practice);
+const flight = store.data.flights.find((f) => f.status === 'scheduled' && !f.practice && !f.ageCat);
 if (!flight) { console.log('geen vlucht gevonden'); process.exit(1); }
 await store.persist();
 for (const h of humans) {

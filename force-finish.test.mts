@@ -43,7 +43,9 @@ function buildWorld(): { db: Database; flightId: string; startMs: number } {
   }
   advanceRealtime(store.data, T0);
   const db = store.data;
-  const flight = db.flights.find((f) => f.status === 'scheduled' && !f.practice && !f.relay);
+  // Not a criterium race either: that one only accepts one age bracket, so the
+  // arbitrary birds entered below would bounce and leave an empty field.
+  const flight = db.flights.find((f) => f.status === 'scheduled' && !f.practice && !f.relay && !f.ageCat);
   if (!flight) throw new Error('geen geplande wedstrijdvlucht gevonden');
   for (const loft of db.lofts.filter((l) => !l.isBot)) {
     for (const p of db.pigeons.filter((x) => x.ownerId === loft.userId).slice(0, 3)) {

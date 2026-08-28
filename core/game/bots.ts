@@ -30,12 +30,13 @@ import {
   LOFT_CAPACITY_TIERS,
   REST_CURE,
   TRAINING,
+  ageCategoryFor,
 } from '../config/gameConfig.js';
 import type { FeedRationKey } from '../config/gameConfig.js';
 import type { Database, Flight, Loft, Pigeon } from '../schema.js';
 import { newId } from '../store.js';
 import { expectedFlightEnergyCost, pigeonCommittedToFlight } from './flight.js';
-import { canRace, experienceGain, isAway, onRestCure, talent, trainCeil, trainingCost } from './pigeon.js';
+import { ageInWeeks, canRace, experienceGain, isAway, onRestCure, talent, trainCeil, trainingCost } from './pigeon.js';
 import { clamp, round1 } from './util.js';
 
 /** What a bot may spend right now without dipping under its cash floor. */
@@ -341,6 +342,10 @@ export function botRaceCandidates(
     .filter((p) => {
       if (held.has(p.id)) return false;
       if (p.form < 1) return false; // the game's own floor
+      // A leeftijdscriterium only accepts one age bracket — the same hard rule the
+      // player's `enterFlight` applies. Everything else about the race is normal,
+      // so the energy/health judgement below still decides whether to enter.
+      if (flight.ageCat && ageCategoryFor(ageInWeeks(p, ctx.week)) !== flight.ageCat) return false;
       // The estafette skips the owner's judgement entirely; canRace still applies.
       if (flight.relay) return p.form >= BOT.minFormRelay;
       // A worn-down bird gets rested, not raced: low gezondheid is what turns a

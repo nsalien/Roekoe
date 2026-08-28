@@ -4,7 +4,7 @@
  * model and to evolve it (add fields, add entities) as the game grows.
  */
 
-import type { FeedRationKey, Severity } from './config/gameConfig.js';
+import type { AgeCategoryId, FeedRationKey, Severity } from './config/gameConfig.js';
 
 export type Sex = 'doffer' | 'duivin'; // male / female
 
@@ -126,6 +126,18 @@ export interface Pigeon {
   seasonPodiums?: number; // number of top-3 finishes this season
   seasonStartScore?: number; // development score at the season's start (progress baseline)
   seasonPracticeGain?: number; // score gained from practice flights this season (excluded from the ranking)
+  /**
+   * Leeftijdscriterium standings, PER age bracket (see AGE_CUP). A bird ages out
+   * of its bracket during a cycle, so the points it earned stay where they were
+   * earned and it simply starts a second entry in the next bracket. Reset only at
+   * the end of a full cycle (3 seasons), never at a normal season rollover.
+   */
+  cup?: Partial<Record<AgeCategoryId, CupStanding>>;
+  /**
+   * Trophies won by the BIRD itself (as opposed to `Loft.awards`, which belong to
+   * the player). They travel with her when she is sold — that is the point.
+   */
+  titles?: PigeonTitle[];
   // Durable, capped log of this bird's flight placings. Written at finalize so a
   // pigeon's race history + its owner's trophies survive the pruning of old
   // flights (the flights table itself only keeps the last couple of days). Rides
@@ -221,19 +233,40 @@ export interface NewcomerPerks {
 /** Which of the three pigeon rankings a Gouden Vleugel was won in. */
 export type WingCategory = 'speed' | 'podium' | 'progress';
 
+/** One bird's running total in ONE age bracket of the leeftijdscriterium. */
+export interface CupStanding {
+  points: number; // criterium points (RANKING_POINTS by placing, sprint and fond alike)
+  wins: number; // criterium victories — first tie-break
+  best: number; // best route average (m/min) in this bracket — second tie-break
+  races: number; // criterium races flown in this bracket
+}
+
+/** A trophy engraved on the bird herself; survives a sale. */
+export interface PigeonTitle {
+  kind: 'criterium';
+  rank: number; // 1, 2 or 3
+  label: string; // e.g. "Gouden Criteriumduif 1–2 j"
+  icon: string;
+  season: number; // the season the cycle ended in
+  at: string; // ISO timestamp
+  ageCat?: AgeCategoryId;
+  value?: number; // criterium points at award time
+}
+
 /**
  * A prize won at a season's prijsuitreiking, kept in the owner's prestige.
  *  - `roekoe`: finished 1st/2nd/3rd in the melker standings (season points).
  *  - `vleugel`: owned a pigeon that finished top-3 in a pigeon ranking.
  */
 export interface SeasonAward {
-  kind: 'roekoe' | 'vleugel';
+  kind: 'roekoe' | 'vleugel' | 'criterium';
   rank: number; // 1, 2 or 3
   season: number; // season number this was won in
   at: string; // ISO timestamp
   reward: number; // coins paid out
   category?: WingCategory; // only for 'vleugel'
-  pigeonName?: string; // only for 'vleugel'
+  ageCat?: AgeCategoryId; // only for 'criterium'
+  pigeonName?: string; // only for 'vleugel' and 'criterium'
   value?: number; // the metric at award time (points / km-h / podiums / progress)
 }
 
@@ -492,6 +525,17 @@ export interface Flight {
    *  route leg by leg. `legs` holds the three equal stretches + their weather. */
   relay?: boolean;
   legs?: RelayLeg[];
+  /**
+   * Leeftijdscriterium: the age bracket this race is restricted to. Only birds
+   * whose age falls in the bracket AT THE MOMENT OF ENTRY may be entered, and the
+   * result feeds only the criterium standings (`Pigeon.cup`) — no seizoenspunten,
+   * medals, wins, sponsor bonuses or bets. See AGE_CUP in gameConfig.
+   */
+  ageCat?: AgeCategoryId;
+  /** Criterium format for this edition: true = sprint (100-300 km), false = grote
+   *  fond (400-1000 km). Stored rather than derived, because `pickRoute` may land
+   *  slightly outside its window when the city pool cannot reach it. */
+  cupSprint?: boolean;
   entries: FlightEntry[];
   sim: SimEntry[]; // frozen when the flight goes live
   weather: string;
@@ -652,6 +696,15 @@ export interface World {
    * is refreshed exactly then and served in between.
    */
   leaderboard?: string;
+  /**
+   * ISO timestamp the current leeftijdscriterium cycle started. Empty = the
+   * criterium has not started yet, and `ensureFlightsScheduled` plans no age
+   * races. It is anchored to a SEASON boundary, so the week index derived from
+   * it also gives the season week: index 0,2,4.. are sprints and 1,3,5.. fond.
+   */
+  ageCupStartedAt?: string;
+  /** Seasons completed in the current criterium cycle (0..AGE_CUP.seasons - 1). */
+  ageCupSeasonsDone?: number;
 }
 
 /** The full database document persisted to disk. */

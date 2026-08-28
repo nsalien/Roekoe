@@ -1,11 +1,12 @@
-/** Ranglijst: seizoensstand van de melkers + drie duivenrangschikkingen. */
+/** Ranglijst: seizoensstand van de melkers, de drie duivenrangschikkingen en de
+ *  vier leeftijdsklassen van het criterium (die over drie seizoenen lopen). */
 
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useGame } from '../game/GameContext';
 import { useAuth } from '../auth/AuthContext';
 import { Spinner, nextPlayWeek, timeUntil } from '../components/ui';
-import type { PigeonRankRow } from '../types';
+import type { AgeCategoryInfo, PigeonRankRow } from '../types';
 
 /** Days/hours remaining until an ISO instant, as a short Dutch string. */
 function timeLeft(iso: string): string {
@@ -21,7 +22,7 @@ function timeLeft(iso: string): string {
 export function RankingPage() {
   const { state, loading } = useGame();
   const { user } = useAuth();
-  const [tab, setTab] = useState<'melkers' | 'duiven'>('melkers');
+  const [tab, setTab] = useState<'melkers' | 'duiven' | 'criterium'>('melkers');
   if (loading || !state) return <Spinner />;
 
   const { seasonYear, seasonWeek, seasonEndsAt, seasonStartedAt } = state.world;
@@ -48,10 +49,13 @@ export function RankingPage() {
         <div className="pill-tabs">
           <button className={tab === 'melkers' ? 'active' : ''} onClick={() => setTab('melkers')}>Melkers</button>
           <button className={tab === 'duiven' ? 'active' : ''} onClick={() => setTab('duiven')} data-tour="pigeon-ranks">Duiven</button>
+          <button className={tab === 'criterium' ? 'active' : ''} onClick={() => setTab('criterium')} data-tour="age-cup">Criterium</button>
         </div>
       </div>
 
-      {tab === 'melkers' ? (
+      {tab === 'criterium' ? (
+        <AgeCupPanel meId={user?.id} />
+      ) : tab === 'melkers' ? (
         <>
           <div className="card" data-tour="ranking">
             <div className="table-wrap">
@@ -128,6 +132,7 @@ function PigeonRankCard({
 }) {
   const medal = (rank: number) => (rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : rank);
   const fmt = (v: number) => (unit === '+' ? `+${v}` : unit === '×' ? `${v}×` : `${v} ${unit}`);
+  const head = unit === '×' ? 'Podiums' : unit === '+' ? 'Groei' : unit === 'pt' ? 'Punten' : 'Snelheid';
   return (
     <div className="card">
       <div className="page-head" style={{ marginBottom: 8 }}>
@@ -137,12 +142,12 @@ function PigeonRankCard({
         </div>
       </div>
       {rows.length === 0 ? (
-        <div className="muted">Nog geen resultaten dit seizoen.</div>
+        <div className="muted">Nog geen resultaten.</div>
       ) : (
         <div className="table-wrap">
           <table className="data">
             <thead>
-              <tr><th>#</th><th>Duif</th><th>Hok</th><th className="num">{unit === '×' ? 'Podiums' : unit === '+' ? 'Groei' : 'Snelheid'}</th></tr>
+              <tr><th>#</th><th>Duif</th><th>Hok</th><th className="num">{head}</th></tr>
             </thead>
             <tbody>
               {rows.map((r, i) => (
@@ -162,6 +167,63 @@ function PigeonRankCard({
           </table>
         </div>
       )}
+    </div>
+  );
+}
+
+
+/**
+ * Leeftijdscriterium — four standings, one per age bracket, that run for three
+ * seasons instead of one.
+ *
+ * The long horizon is the whole point and has to be visible: with a single race
+ * per bracket per week, a season is four results, which is nowhere near enough to
+ * separate a field. So the header leads with how far the cycle has come, and the
+ * detail (rules, prize money, the sprint/fond alternation) lives in the wiki.
+ */
+function AgeCupPanel({ meId }: { meId?: string }) {
+  const { state } = useGame();
+  const cup = state?.ageCup;
+  const rows = state?.cupRankings;
+  // A world whose cached leaderboard predates the criterium has no standings yet;
+  // it fills in on the next full engine run.
+  if (!cup) return <div className="card muted">Het leeftijdscriterium is nog niet gestart.</div>;
+
+  const started = cup.startedAt ? Date.parse(cup.startedAt) : NaN;
+  const notYet = Number.isFinite(started) && started > Date.now();
+  const seasonOf = cup.seasonsDone + 1;
+
+  return (
+    <div className="stack">
+      <div className="card">
+        <h2 style={{ margin: '0 0 4px' }}>🏆 Leeftijdscriterium</h2>
+        <p className="faint" style={{ margin: 0 }}>
+          Elke week één vlucht per leeftijdsklasse — de ene week een <strong>sprint</strong> (100–300 km),
+          de volgende een <strong>grote fond</strong> (400–1000 km). Inschrijven kost €{cup.entryFee}.
+          Er is <strong>prijzengeld</strong>, maar geen seizoenspunten: deze stand telt enkel voor de duif.
+        </p>
+        <p className="faint" style={{ margin: '8px 0 0' }}>
+          {notYet
+            ? <>De eerste editie start bij het nieuwe seizoen.</>
+            : <>De stand loopt <strong>{cup.seasons} seizoenen</strong> door — nu bezig aan seizoen{' '}
+                <strong>{Math.min(seasonOf, cup.seasons)} van {cup.seasons}</strong>. Pas daarna volgt de
+                prijsuitreiking en een reset.</>}
+        </p>
+        <p className="faint" style={{ margin: '8px 0 0' }}>
+          🥇 €{cup.awards[0]} · 🥈 €{cup.awards[1]} · 🥉 €{cup.awards[2]} per klasse bij de reset, plus een
+          titel op de duif zelf. <Link to="/wiki#criterium">Meer info over het criterium →</Link>
+        </p>
+      </div>
+      {cup.categories.map((cat: AgeCategoryInfo) => (
+        <PigeonRankCard
+          key={cat.id}
+          title={`${cat.icon} ${cat.label}`}
+          subtitle={`Criteriumpunten over ${cup.seasons} seizoenen`}
+          unit="pt"
+          rows={rows?.[cat.id] ?? []}
+          meId={meId}
+        />
+      ))}
     </div>
   );
 }

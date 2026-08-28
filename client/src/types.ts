@@ -122,6 +122,11 @@ export interface Pigeon {
   flightForm: number | null;
   formLabel: 'fris' | 'matig' | 'risico' | null;
   restPenalty: number; // vorm docked for having raced in the last couple of days
+  /** Leeftijdscriterium — public for every bird: which bracket she races in now,
+   *  her standings per bracket, and the titles engraved on her. */
+  ageCat?: AgeCategoryId;
+  cup?: Partial<Record<AgeCategoryId, CupStanding>> | null;
+  titles?: PigeonTitle[];
 }
 
 export interface Trade {
@@ -317,6 +322,14 @@ export interface Flight {
   teamSize?: number;
   legKm?: number;
   teams?: RelayEntryTeam[];
+  /** Leeftijdscriterium: the age bracket this race is restricted to (see AGE_CUP). */
+  ageCat?: AgeCategoryId;
+  ageCatLabel?: string;
+  ageCatShort?: string;
+  ageCatIcon?: string;
+  /** true = sprint (100–300 km), false = grote fond (400–1000 km). */
+  cupSprint?: boolean;
+  cupPrizes?: number[];
   weather: string;
   entryCount: number;
   entries: FlightEntry[];
@@ -517,6 +530,51 @@ export interface PigeonRankings {
   progress: PigeonRankRow[];
 }
 
+/** The four leeftijdscriterium brackets. */
+export type AgeCategoryId = 'u1' | 'y12' | 'y23' | 'o3';
+
+/** One bird's running total in one bracket. */
+export interface CupStanding {
+  points: number;
+  wins: number;
+  best: number;
+  races: number;
+}
+
+/** A trophy engraved on the bird herself; it follows her when she is sold. */
+export interface PigeonTitle {
+  kind: 'criterium';
+  rank: number;
+  label: string;
+  icon: string;
+  season: number;
+  at: string;
+  ageCat?: AgeCategoryId;
+  value?: number;
+}
+
+export interface AgeCategoryInfo {
+  id: AgeCategoryId;
+  label: string;
+  short: string;
+  icon: string;
+  weekday: number;
+  minWeeks: number;
+  maxWeeks: number | null;
+}
+
+/** Static criterium config plus where the running three-season cycle stands. */
+export interface AgeCupInfo {
+  categories: AgeCategoryInfo[];
+  seasons: number;
+  seasonsDone: number;
+  startedAt: string | null;
+  entryFee: number;
+  awards: number[];
+  sprintPrizes: number[];
+  fondPrizes: number[];
+}
+
 export interface FeedRationInfo {
   label: string;
   foodPerPigeon: number;
@@ -545,6 +603,10 @@ export interface GameState {
   scheduledFlights: Flight[];
   rankings: RankingRow[];
   pigeonRankings: PigeonRankings;
+  /** Leeftijdscriterium standings, per bracket. Rides the same cached leaderboard
+   *  as `pigeonRankings`; may be missing on a world whose cache predates it. */
+  cupRankings?: Partial<Record<AgeCategoryId, PigeonRankRow[]>>;
+  ageCup?: AgeCupInfo;
   offers: { received: OfferView[]; sent: OfferView[] };
   feedRations: Record<FeedRation, FeedRationInfo>;
   infirmary: InfirmaryConfig;

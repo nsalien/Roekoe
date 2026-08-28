@@ -13,6 +13,13 @@
  */
 
 import {
+  AGE_CUP,
+  ageCategoryDef,
+  ageCategoryFor,
+  isCupSprintWeek,
+  RANKING_POINTS,
+  SEASON,
+  type AgeCategoryId,
   BOT,
   BOT_LOFT_CAPACITY,
   BOT_LOFT_NAMES,
@@ -48,7 +55,7 @@ import {
   type FlightTier,
   type RaceCity,
 } from '../config/gameConfig.js';
-import type { Database, Flight, FlightResult, Loft, Pigeon, RaceLogEntry } from '../schema.js';
+import type { CupStanding, Database, Flight, FlightResult, Loft, Pigeon, RaceLogEntry } from '../schema.js';
 import { emptySponsorState, emptyStats } from '../schema.js';
 import { newId } from '../store.js';
 import { applyDayOfCare, dailyRunningCost } from './economy.js';
@@ -195,10 +202,70 @@ function pickRouteInRange(minKm: number, maxKm: number): { fromCity: string; toC
   return { fromCity: f.a.name, toCity: f.b.name, distanceKm: Math.round(f.d) };
 }
 
+/** The criterium edition a slot produces on a given week: which bracket, and
+ *  whether it is the sprint or the grote-fond format. */
+export interface CupSpec { cat: AgeCategoryId; sprint: boolean; }
+
+const CUP_WEEK_MS = SEASON.weekDays * 86400000;
+
+/**
+ * Which week of the running leeftijdscriterium cycle `atMs` falls in, counted
+ * from `world.ageCupStartedAt` (0-based). Returns -1 when the criterium has not
+ * started, or when `atMs` lies before the anchor — both mean "plan no age race".
+ *
+ * The anchor sits on a SEASON boundary, so the index doubles as the season week:
+ * 0,2,4,.. are sprints and 1,3,5,.. grote fond, which lands exactly 2 of each per
+ * season and 6 of each per three-season cycle.
+ */
+export function cupWeekIndex(db: Database, atMs: number): number {
+  const start = Date.parse(db.world.ageCupStartedAt ?? '');
+  if (!Number.isFinite(start) || atMs < start) return -1;
+  return Math.floor((atMs - start) / CUP_WEEK_MS);
+}
+
+/** The bird's running total in one bracket, created on first use. */
+function cupStanding(p: Pigeon, cat: AgeCategoryId): CupStanding {
+  const cup = (p.cup ??= {});
+  return (cup[cat] ??= { points: 0, wins: 0, best: 0, races: 0 });
+}
+
 function makeRealtimeFlight(
   templateKey: string, tier: FlightTier, startMs: number, week: number, practice = false, titan = false, relay = false,
+  cup?: CupSpec,
 ): Flight {
   const cfg = FLIGHT_TIERS[tier];
+  // Leeftijdscriterium: an age-restricted race. Its distance window comes from the
+  // week's format (sprint or fond) rather than from a tier, and it carries its own
+  // flat entry fee; the tier only decides which city pool the route is drawn from.
+  if (cup) {
+    const fmt = cup.sprint ? AGE_CUP.sprint : AGE_CUP.fond;
+    const def = ageCategoryDef(cup.cat);
+    const route = pickRoute(fmt.tier, fmt.minKm, fmt.maxKm);
+    return {
+      id: newId('flt'),
+      week,
+      templateKey,
+      name: `${def.label} — ${fmt.label}`,
+      type: fmt.tier,
+      distanceKm: route.distanceKm,
+      entryFee: AGE_CUP.entryFee,
+      fromCity: route.fromCity,
+      toCity: route.toCity,
+      startAt: new Date(startMs).toISOString(),
+      status: 'scheduled',
+      practice: false,
+      titan: false,
+      ageCat: cup.cat,
+      cupSprint: cup.sprint,
+      entries: [],
+      sim: [],
+      weather: '',
+      weatherFactor: 1,
+      results: [],
+      recap: '',
+      createdAt: new Date().toISOString(),
+    };
+  }
   // An estafettevlucht carries its own route: one long haul cut into equal legs,
   // with handover points instead of a single release → home pair.
   if (relay) {
@@ -389,14 +456,24 @@ export function ensureFlightsScheduled(db: Database, nowMs: number): void {
       const startMs = wallToUtcMs(TIMEZONE, y, m, d, hour, minute);
       // Skip flights that are already well past their live window.
       if (startMs < nowMs - 2 * 3600 * 1000) continue;
+      // A leeftijdscriterium slot only produces a race once the cycle has started,
+      // and the week index (counted from the cycle anchor) decides whether this
+      // edition is a sprint or a grote fond — so all four brackets fly the same
+      // format in the same week.
+      let cup: CupSpec | undefined;
+      if (slot.ageCat) {
+        const weekIndex = cupWeekIndex(db, startMs);
+        if (weekIndex < 0) continue; // criterium has not started for this day yet
+        cup = { cat: slot.ageCat, sprint: isCupSprintWeek(weekIndex) };
+      }
       const templateKey = `${slot.key}:${y}-${m}-${d}`;
       if (db.flights.some((f) => f.templateKey === templateKey)) continue;
 
       // Resolve the tier: fixed, or rotate deterministically by the date.
       const tier: FlightTier = slot.tier
-        ?? slot.tiers![Math.abs(hashDate(y, m, d)) % slot.tiers!.length];
+        ?? (slot.tiers ? slot.tiers[Math.abs(hashDate(y, m, d)) % slot.tiers.length] : 'national');
       const flight = makeRealtimeFlight(
-        templateKey, tier, startMs, db.world.currentWeek, !!slot.practice, !!slot.titan && !relay, relay,
+        templateKey, tier, startMs, db.world.currentWeek, !!slot.practice, !!slot.titan && !relay, relay, cup,
       );
       db.flights.push(flight);
       botsEnterFlight(db, flight);
@@ -798,10 +875,28 @@ export function tickFlights(
           if (r.velocity > (p.seasonPeakSpeed ?? 0)) p.seasonPeakSpeed = r.velocity;
           if (r.rank <= 3) p.seasonPodiums = (p.seasonPodiums ?? 0) + 1;
         }
-        // The weekend specials stop here: no medals/wins badges, no bets (none can
-        // be placed on them), no win/podium missions and no sponsor bonuses —
-        // money + the pigeon rankings above are all they feed.
-        if (flight.titan || flight.relay) continue;
+        // Leeftijdscriterium: award the criterium points to the BIRD, in the
+        // bracket this race was run for. A bird ages out of its bracket during a
+        // cycle, so the points stay where they were earned instead of following
+        // her up — see AGE_CUP. Sprint and fond pay the same points; only the
+        // money differs. These totals survive the season rollover and are only
+        // cleared when a full three-season cycle ends (season.ts).
+        if (flight.ageCat) {
+          for (const r of flight.results) {
+            if (r.finished === false) continue;
+            const p = db.pigeons.find((x) => x.id === r.pigeonId);
+            if (!p) continue;
+            const st = cupStanding(p, flight.ageCat);
+            st.points += RANKING_POINTS[r.rank - 1] ?? 0;
+            st.races += 1;
+            if (r.rank === 1) st.wins += 1;
+            if (r.velocity > st.best) st.best = r.velocity;
+          }
+        }
+        // The weekend specials and the leeftijdscriterium stop here: no medals/wins
+        // badges, no bets (none can be placed on them), no win/podium missions and
+        // no sponsor bonuses — money + the pigeon standings above are all they feed.
+        if (flight.titan || flight.relay || flight.ageCat) continue;
         awardFlightBadges(db, flight);
         settleFlightBets(db, flight);
         // Daily-mission progress for win/podium.
@@ -1760,6 +1855,25 @@ function runDataMigrations(db: Database): void {
       );
     }
     db.world.dataVersion = 39;
+  }
+  if ((db.world.dataVersion ?? 0) < 40) {
+    // Start the leeftijdscriterium (AGE_CUP) at the NEXT season boundary.
+    //
+    // Anchoring on the boundary rather than "now" is what keeps the arithmetic
+    // exact: the week index counted from the anchor doubles as the season week,
+    // so the sprint/fond alternation lands 2 of each per season and 6 of each per
+    // three-season cycle, and the cycle ends precisely at a prijsuitreiking.
+    // Days before the anchor simply get no age races (`cupWeekIndex` returns -1).
+    if (!db.world.ageCupStartedAt) {
+      const ends = Date.parse(db.world.seasonEndsAt ?? '');
+      // A world whose season clock has not been anchored yet (or is already past
+      // its end) starts the criterium at the next rollover tickSeason performs;
+      // falling back to that same instant keeps the two in step.
+      const anchor = Number.isFinite(ends) && ends > Date.now() ? ends : Date.now();
+      db.world.ageCupStartedAt = new Date(anchor).toISOString();
+      db.world.ageCupSeasonsDone = 0;
+    }
+    db.world.dataVersion = 40;
   }
 }
 

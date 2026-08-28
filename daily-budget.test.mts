@@ -144,7 +144,7 @@ async function liveRequest(nowMs: number, viewer: string, flightId: string) {
 await request(T0, undefined, false);
 {
   const s = await D1Store.load(db, undefined);
-  const races = s.data.flights.filter((f) => f.status === 'scheduled' && !f.practice);
+  const races = s.data.flights.filter((f) => f.status === 'scheduled' && !f.practice && !f.ageCat);
   for (const f of races) {
     for (const h of humans) {
       const s2 = await D1Store.load(db, h);

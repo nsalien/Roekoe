@@ -15,10 +15,10 @@
 
 | Rol | Branch | Doel |
 |-----|--------|------|
-| **Dev** | `claude/hallo-mzjn0e` | Alle ontwikkeling/commits komen hier **eerst**. |
+| **Dev** | `claude/hallo-hrtwtv` | Alle ontwikkeling/commits komen hier **eerst**. |
 | **Prod** | `claude/roekoe-game-website-jwa0vo` | Elke commit wordt hierheen **gecherry-pickt**; deze branch triggert de **Cloudflare Pages**-deploy naar productie. |
 
-> Vorige dev-branches (niet meer gebruiken): `claude/hallo-su75jy`, `claude/hallo-rkr49f`, `claude/hallo-pvwabx`,
+> Vorige dev-branches (niet meer gebruiken): `claude/hallo-mzjn0e`, `claude/hallo-su75jy`, `claude/hallo-rkr49f`, `claude/hallo-pvwabx`,
 > `claude/context-spelregels-q2ywtx`, `claude/hallo-49m6hj`, `claude/hallo-xifh0c`,
 > `claude/hallo-w97s85`. Ontwikkelt een sessie op een nieuwe
 > `claude/…`-branch, gebruik die dan als dev-branch en **werk deze tabel meteen bij** —
@@ -131,7 +131,7 @@ krijgen.**
 `core/game/schedule.ts` → `advanceRealtime(db, nowMs, weatherByFlight)` roept in
 volgorde:
 1. `runDataMigrations(db)` — eenmalige datafixes, **gated op `world.dataVersion`**
-   (staat nu op **38**; nieuwe migratie = nieuw `if ((db.world.dataVersion ?? 0) < N)`
+   (staat nu op **40**; nieuwe migratie = nieuw `if ((db.world.dataVersion ?? 0) < N)`
    blok + `db.world.dataVersion = N`). v21 zet **bestaande geplande vluchten terug naar de
    OUDE, kortere afstanden** (regio 30–160 / nat 60–290 / intl 180–950 km): elke nog-
    geplande niet-titan-vlucht buiten haar legacy-venster wordt her-routeerd via
@@ -375,6 +375,7 @@ Roekoe/
 ├── betting-odds.test.mts        regressietest: weddenschapskansen kloppen + zijn stabiel
 ├── newcomer.test.mts            regressietest: starterspakket nieuwe spelers (48 checks)
 ├── velocity-model.test.mts      regressietest: snelheid = snelheid, ervaring = efficiëntie
+├── age-cup.test.mts             regressietest: leeftijdscriterium (kalender, klassen, cyclus)
 ├── poll-budget.test.mts         regressietest: pollritme + de smalle load (deelnemerslijst!)
 ├── force-finish.test.mts        regressietest: admin-"match beëindigen" == natuurlijk uitvliegen
 ├── limits-report.mts            meet queries/rijen gelezen/geschreven per verzoek
@@ -691,6 +692,16 @@ Entiteiten: `Pigeon`, `Loft`, `User`, `BreedingPair`, `PendingBrood`, `Flight` (
   `capacityReserveFactor 2.5`/**`maxCapacity 12`** (platformgrens, zie §Performance),
   `maxPairs 2`/`breedReserve 2500`/`breedMinLibido 35`, `foodWeeksBuffer 3`,
   **`goodFeedFrom 2500`** (vanaf dat bedrag Herstelvoer i.p.v. Normaal).
+- **Leeftijdscriterium (`AGE_CUP` + `AGE_CATEGORIES`, nieuwste):** een tweede competitie
+  náást het seizoen, enkel voor **duiven**. Vier klassen (`AgeCategoryId` = `u1`/`y12`/
+  `y23`/`o3`, grenzen 52/104/156 gameweken) met elk **één vlucht per week** op een eigen
+  weekdag om **06:00** (ma/wo/do/vr — vroeg, zodat een fondvlucht van 1000 km 's avonds
+  binnen is). `entryFee 20`, **geen limiet per hok**. Het format wisselt week na week:
+  `sprint` (100–300 km, pool `national`, prijzen `[1000,800,600,420,300,200,130,80]`) en
+  `fond` (400–1000 km, pool `international`, `[1600,1400,1200,850,600,400,260,160]`).
+  Helpers `ageCategoryFor(ageWeeks)`, `ageCategoryDef(id)` en `isCupSprintWeek(index)`.
+  **Cyclus:** `seasons 3` — de stand loopt drie seizoenen door en pas dan volgt de
+  prijsuitreiking (`awards [2000,1600,1200]` per klasse) + reset.
 - **Schema (`REAL_SCHEDULE`, nieuwste — vaste weekkalender):** één vast programma per
   weekdag i.p.v. het oude dagelijkse lang+kort-ritme. **ma** 08:00 intl · **di** 10:00 regio
   + 12:00 oefenvlucht · **wo** 08:00 nat · **do** 08:00 intl · **vr** 10:00 regio + 12:00
@@ -767,7 +778,9 @@ Entiteiten: `Pigeon`, `Loft`, `User`, `BreedingPair`, `PendingBrood`, `Flight` (
 - `InfirmaryPage` (Ziekenboeg) — zieke/gekwetste duiven; dokter/kinesist/medicatievoer;
   **herstelbalk per duif** (`ailment.healed`).
 - `ProfilePage` — hoknaam, **thema-toggle (donker/licht)**, **"Start rondleiding"**.
-- `RankingPage` — tabs **Melkers** (seizoenspunten) + **Duiven** (drie ranglijsten:
+- `RankingPage` — tabs **Melkers** (seizoenspunten), **Duiven** en **Criterium**
+  (`AgeCupPanel`: de vier leeftijdsklassen van §2.10 spelregels, met hoever de
+  driejarige cyclus staat). Duiven = drie ranglijsten:
   hoogste gemiddelde vluchtsnelheid, meeste podiums, meeste vooruitgang — via `state.pigeonRankings`).
   Kop toont "Seizoen X · week Y/4 · nog Z dagen" (tot seizoenseinde) + een tweede regel
   met **dagen tot de volgende speelweek** (`nextPlayWeek`+`timeUntil`).
@@ -876,6 +889,7 @@ npx tsx poll-budget.test.mts       # polls + smalle load blijven binnen het dagb
 npx tsx force-finish.test.mts      # admin-"match beëindigen" == natuurlijk uitvliegen
 npx tsx newcomer.test.mts          # starterspakket: punten, tijdvenster, afloopmelding
 npx tsx velocity-model.test.mts    # ervaring raakt de snelheid van een frisse duif niet
+npx tsx age-cup.test.mts           # leeftijdscriterium: klassen, afwisseling, 3-seizoenencyclus
 ```
 Diagnose zonder assertie: `npx tsx cpu-sweep.mts` (CPU per operatie, duurste
 eerst) en `npx tsx limits-report.mts` (queries/rijen per verzoek).
@@ -913,7 +927,76 @@ eerst) en `npx tsx limits-report.mts` (queries/rijen per verzoek).
 ## 8. Belangrijkste wijzigingen deze sessie (achtergrond)
 
 Alles hieronder staat **live** op de deploy-branch. Data-migraties liepen door tot
-**`dataVersion = 38`**.
+**`dataVersion = 40`**.
+
+**Leeftijdscriterium: vier leeftijdsklassen, één vlucht per week, drie seizoenen (nieuwste)**
+- **Vraag van de eigenaar:** een extra rangschikking per leeftijdsklasse (< 1 j / 1–2 j /
+  2–3 j / > 3 j), met per klasse één eigen wekelijkse vlucht waar enkel duiven van die
+  leeftijd in mogen, €20 inschrijfgeld, week om week kort (100–300 km) en lang (400–1000 km),
+  enkel duivenpunten, en een reset met prijzen na **drie** seizoenen i.p.v. één.
+- **Kalender:** vier nieuwe slots in `REAL_SCHEDULE` (`cup-u1` ma · `cup-y12` wo · `cup-y23`
+  do · `cup-o3` vr, telkens **06:00**), gegenereerd uit `AGE_CATEGORIES` zodat de tabel en de
+  kalender niet uit elkaar kunnen lopen. `ScheduleSlot.ageCat` stuurt `makeRealtimeFlight`
+  naar een eigen tak met eigen route-venster, naam en inschrijfgeld.
+- ⚠️ **Waarom de afwisseling op een SEIZOENSANKER hangt en niet op `dayNumber`.** De estafette
+  gebruikt `floor(dayNumber/7) % 2`, en die weekbuckets beginnen op **donderdag** (dag 0 van de
+  epoch). Met vier vluchten op ma/wo/do/vr zou dat maandag+woensdag in een ándere bucket zetten
+  dan donderdag+vrijdag — dus binnen één kalenderweek twee verschillende formats. Nu telt
+  `cupWeekIndex(db, atMs)` de weken vanaf **`world.ageCupStartedAt`**, dat op een seizoensgrens
+  ligt. Die index is dus tegelijk de seizoensweek: even = sprint, oneven = fond → exact **2+2
+  per seizoen en 6+6 per cyclus**, en de cyclus eindigt precies op een prijsuitreiking.
+  Vóór het anker geeft de helper **−1** en wordt er niets gepland — zo begint de competitie
+  vanzelf bij het nieuwe seizoen zonder een datum in de code.
+- **Leeftijdsklasse wordt PER VLUCHT bepaald, bij het inschrijven** (`enterFlight` +
+  `botRaceCandidates` delen dezelfde `ageCategoryFor`-check). Bewuste keuze van de eigenaar, en
+  ze moest gemaakt worden: duiven verouderen **4× real-time**, dus over drie seizoenen (12 echte
+  weken = 48 gameweken) wordt een duif **bijna een heel duivenjaar** ouder. Een duif klimt dus
+  mid-cyclus een klasse omhoog. De punten die ze in haar oude klasse verdiende **blijven daar
+  staan** (`Pigeon.cup` is een record **per klasse**), dus ze kan legitiem in twee standen
+  tegelijk verschijnen.
+- **Scheiding van de melker-economie:** `flightPrizes(flight)` (nieuw, `flight.ts`) centraliseert
+  de drie prijzentabellen; `finalizeFlight` geeft **0 seizoenspunten** en telt **geen `wins`**
+  voor een criteriumvlucht, en `tickFlights` slaat er badges/bets/missies/sponsorpremie over via
+  dezelfde `continue` als titan/estafette. De **duivenranglijsten tellen hem wél** mee
+  (`seasonPeakSpeed`/`seasonPodiums`), net als de titan.
+- **Punten naar de duif:** `tickFlights` schrijft `RANKING_POINTS[rank-1]` in
+  `Pigeon.cup[ageCat]` (`{points, wins, best, races}`) — sprint en fond wegen **even zwaar**,
+  enkel het geld verschilt. `ageCupRankings` (season.ts) sorteert op punten → zeges → beste
+  ritgemiddelde.
+- **Cyclus-einde in `runSeasonEnd`:** `runAgeCupCycleEnd` telt de seizoenen (`world.
+  ageCupSeasonsDone`) en houdt bij de derde de prijsuitreiking: €2000/€1600/€1200 naar de
+  **eigenaar** (als `SeasonAward` met `kind: 'criterium'`, dus zichtbaar in Prestaties) én een
+  **`PigeonTitle` op de DUIF** (`Pigeon.titles`) — die blijft bij haar als ze verkocht wordt,
+  wat het punt van "een badge voor de duif" was. Daarna worden alle `cup`-standen gewist en
+  wordt het anker op deze grens gezet. ⚠️ De teller gebruikt een **strikte** vergelijking met
+  het anker, anders zou het seizoen dat exact op de startgrens eindigt al meetellen.
+- **Leesbudget:** de vier standen scannen élke duif, precies zoals `pigeonSeasonRankings`, dus ze
+  rijden mee in **dezelfde `World.leaderboard`-cache** (`computeLeaderboard` → `cupRankings`).
+  Ze op `/state` berekenen zou de hele `pigeons`-tabel terug op de heetste route trekken — net
+  wat die cache moet voorkomen. Gemeten: `daily-budget` blijft op **24,6 %** van de 5M/dag (was
+  24,2 %), `query-budget` op **43 van de 50**, en een idle poll schrijft nog steeds 0 rijen.
+- **Persistentie:** kolommen `flights.age_cat` + `cup_sprint`, `pigeons.cup` + `titles`,
+  `world.age_cup_started_at` + `age_cup_seasons_done`, alle **achteraan** `SCHEMA_STEPS`
+  (append-only). **Migratie v40** zet het anker op `world.seasonEndsAt`. **dataVersion → 40.**
+- **UI:** derde tab **Criterium** op `RankingPage` (vier standen + hoever de cyclus staat),
+  badges + regelregel + een gefilterde duivenkiezer op `FlightsPage`, en op `PigeonPage` de
+  titels als badge naast de naam plus een `CriteriumCard` met haar huidige klasse en stand per
+  klasse. Wiki-sectie 🏆 **Leeftijdscriterium**; spelregels **§2.10** (+ §2.1, §12, §14, §15).
+- ⚠️ **Om op te volgen:** de klasse **> 3 jaar** kan dun bevolkt zijn (startduiven worden
+  8–130 gameweken terug gedateerd), en een wedstrijdvlucht met < 2 melkers wordt afgelast. Bots
+  doen mee en vangen dat grotendeels op, maar het is het eerste om te meten als die vlucht vaak
+  niet doorgaat. Knop daarvoor: de grens van `o3` verlagen of de klassen samenvoegen.
+- **Nieuwe blijvende test `age-cup.test.mts`** (53 controles): het anker, geen vluchten vóór de
+  start, vier klassen op hun eigen dag met precies één vlucht per week, de 2+2/6+6-afwisseling en
+  dat alle klassen dezelfde week hetzelfde format vliegen, de leeftijdsgrens voor speler én bot,
+  geen limiet per hok, prijzengeld ja / seizoenspunten en `wins` nee, punten in de juiste klasse
+  (én dat ze een rondje door D1 overleven), dat een gewone seizoenswissel de stand **niet** wist,
+  en de reset na drie seizoenen met geld, titel en schone lei.
+- ⚠️ **Vijf bestaande tests aangepast, niet verzwakt:** `force-finish`, `advance-throttle`,
+  `idle-writes`, `query-budget` en `daily-budget` pakten "de eerste geplande wedstrijdvlucht" en
+  schreven er willekeurige duiven in. Dat kan nu een criteriumvlucht zijn, en die weigert een duif
+  van de verkeerde leeftijd — `force-finish` viel daardoor sporadisch om met een lege deelnemerslijst.
+  Ze sluiten `f.ageCat` nu uit, net zoals ze `practice` en `relay` al uitsloten.
 
 **Ervaring is uit de snelheidsformule (nieuwste)**
 - **Aanleiding (eigenaar):** "ervaring hoort geen invloed te hebben op snelheid, daar is
