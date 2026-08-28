@@ -268,9 +268,8 @@ export function FlightsPage() {
                 )}
                 {f.ageCat && (
                   <p className="faint" style={{ marginTop: 10, marginBottom: 0 }}>
-                    {f.ageCatIcon} Enkel duiven <strong>{f.ageCatLabel?.toLowerCase()}</strong>, zoveel als je wil.
-                    Prijzengeld tot €{f.cupPrizes?.[0]}, geen seizoenspunten — de punten gaan naar de duif.{' '}
-                    <Link to="/wiki#criterium">Meer over het criterium →</Link>
+                    {f.ageCatIcon} Enkel duiven <strong>{f.ageCatLabel?.toLowerCase()}</strong>. Tot €{f.cupPrizes?.[0]},
+                    geen seizoenspunten. <Link to="/wiki#criterium">Meer over het criterium →</Link>
                   </p>
                 )}
                 {!f.practice && !f.titan && !f.relay && !f.ageCat && (() => {

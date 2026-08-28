@@ -674,8 +674,7 @@ function CriteriumCard({ pigeon }: { pigeon: Pigeon }) {
       <h2>🏆 Leeftijdscriterium</h2>
       {current && (
         <p className="faint" style={{ marginTop: 0 }}>
-          Ze komt nu uit in de klasse <strong>{current.icon} {current.label}</strong> — daar vliegt ze haar
-          wekelijkse criteriumvlucht.
+          Klasse: <strong>{current.icon} {current.label}</strong>
         </p>
       )}
       {standings.length === 0 ? (
@@ -703,7 +702,7 @@ function CriteriumCard({ pigeon }: { pigeon: Pigeon }) {
         </div>
       )}
       <p className="faint" style={{ marginTop: 8, marginBottom: 0 }}>
-        De stand loopt {cup.seasons} seizoenen door. <Link to="/wiki#criterium">Meer over het criterium →</Link>
+        <Link to="/wiki#criterium">Meer over het criterium →</Link>
       </p>
     </div>
   );

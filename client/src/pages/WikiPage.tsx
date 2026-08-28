@@ -473,7 +473,8 @@ export function WikiPage() {
         />
         <ul style={{ marginTop: 12 }}>
           <li><strong>Inschrijven kost €20</strong>, en je mag er <strong>zoveel duiven in zetten als je wil</strong>
-            — zolang ze in de juiste leeftijdsklasse vallen.</li>
+            — zolang ze in de juiste leeftijdsklasse vallen. In welke klasse een duif zit, staat op haar
+            <strong> duifpagina</strong>; bij het inschrijven toont de lijst enkel de duiven die mogen.</li>
           <li>De vlucht <strong>wisselt week na week</strong> tussen een <strong>🏁 sprint</strong> (100 – 300 km) en
             een <strong>🛰️ grote fond</strong> (400 – 1000 km). Alle vier de klassen vliegen dezelfde week hetzelfde
             format, dus per seizoen zijn dat 2 sprints en 2 fondvluchten per klasse.</li>

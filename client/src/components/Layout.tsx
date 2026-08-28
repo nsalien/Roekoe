@@ -62,7 +62,11 @@ export function Layout() {
   // with a weekly race each, standings that run three seasons). Separate key so it
   // also reaches players who already finished the main welcome tour or an earlier
   // announcement. Bump the key suffix for a next announcement.
-  const newsKey = user?.id ? `roekoe.newsSeen.agecup.${user.id}` : null;
+  //
+  // `agecup2`, not `agecup`: the first run was too wordy to read (and its card
+  // could not be scrolled to the buttons), so the shortened version has to reach
+  // the players who already clicked the old one away.
+  const newsKey = user?.id ? `roekoe.newsSeen.agecup2.${user.id}` : null;
   const [showNews, setShowNews] = useState(false);
 
   function closeTour() {
