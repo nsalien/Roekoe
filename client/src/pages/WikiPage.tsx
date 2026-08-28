@@ -24,6 +24,7 @@ const SECTIONS = [
   { id: 'sponsors', icon: '🤝', label: 'Sponsors' },
   { id: 'titan', icon: '🏆', label: 'Titanenwedstrijd' },
   { id: 'estafette', icon: '🔗', label: 'Estafettevlucht' },
+  { id: 'criterium', icon: '🏆', label: 'Leeftijdscriterium' },
   { id: 'broeden', icon: '🥚', label: 'Kweken & broeden' },
   { id: 'ziekte', icon: '🤒', label: 'Ziekte' },
   { id: 'ziekenboeg', icon: '🏥', label: 'De ziekenboeg' },
@@ -452,6 +453,81 @@ export function WikiPage() {
         <p><strong>Strategie:</strong> zet je sterkste duif op de <em>zwaarste</em> etappe (die met tegenwind) — daar
           verlies je met haar het minst. Bij overal hetzelfde weer maakt de volgorde niets uit. En kijk vooral naar je
           <em> zwakste</em> schakel: die bepaalt evenveel van de ploegtijd als je kampioen.</p>
+      </Section>
+
+      <Section id="criterium" icon="🏆" title="Het leeftijdscriterium (elke week, per leeftijdsklasse)">
+        <p className="muted" style={{ marginTop: 0 }}>
+          Naast het gewone seizoen loopt er een tweede competitie, alleen voor <strong>duiven</strong>. Er zijn vier
+          leeftijdsklassen, en elke klasse krijgt <strong>één eigen vlucht per week</strong> waar enkel duiven van die
+          leeftijd in mogen. Zo moet je jonge duif niet meteen tegen doorwinterde routiniers, en heeft een oude
+          kampioen nog altijd haar eigen wedstrijd.
+        </p>
+        <MiniTable
+          head={['Klasse', 'Leeftijd', 'Vluchtdag']}
+          rows={[
+            ['🐣 Onder 1 jaar', 'tot 1 jaar', 'maandag 06:00'],
+            ['🕊️ 1 tot 2 jaar', '1 – 2 jaar', 'woensdag 06:00'],
+            ['🦅 2 tot 3 jaar', '2 – 3 jaar', 'donderdag 06:00'],
+            ['🏅 Ouder dan 3 jaar', 'vanaf 3 jaar', 'vrijdag 06:00'],
+          ]}
+        />
+        <ul style={{ marginTop: 12 }}>
+          <li><strong>Inschrijven kost €20</strong>, en je mag er <strong>zoveel duiven in zetten als je wil</strong>
+            — zolang ze in de juiste leeftijdsklasse vallen.</li>
+          <li>De vlucht <strong>wisselt week na week</strong> tussen een <strong>🏁 sprint</strong> (100 – 300 km) en
+            een <strong>🛰️ grote fond</strong> (400 – 1000 km). Alle vier de klassen vliegen dezelfde week hetzelfde
+            format, dus per seizoen zijn dat 2 sprints en 2 fondvluchten per klasse.</li>
+          <li>Verder is het een <strong>gewone wedstrijd</strong>: normale energiekost, normale kans op een blessure,
+            en je duif gaat er gewoon op vooruit.</li>
+        </ul>
+        <h3>Prijzengeld per vlucht</h3>
+        <MiniTable
+          head={['Plaats', '🏁 Sprint', '🛰️ Grote fond']}
+          rows={[
+            ['1e', '€1.000', '€1.600'],
+            ['2e', '€800', '€1.400'],
+            ['3e', '€600', '€1.200'],
+            ['4e', '€420', '€850'],
+            ['5e', '€300', '€600'],
+            ['6e', '€200', '€400'],
+            ['7e', '€130', '€260'],
+            ['8e', '€80', '€160'],
+          ]}
+        />
+        <h3>De stand loopt drie seizoenen</h3>
+        <p>
+          Eén vlucht per klasse per week is maar vier resultaten per seizoen — veel te weinig om een veld te scheiden.
+          Daarom telt de criteriumstand <strong>drie seizoenen</strong> door (12 weken, dus 6 sprints en 6 fondvluchten)
+          voor er een prijsuitreiking en een reset volgt. Punten krijg je met dezelfde tabel als een gewone vlucht
+          (100 voor de winnaar, 80, 65, …) — <strong>een sprint en een fondvlucht wegen even zwaar</strong>, alleen het
+          geld verschilt.
+        </p>
+        <MiniTable
+          head={['Plaats na 3 seizoenen', 'Prijs']}
+          rows={[['🥇 1e', '€2.000 + gouden titel'], ['🥈 2e', '€1.600 + zilveren titel'], ['🥉 3e', '€1.200 + bronzen titel']]}
+        />
+        <p style={{ marginTop: 12 }}>
+          Het geld gaat naar de <strong>eigenaar</strong>, maar de <strong>titel komt op de duif zelf</strong> te staan
+          — die blijft bij haar, ook als je haar later verkoopt.
+        </p>
+        <h3>Wat het níet doet</h3>
+        <p>
+          Het criterium is een <strong>aparte rangschikking</strong>. Er zijn <strong>geen seizoenspunten</strong>, geen
+          medailles en geen overwinningen voor je hok, er is geen sponsorpremie en je kan er niet op wedden: de
+          melkerranglijst (de Roekoe) beweegt er dus <em>niet</em> door. Voor de gewone <strong>duivenranglijsten</strong>
+          (snelheid, podiums, vooruitgang) telt de vlucht wél mee, net als de titanenwedstrijd.
+        </p>
+        <h3>Je duif wordt ouder — en klimt mee</h3>
+        <p>
+          Duiven verouderen vier keer sneller dan de echte klok, dus over een volledige cyclus van drie seizoenen wordt
+          een duif bijna een jaar ouder. <strong>Haar klasse wordt bepaald op het moment dat je haar inschrijft.</strong>
+          Groeit ze tijdens de cyclus uit haar klasse, dan blijven de punten die ze daar verdiende gewoon staan en begint
+          ze bovendien punten te verzamelen in haar nieuwe klasse. Ze kan dus in twee standen tegelijk verschijnen.
+        </p>
+        <p><strong>Strategie:</strong> de klasse <em>onder 1 jaar</em> is de goedkoopste plek om een jong te laten
+          rijpen — ze vliegt er tegen leeftijdsgenoten in plaats van tegen het hele veld. En omdat de stand drie
+          seizoenen loopt, is <em>elke week meedoen</em> meer waard dan één keer schitteren: een duif die alle twaalf
+          vluchten uitvliegt, verzamelt meer dan een kampioen die er de helft mist.</p>
       </Section>
 
       <Section id="eigenschappen" icon="📋" title="Wat doet elke eigenschap tijdens een vlucht?">

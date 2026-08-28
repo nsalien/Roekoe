@@ -136,7 +136,12 @@ export function FlightsPage() {
           {scheduled.map((f, idx) => {
             const myEntries = f.entries.filter((e) => e.ownerId === user?.id);
             const available = state.pigeons.filter(
-              (p) => p.canRace && !p.racing && !committed.has(p.id) && !p.breeding && (p.form ?? 0) >= 1,
+              (p) =>
+                p.canRace && !p.racing && !committed.has(p.id) && !p.breeding && (p.form ?? 0) >= 1 &&
+                // A leeftijdscriterium takes one age bracket only. The server refuses
+                // the rest anyway; hiding them here keeps the picker honest instead of
+                // offering a bird that is guaranteed to bounce.
+                (!f.ageCat || p.ageCat === f.ageCat),
             );
             return (
               <div key={f.id} className="card" data-tour={idx === 0 && live.length === 0 ? 'flights' : undefined}>
@@ -150,7 +155,16 @@ export function FlightsPage() {
                           ? <span className="badge" style={{ background: 'var(--gold-soft)', color: 'var(--gold)' }}>🏆 Titanenwedstrijd</span>
                           : f.practice
                             ? <span className="badge" style={{ background: 'var(--surface-2)' }}>🌤️ Oefenvlucht</span>
-                            : <span className={`badge ${f.type}`}>{tierLabel(f.type)}</span>}
+                            : f.ageCat
+                              ? <>
+                                  <span className="badge" style={{ background: 'var(--gold-soft)', color: 'var(--gold)' }}>
+                                    {f.ageCatIcon} Criterium {f.ageCatShort}
+                                  </span>
+                                  <span className="badge" style={{ background: 'var(--surface-2)' }}>
+                                    {f.cupSprint ? '🏁 Sprint' : '🛰️ Grote fond'}
+                                  </span>
+                                </>
+                              : <span className={`badge ${f.type}`}>{tierLabel(f.type)}</span>}
                     </div>
                     <div className="faint" style={{ marginTop: 2 }}>
                       🕊️ {f.fromCity} → {f.toCity} · {f.distanceKm} km
@@ -204,6 +218,10 @@ export function FlightsPage() {
                     <span className="faint">🔗 Je ploeg is compleet ({f.teamSize} duiven). Wissel hierboven de volgorde tot de start.</span>
                   ) : f.titan && myEntries.length >= 1 ? (
                     <span className="faint">🏆 Je hebt je duif voor de titanenwedstrijd ingeschreven (max. één per hok).</span>
+                  ) : f.ageCat && available.length === 0 ? (
+                    <span className="faint">
+                      {f.ageCatIcon} Je hebt op dit moment geen vluchtklare duif {f.ageCatLabel?.toLowerCase()}.
+                    </span>
                   ) : (
                     <EnterControl
                       disabled={busy}
@@ -248,7 +266,14 @@ export function FlightsPage() {
                     🌤️ Korte training: lage energiekost, gratis, geen punten of prijzen — en geen risico.
                   </p>
                 )}
-                {!f.practice && !f.titan && !f.relay && (() => {
+                {f.ageCat && (
+                  <p className="faint" style={{ marginTop: 10, marginBottom: 0 }}>
+                    {f.ageCatIcon} Enkel duiven <strong>{f.ageCatLabel?.toLowerCase()}</strong>, zoveel als je wil.
+                    Prijzengeld tot €{f.cupPrizes?.[0]}, geen seizoenspunten — de punten gaan naar de duif.{' '}
+                    <Link to="/wiki#criterium">Meer over het criterium →</Link>
+                  </p>
+                )}
+                {!f.practice && !f.titan && !f.relay && !f.ageCat && (() => {
                   const opensAt = Date.parse(f.startAt) - state.economy.betWindowHours * 3600000;
                   if (betFlights.has(f.id)) {
                     return (

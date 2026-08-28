@@ -44,16 +44,17 @@ Elke dag heeft haar **eigen vaste programma**:
 
 | Dag | Vluchten |
 |---|---|
-| **Maandag** | 08:00 internationaal |
+| **Maandag** | 06:00 **criterium onder 1 jaar** (§2.10) · 08:00 internationaal |
 | **Dinsdag** | 10:00 regionaal · 12:00 **oefenvlucht** (§2.7) |
-| **Woensdag** | 08:00 nationaal |
-| **Donderdag** | 08:00 internationaal |
-| **Vrijdag** | 10:00 regionaal · 12:00 **oefenvlucht** (§2.7) |
+| **Woensdag** | 06:00 **criterium 1–2 jaar** (§2.10) · 08:00 nationaal |
+| **Donderdag** | 06:00 **criterium 2–3 jaar** (§2.10) · 08:00 internationaal |
+| **Vrijdag** | 06:00 **criterium ouder dan 3 jaar** (§2.10) · 10:00 regionaal · 12:00 **oefenvlucht** (§2.7) |
 | **Zaterdag** | 08:00 **Titanenwedstrijd** (§2.8) of 05:00 **Estafettevlucht** (§2.9) — week om week, en de **enige** vlucht die dag |
 | **Zondag** | 08:00 nationaal · 17:00 regionaal |
 
-Dat zijn **8 wedstrijdvluchten + 2 oefenvluchten per week**: 3 regionale, 2
-nationale, 2 internationale en 1 weekendwedstrijd. Bewust **minder vluchten dan
+Dat zijn **8 wedstrijdvluchten + 4 criteriumvluchten + 2 oefenvluchten per week**:
+3 regionale, 2 nationale, 2 internationale, 1 weekendwedstrijd en 4
+leeftijdsvluchten. Bewust **minder vluchten dan
 vroeger** (toen was er élke dag een lange én een korte vlucht): alle melkers
 putten uit dezelfde duiven, dus een lichtere kalender betekent **meer duiven aan
 de start van élke vlucht** en dus een **sterker deelnemersveld** om tegen te
@@ -332,6 +333,80 @@ wordt je ploeg uit de wedstrijd gehaald en krijg je je inschrijfgeld terug. Haal
 je één duif uit je ploeg, dan schrijf je meteen de **hele ploeg** uit (je kan
 niet met twee vliegen) — ook dan komt je inschrijfgeld terug. En zoals bij elke
 wedstrijd: er moeten **minstens 2 volledige ploegen** aan de start staan.
+
+### 2.10 Leeftijdscriterium (ma/wo/do/vr, 06:00)
+
+Naast het gewone seizoen loopt er een **tweede competitie, alleen voor duiven**.
+Er zijn **vier leeftijdsklassen** en elke klasse krijgt **één eigen vlucht per
+week**, waar enkel duiven van die leeftijd in mogen. Zo hoeft je jonge duif niet
+meteen tegen doorwinterde routiniers, en heeft een oude kampioen nog altijd haar
+eigen wedstrijd.
+
+| Klasse | Leeftijd | Vluchtdag |
+|---|---|---|
+| 🐣 **Onder 1 jaar** | tot 1 jaar | maandag 06:00 |
+| 🕊️ **1 tot 2 jaar** | 1 – 2 jaar | woensdag 06:00 |
+| 🦅 **2 tot 3 jaar** | 2 – 3 jaar | donderdag 06:00 |
+| 🏅 **Ouder dan 3 jaar** | vanaf 3 jaar | vrijdag 06:00 |
+
+- **Inschrijfgeld €20**, en je mag er **zoveel duiven in zetten als je wil** —
+  zolang ze in de juiste leeftijdsklasse vallen.
+- De vlucht **wisselt week na week** tussen een **🏁 sprint** (100–300 km) en een
+  **🛰️ grote fond** (400–1000 km). Alle vier de klassen vliegen dezelfde week
+  hetzelfde format, dus per klasse zijn dat **2 sprints en 2 fondvluchten per
+  seizoen**.
+- Verder is het een **gewone wedstrijd**: normale energiekost (§3), normale kans
+  op een blessure (§3.2), en je duif gaat er gewoon op vooruit.
+- Bots doen mee, zodat de klassen een echt deelnemersveld hebben.
+
+**Prijzengeld per vlucht**
+
+| Plaats | 🏁 Sprint | 🛰️ Grote fond |
+|---|---|---|
+| 1e | €1.000 | €1.600 |
+| 2e | €800 | €1.400 |
+| 3e | €600 | €1.200 |
+| 4e | €420 | €850 |
+| 5e | €300 | €600 |
+| 6e | €200 | €400 |
+| 7e | €130 | €260 |
+| 8e | €80 | €160 |
+
+**De stand loopt drie seizoenen.** Eén vlucht per klasse per week is maar vier
+resultaten per seizoen — veel te weinig om een veld te scheiden. Daarom telt de
+criteriumstand **drie seizoenen** door (12 weken, dus 6 sprints en 6
+fondvluchten) voor er een prijsuitreiking en een reset volgt. Punten krijg je met
+**dezelfde tabel als een gewone vlucht** (100, 80, 65, 55, … — §2.6): een sprint
+en een fondvlucht wegen **even zwaar**, alleen het geld verschilt.
+
+| Plaats na 3 seizoenen | Prijs |
+|---|---|
+| 🥇 1e | €2.000 + **gouden titel** |
+| 🥈 2e | €1.600 + **zilveren titel** |
+| 🥉 3e | €1.200 + **bronzen titel** |
+
+Het geld gaat naar de **eigenaar**, maar de **titel komt op de duif zelf** te
+staan — die blijft bij haar, ook als je haar later verkoopt. Je ziet ze op haar
+duifpagina.
+
+**Wat het níet doet.** Het criterium is een **aparte rangschikking**: **geen
+seizoenspunten**, geen medailles en geen overwinningen voor je hok, geen
+sponsorpremie (§12) en je kan er **niet op wedden**. De **melkerranglijst (de
+Roekoe, §15.2) beweegt er dus niet door.** Voor de gewone **duivenranglijsten**
+(§15.3) telt de vlucht wél mee, net als de titanenwedstrijd.
+
+**Je duif wordt ouder — en klimt mee.** Duiven verouderen **4× sneller** dan de
+echte klok (§6), dus over een volledige cyclus van drie seizoenen wordt een duif
+bijna een jaar ouder. **Haar klasse wordt bepaald op het moment dat je haar
+inschrijft.** Groeit ze tijdens de cyclus uit haar klasse, dan **blijven de punten
+die ze daar verdiende gewoon staan** en begint ze bovendien punten te verzamelen
+in haar nieuwe klasse. Ze kan dus in twee standen tegelijk verschijnen.
+
+> **Strategie.** De klasse *onder 1 jaar* is de goedkoopste plek om een jong te
+> laten rijpen: ze vliegt er tegen leeftijdsgenoten in plaats van tegen het hele
+> veld. En omdat de stand drie seizoenen loopt, is **elke week meedoen** meer
+> waard dan één keer schitteren — een duif die alle twaalf de vluchten uitvliegt,
+> verzamelt meer dan een kampioen die de helft mist.
 
 ---
 
@@ -1416,8 +1491,8 @@ kwetsuur, ziekte, herstel, sterfte en geboorte van jongen.
 | Internationaal | ×1,8 | ×1,08 | ×0,63 |
 
     Enkel **wedstrijdvluchten** tellen: een oefenvlucht (§2.7), de
-    titanenwedstrijd (§2.8) en de estafettevlucht (§2.9) leveren **geen**
-    sponsorgeld op. Zet je meerdere duiven in en pakken ze 1-2-3, dan krijg je
+    titanenwedstrijd (§2.8), de estafettevlucht (§2.9) en het leeftijdscriterium
+    (§2.10) leveren **geen** sponsorgeld op. Zet je meerdere duiven in en pakken ze 1-2-3, dan krijg je
     alle drie de premies. Na elke wedstrijd waarin je scoort, krijg je een
     melding met wat elke sponsor precies betaalde.
   - **Orde van grootte.** Een buurtsponsor (tier 1) geeft €25–40 per dag en
@@ -1526,8 +1601,8 @@ start, kan je niet meer inzetten. Je kan **maximaal één weddenschap per vlucht
 plaatsen.
 
 Je kan wedden op **alle wedstrijdvluchten** (regionaal, nationaal én
-internationaal). Op **oefenvluchten** (§2.7), de **titanenwedstrijd** (§2.8) en de
-**estafettevlucht** (§2.9) kan je niet wedden.
+internationaal). Op **oefenvluchten** (§2.7), de **titanenwedstrijd** (§2.8), de
+**estafettevlucht** (§2.9) en de **criteriumvluchten** (§2.10) kan je niet wedden.
 
 Je kiest een **inzet**, een **type weddenschap** en (meestal) een **doelduif** —
 ook duiven van andere spelers. Types:
@@ -1575,8 +1650,8 @@ voorbij is, wordt de **prijsuitreiking** gehouden, start een nieuw seizoen op
 
 ### 15.2 Melkerranglijst → de Roekoe
 De ranglijst rangschikt alle hokken op **seizoenspunten** (enkel wedstrijdvluchten
-geven punten; **de titanenwedstrijd, de estafettevlucht en oefenvluchten geven
-géén seizoenspunten**).
+geven punten; **de titanenwedstrijd, de estafettevlucht, het leeftijdscriterium en
+oefenvluchten geven géén seizoenspunten**).
 **Bots dingen gewoon mee** en kunnen ook winnen —
 zij hebben het prijzengeld ook nodig. Bij de prijsuitreiking winnen de **top 3
 hokken**:
@@ -1592,8 +1667,12 @@ De winnaar krijgt ook de badge **Seizoenskampioen**.
 ### 15.3 Duivenranglijsten → de Vleugel
 Naast de melkers zijn er **drie ranglijsten van individuele duiven** (top 10),
 allemaal voor het **lopende seizoen**. **Wedstrijdvluchten** (regionaal, nationaal,
-internationaal) **én de weekendwedstrijden** (titan en estafette) tellen mee —
-**enkel oefenvluchten niet**.
+internationaal), **de weekendwedstrijden** (titan en estafette) **én de
+criteriumvluchten** (§2.10) tellen mee — **enkel oefenvluchten niet**.
+
+Daarnaast staan er onder *Ranglijst → Criterium* nog **vier aparte ranglijsten per
+leeftijdsklasse**. Die lopen **drie seizoenen** door in plaats van één, hebben hun
+eigen prijzen, en staan volledig los van alles hierboven — zie **§2.10**.
 (De titan geeft geen seizoenspunten voor de melkerranglijst, maar de prestaties van je
 duif erin tellen hier wél volwaardig mee.)
 - **⚡ Snelste duiven** — hoogste **gemiddelde vluchtsnelheid** dit seizoen, in

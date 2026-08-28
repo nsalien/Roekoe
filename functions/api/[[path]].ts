@@ -17,6 +17,8 @@ import { hashPassword, verifyPassword, signToken, verifyToken } from '../../core
 import { newId } from '../../core/store.js';
 import {
   ADVANCE_THROTTLE_SECONDS,
+  AGE_CATEGORIES,
+  AGE_CUP,
   AGING,
   BETTING,
   BREEDING,
@@ -402,7 +404,23 @@ app.get('/state', (c) => {
     scheduledFlights: upcoming,
     // Cached: computing these reads every pigeon in the world, which is exactly
     // what /state must not do. Refreshed whenever the engine runs (middleware).
+    // Carries `rankings`, `pigeonRankings` and the criterium's `cupRankings`.
     ...cachedLeaderboard(db),
+    // Leeftijdscriterium: static config plus where the running cycle stands. All
+    // scalars off the world row — no pigeon is read for this.
+    ageCup: {
+      categories: AGE_CATEGORIES.map((c) => ({
+        id: c.id, label: c.label, short: c.short, icon: c.icon, weekday: c.weekday,
+        minWeeks: c.minWeeks, maxWeeks: Number.isSafeInteger(c.maxWeeks) && c.maxWeeks < 1e6 ? c.maxWeeks : null,
+      })),
+      seasons: AGE_CUP.seasons,
+      seasonsDone: db.world.ageCupSeasonsDone ?? 0,
+      startedAt: db.world.ageCupStartedAt || null,
+      entryFee: AGE_CUP.entryFee,
+      awards: [...AGE_CUP.awards],
+      sprintPrizes: [...AGE_CUP.sprint.prizes],
+      fondPrizes: [...AGE_CUP.fond.prizes],
+    },
     feedRations: FEED_RATIONS,
     infirmary: INFIRMARY,
     economy: {

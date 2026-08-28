@@ -158,6 +158,16 @@ export function PigeonPage() {
                   </span>
                 )}
                 {p.coached && <span className="badge" style={{ background: 'var(--gold-soft)', color: 'var(--gold)' }}>🎯 coach</span>}
+                {(p.titles ?? []).map((t, i) => (
+                  <span
+                    key={`${t.kind}-${t.season}-${i}`}
+                    className="badge"
+                    title={`Gewonnen na seizoen ${t.season} met ${t.value} criteriumpunten. Deze titel blijft bij de duif, ook als ze verkocht wordt.`}
+                    style={{ background: 'var(--gold-soft)', color: 'var(--gold)' }}
+                  >
+                    {t.icon} {t.label}
+                  </span>
+                ))}
                 {p.revealed && p.formLabel && (
                   <span
                     className="badge"
@@ -570,6 +580,8 @@ export function PigeonPage() {
             </div>
           )}
 
+          <CriteriumCard pigeon={p} />
+
           <div className="card">
             <h2>Afstamming</h2>
             <div className="grid cols-2">
@@ -639,6 +651,60 @@ function PedigreeBox({ label, pigeon }: { label: string; pigeon: Pigeon | null }
       ) : (
         <div className="muted" style={{ marginTop: 4 }}>—</div>
       )}
+    </div>
+  );
+}
+
+/**
+ * Leeftijdscriterium standing for this bird.
+ *
+ * Two things belong here and nowhere else: which bracket she may enter RIGHT NOW
+ * (it changes as she ages, and it decides which of the four weekly races she can
+ * be entered for), and what she has banked per bracket. A bird that aged up
+ * mid-cycle keeps her old bracket's total, so more than one row is normal.
+ */
+function CriteriumCard({ pigeon }: { pigeon: Pigeon }) {
+  const { state } = useGame();
+  const cup = state?.ageCup;
+  if (!cup) return null;
+  const standings = Object.entries(pigeon.cup ?? {}).filter(([, v]) => v && v.points > 0);
+  const current = cup.categories.find((c) => c.id === pigeon.ageCat);
+  return (
+    <div className="card">
+      <h2>🏆 Leeftijdscriterium</h2>
+      {current && (
+        <p className="faint" style={{ marginTop: 0 }}>
+          Ze komt nu uit in de klasse <strong>{current.icon} {current.label}</strong> — daar vliegt ze haar
+          wekelijkse criteriumvlucht.
+        </p>
+      )}
+      {standings.length === 0 ? (
+        <p className="muted" style={{ marginBottom: 0 }}>Nog geen criteriumpunten.</p>
+      ) : (
+        <div className="table-wrap">
+          <table className="data">
+            <thead>
+              <tr><th>Klasse</th><th className="num">Punten</th><th className="num">Zeges</th><th className="num">Vluchten</th></tr>
+            </thead>
+            <tbody>
+              {standings.map(([id, st]) => {
+                const cat = cup.categories.find((c) => c.id === id);
+                return (
+                  <tr key={id}>
+                    <td>{cat ? `${cat.icon} ${cat.label}` : id}</td>
+                    <td className="num"><strong>{st!.points}</strong></td>
+                    <td className="num">{st!.wins}</td>
+                    <td className="num">{st!.races}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+      <p className="faint" style={{ marginTop: 8, marginBottom: 0 }}>
+        De stand loopt {cup.seasons} seizoenen door. <Link to="/wiki#criterium">Meer over het criterium →</Link>
+      </p>
     </div>
   );
 }

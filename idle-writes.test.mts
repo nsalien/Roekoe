@@ -83,7 +83,7 @@ await store.persist();
 // Get a flight live so we measure the state players actually poll in.
 store = await D1Store.load(db, undefined);
 advanceRealtime(store.data, T0 + 60_000, new Map());
-const flight = store.data.flights.find((f) => f.status === 'scheduled' && !f.practice)!;
+const flight = store.data.flights.find((f) => f.status === 'scheduled' && !f.practice && !f.ageCat)!;
 await store.persist();
 for (const h of humans) {
   const s = await D1Store.load(db, h);
