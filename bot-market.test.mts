@@ -6,6 +6,9 @@
  * koopt een betere duif; nu doen zij dat ook.
  *
  * Wat hier bewaakt wordt, in volgorde van hoe erg het is als het stukgaat:
+ *  0. **De wachttijd.** Bots winkelen op de dagovergang, dus een duif die om 23:55
+ *     te koop gaat zou verkocht kunnen zijn vóór één speler ze ooit zag staan. Een
+ *     verse listing is `BOT.marketMinListedHours` lang van de spelers alleen.
  *  1. **De prijsgrens.** Een speler bepaalt zélf zijn vraagprijs. Zonder plafond
  *     zet iemand zijn slechtste duif op €40.000 en leegt daarmee elke bot in de
  *     club — een geldpers, geen markt. Dit is de belangrijkste test in dit bestand.
@@ -21,7 +24,7 @@
  */
 import { MemoryStore, newId } from './core/store.js';
 import { emptyDatabase } from './core/schema.js';
-import { seedWorld, createLoftForUser, listForSale } from './core/game/engine.js';
+import { seedWorld, createLoftForUser, listForSale, unlist } from './core/game/engine.js';
 import { botDailyActions } from './core/game/bots.js';
 import { talent, trainCeil } from './core/game/pigeon.js';
 import { valuePigeon } from './core/game/market.js';
@@ -53,10 +56,65 @@ function list(w: ReturnType<typeof world>, pick: Pigeon, factor = 1): number {
   return price;
 }
 
-/** Maak de bot rijk genoeg om te winkelen, en run één dag botgedrag. */
-function botDay(w: ReturnType<typeof world>, money = 40000) {
+/**
+ * Maak de bot rijk genoeg om te winkelen, en run één dag botgedrag.
+ *
+ * `at` staat standaard ruim ná de wachttijd van een verse listing, want de meeste
+ * blokken hieronder toetsen iets ánders dan die wachttijd — anders zou elke test
+ * er per ongeluk op slagen.
+ */
+function botDay(w: ReturnType<typeof world>, money = 40000, at = Date.now() + RIPE) {
   w.bot.money = money;
-  botDailyActions(w.db, w.bot, w.owned(w.bot), NOW);
+  botDailyActions(w.db, w.bot, w.owned(w.bot), at);
+}
+
+/** Net genoeg tijd zodat een verse listing niet langer beschermd is. */
+const RIPE = (BOT.marketMinListedHours + 1) * 3600000;
+
+// ---------------------------------------------------------------------------
+console.log('\n0. Een verse listing is eerst van de spelers');
+{
+  const w = world();
+  const best = w.owned(w.player).sort((a, b) => talent(b) - talent(a))[0];
+  best.speed = 92; best.endurance = 90; best.orientation = 90; // onmiskenbaar begeerlijk
+  list(w, best);
+  ok(!!best.listedAt, 'te koop zetten stempelt het tijdstip');
+  // Reken vanaf de ÉCHTE stempel: listForSale zet er de wandklok in, dus een
+  // verzonnen testklok zou hier langs de regel heen glijden.
+  const t0 = Date.parse(best.listedAt!);
+
+  botDay(w, 40000, t0); // meteen
+  ok(best.ownerId === w.player.userId, 'meteen na het te koop zetten koopt geen enkele bot');
+  botDay(w, 40000, t0 + (BOT.marketMinListedHours - 1) * 3600000);
+  ok(best.ownerId === w.player.userId, `een uur vóór de grens (${BOT.marketMinListedHours} u) nog steeds niet`);
+  botDay(w, 40000, t0 + RIPE);
+  ok(best.ownerId === w.bot.userId, 'daarna is ze wel vrij spel');
+}
+{
+  // Uit de markt halen en opnieuw plaatsen = een nieuw aanbod, dus de klok herbegint.
+  const w = world();
+  const best = w.owned(w.player).sort((a, b) => talent(b) - talent(a))[0];
+  best.speed = 92; best.endurance = 90; best.orientation = 90;
+  list(w, best);
+  unlist(w.store, w.player.userId, best.id);
+  ok(best.listedAt == null, 'uit de markt halen wist de stempel');
+  list(w, best); // opnieuw te koop → nieuwe stempel
+  const t1 = Date.parse(best.listedAt!);
+  botDay(w, 40000, t1 + 3600000); // een uur na het opnieuw plaatsen
+  ok(best.ownerId === w.player.userId, 'na opnieuw plaatsen begint de wachttijd van voren af aan');
+  botDay(w, 40000, t1 + RIPE);
+  ok(best.ownerId === w.bot.userId, '…en loopt daarna gewoon af');
+}
+{
+  // Een listing van vóór deze regel draagt geen stempel: die stond er al lang.
+  const w = world();
+  const best = w.owned(w.player).sort((a, b) => talent(b) - talent(a))[0];
+  best.speed = 92; best.endurance = 90; best.orientation = 90;
+  list(w, best);
+  const t0 = Date.parse(best.listedAt!);
+  best.listedAt = null; // zoals een rij uit de database van vóór de kolom
+  botDay(w, 40000, t0);
+  ok(best.ownerId === w.bot.userId, 'een listing zonder stempel geldt als oud en mag gekocht worden');
 }
 
 // ---------------------------------------------------------------------------

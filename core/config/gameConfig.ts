@@ -733,6 +733,13 @@ export const BOT = {
    * this multiple of the bird's market valuation (game/market.ts), which is
    * itself derived from what birds actually sell for.
    */
+  /**
+   * A listing has to have been on the market this long before a bot will touch
+   * it. Bots shop at the 00:00 tick, so without this a bird listed at 23:55 could
+   * be gone before a single player ever saw it appear. A full day means the market
+   * belongs to the players first, always.
+   */
+  marketMinListedHours: 24,
   marketReserve: 4000, // cash a bot keeps free before it goes shopping
   marketMaxOverpay: 1.25, // never more than 1.25× the estimated value
   marketMaxShare: 0.5, // never more than half its free cash on one bird

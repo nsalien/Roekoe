@@ -174,17 +174,38 @@ export function MarketPage() {
       )}
 
       <div className="grid pigeons">
-        {listings.map((p) => (
-          <PigeonCard key={p.id} pigeon={p} showOwner showBreed showcase avatarSize={104}>
-            <button
-              className="btn accent block"
-              disabled={busy || money < (p.price ?? 0)}
-              onClick={() => buy(p)}
-            >
-              Koop · <Money value={p.price ?? 0} />
-            </button>
-          </PigeonCard>
-        ))}
+        {listings.map((p) => {
+          // Verse listings zijn een tijdlang onaantastbaar voor de bots. Dat is
+          // enkel iets waard als je het zíet, dus staat het op de kaart.
+          const headStart = (() => {
+            const hrs = state?.economy.botMarketDelayHours ?? 0;
+            if (!p.listedAt || !hrs) return null;
+            const left = Date.parse(p.listedAt) + hrs * 3600000 - Date.now();
+            if (!(left > 0)) return null;
+            const h = Math.ceil(left / 3600000);
+            return h >= 2 ? `nog ${h} u alleen voor spelers` : 'nog even alleen voor spelers';
+          })();
+          return (
+            <PigeonCard key={p.id} pigeon={p} showOwner showBreed showcase avatarSize={104}>
+              {headStart && (
+                <div
+                  className="badge"
+                  style={{ background: 'var(--good-soft)', color: 'var(--good)', marginBottom: 6 }}
+                  title="Bots mogen een pas te koop gezette duif nog niet kopen — jij hebt eerste keus."
+                >
+                  🆕 {headStart}
+                </div>
+              )}
+              <button
+                className="btn accent block"
+                disabled={busy || money < (p.price ?? 0)}
+                onClick={() => buy(p)}
+              >
+                Koop · <Money value={p.price ?? 0} />
+              </button>
+            </PigeonCard>
+          );
+        })}
       </div>
 
       {/* Bid on any other player's pigeon — listed or not. */}
