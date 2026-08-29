@@ -94,6 +94,15 @@ Alles wat de engine globaal nodig heeft (users, lofts, pigeons, flights, auction
 offers, auction_bids) wordt nog steeds volledig geladen; die zijn begrensd door het
 aantal spelers en de 2-daagse vluchtretentie.
 
+**En `pigeons` is geen `SELECT *` meer (nieuwste — dé CPU-fix):** de wereldload
+leest een **expliciete kolomlijst** (`PIGEON_SELECT`, afgeleid van
+`PIGEON_COLUMNS`) waar de twee historiekblobs **niet** in zitten. `race_log` en
+`attr_log` zijn samen ~13 KB per duif; op 264 duiven scheepte `SELECT *` daarmee
+~3,3 MB per verzoek aan, en dat parsen (13 ms) + opnieuw serialiseren voor de diff
+(9 ms) was **88 % van de CPU van een volle load** — op data die geen enkele tick
+leest. Ze staan nu in **`pigeon_log_entries`** (append-only, één rij per regel) en
+worden enkel gelezen door `loadPigeonLogs`. Zie §8.
+
 **Gevolgen om te onthouden bij nieuwe code:**
 - De engine mag deze drie arrays **niet meer aftoppen** (`db.trades.slice(-200)`
   e.d. is overal weg): wat niet geladen is, zou de per-rij-diff als *verwijderd*
@@ -376,6 +385,8 @@ Roekoe/
 ├── newcomer.test.mts            regressietest: starterspakket nieuwe spelers (48 checks)
 ├── velocity-model.test.mts      regressietest: snelheid = snelheid, ervaring = efficiëntie
 ├── age-cup.test.mts             regressietest: leeftijdscriterium (kalender, klassen, cyclus)
+├── pigeon-logs.test.mts         regressietest: historiekboeken staan NIET in de duivenrij
+├── cpu-pigeons.mts              meet wat een duif kost per verzoek (marginale CPU) — diagnose
 ├── poll-budget.test.mts         regressietest: pollritme + de smalle load (deelnemerslijst!)
 ├── force-finish.test.mts        regressietest: admin-"match beëindigen" == natuurlijk uitvliegen
 ├── limits-report.mts            meet queries/rijen gelezen/geschreven per verzoek
@@ -893,9 +904,14 @@ npx tsx force-finish.test.mts      # admin-"match beëindigen" == natuurlijk uit
 npx tsx newcomer.test.mts          # starterspakket: punten, tijdvenster, afloopmelding
 npx tsx velocity-model.test.mts    # ervaring raakt de snelheid van een frisse duif niet
 npx tsx age-cup.test.mts           # leeftijdscriterium: klassen, afwisseling, 3-seizoenencyclus
+npx tsx pigeon-logs.test.mts       # de logboeken blijven uit de wereldload, legacy blijft leesbaar
 ```
 Diagnose zonder assertie: `npx tsx cpu-sweep.mts` (CPU per operatie, duurste
-eerst) en `npx tsx limits-report.mts` (queries/rijen per verzoek).
+eerst), `npx tsx limits-report.mts` (queries/rijen per verzoek) en
+`npx tsx cpu-pigeons.mts` (**marginale** CPU per duif — de helling, niet de
+absolute waarde, want lokaal draait SQLite synchroon in hetzelfde proces).
+Ook handig: `BREAKDOWN=1 npx tsx query-budget.test.mts` splitst het duurste
+verzoek uit per statement.
 (Beide staan buiten `tsconfig.json` (`include` = `core/` + `functions/`), dus tsc raakt ze niet.)
 
 ### Git + deploy (ALTIJD, zie §0)
@@ -997,6 +1013,65 @@ Alles hieronder staat **live** op de deploy-branch. Data-migraties liepen door t
      **`announceAgeCup(db, idPrefix)`** zodat herbalanceren de melding niet laat liegen.
      ⚠️ Bewust náást de tour: die spotlight is wég zodra iemand ze wegklikt, terwijl de eerste
      criteriumvlucht pas een week later op de kalender staat. **dataVersion → 41.**
+
+**`SELECT * FROM pigeons` was de CPU-moordenaar — historiek uit de duivenrij (nieuwste)**
+- **Vraag van de eigenaar:** "er gebeurt altijd een `select * from pigeons` wanneer de wereld
+  laadt … die verbruikt het meest in termen van CPU load." Klopt, maar niet om de reden die
+  voor de hand ligt — en de échte oorzaak was erger dan gedacht.
+- ⚠️ **De query zélf is I/O.** Wachten op D1 telt **niet** mee voor de 10 ms CPU van een
+  Worker-invocatie. Wat wél telt is wat er met die rijen gebeurt: ze omzetten naar entiteiten
+  (7× `JSON.parse` per duif) en ze snapshotten voor de diff (`JSON.stringify` per duif).
+  Lokaal draait SQLite synchroon in hetzelfde proces, dus een kale timing meet beide door
+  elkaar en zegt niets — vandaar het nieuwe `cpu-pigeons.mts`, dat de **marginale** kost per
+  duif meet (de helling bij een oplopende wereld).
+- **Gemeten, met ablatie (260 duiven, volle load):**
+
+  | | vóór | na |
+  |---|---|---|
+  | volle load zónder de twee logboeken | 3,79 ms | 3,43 ms |
+  | volle load mét beide logboeken op hun cap | **32,41 ms** | **3,61 ms** |
+  | aandeel van de logboeken | **88 %** | **5 %** |
+
+  Uitgesplitst op 264 duiven: `JSON.parse` van de twee blobs **13,0 ms**, de `JSON.stringify`
+  voor de diff **9,4 ms**. Samen ~22 ms lokaal — en productie is ~1,9× trager (ronde 6), dus
+  ~42 ms tegen een budget van **10**. Dat is de terugkerende Error 1102, en hij **groeide
+  stilletjes mee**: een duif vult haar logboek in enkele weken tot de cap.
+- **Wat er in die blobs zat:** `Pigeon.raceLog` (40 plaatsingen) + `Pigeon.attrLog` (40
+  skill-wijzigingen) = ~13 KB per duif, dus ~3,3 MB per verzoek bij 264 duiven. **Geen enkele
+  engine-tick leest ze.** Ze worden alleen getoond door de duif-historiek, de trofeeënkast en
+  de admin-inspector — drie schermen die een speler bewust opent.
+- **De ingreep.** Nieuwe tabel **`pigeon_log_entries (id, pigeon_id, kind, at, data)`**,
+  **append-only, één rij per regel**. Dat laatste is de sleutel: de engine is **synchroon** en
+  kan midden in een tick niets uit de database lezen, dus een append mag de vorige waarde niet
+  nodig hebben — een read-modify-write op een afgetopte array kon dus niet. `noteAttrChange` en
+  `logRaceResults` schrijven in **`Pigeon.pendingLog`**, een transiënte wachtrij die `persist`
+  leegmaakt. `PIGEON_SELECT` vervangt `SELECT *`.
+- ⚠️ **Migratievrij, en waarom dat veilig is.** De oude kolommen blijven gewoon op schijf staan
+  en worden nooit meer gelezen of geschreven. Dat mag omdat `diff` een **bestaande** duif met een
+  kolom-smalle `UPDATE` wegschrijft (`previousRows`): een kolom die niet in `PIGEON_COLUMNS`
+  staat, wordt nooit overschreven. Enkel een **nieuwe** duif gaat door `INSERT OR REPLACE` — en
+  die heeft geen historiek te verliezen. `loadPigeonLogs` leest de legacy-blobs er nog steeds
+  bij en versmelt ze, dus er verdwijnt niets. **`pigeon-logs.test.mts` bewaakt precies dat**,
+  want het is het stilste faalgeval dat er is.
+- **Meegenomen, en het was de grootste enkele post geworden:** `boundedCleanups` deed **één
+  `DELETE` per genotificeerde speler**. Op een vluchtafronding waren dat **10 van de 49
+  statements**, tegen een harde limiet van 50. Nu één statement voor allemaal, met dezelfde
+  window-functie als de log-trim. De afronding gaat van **49 → 38 queries** — beter dan de 43
+  van vóór deze hele reeks.
+- **De log-trim is een SOFT cap:** boven `PIGEON_LOG_TRIM_MAX_APPENDS` (40) appends in één
+  verzoek wordt hij overgeslagen. Een vluchtafronding schrijft een regel per finisher, en dat is
+  net het verzoek met de minste ruimte; die duiven worden bij hun volgende gewone append
+  getrimd. Een handvol extra rijen in een tabel die niemand pollt kost niets.
+- **Routes die de logboeken nu apart ophalen** (elk één extra query, geen van drie wordt
+  gepollt): `GET /pigeons/:id` (historiek), `GET /profile` (trofeeën), `GET /admin/pigeons`
+  (inspector). `pigeonRaceHistory(log)` en `playerProfile(db, userId, logs)` krijgen ze
+  binnengereikt — `presenters.ts` blijft runtime-neutraal.
+- **Nieuwe blijvende test `pigeon-logs.test.mts`** (20 controles) + `BREAKDOWN=1` op
+  `query-budget.test.mts` om het duurste verzoek per statement uit te splitsen.
+- ⚠️ **Regel voor nieuwe code:** zet **nooit** een groeiend veld op `Pigeon` (of `Loft`) dat de
+  engine niet nodig heeft. Élk veld daar wordt bij ieder verzoek geparsed én gestringify'd voor
+  de diff, voor élke duif in de wereld. Groeiende historiek hoort in een eigen append-only
+  tabel, met een loader die enkel draait op de route die ze toont.
 
 **Te veel tekst in het spel — ingekort en opnieuw aangekondigd (nieuwste)**
 - **Aanleiding (eigenaar):** de update was te woordrijk in het spel, en de tourkaart was
@@ -2706,7 +2781,9 @@ Query-plannen gecontroleerd met `EXPLAIN QUERY PLAN` — alles index-gedekt beha
 **Nog beschikbare hefbomen als het toch weer krap wordt:** `advanceRealtime` throttlen
 (bv. max. 1×/20 s via een `world.lastAdvance`-guard); `/state` kort cachen (Cache API);
 `TRADE_LOAD_LIMIT` verlagen. **Structureel** blijft `pigeons` (~200 rijen) de grootste
-volledige load — die is echt globaal nodig (vluchten, markt, bots).
+volledige load — die is echt globaal nodig (vluchten, markt, bots). ⚠️ **Wat er wél uit
+kon: de kolommen.** Zie de historiek-fix bovenaan §8 — niet de rijen tellen, maar wat
+er per rij aan meerijdt.
 
 ### 503-fix ronde 4: elke poll schreef rijen (dé oorzaak, nieuwste)
 

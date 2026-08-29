@@ -4,7 +4,8 @@
  * stays dumb and consistent. Keep these in sync with client/src/types.ts.
  */
 
-import type { Database, Flight, Loft, Notification, Pigeon, Trade } from './schema.js';
+import type { Database, Flight, Loft, Notification, Pigeon, RaceLogEntry, Trade } from './schema.js';
+import type { PigeonLogs } from './d1.js';
 import { AGE_CUP, AUCTION, BREED_RARITY, COACH, ageCategoryDef, ageCategoryFor, compartmentCost, RELAY, REST_CURE, TRAINING } from './config/gameConfig.js';
 import {
   ageInWeeks,
@@ -520,14 +521,14 @@ export function recentTrades(db: Database, limit = 30) {
 }
 
 /**
- * A pigeon's race placings, newest first. Sourced from the bird's durable
- * `raceLog` (not the flights table), so history survives the pruning of old
- * flights. `raceLog` is written at finalize; older races are backfilled by
- * migration v18.
+ * A pigeon's race placings, newest first. Sourced from her durable log (not the
+ * flights table), so history survives the pruning of old flights.
+ *
+ * The log is NOT part of the loaded world any more — it is why `SELECT *` on
+ * `pigeons` dominated the CPU of every request (see core/d1.ts::PIGEON_SELECT).
+ * The route fetches it with `loadPigeonLogs` and hands it in here.
  */
-export function pigeonRaceHistory(db: Database, pigeonId: string) {
-  const p = db.pigeons.find((x) => x.id === pigeonId);
-  const log = p?.raceLog ?? [];
+export function pigeonRaceHistory(log: RaceLogEntry[]) {
   return log
     .map((e) => ({
       flightId: e.flightId,
@@ -599,7 +600,7 @@ export function rankingRows(db: Database) {
 }
 
 /** A player's prestige: level, badges (earned + locked) and trophy cabinet. */
-export function playerProfile(db: Database, userId: string) {
+export function playerProfile(db: Database, userId: string, logs?: Map<string, PigeonLogs>) {
   const loft = db.lofts.find((l) => l.userId === userId);
   if (!loft) return null;
   const lvl = levelForXp(loft.xp);
@@ -624,18 +625,20 @@ export function playerProfile(db: Database, userId: string) {
     silver: loft.stats.silver ?? 0,
     bronze: loft.stats.bronze ?? 0,
   };
-  // The trophy SHOWCASE is rebuilt from the durable per-bird raceLog of the
+  // The trophy SHOWCASE is rebuilt from the durable per-bird race log of the
   // pigeons this player currently owns (attributed by owner-at-flight-time, so a
   // bought bird's earlier placings stay with its previous owner). Competition
   // podiums only. Recent flights beyond retention live here, not in the flights
-  // table.
+  // table. The logs come from `loadPigeonLogs` — they are deliberately not part
+  // of the world load (see core/d1.ts::PIGEON_SELECT); without them the cabinet
+  // is simply empty rather than wrong.
   const trophies: {
     flightId: string; name: string; fromCity: string; toCity: string;
     startAt: string; pigeonName: string; rank: number;
   }[] = [];
   for (const p of db.pigeons) {
     if (p.ownerId !== userId) continue;
-    for (const e of p.raceLog ?? []) {
+    for (const e of logs?.get(p.id)?.race ?? []) {
       if (e.ownerId !== userId) continue;
       if (e.practice || e.titan) continue;
       if (e.rank > 3 || e.finished === false) continue;

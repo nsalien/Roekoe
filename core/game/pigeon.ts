@@ -149,9 +149,19 @@ const ATTR_LOG_CAP = 40;
 export function noteAttrChange(p: Pigeon, attr: RacingAttr, before: number, reason: string): void {
   const to = p[attr];
   if (round1(before) === round1(to)) return;
-  const entry: AttrChange = { attr, from: round1(before), to: round1(to), reason, at: new Date().toISOString() };
-  const log = p.attrLog ? [...p.attrLog, entry] : [entry];
-  p.attrLog = log.length > ATTR_LOG_CAP ? log.slice(-ATTR_LOG_CAP) : log;
+  const at = new Date().toISOString();
+  const entry: AttrChange = { attr, from: round1(before), to: round1(to), reason, at };
+  // Queued, not stored on the bird: the two history logs live in their own table
+  // now (see Pigeon.pendingLog). An append must not need the previous value —
+  // the engine is synchronous and cannot read the database mid-tick — so this is
+  // one row per change, capped later by the pruner in persist().
+  (p.pendingLog ??= []).push({
+    id: `${p.id}:attr:${at}:${attr}:${p.pendingLog?.length ?? 0}`,
+    pigeonId: p.id,
+    kind: 'attr',
+    at,
+    data: JSON.stringify(entry),
+  });
 }
 
 /** Look up a breed by id, falling back to the default (Stadsduif) breed. */

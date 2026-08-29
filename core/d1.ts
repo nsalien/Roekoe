@@ -40,6 +40,7 @@
 
 import type { D1Database, D1PreparedStatement } from '@cloudflare/workers-types';
 import type {
+  AttrChange,
   Auction,
   AuctionBid,
   Bet,
@@ -47,8 +48,10 @@ import type {
   Database,
   Flight,
   Loft,
+  LogAppend,
   Notification,
   Pigeon,
+  RaceLogEntry,
   PendingBrood,
   PigeonOffer,
   SponsorState,
@@ -173,10 +176,8 @@ function rowToPigeon(r: any): Pigeon {
     seasonStartScore: r.season_start_score ?? undefined,
     seasonPracticeGain: r.season_practice_gain ?? 0,
     trainedAt: r.trained_at ? JSON.parse(r.trained_at) : undefined,
-    raceLog: r.race_log ? JSON.parse(r.race_log) : undefined,
     genes: r.genes ? JSON.parse(r.genes) : undefined,
     declineRate: typeof r.decline_rate === 'number' ? r.decline_rate : undefined,
-    attrLog: r.attr_log ? JSON.parse(r.attr_log) : undefined,
     cup: r.cup ? JSON.parse(r.cup) : undefined,
     titles: r.titles ? JSON.parse(r.titles) : undefined,
   };
@@ -351,10 +352,29 @@ const PIGEON_COLUMNS = [
   'form', 'health', 'experience', 'sire_id', 'dam_id', 'for_sale', 'price', 'created_at_week',
   'retired', 'ailment', 'in_infirmary', 'races', 'ever_ailed', 'breed', 'coached', 'ration',
   'compartment', 'hunger_days', 'rest_days', 'cure_until', 'season_peak_speed', 'season_podiums',
-  'season_start_score', 'season_practice_gain', 'trained_at', 'race_log', 'genes', 'decline_rate',
-  'attr_log', 'care_assigned', 'last_race_at', 'last_race_practice', 'last_rest_cure_at', 'away_until',
+  'season_start_score', 'season_practice_gain', 'trained_at', 'genes', 'decline_rate',
+  'care_assigned', 'last_race_at', 'last_race_practice', 'last_rest_cure_at', 'away_until',
   'cup', 'titles',
 ];
+
+/**
+ * What the world load reads from `pigeons` — deliberately NOT `SELECT *`.
+ *
+ * The two history blobs (`race_log`, `attr_log`) are excluded. At their cap they
+ * are ~13 KB a bird, so on a 264-bird world `SELECT *` shipped ~3.3 MB per
+ * request and then spent, measured locally, 13 ms parsing it and 9 ms
+ * re-serialising it for the diff — together 88% of the CPU of a full load, for
+ * data no engine tick ever touches. They live in `pigeon_log_entries` now and are
+ * read only by the three screens that show them (`loadPigeonLogs`).
+ *
+ * ⚠️ The legacy columns are left ON DISK and simply never read or written again.
+ * That is what makes this migration-free: `diff` writes an existing bird with a
+ * narrow UPDATE of the columns that moved (`previousRows`), so a column that is
+ * not in `PIGEON_COLUMNS` is never overwritten. Only a genuinely NEW bird takes
+ * the full `INSERT OR REPLACE` path, and a new bird has no history to lose.
+ * `loadPigeonLogs` still reads them, so nothing already recorded disappears.
+ */
+const PIGEON_SELECT = `SELECT ${PIGEON_COLUMNS.join(', ')} FROM pigeons`;
 
 function pigeonRow(p: Pigeon): unknown[] {
   return [
@@ -364,10 +384,8 @@ function pigeonRow(p: Pigeon): unknown[] {
     p.ration ?? 'normal', b(p.compartment), p.hungerDays ?? 0, p.restDays ?? 0, p.cureUntil ?? null,
     p.seasonPeakSpeed ?? 0, p.seasonPodiums ?? 0, p.seasonStartScore ?? null, p.seasonPracticeGain ?? 0,
     p.trainedAt ? JSON.stringify(p.trainedAt) : null,
-    p.raceLog && p.raceLog.length ? JSON.stringify(p.raceLog) : null,
     p.genes ? JSON.stringify(p.genes) : null,
     typeof p.declineRate === 'number' ? p.declineRate : null,
-    p.attrLog && p.attrLog.length ? JSON.stringify(p.attrLog) : null,
     b(p.careAssigned), p.lastRaceAt ?? null, b(p.lastRaceWasPractice), p.lastRestCureAt ?? null,
     p.awayUntil ?? null,
     p.cup && Object.keys(p.cup).length ? JSON.stringify(p.cup) : null,
@@ -490,7 +508,7 @@ export class D1Store implements Store {
         db.prepare('SELECT * FROM lofts').all(),
         // On a narrowed load the pigeons come from a second, index-backed query
         // that needs the flight rows first (for the entrants), so skip it here.
-        narrowed ? Promise.resolve({ results: [] }) : db.prepare('SELECT * FROM pigeons').all(),
+        narrowed ? Promise.resolve({ results: [] }) : db.prepare(PIGEON_SELECT).all(),
         db.prepare('SELECT * FROM breeding_pairs').all(),
         db.prepare('SELECT * FROM flights').all(),
         db.prepare('SELECT * FROM notifications WHERE user_id = ?').bind(viewer).all(),
@@ -529,12 +547,12 @@ export class D1Store implements Store {
       // the whole table is cheaper and simpler than a giant IN list.
       if (entrantIds.size > 400) {
         narrowed = false;
-        dbObj.pigeons = ((await db.prepare('SELECT * FROM pigeons').all()).results as any[]).map(rowToPigeon);
+        dbObj.pigeons = ((await db.prepare(PIGEON_SELECT).all()).results as any[]).map(rowToPigeon);
       } else {
         const ids = [...entrantIds];
         const sql = ids.length
-          ? `SELECT * FROM pigeons WHERE owner_id = ? UNION SELECT * FROM pigeons WHERE id IN (${ids.map(() => '?').join(',')})`
-          : 'SELECT * FROM pigeons WHERE owner_id = ?';
+          ? `${PIGEON_SELECT} WHERE owner_id = ? UNION ${PIGEON_SELECT} WHERE id IN (${ids.map(() => '?').join(',')})`
+          : `${PIGEON_SELECT} WHERE owner_id = ?`;
         const mine = await db.prepare(sql).bind(viewer, ...ids).all();
         dbObj.pigeons = (mine.results as any[]).map(rowToPigeon);
       }
@@ -754,10 +772,125 @@ export class D1Store implements Store {
       stmts,
     });
 
+    // Flush this request's queued history lines (see Pigeon.pendingLog). They are
+    // appends, so they never conflict; the id makes a race line idempotent per
+    // flight. On a NARROWED store the engine never ran, so there is nothing here.
+    const appends: LogAppend[] = [];
+    for (const p of w.pigeons) {
+      if (p.pendingLog?.length) appends.push(...p.pendingLog);
+    }
+    if (appends.length > 0) {
+      const per = Math.max(1, Math.floor(D1_MAX_BOUND_PARAMS / 5));
+      for (let i = 0; i < appends.length; i += per) {
+        const chunk = appends.slice(i, i + per);
+        stmts.push(
+          db
+            .prepare(
+              `INSERT OR REPLACE INTO pigeon_log_entries (id, pigeon_id, kind, at, data) VALUES ${chunk
+                .map(() => '(?, ?, ?, ?, ?)')
+                .join(', ')}`,
+            )
+            .bind(...chunk.flatMap((a) => [a.id, a.pigeonId, a.kind, a.at, a.data])),
+        );
+      }
+      // Trim the birds we just wrote to back to the cap, in ONE statement — a
+      // per-bird DELETE would blow the 50-query budget on a flight finalize.
+      //
+      // The cap is SOFT on purpose: skip the trim on a request that is already
+      // writing a lot (a flight finalize appends a line for every finisher, and
+      // that is exactly the request with the least room to spare). Those birds
+      // get trimmed on their next ordinary append; carrying a handful of extra
+      // rows in a table nothing polls costs nothing.
+      const ids = appends.length > PIGEON_LOG_TRIM_MAX_APPENDS ? [] : [...new Set(appends.map((a) => a.pigeonId))];
+      for (let i = 0; i < ids.length; i += D1_MAX_BOUND_PARAMS - 1) {
+        const chunk = ids.slice(i, i + D1_MAX_BOUND_PARAMS - 1);
+        stmts.push(
+          db
+            .prepare(
+              `DELETE FROM pigeon_log_entries WHERE id IN (
+                 SELECT id FROM (
+                   SELECT id, ROW_NUMBER() OVER (PARTITION BY pigeon_id, kind ORDER BY at DESC, id DESC) rn
+                   FROM pigeon_log_entries WHERE pigeon_id IN (${chunk.map(() => '?').join(',')})
+                 ) WHERE rn > ?`.replace(/\s+/g, ' ') + ')',
+            )
+            .bind(...chunk, PIGEON_LOG_CAP),
+        );
+      }
+    }
+
     boundedCleanups(db, stmts, notifiedUsers, addedTrade, addedBet);
 
     if (stmts.length > 0) await db.batch(stmts);
   }
+}
+
+/** Newest entries kept per bird PER KIND in `pigeon_log_entries`. */
+export const PIGEON_LOG_CAP = 40;
+
+/** Above this many appends in one request the trim is deferred (see persist). */
+const PIGEON_LOG_TRIM_MAX_APPENDS = 40;
+
+/** A bird's two history logs, newest last — the shape the presenters want. */
+export interface PigeonLogs {
+  race: RaceLogEntry[];
+  attr: AttrChange[];
+}
+
+/**
+ * Read the history logs for a handful of birds.
+ *
+ * Deliberately NOT part of the world load: these blobs are why `SELECT *` on
+ * `pigeons` cost 88% of a request's CPU (see PIGEON_SELECT). Only three screens
+ * show them — a bird's race history, the trophy cabinet and the admin inspector
+ * — and all three are routes a player opens on purpose, not something polled.
+ *
+ * Reads the new append-only table AND the legacy per-bird JSON columns, merged
+ * and re-sorted, so history recorded before the split is still there. That is
+ * what makes the move migration-free.
+ */
+export async function loadPigeonLogs(
+  db: D1Database,
+  pigeonIds: string[],
+): Promise<Map<string, PigeonLogs>> {
+  const out = new Map<string, PigeonLogs>();
+  const ids = [...new Set(pigeonIds)].filter(Boolean);
+  if (ids.length === 0) return out;
+  const get = (id: string): PigeonLogs => {
+    let v = out.get(id);
+    if (!v) { v = { race: [], attr: [] }; out.set(id, v); }
+    return v;
+  };
+  const marks = ids.map(() => '?').join(',');
+  // Legacy blobs first, so the fresh rows below sort in after them.
+  try {
+    const legacy = (await db.prepare(`SELECT id, race_log, attr_log FROM pigeons WHERE id IN (${marks})`).bind(...ids).all()).results as any[];
+    for (const r of legacy) {
+      const v = get(r.id);
+      if (r.race_log) { try { v.race.push(...JSON.parse(r.race_log)); } catch { /* corrupt blob */ } }
+      if (r.attr_log) { try { v.attr.push(...JSON.parse(r.attr_log)); } catch { /* corrupt blob */ } }
+    }
+  } catch { /* a database that predates those columns */ }
+  const rows = (await db.prepare(
+    `SELECT pigeon_id, kind, data FROM pigeon_log_entries WHERE pigeon_id IN (${marks}) ORDER BY at ASC, id ASC`,
+  ).bind(...ids).all()).results as any[];
+  for (const r of rows) {
+    const v = get(r.pigeon_id);
+    try {
+      const entry = JSON.parse(r.data);
+      if (r.kind === 'race') {
+        // The id is stable per flight, but a legacy blob may hold the same race.
+        const i = v.race.findIndex((e) => e.flightId === entry.flightId);
+        if (i >= 0) v.race[i] = entry; else v.race.push(entry);
+      } else {
+        v.attr.push(entry);
+      }
+    } catch { /* corrupt row */ }
+  }
+  for (const v of out.values()) {
+    v.race = v.race.slice(-PIGEON_LOG_CAP);
+    v.attr = v.attr.slice(-PIGEON_LOG_CAP);
+  }
+  return out;
 }
 
 /**
@@ -779,12 +912,20 @@ function boundedCleanups(
   addedTrade: boolean,
   addedBet: boolean,
 ): void {
-  for (const userId of notifiedUsers) {
+  // One statement for EVERY notified user, not one each. A flight finalize
+  // notifies every owner in the field, and at one DELETE per user that was the
+  // single biggest block in the request — 10 of its 49 statements, measured —
+  // against a hard ceiling of 50 per Worker invocation. The window function does
+  // the same "keep the newest N per user" in a single pass.
+  const notified = [...notifiedUsers];
+  for (let i = 0; i < notified.length; i += D1_MAX_BOUND_PARAMS - 1) {
+    const chunk = notified.slice(i, i + D1_MAX_BOUND_PARAMS - 1);
     stmts.push(
       db.prepare(
-        'DELETE FROM notifications WHERE user_id = ?1 AND created_at < ' +
-          '(SELECT created_at FROM notifications WHERE user_id = ?1 ORDER BY created_at DESC LIMIT 1 OFFSET ?2)',
-      ).bind(userId, NOTIFICATION_KEEP_PER_USER),
+        `DELETE FROM notifications WHERE id IN (SELECT id FROM (` +
+          `SELECT id, ROW_NUMBER() OVER (PARTITION BY user_id ORDER BY created_at DESC, id DESC) rn ` +
+          `FROM notifications WHERE user_id IN (${chunk.map(() => '?').join(',')})) WHERE rn > ?)`,
+      ).bind(...chunk, NOTIFICATION_KEEP_PER_USER),
     );
   }
   if (addedTrade) {
@@ -942,6 +1083,12 @@ const SCHEMA_STEPS: string[] = [
   'ALTER TABLE pigeons ADD COLUMN titles TEXT',
   "ALTER TABLE world ADD COLUMN age_cup_started_at TEXT NOT NULL DEFAULT ''",
   'ALTER TABLE world ADD COLUMN age_cup_seasons_done INTEGER NOT NULL DEFAULT 0',
+
+  // The two per-bird history logs, off the pigeons row (see PIGEON_SELECT).
+  // Append-only, one row per entry, so the engine never has to read the previous
+  // value to add one. Pruned to the newest N per bird per kind in `persist`.
+  'CREATE TABLE IF NOT EXISTS pigeon_log_entries (id TEXT PRIMARY KEY, pigeon_id TEXT NOT NULL, kind TEXT NOT NULL, at TEXT NOT NULL, data TEXT NOT NULL)',
+  'CREATE INDEX IF NOT EXISTS idx_pigeon_log_entries ON pigeon_log_entries(pigeon_id, kind, at DESC)',
 ];
 
 /**

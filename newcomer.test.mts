@@ -102,7 +102,10 @@ console.log('\nPunten uitgeven');
   ok(p.speed === cap, `de gen-cap blijft gelden (${p.speed} = cap ${cap})`);
   ok(w3.loft.newcomer!.attrPoints === 3, 'alleen de punten die landden worden aangerekend (2 van 5)');
   ok(
-    p.attrLog?.some((e) => e.reason === 'starterspakket'),
+    // De skill-historiek staat niet meer op de duif zelf (ze maakte élke wereldload
+    // duur — zie pigeon-logs.test.mts); noteAttrChange zet de regel in de wachtrij
+    // die `persist` naar `pigeon_log_entries` schrijft.
+    (p.pendingLog ?? []).some((e) => e.kind === 'attr' && JSON.parse(e.data).reason === 'starterspakket'),
     'de wijziging staat in het logboek van de duif (admin-inspecteerbaar)',
   );
   p.speed = cap; // al op het plafond
