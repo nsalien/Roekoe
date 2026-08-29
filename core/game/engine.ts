@@ -709,6 +709,60 @@ export function unlist(store: Store, userId: string, pigeonId: string): string |
 }
 
 /** Buy a pigeon that is listed for sale (by a player or the NPC market). */
+/**
+ * Move a listed bird to a new loft: the money, the ownership, the trade record
+ * and everything the SELLER earns from it.
+ *
+ * Shared with the bots (game/bots.ts::maybeBuyFromMarket) so a bot's purchase is
+ * the same transaction as a player's — same price observation feeding the market
+ * valuation, same badges and missions for the seller. Buyer-side missions/badges
+ * stay with the caller: a bot does not do dagopdrachten.
+ *
+ * Assumes the caller already checked money, capacity and that the bird is for
+ * sale — this does the transfer, not the rules.
+ */
+export function settlePigeonSale(db: Database, buyer: Loft, pigeon: Pigeon): void {
+  const price = pigeon.price ?? 0;
+  const sellerId = pigeon.ownerId;
+  const soldTalent = talent(pigeon); // read BEFORE the bird changes hands
+  buyer.money -= price;
+  const seller = db.lofts.find((l) => l.userId === sellerId);
+  if (seller) seller.money += price;
+  pigeon.ownerId = buyer.userId;
+  pigeon.forSale = false;
+  pigeon.price = null;
+  db.trades.push({
+    id: newId('trd'),
+    pigeonId: pigeon.id,
+    pigeonName: pigeon.name,
+    sellerId,
+    sellerName: ownerName(db, sellerId),
+    talent: soldTalent, // price observation for the market valuation
+    buyerId: buyer.userId,
+    buyerName: buyer.name,
+    price,
+    at: new Date().toISOString(),
+  });
+  // History is bounded by the store (core/d1.ts), not here: only a slice of the
+  // trades table is in memory now, so trimming the array would delete rows we
+  // simply never loaded.
+  if (seller) {
+    seller.stats.sells += 1;
+    if (price > 1000) awardBadge(db, seller, 'handelaar');
+    progressMissions(db, seller, 'market', 1);
+    evaluateBadges(db, seller);
+    // Tell the seller. Without this a bird just quietly vanishes from the loft —
+    // which is exactly what a bot purchase would look like, since no human
+    // clicked anything.
+    if (!seller.isBot) {
+      notify(
+        db, sellerId, 'info', '💰 Je duif is verkocht',
+        `${pigeon.name} is verkocht aan ${buyer.name} voor €${price}. Het geld staat op je rekening.`,
+      );
+    }
+  }
+}
+
 export function buyPigeon(store: Store, userId: string, pigeonId: string): string | null {
   return store.mutate((db) => {
     const buyer = db.lofts.find((l) => l.userId === userId);
@@ -719,41 +773,10 @@ export function buyPigeon(store: Store, userId: string, pigeonId: string): strin
     if (buyer.money < pigeon.price) return 'Niet genoeg geld';
     const owned = db.pigeons.filter((p) => p.ownerId === userId).length;
     if (owned >= buyer.capacity) return 'Je hok zit vol';
-    const price = pigeon.price;
-    const sellerId = pigeon.ownerId;
-    buyer.money -= price;
-    // Pay the seller.
-    const seller = db.lofts.find((l) => l.userId === sellerId);
-    if (seller) seller.money += price;
-    pigeon.ownerId = userId;
-    pigeon.forSale = false;
-    pigeon.price = null;
-    // Record the sale as buy/sell history.
-    db.trades.push({
-      id: newId('trd'),
-      pigeonId: pigeon.id,
-      pigeonName: pigeon.name,
-      sellerId,
-      sellerName: ownerName(db, sellerId),
-      talent: talent(pigeon), // price observation for the market valuation
-      buyerId: userId,
-      buyerName: buyer.name,
-      price,
-      at: new Date().toISOString(),
-    });
-    // History is bounded by the store (core/d1.ts), not here: only a slice of the
-    // trades table is in memory now, so trimming the array would delete rows we
-    // simply never loaded.
-    // Badges for buyer + seller.
+    settlePigeonSale(db, buyer, pigeon);
     buyer.stats.buys += 1;
     progressMissions(db, buyer, 'market', 1);
     evaluateBadges(db, buyer);
-    if (seller) {
-      seller.stats.sells += 1;
-      if (price > 1000) awardBadge(db, seller, 'handelaar');
-      progressMissions(db, seller, 'market', 1);
-      evaluateBadges(db, seller);
-    }
     return null;
   });
 }
@@ -774,7 +797,7 @@ function pigeonBusy(db: Database, pigeonId: string): string | null {
  * pending offers (the bidders are told), breeding pairs and any not-yet-completed
  * flight entries (defensive — callers block racing/breeding birds first).
  */
-function purgePigeon(db: Database, pigeon: Pigeon): void {
+export function purgePigeon(db: Database, pigeon: Pigeon): void {
   for (const o of db.offers.filter((x) => x.pigeonId === pigeon.id)) {
     notify(db, o.fromUserId, 'info', '🚫 Bod vervallen', `${pigeon.name} is niet meer beschikbaar. Je bod van €${o.amount} is vervallen.`);
   }

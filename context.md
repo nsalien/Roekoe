@@ -388,6 +388,7 @@ Roekoe/
 ├── age-cup.test.mts             regressietest: leeftijdscriterium (kalender, klassen, cyclus)
 ├── pigeon-logs.test.mts         regressietest: historiekboeken staan NIET in de duivenrij
 ├── season-prizes.test.mts       regressietest: winst-reset + de ceremonie-payload
+├── bot-market.test.mts          regressietest: bots op de markt + hun trainingsregels
 ├── cpu-pigeons.mts              meet wat een duif kost per verzoek (marginale CPU) — diagnose
 ├── poll-budget.test.mts         regressietest: pollritme + de smalle load (deelnemerslijst!)
 ├── force-finish.test.mts        regressietest: admin-"match beëindigen" == natuurlijk uitvliegen
@@ -908,6 +909,7 @@ npx tsx velocity-model.test.mts    # ervaring raakt de snelheid van een frisse d
 npx tsx age-cup.test.mts           # leeftijdscriterium: klassen, afwisseling, 3-seizoenencyclus
 npx tsx pigeon-logs.test.mts       # de logboeken blijven uit de wereldload, legacy blijft leesbaar
 npx tsx season-prizes.test.mts     # seasonWins reset, totalWins niet; ceremonie = laatste seizoen
+npx tsx bot-market.test.mts        # de prijsgrens voor bots (anti-exploit) + hun trainingsregels
 ```
 Diagnose zonder assertie: `npx tsx cpu-sweep.mts` (CPU per operatie, duurste
 eerst), `npx tsx limits-report.mts` (queries/rijen per verzoek) en
@@ -1016,6 +1018,53 @@ Alles hieronder staat **live** op de deploy-branch. Data-migraties liepen door t
      **`announceAgeCup(db, idPrefix)`** zodat herbalanceren de melding niet laat liegen.
      ⚠️ Bewust náást de tour: die spotlight is wég zodra iemand ze wegklikt, terwijl de eerste
      criteriumvlucht pas een week later op de kalender staat. **dataVersion → 41.**
+
+**Bots winkelen op de markt, en trainen zoals een speler (nieuwste)**
+- **Eerst gemeten, want de vraag ging over achterstand.** Acht weken gesimuleerd tegen de
+  echte engine: bots **coachten al aan hun plafond** (16 van de 16 mogelijke, `BOT.maxCoached`
+  2 × 8 bots) en trainden ook. Hun talent liep gewoon op, 50,2 → 55,4. Wat ze **niet** deden
+  was hun geld uitgeven: tegen week 8 zat elke bot op **€19.000–46.000** stil. Dát was het gat,
+  niet de coach.
+- **Twee ingrepen.**
+  1. **`maybeBuyFromMarket`** (bots.ts, aan het eind van `botDailyActions`): een bot koopt een
+     te-koop-staande duif van een échte speler wanneer ze een verbetering is. Met plaats over
+     volstaat "niet slechter dan mijn slechtste"; zit het hok vol, dan moet ze de slechtste
+     **verslaan** met `BOT.marketMinGain` (3) en wordt die slechtste vrijgelaten om plaats te
+     maken. Hoogstens één aankoop per bot per dag.
+  2. **`maybeTrain` herschreven.** Het was één duif, één willekeurige eigenschap, op een
+     15%-dagworp — ongeveer één training per week voor het hele hok, terwijl een speler élke
+     duif op élke eigenschap 1×/week mag trainen. Nu `BOT.trainPerDay` (3) duiven per dag, op
+     de goedkoopste nog-trainbare eigenschap, en — nieuw — **mét de weeklimiet per eigenschap**
+     (`TRAINING.cooldownDays` via `Pigeon.trainedAt`) die de oude versie stilletjes negeerde.
+     Bot-training wordt nu ook gelogd via `noteAttrChange`, dus de admin-inspector ziet ze.
+- ⚠️ **`BOT.marketMaxOverpay` (1,25) is de belangrijkste regel van het hele blok.** Een speler
+  bepaalt zélf zijn vraagprijs. Zonder plafond zet iemand zijn slechtste duif op €40.000 en
+  leegt daarmee elke bot in de club — dat is een geldpers, geen markt. Een bot betaalt nooit
+  meer dan 1,25× de **marktwaardering** (`game/market.ts`, zelf afgeleid uit echte verkopen),
+  nooit meer dan `marketMaxShare` (0,5) van zijn vrije kas, en nooit onder `marketReserve`
+  (€4.000). **Bots kopen ook niet van elkáár**: dat zou enkel geld rondschuiven en de
+  waardering vervuilen met prijzen waar nooit een mens mee akkoord ging.
+- ⚠️ **Bewuste afwijking van de letterlijke vraag:** "of als ze nog ruimte in hok over hebben"
+  is niet "koop dan om het even wat". Een bot die zijn lege stok volzet met talent-40 duiven
+  verwatert elk veld waar hij mee instapt. Met plaats over koopt hij dus wel makkelijker, maar
+  nog steeds niets dat slechter is dan wat hij al heeft.
+- **Gedeeld verkooppad:** `settlePigeonSale(db, buyer, pigeon)` is uit `buyPigeon` gelicht
+  (engine.ts) en wordt door beide gebruikt, zodat een botaankoop letterlijk dezelfde transactie
+  is als die van een speler: verkoper betaald, `stats.sells`, de handelaar-badge, de
+  marktmissie, en de trade als **prijsobservatie** voor de waardering. Meegenomen: de verkoper
+  krijgt nu een **melding** dat zijn duif verkocht is — zonder dat verdwijnt er bij een
+  botaankoop gewoon een duif uit zijn hok zonder dat iemand iets klikte.
+- ⚠️ **Modulecyclus.** `bots.ts` importeert nu `purgePigeon`/`settlePigeonSale` uit `engine.ts`,
+  dat op zijn beurt `botTakeWeeklyActions` uit `bots.ts` haalt. Veilig omdat beide kanten elkaar
+  enkel *binnen een functie* aanroepen, nooit tijdens het evalueren van de module — geverifieerd
+  door de hele suite, die dat pad via `advanceRealtime` → `tickDailyCare` → `botDailyActions`
+  echt draait.
+- **Gemeten na de ingreep** (8 weken, speler zet elke dag zijn beste duif te koop aan de
+  geschatte waarde): **elke** listing werd gekocht (6 van 6), de speler verdiende er €11.942
+  mee, en de laagste botkas zakte van €18.927 naar €8.406 — ze geven het dus effectief uit en
+  blijven ruim boven hun vloer. Query-budget 40/50, dagbudget 24,3 % gelezen / 7,5 % geschreven.
+- **Nieuwe blijvende test `bot-market.test.mts`** (25 controles), met de prijsgrens als eerste
+  en zwaarste blok.
 
 **Prijsuitreiking als ceremonie + de winst-kolom reset mee (nieuwste)**
 - **Vraag van de eigenaar:** de prijzen stonden samengeperst in één belmelding. Nu krijgt
