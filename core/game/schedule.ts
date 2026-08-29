@@ -655,7 +655,6 @@ function logRaceResults(db: Database, flight: Flight): void {
   for (const r of flight.results) {
     const p = db.pigeons.find((x) => x.id === r.pigeonId);
     if (!p) continue;
-    const log = p.raceLog ?? [];
     const entry: RaceLogEntry = {
       flightId: flight.id, name: flight.name, fromCity: flight.fromCity, toCity: flight.toCity,
       distanceKm: flight.distanceKm, startAt: flight.startAt, ownerId: r.ownerId,
@@ -667,11 +666,15 @@ function logRaceResults(db: Database, flight: Flight): void {
         ? { leg: flight.entries.find((e) => e.pigeonId === r.pigeonId)?.leg, legKm: relayLegKm(flight) }
         : {}),
     };
-    const idx = log.findIndex((e) => e.flightId === flight.id);
-    if (idx >= 0) log[idx] = entry;
-    else log.push(entry);
-    if (log.length > RACE_LOG_CAP) log.splice(0, log.length - RACE_LOG_CAP);
-    p.raceLog = log;
+    // Queued for `pigeon_log_entries`; the id carries the flight, so a second
+    // finalize of the same race replaces this line instead of duplicating it.
+    (p.pendingLog ??= []).push({
+      id: `${p.id}:race:${flight.id}`,
+      pigeonId: p.id,
+      kind: 'race',
+      at: flight.startAt,
+      data: JSON.stringify(entry),
+    });
   }
 }
 
@@ -1234,7 +1237,16 @@ function runDataMigrations(db: Database): void {
     }
     for (const p of db.pigeons) {
       const arr = byPigeon.get(p.id);
-      if (arr && arr.length) p.raceLog = arr.slice(-RACE_LOG_CAP);
+      if (!arr || !arr.length) continue;
+      // Race history moved to its own append-only table, so this backfill queues
+      // rows instead of writing a blob on the bird. Only ever reached by a world
+      // still below dataVersion 18 — which has no completed flights to backfill
+      // anyway; it is kept intact rather than deleted so the ladder stays whole.
+      for (const e of arr.slice(-RACE_LOG_CAP)) {
+        (p.pendingLog ??= []).push({
+          id: `${p.id}:race:${e.flightId}`, pigeonId: p.id, kind: 'race', at: e.startAt, data: JSON.stringify(e),
+        });
+      }
     }
     db.world.dataVersion = 18;
   }

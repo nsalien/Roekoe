@@ -11,7 +11,7 @@ import { cors } from 'hono/cors';
 import { handle } from 'hono/cloudflare-pages';
 import type { D1Database } from '@cloudflare/workers-types';
 
-import { D1Store, ensureSchema, findUserById, findUserByUsername, loadLiveFlight } from '../../core/d1.js';
+import { D1Store, ensureSchema, findUserById, findUserByUsername, loadLiveFlight, loadPigeonLogs } from '../../core/d1.js';
 import type { User } from '../../core/schema.js';
 import { hashPassword, verifyPassword, signToken, verifyToken } from '../../core/auth.js';
 import { newId } from '../../core/store.js';
@@ -480,10 +480,13 @@ app.post('/loft/name', async (c) => {
 });
 
 // --- Prestige (badges, level, trophies) ------------------------------------
-app.get('/profile', (c) => {
+app.get('/profile', async (c) => {
   const user = requireUser(c);
   const db = c.get('store').data;
-  const profile = playerProfile(db, user.id);
+  // Trophies come from each owned bird's race log, which lives outside the world
+  // load; fetch just this player's birds (≤ loft capacity) in one query.
+  const mine = db.pigeons.filter((p) => p.ownerId === user.id).map((p) => p.id);
+  const profile = playerProfile(db, user.id, await loadPigeonLogs(c.env.DB, mine));
   if (!profile) return c.json({ error: 'Geen hok gevonden' }, 404);
   return c.json(profile);
 });
@@ -549,7 +552,7 @@ app.post('/notifications/read', async (c) => {
   return c.json(notificationsFor(store.data, user.id));
 });
 
-app.get('/pigeons/:id', (c) => {
+app.get('/pigeons/:id', async (c) => {
   const user = requireUser(c);
   const db = c.get('store').data;
   const p = db.pigeons.find((x) => x.id === c.req.param('id'));
@@ -561,7 +564,10 @@ app.get('/pigeons/:id', (c) => {
     sire: sire ? pigeonDTO(db, sire, user.id, user.isAdmin) : null,
     dam: dam ? pigeonDTO(db, dam, user.id, user.isAdmin) : null,
     mine: p.ownerId === user.id,
-    history: pigeonRaceHistory(db, p.id),
+    // The race log is not part of the loaded world (it is what made every request
+    // parse megabytes — see core/d1.ts::PIGEON_SELECT). One extra query, on a
+    // route the player opens on purpose rather than polls.
+    history: pigeonRaceHistory((await loadPigeonLogs(c.env.DB, [p.id])).get(p.id)?.race ?? []),
   });
 });
 
@@ -1152,7 +1158,7 @@ app.get('/admin/flights', (c) => {
  * true past AGING.peakEndWeeks, with `declinePerWeek` the exact points it then loses
  * per rolled game-week. Search by pigeon or owner name via ?q=.
  */
-app.get('/admin/pigeons', (c) => {
+app.get('/admin/pigeons', async (c) => {
   const user = requireUser(c);
   if (!user.isAdmin) return c.json({ error: 'Alleen de beheerder mag dit doen' }, 403);
   const db = c.get('store').data;
@@ -1161,10 +1167,14 @@ app.get('/admin/pigeons', (c) => {
   let list = db.pigeons;
   if (q) list = list.filter((p) => p.name.toLowerCase().includes(q) || ownerName(db, p.ownerId).toLowerCase().includes(q));
   const total = list.length;
-  const pigeons = list
+  const shown = list
     .slice()
     .sort((a, b) => a.name.localeCompare(b.name))
-    .slice(0, 100)
+    .slice(0, 100);
+  // The skill-change log lives outside the world load (core/d1.ts::PIGEON_SELECT).
+  // Fetch it only for the page actually being shown.
+  const logs = await loadPigeonLogs(c.env.DB, shown.map((p) => p.id));
+  const pigeons = shown
     .map((p) => {
       const age = ageInWeeks(p, week);
       const g = p.genes ?? null;
@@ -1192,7 +1202,7 @@ app.get('/admin/pigeons', (c) => {
           ? { speed: p.speed >= g.speed, endurance: p.endurance >= g.endurance, orientation: p.orientation >= g.orientation }
           : null,
         // Audit trail of skill changes (newest first) — the "was it lowered, how?" answer.
-        attrLog: (p.attrLog ?? []).slice(-20).reverse(),
+        attrLog: (logs.get(p.id)?.attr ?? []).slice(-20).reverse(),
       };
     });
   return c.json({

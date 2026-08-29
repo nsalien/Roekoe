@@ -18,7 +18,7 @@ export interface PigeonGenes {
 
 /** One recorded change to a racing skill (snelheid/conditie/oriëntatie), so a
  *  bird's rise/fall is auditable: what changed, from→to, why, and when. Capped
- *  per bird; rides in the `attr_log` JSON column. See game/pigeon.noteAttrChange. */
+ *  per bird, stored in `pigeon_log_entries`. See game/pigeon.noteAttrChange. */
 export interface AttrChange {
   attr: 'speed' | 'endurance' | 'orientation';
   from: number;
@@ -120,7 +120,19 @@ export interface Pigeon {
   // Genetics (optional so legacy birds keep working; a migration backfills them).
   genes?: PigeonGenes; // per-skill ceilings (≤95, never 100) — ride in the `genes` JSON column
   declineRate?: number; // ageing decline multiplier (~0.6–1.6); higher = fades faster past its prime
-  attrLog?: AttrChange[]; // audit trail of snelheid/conditie/oriëntatie changes (kolom `attr_log` JSON, capped)
+  /**
+   * Log entries this REQUEST produced, waiting to be appended to
+   * `pigeon_log_entries` by `persist`. Purely transient: never loaded, never
+   * written as a pigeon column, gone on the next load.
+   *
+   * The two history logs (race placings + skill changes) used to ride along in
+   * the pigeon row as capped JSON blobs. At their cap that is ~13 KB a bird, and
+   * `SELECT * FROM pigeons` therefore parsed ~3.3 MB and re-serialised it for the
+   * diff on EVERY request — measured at 88% of the CPU of a full load, on data no
+   * engine tick ever reads. They now live in their own append-only table, loaded
+   * only by the three screens that show them (see core/d1.ts::loadPigeonLogs).
+   */
+  pendingLog?: LogAppend[];
   // Per-season pigeon stats (reset at each season rollover — see season.ts).
   seasonPeakSpeed?: number; // highest race velocity (m/min) reached this season
   seasonPodiums?: number; // number of top-3 finishes this season
@@ -138,11 +150,6 @@ export interface Pigeon {
    * the player). They travel with her when she is sold — that is the point.
    */
   titles?: PigeonTitle[];
-  // Durable, capped log of this bird's flight placings. Written at finalize so a
-  // pigeon's race history + its owner's trophies survive the pruning of old
-  // flights (the flights table itself only keeps the last couple of days). Rides
-  // in the `race_log` JSON column — no per-field schema change.
-  raceLog?: RaceLogEntry[];
 }
 
 /**
@@ -151,6 +158,22 @@ export interface Pigeon {
  * bird at flight time, so trophies stay attributed to the right player even
  * after the bird is sold.
  */
+/**
+ * One history line the engine produced this request, ready to be appended to
+ * `pigeon_log_entries`. The engine is synchronous and cannot read the database
+ * mid-tick, so an append must never need the previous value — hence one row per
+ * entry instead of a read-modify-write on a capped array.
+ */
+export interface LogAppend {
+  /** Stable where it matters: a race line is `<pigeonId>:<flightId>`, so a second
+   *  finalize of the same flight replaces its line instead of duplicating it. */
+  id: string;
+  pigeonId: string;
+  kind: 'race' | 'attr';
+  at: string; // ISO — the sort key for "newest N"
+  data: string; // the entry, already serialised
+}
+
 export interface RaceLogEntry {
   flightId: string;
   name: string;

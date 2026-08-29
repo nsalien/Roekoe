@@ -20,6 +20,8 @@ import { generatePigeon } from './core/game/pigeon.js';
 import type { User } from './core/schema.js';
 
 let queries = 0;
+/** SQL van het laatst gemeten verzoek — voor de BREAKDOWN=1-diagnose hieronder. */
+const SEEN_SQL: string[] = [];
 let batchCalls = 0;
 let biggestBatch = 0;
 
@@ -29,9 +31,9 @@ function fakeD1(): any {
     const bound: unknown[] = [];
     const api = {
       bind(...args: unknown[]) { bound.push(...args); return api; },
-      async first() { queries += 1; return sql.prepare(query).get(...(bound as any[])) ?? null; },
-      async all() { queries += 1; return { results: sql.prepare(query).all(...(bound as any[])) }; },
-      run() { queries += 1; return sql.prepare(query).run(...(bound as any[])); },
+      async first() { queries += 1; SEEN_SQL.push(query); return sql.prepare(query).get(...(bound as any[])) ?? null; },
+      async all() { queries += 1; SEEN_SQL.push(query); return { results: sql.prepare(query).all(...(bound as any[])) }; },
+      run() { queries += 1; SEEN_SQL.push(query); return sql.prepare(query).run(...(bound as any[])); },
     };
     return api;
   };
@@ -99,6 +101,7 @@ let failures = 0;
 /** One full request: load + advanceRealtime + persist, counting queries. */
 async function request(nowMs: number, viewer?: string, label?: string) {
   queries = 0; batchCalls = 0; biggestBatch = 0;
+  SEEN_SQL.length = 0;
   queries += 1; // ensureSchema on a warm isolate = 1 query (gated)
   const s = await D1Store.load(db, viewer);
   advanceRealtime(s.data, nowMs, new Map());
@@ -148,6 +151,17 @@ const fLive = sLive.data.flights.find((f) => f.id === flight.id)!;
 const total = Math.max(...fLive.sim.map((s) => s.durationSeconds ?? 0));
 console.log(`  (vlucht duurt ${Math.round(total / 60)} min)`);
 await request(startMs + (total + 60) * 1000, humans[0], 'het verzoek dat de vlucht AFRONDT');
+// `BREAKDOWN=1 npx tsx query-budget.test.mts` splitst het duurste verzoek uit
+// per statement. Zo vond je dat de meldingen-opruiming 10 van de 49 queries at.
+if (process.env.BREAKDOWN) {
+  const counts = new Map<string, number>();
+  for (const q of SEEN_SQL) {
+    const k = q.replace(/\s+/g, ' ').slice(0, 76);
+    counts.set(k, (counts.get(k) ?? 0) + 1);
+  }
+  console.log('\n  statements van DIT verzoek:');
+  for (const [k, n] of [...counts].sort((a, b) => b[1] - a[1])) console.log(`    ${String(n).padStart(3)} × ${k}`);
+}
 
 console.log('\n--- Dagovergang (00:00) -------------------------------------------');
 const midnight = Date.parse('2026-08-17T22:00:00Z'); // 17 Aug 00:00 CEST + a bit
@@ -163,3 +177,4 @@ if (failures > 0) {
 } else {
   console.log('Alles OK');
 }
+
