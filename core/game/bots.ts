@@ -36,7 +36,14 @@ import type { FeedRationKey } from '../config/gameConfig.js';
 import type { Database, Flight, Loft, Pigeon } from '../schema.js';
 import { newId } from '../store.js';
 import { expectedFlightEnergyCost, pigeonCommittedToFlight } from './flight.js';
-import { ageInWeeks, canRace, experienceGain, isAway, onRestCure, talent, trainCeil, trainingCost } from './pigeon.js';
+// The sale itself and the "bird leaves the world" cleanup live in engine.ts, so a
+// bot's purchase is literally the same transaction as a player's. engine.ts also
+// imports from here (botTakeWeeklyActions), which makes this a module cycle —
+// safe because both sides only ever call each other from inside a function, never
+// while the module is evaluating. `advance-throttle`/`age-cup` exercise the path.
+import { purgePigeon, settlePigeonSale } from './engine.js';
+import { valuePigeon } from './market.js';
+import { ageInWeeks, canRace, experienceGain, isAway, noteAttrChange, onRestCure, talent, trainCeil, trainingCost } from './pigeon.js';
 import { clamp, round1 } from './util.js';
 
 /** What a bot may spend right now without dipping under its cash floor. */
@@ -214,23 +221,112 @@ function maybeBreed(db: Database, loft: Loft, pigeons: Pigeon[], nowMs: number):
   loft.stats.broods += 1;
 }
 
-/** Occasionally invest in training a promising bird (same rules as a player). */
-function maybeTrain(loft: Loft, pigeons: Pigeon[], chance: number): void {
-  if (spendable(loft) <= 0) return;
-  const candidate = pigeons
-    .filter((p) => p.form > TRAINING.formCost + 20 && !isAway(p) && !p.ailment)
-    .sort((a, b) => talent(b) - talent(a))[0];
-  if (!candidate || Math.random() >= chance) return;
-  const attr = (['speed', 'endurance', 'orientation'] as const)[Math.floor(Math.random() * 3)];
-  const cap = trainCeil(candidate, attr);
-  const cost = trainingCost(candidate[attr]);
-  if (candidate[attr] >= cap || spendable(loft) < cost * 2) return;
-  candidate[attr] = round1(clamp(candidate[attr] + TRAINING.attributeGain, 0, cap));
-  candidate.form = round1(clamp(candidate.form - TRAINING.formCost, 0, 100));
-  candidate.experience = round1(
-    clamp(candidate.experience + experienceGain(candidate.experience, TRAINING.experienceGain), 0, 100),
-  );
-  loft.money -= cost;
+const ATTRS = ['speed', 'endurance', 'orientation'] as const;
+
+/** May this bird still be trained on this attribute this week? Same rule as a player. */
+function trainReady(p: Pigeon, attr: (typeof ATTRS)[number], nowMs: number): boolean {
+  const last = p.trainedAt?.[attr];
+  if (!last) return true;
+  const t = Date.parse(last);
+  return Number.isNaN(t) || nowMs - t >= TRAINING.cooldownDays * 86400000;
+}
+
+/**
+ * Invest in training, by exactly the rules a player plays by.
+ *
+ * This used to be ONE bird, ONE random attribute, on a 15% daily roll — about a
+ * single training a week for the whole loft, while a player may train every bird
+ * on every attribute once a week. Measured over eight weeks, that gap (not the
+ * coach, which bots max out) is what let bot flocks drift behind while their
+ * banks climbed past €30.000.
+ *
+ * Now up to `BOT.trainPerDay` birds a day, spending on the best bird whose
+ * cheapest attribute it can afford — and, new, honouring `TRAINING.cooldownDays`
+ * per attribute, which the old version quietly ignored.
+ */
+function maybeTrain(loft: Loft, pigeons: Pigeon[], nowMs: number, limit: number): void {
+  const fit = pigeons
+    .filter((p) => p.form > TRAINING.formCost + 20 && !isAway(p) && !p.ailment && !onRestCure(p, nowMs))
+    .sort((a, b) => talent(b) - talent(a));
+  let done = 0;
+  for (const p of fit) {
+    if (done >= limit) break;
+    if (spendable(loft, BOT.trainReserve) <= 0) break;
+    // Cheapest attribute first: it is the one furthest from its ceiling, which is
+    // also where a point is worth most.
+    const options = ATTRS
+      .filter((a) => p[a] < trainCeil(p, a) && trainReady(p, a, nowMs))
+      .sort((a, b) => trainingCost(p[a]) - trainingCost(p[b]));
+    const attr = options[0];
+    if (!attr) continue;
+    const cost = trainingCost(p[attr]);
+    if (spendable(loft, BOT.trainReserve) < cost) continue;
+    const before = p[attr];
+    p[attr] = round1(clamp(p[attr] + TRAINING.attributeGain, 0, trainCeil(p, attr)));
+    noteAttrChange(p, attr, before, 'training');
+    p.form = round1(clamp(p.form - TRAINING.formCost, 0, 100));
+    p.experience = round1(clamp(p.experience + experienceGain(p.experience, TRAINING.experienceGain), 0, 100));
+    (p.trainedAt ??= {})[attr] = new Date(nowMs).toISOString();
+    loft.money -= cost;
+    done += 1;
+  }
+}
+
+/**
+ * Shop on the player market.
+ *
+ * A bot buys when the bird is a genuine upgrade: it has room to spare, or the
+ * bird beats the worst bird it owns by `BOT.marketMinGain` — in which case it
+ * lets that worst one go to make the place. Same transaction as a player's
+ * purchase (`settlePigeonSale`), so the seller gets paid, gets the badge and the
+ * sale still counts as a price observation for the market.
+ *
+ * ⚠️ Two guards that are load-bearing, not decoration:
+ *  - **The price ceiling.** A player names their own asking price. Without
+ *    `BOT.marketMaxOverpay` anyone could list their worst bird at €40.000 and
+ *    drain every bot in the club — a money printer, not a market.
+ *  - **Bot lofts are skipped as sellers.** Bots trading with each other would
+ *    just shuffle money between them and pollute the valuation with prices no
+ *    human ever agreed to.
+ * At most one purchase a day, so a bot cannot hoover the whole market in one tick.
+ */
+function maybeBuyFromMarket(db: Database, loft: Loft, pigeons: Pigeon[], nowMs: number): void {
+  const budget = Math.min(spendable(loft, BOT.marketReserve), loft.money * BOT.marketMaxShare);
+  if (budget <= 0) return;
+
+  // What could leave, if it comes to that: never a bird that is racing, on a nest,
+  // on a cure or still finding its way home.
+  const onNest = new Set(db.breedingPairs.flatMap((bp) => [bp.sireId, bp.damId]));
+  const expendable = pigeons
+    .filter((p) => !isAway(p) && !onNest.has(p.id) && !onRestCure(p, nowMs) && !pigeonCommittedToFlight(db, p.id, nowMs))
+    .sort((a, b) => talent(a) - talent(b));
+  const roomToSpare = pigeons.length < loft.capacity;
+  const worst = expendable[0];
+  if (!roomToSpare && !worst) return; // full, and nothing may be let go
+  // With room to spare a bird only has to be no worse than what the loft already
+  // has; when full it has to BEAT the bird it would push out, by enough to be
+  // worth the swap. (An empty perch is not a reason to buy junk — a bot filling
+  // up on talent-40 birds just waters down every flight it enters.)
+  const floor = worst ? talent(worst) + (roomToSpare ? 0 : BOT.marketMinGain) : 0;
+
+  const botIds = new Set(db.lofts.filter((l) => l.isBot).map((l) => l.userId));
+  let best: Pigeon | null = null;
+  for (const p of db.pigeons) {
+    if (!p.forSale || p.price == null) continue;
+    if (p.ownerId === loft.userId || botIds.has(p.ownerId)) continue;
+    if (p.price > budget) continue;
+    if (talent(p) <= floor) continue;
+    if (p.price > valuePigeon(db, p, db.world.currentWeek).value * BOT.marketMaxOverpay) continue;
+    if (!best || talent(p) > talent(best)) best = p;
+  }
+  if (!best) return;
+
+  if (!roomToSpare && worst) {
+    // Make the place. Same as a player clicking "vrijlaten": no money back.
+    purgePigeon(db, worst);
+  }
+  settlePigeonSale(db, loft, best);
+  loft.stats.buys += 1;
 }
 
 /**
@@ -249,7 +345,11 @@ export function botDailyActions(db: Database, loft: Loft, pigeons: Pigeon[], now
   manageCoaches(loft, pigeons);
   maybeUpgradeCapacity(loft, pigeons);
   maybeBreed(db, loft, pigeons, nowMs);
-  maybeTrain(loft, pigeons, 0.15); // ~1× per week, as before
+  maybeTrain(loft, pigeons, nowMs, BOT.trainPerDay);
+  // Shopping last: whatever is left after food, care and training is what a bot
+  // is genuinely free to spend. Reads `pigeons` before the purchase, which is
+  // fine — the new bird needs no care until tomorrow's tick.
+  maybeBuyFromMarket(db, loft, pigeons, nowMs);
 }
 
 /**
@@ -266,7 +366,7 @@ export function botTakeWeeklyActions(
   loft.feedRation = ration;
   for (const p of pigeons) p.ration = ration;
   manageInfirmary(loft, pigeons);
-  maybeTrain(loft, pigeons, 0.5);
+  maybeTrain(loft, pigeons, Date.now(), 1);
 }
 
 /**

@@ -719,6 +719,38 @@ export const BOT = {
   goodFeedFrom: 2500,
   /** A bot rests a bird rather than racing it when its gezondheid is under this. */
   minHealthRace: 45,
+
+  /**
+   * MARKT — a bot shops on the player market like anyone else.
+   *
+   * Measured over eight simulated weeks: bots were already coaching at their cap
+   * and training, but their banks climbed to €19.000–46.000 and just sat there.
+   * A player with that money buys a better bird; now they do too.
+   *
+   * ⚠️ `maxOverpay` is not a nicety, it is the anti-exploit. A player sets the
+   * asking price themselves, so without a ceiling anyone could list their worst
+   * bird for €40.000 and empty every bot in the club. A bot never pays more than
+   * this multiple of the bird's market valuation (game/market.ts), which is
+   * itself derived from what birds actually sell for.
+   */
+  marketReserve: 4000, // cash a bot keeps free before it goes shopping
+  marketMaxOverpay: 1.25, // never more than 1.25× the estimated value
+  marketMaxShare: 0.5, // never more than half its free cash on one bird
+  /** The bird has to be a real upgrade on the one it replaces, not a sidegrade. */
+  marketMinGain: 3,
+
+  /**
+   * TRAINEN — how many birds a bot trains a day.
+   *
+   * It used to be one bird, one random attribute, on a 15% daily roll: about one
+   * training a WEEK for the whole loft, while a player may train every bird and
+   * every attribute once a week. That gap is why bots drifted behind, not the
+   * coach (they max that out). Bots now train several birds a day and, unlike
+   * before, respect the same per-attribute weekly cooldown a player has.
+   */
+  trainPerDay: 3,
+  /** Cash a bot wants free before it pays for training. */
+  trainReserve: 3000,
 } as const;
 
 /** Pool of names used when generating pigeons and bots. */

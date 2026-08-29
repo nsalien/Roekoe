@@ -1798,6 +1798,12 @@ nodig heeft, beslist de melker zelf.
 als ze het verdienen (§15). Ze doen niet mee aan **oefenvluchten** en je kan geen
 bod uitbrengen op hun duiven.
 
+**Ze kopen op de markt.** Zet je een duif te koop (§9), dan kan een bot ze kopen —
+als ze een verbetering is voor zijn hok en hij het geld heeft. Zit zijn hok vol,
+dan laat hij zijn slechtste duif gaan om plaats te maken. Je krijgt er een melding
+van en het geld staat meteen op je rekening. Ze betalen wel nooit veel meer dan de
+**geschatte waarde** (§9.0), dus een fantasieprijs vragen werkt niet.
+
 ---
 
 ## 18. Startershulp: je eerste seizoen
