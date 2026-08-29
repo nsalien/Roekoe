@@ -334,7 +334,8 @@ Roekoe/
 │       ├── pages/               één bestand per scherm (zie §6)
 │       ├── components/          ui.tsx (Money/Spinner/StatBar+perDay/DailyGains verwijderd/…),
 │       │                        Layout (+ auto-tour), PigeonCard (+ tourId/▲▼),
-│       │                        Tour.tsx (interactieve rondleiding), PigeonAvatar, NotificationsBell
+│       │                        Tour.tsx (interactieve rondleiding), PrizeCeremony.tsx,
+│       │                        PigeonAvatar, NotificationsBell
 │       ├── game/GameContext.tsx useGame(): laadt /state, deelt state + refresh()
 │       ├── auth/AuthContext.tsx useAuth(): user + token
 │       ├── api/client.ts        api<T>(path, {method, body}) helper
@@ -386,6 +387,7 @@ Roekoe/
 ├── velocity-model.test.mts      regressietest: snelheid = snelheid, ervaring = efficiëntie
 ├── age-cup.test.mts             regressietest: leeftijdscriterium (kalender, klassen, cyclus)
 ├── pigeon-logs.test.mts         regressietest: historiekboeken staan NIET in de duivenrij
+├── season-prizes.test.mts       regressietest: winst-reset + de ceremonie-payload
 ├── cpu-pigeons.mts              meet wat een duif kost per verzoek (marginale CPU) — diagnose
 ├── poll-budget.test.mts         regressietest: pollritme + de smalle load (deelnemerslijst!)
 ├── force-finish.test.mts        regressietest: admin-"match beëindigen" == natuurlijk uitvliegen
@@ -905,6 +907,7 @@ npx tsx newcomer.test.mts          # starterspakket: punten, tijdvenster, afloop
 npx tsx velocity-model.test.mts    # ervaring raakt de snelheid van een frisse duif niet
 npx tsx age-cup.test.mts           # leeftijdscriterium: klassen, afwisseling, 3-seizoenencyclus
 npx tsx pigeon-logs.test.mts       # de logboeken blijven uit de wereldload, legacy blijft leesbaar
+npx tsx season-prizes.test.mts     # seasonWins reset, totalWins niet; ceremonie = laatste seizoen
 ```
 Diagnose zonder assertie: `npx tsx cpu-sweep.mts` (CPU per operatie, duurste
 eerst), `npx tsx limits-report.mts` (queries/rijen per verzoek) en
@@ -1013,6 +1016,36 @@ Alles hieronder staat **live** op de deploy-branch. Data-migraties liepen door t
      **`announceAgeCup(db, idPrefix)`** zodat herbalanceren de melding niet laat liegen.
      ⚠️ Bewust náást de tour: die spotlight is wég zodra iemand ze wegklikt, terwijl de eerste
      criteriumvlucht pas een week later op de kalender staat. **dataVersion → 41.**
+
+**Prijsuitreiking als ceremonie + de winst-kolom reset mee (nieuwste)**
+- **Vraag van de eigenaar:** de prijzen stonden samengeperst in één belmelding. Nu krijgt
+  **elke prijs zijn eigen scherm**, met de beker in beeld en het bijhorende bedrag. En de
+  kolom **Winst** op de ranglijst moest mee resetten met het seizoen.
+- ⚠️ **`totalWins` mocht NIET gereset worden, en dat is niet zichtbaar aan de kolom.**
+  Sponsordrempels hangen eraan (`req.totalWins` 1/5/8/12 in `SPONSORS`) en hij weegt in
+  `sponsorScore` (`loft.totalWins * 8`); elk seizoen nullen zou die tiers om de vier weken
+  opnieuw dichtgooien. Nieuw veld **`Loft.seasonWins`** (kolom `season_wins`, default 0):
+  `rankingRows` toont dát als "Winst", `runSeasonEnd` zet het op 0, en de tiebreak in de
+  seizoensstand gebruikt het ook. `totalWins` blijft levenslang en blijft op het profiel staan.
+  Omdat de kolom op 0 begint, staat iedereen dit seizoen meteen correct — geen migratie nodig.
+- **De ceremonie** (`client/src/components/PrizeCeremony.tsx`): volledig scherm, één prijs per
+  keer, in de volgorde Roekoe → Vleugels → Criterium en binnen elke soort de hoogste plaats
+  eerst. Per prijs: de **beker in SVG**, waarvoor je hem won, en het bedrag dat **omhoog telt**.
+  Drie vormen (cup / vleugel / medaille) × drie metalen via één verloop, dus goud-zilver-brons
+  komt uit `rank`. Bewust **getekend en niet als afbeelding**: scherp op elk scherm, themavast,
+  en geen assets om te beheren. Gecontroleerd met een Playwright-screenshot in **beide thema's**.
+- **Geen serverstatus.** `loftDTO.ceremony` draagt de prijzen van het **laatst gewonnen**
+  seizoen (bounded: enkel dát seizoen, niet de hele erelijst — dit rijdt mee op `/state`), en
+  localStorage (`roekoe.ceremonySeen.<id>`) onthoudt wat al gevierd is.
+  ⚠️ **Plus een guard op `world.seasonYear - 1`**: zonder die check vierde een verse browser
+  een overwinning van maanden terug opnieuw, want `awards` bewaart alles.
+- **Volgorde in `Layout`:** hoofdtour > ceremonie > "wat is nieuw" > gebeurteniskaart. Net
+  gewonnen weegt zwaarder dan een aankondiging, en de ceremonie is maar één seizoen relevant.
+- De **belmelding blijft** bestaan als naslagwerk; dit is het feestje ernaast.
+- `prefers-reduced-motion` zet beide animaties uit.
+- **Nieuwe blijvende test `season-prizes.test.mts`** (15 controles): de kolom toont de
+  seizoenswinst, de rollover reset `seasonWins` maar niet `totalWins`, en de ceremonie draagt
+  precies de prijzen van het net afgelopen seizoen met het juiste bedrag per prijs.
 
 **`SELECT * FROM pigeons` was de CPU-moordenaar — historiek uit de duivenrij (nieuwste)**
 - **Vraag van de eigenaar:** "er gebeurt altijd een `select * from pigeons` wanneer de wereld

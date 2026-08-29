@@ -167,7 +167,10 @@ export interface Loft {
   nextInfirmary: { capacity: number; price: number } | null;
   pigeonCount: number;
   seasonPoints: number;
+  /** Race wins THIS season (the Ranglijst column); resets with the standings. */
   totalWins: number;
+  /** The prizes of the most recent prijsuitreiking, for the one-time ceremony. */
+  ceremony?: { season: number; awards: SeasonAward[] } | null;
   isBot: boolean;
   infirmaryCapacity: number;
   infirmaryCount: number;
@@ -481,12 +484,13 @@ export interface Trophy {
 export type WingCategory = 'speed' | 'podium' | 'progress';
 
 export interface SeasonAward {
-  kind: 'roekoe' | 'vleugel';
+  kind: 'roekoe' | 'vleugel' | 'criterium';
   rank: number;
   season: number;
   at: string;
   reward: number;
   category?: WingCategory;
+  ageCat?: AgeCategoryId;
   pigeonName?: string;
   value?: number;
 }

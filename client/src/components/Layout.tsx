@@ -8,6 +8,7 @@ import { api } from '../api/client';
 import { useToast } from './ui';
 import { NotificationsBell } from './NotificationsBell';
 import { Tour, AGE_CUP_NEWS_STEPS } from './Tour';
+import { PrizeCeremony } from './PrizeCeremony';
 
 interface NavItem { to: string; label: string; short: string; icon: string; end?: boolean }
 
@@ -85,6 +86,28 @@ export function Layout() {
   function closeNews() {
     if (newsKey) { try { localStorage.setItem(newsKey, '1'); } catch { /* private mode */ } }
     setShowNews(false);
+  }
+
+  // Prijsuitreiking: de prizes of the season that just ended, one screen each.
+  // No server state — `loft.ceremony` carries the last season's awards and this
+  // remembers which season was already celebrated. A player who wins nothing has
+  // no awards for that season, so nothing pops up.
+  const ceremony = state?.loft?.ceremony ?? null;
+  const ceremonyKey = user?.id ? `roekoe.ceremonySeen.${user.id}` : null;
+  const [ceremonyDone, setCeremonyDone] = useState(false);
+  const showCeremony = (() => {
+    if (!ceremony || !ceremonyKey || ceremonyDone || ceremony.awards.length === 0) return false;
+    // Alleen het seizoen dat NET is afgelopen. `loft.ceremony` draagt de laatste
+    // prijzen die dit hok won, en dat kan seizoenen geleden zijn — zonder deze
+    // check vierde een verse browser een overwinning van maanden terug opnieuw.
+    if (ceremony.season !== (state?.world.seasonYear ?? 0) - 1) return false;
+    try { return Number(localStorage.getItem(ceremonyKey) ?? '0') < ceremony.season; } catch { return false; }
+  })();
+  function closeCeremony() {
+    if (ceremonyKey && ceremony) {
+      try { localStorage.setItem(ceremonyKey, String(ceremony.season)); } catch { /* private mode */ }
+    }
+    setCeremonyDone(true);
   }
 
   async function advanceWeek() {
@@ -179,8 +202,13 @@ export function Layout() {
       <BottomNav items={navItems} />
 
       {showTour && <Tour onClose={closeTour} />}
-      {showNews && !showTour && <Tour steps={AGE_CUP_NEWS_STEPS} onClose={closeNews} />}
-      {state?.pendingEvent && !showTour && !showNews && <EventModal />}
+      {/* De ceremonie gaat vóór de "wat is nieuw"-run: net gewonnen weegt zwaarder
+          dan een aankondiging, en ze is maar één seizoen relevant. */}
+      {showCeremony && !showTour && ceremony && (
+        <PrizeCeremony season={ceremony.season} awards={ceremony.awards} onClose={closeCeremony} />
+      )}
+      {showNews && !showTour && !showCeremony && <Tour steps={AGE_CUP_NEWS_STEPS} onClose={closeNews} />}
+      {state?.pendingEvent && !showTour && !showNews && !showCeremony && <EventModal />}
     </div>
   );
 }

@@ -1665,6 +1665,10 @@ hokken**:
 
 De winnaar krijgt ook de badge **Seizoenskampioen**.
 
+> De kolom **Winst** toont het aantal vluchten dat je **dit seizoen** won; ze gaat
+> bij de seizoenswissel mee op nul. Je **totale** aantal overwinningen blijft
+> staan op je profiel — daar kijken de sponsors naar (§12).
+
 ### 15.3 Duivenranglijsten → de Vleugel
 Naast de melkers zijn er **drie ranglijsten van individuele duiven** (top 10),
 allemaal voor het **lopende seizoen**. **Wedstrijdvluchten** (regionaal, nationaal,
@@ -1702,6 +1706,9 @@ Eén duif kan in meerdere ranglijsten top-3 halen en zo meerdere Vleugels winnen
 Roekoes en Vleugels worden bewaard bij **Prestaties → Seizoensprijzen**: hoeveel
 gouden/zilveren/bronzen van elk je verzamelde, plus een erelijst per seizoen. De
 prijsuitreiking komt ook binnen als **melding**.
+
+Win je iets, dan krijg je bij je eerstvolgende bezoek een **prijsuitreiking op je
+scherm**: elke prijs apart, met de beker en het prijzengeld erbij.
 
 ---
 

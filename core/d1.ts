@@ -96,6 +96,7 @@ function rowToLoft(r: any): Loft {
     compartments: r.compartments ?? 0,
     seasonPoints: r.season_points,
     totalWins: r.total_wins,
+    seasonWins: r.season_wins ?? 0,
     isBot: !!r.is_bot,
     infirmaryCapacity: r.infirmary_capacity ?? 4,
     medicatedFood: !!r.medicated_food,
@@ -398,6 +399,7 @@ const LOFT_COLUMNS = [
   'season_points', 'total_wins', 'is_bot', 'infirmary_capacity', 'medicated_food', 'doctors',
   'physios', 'xp', 'level', 'stats', 'badges', 'missions', 'missions_day', 'streak',
   'pending_event', 'sponsorship', 'last_rest_cure', 'awards', 'pending_broods', 'newcomer',
+  'season_wins',
 ];
 
 function loftRow(l: Loft): unknown[] {
@@ -416,6 +418,7 @@ function loftRow(l: Loft): unknown[] {
     // Empty for every loft registered before this shipped, so their
     // column-narrowed UPDATE keeps skipping it.
     l.newcomer ? JSON.stringify(l.newcomer) : '',
+    l.seasonWins ?? 0,
   ];
 }
 
@@ -1089,6 +1092,10 @@ const SCHEMA_STEPS: string[] = [
   // value to add one. Pruned to the newest N per bird per kind in `persist`.
   'CREATE TABLE IF NOT EXISTS pigeon_log_entries (id TEXT PRIMARY KEY, pigeon_id TEXT NOT NULL, kind TEXT NOT NULL, at TEXT NOT NULL, data TEXT NOT NULL)',
   'CREATE INDEX IF NOT EXISTS idx_pigeon_log_entries ON pigeon_log_entries(pigeon_id, kind, at DESC)',
+
+  // Race wins THIS season — the Ranglijst column. `total_wins` stays the lifetime
+  // counter the sponsor tiers are gated on (see Loft.totalWins).
+  'ALTER TABLE lofts ADD COLUMN season_wins INTEGER NOT NULL DEFAULT 0',
 ];
 
 /**

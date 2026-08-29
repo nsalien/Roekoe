@@ -282,6 +282,16 @@ export function loftDTO(db: Database, loft: Loft) {
     restCureAvailableAt: null as string | null,
     // Starter package (null for everyone who registered before it shipped).
     newcomer: newcomerDTO(loft),
+    // The prizes of the MOST RECENT prijsuitreiking, so the client can hold a
+    // little ceremony for them once (see PrizeCeremony). Only the last season's
+    // awards, so this stays a handful of rows on the hottest route in the game —
+    // the full erelijst lives on /profile.
+    ceremony: (() => {
+      const list = loft.awards ?? [];
+      if (list.length === 0) return null;
+      const season = Math.max(...list.map((a) => a.season));
+      return { season, awards: list.filter((a) => a.season === season) };
+    })(),
   };
 }
 
@@ -591,7 +601,9 @@ export function rankingRows(db: Database) {
       name: l.name,
       isBot: l.isBot,
       seasonPoints: l.seasonPoints,
-      totalWins: l.totalWins,
+      // The "Winst" column is the SEASON count, so it resets with the standings.
+      // `totalWins` stays lifetime for the sponsor tiers gated on it.
+      totalWins: l.seasonWins ?? 0,
       level: l.level ?? 1,
       pigeonCount: db.pigeons.filter((p) => p.ownerId === l.userId).length,
     }))

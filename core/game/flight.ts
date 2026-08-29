@@ -1897,6 +1897,7 @@ export function applyFlightEffects(
     loft.money += Math.round(pay.prize * mult);
     loft.seasonPoints += Math.round(pay.points * mult);
     loft.totalWins += pay.wins;
+    loft.seasonWins = (loft.seasonWins ?? 0) + pay.wins;
   }
 }
 

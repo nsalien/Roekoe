@@ -230,7 +230,7 @@ export function runSeasonEnd(db: Database, endedSeason: number, atMs: number): v
   //    players (they need income too); they simply get no notification.
   const standings = db.lofts
     .filter((l) => l.seasonPoints > 0)
-    .sort((a, b) => b.seasonPoints - a.seasonPoints || b.totalWins - a.totalWins);
+    .sort((a, b) => b.seasonPoints - a.seasonPoints || (b.seasonWins ?? 0) - (a.seasonWins ?? 0));
   for (let i = 0; i < 3; i++) {
     const loft = standings[i];
     if (!loft) break;
@@ -290,8 +290,9 @@ export function runSeasonEnd(db: Database, endedSeason: number, atMs: number): v
   //    sponsor may end its contract if the loft underperformed vs last season.
   for (const loft of db.lofts) reviewSponsorContracts(db, loft, endedSeason, atMs);
 
-  // 5. Reset all season standings and re-baseline pigeon development.
-  for (const loft of db.lofts) loft.seasonPoints = 0;
+  // 5. Reset all season standings and re-baseline pigeon development. `totalWins`
+  //    is NOT touched — it is the lifetime counter sponsors are gated on.
+  for (const loft of db.lofts) { loft.seasonPoints = 0; loft.seasonWins = 0; }
   for (const p of db.pigeons) {
     p.seasonPeakSpeed = 0;
     p.seasonPodiums = 0;
