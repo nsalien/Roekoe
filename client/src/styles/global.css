@@ -442,6 +442,31 @@ table.data td.good { color: var(--good); font-weight: 700; }
 .intro-list { margin: 4px 0 10px; padding-left: 20px; display: flex; flex-direction: column; gap: 9px; }
 .intro-list li { line-height: 1.45; }
 
+/* --- Prijsuitreiking (PrizeCeremony) -------------------------------------- */
+/* Donkerder scrim dan een gewone modal: even niets anders. */
+.ceremony-overlay { background: rgba(8, 12, 22, 0.72); z-index: 95; }
+.ceremony { border-color: var(--gold); box-shadow: 0 0 0 1px var(--gold-soft), var(--shadow-lg); }
+/* Elke prijs komt opnieuw binnen — de stage krijgt een nieuwe key per prijs. */
+.ceremony-stage { animation: prize-in 420ms cubic-bezier(0.2, 0.9, 0.3, 1.2) both; }
+.ceremony-trophy { display: block; margin: 2px auto 4px; animation: prize-shine 2.6s ease-in-out infinite; }
+.ceremony-money {
+  font-size: 1.9rem; font-weight: 900; letter-spacing: -0.01em;
+  background: linear-gradient(90deg, var(--gold), #f5c026, var(--gold));
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+}
+@keyframes prize-in {
+  from { opacity: 0; transform: scale(0.86) translateY(10px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes prize-shine {
+  0%, 100% { transform: rotate(-1.5deg) translateY(0); }
+  50% { transform: rotate(1.5deg) translateY(-4px); }
+}
+/* Wie liever geen beweging heeft, krijgt gewoon het eindbeeld. */
+@media (prefers-reduced-motion: reduce) {
+  .ceremony-stage, .ceremony-trophy { animation: none; }
+}
+
 /* --- Prestige: level, badges, trophies ------------------------------------ */
 .level-badge {
   display: inline-flex; align-items: center; padding: 3px 10px; border-radius: 999px;

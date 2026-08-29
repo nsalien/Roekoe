@@ -209,7 +209,15 @@ export interface Loft {
   capacity: number;
   compartments: number; // private compartments bought (better rest, less disease)
   seasonPoints: number; // ranking points accumulated this season
+  /**
+   * Lifetime race wins. Deliberately NOT reset at a season rollover: sponsor
+   * requirements are gated on it (`req.totalWins` — 1/5/8/12 in SPONSORS) and it
+   * feeds their performance score, so zeroing it would slam those tiers shut
+   * again every four weeks. The ranking column shows `seasonWins` instead.
+   */
   totalWins: number;
+  /** Race wins THIS season — what the Ranglijst shows, reset with the standings. */
+  seasonWins?: number;
   isBot: boolean;
   // Infirmary (ziekenboeg).
   infirmaryCapacity: number; // max birds that can rest in the infirmary at once
