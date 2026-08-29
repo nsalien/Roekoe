@@ -168,6 +168,7 @@ function rowToPigeon(r: any): Pigeon {
     hungerDays: r.hunger_days ?? 0,
     restDays: r.rest_days ?? 0,
     cureUntil: r.cure_until ?? null,
+    listedAt: r.listed_at ?? null,
     lastRaceAt: r.last_race_at ?? null,
     lastRestCureAt: r.last_rest_cure_at ?? null,
     awayUntil: r.away_until ?? null,
@@ -355,7 +356,7 @@ const PIGEON_COLUMNS = [
   'compartment', 'hunger_days', 'rest_days', 'cure_until', 'season_peak_speed', 'season_podiums',
   'season_start_score', 'season_practice_gain', 'trained_at', 'genes', 'decline_rate',
   'care_assigned', 'last_race_at', 'last_race_practice', 'last_rest_cure_at', 'away_until',
-  'cup', 'titles',
+  'cup', 'titles', 'listed_at',
 ];
 
 /**
@@ -391,6 +392,7 @@ function pigeonRow(p: Pigeon): unknown[] {
     p.awayUntil ?? null,
     p.cup && Object.keys(p.cup).length ? JSON.stringify(p.cup) : null,
     p.titles && p.titles.length ? JSON.stringify(p.titles) : null,
+    p.listedAt ?? null,
   ];
 }
 
@@ -1096,6 +1098,10 @@ const SCHEMA_STEPS: string[] = [
   // Race wins THIS season — the Ranglijst column. `total_wins` stays the lifetime
   // counter the sponsor tiers are gated on (see Loft.totalWins).
   'ALTER TABLE lofts ADD COLUMN season_wins INTEGER NOT NULL DEFAULT 0',
+
+  // When a bird went on the market — the head start players get before bots may
+  // buy it (see BOT.marketMinListedHours).
+  'ALTER TABLE pigeons ADD COLUMN listed_at TEXT',
 ];
 
 /**

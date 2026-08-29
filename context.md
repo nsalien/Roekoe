@@ -1063,8 +1063,18 @@ Alles hieronder staat **live** op de deploy-branch. Data-migraties liepen door t
   geschatte waarde): **elke** listing werd gekocht (6 van 6), de speler verdiende er €11.942
   mee, en de laagste botkas zakte van €18.927 naar €8.406 — ze geven het dus effectief uit en
   blijven ruim boven hun vloer. Query-budget 40/50, dagbudget 24,3 % gelezen / 7,5 % geschreven.
-- **Nieuwe blijvende test `bot-market.test.mts`** (25 controles), met de prijsgrens als eerste
-  en zwaarste blok.
+- ⚠️ **Een verse listing is eerst van de spelers** (`BOT.marketMinListedHours`, 24 u). Bots
+  winkelen op de **dagovergang**, dus een duif die om 23:55 te koop gaat kon verkocht zijn
+  vóór één speler ze ooit zag verschijnen. Nieuw veld **`Pigeon.listedAt`** (kolom `listed_at`):
+  gestempeld door `listForSale`, gewist door `unlist` en door de verkoop zelf — opnieuw
+  plaatsen herstart de klok, want dat is een nieuw aanbod. Een listing **zonder** stempel komt
+  van vóór deze regel en geldt als oud, dus die blijft gewoon koopbaar.
+  Zichtbaar gemaakt op de markt (🆕 "nog X u alleen voor spelers", uit
+  `economy.botMarketDelayHours`) — een voorsprong die je niet ziet, is er geen.
+- **Nieuwe blijvende test `bot-market.test.mts`** (33 controles), met de wachttijd en de
+  prijsgrens als de twee eerste en zwaarste blokken. ⚠️ De wachttijd-test rekent vanaf de
+  **échte** `listedAt`-stempel: `listForSale` zet daar de wandklok in, dus een verzonnen
+  testklok gleed er ongemerkt langs (dat gebeurde ook — drie controles slaagden vals).
 
 **Prijsuitreiking als ceremonie + de winst-kolom reset mee (nieuwste)**
 - **Vraag van de eigenaar:** de prijzen stonden samengeperst in één belmelding. Nu krijgt

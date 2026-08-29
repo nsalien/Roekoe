@@ -118,6 +118,9 @@ export function pigeonDTO(db: Database, p: Pigeon, viewerId?: string, viewerIsAd
     canRace: canRace(p, week),
     forSale: p.forSale,
     price: p.price,
+    // Public: when it went on the market, so the market can show what is fresh —
+    // which is the point of the head start players get over the bots.
+    listedAt: p.listedAt ?? null,
     sireId: p.sireId,
     damId: p.damId,
     ailment: revealed ? p.ailment : null,

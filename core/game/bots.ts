@@ -310,10 +310,16 @@ function maybeBuyFromMarket(db: Database, loft: Loft, pigeons: Pigeon[], nowMs: 
   const floor = worst ? talent(worst) + (roomToSpare ? 0 : BOT.marketMinGain) : 0;
 
   const botIds = new Set(db.lofts.filter((l) => l.isBot).map((l) => l.userId));
+  // Players get first look. A bird is only fair game once it has been on the
+  // market for BOT.marketMinListedHours — bots shop at the 00:00 tick, so a bird
+  // listed at 23:55 would otherwise be gone before anyone saw it appear.
+  const ripeBefore = nowMs - BOT.marketMinListedHours * 3600000;
   let best: Pigeon | null = null;
   for (const p of db.pigeons) {
     if (!p.forSale || p.price == null) continue;
     if (p.ownerId === loft.userId || botIds.has(p.ownerId)) continue;
+    // No stamp = listed before this rule existed, so it has been up for ages.
+    if (p.listedAt && Date.parse(p.listedAt) > ripeBefore) continue;
     if (p.price > budget) continue;
     if (talent(p) <= floor) continue;
     if (p.price > valuePigeon(db, p, db.world.currentWeek).value * BOT.marketMaxOverpay) continue;

@@ -1804,6 +1804,11 @@ dan laat hij zijn slechtste duif gaan om plaats te maken. Je krijgt er een meldi
 van en het geld staat meteen op je rekening. Ze betalen wel nooit veel meer dan de
 **geschatte waarde** (§9.0), dus een fantasieprijs vragen werkt niet.
 
+**De eerste dag is van de spelers.** Een duif die net te koop staat, blijft
+**24 uur lang onaantastbaar voor de bots**. Op de markt zie je bij zo'n duif hoe
+lang die voorsprong nog loopt (🆕). Haal je haar uit de markt en zet je haar
+opnieuw te koop, dan begint die dag opnieuw.
+
 ---
 
 ## 18. Startershulp: je eerste seizoen

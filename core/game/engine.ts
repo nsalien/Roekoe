@@ -693,6 +693,9 @@ export function listForSale(store: Store, userId: string, pigeonId: string, pric
     if (breeding) return 'Deze duif koppelt momenteel';
     pigeon.forSale = true;
     pigeon.price = Math.round(price);
+    // Starts the clock the bots have to wait out (BOT.marketMinListedHours).
+    // Re-listing restarts it, which is the honest reading: it is a new offer.
+    pigeon.listedAt = new Date().toISOString();
     return null;
   });
 }
@@ -704,6 +707,7 @@ export function unlist(store: Store, userId: string, pigeonId: string): string |
     if (!pigeon) return 'Duif niet gevonden';
     pigeon.forSale = false;
     pigeon.price = null;
+    pigeon.listedAt = null;
     return null;
   });
 }
@@ -731,6 +735,7 @@ export function settlePigeonSale(db: Database, buyer: Loft, pigeon: Pigeon): voi
   pigeon.ownerId = buyer.userId;
   pigeon.forSale = false;
   pigeon.price = null;
+  pigeon.listedAt = null;
   db.trades.push({
     id: newId('trd'),
     pigeonId: pigeon.id,

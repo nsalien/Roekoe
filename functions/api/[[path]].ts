@@ -21,6 +21,7 @@ import {
   AGE_CUP,
   AGING,
   BETTING,
+  BOT,
   BREEDING,
   COACH,
   FEED_RATIONS,
@@ -445,6 +446,9 @@ app.get('/state', (c) => {
       restCureHours: REST_CURE.durationHours,
       restCureCooldownDays: REST_CURE.cooldownDays,
       foodResaleRate: FOOD_RESALE_RATE,
+      // How long a fresh listing is off-limits to the bots, so the market can
+      // tell the player how much head start they still have.
+      botMarketDelayHours: BOT.marketMinListedHours,
       restaurantName: PIGEON_RESTAURANT.name,
       restaurantPayout: PIGEON_RESTAURANT.payout,
       restaurantMoraleMin: PIGEON_RESTAURANT.moraleEnergyMin,

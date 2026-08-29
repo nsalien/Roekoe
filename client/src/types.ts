@@ -78,6 +78,8 @@ export interface Pigeon {
   value: number;
   canRace: boolean;
   forSale: boolean;
+  /** ISO time this bird went on the market (null when not listed). */
+  listedAt?: string | null;
   price: number | null;
   sireId: string | null;
   damId: string | null;
@@ -236,7 +238,9 @@ export interface EconomyCosts {
   restCureHealth: number;
   restCureHours: number;
   restCureCooldownDays: number;
-  foodResaleRate: number; // what the feed merchant pays back, as a fraction of the buy price
+  foodResaleRate: number;
+  /** Hoe lang een verse listing onaantastbaar is voor bots. */
+  botMarketDelayHours: number; // what the feed merchant pays back, as a fraction of the buy price
   restaurantName: string; // the local pigeon-soup restaurant
   restaurantPayout: number; // fixed coins for selling a bird there
   restaurantMoraleMin: number; // each remaining bird loses this much energie…

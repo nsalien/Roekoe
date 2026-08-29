@@ -70,6 +70,14 @@ export interface Pigeon {
   // Market: if listed for sale, price is set. ownerId may be the NPC market.
   forSale: boolean;
   price: number | null;
+  /**
+   * ISO time this bird was put on the market. Bots ignore a listing until it has
+   * been up for `BOT.marketMinListedHours`, so a player always gets first look at
+   * a new bird instead of finding it sold overnight. Empty on a listing from
+   * before this shipped — those have been on the market for ages, so they count
+   * as old and are fair game.
+   */
+  listedAt?: string | null;
   createdAtWeek: number;
   // Health status.
   ailment: Ailment | null; // current disease/injury, or null if healthy
