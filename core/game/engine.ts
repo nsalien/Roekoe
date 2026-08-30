@@ -47,7 +47,7 @@ import { newNewcomerPerks } from './newcomer.js';
 import { careSlots, runHealthWeek } from './health.js';
 import { nameKey, namesInUse } from './names.js';
 import { voidBetsForWithdrawnPigeon } from './betting.js';
-import { birdStillOut, pigeonCommittedToFlight } from './flight.js';
+import { birdStillOut, flightClaimingDay, flightDay, pigeonCommittedToFlight } from './flight.js';
 import {
   ageInWeeks,
   canRace,
@@ -570,19 +570,13 @@ export function enterFlight(
     const ownEntries = flight.entries.filter((e) => e.ownerId === userId);
     if (flight.relay && ownEntries.length >= RELAY.teamSize)
       return `Je ploeg is al volledig (${RELAY.teamSize} duiven) — haal er eerst een duif uit`;
-    // A pigeon may race at most once per day — but only while that other race is
-    // still running FOR IT. Once it is home (or out), the rest of the day is its own.
-    const day = flight.startAt.slice(0, 10);
-    const nowMs = Date.now();
-    const racingElsewhere = db.flights.some(
-      (f) =>
-        f.id !== flight.id &&
-        f.status !== 'completed' &&
-        f.startAt.slice(0, 10) === day &&
-        f.entries.some((e) => e.pigeonId === pigeonId) &&
-        birdStillOut(f, pigeonId, nowMs),
-    );
-    if (racingElsewhere) return 'Deze duif vliegt die dag al een andere vlucht';
+    // HARD RULE: a bird flies at most ONE race per calendar day. It does not
+    // matter whether that other race is still ahead of it, running, or long
+    // since finished — one flight a day, full stop. Withdrawing from the other
+    // flight hands the day back; a race she actually flew never does.
+    const claimed = flightClaimingDay(db, pigeonId, flightDay(flight), flight.id);
+    if (claimed)
+      return `${pigeon.name} staat die dag al op de ${claimed.name} — een duif mag maar één vlucht per dag doen`;
     // A relay team pays one fee for the whole team, when its first bird is entered.
     const fee = flight.relay && ownEntries.length > 0 ? 0 : flight.entryFee;
     if (loft.money < fee) return 'Niet genoeg geld voor het inschrijfgeld';

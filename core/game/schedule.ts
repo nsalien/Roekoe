@@ -81,9 +81,10 @@ import { progressMissions } from './missions.js';
 import { activeContracts, evaluateSponsorOffers, offerStarterSponsor } from './sponsors.js';
 import {
   applyFlightEffects,
-  birdStillOut,
   computeFinishPayouts,
   finalizeFlight,
+  flightCancelled,
+  flightDay,
   flightTotalSeconds,
   generateRecap,
   pigeonCommittedToFlight,
@@ -343,18 +344,17 @@ function makeRealtimeFlight(
 function botsEnterFlight(db: Database, flight: Flight, ctx: BotEntryContext = botEntryContext(db)): void {
   if (flight.practice) return; // oefenvluchten zijn voor de speler, bots doen niet mee
   if (flight.status !== 'scheduled') return;
-  const day = flight.startAt.slice(0, 10); // one race per bird per day
-  // Only birds whose race that day is still running are off-limits — one that is
-  // already home may be entered again (same rule as for human players).
-  const nowMs = Date.now();
+  const day = flightDay(flight); // one race per bird per day — the hard rule
+  // Every bird already on a flight of THIS day is off-limits, whether that race
+  // is still ahead of it, running, or long since flown (same rule as for human
+  // players, see enterFlight). A flight that was called off never happened, so it
+  // does not spend anyone's day. The filter covers this flight too, so birds a bot
+  // already put on it are in the set as well.
   const committed = new Set<string>(
     db.flights
-      .filter((f) => f.status !== 'completed' && f.startAt.slice(0, 10) === day)
-      .flatMap((f) => f.entries.map((e) => e.pigeonId).filter((id) => birdStillOut(f, id, nowMs))),
+      .filter((f) => flightDay(f) === day && !flightCancelled(f))
+      .flatMap((f) => f.entries.map((e) => e.pigeonId)),
   );
-  // Birds a bot already put on THIS flight count as tied up even before the
-  // start (birdStillOut reports a scheduled flight as busy, but be explicit).
-  for (const e of flight.entries) committed.add(e.pigeonId);
   for (const loft of db.lofts.filter((l) => l.isBot)) {
     if (loft.money < flight.entryFee) continue;
     if (flight.entries.some((e) => e.ownerId === loft.userId)) continue;

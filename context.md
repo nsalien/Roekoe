@@ -15,12 +15,12 @@
 
 | Rol | Branch | Doel |
 |-----|--------|------|
-| **Dev** | `claude/hallo-hrtwtv` | Alle ontwikkeling/commits komen hier **eerst**. |
+| **Dev** | `claude/hallo-fsp9nx` | Alle ontwikkeling/commits komen hier **eerst**. |
 | **Prod** | `claude/roekoe-game-website-jwa0vo` | Elke commit wordt hierheen **gecherry-pickt**; deze branch triggert de **Cloudflare Pages**-deploy naar productie. |
 
 > Vorige dev-branches (niet meer gebruiken): `claude/hallo-mzjn0e`, `claude/hallo-su75jy`, `claude/hallo-rkr49f`, `claude/hallo-pvwabx`,
 > `claude/context-spelregels-q2ywtx`, `claude/hallo-49m6hj`, `claude/hallo-xifh0c`,
-> `claude/hallo-w97s85`. Ontwikkelt een sessie op een nieuwe
+> `claude/hallo-w97s85`, `claude/hallo-hrtwtv`. Ontwikkelt een sessie op een nieuwe
 > `claude/…`-branch, gebruik die dan als dev-branch en **werk deze tabel meteen bij** —
 > de prod-branch hierboven verandert nooit.
 
@@ -392,6 +392,7 @@ Roekoe/
 ├── cpu-pigeons.mts              meet wat een duif kost per verzoek (marginale CPU) — diagnose
 ├── poll-budget.test.mts         regressietest: pollritme + de smalle load (deelnemerslijst!)
 ├── force-finish.test.mts        regressietest: admin-"match beëindigen" == natuurlijk uitvliegen
+├── one-flight-per-day.test.mts  regressietest: één vlucht per duif per dag (harde regel)
 ├── limits-report.mts            meet queries/rijen gelezen/geschreven per verzoek
 ├── cpu-sweep.mts                meet CPU per operatie (duurste eerst) — diagnose
 ├── migrations/0001_init.sql     D1-schema voor verse installatie
@@ -910,6 +911,7 @@ npx tsx age-cup.test.mts           # leeftijdscriterium: klassen, afwisseling, 3
 npx tsx pigeon-logs.test.mts       # de logboeken blijven uit de wereldload, legacy blijft leesbaar
 npx tsx season-prizes.test.mts     # seasonWins reset, totalWins niet; ceremonie = laatste seizoen
 npx tsx bot-market.test.mts        # de prijsgrens voor bots (anti-exploit) + hun trainingsregels
+npx tsx one-flight-per-day.test.mts # één vlucht per duif per dag — speler én bots
 ```
 Diagnose zonder assertie: `npx tsx cpu-sweep.mts` (CPU per operatie, duurste
 eerst), `npx tsx limits-report.mts` (queries/rijen per verzoek) en
@@ -953,7 +955,44 @@ verzoek uit per statement.
 Alles hieronder staat **live** op de deploy-branch. Data-migraties liepen door tot
 **`dataVersion = 42`**.
 
-**Leeftijdscriterium: vier leeftijdsklassen, één vlucht per week, drie seizoenen (nieuwste)**
+**Eén vlucht per duif per dag — nu een HARDE regel (nieuwste)**
+- **Vraag van de eigenaar:** "zorg er dan voor dat duiven nooit 2 vluchten op 1 dag kunnen doen."
+- **Wat er was:** de regel bestond al, maar gold enkel zolang de andere race van die dag nog
+  **bezig** was (`birdStillOut`). Een duif die 's ochtends binnenkwam mocht 's middags gewoon
+  opnieuw starten — §3.8 van `spelregels.md` verkocht dat zelfs als feature. Op de kalender
+  staan meestal **twee** vluchten per dag, dus een topduif kon er structureel twee pakken.
+- **Wat het nu is:** de dag is **op** zodra een duif ergens op een vlucht van die kalenderdag
+  staat — gepland, live, of allang uitgevlogen. Twee vluchten op één dag doe je met twee duiven.
+- **Waar het zit** (`core/game/flight.ts`, drie kleine exports):
+  - `flightDay(f)` — `startAt.slice(0, 10)`, dezelfde dagsleutel die de code al overal gebruikte;
+  - `flightCancelled(f)` — een **completed** vlucht **zonder `sim`**. Dat is precies een
+    afgelaste vlucht (te weinig melkers): ze houdt haar `entries` op de rol en het inschrijfgeld
+    is terugbetaald, maar niemand heeft gevlogen, dus ze mag geen dag opsouperen.
+    `startLiveFlight` is het enige dat `sim` vult, dus dit kan niet vals-positief zijn;
+  - `flightClaimingDay(db, pigeonId, day, exceptFlightId?)` — de vlucht die de dag al claimt.
+    **Bewust anders dan `pigeonCommittedToFlight`:** die vraagt of een duif *nu* vastzit en laat
+    los zodra haar eigen race voorbij is; deze kijkt niet naar de status.
+- **Twee call-sites**, meer zijn er niet: `enterFlight` (`engine.ts`) voor de speler en
+  `botsEnterFlight` (`schedule.ts`) voor de bots — die laatste bouwt zijn `committed`-set nu uit
+  **alle** niet-afgelaste vluchten van die dag i.p.v. enkel de lopende. `birdStillOut` is
+  daardoor uit `schedule.ts` verdwenen (nog wel gebruikt door `giveUpFlight` en
+  `pigeonCommittedToFlight`).
+- **Uitschrijven geeft de dag terug** — `withdrawFlight` haalt de entry weg en daarmee de claim.
+  Een race die ze effectief vloog (ook DNF of opgegeven) geef je niet meer terug.
+- **UI:** `FlightsPage` filtert de keuzelijst niet langer op "al ingeschreven voor een geplande
+  vlucht" maar op een **dag-map** (`daysTaken`: pigeonId → dagen), opgebouwd uit scheduled +
+  live + completed. Daarvoor draagt `flightDTO` één extra scalar: **`cancelled`**. Eronder staat
+  één regeltje hoeveel duiven om die reden wegvallen, met een link naar de wiki — anders
+  verdwijnt een duif zwijgend uit de lijst.
+- **Docs:** `spelregels.md` §3.9 (nieuw, de hele regel), §2.1 (pointer bij de kalender), §3.8
+  (het oude "mag diezelfde dag gerust nog een vlucht doen" is een expliciete uitzondering
+  geworden) en §17 (bots). Wiki: nieuwe sectie **`#een-per-dag`**.
+- **Test:** `one-flight-per-day.test.mts` — tweede inschrijving geweigerd, óók ná het afronden
+  van de eerste vlucht (het oude gat), uitschrijven geeft de dag terug, een afgelaste vlucht
+  telt niet mee, een andere dag mag wél, en over een doorgespoelde week staat geen enkele
+  botduif twee keer op één dag.
+
+**Leeftijdscriterium: vier leeftijdsklassen, één vlucht per week, drie seizoenen**
 - **Vraag van de eigenaar:** een extra rangschikking per leeftijdsklasse (< 1 j / 1–2 j /
   2–3 j / > 3 j), met per klasse één eigen wekelijkse vlucht waar enkel duiven van die
   leeftijd in mogen, €20 inschrijfgeld, week om week kort (100–300 km) en lang (400–1000 km),

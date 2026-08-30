@@ -321,6 +321,8 @@ export interface Flight {
   toCity: string;
   startAt: string;
   status: FlightStatus;
+  /** Afgelast (te weinig melkers): completed, but nobody flew it. */
+  cancelled: boolean;
   practice: boolean;
   titan: boolean;
   /** Estafettevlucht: one team of `teamSize` birds per loft, flying equal legs. */

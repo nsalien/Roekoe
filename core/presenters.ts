@@ -39,7 +39,7 @@ import {
 } from './game/newcomer.js';
 import { coveredInInfirmary } from './game/health.js';
 import { valuePigeon } from './game/market.js';
-import { flightCommentary, liveSnapshot, pigeonCommittedToFlight } from './game/flight.js';
+import { flightCancelled, flightCommentary, liveSnapshot, pigeonCommittedToFlight } from './game/flight.js';
 import { relayEntryTeams, relayLegKm } from './game/relay.js';
 import { BADGES, levelForXp } from './game/badges.js';
 import { round1 } from './game/util.js';
@@ -332,6 +332,9 @@ export function flightDTO(db: Database, f: Flight) {
     toCity: f.toCity,
     startAt: f.startAt,
     status: f.status,
+    // Called off (too few breeders): a completed flight nobody actually flew.
+    // The picker needs it, because such a day is NOT spent for its entrants.
+    cancelled: flightCancelled(f),
     practice: !!f.practice,
     titan: !!f.titan,
     relay: !!f.relay,

@@ -635,6 +635,51 @@ export function birdStillOut(flight: Flight, pigeonId: string, nowMs: number): b
   return elapsed < (s.legStartSeconds ?? 0) + localEnd;
 }
 
+/** The calendar day a flight belongs to — the key of the one-race-per-day rule. */
+export function flightDay(flight: Flight): string {
+  return flight.startAt.slice(0, 10);
+}
+
+/**
+ * A flight that was called off (no entrants at all, or fewer than two breeders,
+ * see tickFlights). It keeps its entries on record and its fees were refunded,
+ * but nobody actually flew — so it must not spend a bird's racing day.
+ *
+ * Recognisable by a COMPLETED flight without a frozen sim: `startLiveFlight` is
+ * the only thing that fills `sim`, and a cancelled flight never gets there.
+ */
+export function flightCancelled(flight: Flight): boolean {
+  return flight.status === 'completed' && (flight.sim?.length ?? 0) === 0;
+}
+
+/**
+ * The hard rule: a bird flies at most ONE race per calendar day.
+ *
+ * Returns the flight that already claims `pigeonId` on `day` (undefined if the
+ * day is still free), skipping `exceptFlightId` — the flight being entered — and
+ * flights that were called off.
+ *
+ * Note how this differs from `pigeonCommittedToFlight`: that one asks whether a
+ * bird is tied up *right now* and lets go the moment its own race is over. This
+ * one does not care. Once a bird is on a flight of that day, scheduled, running
+ * or long since home, the day is spent. Withdrawing (`withdrawFlight`) drops the
+ * entry and hands the day back; a race that was actually flown never does.
+ */
+export function flightClaimingDay(
+  db: Database,
+  pigeonId: string,
+  day: string,
+  exceptFlightId?: string,
+): Flight | undefined {
+  return db.flights.find(
+    (f) =>
+      f.id !== exceptFlightId &&
+      flightDay(f) === day &&
+      !flightCancelled(f) &&
+      f.entries.some((e) => e.pigeonId === pigeonId),
+  );
+}
+
 /**
  * Roughly what a route will cost this bird in energie — the same formula the sim
  * freezes at the lossing (minus the detour, which is not knowable up front), with

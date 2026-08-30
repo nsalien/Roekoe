@@ -60,6 +60,11 @@ putten uit dezelfde duiven, dus een lichtere kalender betekent **meer duiven aan
 de start van élke vlucht** en dus een **sterker deelnemersveld** om tegen te
 strijden.
 
+**Eén vlucht per duif per dag.** Staan er twee vluchten op één dag, dan kies je per
+duif welke van de twee ze vliegt — een duif kan er **nooit twee op dezelfde dag**
+doen (harde regel, §3.9). Met een breed hok pak je ze allebei mee, elk met een
+andere duif.
+
 **Gaat een wedstrijd wel door?** Een **wedstrijdvlucht** (regionaal, nationaal,
 internationaal én de titanenwedstrijd) gaat **enkel door als er minstens 2
 verschillende duivenmelkers** meedoen. Doet er maar één mee, dan wordt de vlucht
@@ -740,9 +745,10 @@ Haar race zit erop zodra ze:
 - door jou **opgegeven** wordt (§3.4) — precies waar opgeven voor dient: ze staat
   meteen weer paraat i.p.v. de rest van de vlucht geblokkeerd te zijn.
 
-Ook de regel **"één wedstrijd per duif per dag"** volgt dit: die geldt zolang haar
-andere race van die dag nog **bezig** is. Is ze binnen, dan mag ze diezelfde dag
-gerust nog een vlucht doen — als ze er de energie en de vluchtvorm (§3.6) nog voor heeft.
+> **Uitzondering: een tweede vlucht diezelfde dag kan niet.** "Vrij" betekent
+> alles hierboven, maar **geen tweede race op dezelfde kalenderdag** — zie de harde
+> regel in §3.9. Ze is dus wel meteen te trainen, te koppelen of te verkopen, en je
+> kan haar meteen inschrijven voor een vlucht van **morgen**.
 
 **Estafettevlucht** (§2.9): daar telt je **eigen leg**. Wie leg 1 gevlogen heeft, is
 vrij zodra ze het stokje doorgeeft; wie op leg 3 staat te wachten blijft geblokkeerd
@@ -763,6 +769,37 @@ niet meer en is ze op dat moment meteen vrij.
 Twee uitzonderingen blijven staan: een duif die **de weg helemaal kwijt** is (§3.5) is
 pas beschikbaar als ze een paar dagen later thuiskomt, en wie al binnen of al
 uitgevallen is kan je **niet meer opgeven** — haar uitslag ligt dan vast.
+
+### 3.9 Eén vlucht per duif per dag (harde regel)
+
+Een duif vliegt **hoogstens één vlucht per kalenderdag**. Punt. Het maakt niet uit
+of die andere race nog moet beginnen, bezig is, of allang uitgevlogen: staat je duif
+die dag op een vlucht, dan is haar dag **op**.
+
+- Geldt voor **alle** vluchtsoorten door elkaar: een oefenvlucht, een
+  leeftijdscriterium (§2.10), een titanenwedstrijd (§2.8) of een estafettevlucht
+  (§2.9) tellen alle vier mee als "haar vlucht van vandaag".
+- Op de kalender staan meerdere vluchten per dag (§2.1) — je **kiest** er dus één per
+  duif. Wil je beide vluchten van een dag meepakken, dan doe je dat met **twee
+  verschillende duiven**.
+- **Uitschrijven geeft de dag terug.** Haal je haar vóór de start weer van de vlucht
+  (met terugbetaling van het inschrijfgeld), dan is die dag weer vrij voor een andere
+  vlucht. Een race die ze **effectief gevlogen** heeft geef je niet meer terug — ook
+  niet als ze DNF ging of als je haar hebt laten **opgeven** (§3.4).
+- Een vlucht die **afgelast** wordt (te weinig melkers, §2.1) telt niet mee: die is
+  nooit doorgegaan, dus je duif kan diezelfde dag gewoon een andere vlucht doen.
+- **Computermelkers volgen exact dezelfde regel** (§17) — geen enkele bot zet een duif
+  twee keer op één dag in.
+
+In het spel zie je dit meteen: een duif die die dag al ergens ingeschreven staat,
+staat **niet** in de keuzelijst bij het inschrijven, met een regeltje eronder dat
+zegt hoeveel duiven om die reden wegvallen.
+
+> **Waarom.** Dit maakt het plannen van je week de eigenlijke keuze. Zonder deze regel
+> kon een topduif op een drukke dag twee keer starten en dubbel scoren; nu moet je per
+> dag beslissen wélke vlucht ze rijdt, en de rest van je hok vult de andere op. Boven
+> op deze regel blijft de vormaftrek voor "gisteren gevlogen" (§3.6) gewoon gelden —
+> twee dagen op rij vliegen mág, maar kost vorm.
 
 ---
 
@@ -1785,6 +1822,10 @@ op peil, dus je blijft echte tegenstand houden.
 vlucht opnieuw zolang ze nog niet vertrokken is. Zie je vandaag pas drie
 inschrijvingen voor de vlucht van overmorgen, dan zegt dat dus niets — er komen
 er nog bij naarmate hun duiven uitrusten.
+
+**Eén vlucht per duif per dag geldt ook voor hen** (§3.9). Een bot die zijn duif 's
+ochtends op het criterium zet, heeft haar 's middags niet meer beschikbaar — dus ook
+bij hen roteert het hok over de dagen heen, net als bij jou.
 
 **Ze kiezen hun duiven met verstand.** Een bot zet een duif enkel in als ze de
 route ook echt aankan (genoeg energie voor de afstand) en niet als haar

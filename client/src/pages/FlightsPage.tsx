@@ -53,16 +53,24 @@ export function FlightsPage() {
   // left open in the background polls not at all.
   useVisiblePoll(() => load(), 90000);
 
-  // Birds already entered in a flight that has not started yet. Live flights are
-  // NOT included here: a bird that has already crossed the line is free again, and
-  // the server's `pigeon.racing` flag (used below) is what tracks that per bird.
-  const committed = useMemo(() => {
-    const set = new Set<string>();
-    for (const f of scheduled) {
-      for (const e of f.entries) if (e.ownerId === user?.id) set.add(e.pigeonId);
+  // One race per bird per day (the hard rule, see enterFlight). A bird's day is
+  // spent the moment it is on ANY flight of that day — scheduled, live, or long
+  // since flown — so we map each of our birds to the days it is already booked
+  // on. Flights that were called off don't count: nobody flew those.
+  const daysTaken = useMemo(() => {
+    const map = new Map<string, Set<string>>(); // pigeonId → days (YYYY-MM-DD)
+    for (const f of [...scheduled, ...live, ...completed]) {
+      if (f.cancelled) continue;
+      const day = f.startAt.slice(0, 10);
+      for (const e of f.entries) {
+        if (e.ownerId !== user?.id) continue;
+        let days = map.get(e.pigeonId);
+        if (!days) map.set(e.pigeonId, (days = new Set<string>()));
+        days.add(day);
+      }
     }
-    return set;
-  }, [scheduled, user]);
+    return map;
+  }, [scheduled, live, completed, user]);
 
   // Flights the player already has an open bet on (max one bet per flight).
   const betFlights = useMemo(() => {
@@ -135,9 +143,17 @@ export function FlightsPage() {
 
           {scheduled.map((f, idx) => {
             const myEntries = f.entries.filter((e) => e.ownerId === user?.id);
+            const day = f.startAt.slice(0, 10);
+            // Birds the day rule alone keeps out of the picker — worth one line,
+            // otherwise a bird just silently disappears from the list. Birds on
+            // THIS flight are not "blocked": they are exactly where you put them.
+            const onThisFlight = new Set(myEntries.map((e) => e.pigeonId));
+            const dayBlocked = state.pigeons.filter(
+              (p) => p.canRace && !p.breeding && !onThisFlight.has(p.id) && daysTaken.get(p.id)?.has(day),
+            ).length;
             const available = state.pigeons.filter(
               (p) =>
-                p.canRace && !p.racing && !committed.has(p.id) && !p.breeding && (p.form ?? 0) >= 1 &&
+                p.canRace && !p.racing && !daysTaken.get(p.id)?.has(day) && !p.breeding && (p.form ?? 0) >= 1 &&
                 // A leeftijdscriterium takes one age bracket only. The server refuses
                 // the rest anyway; hiding them here keeps the picker honest instead of
                 // offering a bird that is guaranteed to bounce.
@@ -246,6 +262,14 @@ export function FlightsPage() {
                       : `${f.entryCount} ingeschreven`}
                   </span>
                 </div>
+
+                {dayBlocked > 0 && (
+                  <p className="faint" style={{ marginTop: 8, marginBottom: 0 }}>
+                    🗓️ {dayBlocked === 1 ? 'Eén duif staat' : `${dayBlocked} duiven staan`} die dag al op een
+                    andere vlucht — een duif vliegt <strong>maar één vlucht per dag</strong>.{' '}
+                    <Link to="/wiki#een-per-dag">Meer info →</Link>
+                  </p>
+                )}
 
                 {/* One line with the rules that change what you DO here; the full
                     format (prizes, ranking rules, tactics) lives in the wiki. */}

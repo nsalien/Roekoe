@@ -19,6 +19,7 @@ const SECTIONS = [
   { id: 'vlucht', icon: '🏁', label: 'Energie per vlucht' },
   { id: 'eigenschappen', icon: '📋', label: 'Wat doet elke eigenschap?' },
   { id: 'verdwalen', icon: '🧭', label: 'Verdwalen' },
+  { id: 'een-per-dag', icon: '🗓️', label: 'Eén vlucht per dag' },
   { id: 'vorm', icon: '🎯', label: 'Vluchtvorm & blessures' },
   { id: 'lage-energie', icon: '🪫', label: 'Lage energie' },
   { id: 'sponsors', icon: '🤝', label: 'Sponsors' },
@@ -615,6 +616,48 @@ export function WikiPage() {
           vluchten bij goed weer</strong> en bouw haar oriëntatie op met oefenvluchten en de
           coach. Voor de grote fond — zeker met slecht weer op komst — stuur je je beste
           navigators.
+        </p>
+      </Section>
+
+      <Section id="een-per-dag" icon="🗓️" title="Eén vlucht per duif per dag">
+        <p className="muted" style={{ marginTop: 0 }}>
+          Een duif vliegt <strong>hoogstens één vlucht per kalenderdag</strong>. Of die andere
+          race nog moet beginnen, bezig is of allang uitgevlogen: staat ze die dag op een
+          vlucht, dan is haar dag op.
+        </p>
+        <ul>
+          <li>
+            <strong>Alle vluchtsoorten tellen mee</strong> — een oefenvlucht, een
+            leeftijdscriterium, de titanenwedstrijd en de estafettevlucht evengoed als een
+            gewone wedstrijd.
+          </li>
+          <li>
+            <strong>Twee vluchten op één dag pak je met twee duiven.</strong> Op de meeste
+            dagen staan er twee races op de kalender; je kiest per duif welke van de twee.
+          </li>
+          <li>
+            <strong>Uitschrijven geeft de dag terug.</strong> Haal je haar vóór de start van
+            de vlucht (inschrijfgeld terug), dan is die dag weer vrij. Een race die ze
+            <em> effectief gevlogen</em> heeft geef je niet meer terug — ook niet als ze
+            uitviel of als je haar liet opgeven.
+          </li>
+          <li>
+            <strong>Een afgelaste vlucht telt niet mee.</strong> Ging de race niet door bij
+            gebrek aan melkers, dan mag je duif diezelfde dag gewoon nog een andere vliegen.
+          </li>
+          <li>
+            <strong>De computermelkers volgen dezelfde regel</strong> — ook zij zetten geen
+            duif twee keer op één dag in.
+          </li>
+        </ul>
+        <p>
+          Bij het inschrijven merk je het meteen: een duif die die dag al ergens staat,
+          verschijnt <strong>niet</strong> in de keuzelijst, met eronder een regeltje dat
+          zegt hoeveel duiven om die reden wegvallen.
+        </p>
+        <p className="muted" style={{ fontSize: '0.85rem' }}>
+          Los daarvan blijft de vormaftrek voor <em>gisteren gevlogen</em> gewoon gelden (zie
+          hieronder): twee dagen op rij vliegen mág, maar kost vorm.
         </p>
       </Section>
 
