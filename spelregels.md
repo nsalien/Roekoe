@@ -166,6 +166,15 @@ duur     = max(300, afgerond(seconden))
 ```
 Een vlucht duurt dus echt zo lang als de duiven erover doen (minimum 5 min).
 
+**Kop en staart van de wedstrijd.** Bovenaan het live-bord staan twee balken: de
+**kop** volgt de duif op de **eerste plaats** (die springt op 100% zodra de leider
+thuis is) en de **staart** volgt de **laatste duif die nog in de wedstrijd zit**.
+Duiven die **niet meer meedoen** — opgegeven of onderweg uitgevallen (§3.2, §3.4)
+— tellen níet als staart: die zijn uit de race, niet achteraan. Zolang de twee
+balken uit elkaar liggen, is het veld nog uitgesmeerd; staan ze allebei op 100%,
+dan is iedereen die het haalt ook effectief thuis. Bij een **estafettevlucht**
+(§2.9) gaan de balken over **ploegen** in plaats van losse duiven.
+
 **Live-bord.** Tijdens de vlucht zie je per duif de afgelegde afstand en haar
 **snelheid in km/u**. Dat is de **echte, effectieve snelheid** — berekend uit haar
 eigenschappen, vorm-van-de-dag en het weer op het stuk dat ze op dat moment vliegt,

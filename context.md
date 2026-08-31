@@ -760,7 +760,11 @@ Entiteiten: `Pigeon`, `Loft`, `User`, `BreedingPair`, `PendingBrood`, `Flight` (
 - `FlightsPage` — kalender/uitslagen; inschrijven; weddenschap-paneel (max. 1/vlucht,
   o.a. type **top3**). **Oefenvluchten** krijgen een eigen badge, tonen "gratis" i.p.v.
   inschrijfgeld en hebben geen weddenschap-paneel.
-- `LiveFlightPage` — live bord; knop **🏳️ Opgeven** (spaart resterende energie).
+- `LiveFlightPage` — live bord met **twee voortgangsbalken**: **Kop van de wedstrijd**
+  (`live.headProgress`, de nr. 1) en **Staart van de wedstrijd** (`live.tailProgress`, de
+  laatste duif/ploeg die nog in de race zit, DNF's niet meegeteld). Beide volgen **echte
+  posities**, niet de klok — `overallProgress` (= `elapsed/total`) blijft in de DTO staan
+  voor oude open tabs maar wordt niet meer getoond. Knop **🏳️ Opgeven** (spaart resterende energie).
   Het **📻 Live verslag** meldt nu échte gebeurtenissen (voorbijsteken + reden), zie §2.
   **Enkel voor admins** staat er bij een live vlucht ook **⏩ Match beëindigen**
   (met bevestiging) → `POST /admin/flights/:id/finish`; zie §8.
@@ -915,7 +919,43 @@ eerst) en `npx tsx limits-report.mts` (queries/rijen per verzoek).
 Alles hieronder staat **live** op de deploy-branch. Data-migraties liepen door tot
 **`dataVersion = 38`**.
 
-**Ervaring is uit de snelheidsformule (nieuwste)**
+**Live-bord: kop én staart van de wedstrijd i.p.v. de raceklok (nieuwste)**
+- **Symptoom (eigenaar):** de balk **"Kop van de wedstrijd"** stond op **48 %** terwijl de
+  vlucht voor veel duiven al afgelopen was.
+- **Oorzaak:** het was helemaal geen kop, maar de **raceklok**: `overallProgress =
+  elapsed / flightTotalSeconds`, en `flightTotalSeconds` is sinds het schrappen van de
+  finish-timer **de traagste duif die effectief finisht** (§Finish-timer). Op een veld
+  waar de winnaar na 1 u thuis is en de staart pas na 10 u, staat die balk dus nog op 48 %
+  terwijl de kop al lang binnen is. Hoe langer de staart, hoe misleidender het cijfer.
+- **Nu twee balken**, allebei uit **echte posities**: **`headProgress`** = de voortgang van
+  de **nr. 1** (100 % zodra de leider thuis is) en **`tailProgress`** = die van de **laatste
+  duif die nog in de race zit**. **DNF's tellen niet als staart** — een opgegeven of
+  onderweg uitgevallen duif is uit de wedstrijd, niet achteraan.
+- **Implementatie: gratis, want de rangschikking bestond al.** `liveSnapshot` sorteert de
+  rijen al leider-eerst met de DNF's achteraan, dus de nieuwe helper **`headAndTail`**
+  (flight.ts) neemt gewoon de **eerste** en de **laatste niet-uitgevallen** rij. O(n) over
+  een lijst die er toch al is — geen extra query, geen extra CPU van betekenis (belangrijk
+  op het heetste endpoint van het spel, zie §Performance). Voor een **estafette** draait
+  dezelfde helper op de **ploegen**, want daar is de ploeg de deelnemer.
+- **`overallProgress` blijft in de DTO** (een oude open tab leest het nog) maar wordt niet
+  meer getoond.
+- ⚠️ **Meegenomen bug in `raceProgress`, en die zat er al:** de **legacy-tak** (een vlucht
+  zonder `segMult`) gaf **altijd `stopped: false`** en berekende `finished` als
+  `!s.gaveUp && elapsed >= durationSeconds` — dus een duif met `dnfAtSeconds` gold daar als
+  **nog vliegend** en daarna zelfs als **gefinisht**, terwijl `finalizeFlight` haar wél als
+  DNF telt. Dat brak precies de nieuwe staart (een uitgevallen duif werd de staart) en
+  botste met de invariant *live-einde == einduitslag*. `stopped`/`finished` worden nu **één
+  keer** berekend, vóór de vertakking, dus beide takken lezen een DNF identiek.
+- **Geen migratie, geen schemawijziging, geen configknop**, `dataVersion` blijft **39**.
+- **Geverifieerd** met een wegwerp-tsx-script tegen de echte `liveSnapshot` (22 controles):
+  het gemelde geval (klok 48 %, kop 100 %, staart bij de trage duif), kop > staart zolang
+  er gevlogen wordt, kop == de nr. 1 en staart == de laatst gerangschikte duif, een
+  opgegeven én een uitgevallen duif worden allebei genegeerd voor de staart, alles op
+  100 % als iedereen binnen is, terugval op de klok als er **niemand** meer in de race zit,
+  kop en staart lopen monotoon vooruit en de kop zakt nooit achter de staart, en bij één
+  duif zijn kop en staart gelijk. Alle 14 vaste regressietests + beide typechecks + build groen.
+
+**Ervaring is uit de snelheidsformule**
 - **Aanleiding (eigenaar):** "ervaring hoort geen invloed te hebben op snelheid, daar is
   de eigenschap snelheid voor." Terecht — en het was dezelfde fout als bij oriëntatie.
 - **Gemeten vóór de ingreep.** `experienceFactor = 1 + ervaring/300` gaf tot **+33 %**.
