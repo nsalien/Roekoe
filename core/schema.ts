@@ -462,6 +462,13 @@ export interface FlightResult {
   points: number;
   prize: number;
   finished: boolean; // false = did not make it home (exhausted)
+  /**
+   * Did this bird earn anything? Only a loft's REWARD_BIRDS_PER_LOFT best
+   * finishers are paid and scored; a fourth bird flies, takes its place in the
+   * result and still improves, but gets no money and no points. Absent on
+   * flights finalized before this shipped — read it as `rewarded !== false`.
+   */
+  rewarded?: boolean;
 }
 
 export interface FlightEntry {

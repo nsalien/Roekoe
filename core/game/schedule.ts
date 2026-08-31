@@ -35,6 +35,8 @@ import {
   HEALTH,
   INFIRMARY,
   LOST,
+  PRIZE_MONEY,
+  REWARD_BIRDS_PER_LOFT,
   REST_CURE,
   IMPROVE_ATTR_LABEL,
   RACE_CITIES,
@@ -936,9 +938,15 @@ export function tickFlights(
             const p = db.pigeons.find((x) => x.id === r.pigeonId);
             if (!p) continue;
             const st = cupStanding(p, flight.ageCat);
-            st.points += RANKING_POINTS[r.rank - 1] ?? 0;
+            // The three-bird limit covers POINTS too, not just money: a loft's
+            // fourth bird scores nothing here either. Her start and her measured
+            // speed are still recorded — those are facts about the flight, not a
+            // reward — so her history stays honest.
+            if (r.rewarded !== false) {
+              st.points += RANKING_POINTS[r.rank - 1] ?? 0;
+              if (r.rank === 1) st.wins += 1;
+            }
             st.races += 1;
-            if (r.rank === 1) st.wins += 1;
             if (r.velocity > st.best) st.best = r.velocity;
           }
         }
@@ -1970,6 +1978,14 @@ function runDataMigrations(db: Database): void {
     for (const n of db.notifications) if (n.id.startsWith('ntf:news:agecup:')) n.read = false;
     db.world.dataVersion = 42;
   }
+
+  if ((db.world.dataVersion ?? 0) < 43) {
+    // The prize tables now run to the last finisher, and only a loft's three
+    // best-placed birds are paid and scored. Both change what a flight is worth,
+    // so nobody may find out by noticing their money moved differently.
+    announcePrizeRules(db, 'ntf:news:prizerules');
+    db.world.dataVersion = 43;
+  }
 }
 
 /**
@@ -1984,6 +2000,30 @@ function runDataMigrations(db: Database): void {
  * is a matter of passing a new prefix instead of rewriting a row someone may have
  * already read.
  */
+/** Tell every real player about the new prize tables + the three-bird rule. */
+function announcePrizeRules(db: Database, idPrefix: string): void {
+  const R = PRIZE_MONEY.regional, N = PRIZE_MONEY.national, I = PRIZE_MONEY.international;
+  for (const loft of db.lofts) {
+    if (loft.isBot) continue;
+    pushNotification(
+      db, loft.userId, 'info',
+      '💶 Nieuw: élke duif die thuis raakt verdient geld',
+      `De prijzentabellen lopen voortaan door tot de laatste duif. Waar een vlucht na de 8e of 10e plaats ` +
+        `niets meer opleverde, krijgt nu iedereen die finisht een bedrag — ook achteraan.` +
+        `\n\nBodem per vlucht: regionaal €${R.rest}, nationaal €${N.rest}, internationaal €${I.rest}, ` +
+        `criterium €${AGE_CUP.sprint.prizes.rest} (sprint) of €${AGE_CUP.fond.prizes.rest} (fond). ` +
+        `De koppen blijven wat ze waren: een regionale zege €${R.places[0]}, een internationale €${I.places[0]}.` +
+        `\n\n⚠️ Nieuw daarbij: per vlucht verdienen nog maar je ${REWARD_BIRDS_PER_LOFT} best geplaatste duiven — ` +
+        `geld én seizoenspunten. Schrijf je er meer in, dan vliegen die gewoon mee, staan ze in de uitslag en ` +
+        `gaan ze er nog steeds op vooruit, maar leveren ze niets meer op. In de uitslag zie je bij zo'n duif ` +
+        `"buiten de 3" staan.` +
+        `\n\nDe volledige tabellen staan in de wiki onder "Prijzengeld".`,
+      null,
+      `${idPrefix}:${loft.userId}`,
+    );
+  }
+}
+
 function announceAgeCup(db: Database, idPrefix: string): void {
   const at = `${String(AGE_CUP.hour).padStart(2, '0')}:${String(AGE_CUP.minute).padStart(2, '0')}`;
   for (const loft of db.lofts) {

@@ -346,7 +346,7 @@ export function flightDTO(db: Database, f: Flight) {
     ageCatShort: f.ageCat ? ageCategoryDef(f.ageCat).short : undefined,
     ageCatIcon: f.ageCat ? ageCategoryDef(f.ageCat).icon : undefined,
     cupSprint: f.ageCat ? !!f.cupSprint : undefined,
-    cupPrizes: f.ageCat ? [...(f.cupSprint ? AGE_CUP.sprint.prizes : AGE_CUP.fond.prizes)] : undefined,
+    cupPrizes: f.ageCat ? (f.cupSprint ? AGE_CUP.sprint.prizes : AGE_CUP.fond.prizes) : undefined,
     // Estafettevlucht: the three equal legs, their handover points and the
     // forecast per leg (which is what makes the running order a real choice).
     legs: f.relay ? f.legs ?? [] : undefined,

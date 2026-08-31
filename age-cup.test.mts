@@ -28,7 +28,7 @@ import { seedWorld, createLoftForUser, enterFlight } from './core/game/engine.js
 import { advanceRealtime } from './core/game/schedule.js';
 import { runSeasonEnd, ageCupRankings } from './core/game/season.js';
 import { finalizeFlight } from './core/game/flight.js';
-import { AGE_CATEGORIES, AGE_CUP, SEASON, ageCategoryFor } from './core/config/gameConfig.js';
+import { AGE_CATEGORIES, AGE_CUP, SEASON, ageCategoryFor, prizeForRank } from './core/config/gameConfig.js';
 import { ageInWeeks, generatePigeon } from './core/game/pigeon.js';
 import { newId } from './core/store.js';
 import type { Database, Pigeon, User } from './core/schema.js';
@@ -305,11 +305,15 @@ console.log('\n5+6. Geld ja, seizoenspunten nee — en de punten gaan naar de du
   const winner = flight.results.find((r) => r.rank === 1)!;
   ok(flight.status === 'completed', 'de vlucht is afgerond');
   ok(winner.pigeonId === winnerId, 'de snelste duif staat eerste');
-  ok(winner.prize === table[0], `de winnaar krijgt €${table[0]} (${flight.cupSprint ? 'sprint' : 'fond'})`);
+  // De prijzentabel is geen platte array meer maar {places, bands, rest}: na de
+  // kopplaatsen volgen vlakke banden en een bodem, zodat élke finisher iets wint.
+  const first = prizeForRank(table, 1);
+  ok(winner.prize === first, `de winnaar krijgt €${first} (${flight.cupSprint ? 'sprint' : 'fond'})`);
   ok(flight.results.every((r) => r.points === 0), 'geen enkel resultaat draagt seizoenspunten voor de melkerranglijst');
   let descending = true;
-  for (let i = 1; i < table.length; i++) if (table[i] >= table[i - 1]) descending = false;
-  ok(descending, `de prijzentabel loopt strikt af (${table.join(' / ')})`);
+  for (let r = 2; r <= 40; r++) if (prizeForRank(table, r) > prizeForRank(table, r - 1)) descending = false;
+  ok(descending, 'de prijzentabel loopt monotoon af tot plaats 40');
+  ok(prizeForRank(table, 40) > 0, `ook plaats 40 levert nog geld op (€${prizeForRank(table, 40)})`);
 
   ok(winnerLoft.money > moneyBefore, `het prijzengeld is uitbetaald (kassa ${Math.round(moneyBefore)} → ${Math.round(winnerLoft.money)})`);
   ok(winnerLoft.seasonPoints === pointsBefore, 'het hok kreeg geen enkel seizoenspunt');

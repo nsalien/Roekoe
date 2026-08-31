@@ -237,13 +237,53 @@ Rugwind versnelt, tegenwind + regen vertragen. Zonder netwerk: willekeurig weer.
 ### 2.6 Uitslag: prijzengeld & punten
 Gerangschikt op finishtijd (snelste eerst).
 
-**Prijzengeld** (index 0 = winnaar):
-- Regionaal: 800, 600, 350, 220, 140, 90, 55, 30
-- Nationaal: 1200, 800, 500, 320, 210, 140, 95, 60, 40, 25
-- Internationaal: 2200, 1800, 1000, 650, 420, 270, 170, 100
+**Prijzengeld — élke duif die thuis raakt verdient iets.** De tabel loopt door
+tot de laatste finisher: na de kopplaatsen volgen vlakke banden en daaronder een
+bodem die iedereen krijgt. Wie **niet** finisht (opgegeven, uitgevallen of de weg
+kwijt) krijgt niets.
+
+| Plaats | Regionaal | Nationaal | Internationaal |
+|---|---|---|---|
+| 1 | €800 | €1.200 | €2.200 |
+| 2 | €600 | €800 | €1.800 |
+| 3 | €350 | €500 | €1.000 |
+| 4 | €220 | €320 | €650 |
+| 5 | €140 | €210 | €420 |
+| 6 | €110 | €180 | €270 |
+| 7 | €100 | €150 | €240 |
+| 8 | €90 | €140 | €200 |
+| 9 | €70 | €120 | €140 |
+| 10 | €70 | €100 | €140 |
+| 11 | €70 | €80 | €140 |
+| 12–13 | €60 | €80 | €100 |
+| 14–15 | €60 | €70 | €100 |
+| 16–17 | €40 | €70 | €75 |
+| 18 en verder | €40 | €50 | €75 |
+
+Het **leeftijdscriterium** (§2.10) heeft eigen tabellen met dezelfde vorm: sprint
+1.000/700/500/300/250/220/180/120, dan €100 (plaats 9–11), €80 (12–15) en €60
+vanaf 16; fond 1.600/1.400/1.200/850/600/400/350/300, dan €175, €125 en €90.
 
 **Punten** (top 20): 100, 80, 65, 55, 47, 40, 34, 29, 25, 21, 18, 15, 13, 11, 9, 7, 5, 3, 2, 1.
 Seizoenspunten tellen op over **alle** vluchten en **alle** duiven van een hok.
+
+### Hoogstens 3 duiven per hok verdienen per vlucht
+
+Per vlucht worden enkel je **3 best geplaatste duiven** beloond — **geld én
+seizoenspunten**. Je mag er gerust meer inschrijven: die vliegen gewoon mee, staan
+in de uitslag, bouwen conditie en ervaring op en tellen mee voor de
+duivenranglijsten — maar ze leveren geen geld en geen punten op. In de uitslag
+staat er bij zo’n duif **“buiten de 3”**.
+
+- **Een duif die niet finisht kost je geen plaats.** De limiet telt enkel duiven
+  die thuis raken, dus wie onderweg twee duiven verliest heeft nog altijd drie die
+  kunnen scoren.
+- **Het geld vervalt, het schuift niet door.** Wordt je vierde duif zesde, dan
+  blijft ze zesde in de uitslag en wordt het prijzengeld van plaats 6 gewoon niet
+  uitbetaald — de duif die zevende werd krijgt nog steeds het bedrag van plaats 7.
+- **Waarom.** Zonder deze regel is een diepe prijzentabel een machine voor het
+  grootste hok: acht duiven inschrijven, acht keer incasseren. Nu bepaalt de
+  kwaliteit van je beste drie wat een vlucht opbrengt, niet de omvang van je hok.
 
 **Prijzengeld krijg je meteen — zodra je duif finisht.** Je hoeft niet te wachten
 tot de hele vlucht is afgelopen (en de traagste duif eindelijk thuis is). **Op het

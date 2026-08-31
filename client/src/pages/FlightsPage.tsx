@@ -292,7 +292,7 @@ export function FlightsPage() {
                 )}
                 {f.ageCat && (
                   <p className="faint" style={{ marginTop: 10, marginBottom: 0 }}>
-                    {f.ageCatIcon} Enkel duiven <strong>{f.ageCatLabel?.toLowerCase()}</strong>. Tot €{f.cupPrizes?.[0]},
+                    {f.ageCatIcon} Enkel duiven <strong>{f.ageCatLabel?.toLowerCase()}</strong>. Tot €{f.cupPrizes?.places[0]},
                     geen seizoenspunten. <Link to="/wiki#criterium">Meer over het criterium →</Link>
                   </p>
                 )}
@@ -712,7 +712,7 @@ function FlightResultCard({ flight, meId }: { flight: Flight; meId?: string }) {
                     <tr key={r.pigeonId} className={r.ownerId === meId ? 'me' : r.finished && r.rank === 1 ? 'podium-1' : ''}>
                       <td>{r.finished ? r.rank : '—'}</td><td>{r.pigeonName}</td><td>{r.ownerName}</td>
                       <td className="num">{r.finished ? r.velocity : '—'}</td><td className="num">{r.finished ? formatDuration(r.timeSeconds) : '❌ DNF'}</td>
-                      <td className="num">{r.prize > 0 ? <Money value={r.prize} /> : '—'}</td><td className="num">{r.points}</td>
+                      <td className="num">{r.prize > 0 ? <Money value={r.prize} /> : r.finished && r.rewarded === false ? <span className="faint" title="Buiten de 3 beloonde duiven van dit hok">buiten de 3</span> : '—'}</td><td className="num">{r.points}</td>
                     </tr>
                   ))}
                 </tbody>

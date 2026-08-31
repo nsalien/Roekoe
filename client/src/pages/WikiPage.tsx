@@ -20,6 +20,7 @@ const SECTIONS = [
   { id: 'eigenschappen', icon: '📋', label: 'Wat doet elke eigenschap?' },
   { id: 'verdwalen', icon: '🧭', label: 'Verdwalen' },
   { id: 'een-per-dag', icon: '🗓️', label: 'Eén vlucht per dag' },
+  { id: 'prijzengeld', icon: '💶', label: 'Prijzengeld' },
   { id: 'vorm', icon: '🎯', label: 'Vluchtvorm & blessures' },
   { id: 'lage-energie', icon: '🪫', label: 'Lage energie' },
   { id: 'sponsors', icon: '🤝', label: 'Sponsors' },
@@ -692,6 +693,50 @@ export function WikiPage() {
         <p className="muted" style={{ fontSize: '0.85rem' }}>
           Los daarvan blijft de vormaftrek voor <em>gisteren gevlogen</em> gewoon gelden (zie
           hieronder): twee dagen op rij vliegen mág, maar kost vorm.
+        </p>
+      </Section>
+
+      <Section id="prijzengeld" icon="💶" title="Prijzengeld: wat een vlucht opbrengt">
+        <p className="muted" style={{ marginTop: 0 }}>
+          <strong>Elke duif die thuis raakt, verdient geld.</strong> De tabellen lopen door tot de laatste
+          finisher: na de kopplaatsen volgen vlakke banden en daaronder een bodem die iedereen krijgt. Wie
+          niet finisht — opgegeven, uitgevallen of de weg kwijt — krijgt niets.
+        </p>
+        <p className="notice" style={{ marginTop: 10 }}>
+          ⚠️ <strong>Hoogstens 3 duiven per hok per vlucht.</strong> Enkel je <strong>3 best geplaatste</strong>{' '}
+          duiven verdienen geld <em>én</em> seizoenspunten. Schrijf je er meer in, dan vliegen die gewoon mee,
+          staan ze in de uitslag en gaan ze er nog steeds op vooruit — maar ze leveren niets op. In de uitslag
+          staat er dan “buiten de 3” bij. Het prijzengeld van zo'n plaats <strong>vervalt</strong>: het schuift
+          niet door naar de volgende duif.
+        </p>
+        <h3 style={{ marginBottom: 4 }}>Regionaal — 100–200 km · inschrijfgeld €10</h3>
+        <MiniTable
+          head={['Plaats', 'Prijzengeld']}
+          rows={[['1', '€800'], ['2', '€600'], ['3', '€350'], ['4', '€220'], ['5', '€140'], ['6', '€110'], ['7', '€100'], ['8', '€90'], ['9 – 11', '€70'], ['12 – 15', '€60'], ['16 en verder', '€40']]}
+        />
+        <h3 style={{ marginBottom: 4, marginTop: 14 }}>Nationaal — 200–500 km · inschrijfgeld €20</h3>
+        <MiniTable
+          head={['Plaats', 'Prijzengeld']}
+          rows={[['1', '€1.200'], ['2', '€800'], ['3', '€500'], ['4', '€320'], ['5', '€210'], ['6', '€180'], ['7', '€150'], ['8', '€140'], ['9', '€120'], ['10', '€100'], ['11 – 13', '€80'], ['14 – 17', '€70'], ['18 en verder', '€50']]}
+        />
+        <h3 style={{ marginBottom: 4, marginTop: 14 }}>Internationaal — 400–1200 km · inschrijfgeld €40</h3>
+        <MiniTable
+          head={['Plaats', 'Prijzengeld']}
+          rows={[['1', '€2.200'], ['2', '€1.800'], ['3', '€1.000'], ['4', '€650'], ['5', '€420'], ['6', '€270'], ['7', '€240'], ['8', '€200'], ['9 – 11', '€140'], ['12 – 15', '€100'], ['16 en verder', '€75']]}
+        />
+        <h3 style={{ marginBottom: 4, marginTop: 14 }}>Leeftijdscriterium — sprint · 100–300 km · €20</h3>
+        <MiniTable
+          head={['Plaats', 'Prijzengeld']}
+          rows={[['1', '€1.000'], ['2', '€700'], ['3', '€500'], ['4', '€300'], ['5', '€250'], ['6', '€220'], ['7', '€180'], ['8', '€120'], ['9 – 11', '€100'], ['12 – 15', '€80'], ['16 en verder', '€60']]}
+        />
+        <h3 style={{ marginBottom: 4, marginTop: 14 }}>Leeftijdscriterium — fond · 400–1000 km · €20</h3>
+        <MiniTable
+          head={['Plaats', 'Prijzengeld']}
+          rows={[['1', '€1.600'], ['2', '€1.400'], ['3', '€1.200'], ['4', '€850'], ['5', '€600'], ['6', '€400'], ['7', '€350'], ['8', '€300'], ['9 – 11', '€175'], ['12 – 15', '€125'], ['16 en verder', '€90']]}
+        />
+        <p className="faint" style={{ marginTop: 12 }}>
+          De <strong>titanenwedstrijd</strong> (§ hierboven) houdt bewust drie plaatsen zonder bodem — daar mag je
+          toch maar één duif inzetten. De <strong>estafette</strong> betaalt per ploeg, top 5.
         </p>
       </Section>
 

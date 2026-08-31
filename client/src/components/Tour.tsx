@@ -627,6 +627,45 @@ export const REST_CURE_NEWS_STEPS: Step[] = [
  * that run for three seasons. Three steps — what it is, how you enter, and why
  * the horizon is longer than a season.
  */
+export const PRIZE_NEWS_STEPS: Step[] = [
+  {
+    route: '/',
+    title: '💶 Élke duif die thuis raakt verdient geld',
+    body: (
+      <>
+        De prijzentabellen lopen voortaan door tot de <strong>laatste duif</strong>. Waar een vlucht na de 8e of
+        10e plaats niets meer opleverde, krijgt nu iedereen die finisht een bedrag.
+      </>
+    ),
+  },
+  {
+    route: '/vluchten', selector: '[data-tour="flights"]',
+    title: '🪙 Ook achteraan',
+    body: (
+      <>
+        De bodem per vlucht: regionaal <strong>€40</strong>, nationaal <strong>€50</strong>, internationaal{' '}
+        <strong>€75</strong>, criterium <strong>€60</strong> (sprint) of <strong>€90</strong> (fond). De koppen
+        blijven wat ze waren — een internationale zege is nog altijd <strong>€2.200</strong>.
+      </>
+    ),
+  },
+  {
+    route: '/vluchten', selector: '[data-tour="flights"]',
+    title: '⚠️ Maar: hoogstens 3 duiven per vlucht',
+    body: (
+      <>
+        Per vlucht verdienen enkel je <strong>3 best geplaatste duiven</strong> — geld én seizoenspunten. Schrijf je
+        er meer in, dan vliegen die gewoon mee, staan ze in de uitslag en gaan ze er nog steeds op vooruit, maar
+        leveren ze niets op. In de uitslag staat er dan <strong>"buiten de 3"</strong> bij.
+        <br />
+        <span className="faint" style={{ display: 'inline-block', marginTop: 4 }}>
+          Alle tabellen: 📖 Wiki → Prijzengeld.
+        </span>
+      </>
+    ),
+  },
+];
+
 export const AGE_CUP_NEWS_STEPS: Step[] = [
   {
     route: '/',
@@ -640,7 +679,7 @@ export const AGE_CUP_NEWS_STEPS: Step[] = [
       <>
         Elke week vier extra vluchten om <strong>06:00</strong> — ma <strong>&lt; 1 j</strong>, wo{' '}
         <strong>1–2 j</strong>, do <strong>2–3 j</strong>, vr <strong>3 j +</strong> — met enkel duiven van die
-        leeftijd. Inschrijven kost <strong>€20</strong>, zoveel duiven als je wil.
+        leeftijd. Inschrijven kost <strong>€20</strong> per duif.
       </>
     ),
   },

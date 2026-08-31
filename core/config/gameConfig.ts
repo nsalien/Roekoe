@@ -464,11 +464,73 @@ export const FLIGHT_TEMPLATES: FlightTemplate[] = [
  */
 export type FlightTier = 'regional' | 'national' | 'international';
 
-export const PRIZE_MONEY: Record<FlightTier, number[]> = {
-  regional: [800, 600, 350, 220, 140, 90, 55, 30],
-  national: [1200, 800, 500, 320, 210, 140, 95, 60, 40, 25],
-  international: [2200, 1800, 1000, 650, 420, 270, 170, 100],
+/**
+ * A prize table: exact amounts for the first places, then flat bands, then a
+ * floor that every remaining finisher gets.
+ *
+ * The bands are what make EVERY bird worth entering. The old tables stopped dead
+ * after 8 or 10 places, so in a field of 20 the back half flew for nothing and a
+ * weaker loft simply lost its entry fee week after week (measured: the bottom
+ * four lofts of a simulated club were net NEGATIVE on prize money). Now a bird
+ * that gets home always brings something back.
+ *
+ * `bands` are read in order and are EXCLUSIVE on `below`: `{below: 12}` pays
+ * ranks up to and including 11. `rest` covers everything from the last band on.
+ */
+export interface PrizeTable {
+  /** Exact amount for places 1..N. */
+  places: number[];
+  /** Flat bands beyond that: a rank strictly BELOW `below` pays `amount`. */
+  bands: { below: number; amount: number }[];
+  /** Every rank at or past the last band. */
+  rest: number;
+}
+
+/** What a bird wins at `rank` (1-based). Ranks beyond the table fall to `rest`. */
+export function prizeForRank(table: PrizeTable, rank: number): number {
+  if (rank < 1) return 0;
+  if (rank <= table.places.length) return table.places[rank - 1];
+  for (const b of table.bands) if (rank < b.below) return b.amount;
+  return table.rest;
+}
+
+/** Total purse of a table for a field of `finishers` birds — for the wiki/UI. */
+export function prizePurse(table: PrizeTable, finishers: number): number {
+  let sum = 0;
+  for (let r = 1; r <= finishers; r++) sum += prizeForRank(table, r);
+  return sum;
+}
+
+export const PRIZE_MONEY: Record<FlightTier, PrizeTable> = {
+  regional: {
+    places: [800, 600, 350, 220, 140, 110, 100, 90],
+    bands: [{ below: 12, amount: 70 }, { below: 16, amount: 60 }],
+    rest: 40,
+  },
+  national: {
+    places: [1200, 800, 500, 320, 210, 180, 150, 140, 120, 100],
+    bands: [{ below: 14, amount: 80 }, { below: 18, amount: 70 }],
+    rest: 50,
+  },
+  international: {
+    places: [2200, 1800, 1000, 650, 420, 270, 240, 200],
+    bands: [{ below: 12, amount: 140 }, { below: 16, amount: 100 }],
+    rest: 75,
+  },
 };
+
+/**
+ * How many birds of ONE loft can be rewarded in a single flight — money AND
+ * seizoenspunten. Enter more if you like: they fly, they take their place in the
+ * result and they still build conditie and ervaring, but only the THREE
+ * best-placed birds of a loft are paid and scored.
+ *
+ * Without this, a deep table plus an unlimited entry list is a machine for the
+ * biggest loft: enter eight birds, collect eight cheques. The prize of a bird
+ * that falls outside the three simply is not paid — it does NOT cascade to the
+ * next loft, so the result you see is the result that was flown.
+ */
+export const REWARD_BIRDS_PER_LOFT = 3;
 
 /** Ranking points awarded by finishing position (index 0 = winner). */
 export const RANKING_POINTS: number[] = [
@@ -1764,7 +1826,11 @@ export const AGE_CUP = {
     minKm: 100,
     maxKm: 300,
     tier: 'national' as FlightTier, // city pool to draw the route from
-    prizes: [1000, 800, 600, 420, 300, 200, 130, 80],
+    prizes: {
+      places: [1000, 700, 500, 300, 250, 220, 180, 120],
+      bands: [{ below: 12, amount: 100 }, { below: 16, amount: 80 }],
+      rest: 60,
+    } as PrizeTable,
   },
   fond: {
     label: 'Grote fond',
@@ -1772,7 +1838,11 @@ export const AGE_CUP = {
     minKm: 400,
     maxKm: 1000,
     tier: 'international' as FlightTier,
-    prizes: [1600, 1400, 1200, 850, 600, 400, 260, 160],
+    prizes: {
+      places: [1600, 1400, 1200, 850, 600, 400, 350, 300],
+      bands: [{ below: 12, amount: 175 }, { below: 16, amount: 125 }],
+      rest: 90,
+    } as PrizeTable,
   },
   /** Paid to the OWNER of the top-3 birds of each bracket at the cycle reset. */
   awards: [2000, 1600, 1200],
@@ -1834,7 +1904,9 @@ export const TITAN = {
   minKm: 200, // medium-to-long
   maxKm: 600,
   entryFee: 50,
-  prizes: [1800, 1200, 900], // 1e / 2e / 3e (money only)
+  // Max. één duif per hok, dus de 3-duivenlimiet raakt de titan niet. Geen banden:
+  // dit is bewust een winner-takes-most prestigevlucht.
+  prizes: { places: [1800, 1200, 900], bands: [], rest: 0 } as PrizeTable,
 } as const;
 
 /**

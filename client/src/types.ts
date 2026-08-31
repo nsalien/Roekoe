@@ -5,6 +5,14 @@
  */
 
 export type Sex = 'doffer' | 'duivin';
+
+/** Prijzentabel: vaste bedragen voor de kopplaatsen, dan vlakke banden, dan een
+ *  bodem die élke overige finisher krijgt. Spiegelt core/config/gameConfig.ts. */
+export interface PrizeTable {
+  places: number[];
+  bands: { below: number; amount: number }[];
+  rest: number;
+}
 export type BreedRarity = 'algemeen' | 'ongewoon' | 'zeldzaam' | 'legendarisch' | 'gemengd';
 
 export interface PigeonBreed {
@@ -308,6 +316,10 @@ export interface FlightResult {
   points: number;
   prize: number;
   finished: boolean;
+  /** False = deze duif viel buiten de 3 beloonde duiven van haar hok: ze vloog en
+   *  staat in de uitslag, maar kreeg geen geld en geen punten. Ontbreekt op oude
+   *  uitslagen — lees als `rewarded !== false`. */
+  rewarded?: boolean;
 }
 
 export interface Flight {
@@ -338,7 +350,7 @@ export interface Flight {
   ageCatIcon?: string;
   /** true = sprint (100–300 km), false = grote fond (400–1000 km). */
   cupSprint?: boolean;
-  cupPrizes?: number[];
+  cupPrizes?: PrizeTable;
   weather: string;
   entryCount: number;
   entries: FlightEntry[];
@@ -586,8 +598,8 @@ export interface AgeCupInfo {
   startedAt: string | null;
   entryFee: number;
   awards: number[];
-  sprintPrizes: number[];
-  fondPrizes: number[];
+  sprintPrizes: PrizeTable;
+  fondPrizes: PrizeTable;
 }
 
 export interface FeedRationInfo {

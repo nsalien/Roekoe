@@ -377,7 +377,7 @@ export function LiveFlightPage() {
                       {flight.relay && <span className="faint"> · etappe {legOf(flight, r.pigeonId) ?? '?'}</span>}
                     </td>
                     <td>{r.ownerName}</td>
-                    <td className="num">{r.prize > 0 ? <Money value={r.prize} /> : '—'}</td>
+                    <td className="num">{r.prize > 0 ? <Money value={r.prize} /> : r.finished !== false && r.rewarded === false ? <span className="faint" title="Buiten de 3 beloonde duiven van dit hok">buiten de 3</span> : '—'}</td>
                     {flight.relay
                       ? <td className="num">{r.finished === false ? '—' : Math.round(r.velocity * 0.06)}</td>
                       : <td className="num">{r.points}</td>}

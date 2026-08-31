@@ -25,6 +25,9 @@ import {
   MIN_FLIGHT_SECONDS,
   PRACTICE,
   PRIZE_MONEY,
+  REWARD_BIRDS_PER_LOFT,
+  prizeForRank,
+  type PrizeTable,
   RANKING_POINTS,
   type Severity,
   TITAN,
@@ -813,10 +816,34 @@ export interface FinishPayout {
  * leeftijdscriterium, whose table depends on the week's format (a sprint pays
  * less than a grote fond).
  */
-export function flightPrizes(flight: Flight): readonly number[] {
+export function flightPrizes(flight: Flight): PrizeTable {
   if (flight.ageCat) return flight.cupSprint ? AGE_CUP.sprint.prizes : AGE_CUP.fond.prizes;
   if (flight.titan) return TITAN.prizes;
   return PRIZE_MONEY[flight.type];
+}
+
+/**
+ * Walks a finish order and says, per bird, whether its loft may still be
+ * rewarded for it — money AND seizoenspunten.
+ *
+ * Only a loft's `REWARD_BIRDS_PER_LOFT` best-placed FINISHERS count. A bird that
+ * does not get home never uses up a slot (it earns nothing anyway), so a loft
+ * that loses two birds still has three that can score. The prize of an
+ * ineligible bird is simply not paid: it does not cascade down the field, so the
+ * result on the board is the result that was flown.
+ *
+ * Callers must feed the birds in finishing order — both the early payout and the
+ * finalize do, which is what keeps the two in step.
+ */
+function rewardGate(): (ownerId: string, finished: boolean) => boolean {
+  const used = new Map<string, number>();
+  return (ownerId, finished) => {
+    if (!finished) return false;
+    const n = used.get(ownerId) ?? 0;
+    if (n >= REWARD_BIRDS_PER_LOFT) return false;
+    used.set(ownerId, n + 1);
+    return true;
+  };
 }
 
 /**
@@ -853,13 +880,17 @@ export function computeFinishPayouts(flight: Flight): FinishPayout[] {
   const prizes = flightPrizes(flight);
   const isDnf = (s: SimEntry) => s.gaveUp || s.dnfAtSeconds != null;
   const finishers = flight.sim.filter((s) => !isDnf(s)).sort((a, b) => a.durationSeconds - b.durationSeconds);
+  // The same gate as finalize, walked in the same order — otherwise a loft's
+  // fourth bird would be paid the moment it lands and finalize would never take
+  // it back (it only skips what `prizePaid` already banked).
+  const eligible = rewardGate();
   return finishers.map((s, i) => ({
     pigeonId: s.pigeonId,
     ownerId: s.ownerId,
     pigeonName: s.pigeonName,
     ownerName: s.ownerName,
     rank: i + 1,
-    prize: prizes[i] ?? 0,
+    prize: eligible(s.ownerId, true) ? prizeForRank(prizes, i + 1) : 0,
     finishSeconds: s.durationSeconds,
   }));
 }
@@ -919,16 +950,23 @@ export function finalizeFlight(flight: Flight, pigeons: Pigeon[]): SimulatedFlig
   const ordered = [...finishers, ...nonFinishers];
   const n = finishers.length;
 
+  // Only a loft's three best finishers are rewarded — money and points alike.
+  const eligible = rewardGate();
+
   ordered.forEach((s, i) => {
     const isDnf = isDnfId(s.pigeonId);
     const gaveUp = gaveUpSet.has(s.pigeonId);
     const rank = i + 1;
+    // Fourth bird of this loft and beyond: it flew, it holds its place in the
+    // result, it still builds conditie/ervaring — but it earns nothing.
+    const rewarded = eligible(s.ownerId, !isDnf);
     // De titanenwedstrijd en het leeftijdscriterium geven geen seizoenspunten voor
     // de melkerranglijst (enkel prijzengeld). Het criterium kent zijn eigen punten
     // toe aan de DUIF — dat gebeurt in tickFlights, uit `results[].rank`.
-    const points = isDnf || flight.titan || flight.ageCat ? 0 : RANKING_POINTS[i] ?? 0;
-    const prize = isDnf ? 0 : prizes[i] ?? 0;
+    const points = !rewarded || flight.titan || flight.ageCat ? 0 : RANKING_POINTS[i] ?? 0;
+    const prize = rewarded ? prizeForRank(prizes, rank) : 0;
     results.push({
+      rewarded,
       pigeonId: s.pigeonId,
       pigeonName: s.pigeonName,
       ownerId: s.ownerId,

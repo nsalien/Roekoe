@@ -387,6 +387,7 @@ Roekoe/
 ├── velocity-model.test.mts      regressietest: snelheid = snelheid, ervaring = efficiëntie
 ├── attribute-balance.test.mts   regressietest: snelheid/conditie/oriëntatie zijn even veel waard
 ├── flight-eligibility.test.mts  regressietest: wie niet kan vliegen wordt niet gelost
+├── prize-rules.test.mts        regressietest: prijzentabellen + 3-duivenlimiet
 ├── age-cup.test.mts             regressietest: leeftijdscriterium (kalender, klassen, cyclus)
 ├── pigeon-logs.test.mts         regressietest: historiekboeken staan NIET in de duivenrij
 ├── season-prizes.test.mts       regressietest: winst-reset + de ceremonie-payload
@@ -542,9 +543,19 @@ Entiteiten: `Pigeon`, `Loft`, `User`, `BreedingPair`, `PendingBrood`, `Flight` (
 - **Dagopdrachten/streak verlaagd** (missions.ts): opdrachtgeld ~gehalveerd (15–60),
   streakbonus `min(25, 5 + streak·2)` → samen ~€750/week i.p.v. ~€1750.
 - **Weddenschap max inzet €500** (`BETTING.maxStake`, was 5000).
-- **Prijzengeld (nieuwste, `PRIZE_MONEY`)** — verhoogd: regionaal `[800,600,350,220,140,90,55,30]`
-  (8 pl.), nationaal `[1200,800,500,320,210,140,95,60,40,25]` (10 pl.), internationaal
-  `[2200,1800,1000,650,420,270,170,100]` (**8 pl.**, was 12). Titan `[1800,1200,900]`.
+- **Prijzengeld (nieuwste, `PRIZE_MONEY` — nu een `PrizeTable`, geen array):** `{places,
+  bands, rest}` met `prizeForRank(table, rank)` als enige lookup. De tabel loopt door tot de
+  **laatste finisher**: kopplaatsen exact, dan vlakke banden, dan een bodem. `bands` is
+  **exclusief** op `below` (`{below:12}` = t/m plaats 11). Regionaal `[800,600,350,220,140,
+  110,100,90]` + 9–11 €70 / 12–15 €60 / **16+ €40**; nationaal `[1200,800,500,320,210,180,
+  150,140,120,100]` + 11–13 €80 / 14–17 €70 / **18+ €50**; internationaal `[2200,1800,1000,
+  650,420,270,240,200]` + 9–11 €140 / 12–15 €100 / **16+ €75**. Criterium sprint `[1000,700,
+  500,300,250,220,180,120]` + €100/€80/**€60**; fond `[1600,1400,1200,850,600,400,350,300]`
+  + €175/€125/**€90**. **Titan houdt bewust 3 plaatsen zonder bodem** (max. 1 duif per hok).
+- **`REWARD_BIRDS_PER_LOFT` (3)** — per vlucht worden enkel de **3 best geplaatste duiven van
+  een hok** beloond, **geld én seizoenspunten**. Meer inschrijven mag; die vliegen, staan in
+  de uitslag en verbeteren, maar leveren niets op (`FlightResult.rewarded = false`). Het geld
+  **vervalt**, het schuift niet door. Zie §8.
 - **Inschrijfgelden gehalveerd (nieuwste)** (`FLIGHT_TIERS.entryFee`): regionaal **€10**
   (was 20), nationaal **€20** (was 40), internationaal **€40** (was 80); **Titan €50**
   (`TITAN.entryFee`, was 100). Oefenvluchten blijven gratis.
@@ -917,6 +928,7 @@ npx tsx newcomer.test.mts          # starterspakket: punten, tijdvenster, afloop
 npx tsx velocity-model.test.mts    # ervaring raakt de snelheid van een frisse duif niet
 npx tsx attribute-balance.test.mts # de drie racevaardigheden blijven gelijkwaardig
 npx tsx flight-eligibility.test.mts # een niet-inzetbare duif wordt geschrapt + terugbetaald
+npx tsx prize-rules.test.mts       # prijzentabellen lopen door + max 3 beloonde duiven
 npx tsx age-cup.test.mts           # leeftijdscriterium: klassen, afwisseling, 3-seizoenencyclus
 npx tsx pigeon-logs.test.mts       # de logboeken blijven uit de wereldload, legacy blijft leesbaar
 npx tsx season-prizes.test.mts     # seasonWins reset, totalWins niet; ceremonie = laatste seizoen
@@ -963,9 +975,51 @@ verzoek uit per statement.
 ## 8. Belangrijkste wijzigingen deze sessie (achtergrond)
 
 Alles hieronder staat **live** op de deploy-branch. Data-migraties liepen door tot
-**`dataVersion = 42`**.
+**`dataVersion = 43`**.
 
-**Een duif die niet kan vliegen, vliegt nu ook echt niet (nieuwste)**
+**Prijzengeld tot de laatste duif + hoogstens 3 beloonde duiven per hok (nieuwste)**
+- **Vraag van de eigenaar**, met eigen prijzentabellen. Twee regels tegelijk:
+  1. **Elke finisher verdient.** De tabellen stopten na 8 of 10 plaatsen, dus in een groter
+     veld vloog de achterhoede voor niets. Gemeten in een gesimuleerde club (10 spelers +
+     8 bots, 8 weken): de zwakste hokken werden op **4–8 % van hun starts** betaald en waren
+     **netto negatief** op inschrijfgeld — de nieuwkomer stond op **−€242/week** ná dagkosten,
+     terwijl de top-2 **26 %** van de hele pot pakte. Nu hebben alle tabellen **banden + een
+     bodem**, zodat wie thuis raakt altijd geld meebrengt.
+  2. **Hoogstens 3 beloonde duiven per hok per vlucht** (`REWARD_BIRDS_PER_LOFT`), geld **én**
+     seizoenspunten. Dit is de instaplimiet die al sinds "Schaal afremmen" als openstaande
+     maatregel in dit bestand stond (*lus 1*), nu in de vorm die het veld niet uitdunt:
+     inschrijven mag onbeperkt, **belonen** niet.
+- ⚠️ **Het geld van een niet-beloonde duif VERVALT — het schuift niet door.** Expliciete keuze
+  van de eigenaar: de uitslag op het bord blijft de uitslag die gevlogen is. Wordt je vierde
+  duif zesde, dan blijft ze zesde en wordt plaats 6 gewoon niet uitbetaald; de duif op plaats
+  7 krijgt nog steeds het bedrag van plaats 7.
+- **`PRIZE_MONEY` is geen `number[]` meer maar een `PrizeTable`** (`{places, bands, rest}`) met
+  `prizeForRank()` als enige lookup — zie §5 voor alle bedragen. `bands` is **exclusief** op
+  `below`. Titan en estafette houden hun oude bedragen in tabelvorm (titan: 3 plaatsen, géén
+  bodem — daar mag je toch maar één duif inzetten).
+- **De limiet zit in één helper, `rewardGate()`** (flight.ts), die `finalizeFlight` én
+  `computeFinishPayouts` in dezelfde volgorde doorlopen. ⚠️ Dat is geen luxe: de vroege
+  uitbetaling stort geld op het moment dat een duif finisht en zet `prizePaid`; had die de limiet
+  niet gekend, dan was de vierde duif betaald en had `finalizeFlight` dat nooit meer teruggenomen
+  (die telt enkel op wat nog niet betaald is).
+- **Een DNF verbruikt geen beloonde plaats** — de gate telt enkel finishers, dus wie onderweg
+  twee duiven verliest heeft nog altijd drie die kunnen scoren.
+- **Zichtbaar in de UI:** nieuw veld **`FlightResult.rewarded`** (rijdt in de `results`-JSON, **geen
+  migratie**); `FlightsPage` en `LiveFlightPage` tonen "buiten de 3" i.p.v. een onverklaarbare €0.
+  Oude uitslagen missen het veld — lees als `rewarded !== false`.
+- **Gecommuniceerd** (op verzoek): **migratie v43** stuurt élke echte speler een belmelding
+  (`ntf:news:prizerules:<userId>`) met de bodems, de koppen en de 3-duivenregel, plus een
+  eerste-login-uitleg **`PRIZE_NEWS_STEPS`** (sleutel `roekoe.newsSeen.prizerules.<id>`).
+  Meegenomen: `AGE_CUP_NEWS_STEPS` zei nog "zoveel duiven als je wil" — dat klopt niet meer.
+  Nieuwe wiki-sectie 💶 **Prijzengeld** met alle vijf de tabellen; spelregels **§2.6** herschreven
+  met een subsectie over de 3-duivenregel. **dataVersion → 43.**
+- **Nieuwe blijvende test `prize-rules.test.mts`** (32 controles): elke plaats t/m 60 levert in
+  élke tabel geld op, de bedragen dalen monotoon, de bandgrenzen liggen waar ze horen, de titan
+  houdt géén bodem, hoogstens 3 duiven per hok krijgen geld én punten, het zijn de best
+  geplaatste, een DNF kost geen plaats, er wordt niet doorgeschoven, en **de vroege uitbetaling
+  wijst exact hetzelfde toe als de afronding**.
+
+**Een duif die niet kan vliegen, vliegt nu ook echt niet**
 - **Aanleiding (eigenaar):** "als een duif nog vliegt, kan die niet ingeschreven worden op
   een andere vlucht — je weet niet wanneer én óf ze thuiskomt." Twee gaten gevonden,
   allebei bevestigd met een scenario tegen de echte engine vóór er iets veranderde.
