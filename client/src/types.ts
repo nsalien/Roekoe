@@ -413,7 +413,12 @@ export interface LiveSnapshot {
   status: FlightStatus;
   elapsedSeconds: number;
   totalSeconds: number;
+  /** Race clock (elapsed / slowest finisher). The board shows head/tail instead. */
   overallProgress: number;
+  /** Progress of the bird (or team) in first place — 1 once the leader is home. */
+  headProgress: number;
+  /** Progress of the last bird (or team) still in the race; DNFs are not counted. */
+  tailProgress: number;
   allFinished: boolean;
   birds: LiveBird[];
   /** Estafettevlucht only: the same race grouped per team. */

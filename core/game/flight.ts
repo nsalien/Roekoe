@@ -343,10 +343,16 @@ function raceProgress(s: SimEntry, distanceKm: number, elapsed: number): {
   const seg = s.segMult;
   const stopAt = s.gaveUpAtSeconds ?? (s.dnfAtSeconds ?? Infinity);
   const tEff = Math.min(Math.max(0, elapsed), stopAt);
+  // Out of the race = the owner pulled it, or it gave out mid-flight; only a bird
+  // still in it can finish. Computed here so a legacy flight (no pace profile)
+  // reads a DNF exactly like a modern one — its fallback used to report such a
+  // bird as still flying, and then as finished, which finalizeFlight contradicts.
+  const stopped = !!s.gaveUp || (s.dnfAtSeconds != null && elapsed >= s.dnfAtSeconds);
+  const finished = !stopped && elapsed >= s.durationSeconds;
   if (!seg || seg.length === 0) {
     // Legacy flight (pre-profile): constant velocity fallback.
     const prog = clamp(tEff / s.durationSeconds, 0, 1);
-    return { kmDone: round1(distanceKm * prog), finished: !s.gaveUp && elapsed >= s.durationSeconds, stopped: false, curMult: 1 };
+    return { kmDone: round1(distanceKm * prog), finished, stopped, curMult: 1 };
   }
   const N = seg.length;
   const segDistM = (distanceKm * 1000) / N;
@@ -360,8 +366,6 @@ function raceProgress(s: SimEntry, distanceKm: number, elapsed: number): {
     break;
   }
   const kmDone = round1(Math.min(distanceKm, kmM / 1000));
-  const stopped = !!s.gaveUp || (s.dnfAtSeconds != null && elapsed >= s.dnfAtSeconds);
-  const finished = !stopped && elapsed >= s.durationSeconds;
   return { kmDone, finished, stopped, curMult };
 }
 
@@ -1312,11 +1316,37 @@ export interface LiveSnapshot {
   status: Flight['status'];
   elapsedSeconds: number;
   totalSeconds: number;
+  /** Race clock: elapsed / the slowest finisher's time. Kept for older open
+   *  tabs; the board itself shows headProgress/tailProgress. */
   overallProgress: number;
+  /** How far the bird (or relay team) in FIRST place has come, 0..1 — 1 as soon
+   *  as the leader is home. */
+  headProgress: number;
+  /** How far the LAST bird (or team) still in the race has come, 0..1. A DNF —
+   *  pulled or gave out — is not the tail; it is out of the race. */
+  tailProgress: number;
   allFinished: boolean;
   birds: LiveBird[];
   /** Estafettevlucht only: the same race grouped into teams. */
   teams?: LiveRelayTeam[];
+}
+
+/**
+ * Head and tail of the field, read off the already-ranked board.
+ *
+ * The rows are sorted leader-first with the DNFs pushed to the back, so the head
+ * is simply the first row still in the race and the tail is the last one.
+ * `clockFallback` covers the degenerate race where nobody is left at all: there
+ * is then no head and no tail, and the plain race clock is the only honest
+ * number left to show.
+ */
+function headAndTail(
+  rows: { progress: number; out: boolean }[],
+  clockFallback: number,
+): { headProgress: number; tailProgress: number } {
+  const inRace = rows.filter((r) => !r.out);
+  if (inRace.length === 0) return { headProgress: clockFallback, tailProgress: clockFallback };
+  return { headProgress: inRace[0].progress, tailProgress: inRace[inRace.length - 1].progress };
 }
 
 /** Compute the live positions of every bird from the frozen pace profile + time.
@@ -1378,11 +1408,14 @@ export function liveSnapshot(flight: Flight, nowMs: number): LiveSnapshot {
   });
   const birds = rows.map((r, i) => { r.bird.liveRank = i + 1; return r.bird; });
 
+  const clock = clamp(elapsed / total, 0, 1);
   return {
     status: flight.status,
     elapsedSeconds: round1(elapsed),
     totalSeconds: total,
-    overallProgress: clamp(elapsed / total, 0, 1),
+    overallProgress: clock,
+    // `bird.gaveUp` covers both flavours of DNF (owner pulled it, or it gave out).
+    ...headAndTail(birds.map((b) => ({ progress: b.progress, out: b.gaveUp })), clock),
     allFinished: elapsed >= total,
     birds,
   };
@@ -1491,11 +1524,14 @@ function relaySnapshot(flight: Flight, nowMs: number): LiveSnapshot {
   birds.sort((a, b) => (teamRank.get(a.ownerId) ?? 99) - (teamRank.get(b.ownerId) ?? 99));
   birds.forEach((b, i) => { b.liveRank = i + 1; });
 
+  const clock = clamp(elapsed / total, 0, 1);
   return {
     status: flight.status,
     elapsedSeconds: round1(elapsed),
     totalSeconds: total,
-    overallProgress: clamp(elapsed / total, 0, 1),
+    overallProgress: clock,
+    // A relay is raced by teams, so its head and tail are teams too.
+    ...headAndTail(teams.map((t) => ({ progress: t.progress, out: t.out })), clock),
     allFinished: elapsed >= total,
     birds,
     teams,

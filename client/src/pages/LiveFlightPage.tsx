@@ -150,14 +150,27 @@ export function LiveFlightPage() {
           </div>
         )}
 
+        {/* Head and tail of the field: the leader's progress and that of the last
+            bird still in the race. Both follow real positions, not the clock. */}
         {live && (
-          <div style={{ marginTop: 12 }}>
-            <div className="stat-top">
-              <span className="stat-label">Kop van de wedstrijd</span>
-              <span className="stat-val">{Math.round(live.overallProgress * 100)}%</span>
+          <div className="stack" style={{ marginTop: 12, gap: 8 }}>
+            <div>
+              <div className="stat-top">
+                <span className="stat-label">Kop van de wedstrijd</span>
+                <span className="stat-val">{Math.round(live.headProgress * 100)}%</span>
+              </div>
+              <div className="bar" style={{ height: 10 }}>
+                <span style={{ width: `${live.headProgress * 100}%`, background: 'linear-gradient(90deg,var(--accent),#fdba74)' }} />
+              </div>
             </div>
-            <div className="bar" style={{ height: 10 }}>
-              <span style={{ width: `${live.overallProgress * 100}%`, background: 'linear-gradient(90deg,var(--accent),#fdba74)' }} />
+            <div>
+              <div className="stat-top">
+                <span className="stat-label">Staart van de wedstrijd</span>
+                <span className="stat-val">{Math.round(live.tailProgress * 100)}%</span>
+              </div>
+              <div className="bar" style={{ height: 10 }}>
+                <span style={{ width: `${live.tailProgress * 100}%` }} />
+              </div>
             </div>
           </div>
         )}
