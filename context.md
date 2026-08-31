@@ -963,7 +963,26 @@ verzoek uit per statement.
 Alles hieronder staat **live** op de deploy-branch. Data-migraties liepen door tot
 **`dataVersion = 42`**.
 
-**De drie racevaardigheden zijn nu even veel waard (nieuwste)**
+**Opgeven maakte de duif vrij, maar de UI liet dat niet zien (nieuwste)**
+- **Symptoom (eigenaar):** "een duif die opgegeven heeft moet terug vrij zijn — trainen,
+  inschrijven, rustkuur". End-to-end nagemeten tegen de echte engine: dat **werkte al**.
+  Een duif die opgeeft óf onderweg uitvalt mag meteen trainen, op rustkuur, koppelen, naar
+  de ziekenboeg, te koop en inschrijven voor een vlucht van **morgen** (`birdStillOut`,
+  §3.8 spelregels). Server-side was er geen enkel gat.
+- **Wat er wél stuk was: de client.** `giveUp` in `LiveFlightPage` deed `load()` — dat is
+  de **smalle** live-route (`/flights/:id/live`, 2 rijen), die `pigeons[].racing` niet
+  aanraakt. `/state` bleef dus staan met `racing: true`, en overal ánders (Mijn hok,
+  duifpagina, Vluchten) bleef de duif als "ingeschreven voor een vlucht" staan tot er
+  toevallig iets anders `/state` herlaadde. Precies het beeld dat de eigenaar beschreef.
+  **Fix: `refresh()` na de give-up**, zoals `finishNow` al deed. Eén regel.
+- **Bewust ongemoeid: de dagregel.** Een duif die opgeeft krijgt haar dag **niet** terug —
+  `flightClaimingDay` telt elke niet-afgelaste vlucht waarin ze staat. Expliciete keuze van
+  de eigenaar bij deze wijziging: anders kan je een vlucht inschrijven, bij slecht weer na
+  één minuut opgeven (kost bijna geen energie) en alsnog een andere vlucht van die dag
+  pakken. De spelregels beschreven dit al correct (§3.8 + §3.9) — geen doc-wijziging nodig.
+- **Alleen client**, geen schema/config/migratie.
+
+**De drie racevaardigheden zijn nu even veel waard**
 - **Aanleiding (eigenaar):** "kunnen we stellen dat snelheid, conditie en oriëntatie even
   cruciaal zijn?" Gemeten: **nee, en niet eens bij benadering.** Over een speelweek was
   +10 snelheid **+5,3pp** winkans waard, +10 conditie **+3,1pp** en +10 oriëntatie

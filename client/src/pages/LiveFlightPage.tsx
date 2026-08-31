@@ -68,8 +68,14 @@ export function LiveFlightPage() {
     setBusy(true);
     try {
       await api(`/flights/${id}/giveup`, { method: 'POST', body: { pigeonId } });
-      toast.show(`${name} geeft op en spaart haar energie 🏳️`, 'ok');
+      toast.show(`${name} geeft op en is meteen weer vrij 🏳️`, 'ok');
       await load();
+      // Her race is over the moment she is pulled, so she is free again right
+      // away (trainen, rustkuur, koppelen, verkopen — see birdStillOut). That
+      // freedom lives in `/state`, which the live board never fetches: without
+      // this she kept showing up as "ingeschreven voor een vlucht" everywhere
+      // else until something happened to reload it.
+      refresh();
     } catch (e) {
       toast.show(e instanceof Error ? e.message : 'Mislukt', 'err');
     } finally {
