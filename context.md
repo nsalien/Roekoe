@@ -386,6 +386,7 @@ Roekoe/
 ├── newcomer.test.mts            regressietest: starterspakket nieuwe spelers (48 checks)
 ├── velocity-model.test.mts      regressietest: snelheid = snelheid, ervaring = efficiëntie
 ├── attribute-balance.test.mts   regressietest: snelheid/conditie/oriëntatie zijn even veel waard
+├── flight-eligibility.test.mts  regressietest: wie niet kan vliegen wordt niet gelost
 ├── age-cup.test.mts             regressietest: leeftijdscriterium (kalender, klassen, cyclus)
 ├── pigeon-logs.test.mts         regressietest: historiekboeken staan NIET in de duivenrij
 ├── season-prizes.test.mts       regressietest: winst-reset + de ceremonie-payload
@@ -915,6 +916,7 @@ npx tsx force-finish.test.mts      # admin-"match beëindigen" == natuurlijk uit
 npx tsx newcomer.test.mts          # starterspakket: punten, tijdvenster, afloopmelding
 npx tsx velocity-model.test.mts    # ervaring raakt de snelheid van een frisse duif niet
 npx tsx attribute-balance.test.mts # de drie racevaardigheden blijven gelijkwaardig
+npx tsx flight-eligibility.test.mts # een niet-inzetbare duif wordt geschrapt + terugbetaald
 npx tsx age-cup.test.mts           # leeftijdscriterium: klassen, afwisseling, 3-seizoenencyclus
 npx tsx pigeon-logs.test.mts       # de logboeken blijven uit de wereldload, legacy blijft leesbaar
 npx tsx season-prizes.test.mts     # seasonWins reset, totalWins niet; ceremonie = laatste seizoen
@@ -963,7 +965,45 @@ verzoek uit per statement.
 Alles hieronder staat **live** op de deploy-branch. Data-migraties liepen door tot
 **`dataVersion = 42`**.
 
-**Opgeven maakte de duif vrij, maar de UI liet dat niet zien (nieuwste)**
+**Een duif die niet kan vliegen, vliegt nu ook echt niet (nieuwste)**
+- **Aanleiding (eigenaar):** "als een duif nog vliegt, kan die niet ingeschreven worden op
+  een andere vlucht — je weet niet wanneer én óf ze thuiskomt." Twee gaten gevonden,
+  allebei bevestigd met een scenario tegen de echte engine vóór er iets veranderde.
+- **Gat 1 — `enterFlight` had die guard niet.** Je kon een duif die op dat moment in de
+  lucht hing inschrijven voor een vlucht van morgen. De **client** verborg haar wel
+  (`!p.racing` in `FlightsPage`), de **API** niet — dus via een tweede tab of een trage
+  refresh lukte het gewoon. Nieuwe helper **`pigeonAirborne(db, pigeonId, nowMs,
+  exceptFlightId?)`** (flight.ts): live vlucht + `birdStillOut`. Bewust **smaller** dan
+  `pigeonCommittedToFlight`, want inschrijven voor maandag én woensdag moet gewoon kunnen —
+  dat is je week plannen. Enkel "ze hangt nú in de lucht" blokkeert.
+- **Gat 2 — bij de lossing werd de deelnemerslijst blind overgenomen.** `tickFlights`
+  bouwde `entries` uit `flight.entries` en controleerde alleen of de duif nog *bestond*.
+  Inschrijven gebeurt dagen vooraf, dus een duif kon intussen **verdwaald** (`awayUntil`),
+  **ziek/gewond**, in de **ziekenboeg**, op **rustkuur** of aan het **koppelen** zijn — en
+  werd dan alsnog gelost. Gemeten: een duif die officieel vermist was boven Frankrijk vloog
+  een tweede race. Nieuwe `canBeReleased(db, pigeonId, nowMs, flightId)` (schedule.ts):
+  bestaat + niet airborne + `canRace` (dekt aandoening/boeg/kuur/away/leeftijd/gezondheid)
+  + niet aan het koppelen.
+- **Wat er met zo'n duif gebeurt:** ze wordt uit `flight.entries` gehaald, het
+  **inschrijfgeld gaat terug**, open **weddenschappen op haar worden terugbetaald**
+  (`voidBetsForWithdrawnPigeon`) en de speler krijgt een melding met stabiele id
+  `ntf:grounded:<flightId>:<pigeonId>` (bots niet). Omdat de entry weg is, is het
+  vanzelf idempotent. De bestaande "minstens 2 melkers"-check draait **erna**, dus een
+  vlucht die door het schrappen te dun wordt, wordt gewoon afgelast + terugbetaald.
+- **Estafette:** `allPresent` keek enkel of de duif nog bestond en gebruikt nu dezelfde
+  `canBeReleased`. Eén onbeschikbare duif neemt de **hele ploeg** uit de wedstrijd — je
+  kan geen etappe te kort vliegen.
+- ⚠️ **Bewust NIET aangeraakt: de dagregel.** Opgeven geeft de dag nog steeds niet terug
+  (expliciete keuze van de eigenaar). Dit gaat enkel over "ze is er fysiek niet".
+- **Nieuwe blijvende test `flight-eligibility.test.mts`** (22 controles): inschrijven
+  tijdens een lopende race wordt geweigerd én lukt wél zodra ze opgegeven heeft; alle zes
+  de onbeschikbare toestanden worden bij de lossing geschrapt terwijl de gezonde duiven
+  gewoon vliegen; terugbetaling en meldingen kloppen exact; te weinig melkers over → vlucht
+  afgelast met terugbetaling voor iedereen; en een tweede tick betaalt niets dubbel.
+- **Geen schema/config/migratie**, `dataVersion` blijft **42**. Spelregels **§3.8** en
+  **§3.9** bijgewerkt.
+
+**Opgeven maakte de duif vrij, maar de UI liet dat niet zien**
 - **Symptoom (eigenaar):** "een duif die opgegeven heeft moet terug vrij zijn — trainen,
   inschrijven, rustkuur". End-to-end nagemeten tegen de echte engine: dat **werkte al**.
   Een duif die opgeeft óf onderweg uitvalt mag meteen trainen, op rustkuur, koppelen, naar

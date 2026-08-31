@@ -745,6 +745,34 @@ export function pigeonCommittedToFlight(db: Database, pigeonId: string, nowMs: n
   );
 }
 
+/**
+ * Is this bird IN THE AIR right now — released on a live flight and not yet done
+ * with her own race?
+ *
+ * Narrower than `pigeonCommittedToFlight`, which also counts a bird that is merely
+ * entered for a race still to come. Entering for one day while already booked for
+ * another is fine and is how you plan a week; being signed up for a NEW race while
+ * you are physically still somewhere over France is not — you do not know when she
+ * gets home, or whether she gets home at all (she may be lost for days, see LOST).
+ *
+ * `exceptFlightId` skips one flight, for the caller that is about to release that
+ * very race.
+ */
+export function pigeonAirborne(
+  db: Database,
+  pigeonId: string,
+  nowMs: number = Date.now(),
+  exceptFlightId?: string,
+): boolean {
+  return db.flights.some(
+    (f) =>
+      f.status === 'live' &&
+      f.id !== exceptFlightId &&
+      f.entries.some((e) => e.pigeonId === pigeonId) &&
+      birdStillOut(f, pigeonId, nowMs),
+  );
+}
+
 /** Pick which attribute a bird gets a chance to grow in, weighted by distance. */
 /** Weights for WHICH attribute a flight improves — its own table, because the
  *  speed weights now put orientation at 0 (see IMPROVE_WEIGHTING). */

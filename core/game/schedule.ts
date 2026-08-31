@@ -65,7 +65,7 @@ import { awardBadge, awardFlightBadges, evaluateBadges } from './badges.js';
 import { ensureAuctions } from './auction.js';
 import { botDailyActions, botEntryContext, botRaceCandidates } from './bots.js';
 import type { BotEntryContext } from './bots.js';
-import { settleFlightBets, voidOrphanedBets, refundFlightBets } from './betting.js';
+import { settleFlightBets, voidBetsForWithdrawnPigeon, voidOrphanedBets, refundFlightBets } from './betting.js';
 import {
   applyAilment,
   coveredInInfirmary,
@@ -87,6 +87,7 @@ import {
   flightDay,
   flightTotalSeconds,
   generateRecap,
+  pigeonAirborne,
   pigeonCommittedToFlight,
   relayTeams,
   startLiveFlight,
@@ -749,6 +750,24 @@ export function payFinishedFlightPrizes(db: Database, nowMs: number): void {
  * (flight.ts). It deliberately runs the exact same code path as the natural
  * finish so the two can never diverge.
  */
+/**
+ * Can this bird actually be put in the basket for `flightId` right now?
+ *
+ * Entering is a booking made days in advance; this is the check at the moment of
+ * release. Everything that stops a bird from racing at all applies — she is still
+ * out on another flight, lost, ill/injured/in the infirmary, on a rest cure, or
+ * sitting on a nest.
+ */
+function canBeReleased(db: Database, pigeonId: string, nowMs: number, flightId: string): boolean {
+  const p = db.pigeons.find((x) => x.id === pigeonId);
+  if (!p) return false;
+  if (pigeonAirborne(db, pigeonId, nowMs, flightId)) return false;
+  // canRace already covers ailment, infirmary, rest cure, away and age/health.
+  if (!canRace(p, db.world.currentWeek)) return false;
+  if (db.breedingPairs.some((bp) => bp.sireId === pigeonId || bp.damId === pigeonId)) return false;
+  return true;
+}
+
 export function tickFlights(
   db: Database,
   nowMs: number,
@@ -764,7 +783,10 @@ export function tickFlights(
       // refunded — it cannot fly a leg short.
       if (flight.relay) {
         for (const [ownerId, team] of relayEntryTeams(flight)) {
-          const allPresent = team.every((e) => db.pigeons.some((p) => p.id === e.pigeonId));
+          // Not just "the bird still exists": every leg needs a bird that can
+          // actually be released. One that is still out on another race, lost,
+          // ill or on a cure takes the whole team out — you cannot fly a leg short.
+          const allPresent = team.every((e) => canBeReleased(db, e.pigeonId, nowMs, flight.id));
           if (relayTeamComplete(team) && allPresent) continue;
           flight.entries = flight.entries.filter((e) => e.ownerId !== ownerId);
           const loft = db.lofts.find((l) => l.userId === ownerId);
@@ -777,6 +799,30 @@ export function tickFlights(
               flight.id, `ntf:relayshort:${flight.id}:${ownerId}`,
             );
           }
+        }
+      }
+      // Entering happens days ahead, and plenty can change before the basket goes
+      // on the lorry: she can still be out on another race, lost somewhere over
+      // France, ill, injured, in the infirmary, on a rest cure or paired up. None
+      // of those birds can be released — without this check they were, so a bird
+      // that was officially missing flew a second race while she was still trying
+      // to find her way home from the first. Pull them, refund and say so.
+      // (A relay is handled above: one ineligible bird takes the whole team out.)
+      if (!flight.relay) {
+        const grounded = flight.entries.filter((e) => !canBeReleased(db, e.pigeonId, nowMs, flight.id));
+        for (const e of grounded) {
+          flight.entries = flight.entries.filter((x) => x.pigeonId !== e.pigeonId);
+          const loft = db.lofts.find((l) => l.userId === e.ownerId);
+          if (!loft) continue;
+          loft.money += flight.entryFee;
+          voidBetsForWithdrawnPigeon(db, flight, e.pigeonId);
+          if (loft.isBot) continue;
+          const p = db.pigeons.find((x) => x.id === e.pigeonId);
+          pushNotification(
+            db, e.ownerId, 'info', `🚫 ${p?.name ?? 'Je duif'} kon niet mee`,
+            `${p?.name ?? 'Je duif'} stond ingeschreven voor de ${flight.name.toLowerCase()} (${flight.fromCity} → ${flight.toCity}), maar was bij de lossing niet inzetbaar — nog onderweg van een vorige vlucht, de weg kwijt, ziek of aan het herstellen. Je inschrijfgeld (€${flight.entryFee}) is terugbetaald.`,
+            flight.id, `ntf:grounded:${flight.id}:${e.pigeonId}`,
+          );
         }
       }
       const entries: Entry[] = [];

@@ -784,6 +784,12 @@ Vrij betekent **alles wat normaal kan, kan weer**: haar **inschrijven voor een
 volgende wedstrijd**, **trainen**, **koppelen**, in de **ziekenboeg** zetten, een
 **rustkuur** geven, te koop zetten of verkopen.
 
+> **Omgekeerd geldt het net zo hard: zolang ze nog vliegt, kan je haar nergens voor
+> inschrijven.** Ook niet voor een vlucht van morgen of overmorgen. Je weet op dat
+> moment namelijk niet wanneer ze thuis is — of **óf** ze thuis komt: een duif die de
+> weg helemaal kwijt raakt (§3.5) is dagen weg. Wacht dus tot haar race erop zit; dan
+> staat ze meteen weer ter beschikking.
+
 Haar race zit erop zodra ze:
 - **over de finish** komt, of
 - **onderweg uitvalt** (uitputting of blessure, §3.2), of
@@ -833,6 +839,14 @@ die dag op een vlucht, dan is haar dag **op**.
   niet als ze DNF ging of als je haar hebt laten **opgeven** (§3.4).
 - Een vlucht die **afgelast** wordt (te weinig melkers, §2.1) telt niet mee: die is
   nooit doorgegaan, dus je duif kan diezelfde dag gewoon een andere vlucht doen.
+- **Niet inzetbaar bij de lossing = niet mee, met terugbetaling.** Je schrijft dagen
+  vooraf in, en er kan intussen van alles gebeuren. Is je duif op het moment van de
+  lossing nog **onderweg op een andere vlucht**, **de weg kwijt** (§3.5), **ziek of
+  gewond**, **in de ziekenboeg**, **op rustkuur** of aan het **koppelen**, dan gaat ze
+  niet mee: ze wordt van de vlucht gehaald, je **inschrijfgeld komt terug** en je
+  krijgt een melding. Openstaande weddenschappen op die duif worden ook terugbetaald
+  (§14). Bij een **estafette** neemt één zo'n duif de **hele ploeg** uit de wedstrijd —
+  je kan geen etappe te kort vliegen.
 - **Computermelkers volgen exact dezelfde regel** (§17) — geen enkele bot zet een duif
   twee keer op één dag in.
 

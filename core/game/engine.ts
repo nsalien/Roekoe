@@ -47,7 +47,7 @@ import { newNewcomerPerks } from './newcomer.js';
 import { careSlots, runHealthWeek } from './health.js';
 import { nameKey, namesInUse } from './names.js';
 import { voidBetsForWithdrawnPigeon } from './betting.js';
-import { birdStillOut, flightClaimingDay, flightDay, pigeonCommittedToFlight } from './flight.js';
+import { birdStillOut, flightClaimingDay, flightDay, pigeonAirborne, pigeonCommittedToFlight } from './flight.js';
 import {
   ageInWeeks,
   canRace,
@@ -546,6 +546,13 @@ export function enterFlight(
     if (onRestCure(pigeon))
       return 'Deze duif is op rustkuur — ze kan pas weer vliegen als de kuur voorbij is';
     if (isAway(pigeon)) return `${AWAY_MSG} — schrijf haar in zodra ze terug is`;
+    // Still in the air on another race. You cannot commit a bird to a new flight
+    // while she is out: you do not know when she gets home — or whether she gets
+    // home at all, since she can be lost for days (LOST). Note this is NOT the
+    // same as being entered for a race still to come: booking a bird for Monday
+    // and Wednesday is fine and is how you plan a week.
+    if (pigeonAirborne(db, pigeonId, Date.now(), flight.id))
+      return `${pigeon.name} is nog onderweg op een andere vlucht — wacht tot ze thuis is`;
     if (!canRace(pigeon, db.world.currentWeek))
       return 'Deze duif is niet vluchtklaar (te jong, ziek, gewond of in de ziekenboeg)';
     if (pigeon.form < 1) return 'Deze duif is volledig uitgeput — laat ze eerst wat rusten';
