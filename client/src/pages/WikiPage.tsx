@@ -537,6 +537,13 @@ export function WikiPage() {
           Elke eigenschap heeft één duidelijke rol. Ze doen niet allemaal hetzelfde, en ze
           werken niet allemaal op je snelheid.
         </p>
+        <p>
+          <strong>De drie racevaardigheden zijn even veel waard.</strong> Tien punten
+          snelheid, tien punten conditie en tien punten oriëntatie leveren je over een
+          volledige speelweek ongeveer evenveel op. Ze leveren het alleen <em>op andere
+          vluchten</em>: snelheid wint de regiovlucht, conditie en oriëntatie winnen de fond.
+          Een hok dat alles op één eigenschap zet, komt de helft van de kalender tekort.
+        </p>
         <MiniTable
           head={['Eigenschap', 'Wat ze doet', 'Waar ze het zwaarst weegt']}
           rows={[
@@ -552,43 +559,70 @@ export function WikiPage() {
 
       <Section id="verdwalen" icon="🧭" title="Verdwalen: waar oriëntatie voor dient">
         <p className="muted" style={{ marginTop: 0 }}>
-          Oriëntatie is je navigatie-eigenschap. Ze bepaalt of ze rechtstreeks naar huis
-          vliegt — of kilometers omvliegt en zelfs de weg helemaal kwijtraakt.
+          Oriëntatie is je navigatie-eigenschap. Ze maakt je duif niet sneller — ze bepaalt
+          of ze de lijn naar huis houdt, of kilometers omvliegt en soms de weg helemaal
+          kwijtraakt. Op een lange vlucht weegt ze even zwaar als conditie.
         </p>
-        <p><strong>Kans dat een duif van koers raakt</strong> (mooi weer):</p>
+        <p>
+          <strong>Het is geen enkele muntworp.</strong> Hoe verder de vlucht, hoe meer
+          gelegenheid om af te dwalen — een slechte navigator kan op de fond twee of zelfs
+          drie keer de lijn kwijtraken, een goede houdt hem. En het blijft een <strong>kans</strong>:
+          ook een matige navigator vliegt geregeld een volledig schone race.
+        </p>
+        <p><strong>Kans dat ze minstens één keer van koers raakt</strong> (mooi weer):</p>
         <MiniTable
           head={['Oriëntatie', '150 km', '300 km', '500 km', '700 km', '1000 km']}
           rows={[
-            ['95', '0,4 %', '0,6 %', '0,7 %', '0,9 %', '1,2 %'],
-            ['85', '1,0 %', '1,3 %', '1,8 %', '2,2 %', '2,8 %'],
-            ['70', '3,4 %', '4,4 %', '5,7 %', '7,0 %', '9,0 %'],
-            ['50', '9,7 %', '12,5 %', '16,2 %', '20,0 %', '25,6 %'],
-            ['30', '19,8 %', '25,6 %', '33,3 %', '41,0 %', '52,5 %'],
+            ['95', '7 %', '7 %', '11 %', '13 %', '18 %'],
+            ['85', '23 %', '28 %', '37 %', '44 %', '52 %'],
+            ['70', '49 %', '59 %', '70 %', '76 %', '85 %'],
+            ['50', '75 %', '85 %', '92 %', '95 %', '98 %'],
+            ['30', '88 %', '93 %', '96 %', '97 %', '98 %'],
+          ]}
+        />
+        <p style={{ marginTop: 12 }}>
+          <strong>Maar hoe vaak ze schoon thuiskomt, telt evenzeer</strong> — een enkele kleine
+          omweg kost je zelden de wedstrijd, drie grote wel:
+        </p>
+        <MiniTable
+          head={['Oriëntatie', 'Vlucht zonder één omweg (150 km)', '500 km', '1000 km']}
+          rows={[
+            ['95', '93 %', '89 %', '82 %'],
+            ['85', '77 %', '63 %', '48 %'],
+            ['70', '51 %', '30 %', '15 %'],
+            ['60', '36 %', '17 %', '6 %'],
+            ['30', '12 %', '4 %', '2 %'],
           ]}
         />
         <ul style={{ marginTop: 12 }}>
-          <li><strong>Hoe verder de vlucht, hoe groter de kans</strong> — meer kilometers betekent meer gelegenheid om af te dwalen.</li>
           <li>
-            <strong>Slecht weer maakt het veel erger — maar niet voor iedereen.</strong> Mist,
-            regen en harde wind verhogen de kans tot ~75 %. Op 700 km gaat een duif met
-            oriëntatie 95 van 0,9 % naar 1,6 %, terwijl een duif met oriëntatie 30 van 41 %
-            naar <strong>72 %</strong> springt. Een goede navigator merkt er dus nauwelijks
-            iets van; een slechte is bij ruw weer nagenoeg kansloos.
+            <strong>Slecht weer maakt het erger — maar niet voor iedereen.</strong> Op 700 km
+            gaat een duif met oriëntatie 95 van 13 % naar 22 %, terwijl oriëntatie 70 van
+            76 % naar 92 % springt. Een goede navigator merkt er weinig van.
+          </li>
+          <li>
+            <strong>Er is een bovengrens.</strong> Hoe slecht het ook loopt, een duif vliegt
+            <strong> nooit meer dan ~16 % om</strong>. Een fondvlucht van 1000 km wordt dus in
+            het allerergste geval 1160 km, geen odyssee.
           </li>
         </ul>
         <p style={{ marginTop: 12 }}>
-          <strong>Wat het kost.</strong> Meestal vliegt ze gewoon een <strong>omweg</strong>:
-          echte extra kilometers, dus echt tijdverlies, een forse val in de stand — én extra
-          energie, want die kilometers moeten gevlogen worden.
+          <strong>Wat het kost.</strong> Meestal vliegt ze een <strong>omweg</strong>: echte
+          extra kilometers, dus echt tijdverlies, een val in de stand én extra energie. De
+          omvang varieert sterk — soms een wiebeltje, soms een lus.
         </p>
         <MiniTable
-          head={['Oriëntatie', 'Omweg op 300 km', 'Omweg op 1000 km']}
+          head={['Oriëntatie', 'Totale omweg op 300 km', 'Op 1000 km']}
           rows={[
-            ['95', '~7 km', '~23 km'],
-            ['70', '~11 km', '~38 km'],
-            ['30', '~19 km', '~62 km'],
+            ['95', '~18 km', '~63 km'],
+            ['85', '~25 km', '~94 km'],
+            ['70', '~35 km', '~137 km'],
+            ['30', '~47 km', '~159 km'],
           ]}
         />
+        <p className="faint" style={{ marginTop: 4 }}>
+          (gemiddelde wanneer ze effectief van koers raakt — komt ze schoon thuis, dan is het nul)
+        </p>
         <p style={{ marginTop: 12 }}>
           <strong>En soms raakt ze de weg helemaal kwijt.</strong> Dan komt ze die dag niet
           thuis. <strong>Je duif is nooit voorgoed weg</strong> — duiven vinden hun weg terug —
@@ -597,12 +631,12 @@ export function WikiPage() {
           ze niets: niet vliegen, trainen, koppelen of verkocht worden.
         </p>
         <MiniTable
-          head={['Oriëntatie', 'Kans dat ze niet thuiskomt (300 km)', 'Idem (1000 km, slecht weer)']}
+          head={['Oriëntatie', 'Niet thuis (300 km)', '1000 km', '1000 km, slecht weer']}
           rows={[
-            ['95', 'praktisch nul', 'praktisch nul'],
-            ['70', '0,02 %', '0,1 %'],
-            ['50', '0,4 %', '1,4 %'],
-            ['30', '2,6 %', '8,5 %'],
+            ['85 of hoger', 'praktisch nul', 'praktisch nul', 'praktisch nul'],
+            ['70', '0,1 %', '0,2 %', '0,3 %'],
+            ['50', '1,0 %', '1,7 %', '1,9 %'],
+            ['30', '4,2 %', '5,2 %', '5,2 %'],
           ]}
         />
         <p style={{ marginTop: 12 }}>
@@ -615,7 +649,7 @@ export function WikiPage() {
           <strong>Strategie:</strong> zet een duif met zwakke oriëntatie op <strong>korte
           vluchten bij goed weer</strong> en bouw haar oriëntatie op met oefenvluchten en de
           coach. Voor de grote fond — zeker met slecht weer op komst — stuur je je beste
-          navigators.
+          navigators. Op de fond is een goede navigator evenveel waard als een goede conditie.
         </p>
       </Section>
 

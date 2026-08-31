@@ -29,6 +29,9 @@ Een duif is **vluchtklaar** als: niet gepensioneerd, geen ziekte/kwetsuur, niet
 in de ziekenboeg, minstens **8 weken** oud en gezondheid > 15.
 
 **Talent** (voor marktprijs/bots) = gemiddelde van snelheid, conditie, oriëntatie.
+Dat gemiddelde is eerlijk, want de **drie racevaardigheden zijn even veel waard**:
+tien punten van elk leveren over een volledige speelweek ongeveer hetzelfde op. Ze
+leveren het alleen op verschillende vluchten — zie §2.3 en §3.5.
 
 > **Genen.** Snelheid, conditie en oriëntatie hebben elk een **aangeboren maximum**
 > (per duif verschillend, **nooit 100**). Hoe die plafonds werken, hoe je ernaartoe
@@ -95,8 +98,8 @@ Per duif, bevroren bij de start:
 
 ```
 gewicht(afstand): t = clamp((afstand − 100) / 600, 0, 1)
-  gewicht.snelheid = 0.83 + (0.31 − 0.83)·t
-  gewicht.conditie = 0.17 + (0.69 − 0.17)·t
+  gewicht.snelheid = 0.68 + (0.26 − 0.68)·t
+  gewicht.conditie = 0.32 + (0.74 − 0.32)·t
 
 basisscore = gewicht.snelheid·Snelheid + gewicht.conditie·Conditie
 # Oriëntatie zit hier BEWUST niet in — zie §3.5.
@@ -118,8 +121,15 @@ snelheid = (700 + basisscore·9) · energiefactor · gezondheidsf. · leeftijdfa
 ```
 
 **Je tempo komt van snelheid en conditie**: snelheid is de sprint-eigenschap die
-op korte vluchten het zwaarst weegt (0.83), conditie neemt het over naarmate de
-vlucht langer wordt (tot 0.69).
+op korte vluchten het zwaarst weegt (0.68), conditie neemt het over naarmate de
+vlucht langer wordt (tot 0.74).
+
+> **De drie racevaardigheden zijn even veel waard.** Tien punten snelheid, tien
+> punten conditie en tien punten oriëntatie leveren over een volledige speelweek
+> ongeveer hetzelfde op — ze leveren het alleen op **verschillende vluchten**.
+> Snelheid wint de regiovlucht, conditie en oriëntatie (§3.5) winnen de fond, en
+> op een nationale vlucht wegen alle drie ongeveer even zwaar. Wie alles op één
+> eigenschap zet, staat de halve kalender met lege handen.
 
 > **Oriëntatie maakt een duif niet sneller.** Ze bepaalt of je duif de weg vindt —
 > of ze omvliegt, of zelfs helemaal de weg kwijtraakt. Zie **§3.5**. Vroeger telde
@@ -619,36 +629,57 @@ leeg te laten lopen.
 ### 3.5 Oriëntatie: verdwalen, omvliegen en de weg kwijtraken
 
 Oriëntatie is je **navigatie-eigenschap** en doet niets met je snelheid. Ze bepaalt
-of je duif rechtstreeks naar huis vliegt — of kilometers omvliegt en soms de weg
-helemaal kwijtraakt.
+of je duif de lijn naar huis houdt — of kilometers omvliegt en soms de weg helemaal
+kwijtraakt. Op een lange vlucht is ze **even veel waard als conditie** (§2.3).
 
-**Kans dat een duif van koers raakt** (mooi weer):
+**Het is geen enkele muntworp.** Hoe verder de vlucht, hoe meer gelegenheid om af
+te dwalen: een slechte navigator kan op de fond twee of zelfs drie keer de lijn
+kwijtraken, een goede houdt hem vast. En het blijft **een kans** — ook een matige
+navigator vliegt geregeld een volkomen schone race, ze heeft er alleen minder vaak
+geluk mee.
+
+**Kans dat ze minstens één keer van koers raakt** (mooi weer):
 
 | Oriëntatie | 150 km | 300 km | 500 km | 700 km | 1000 km |
 |---|---|---|---|---|---|
-| 95 | 0,4 % | 0,6 % | 0,7 % | 0,9 % | 1,2 % |
-| 85 | 1,0 % | 1,3 % | 1,8 % | 2,2 % | 2,8 % |
-| 70 | 3,4 % | 4,4 % | 5,7 % | 7,0 % | 9,0 % |
-| 50 | 9,7 % | 12,5 % | 16,2 % | 20,0 % | 25,6 % |
-| 30 | 19,8 % | 25,6 % | 33,3 % | 41,0 % | 52,5 % |
+| 95 | 7 % | 7 % | 11 % | 13 % | 18 % |
+| 85 | 23 % | 28 % | 37 % | 44 % | 52 % |
+| 70 | 49 % | 59 % | 70 % | 76 % | 85 % |
+| 50 | 75 % | 85 % | 92 % | 95 % | 98 % |
+| 30 | 88 % | 93 % | 96 % | 97 % | 98 % |
 
-**Hoe verder de vlucht, hoe groter de kans** — meer kilometers, meer gelegenheid
-om af te dwalen.
+Belangrijker dan die kans is hoe vaak ze **helemaal schoon** thuiskomt — één kleine
+omweg kost je zelden de wedstrijd, drie grote wel:
 
-**Slecht weer maakt het veel erger, maar niet voor iedereen.** Mist, regen en harde
-wind verhogen de kans met tot 75 %. Op 700 km gaat een duif met oriëntatie 95 van
-0,9 % naar 1,6 %; een duif met oriëntatie 30 springt van 41 % naar **72 %**. Een
-goede navigator merkt er nauwelijks iets van, een slechte is bij ruw weer nagenoeg
-kansloos.
+| Oriëntatie | Vlucht zonder één omweg (150 km) | 500 km | 1000 km |
+|---|---|---|---|
+| 95 | 93 % | 89 % | 82 % |
+| 85 | 77 % | 63 % | 48 % |
+| 70 | 51 % | 30 % | 15 % |
+| 60 | 36 % | 17 % | 6 % |
+| 30 | 12 % | 4 % | 2 % |
 
-**Meestal is het een omweg.** Echte extra kilometers: dus echt tijdverlies, een
-forse val in de stand, én **extra energie** — die kilometers moeten gevlogen worden.
+**Slecht weer maakt het erger, maar niet voor iedereen.** Mist, regen en harde wind
+verhogen de kans fors. Op 700 km gaat een duif met oriëntatie 95 van 13 % naar
+22 %, terwijl oriëntatie 70 van 76 % naar 92 % springt. Een goede navigator merkt
+er weinig van; een slechte is bij ruw weer nagenoeg kansloos.
 
-| Oriëntatie | Omweg op 300 km | Omweg op 1000 km |
+**Meestal is het een omweg.** Echte extra kilometers: dus echt tijdverlies, een val
+in de stand, én **extra energie** — die kilometers moeten gevlogen worden. De
+omvang varieert sterk: soms een wiebeltje, soms een lus.
+
+| Oriëntatie | Totale omweg op 300 km | Op 1000 km |
 |---|---|---|
-| 95 | ~7 km | ~23 km |
-| 70 | ~11 km | ~38 km |
-| 30 | ~19 km | ~62 km |
+| 95 | ~18 km | ~63 km |
+| 85 | ~25 km | ~94 km |
+| 70 | ~35 km | ~137 km |
+| 30 | ~47 km | ~159 km |
+
+*(gemiddelde wanneer ze effectief van koers raakt — komt ze schoon thuis, dan is het nul)*
+
+**Er is een bovengrens.** Hoe slecht het ook loopt, een duif vliegt **nooit meer dan
+~16 % om**. Een fondvlucht van 1000 km wordt in het allerergste geval 1160 km, geen
+odyssee — je verliest de wedstrijd, niet je hele dag.
 
 **Soms raakt ze de weg helemaal kwijt.** Dan komt ze die dag niet thuis en telt ze
 als DNF. **Je duif is nooit voorgoed weg** — duiven vinden hun weg terug — maar het
@@ -657,16 +688,21 @@ gezondheid en vaak een kwetsuur of ziekte. Zolang ze onderweg is kan ze niets: n
 vliegen, trainen, koppelen, op rustkuur of verkocht worden. Ze eet ook niets van je
 voorraad en lijdt geen honger — ze is er simpelweg niet.
 
-| Oriëntatie | Kans dat ze niet thuiskomt (300 km) | Idem (1000 km, slecht weer) |
-|---|---|---|
-| 95 | praktisch nul | praktisch nul |
-| 70 | 0,02 % | 0,1 % |
-| 50 | 0,4 % | 1,4 % |
-| 30 | 2,6 % | 8,5 % |
+| Oriëntatie | Niet thuis (300 km) | 1000 km | 1000 km, slecht weer |
+|---|---|---|---|
+| 85 of hoger | praktisch nul | praktisch nul | praktisch nul |
+| 70 | 0,1 % | 0,2 % | 0,3 % |
+| 50 | 1,0 % | 1,7 % | 1,9 % |
+| 30 | 4,2 % | 5,2 % | 5,2 % |
 
 **Oriëntatie groeit door te vliegen**, en het snelst op **lange vluchten**. Je kan
 haar ook trainen (tot 80), en een **privécoach** werkt er eveneens aan tot het
 genetische plafond.
+
+> **Strategie.** Zet een duif met zwakke oriëntatie op **korte vluchten bij goed
+> weer** en bouw haar op met oefenvluchten en de coach. Voor de grote fond — zeker
+> met slecht weer op komst — stuur je je beste navigators. Op die vluchten is een
+> goede navigator evenveel waard als een goede conditie.
 
 ### 3.6 Twee dagen op rij vliegen kost vorm
 

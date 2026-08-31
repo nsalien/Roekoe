@@ -496,9 +496,18 @@ export const DISTANCE_WEIGHTING = {
    * The freed weight went proportionally to snelheid and conditie, so the
    * sprinter/stayer split is unchanged in character — just sharper.
    * (Weights per column always sum to 1.)
+   *
+   * BALANCED SO ALL THREE ATTRIBUTES ARE WORTH THE SAME over a play week. The
+   * short column used to be 0.83/0.17, and because the calendar is short-heavy
+   * (3 regional + titan + relay legs against 2 international) that made snelheid
+   * worth measurably more than conditie over a season — +3.2pp win against
+   * +2.5pp for the same ten points. Shifting the sprint column towards conditie
+   * evens that out without blunting the sprinter/stayer split: snelheid still
+   * dominates a regiovlucht (+4.3pp against +2.5pp) and conditie still owns the
+   * fond (+4.8pp against +1.8pp). See LOST for the third leg of the tripod.
    */
-  short: { speed: 0.83, endurance: 0.17, orientation: 0 },
-  long: { speed: 0.31, endurance: 0.69, orientation: 0 },
+  short: { speed: 0.68, endurance: 0.32, orientation: 0 },
+  long: { speed: 0.26, endurance: 0.74, orientation: 0 },
 } as const;
 
 /**
@@ -533,20 +542,52 @@ export const IMPROVE_WEIGHTING = {
  * at the loft a few days later, empty and battered (tickStrayReturn).
  */
 export const LOST = {
-  base: 0.005, // stray chance that remains even at orientation 100
-  max: 0.55, // added at orientation 0
-  curve: 2.2, // >1 keeps a good navigator safe and makes a poor one genuinely risky
-  distBase: 0.55,
-  distPerKm: 0.0015, // ×1.0 at 300 km, ×1.6 at 700 km, ×2.05 at 1000 km
+  // --- How OFTEN she drifts off ---------------------------------------------
+  // These no longer describe a single coin flip but the EXPECTED NUMBER of times
+  // a bird wanders off course on this route (see buildPaceProfile): a long flight
+  // is more chances to drift, so a poor navigator can lose the line twice or
+  // three times on the fond. The actual count is drawn from that expectation, so
+  // an orientation-60 bird genuinely can fly a clean race — just less often
+  // (measured: ~10% of fond flights, ~35% of regional ones).
+  //
+  // Tuned so oriëntatie is worth as much over a play week as snelheid and
+  // conditie (+2.6pp win / −0.59 average place against +3.2/+3.3pp and −0.58),
+  // while staying a mid-to-long-distance attribute. `curve` used to be 2.2, which
+  // meant the whole attribute had burnt out below orientation 60 — and since
+  // GENE.floor is 70, every bird in the game lived above that. It was worth
+  // nothing (+0.1pp) before this.
+  base: 0.02, // expected strays that remain even at orientation 100
+  max: 3.6, // added at orientation 0
+  curve: 1.5, // >1 keeps a good navigator safe and makes a poor one genuinely risky
+  distBase: 0.75,
+  distPerKm: 0.0024, // ×1.5 at 300 km, ×2.4 at 700 km, ×3.2 at 1000 km
   weatherK: 2.5, // rough weather (0..0.30) multiplies the chance by up to 1.75
-  maxChance: 0.85,
-  // Size of the detour, in km: a fraction of the route, scaled by how poor the
-  // navigator is. ~19 km at orientation 30 on 300 km; ~62 km on 1000 km.
-  detourFraction: 0.04,
+  maxChance: 0.85, // legacy: only used by the pre-episode fallback path
+  /** Never more than this many separate off-course episodes in one flight. */
+  maxEpisodes: 3,
+  // --- How BIG the detour is ------------------------------------------------
+  // Size of one detour, in km: a fraction of the route, scaled by how poor the
+  // navigator is, then jittered so the same bird sometimes only wobbles and
+  // sometimes loops wide.
+  detourFraction: 0.1,
   detourSeverityBase: 0.5,
   detourSeveritySpread: 1.5,
-  // Losing the way ENTIRELY (only rolled once already straying).
-  strandedMax: 0.35,
+  /** ±45% random spread on each detour, so straying is never a fixed tax. */
+  detourJitter: 0.45,
+  /**
+   * HARD CEILING on the total detour of one flight, as a fraction of the route.
+   * Without it three stacked episodes on a fond flight sent a poor navigator
+   * 30–40% off course — 1000 km became 1300, which is not a race any more. At
+   * 0.16 the worst case is 1160 km, and because a good navigator sits far below
+   * the ceiling it costs nothing where the attribute actually has to do its work.
+   */
+  maxDetourFraction: 0.16,
+  // Losing the way ENTIRELY — rolled per episode, so drifting off three times is
+  // three chances to not come home at all. That stacking is why this dropped from
+  // 0.35: left alone, a poor navigator failed to get home from one fond flight in
+  // three, which is a punishment, not a mechanic. At 0.07 it stays a real risk for
+  // a genuinely bad navigator on a long flight (~1.5%) and vanishes above 80.
+  strandedMax: 0.07,
   strandedCurve: 3.5,
   // How long she stays out before finding her way home.
   returnDaysBase: 1,

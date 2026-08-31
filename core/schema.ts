@@ -529,8 +529,19 @@ export interface SimEntry {
   prizePaid?: boolean;
   // A wandering-off-course stretch (low orientation). Recorded at release so the
   // live report can explain a bird sliding down the standings. `atSeconds` = when
-  // it strays; `detourKm` = roughly the extra ground the detour costs it.
+  // it FIRST strays; `detourKm` = the TOTAL extra ground every detour costs it.
+  //
+  // A bird can now lose the line more than once on a long route, so this is the
+  // aggregate: energy (`flownKm`), the standings and the "she is ~X km off" line
+  // all want the total, and keeping the shape means every existing reader stays
+  // correct. The individual episodes live in `strays` below.
   lost?: { atSeconds: number; detourKm: number } | null;
+  /**
+   * Every separate off-course episode, in order, so the live report can call each
+   * one at the moment it happens instead of lumping them into one line. Absent on
+   * flights frozen before this shipped — read it as `strays ?? (lost ? [lost] : [])`.
+   */
+  strays?: { atSeconds: number; detourKm: number }[];
   // --- Estafettevlucht only -------------------------------------------------
   /** Which leg this bird flies (1..3). */
   leg?: number;

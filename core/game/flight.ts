@@ -221,7 +221,7 @@ function profileDuration(distanceKm: number, velocity: number, segMult: number[]
  */
 function buildPaceProfile(
   flightId: string, pigeon: Pigeon, distanceKm: number, week: number, weatherFactor: number, practice: boolean,
-): { velocity: number; segMult: number[]; durationSeconds: number; dnfAtSeconds: number | null; dnfKind: SimEntry['dnfKind']; lost: SimEntry['lost']; strayDays?: number } {
+): { velocity: number; segMult: number[]; durationSeconds: number; dnfAtSeconds: number | null; dnfKind: SimEntry['dnfKind']; lost: SimEntry['lost']; strays: SimEntry['strays']; strayDays?: number } {
   const FD = FLIGHT_DYNAMICS;
   // Seed on the flight id + bird so every flight is a different race, yet the same
   // flight always rebuilds the identical profile (deterministic: live == final,
@@ -262,26 +262,41 @@ function buildPaceProfile(
   for (let i = 0; i < N; i++) segMult[i] = segMult[i] * invAvg;
 
   // ORIËNTATIE — the whole of what the attribute does (see LOST in gameConfig).
-  // The chance rises steeply as orientation drops, grows with DISTANCE (more
-  // kilometres = more chances to drift) and with ROUGH WEATHER — and a good
-  // navigator is barely troubled by weather that wrecks a poor one.
+  //
+  // Not one coin flip but an EXPECTED NUMBER of times she loses the line, drawn
+  // per flight. More kilometres are more chances to drift, so a poor navigator can
+  // wander off twice or three times on the fond while a good one holds the line —
+  // and because the count is drawn, even a mediocre navigator sometimes flies a
+  // completely clean race. Rough weather multiplies it, and it barely troubles a
+  // good navigator while it wrecks a poor one.
   let lost: SimEntry['lost'] = null;
+  const strays: { atSeconds: number; detourKm: number }[] = [];
   let strayDays: number | undefined;
   let strandedAtSeconds: number | null = null;
   if (!practice) {
     const room = clamp((100 - pigeon.orientation) / 100, 0, 1);
-    const strayChance = Math.min(
-      LOST.maxChance,
+    const expected =
       (LOST.base + LOST.max * Math.pow(room, LOST.curve)) *
-        (LOST.distBase + distanceKm * LOST.distPerKm) *
-        (1 + rough * LOST.weatherK),
-    );
-    if (rng() < strayChance) {
+      (LOST.distBase + distanceKm * LOST.distPerKm) *
+      (1 + rough * LOST.weatherK);
+    // Poisson draw (Knuth) on that expectation, capped so one unlucky bird can
+    // never spiral: `maxEpisodes` bounds the loop and `detourBudget` bounds the
+    // total ground lost regardless of how the episodes fall.
+    let episodes = 0;
+    {
+      const limit = Math.exp(-expected);
+      let p = 1;
+      while (p > limit && episodes < LOST.maxEpisodes) { episodes++; p *= rng(); }
+      if (p <= limit) episodes = Math.max(0, episodes - 1);
+    }
+    const segDistM = (distanceKm * 1000) / N;
+    let detourBudget = distanceKm * LOST.maxDetourFraction;
+
+    for (let ep = 0; ep < episodes; ep++) {
       // Where in the route she drifts off, and the cumulative time to get there.
       const span = Math.round(rf(FD.lostSpanMin, FD.lostSpanMax));
       const startSeg = Math.floor(rng() * Math.max(1, N - span));
       const endSeg = Math.min(N, startSeg + span);
-      const segDistM = (distanceKm * 1000) / N;
       let atSecs = 0;
       for (let i = 0; i < startSeg; i++) {
         atSecs += (segDistM / Math.max(FD.minSegSpeed, velocity * segMult[i])) * 60;
@@ -289,26 +304,44 @@ function buildPaceProfile(
 
       // Does she lose the way ENTIRELY? Only a genuinely poor navigator, and
       // mostly on a long flight. She is never gone for good — she finds her way
-      // back to the loft after a few days (tickStrayReturn).
+      // back to the loft after a few days (tickStrayReturn). Rolled per episode,
+      // so drifting off repeatedly is repeatedly risky; once it hits, nothing
+      // further happens to her that day.
       if (rng() < LOST.strandedMax * Math.pow(room, LOST.strandedCurve)) {
         strandedAtSeconds = Math.round(atSecs);
         const days =
           LOST.returnDaysBase + distanceKm * LOST.returnDaysPerKm + room * LOST.returnDaysRoom;
         strayDays = Math.max(1, round1(days * rf(1 - LOST.returnDaysJitter, 1 + LOST.returnDaysJitter)));
-      } else {
-        // A plain detour: real extra kilometres. The slowdown is derived FROM the
-        // detour so the time lost is exactly what those extra km cost her.
-        const detourKm = Math.max(
-          1,
-          Math.round(
-            distanceKm * LOST.detourFraction * (LOST.detourSeverityBase + LOST.detourSeveritySpread * room),
-          ),
-        );
-        const spanDistM = segDistM * (endSeg - startSeg);
-        const slow = spanDistM / (spanDistM + detourKm * 1000);
-        for (let i = startSeg; i < endSeg; i++) segMult[i] = clamp(segMult[i] * slow, 0.05, 2);
-        lost = { atSeconds: Math.round(atSecs), detourKm };
+        break;
       }
+
+      // A plain detour: real extra kilometres. The slowdown is derived FROM the
+      // detour so the time lost is exactly what those extra km cost her. The
+      // jitter keeps straying from being a fixed tax — the same bird sometimes
+      // only wobbles, sometimes loops wide.
+      const wanted = Math.max(
+        1,
+        Math.round(
+          distanceKm * LOST.detourFraction *
+            (LOST.detourSeverityBase + LOST.detourSeveritySpread * room) *
+            rf(1 - LOST.detourJitter, 1 + LOST.detourJitter),
+        ),
+      );
+      const detourKm = Math.min(wanted, Math.floor(detourBudget));
+      if (detourKm < 1) break; // ceiling reached — she has lost all the ground she can
+      detourBudget -= detourKm;
+
+      const spanDistM = segDistM * (endSeg - startSeg);
+      const slow = spanDistM / (spanDistM + detourKm * 1000);
+      for (let i = startSeg; i < endSeg; i++) segMult[i] = clamp(segMult[i] * slow, 0.05, 2);
+      strays.push({ atSeconds: Math.round(atSecs), detourKm });
+    }
+
+    // `lost` stays the AGGREGATE (first moment, total ground) so energy, the
+    // standings and the "~X km off" line all read the whole story from one field.
+    if (strays.length) {
+      strays.sort((a, b) => a.atSeconds - b.atSeconds);
+      lost = { atSeconds: strays[0].atSeconds, detourKm: strays.reduce((s, x) => s + x.detourKm, 0) };
     }
   }
 
@@ -332,7 +365,7 @@ function buildPaceProfile(
     }
   }
 
-  return { velocity, segMult, durationSeconds, dnfAtSeconds, dnfKind, lost, strayDays };
+  return { velocity, segMult, durationSeconds, dnfAtSeconds, dnfKind, lost, strays, strayDays };
 }
 
 /** How far home a bird is at `elapsed` seconds, from its frozen pace profile.
@@ -408,6 +441,7 @@ export function startLiveFlight(flight: Flight, entries: Entry[], week: number, 
       dnfAtSeconds: prof.dnfAtSeconds,
       dnfKind: prof.dnfKind,
       lost: prof.lost,
+      strays: prof.strays,
       strayDays: prof.strayDays,
       startForm: e.pigeon.form,
       startVorm: flightForm(e.pigeon, startMs),
@@ -578,6 +612,7 @@ function startLiveRelay(flight: Flight, entries: Entry[], week: number): void {
         dnfAtSeconds: prof.dnfAtSeconds,
         dnfKind: prof.dnfKind,
         lost: prof.lost,
+        strays: prof.strays,
         startForm: e.pigeon.form,
         startVorm: flightForm(e.pigeon, startMs),
         formCost,
@@ -1552,6 +1587,14 @@ interface RankRow {
   stopped: boolean; // pulled by owner or gave out mid-flight
 }
 
+/** Every off-course episode of one bird, oldest first.
+ *  A flight frozen before `strays` existed only has the aggregate in `lost`; it
+ *  then reads as the single episode it used to be. */
+function strayEpisodes(s: SimEntry): { atSeconds: number; detourKm: number }[] {
+  if (s.strays?.length) return s.strays;
+  return s.lost ? [s.lost] : [];
+}
+
 const fillLine = (tpl: string, a: string, b?: string, km?: number | string) =>
   tpl.replace('{name}', a).replace('{name2}', b ?? '').replace('{km}', String(km ?? ''));
 
@@ -1637,7 +1680,11 @@ export function flightCommentary(flight: Flight, nowMs: number): CommentLine[] {
 
   // Event lines with a clear cause, at the moment they happen.
   for (const s of flight.sim) {
-    if (s.lost) lines.push({ atSeconds: s.lost.atSeconds, text: fillLine(pickWith(evRng, COMMENTARY.stray), s.pigeonName, undefined, s.lost.detourKm) });
+    // One line per off-course episode, each at its own moment. A flight frozen
+    // before `strays` existed carries only the aggregate in `lost`.
+    for (const st of strayEpisodes(s)) {
+      lines.push({ atSeconds: st.atSeconds, text: fillLine(pickWith(evRng, COMMENTARY.stray), s.pigeonName, undefined, st.detourKm) });
+    }
     if (s.dnfAtSeconds != null) {
       const pool =
         s.dnfKind === 'lost'
@@ -1883,8 +1930,10 @@ function relayCommentary(flight: Flight, nowMs: number): CommentLine[] {
       const legNo = s.leg ?? i + 1;
       if (legNo > outAt) break;
       const legStart = s.legStartSeconds ?? 0;
-      if (s.lost && legNo <= outAt) {
-        lines.push({ atSeconds: legStart + s.lost.atSeconds, text: fill(pickEvent(COMMENTARY.stray), s.pigeonName, undefined, s.lost.detourKm) });
+      if (legNo <= outAt) {
+        for (const st of strayEpisodes(s)) {
+          lines.push({ atSeconds: legStart + st.atSeconds, text: fill(pickEvent(COMMENTARY.stray), s.pigeonName, undefined, st.detourKm) });
+        }
       }
       if (legNo === outAt) {
         const at = legStart + (s.gaveUp ? (s.gaveUpAtSeconds ?? 0) : s.dnfAtSeconds ?? 0);

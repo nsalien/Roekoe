@@ -385,6 +385,7 @@ Roekoe/
 ├── betting-odds.test.mts        regressietest: weddenschapskansen kloppen + zijn stabiel
 ├── newcomer.test.mts            regressietest: starterspakket nieuwe spelers (48 checks)
 ├── velocity-model.test.mts      regressietest: snelheid = snelheid, ervaring = efficiëntie
+├── attribute-balance.test.mts   regressietest: snelheid/conditie/oriëntatie zijn even veel waard
 ├── age-cup.test.mts             regressietest: leeftijdscriterium (kalender, klassen, cyclus)
 ├── pigeon-logs.test.mts         regressietest: historiekboeken staan NIET in de duivenrij
 ├── season-prizes.test.mts       regressietest: winst-reset + de ceremonie-payload
@@ -593,9 +594,11 @@ Entiteiten: `Pigeon`, `Loft`, `User`, `BreedingPair`, `PendingBrood`, `Flight` (
 - **Veroudering (`AGING`):** `runAgeDecline` trekt boven `peakEndWeeks 208` per gerolde
   gameweek `declinePerWeekBase(0.08)·(leeftijd−208)/52·declineRate` van de 3 skills af
   (bodem `floor 5`). `Pigeon.declineRate` ~0.6–1.6. `AGE_CURVE` neerwaartse tak afgevlakt → 1.0.
-- **Snelheidsmodel (`DISTANCE_WEIGHTING` + `ENERGIE_IMPACT`):** korte-vlucht­weging
-  snelheid **0.65** / conditie 0.13 / oriëntatie 0.22 (was 0.55/0.20/0.25); lang
-  0.20/0.45/0.35. Energiefactor is **afstandsafhankelijk** (kort `0.80→1.05`, lang
+- **Snelheidsmodel (`DISTANCE_WEIGHTING` + `ENERGIE_IMPACT`, nieuwste):** korte-vlucht­weging
+  snelheid **0.68** / conditie **0.32**; lang **0.26/0.74**. Oriëntatie staat op **0** (die
+  werkt via `LOST`). Was 0.83/0.17 en 0.31/0.69 — dat maakte snelheid over de kort-zware
+  kalender meer waard dan conditie; zie §Balans onderaan §8. Energiefactor is
+  **afstandsafhankelijk** (kort `0.80→1.05`, lang
   `0.45→1.20`, geblend op `t`) en werkt op de **effectieve energie** = `energie +
   (ervaring/100)·(100−energie)·0.35` (ervaring laat energie **doseren**). Zie
   `pigeonVelocity` + `velocityBreakdown` in `flight.ts`.
@@ -911,6 +914,7 @@ npx tsx poll-budget.test.mts       # polls + smalle load blijven binnen het dagb
 npx tsx force-finish.test.mts      # admin-"match beëindigen" == natuurlijk uitvliegen
 npx tsx newcomer.test.mts          # starterspakket: punten, tijdvenster, afloopmelding
 npx tsx velocity-model.test.mts    # ervaring raakt de snelheid van een frisse duif niet
+npx tsx attribute-balance.test.mts # de drie racevaardigheden blijven gelijkwaardig
 npx tsx age-cup.test.mts           # leeftijdscriterium: klassen, afwisseling, 3-seizoenencyclus
 npx tsx pigeon-logs.test.mts       # de logboeken blijven uit de wereldload, legacy blijft leesbaar
 npx tsx season-prizes.test.mts     # seasonWins reset, totalWins niet; ceremonie = laatste seizoen
@@ -959,7 +963,66 @@ verzoek uit per statement.
 Alles hieronder staat **live** op de deploy-branch. Data-migraties liepen door tot
 **`dataVersion = 42`**.
 
-**Live-bord: kop én staart van de wedstrijd i.p.v. de raceklok (nieuwste)**
+**De drie racevaardigheden zijn nu even veel waard (nieuwste)**
+- **Aanleiding (eigenaar):** "kunnen we stellen dat snelheid, conditie en oriëntatie even
+  cruciaal zijn?" Gemeten: **nee, en niet eens bij benadering.** Over een speelweek was
+  +10 snelheid **+5,3pp** winkans waard, +10 conditie **+3,1pp** en +10 oriëntatie
+  **+0,1pp** — statistisch niet van nul te onderscheiden.
+- **Waarom oriëntatie leeg liep.** Sinds ze uit de snelheidsformule ging (gewicht 0, terecht
+  — navigeren is niet snel vliegen) hing ze volledig aan `LOST`, en die curve (`curve 2,2`)
+  was **al uitgewerkt onder oriëntatie 60**. `GENE.floor` is **70**, dus élke duif in het
+  spel leefde boven het bereik waar de eigenschap nog iets deed. Van 70 naar 95 — het
+  duurste stuk van de coach — leverde **0,08 plaats** op. Gemeten tegenvoorbeeld: een duif
+  86/84/**52** was op Barcelona (1106 km) de **op één na beste** van het veld, terwijl de
+  specialist-navigator 74/72/**93** voorlaatste was.
+- **De mechaniek, op vraag van de eigenaar:** verdwalen is geen **enkele muntworp** meer maar
+  een **verwacht aantal keren** (`LOST.base + max·room^curve` × afstandsfactor × weer),
+  waaruit een **Poisson-trekking** het werkelijke aantal episodes haalt. Meer kilometers =
+  meer gelegenheid om af te dwalen, dus een slechte navigator raakt op de fond twee of drie
+  keer de lijn kwijt. **Elke episode rolt apart** op "helemaal kwijt" — vandaar dat
+  `strandedMax` van 0,35 naar **0,07** moest, anders raakte een slechte navigator uit één
+  fondvlucht op drie niet thuis.
+- **Twee grenzen die de balans leefbaar houden** (allebei op vraag van de eigenschap):
+  - **`maxDetourFraction 0,16`** — een duif vliegt **nooit meer dan 16 % om**. Zonder plafond
+    stapelden drie episodes tot 30–40 % (1000 km werd 1300) en dat is geen wedstrijd meer.
+    Een goede navigator zit ver onder het plafond, dus het kost niets waar de eigenschap
+    haar werk moet doen. Ook `maxEpisodes 3`.
+  - **`detourJitter 0,45`** — elke omweg wordt ×0,55–1,45 getrokken. Samen met de
+    Poisson-trekking betekent dat een matige navigator **echt geluk kan hebben**: oriëntatie
+    60 vliegt 36 % van de regiovluchten en 6 % van de fondvluchten volkomen schoon.
+- **Snelheid en conditie waren óók niet in balans**, en dat kwam niet uit de formule maar uit
+  de **kalender**: 3 regionale vluchten tegen 2 internationale, plus titan en estafette-etappes
+  in het korte segment. `DISTANCE_WEIGHTING.short` ging daarom van 0,83/0,17 naar **0,68/0,32**
+  en `long` van 0,31/0,69 naar **0,26/0,74**. ⚠️ Dit raakt **elke duif in het spel meteen** —
+  een sprinter is op de regiovlucht iets minder dominant. Bewuste keuze van de eigenschap:
+  zonder dit kan oriëntatie wel gelijkkomen met conditie maar nooit met snelheid.
+- **Gemeten na de ingreep** (veld van 12 op 70/70/70, één duif +10, gepaard op dezelfde
+  vlucht-seeds): gewogen over de kalender **snelheid +3,7pp / conditie +3,5pp / oriëntatie
+  +2,8pp**, en op gemiddelde plaats −0,59 / −0,58 / −0,57 — praktisch identiek. Per niveau
+  blijft de rolverdeling scherp: regionaal **snelheid 4,7pp** vs conditie 2,4 vs oriëntatie
+  1,3; internationaal **conditie 4,8 en oriëntatie 4,9** vs snelheid 2,1.
+- **Neveneffecten gemeten** (realistisch veld, oriëntatie 60–95): vluchten worden 4,7 %
+  (regio) tot 8,8 % (intl) langer, energiekost +0,2 tot +2,2, **sterfte beweegt niet**
+  (0,00 %), duif-verdwijnt van 0,06 % naar 0,16 %. Leesbudget **24,4 %** van de 5M/dag.
+- **`SimEntry.strays`** (nieuw, rijdt in de `sim`-JSON → **geen migratie**): alle episodes
+  apart, zodat het 📻-verslag elke afdwaling op haar eigen moment meldt. **`lost` blijft de
+  aggregaat** (eerste moment, tótale omweg), zodat energie (`flownKm`), de stand en de
+  "~X km omweg"-regel ongewijzigd blijven werken — en een vlucht die tijdens de deploy live
+  is, valt via `strayEpisodes()` netjes terug op het oude veld.
+- **Nieuwe blijvende test `attribute-balance.test.mts`** (20 controles): geen eigenschap is
+  dood op geen enkel niveau, de drie liggen binnen een factor 1,6 (plaats) resp. 1,8
+  (winkans) van elkaar, snelheid domineert de sprint, conditie én oriëntatie domineren de
+  fond, de omweg blijft onder het plafond, verdwalen blijft een kans (matige navigator komt
+  soms schoon thuis, goede navigator is niet immuun) en betere oriëntatie is altijd beter.
+  **Draai hem na élke wijziging aan `DISTANCE_WEIGHTING` of `LOST`.**
+- **Geen migratie, geen schemakolom**, `dataVersion` blijft **42**. Alle 22 regressietests +
+  beide typechecks + build groen. Wiki 🧭 **Verdwalen** en 📋 **Wat doet elke eigenschap**
+  herschreven; spelregels **§1**, **§2.3** en **§3.5** idem.
+- ⚠️ **Bestaande flakiness ontdekt, niet veroorzaakt:** `force-finish.test.mts` faalde
+  **1 op 4 runs op de ongewijzigde code** (`TypeError` op een `!`-assertie voor een duif die
+  legitiem uit de wereld kan zijn). Staat los van deze wijziging en is nog niet gerepareerd.
+
+**Live-bord: kop én staart van de wedstrijd i.p.v. de raceklok**
 - **Symptoom (eigenaar):** de balk **"Kop van de wedstrijd"** stond op **48 %** terwijl de
   vlucht voor veel duiven al afgelopen was.
 - **Oorzaak:** het was helemaal geen kop, maar de **raceklok**: `overallProgress =
