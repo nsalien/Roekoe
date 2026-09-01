@@ -6,7 +6,7 @@
 
 import type { Database, Flight, Loft, Notification, Pigeon, RaceLogEntry, Trade } from './schema.js';
 import type { PigeonLogs } from './d1.js';
-import { AGE_CUP, AUCTION, BREED_RARITY, COACH, ageCategoryDef, ageCategoryFor, compartmentCost, RELAY, REST_CURE, TRADE_HISTORY_DAYS, TRAINING } from './config/gameConfig.js';
+import { AGE_CUP, AUCTION, BREED_RARITY, CITY_COORDS, COACH, ageCategoryDef, ageCategoryFor, compartmentCost, RELAY, REST_CURE, TRADE_HISTORY_DAYS, TRAINING } from './config/gameConfig.js';
 import {
   ageInWeeks,
   breedInfo,
@@ -456,6 +456,56 @@ export function liveFlightDTO(db: Database, f: Flight, nowMs: number) {
  * the page starts needing a field, add it here, not by falling back to the full
  * `flightDTO`.
  */
+/**
+ * The live board, derived from the flight row ALONE — no `db`.
+ *
+ * Everything the live page renders already rides in the flight itself: the
+ * frozen `sim` carries each bird's name, owner and position, and `results`
+ * carries the finish. It never reads `entrants`/`teams` (those exist for the
+ * betting UI on a *scheduled* flight), so this leaves them out rather than
+ * inventing them from a database we deliberately did not load.
+ *
+ * That is what lets `/flights/:id/live` answer from two rows instead of ~350
+ * (see `loadLiveFlight`). Keep this in step with what `LiveFlightPage` uses: if
+ * the page starts needing a field, add it here, not by falling back to the full
+ * `flightDTO`.
+ */
+/**
+ * The geography of a flight: where it was released, where home is, and — for an
+ * estafette — the three legs with their handover points. Everything comes from
+ * `CITY_COORDS` (an in-memory table derived from RACE_CITIES) or from the legs
+ * already frozen on the flight, so this costs no query and no database row.
+ *
+ * A city we have no coordinates for yields `null`, and the client then simply
+ * shows no map rather than drawing a route through the wrong place.
+ *
+ * Deliberately just the ENDPOINTS: every bird's position is `progress` along this
+ * line, which the client already receives, so per-bird coordinates never have to
+ * go over the wire (~90 birds × 2 floats on every poll of the hottest route in
+ * the game — see the payload notes in context.md §8).
+ */
+function routeGeometry(f: Flight) {
+  const from = CITY_COORDS[f.fromCity];
+  const to = CITY_COORDS[f.toCity];
+  if (!from || !to) return null;
+  return {
+    from: { name: f.fromCity, lat: from.lat, lon: from.lon },
+    to: { name: f.toCity, lat: to.lat, lon: to.lon },
+    legs: f.relay
+      ? (f.legs ?? []).map((l) => ({
+          index: l.index,
+          fromName: l.fromName,
+          toName: l.toName,
+          fromLat: l.fromLat,
+          fromLon: l.fromLon,
+          toLat: l.toLat,
+          toLon: l.toLon,
+          distanceKm: l.distanceKm,
+        }))
+      : undefined,
+  };
+}
+
 export function liveBoardDTO(f: Flight, nowMs: number) {
   const isRunning = f.status === 'live' || f.status === 'completed';
   return {
@@ -469,6 +519,9 @@ export function liveBoardDTO(f: Flight, nowMs: number) {
       status: f.status,
       weather: f.weather,
       relay: !!f.relay,
+      // Route geometry for the live map. Endpoints only — the birds ride on
+      // `live.birds[].progress`, which is already in this response.
+      route: routeGeometry(f),
       // Only a relay needs this: the page reads it purely to label which leg a
       // bird flew. For a normal flight every entrant is already in `live.birds`
       // with its position, so shipping the entry list again is ~90 objects of

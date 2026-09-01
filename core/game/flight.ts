@@ -273,7 +273,7 @@ function buildPaceProfile(
   // completely clean race. Rough weather multiplies it, and it barely troubles a
   // good navigator while it wrecks a poor one.
   let lost: SimEntry['lost'] = null;
-  const strays: { atSeconds: number; detourKm: number }[] = [];
+  const strays: NonNullable<SimEntry['strays']> = [];
   let strayDays: number | undefined;
   let strandedAtSeconds: number | null = null;
   if (!practice) {
@@ -337,7 +337,19 @@ function buildPaceProfile(
       const spanDistM = segDistM * (endSeg - startSeg);
       const slow = spanDistM / (spanDistM + detourKm * 1000);
       for (let i = startSeg; i < endSeg; i++) segMult[i] = clamp(segMult[i] * slow, 0.05, 2);
-      strays.push({ atSeconds: Math.round(atSecs), detourKm });
+      // Freeze WHERE along the route the wandering happens, not just when. The
+      // live map draws the bird off the line over exactly this stretch — the same
+      // stretch the slowdown above is applied to — so the drawn detour and the
+      // time she loses are one and the same event. Computed from the segment
+      // window (free), never re-derived at poll time (see offCourseKm).
+      const spanKm = round1(spanDistM / 1000);
+      strays.push({
+        atSeconds: Math.round(atSecs),
+        detourKm,
+        startKm: round1((segDistM * startSeg) / 1000),
+        spanKm,
+        peakKm: strayPeakKm(spanKm, detourKm),
+      });
     }
 
     // `lost` stays the AGGREGATE (first moment, total ground) so energy, the
@@ -1383,6 +1395,10 @@ export interface LiveBird {
   gaveUp: boolean; // owner pulled it from the race
   etaSeconds: number; // seconds until this bird is home (0 if finished)
   liveRank: number;
+  /** Signed km beside the straight line home — non-zero only while the bird is
+   *  actually wandering (see offCourseKm). The map places her with it; the board
+   *  ignores it, because the standings are measured along the route. */
+  offCourseKm: number;
 }
 
 /** One bird's slot in a relay team's running order. */
@@ -1394,6 +1410,8 @@ export interface LiveRelayLeg {
   kmTotal: number;
   speedKmh: number;
   status: 'wachtend' | 'onderweg' | 'binnen' | 'gestopt';
+  /** Signed km beside this leg's straight line (see offCourseKm). */
+  offCourseKm: number;
 }
 
 /** A relay team on the live board: one row, three birds, one baton. */
@@ -1493,6 +1511,9 @@ export function liveSnapshot(flight: Flight, nowMs: number): LiveSnapshot {
       gaveUp: gaveUp || stopped, // a bird that gave out is shown as out of the race
       etaSeconds: finished || !moving ? 0 : Math.round(Math.max(0, s.durationSeconds - elapsed)),
       liveRank: 0,
+      // Only a bird still in the air can be off course: once she is home or out
+      // of the race her position is a fact, not a wander.
+      offCourseKm: moving ? offCourseKm(s, kmDone) : 0,
     };
     return { bird, finishTime: s.durationSeconds, out: gaveUp || stopped };
   });
@@ -1570,9 +1591,12 @@ function relaySnapshot(flight: Flight, nowMs: number): LiveSnapshot {
         status = 'wachtend';
       }
       kmDone += legKmDone;
+      // Off course only while she is actually flying her own leg.
+      const legOff = status === 'onderweg' ? offCourseKm(s, legKmDone) : 0;
       legs.push({
         leg: legNo, pigeonId: s.pigeonId, pigeonName: s.pigeonName,
         kmDone: legKmDone, kmTotal: legKm, speedKmh: legSpeed, status,
+        offCourseKm: legOff,
       });
       birds.push({
         pigeonId: s.pigeonId,
@@ -1588,6 +1612,7 @@ function relaySnapshot(flight: Flight, nowMs: number): LiveSnapshot {
         gaveUp: status === 'gestopt',
         etaSeconds: status === 'onderweg' ? Math.round(Math.max(0, (s.legStartSeconds ?? 0) + s.durationSeconds - elapsed)) : 0,
         liveRank: 0,
+        offCourseKm: legOff,
       });
       if (status === 'gestopt') break;
       if (status === 'wachtend') break;
@@ -1659,6 +1684,82 @@ interface RankRow {
 function strayEpisodes(s: SimEntry): { atSeconds: number; detourKm: number }[] {
   if (s.strays?.length) return s.strays;
   return s.lost ? [s.lost] : [];
+}
+
+/**
+ * The sideways peak of the detour bulge the live map draws, in km.
+ *
+ * A bird that strays flies `detourKm` extra ground over a stretch of `spanKm`.
+ * The map shows that as a half sine leaving the course and rejoining it, so the
+ * peak must be the one for which the CURVE is exactly `detourKm` longer than the
+ * straight stretch. For `y = h·sin(πx/s)` that length has no closed form worth
+ * having, and the textbook small-slope approximation is badly optimistic here
+ * (the bulges are fat: h/s runs to 0.4), so it is solved numerically.
+ *
+ * ⚠️ Runs ONCE per episode when the flight is frozen, never on a poll. That is
+ * the whole point of storing the result: the live board recomputes positions for
+ * every bird on every request, and this integral has no business there.
+ * Capped at half the span, so a huge detour on a short stretch draws a loop
+ * rather than a spike.
+ */
+export function strayPeakKm(spanKm: number, detourKm: number): number {
+  if (spanKm <= 0 || detourKm <= 0) return 0;
+  // Arc length of y = h·sin(πx/s) over [0, s], by Simpson on θ = πx/s.
+  const arc = (h: number): number => {
+    const k = (h * Math.PI) / spanKm;
+    const N = 64; // even
+    const f = (th: number) => Math.sqrt(1 + k * k * Math.cos(th) ** 2);
+    let sum = f(0) + f(Math.PI);
+    for (let i = 1; i < N; i++) sum += f((Math.PI * i) / N) * (i % 2 ? 4 : 2);
+    return (spanKm / Math.PI) * ((Math.PI / N) / 3) * sum;
+  };
+  const cap = spanKm / 2;
+  if (arc(cap) - spanKm <= detourKm) return round1(cap);
+  let lo = 0, hi = cap;
+  for (let i = 0; i < 40; i++) {
+    const mid = (lo + hi) / 2;
+    if (arc(mid) - spanKm < detourKm) lo = mid; else hi = mid;
+  }
+  return round1((lo + hi) / 2);
+}
+
+/**
+ * How far OFF the straight line home a bird is right now, in km — signed, so the
+ * map can put her left or right of the route.
+ *
+ * Straying is real extra kilometres (see LOST), and until now that was only
+ * visible as lost time: the bird simply slid backwards down the line. On the map
+ * she now actually leaves the course and rejoins it, over exactly the stretch the
+ * engine slowed her on (`startKm`/`spanKm`, frozen at release).
+ *
+ * The bulge is a half sine over that stretch whose PEAK (`peakKm`) was solved at
+ * release so the drawn curve is exactly as long as the ground she really covered
+ * (see strayPeakKm). All that is left here is one sine per episode.
+ *
+ * COST: at most `LOST.maxEpisodes` sines per bird — no `raceProgress` call, no
+ * integral, no allocation. It runs per bird per live poll, so it must stay that
+ * cheap (see the CPU notes in context.md §8).
+ *
+ * A flight frozen before the map shipped has no `startKm`/`spanKm`; such a bird
+ * is drawn ON the line rather than at a guessed position. Those flights are gone
+ * within two days (flight retention), so no fallback geometry is worth the risk
+ * of drawing something that never happened.
+ */
+export function offCourseKm(s: SimEntry, kmDone: number): number {
+  const eps = s.strays;
+  if (!eps || eps.length === 0) return 0;
+  let off = 0;
+  for (let i = 0; i < eps.length; i++) {
+    const e = eps[i];
+    if (e.startKm == null || e.spanKm == null || e.spanKm <= 0 || !e.peakKm) continue;
+    const u = (kmDone - e.startKm) / e.spanKm;
+    if (u <= 0 || u >= 1) continue;
+    // Which side she drifts to: fixed per episode, so she never jumps across the
+    // route between two polls. Seeded on the bird + episode, not on Math.random.
+    const side = hashString(`${s.pigeonId}:stray:${i}`) % 2 === 0 ? 1 : -1;
+    off += side * e.peakKm * Math.sin(Math.PI * u);
+  }
+  return round1(off);
 }
 
 const fillLine = (tpl: string, a: string, b?: string, km?: number | string) =>

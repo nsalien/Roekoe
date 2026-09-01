@@ -197,6 +197,23 @@ balken uit elkaar liggen, is het veld nog uitgesmeerd; staan ze allebei op 100%,
 dan is iedereen die het haalt ook effectief thuis. Bij een **estafettevlucht**
 (§2.9) gaan de balken over **ploegen** in plaats van losse duiven.
 
+**🗺️ Live kaart.** Boven het bord staat een **echte kaart** met de route van de
+losplaats naar huis en een stip voor elke duif die nog in de wedstrijd zit. De
+posities zijn **echte geografie**: een duif die op 40 % van de route zit, staat
+op 40 % van de werkelijke afstand. **Klik een stip** en je ziet van wie ze is,
+haar plaats in de stand, hoeveel kilometer ze al vloog en nog moet, haar
+snelheid en wanneer ze thuis verwacht wordt. Je eigen duiven staan groot in het
+oranje, de leider in het goud. Duiven die **niet meer meedoen** (opgegeven,
+uitgevallen of de weg kwijt) staan **niet** op de kaart — die zie je in het bord
+eronder, met de reden. Bij een **estafettevlucht** (§2.9) toont de kaart de drie
+etappes met hun wisselpunten, en vliegt elke duif op haar eigen etappe.
+
+> **Een verdwaalde duif zie je ook echt afdwalen.** Raakt ze van koers (§3.5),
+> dan schuift ze niet gewoon achteruit op de lijn — ze **verlaat de route** en
+> komt er verderop weer op. De omweg die je op de kaart ziet is even lang als de
+> extra kilometers die ze werkelijk vloog, dus je ziet meteen wáár haar tijd
+> naartoe ging.
+
 **Live-bord.** Tijdens de vlucht zie je per duif de afgelegde afstand en haar
 **snelheid in km/u**. Dat is de **echte, effectieve snelheid** — berekend uit haar
 eigenschappen, vorm-van-de-dag en het weer op het stuk dat ze op dat moment vliegt,
@@ -712,7 +729,9 @@ er weinig van; een slechte is bij ruw weer nagenoeg kansloos.
 
 **Meestal is het een omweg.** Echte extra kilometers: dus echt tijdverlies, een val
 in de stand, én **extra energie** — die kilometers moeten gevlogen worden. De
-omvang varieert sterk: soms een wiebeltje, soms een lus.
+omvang varieert sterk: soms een wiebeltje, soms een lus. **Op de live kaart
+(§2.4) zie je het gebeuren**: je duif buigt van de route af en komt er verderop
+weer op, over precies de kilometers die haar de tijd kostten.
 
 | Oriëntatie | Totale omweg op 300 km | Op 1000 km |
 |---|---|---|

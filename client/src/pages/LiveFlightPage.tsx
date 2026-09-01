@@ -1,6 +1,6 @@
 /** Live flight tracker: per-bird position, speed and a funny commentary feed. */
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { Suspense, lazy, useCallback, useEffect, useRef, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { api } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
@@ -8,6 +8,14 @@ import { useGame } from '../game/GameContext';
 import { useVisiblePoll } from '../game/useVisiblePoll';
 import { Money, Spinner, countdownTo, formatFlightTime, useToast } from '../components/ui';
 import type { LiveFlight, LiveResponse } from '../types';
+
+/**
+ * The live map, loaded ONLY when someone is actually watching a race. Leaflet
+ * plus its CSS is a sizeable chunk and every other page in the game would
+ * otherwise pay for it on first load. It renders from the poll this page already
+ * does — it never fetches anything itself (see FlightMap.tsx).
+ */
+const FlightMap = lazy(() => import('../components/FlightMap'));
 
 /** Which leg of an estafettevlucht a bird flew (undefined for normal flights). */
 function legOf(flight: LiveFlight, pigeonId: string): number | undefined {
@@ -179,6 +187,21 @@ export function LiveFlightPage() {
               </div>
             </div>
           </div>
+        )}
+
+        {/* The same race on a real map. Rides on the poll above: no request of
+            its own, no extra D1 row. Hidden when the release point has no
+            coordinates, so we never draw a route through the wrong place. */}
+        {live && flight.route && (
+          <Suspense fallback={<div className="flight-map map-loading">Kaart laden…</div>}>
+            <FlightMap
+              route={flight.route}
+              birds={live.birds}
+              teams={live.teams}
+              meId={user?.id}
+              outCount={live.birds.filter((b) => b.gaveUp).length}
+            />
+          </Suspense>
         )}
       </div>
 
