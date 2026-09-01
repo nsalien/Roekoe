@@ -68,6 +68,12 @@ duif welke van de twee ze vliegt — een duif kan er **nooit twee op dezelfde da
 doen (harde regel, §3.9). Met een breed hok pak je ze allebei mee, elk met een
 andere duif.
 
+> **De kalender in het spel staat per dag gegroepeerd**, met bovenaan twee rijen
+> knoppen: één om te filteren op **soort** (🏁 competitie · 🏆 buiten competitie,
+> dat zijn titan/estafette/oefenvlucht · 🎂 criterium) en één om **één dag** te
+> bekijken. Een vlucht die **nu bezig** is staat altijd bovenaan, los van je
+> filter.
+
 **Gaat een wedstrijd wel door?** Een **wedstrijdvlucht** (regionaal, nationaal,
 internationaal én de titanenwedstrijd) gaat **enkel door als er minstens 2
 verschillende duivenmelkers** meedoen. Doet er maar één mee, dan wordt de vlucht
@@ -1423,7 +1429,11 @@ een grind.
 
 - Alleen duiven van **echte spelers** staan te koop (geen NPC-markt).
 - Bij elke verkoop verhuist het geld naar de verkoper; de transactie komt in de
-  **verkoopgeschiedenis** (laatste 200).
+  **verkoopgeschiedenis** onderaan de Markt. Die lijst toont de **laatste 7
+  dagen** — wat daarvóór verkocht werd verdwijnt eruit, zodat je ziet wat er
+  *nu* op de markt gebeurt in plaats van een scroll van maandoude deals.
+  ⚠️ De **waardeschatting** (§9.0) kijkt wél verder terug (vier weken), dus een
+  verkoop stuurt de prijzen nog een tijdje nadat ze van dit lijstje af is.
 - Elke duif toont haar eigenaar; je koopt niet je eigen duiven en je hok mag niet
   vol zitten.
 
@@ -1806,6 +1816,13 @@ weddenschappen erop eveneens terugbetaald.
 
 Het invoerveld voor je inzet wordt automatisch begrensd tot **min. €10** en
 **max. €500** (om te vermijden dat één gelukkige weddenschap de economie ontwricht).
+
+**Afgeronde weddenschappen blijven 24 uur staan.** Onder *Vluchten → Uitslagen*
+zie je wat je gewonnen, verloren of terugbetaald kreeg — tot **een dag** na de
+afhandeling, daarna verdwijnt de regel. Vluchten zelf worden na twee dagen
+opgeruimd, dus een oudere weddenschap hoort bij een race die je toch niet meer
+kan nakijken. Je **lopende** weddenschappen staan op de Kalender-tab en blijven
+altijd staan tot de vlucht gelopen is.
 
 ## 15. Seizoenen, ranglijst & prijzen
 

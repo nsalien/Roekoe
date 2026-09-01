@@ -848,7 +848,7 @@ app.get('/market', (c) => {
     .filter((p) => p.ownerId !== user.id && !botIds.has(p.ownerId) && !p.forSale)
     .map((p) => pigeonDTO(db, p, user.id, user.isAdmin))
     .sort((a, b) => b.talent - a.talent);
-  return c.json({ listings, biddable, trades: recentTrades(db), auctions: auctionsDTO(db, user.id) });
+  return c.json({ listings, biddable, trades: recentTrades(db, Date.now()), auctions: auctionsDTO(db, user.id) });
 });
 
 app.post('/auction/bid', async (c) => {
@@ -985,7 +985,7 @@ app.post('/flights/:id/enter', async (c) => {
 app.get('/bets', (c) => {
   const user = requireUser(c);
   const db = c.get('store').data;
-  return c.json({ bets: betsView(db, user.id) });
+  return c.json({ bets: betsView(db, user.id, Date.now()) });
 });
 
 app.post('/bets/preview', async (c) => {

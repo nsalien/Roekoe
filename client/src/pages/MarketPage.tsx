@@ -237,10 +237,11 @@ export function MarketPage() {
       {/* Buy/sell history */}
       <div className="page-head" style={{ marginTop: 26 }}>
         <h2>Verkoopgeschiedenis</h2>
+        <span className="faint">laatste 7 dagen</span>
       </div>
       <div className="card">
         {trades.length === 0 ? (
-          <p className="muted">Nog geen transacties. Wees de eerste die handelt!</p>
+          <p className="muted">De afgelopen week is er niets verhandeld. Wees de eerste die handelt!</p>
         ) : (
           <div className="table-wrap">
             <table className="data">

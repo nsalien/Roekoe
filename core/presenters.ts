@@ -6,7 +6,7 @@
 
 import type { Database, Flight, Loft, Notification, Pigeon, RaceLogEntry, Trade } from './schema.js';
 import type { PigeonLogs } from './d1.js';
-import { AGE_CUP, AUCTION, BREED_RARITY, COACH, ageCategoryDef, ageCategoryFor, compartmentCost, RELAY, REST_CURE, TRAINING } from './config/gameConfig.js';
+import { AGE_CUP, AUCTION, BREED_RARITY, COACH, ageCategoryDef, ageCategoryFor, compartmentCost, RELAY, REST_CURE, TRADE_HISTORY_DAYS, TRAINING } from './config/gameConfig.js';
 import {
   ageInWeeks,
   breedInfo,
@@ -530,9 +530,17 @@ export function auctionsDTO(db: Database, viewerId?: string) {
     });
 }
 
-/** Recent market sales, newest first. */
-export function recentTrades(db: Database, limit = 30) {
+/**
+ * Recent market sales, newest first — only the last `TRADE_HISTORY_DAYS`.
+ *
+ * ⚠️ The cut-off is cosmetic. `market.ts` values pigeons straight off
+ * `db.trades` with its own, longer window (`MARKET_VALUATION.observationDays`),
+ * so an older sale keeps steering prices even once it drops off this list.
+ */
+export function recentTrades(db: Database, nowMs = Date.now(), limit = 30) {
+  const cutoff = new Date(nowMs - TRADE_HISTORY_DAYS * 86400000).toISOString();
   return [...db.trades]
+    .filter((t) => t.at >= cutoff)
     .sort((a, b) => (a.at < b.at ? 1 : -1))
     .slice(0, limit)
     .map(tradeDTO);

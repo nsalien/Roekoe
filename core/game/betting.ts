@@ -456,10 +456,26 @@ export function voidOrphanedBets(db: Database): void {
   }
 }
 
-/** A player's bets (open first, then recently settled), with flight context. */
-export function betsView(db: Database, userId: string, limit = 20) {
+/**
+ * A player's bets: every open one, plus the ones settled in the last
+ * `BETTING.historyHours`, with flight context.
+ *
+ * A settled wager is only news for a day — after that it clutters "Uitslagen"
+ * long after the race it belongs to has scrolled away (flights themselves are
+ * pruned after two days). The rows are NOT deleted here; this is purely what the
+ * player is shown.
+ */
+export function betsView(db: Database, userId: string, nowMs = Date.now(), limit = 20) {
+  const cutoff = nowMs - BETTING.historyHours * 3600000;
   return db.bets
     .filter((b) => b.userId === userId)
+    .filter((b) => {
+      if (b.status === 'open') return true;
+      // Bets from before this rule may have no settle stamp; fall back to when
+      // they were placed rather than showing them forever.
+      const at = Date.parse(b.settledAt ?? b.placedAt);
+      return !Number.isFinite(at) || at >= cutoff;
+    })
     .sort((a, b) => (a.status === 'open' ? 0 : 1) - (b.status === 'open' ? 0 : 1) || (a.placedAt < b.placedAt ? 1 : -1))
     .slice(0, limit)
     .map((b) => {
