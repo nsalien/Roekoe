@@ -78,6 +78,16 @@ export interface Pigeon {
    * as old and are fair game.
    */
   listedAt?: string | null;
+  /**
+   * "Bieden vanaf": the lowest offer the seller is willing to look at. Only set
+   * on a listing by a REAL player — a bot sells at its asking price, full stop.
+   *
+   * With it, a listed bird can be bought outright at `price` OR bid on from
+   * `minBid` up, and the seller decides per bid (see game/offers.ts). Without it a
+   * listing is buy-now only, exactly as before. Cleared whenever the bird leaves
+   * the market.
+   */
+  minBid?: number | null;
   createdAtWeek: number;
   // Health status.
   ailment: Ailment | null; // current disease/injury, or null if healthy

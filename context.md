@@ -388,6 +388,7 @@ Roekoe/
 ├── attribute-balance.test.mts   regressietest: snelheid/conditie/oriëntatie zijn even veel waard
 ├── flight-eligibility.test.mts  regressietest: wie niet kan vliegen wordt niet gelost
 ├── prize-rules.test.mts        regressietest: prijzentabellen + 3-duivenlimiet
+├── market-bidding.test.mts     regressietest: marktprijs + "bieden vanaf"
 ├── age-cup.test.mts             regressietest: leeftijdscriterium (kalender, klassen, cyclus)
 ├── pigeon-logs.test.mts         regressietest: historiekboeken staan NIET in de duivenrij
 ├── season-prizes.test.mts       regressietest: winst-reset + de ceremonie-payload
@@ -929,6 +930,7 @@ npx tsx velocity-model.test.mts    # ervaring raakt de snelheid van een frisse d
 npx tsx attribute-balance.test.mts # de drie racevaardigheden blijven gelijkwaardig
 npx tsx flight-eligibility.test.mts # een niet-inzetbare duif wordt geschrapt + terugbetaald
 npx tsx prize-rules.test.mts       # prijzentabellen lopen door + max 3 beloonde duiven
+npx tsx market-bidding.test.mts    # marktprijs, bieden vanaf, en geen zwevende biedingen
 npx tsx age-cup.test.mts           # leeftijdscriterium: klassen, afwisseling, 3-seizoenencyclus
 npx tsx pigeon-logs.test.mts       # de logboeken blijven uit de wereldload, legacy blijft leesbaar
 npx tsx season-prizes.test.mts     # seasonWins reset, totalWins niet; ceremonie = laatste seizoen
@@ -977,7 +979,39 @@ verzoek uit per statement.
 Alles hieronder staat **live** op de deploy-branch. Data-migraties liepen door tot
 **`dataVersion = 43`**.
 
-**Prijzengeld tot de laatste duif + hoogstens 3 beloonde duiven per hok (nieuwste)**
+**Verkopen met een marktprijs én een "bieden vanaf" (nieuwste)**
+- **Vraag van de eigenaar:** een verkoper zet twee bedragen — een **marktprijs** waarvoor de
+  duif meteen van eigenaar wisselt, en optioneel **"bieden vanaf"**, waarboven anderen een bod
+  mogen doen dat de verkoper aanvaardt of weigert. **Enkel voor échte spelers** (expliciet):
+  een bot verkoopt tegen zijn vraagprijs en onderhandelt niet.
+- **Weinig nieuw nodig:** het biedsysteem (`offers.ts`) bestond al, maar werkte alleen op duiven
+  die **niet** te koop stonden. Nieuw veld **`Pigeon.minBid`** (kolom `min_bid REAL`, achteraan
+  `SCHEMA_STEPS` — append-only, dus **geen migratie**) opent die deur voor een listing.
+- **De regels zitten in `makeOffer`**: op een duif die te koop staat mag je enkel bieden als er
+  een `minBid` is; onder de ondergrens wordt geweigerd, en **op of boven de vraagprijs ook**
+  ("koop haar dan gewoon meteen"). `listForSale` weigert een ondergrens boven de marktprijs en
+  zet `minBid` nooit voor een bothok.
+- **De verkoper krijgt wél een belmelding** (op verzoek), en opnieuw bij een **verhoogd** bod;
+  een verlaging pingt niet. ⚠️ Dat is bewust een **uitzondering** op de bestaande regel dat een
+  bod niet via de bel gaat (§Privé-biedingen): een blind bod op een duif die niet te koop staat
+  is ongevraagd, een bod op een duif waarvoor je zélf een ondergrens zette niet.
+- ⚠️ **Bug gevonden die deze feature bereikbaar maakte:** `settlePigeonSale` liet openstaande
+  biedingen op een duif gewoon staan. Vóór dit kon dat niet — een te koop staande duif kon geen
+  bod hebben — maar nu wel: iemand biedt €3.500 terwijl een ander de vraagprijs van €4.000
+  betaalt. De bieder hield dan een openstaand bod op andermans duif. Biedingen vervallen nu bij
+  élke verkoop, met bericht aan de bieders (zoals `respondOffer` en `purgePigeon` al deden).
+- **UI:** het verkoopformulier op `LoftPage` heeft twee velden (marktprijs + optionele
+  ondergrens, met een waarschuwing als de ondergrens erboven ligt); de marktkaart toont
+  **"Koop nu · €X"** plus een **ListingBid**-blokje "of doe een bod vanaf €Y"; de duifpagina
+  toont een tweede badge. De blinde `BidCascade` blijft ongewijzigd op níet-te-koop duiven.
+- **Nieuwe blijvende test `market-bidding.test.mts`** (34 controles): beide bedragen worden
+  bewaard en gewist, een ondergrens boven de vraagprijs wordt geweigerd, een bot krijgt er nooit
+  een, bieden onder de grens / op de vraagprijs wordt geweigerd, de melding komt (en herhaalt
+  enkel bij verhogen), weigeren laat de duif staan, aanvaarden verkoopt voor het **geboden**
+  bedrag, en een koop-nu laat geen zwevend bod achter.
+- **Geen migratie**, `dataVersion` blijft **43**. Spelregels **§9.1** herschreven.
+
+**Prijzengeld tot de laatste duif + hoogstens 3 beloonde duiven per hok**
 - **Vraag van de eigenaar**, met eigen prijzentabellen. Twee regels tegelijk:
   1. **Elke finisher verdient.** De tabellen stopten na 8 of 10 plaatsen, dus in een groter
      veld vloog de achterhoede voor niets. Gemeten in een gesimuleerde club (10 spelers +

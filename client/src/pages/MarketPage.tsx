@@ -86,6 +86,11 @@ export function MarketPage() {
     void refresh();
   }, [load, refresh]);
 
+  // Een bod op een duif die WEL te koop staat: de verkoper zette een ondergrens,
+  // dus hij krijgt er een melding van en beslist zelf (offers.ts::makeOffer).
+  const bidOnListing = (pigeonId: string, amount: number) =>
+    offerAct(() => api(`/pigeons/${pigeonId}/offer`, { method: "POST", body: { amount } }), "Bod uitgebracht 🤝");
+
   async function offerAct(fn: () => Promise<unknown>, ok?: string) {
     setBusy(true);
     try {
@@ -201,8 +206,11 @@ export function MarketPage() {
                 disabled={busy || money < (p.price ?? 0)}
                 onClick={() => buy(p)}
               >
-                Koop · <Money value={p.price ?? 0} />
+                Koop nu · <Money value={p.price ?? 0} />
               </button>
+              {/* De verkoper kan een ondergrens zetten: dan mag je in plaats van
+                  de vraagprijs ook een bod doen, dat hij aanvaardt of weigert. */}
+              {p.minBid != null && <ListingBid pigeon={p} money={money} busy={busy} onBid={bidOnListing} />}
             </PigeonCard>
           );
         })}
@@ -530,6 +538,54 @@ function AuctionCard({
           Een bod nu zet de klok terug op {auction.antiSnipeMinutes} min — winnen op de valreep lukt niet.
         </p>
       )}
+    </div>
+  );
+}
+
+
+/**
+ * "Bieden vanaf" op een duif die te koop staat. De verkoper heeft een ondergrens
+ * gezet, dus je mag onder de vraagprijs bieden — hij beslist. Boven of op de
+ * vraagprijs koop je haar gewoon meteen (de server weigert zo'n bod ook).
+ */
+function ListingBid({
+  pigeon,
+  money,
+  busy,
+  onBid,
+}: {
+  pigeon: Pigeon;
+  money: number;
+  busy: boolean;
+  onBid: (pigeonId: string, amount: number) => void;
+}) {
+  const floor = pigeon.minBid ?? 0;
+  const ask = pigeon.price ?? 0;
+  const [amount, setAmount] = useState<number>(floor);
+  const tooLow = amount < floor;
+  const tooHigh = ask > 0 && amount >= ask;
+  return (
+    <div className="stack" style={{ gap: 4, marginTop: 8 }}>
+      <span className="faint sm">of doe een bod vanaf <Money value={floor} /></span>
+      <div className="row" style={{ gap: 6 }}>
+        <input
+          type="number"
+          value={amount}
+          min={floor}
+          onChange={(e) => setAmount(Number(e.target.value))}
+          style={{ maxWidth: 110 }}
+        />
+        <button
+          className="btn secondary sm"
+          disabled={busy || tooLow || tooHigh || money < amount}
+          onClick={() => onBid(pigeon.id, amount)}
+        >
+          Bied
+        </button>
+      </div>
+      {tooLow && <span className="faint sm">Minimum is <Money value={floor} />.</span>}
+      {tooHigh && <span className="faint sm">Vanaf de vraagprijs koop je haar gewoon meteen.</span>}
+      {!tooLow && !tooHigh && money < amount && <span className="faint sm">Je hebt dit bedrag niet in kas.</span>}
     </div>
   );
 }

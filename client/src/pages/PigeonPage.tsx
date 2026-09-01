@@ -142,6 +142,11 @@ export function PigeonPage() {
                 <span className="badge bot">★ talent {p.talent}</span>
                 <BreedBadge breed={p.breed} />
                 {p.forSale && <span className="badge sale">te koop · <Money value={p.price ?? 0} /></span>}
+                {p.forSale && p.minBid != null && (
+                  <span className="badge" title="Kopers mogen vanaf dit bedrag een bod doen dat jij aanvaardt of weigert">
+                    bieden vanaf <Money value={p.minBid} />
+                  </span>
+                )}
                 {p.ailment && (
                   <span className="badge" style={{ background: p.ailment.kind === 'ziekte' ? 'var(--bad-soft)' : 'var(--gold-soft)', color: p.ailment.kind === 'ziekte' ? 'var(--bad)' : 'var(--gold)' }}>
                     {p.ailment.kind === 'ziekte' ? '🤒' : '🩹'} {p.ailment.name}

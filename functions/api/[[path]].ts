@@ -866,7 +866,10 @@ app.post('/market/list', async (c) => {
   const price = Number(body.price);
   if (!(price > 0)) return c.json({ error: 'Ongeldige prijs' }, 400);
   const store = c.get('store');
-  const err = listForSale(store, user.id, String(body.pigeonId ?? ''), price);
+  const rawMin = body.minBid;
+  const minBid = rawMin == null || rawMin === '' ? null : Number(rawMin);
+  if (minBid != null && !Number.isFinite(minBid)) return c.json({ error: 'Ongeldige ondergrens om te bieden' }, 400);
+  const err = listForSale(store, user.id, String(body.pigeonId ?? ''), price, minBid);
   await store.persist();
   return err ? c.json({ error: err }, 400) : c.json({ ok: true });
 });

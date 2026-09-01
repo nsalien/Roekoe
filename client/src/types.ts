@@ -86,6 +86,9 @@ export interface Pigeon {
   value: number;
   canRace: boolean;
   forSale: boolean;
+  /** "Bieden vanaf": vanaf welk bedrag kopers een bod mogen doen. null = enkel
+   *  koop-nu (en altijd null bij een bot: die onderhandelt niet). */
+  minBid: number | null;
   /** ISO time this bird went on the market (null when not listed). */
   listedAt?: string | null;
   price: number | null;

@@ -117,6 +117,8 @@ export function pigeonDTO(db: Database, p: Pigeon, viewerId?: string, viewerIsAd
     })(),
     canRace: canRace(p, week),
     forSale: p.forSale,
+    // "Bieden vanaf" — null on a buy-now-only listing (and on every bot's bird).
+    minBid: p.forSale ? p.minBid ?? null : null,
     price: p.price,
     // Public: when it went on the market, so the market can show what is fresh —
     // which is the point of the head start players get over the bots.

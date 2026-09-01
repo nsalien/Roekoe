@@ -681,11 +681,24 @@ export function giveUpFlight(store: Store, userId: string, flightId: string, pig
 }
 
 /** List one of your pigeons on the market at a price. */
-export function listForSale(store: Store, userId: string, pigeonId: string, price: number): string | null {
+export function listForSale(
+  store: Store,
+  userId: string,
+  pigeonId: string,
+  price: number,
+  minBid?: number | null,
+): string | null {
   return store.mutate((db) => {
     const pigeon = db.pigeons.find((p) => p.id === pigeonId && p.ownerId === userId);
     if (!pigeon) return 'Duif niet gevonden';
     if (price <= 0) return 'Ongeldige prijs';
+    // "Bieden vanaf" is optional. Above the asking price it would be nonsense —
+    // nobody would ever bid when buying outright is cheaper.
+    const floor = minBid == null ? null : Math.round(minBid);
+    if (floor != null) {
+      if (!(floor > 0)) return 'Ongeldige ondergrens om te bieden';
+      if (floor > Math.round(price)) return 'De ondergrens om te bieden mag niet boven je marktprijs liggen';
+    }
     if (isAway(pigeon)) return `${AWAY_MSG} — je kan haar pas verkopen als ze terug is`;
     // A pigeon that is currently racing or breeding cannot be sold.
     const racing = pigeonCommittedToFlight(db, pigeonId);
@@ -694,6 +707,10 @@ export function listForSale(store: Store, userId: string, pigeonId: string, pric
     if (breeding) return 'Deze duif koppelt momenteel';
     pigeon.forSale = true;
     pigeon.price = Math.round(price);
+    // A bot sells at its asking price and never negotiates, so it never gets a
+    // bidding floor — offers on a bot's bird are refused outright (offers.ts).
+    const owner = db.lofts.find((l) => l.userId === userId);
+    pigeon.minBid = owner?.isBot ? null : floor;
     // Starts the clock the bots have to wait out (BOT.marketMinListedHours).
     // Re-listing restarts it, which is the honest reading: it is a new offer.
     pigeon.listedAt = new Date().toISOString();
@@ -708,6 +725,7 @@ export function unlist(store: Store, userId: string, pigeonId: string): string |
     if (!pigeon) return 'Duif niet gevonden';
     pigeon.forSale = false;
     pigeon.price = null;
+    pigeon.minBid = null;
     pigeon.listedAt = null;
     return null;
   });
@@ -736,7 +754,17 @@ export function settlePigeonSale(db: Database, buyer: Loft, pigeon: Pigeon): voi
   pigeon.ownerId = buyer.userId;
   pigeon.forSale = false;
   pigeon.price = null;
+  pigeon.minBid = null;
   pigeon.listedAt = null;
+  // Any pending bids on her lapse — she has moved. Since a listing can now carry
+  // a "bieden vanaf", a bird can be bid on AND bought outright at the same time,
+  // so this is reachable in a way it never was before: without it the bidder
+  // would keep an open offer on someone else's bird.
+  for (const o of db.offers.filter((x) => x.pigeonId === pigeon.id)) {
+    notify(db, o.fromUserId, 'info', '🚫 Bod vervallen',
+      `${pigeon.name} is voor de marktprijs verkocht. Je bod van €${o.amount} is vervallen.`);
+  }
+  db.offers = db.offers.filter((o) => o.pigeonId !== pigeon.id);
   db.trades.push({
     id: newId('trd'),
     pigeonId: pigeon.id,

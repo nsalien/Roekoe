@@ -17,6 +17,8 @@ export function LoftPage() {
   const [busy, setBusy] = useState(false);
   const [sellFor, setSellFor] = useState<string | null>(null);
   const [price, setPrice] = useState(0);
+  // "Bieden vanaf" is optioneel: leeg = enkel koop-nu, zoals vroeger.
+  const [minBid, setMinBid] = useState<string>('');
 
   if (loading || !state) return <Spinner />;
   const pigeons = [...state.pigeons].sort((a, b) => (b[sort] ?? 0) - (a[sort] ?? 0));
@@ -111,22 +113,45 @@ export function LoftPage() {
               )}
             </div>
             {sellFor === p.id ? (
-              <div className="row">
-                <input
-                  type="number"
-                  value={price}
-                  min={1}
-                  onChange={(e) => setPrice(Number(e.target.value))}
-                  style={{ maxWidth: 110 }}
-                />
-                <button
-                  className="btn sm"
-                  disabled={busy || price <= 0}
-                  onClick={() => act(() => api('/market/list', { method: 'POST', body: { pigeonId: p.id, price } }), 'Te koop gezet').then(() => setSellFor(null))}
-                >
-                  Bevestig
-                </button>
-                <button className="btn ghost sm" onClick={() => setSellFor(null)}>Annuleer</button>
+              <div className="stack" style={{ gap: 6 }}>
+                <label className="row" style={{ gap: 6, alignItems: 'center' }}>
+                  <span className="faint sm" style={{ minWidth: 92 }}>Marktprijs</span>
+                  <input
+                    type="number"
+                    value={price}
+                    min={1}
+                    onChange={(e) => setPrice(Number(e.target.value))}
+                    style={{ maxWidth: 110 }}
+                  />
+                </label>
+                <label className="row" style={{ gap: 6, alignItems: 'center' }}>
+                  <span className="faint sm" style={{ minWidth: 92 }}>Bieden vanaf</span>
+                  <input
+                    type="number"
+                    value={minBid}
+                    min={1}
+                    placeholder="optioneel"
+                    onChange={(e) => setMinBid(e.target.value)}
+                    style={{ maxWidth: 110 }}
+                  />
+                </label>
+                <span className="faint sm">
+                  Wie de marktprijs betaalt, koopt haar meteen. Vul je een ondergrens in, dan mogen anderen
+                  vanaf dat bedrag een bod doen dat jij aanvaardt of weigert.
+                </span>
+                <div className="row" style={{ gap: 6 }}>
+                  <button
+                    className="btn sm"
+                    disabled={busy || price <= 0 || (minBid !== '' && Number(minBid) > price)}
+                    onClick={() => act(() => api('/market/list', { method: 'POST', body: { pigeonId: p.id, price, minBid: minBid === '' ? null : Number(minBid) } }), 'Te koop gezet').then(() => { setSellFor(null); setMinBid(''); })}
+                  >
+                    Bevestig
+                  </button>
+                  <button className="btn ghost sm" onClick={() => { setSellFor(null); setMinBid(''); }}>Annuleer</button>
+                </div>
+                {minBid !== '' && Number(minBid) > price && (
+                  <span className="notice err sm">De ondergrens mag niet boven je marktprijs liggen.</span>
+                )}
               </div>
             ) : (
               <div className="row" style={{ justifyContent: 'space-between' }}>

@@ -169,6 +169,7 @@ function rowToPigeon(r: any): Pigeon {
     restDays: r.rest_days ?? 0,
     cureUntil: r.cure_until ?? null,
     listedAt: r.listed_at ?? null,
+    minBid: r.min_bid ?? null,
     lastRaceAt: r.last_race_at ?? null,
     lastRestCureAt: r.last_rest_cure_at ?? null,
     awayUntil: r.away_until ?? null,
@@ -356,7 +357,7 @@ const PIGEON_COLUMNS = [
   'compartment', 'hunger_days', 'rest_days', 'cure_until', 'season_peak_speed', 'season_podiums',
   'season_start_score', 'season_practice_gain', 'trained_at', 'genes', 'decline_rate',
   'care_assigned', 'last_race_at', 'last_race_practice', 'last_rest_cure_at', 'away_until',
-  'cup', 'titles', 'listed_at',
+  'cup', 'titles', 'listed_at', 'min_bid',
 ];
 
 /**
@@ -393,6 +394,7 @@ function pigeonRow(p: Pigeon): unknown[] {
     p.cup && Object.keys(p.cup).length ? JSON.stringify(p.cup) : null,
     p.titles && p.titles.length ? JSON.stringify(p.titles) : null,
     p.listedAt ?? null,
+    p.minBid ?? null,
   ];
 }
 
@@ -1102,6 +1104,7 @@ const SCHEMA_STEPS: string[] = [
   // When a bird went on the market — the head start players get before bots may
   // buy it (see BOT.marketMinListedHours).
   'ALTER TABLE pigeons ADD COLUMN listed_at TEXT',
+  'ALTER TABLE pigeons ADD COLUMN min_bid REAL',
 ];
 
 /**

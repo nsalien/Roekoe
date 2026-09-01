@@ -49,6 +49,16 @@ export function makeOffer(db: Database, fromUserId: string, pigeonId: string, am
   if (owner.isBot) return 'Je kan enkel op duiven van andere spelers bieden';
   const bid = Math.round(amount);
   if (!(bid > 0)) return 'Ongeldig bod';
+  // A bird ON the market can only be bid on when its seller opened the door with
+  // a "bieden vanaf". Otherwise the listing is buy-now only and haggling would
+  // just be a way to dodge the asking price.
+  if (pigeon.forSale) {
+    if (pigeon.minBid == null) return 'Deze duif staat te koop tegen een vaste prijs — bieden kan hier niet';
+    if (bid < pigeon.minBid) return `Bieden op deze duif kan vanaf €${pigeon.minBid}`;
+    if (pigeon.price != null && bid >= pigeon.price) {
+      return 'Je bod haalt de marktprijs — koop haar dan gewoon meteen';
+    }
+  }
   if (bidder.money < bid) return 'Je moet het geld dat je biedt ook echt hebben';
   const owned = db.pigeons.filter((p) => p.ownerId === fromUserId).length;
   if (owned >= bidder.capacity) return 'Je hok zit vol — maak eerst plaats';
@@ -57,8 +67,11 @@ export function makeOffer(db: Database, fromUserId: string, pigeonId: string, am
     (o) => o.status === 'pending' && o.pigeonId === pigeonId && o.fromUserId === fromUserId,
   );
   if (existing) {
+    const raised = bid > existing.amount;
     existing.amount = bid;
     existing.createdAt = new Date().toISOString();
+    // Only worth pinging the seller again when the bid went UP.
+    if (pigeon.forSale && raised) notifySellerOfBid(db, owner, bidder, pigeon, bid);
     return null;
   }
   db.offers.push({
@@ -66,7 +79,23 @@ export function makeOffer(db: Database, fromUserId: string, pigeonId: string, am
     fromUserId, fromUserName: bidder.name, toUserId: owner.userId, toUserName: owner.name,
     amount: bid, status: 'pending', createdAt: new Date().toISOString(), resolvedAt: null,
   });
+  // A bid on a bird you deliberately opened for bidding is worth a bell: you set
+  // a floor precisely because you want to be asked. A blind bid on a bird that is
+  // NOT for sale stays where it always was — the Markt page and its nav badge —
+  // so an unsolicited bid can never spam your inbox.
+  if (pigeon.forSale) notifySellerOfBid(db, owner, bidder, pigeon, bid);
   return null;
+}
+
+/** Tell a seller that someone bid on the bird they opened for bidding. */
+function notifySellerOfBid(db: Database, owner: Loft, bidder: Loft, pigeon: Pigeon, bid: number): void {
+  if (owner.isBot) return;
+  notify(
+    db, owner.userId,
+    `💰 Bod van €${bid} op ${pigeon.name}`,
+    `${bidder.name} biedt €${bid} op ${pigeon.name}${pigeon.price != null ? ` (je vraagprijs is €${pigeon.price})` : ''}. ` +
+      'Je vindt het bod bij Markt → Biedingen op jouw duiven, waar je het kan aanvaarden of weigeren.',
+  );
 }
 
 /** The bidder withdraws a pending offer (it stops being valid). */
@@ -83,6 +112,7 @@ function transfer(db: Database, buyer: Loft, seller: Loft, pigeon: Pigeon, price
   pigeon.ownerId = buyer.userId;
   pigeon.forSale = false;
   pigeon.price = null;
+  pigeon.minBid = null;
   db.trades.push({
     id: newId('trd'), pigeonId: pigeon.id, pigeonName: pigeon.name,
     sellerId: seller.userId, sellerName: seller.name, buyerId: buyer.userId, buyerName: buyer.name,

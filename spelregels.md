@@ -1450,7 +1450,35 @@ De waarde is een **richtprijs**: je mag je duif voor elk bedrag te koop zetten. 
 bepaalt wel het **startbod van een veiling** (30 % van de waarde, zodat er nog te
 bieden valt) en wat de gladde koopman voor je pronkstuk neerlegt.
 
-### 9.1 Privé-biedingen (bieden op een duif die niet te koop staat)
+### 9.1 Te koop zetten: marktprijs én "bieden vanaf"
+
+Zet je een duif op de markt, dan geef je **twee** bedragen op:
+
+| Veld | Wat het doet |
+|---|---|
+| **Marktprijs** | Wie dit bedrag betaalt, koopt je duif **meteen**. Geen tussenkomst van jou. |
+| **Bieden vanaf** *(optioneel)* | Vanaf dit bedrag mogen anderen een **bod** doen. Jij krijgt een melding en beslist zelf: aanvaarden of weigeren. |
+
+> **Voorbeeld.** Marktprijs €4.000, bieden vanaf €3.000. Wie €4.000 neertelt, heeft
+> de duif direct. Wie liever onderhandelt, kan €3.000 of meer bieden — jij bepaalt
+> of je erop ingaat.
+
+- Vul je **geen** ondergrens in, dan is je duif **enkel voor de marktprijs** te
+  koop; bieden kan dan niet.
+- De ondergrens mag **niet boven** je marktprijs liggen — dan zou niemand ooit
+  bieden, want kopen is dan goedkoper.
+- Een bod **op of boven** je marktprijs wordt geweigerd: dan koopt de bieder haar
+  gewoon meteen.
+- Je krijgt een **belmelding** bij elk nieuw bod, en opnieuw als iemand zijn bod
+  **verhoogt**. Het bod zelf beheer je bij **Markt → Biedingen op jouw duiven**.
+- Aanvaard je een bod, dan verkoop je voor het **geboden** bedrag, niet voor je
+  marktprijs. Weiger je, dan blijft je duif gewoon te koop staan.
+- Wordt je duif intussen voor de **volle marktprijs** gekocht, dan vervallen alle
+  openstaande biedingen erop en krijgen die bieders daar bericht van.
+- **Enkel bij échte spelers.** Een computermelker (§17) verkoopt tegen zijn
+  vraagprijs en onderhandelt nooit — op zijn duiven kan je niet bieden.
+
+### 9.1b Privé-biedingen (bieden op een duif die niet te koop staat)
 Je kan een **bod** uitbrengen op de duif van **een andere speler**, ook al staat
 die **niet te koop**. Dat kan op **twee plaatsen**: op de **Markt** onder
 **"🕊️ Bied op duiven van andere spelers"**, of via de knop **"Bied op deze duif"**
