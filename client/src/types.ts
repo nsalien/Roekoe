@@ -221,6 +221,11 @@ export interface DailyCostBreakdown {
   doctors: number;
   physios: number;
   medicatedFeed: number;
+  /** Staff being paid with nothing of their kind to treat, and what that costs.
+   *  Already included in `doctors`/`physios`/`total` — a warning, not a discount. */
+  idleDoctors?: number;
+  idlePhysios?: number;
+  idleStaffCost?: number;
   total: number;
   /** Daily sponsor income, per contract and totalled. */
   sponsors: { id: string; name: string; icon: string; amount: number }[];

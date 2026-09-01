@@ -407,6 +407,25 @@ export function coveredInInfirmary(loft: Loft, pigeons: Pigeon[]): Set<string> {
 }
 
 /**
+ * Staff on the payroll with nothing to treat: a doctor while no ILLNESS lies in
+ * the infirmary, a physio while no INJURY does. Partial counts too — with two
+ * doctors and one sick bird, one doctor is idle.
+ *
+ * ⚠️ They are still paid in full; the daily bill does not change (§4.2
+ * spelregels). This exists purely so the cost can be SHOWN, because a salary
+ * that quietly runs on for an empty infirmary is the one recurring cost a player
+ * never notices leaving their account.
+ */
+export function idleCareStaff(loft: Loft, pigeons: Pigeon[]): { doctors: number; physios: number } {
+  const busy = (kind: Ailment['kind'], perStaff: number) =>
+    Math.ceil(careSlots(loft, pigeons, kind).patients / perStaff);
+  return {
+    doctors: Math.max(0, loft.doctors - busy('ziekte', INFIRMARY.birdsPerDoctor)),
+    physios: Math.max(0, loft.physios - busy('kwetsuur', INFIRMARY.birdsPerPhysio)),
+  };
+}
+
+/**
  * How many staff slots a loft has for one kind of ailment, and how many of them
  * the owner has already pinned. Drives both the guard in `setCareAssignment` and
  * the counters shown on the Ziekenboeg page.

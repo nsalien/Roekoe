@@ -37,7 +37,7 @@ import {
   newcomerDaysLeft,
   winningsMultiplier,
 } from './game/newcomer.js';
-import { coveredInInfirmary } from './game/health.js';
+import { coveredInInfirmary, idleCareStaff } from './game/health.js';
 import { valuePigeon } from './game/market.js';
 import { flightCancelled, flightCommentary, liveSnapshot, pigeonCommittedToFlight } from './game/flight.js';
 import { relayEntryTeams, relayLegKm } from './game/relay.js';
@@ -281,6 +281,9 @@ export function loftDTO(db: Database, loft: Loft) {
       pigeons.length,
       billableCoachedCount(loft, coachedCount, Date.now()),
       infirmary.length,
+      // Staff being paid with nothing of their kind to treat. The bill is
+      // unchanged; the Dagbalans just says so out loud.
+      idleCareStaff(loft, pigeons),
     ),
     // The weekly rest-cure lock is gone (any bird may go on a cure), but the field
     // stays so an older, still-open tab keeps rendering. Always null now.

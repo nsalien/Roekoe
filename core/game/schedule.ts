@@ -71,6 +71,7 @@ import { settleFlightBets, voidBetsForWithdrawnPigeon, voidOrphanedBets, refundF
 import {
   applyAilment,
   coveredInInfirmary,
+  idleCareStaff,
   randomDisease,
   randomStrainInjury,
   runAgeDecline,
@@ -2232,6 +2233,32 @@ export function tickDailyCare(db: Database, nowMs: number): void {
         // the player's daily balance is a single honest number (no /7 rounding).
         const stipend = activeContracts(loft).reduce((s, c) => s + c.contract.dailyStipend, 0);
         if (stipend > 0) loft.money += stipend;
+
+        // A doctor/physio on the payroll is paid every day, ill birds or not —
+        // that is deliberate (§4.2 spelregels), but it is also the only recurring
+        // cost that runs on completely unnoticed: the ziekenboeg is a page you
+        // open when something is wrong, so an empty one is a page you never see.
+        // Warn ONCE PER WEEK for as long as it lasts. The week bucket is derived
+        // from the day being processed, so the id is deterministic (no extra
+        // column) and two concurrent ticks land on the same row.
+        if (!loft.isBot) {
+          const idle = idleCareStaff(loft, alive);
+          const idleCost = idle.doctors * INFIRMARY.doctorSalary + idle.physios * INFIRMARY.physioSalary;
+          if (idleCost > 0) {
+            const who = [
+              idle.doctors > 0 ? `${idle.doctors} dokter${idle.doctors === 1 ? '' : 's'}` : null,
+              idle.physios > 0 ? `${idle.physios} kinesist${idle.physios === 1 ? '' : 'en'}` : null,
+            ].filter(Boolean).join(' en ');
+            pushNotification(
+              db, loft.userId, 'info', '🩺 Je betaalt personeel dat niets te doen heeft',
+              `${who} op je loonlijst ${idle.doctors + idle.physios === 1 ? 'heeft' : 'hebben'} geen patiënt van ` +
+              `hun soort, en dat kost je €${idleCost} per dag. Zet ze in de ziekenboeg op 0 tot je ze nodig hebt — ` +
+              `opnieuw aannemen kost niets.`,
+              null,
+              `ntf:staff:idle:${loft.userId}:${Math.floor(localDayNumber(TIMEZONE, dayMidnight) / 7)}`,
+            );
+          }
+        }
       }
     }
     if (slice.length < remaining.length) {
