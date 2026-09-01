@@ -558,7 +558,22 @@ export interface SimEntry {
    * one at the moment it happens instead of lumping them into one line. Absent on
    * flights frozen before this shipped — read it as `strays ?? (lost ? [lost] : [])`.
    */
-  strays?: { atSeconds: number; detourKm: number }[];
+  strays?: {
+    atSeconds: number;
+    detourKm: number;
+    /** Where the wandering stretch begins and how long it runs, ALONG THE ROUTE
+     *  (km, from the release point; for a relay leg, from that leg's start).
+     *  Frozen at release straight from the segment window the slowdown is applied
+     *  to, so the live map can draw the bird truly off course over exactly the
+     *  stretch where the engine charged her the extra kilometres. Absent on
+     *  flights frozen before the map shipped — such a bird is then simply drawn
+     *  on the line (see offCourseKm in flight.ts). */
+    startKm?: number;
+    spanKm?: number;
+    /** Sideways peak of the bulge the map draws, solved at release so the drawn
+     *  curve is exactly `detourKm` longer than the straight stretch. */
+    peakKm?: number;
+  }[];
   // --- Estafettevlucht only -------------------------------------------------
   /** Which leg this bird flies (1..3). */
   leg?: number;

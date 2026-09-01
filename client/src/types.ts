@@ -395,6 +395,8 @@ export interface LiveRelayLeg {
   kmTotal: number;
   speedKmh: number;
   status: 'wachtend' | 'onderweg' | 'binnen' | 'gestopt';
+  /** Signed km beside this leg's straight line (see LiveBird.offCourseKm). */
+  offCourseKm?: number;
 }
 
 export interface LiveRelayTeam {
@@ -427,6 +429,10 @@ export interface LiveBird {
   gaveUp: boolean;
   etaSeconds: number;
   liveRank: number;
+  /** Signed km beside the straight line home — non-zero only while the bird is
+   *  genuinely wandering off course. Drives the live map; the board ignores it.
+   *  Optional: a flight frozen before the map shipped does not carry it. */
+  offCourseKm?: number;
 }
 
 export interface LiveSnapshot {
@@ -467,9 +473,30 @@ export interface LiveFlight {
   status: FlightStatus;
   weather: string;
   relay: boolean;
+  /** Where the flight was released and where home is, for the live map. Null when
+   *  the release point is not in the coordinate table (the map is then hidden). */
+  route: FlightRoute | null;
   entries: FlightEntry[];
   results: FlightResult[];
   recap: string | null;
+}
+
+/** Endpoint geometry of a flight. Bird positions are derived from these plus the
+ *  `progress` each bird already carries — no per-bird coordinates are sent. */
+export interface FlightRoute {
+  from: { name: string; lat: number; lon: number };
+  to: { name: string; lat: number; lon: number };
+  /** Estafettevlucht only: the three equal legs with their handover points. */
+  legs?: {
+    index: number;
+    fromName: string;
+    toName: string;
+    fromLat: number;
+    fromLon: number;
+    toLat: number;
+    toLon: number;
+    distanceKm: number;
+  }[];
 }
 
 export interface LiveResponse {

@@ -322,6 +322,39 @@ table.data tr.podium-1 td { background: var(--gold-soft); }
 .pill-tabs button:hover { color: var(--text); }
 .pill-tabs button.active { background: var(--surface); color: var(--brand-ink); box-shadow: var(--shadow-sm); }
 
+/* --- Live flight map ------------------------------------------------------ */
+/* A fixed height because Leaflet measures its container: a percentage height in
+   a flex column collapses to zero and the tiles never render. Shorter on a
+   phone so the standings below stay within reach. */
+.flight-map {
+  height: 360px; width: 100%; margin-top: 14px;
+  border-radius: var(--r); overflow: hidden; border: 1px solid var(--border);
+  background: var(--surface-2);
+}
+.map-loading { display: flex; align-items: center; justify-content: center; color: var(--text-faint); }
+/* Leaflet ships its own light chrome (white popups, a #ddd canvas). Its stylesheet
+   is imported inside the lazy map chunk and therefore loads AFTER this file, so a
+   single-class rule of ours loses on source order. Every override below is
+   deliberately scoped under `.flight-map` to outrank it — do not "simplify" these
+   selectors, or the map turns white in the dark theme. */
+.flight-map.leaflet-container { background: var(--surface-2); font: inherit; }
+.flight-map .leaflet-popup-content-wrapper, .flight-map .leaflet-popup-tip {
+  background: var(--surface); color: var(--text); box-shadow: var(--shadow-md);
+}
+.flight-map .leaflet-popup-content { margin: 10px 12px; font-size: 0.85rem; line-height: 1.45; }
+.flight-map .leaflet-popup-close-button { color: var(--text-faint); }
+.map-pop > div { margin-top: 2px; }
+.map-pop .faint { margin-bottom: 4px; }
+.flight-map .leaflet-control-attribution {
+  background: color-mix(in srgb, var(--surface) 82%, transparent); color: var(--text-faint);
+}
+.flight-map .leaflet-control-attribution a { color: var(--text-soft); }
+.flight-map .leaflet-bar a { background: var(--surface); color: var(--text); border-bottom-color: var(--border); }
+.flight-map .leaflet-bar a:hover { background: var(--surface-2); color: var(--text); }
+.flight-map .leaflet-tooltip { background: var(--surface); color: var(--text); border-color: var(--border); }
+
+@media (max-width: 820px) { .flight-map { height: 260px; } }
+
 /* --- Filter chips + day headings (flight calendar) ------------------------ */
 /* A chip row SCROLLS sideways instead of wrapping: on a phone the type row and
    the day row would otherwise take four lines above the first flight card. The

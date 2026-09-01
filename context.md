@@ -335,7 +335,8 @@ Roekoe/
 │       ├── components/          ui.tsx (Money/Spinner/StatBar+perDay/DailyGains verwijderd/…),
 │       │                        Layout (+ auto-tour), PigeonCard (+ tourId/▲▼),
 │       │                        Tour.tsx (interactieve rondleiding), PrizeCeremony.tsx,
-│       │                        PigeonAvatar, NotificationsBell
+│       │                        PigeonAvatar, NotificationsBell,
+│       │                        FlightMap.tsx (live kaart, LAZY geladen) + geo.ts (grootcirkel)
 │       ├── game/GameContext.tsx useGame(): laadt /state, deelt state + refresh()
 │       ├── auth/AuthContext.tsx useAuth(): user + token
 │       ├── api/client.ts        api<T>(path, {method, body}) helper
@@ -399,6 +400,7 @@ Roekoe/
 ├── poll-budget.test.mts         regressietest: pollritme + de smalle load (deelnemerslijst!)
 ├── force-finish.test.mts        regressietest: admin-"match beëindigen" == natuurlijk uitvliegen
 ├── one-flight-per-day.test.mts  regressietest: één vlucht per duif per dag (harde regel)
+├── flight-map.test.mts      regressietest: de live kaart klopt geografisch (Haversine)
 ├── limits-report.mts            meet queries/rijen gelezen/geschreven per verzoek
 ├── cpu-sweep.mts                meet CPU per operatie (duurste eerst) — diagnose
 ├── migrations/0001_init.sql     D1-schema voor verse installatie
@@ -821,6 +823,10 @@ Entiteiten: `Pigeon`, `Loft`, `User`, `BreedingPair`, `PendingBrood`, `Flight` (
   posities**, niet de klok — `overallProgress` (= `elapsed/total`) blijft in de DTO staan
   voor oude open tabs maar wordt niet meer getoond. Knop **🏳️ Opgeven** (spaart resterende energie).
   Het **📻 Live verslag** meldt nu échte gebeurtenissen (voorbijsteken + reden), zie §2.
+  Boven de balken staat de **🗺️ live kaart** (`components/FlightMap.tsx`, **lazy** geladen —
+  Leaflet is een eigen chunk van ~46 KB gzip): echte tegelkaart, de route, en een stip per
+  duif die nog in de race zit, met een popup per duif. Rijdt volledig mee op de bestaande
+  poll van 60 s — **geen eigen verzoek, geen extra D1-rij**.
   **Enkel voor admins** staat er bij een live vlucht ook **⏩ Match beëindigen**
   (met bevestiging) → `POST /admin/flights/:id/finish`; zie §8.
 - `InfirmaryPage` (Ziekenboeg) — zieke/gekwetste duiven; dokter/kinesist/medicatievoer;
@@ -951,6 +957,7 @@ npx tsx pigeon-logs.test.mts       # de logboeken blijven uit de wereldload, leg
 npx tsx season-prizes.test.mts     # seasonWins reset, totalWins niet; ceremonie = laatste seizoen
 npx tsx bot-market.test.mts        # de prijsgrens voor bots (anti-exploit) + hun trainingsregels
 npx tsx one-flight-per-day.test.mts # één vlucht per duif per dag — speler én bots
+npx tsx flight-map.test.mts        # de live kaart: posities, afstanden en de omweg kloppen
 ```
 Diagnose zonder assertie: `npx tsx cpu-sweep.mts` (CPU per operatie, duurste
 eerst), `npx tsx limits-report.mts` (queries/rijen per verzoek) en
@@ -993,6 +1000,84 @@ verzoek uit per statement.
 
 Alles hieronder staat **live** op de deploy-branch. Data-migraties liepen door tot
 **`dataVersion = 43`**.
+
+**Live kaart bij een lopende vlucht — echte kaart, echte geografie (nieuwste)**
+- **Vraag van de eigenaar:** een echte kaart (zoals Maps, geen getekende) bij een live
+  vlucht, met per duif waar ze zit, klikbaar voor haar gegevens — en met de harde
+  voorwaarde dat de gratis limieten bewaakt blijven ("ik heb al een paar dagen geen 503
+  meer gehad, dat MOET zo blijven").
+- ⚠️ **Waarom dit niets kost op de budgetten die dit spel plat leggen.** De kaart doet
+  **geen enkel eigen verzoek**: ze tekent wat de bestaande live-poll (60 s) al ophaalde.
+  `/flights/:id/live` blijft dus op **2 D1-rijen** (`loadLiveFlight`) en de CPU van het
+  live-bord blijft **0,53 ms** bij 140 duiven op 1200 km (`cpu-budget`, budget 10 ms).
+  Het dagbudget staat op **24,3 %** gelezen / 7,7 % geschreven. Tegels worden door de
+  **browser van de speler** rechtstreeks bij de tegel-CDN gehaald en passeren de Worker
+  niet — ze kunnen geen enkele Cloudflare-limiet raken.
+- ⚠️ **Geen coördinaten per duif over de lijn.** De server stuurt de route-**eindpunten**
+  (4 getallen, opgezocht in `CITY_COORDS` — geen kolom, geen query, geen migratie) en de
+  client rekent de positie zelf uit uit de `progress` die al in het antwoord zat. Per duif
+  lat/lon meesturen zou ~2,7 KB per poll kosten op het heetste endpoint van het spel, voor
+  informatie die de client al heeft.
+- **Verdwalen is nu zichtbaar, en geografisch correct** (expliciete vraag: "bij verdwalen
+  effectief naast koers, niet achteraan de lijn"). Een stray-episode bewaart sinds deze
+  wijziging **waar** ze gebeurt, niet enkel wanneer: `SimEntry.strays[]` kreeg `startKm`,
+  `spanKm` en `peakKm` (rijden mee in de `sim`-JSON → **geen migratie**). De kaart tekent
+  een halve sinus over precies de strook waar de engine haar vertraagde, en de piek is bij
+  de lossing **numeriek opgelost** (`strayPeakKm`, Simpson + bisectie) zodat de getekende
+  bocht exact `detourKm` langer is dan de rechte strook. Op de bol nagemeten: **40,5 km
+  extra tegen de 40 km die het sim aanrekende.**
+- ⚠️ **De integraal draait bij de LOSSING, nooit bij een poll.** `offCourseKm(sim, kmDone)`
+  is per duif per poll niets meer dan één sinus per episode — geen `raceProgress`-aanroep,
+  geen allocatie. De eerste versie leidde de piek af met de kleine-hoek-benadering
+  `h = 2√(s·d)/π`; die bleek **16 % te kort** te tekenen (h/s loopt tot 0,4, dus de
+  benadering deugt niet) — vandaar het opgeloste `peakKm`.
+- **Een vlucht die al bevroren was vóór deze wijziging** heeft die geometrie niet en wordt
+  bewust **op de lijn** getekend in plaats van op een geraden plek. Zulke vluchten zijn
+  binnen twee dagen weg (vluchtretentie), dus verzonnen terugvalgeometrie is het risico niet
+  waard.
+- **Uit de race = niet op de kaart** (opgegeven, uitgevallen, de weg kwijt); het bord eronder
+  toont ze mét reden, en onder de kaart staat hoeveel het er zijn. Eigen duiven groot in
+  oranje, leider goud, verdwaalde duiven amber, de rest gedempt — een veld van 90 wordt
+  anders confetti.
+- **Estafette:** elke duif staat op **haar eigen etappe** (de legs dragen al coördinaten),
+  met de wisselpunten als pin op de kaart.
+- **Client:** `components/FlightMap.tsx` + `components/geo.ts` (grootcirkel-wiskunde, React-vrij
+  zodat een test ze rechtstreeks kan aanspreken). **Lazy geladen** via `React.lazy` in
+  `LiveFlightPage`: Leaflet zit in een **eigen chunk van 46 KB gzip** en de hoofdbundle groeit
+  maar van 125,4 → **126,5 KB gzip**. Alleen wie naar een race kijkt betaalt ervoor.
+- ⚠️ **Drie valstrikken die de screenshots blootlegden** (alle drie opgelost):
+  1. **Leaflet meet zijn container bij het aanmaken**, en in een React-effect is de kaart dan
+     nog niet gelayout → de hele race werd een postzegel. Nu `invalidateSize` + `fitBounds` in
+     een `requestAnimationFrame`, plus een `ResizeObserver`.
+  2. **`fitBounds` rondt naar beneden af op hele zoomniveaus**, dus een route van 1000 km vulde
+     de helft van het kader. `zoomSnap: 0.25` lost dat op (tegels schalen hoogstens een vijfde).
+  3. **Leaflets eigen CSS laadt ná `global.css`** (ze zit in de lazy chunk), dus onze
+     één-klasse-regels verloren op bronvolgorde: witte popups en een grijze canvas in het
+     donkere thema. Élke override staat daarom gescoped onder **`.flight-map`** —
+     niet "vereenvoudigen".
+- **Tegels:** sleutelloze Carto-basemaps (light/dark, volgt de themaschakelaar), met verplichte
+  OSM/Carto-bronvermelding. Een API-sleutel in een statische bundle is een publieke sleutel,
+  dus die komt hier niet in. ⚠️ **Ik kon de tegel-CDN vanuit deze omgeving niet bereiken**
+  (egress-policy blokkeert die hosts), dus dat ze laden is **niet geverifieerd** — wél
+  afgedekt: bij drie mislukte tegels zegt de kaart dat de achtergrond niet laadt en blijven
+  route, duiven en popups gewoon werken. De tegel-URL staat op één plek voor een snelle wissel.
+- **Geen migratie, geen schemakolom, geen configknop**, `dataVersion` blijft **43**.
+- **Nieuwe blijvende test `flight-map.test.mts`** (27 controles) tegen de **échte**
+  client-geodesie én de échte engine: elke fractie van de route ligt op die fractie van de
+  Haversine-afstand, het middelpunt ligt even ver van beide einden, halverwege Barcelona →
+  Brugge ligt boven Frankrijk, een afwijking van 40 km is ook echt 40 km en staat loodrecht
+  op de koers (Pythagoras), de bult begint en eindigt op de lijn, de getekende omweg klopt op
+  de bol met wat het sim aanrekende, dezelfde duif wijkt altijd naar dezelfde kant af, een
+  oude vlucht tekent géén verzonnen omweg, en een enorme omweg op een korte strook wordt
+  afgetopt in plaats van een piek te worden.
+- **In de browser nagemeten** (Playwright, beide thema's, 390 px en 1100 px): geen
+  horizontale overflow, geen console-fout, en — het echte risico op een estafette van 16 uur —
+  **48 markers blijven 48 markers na 39 updates**, met de geopende popup nog open. De markers
+  worden per duif hergebruikt, niet herbouwd.
+- ⚠️ **Tweede bestaande flaky test gevonden** (niet veroorzaakt): `brood-choice.test.mts`
+  faalt ~2 op 15 op de **ongewijzigde** code — de kweekworp gebruikt ongeseede `Math.random`,
+  dus soms komt er geen tweede nest. Samen met `force-finish` en `poll-budget` staan er nu
+  drie testen op de lijst om te repareren.
 
 **Ziekenboegpersoneel dat niets te doen heeft, wordt nu benoemd (nieuwste)**
 - **Aanleiding (eigenaar):** de ziekenboegkosten (kine/dokter/voeding) worden dagelijks
