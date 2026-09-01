@@ -322,6 +322,29 @@ table.data tr.podium-1 td { background: var(--gold-soft); }
 .pill-tabs button:hover { color: var(--text); }
 .pill-tabs button.active { background: var(--surface); color: var(--brand-ink); box-shadow: var(--shadow-sm); }
 
+/* --- Filter chips + day headings (flight calendar) ------------------------ */
+/* A chip row SCROLLS sideways instead of wrapping: on a phone the type row and
+   the day row would otherwise take four lines above the first flight card. The
+   scrollbar itself is hidden — the chips bleeding off the edge is the affordance.
+   `min-width: 0` keeps the row inside its grid/flex parent (see the card-width
+   fixes in context.md) so the page itself never scrolls horizontally. */
+.chip-row { display: flex; gap: 6px; min-width: 0; overflow-x: auto; padding-bottom: 2px; scrollbar-width: none; -ms-overflow-style: none; }
+.chip-row::-webkit-scrollbar { display: none; }
+.chip {
+  flex: 0 0 auto; border: 1px solid var(--border); background: var(--surface); color: var(--text-soft);
+  font: inherit; font-weight: 650; font-size: 0.85rem; padding: 6px 12px; border-radius: 999px;
+  cursor: pointer; white-space: nowrap; transition: background 0.14s, color 0.14s, border-color 0.14s;
+}
+.chip:hover { color: var(--text); border-color: var(--border-strong); }
+.chip.active { background: var(--brand-soft); border-color: var(--brand); color: var(--brand-ink); }
+.chip .n { margin-left: 5px; font-weight: 600; opacity: 0.65; }
+
+.day-head {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 10px; flex-wrap: wrap;
+  margin: 8px 0 -4px; padding-bottom: 6px; border-bottom: 1px solid var(--border);
+}
+.day-head h3 { margin: 0; font-size: 1rem; }
+
 hr.sep { border: none; border-top: 1px solid var(--border); margin: 16px 0; }
 
 /* --- Bottom tab bar (mobile only) ---------------------------------------- */

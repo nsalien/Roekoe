@@ -15,10 +15,10 @@
 
 | Rol | Branch | Doel |
 |-----|--------|------|
-| **Dev** | `claude/hallo-fsp9nx` | Alle ontwikkeling/commits komen hier **eerst**. |
+| **Dev** | `claude/hallo-qz9tmx` | Alle ontwikkeling/commits komen hier **eerst**. |
 | **Prod** | `claude/roekoe-game-website-jwa0vo` | Elke commit wordt hierheen **gecherry-pickt**; deze branch triggert de **Cloudflare Pages**-deploy naar productie. |
 
-> Vorige dev-branches (niet meer gebruiken): `claude/hallo-mzjn0e`, `claude/hallo-su75jy`, `claude/hallo-rkr49f`, `claude/hallo-pvwabx`,
+> Vorige dev-branches (niet meer gebruiken): `claude/hallo-fsp9nx`, `claude/hallo-mzjn0e`, `claude/hallo-su75jy`, `claude/hallo-rkr49f`, `claude/hallo-pvwabx`,
 > `claude/context-spelregels-q2ywtx`, `claude/hallo-49m6hj`, `claude/hallo-xifh0c`,
 > `claude/hallo-w97s85`, `claude/hallo-hrtwtv`. Ontwikkelt een sessie op een nieuwe
 > `claude/…`-branch, gebruik die dan als dev-branch en **werk deze tabel meteen bij** —
@@ -663,7 +663,12 @@ Entiteiten: `Pigeon`, `Loft`, `User`, `BreedingPair`, `PendingBrood`, `Flight` (
   `runHealthWeek` (admin) behoudt de oude wekelijkse variant.
 - **Weddenschappen (`BETTING`):** window 12u, inzet €10–€500, houseMargin 0.12,
   simIterations 1500. Wedden op **alle wedstrijdvluchten**; **niet** op oefenvluchten
-  (`bettingOpen` weigert `flight.practice`).
+  (`bettingOpen` weigert `flight.practice`). **`historyHours` (24)** = hoelang een
+  **afgehandelde** weddenschap nog in `betsView` zit; open weddenschappen zijn nooit
+  begrensd. Puur weergave — de rijen blijven (100, `boundedCleanups`).
+- **`TRADE_HISTORY_DAYS` (7)** — hoever de **verkoopgeschiedenis** op de markt terugkijkt
+  (`recentTrades`). ⚠️ Bewust véél korter dan `MARKET_VALUATION.observationDays` (28):
+  de waardering leest `db.trades` zelf en blijft dus van oudere verkopen leren.
 - **Oefenvlucht (`PRACTICE`):** `energyCost 4`, `improveChance 0.7` /
   `coachedImproveChance 0.92`, `weights {speed 0.15, endurance 0.45, orientation 0.4}`,
   `gainMin 0.4`/`gainMax 1.4`, `coachedBonusGain 0.5` (extra op conditie/oriëntatie).
@@ -802,7 +807,13 @@ Entiteiten: `Pigeon`, `Loft`, `User`, `BreedingPair`, `PendingBrood`, `Flight` (
   (De per-dag-▲/▼ staan in het hokoverzicht, niet hier.)
 - `FlightsPage` — kalender/uitslagen; inschrijven; weddenschap-paneel (max. 1/vlucht,
   o.a. type **top3**). **Oefenvluchten** krijgen een eigen badge, tonen "gratis" i.p.v.
-  inschrijfgeld en hebben geen weddenschap-paneel.
+  inschrijfgeld en hebben geen weddenschap-paneel. De **kalender is gegroepeerd per
+  kalenderdag** (`dayGroups`, sleutel = `flightDay(f)` = `startAt.slice(0,10)` — dezelfde
+  sleutel als de server-regel "één vlucht per dag") met een `.day-head` per dag, en twee
+  `.chip-row`-filters: **soort** (`FlightFamily`: `competition` / `special` = titan+estafette+
+  oefenvlucht / `cup`) en **dag**. Live vluchten staan onder een eigen "🔴 Nu bezig"-kop en
+  vallen **buiten** beide filters. Op de tab **Uitslagen** toont "Afgeronde weddenschappen"
+  enkel de laatste 24 u (`BETTING.historyHours`, server-side).
 - `LiveFlightPage` — live bord met **twee voortgangsbalken**: **Kop van de wedstrijd**
   (`live.headProgress`, de nr. 1) en **Staart van de wedstrijd** (`live.tailProgress`, de
   laatste duif/ploeg die nog in de race zit, DNF's niet meegeteld). Beide volgen **echte
@@ -853,7 +864,8 @@ Entiteiten: `Pigeon`, `Loft`, `User`, `BreedingPair`, `PendingBrood`, `Flight` (
   **bedrag** → Bied. De bieder ziet **enkel de algemene score** (★talent), niet de
   precieze eigenschappen — verwijzing naar ranglijst/vluchtresultaten. `/market` levert
   `biddable` (alle niet-te-koop duiven van echte spelers, elk met `revealed:false`).
-  Nav-badge op **Markt** = ontvangen biedingen.
+  Nav-badge op **Markt** = ontvangen biedingen. De **verkoopgeschiedenis** onderaan toont
+  enkel de laatste **7 dagen** (`TRADE_HISTORY_DAYS`, server-side in `recentTrades`).
 - `PigeonPage` bij andermans (niet-bot) duif: kaart **"Bied op deze duif"** (bod
   uitbrengen / lopend bod intrekken). Statbalken verborgen (`revealed:false`) →
   enkel ★talent + "eigenschappen onbekend"-melding.
@@ -980,6 +992,72 @@ verzoek uit per statement.
 
 Alles hieronder staat **live** op de deploy-branch. Data-migraties liepen door tot
 **`dataVersion = 43`**.
+
+**Kalender per dag + filters, en twee lijsten die zichzelf opruimen (nieuwste)**
+- **Vraag van de eigenaar:** de vluchtenlijst was "chaotisch en onoverzichtelijk" — alle
+  dagen door elkaar (wel chronologisch, maar één lange muur) met competitievluchten,
+  titan/estafette en de vier criteriumvluchten dooreen. Plus: weddenschapsuitslagen en de
+  markthistoriek bleven eeuwig staan.
+- **Drie families, precies de indeling van de spelregels.** `flightFamily(f)` in
+  `FlightsPage.tsx`: **`competition`** (regio/nat/intl — het enige dat seizoenspunten
+  geeft, §15.2), **`special`** (titan, estafette **én oefenvlucht**) en **`cup`**
+  (leeftijdscriterium). ⚠️ Oefenvluchten zitten bewust bij `special` en niet in een vierde
+  bak: ze delen de eigenschap waar een speler hier op filtert — geen seizoenspunten. Een
+  vierde chip maakt de rij op een gsm alleen maar langer zonder iets te scheiden.
+- **Gegroepeerd per kalenderdag** met een `.day-head` per dag ("Vandaag · dinsdag
+  1 september · 2 vluchten · 1× ingeschreven"). De groepeersleutel is
+  **`flightDay(f) = startAt.slice(0,10)`** — letterlijk dezelfde sleutel die de server
+  gebruikt voor de één-vlucht-per-dag-regel (`flightDay` in `flight.ts`), zodat de kop
+  waaronder een vlucht staat en de "die dag al bezet"-melding eronder nooit uit elkaar
+  kunnen lopen. `scheduled` komt al chronologisch van `/flights`, dus groeperen is één pas.
+- **Twee chip-rijen** (`.chip-row`/`.chip`, nieuw in `global.css`): soort (met een teller
+  per familie) en dag. De dagrij verschijnt pas vanaf 2 dagen. ⚠️ De **dagrij volgt de
+  soortfilter**, dus een gekozen dag kan onder de speler verdwijnen (kies vrijdag, klik dan
+  Criterium) — een `useEffect` zet `day` dan terug op `all` in plaats van een lege kalender
+  te tonen met een dag nog opgelicht.
+- ⚠️ **Een `.chip-row` SCROLLT zijwaarts, hij wrapt niet.** Vier soort-chips plus een dagrij
+  zouden op een gsm anders vier regels innemen boven de eerste vlucht. Met
+  `min-width: 0` + verborgen scrollbar; geverifieerd met een Playwright-screenshot op
+  390 px en 1200 px in **beide thema's**: `scrollWidth === clientWidth`, dus geen
+  horizontale overflow op de pagina zelf (§Card-breedte — dat is hier al drie keer
+  misgegaan).
+- **Live vluchten staan buiten beide filters**, onder een eigen kop **🔴 Nu bezig**. Een
+  race die nú loopt mag nooit verborgen raken omdat je toevallig naar vrijdag keek. De
+  tour-anker `data-tour="flights"` hangt daarom aan `tourFlightId` (= de eerste live
+  vlucht, anders de eerste kaart van de eerste daggroep) i.p.v. aan een index — met
+  filters is "index 0" niet meer hetzelfde als "bovenaan".
+- **Afgeronde weddenschappen verdwijnen na 24 u** (`BETTING.historyHours`), server-side in
+  **`betsView(db, userId, nowMs)`**. Open weddenschappen blijven **altijd** staan, hoe oud
+  ook. Gefilterd op `settledAt ?? placedAt`, want een weddenschap van vóór deze regel kan
+  geen settle-stempel hebben — die valt dan terug op de plaatsingsdatum i.p.v. voor eeuwig
+  te blijven staan. ⚠️ **De rijen worden NIET gewist**: `boundedCleanups` houdt er 100 en
+  `stats.bets`/`betsWon` voeden badges — dit is puur wat de speler ziet.
+- **Markthistoriek toont 7 dagen** (`TRADE_HISTORY_DAYS`), server-side in
+  **`recentTrades(db, nowMs)`**. ⚠️ **Raakt de waardering niet:** `market.ts` leest
+  `db.trades` rechtstreeks met zijn eigen venster van 28 dagen
+  (`MARKET_VALUATION.observationDays`), dus een verkoop stuurt de prijzen nog drie weken
+  nadat ze van het lijstje af is. Dat verschil staat nu ook in de spelregels — anders leest
+  een verdwenen verkoop als "die telt niet meer mee".
+- **Beide vensters zijn tijdgebaseerd, niet aantalsgebaseerd**, dus dezelfde wereld loopt
+  vanzelf leeg naarmate de klok verdergaat — geen opruimtick, geen migratie, geen extra
+  query.
+- **UI zegt het zelf:** "laatste 24 uur" naast de kop Afgeronde weddenschappen, "laatste
+  7 dagen" naast Verkoopgeschiedenis. Een lijst die stilletjes korter wordt, leest als een bug.
+- **Geen migratie, geen schemawijziging**, `dataVersion` blijft **43**. Beide typechecks +
+  build groen; 25 van de 26 vaste regressietests groen. Spelregels **§2.1**, **§9** en
+  **§14** bijgewerkt.
+- **Geverifieerd** met een wegwerp-tsx-script tegen de echte `betsView`/`recentTrades`
+  (20 controles): open blijft altijd, 1 u/23 u/23,9 u zichtbaar, 25 u en 90 u weg, legacy
+  zonder stempel valt terug op `placedAt`, andermans weddenschap komt nooit mee, de rijen
+  blijven in de database, en een dag later is enkel de open weddenschap over; verkopen op
+  6,99 dagen zichtbaar en op 7,01 dagen weg, nieuwste eerst, `db.trades` onaangeroerd.
+- ⚠️ **Bestaande fout ontdekt, niet veroorzaakt:** `poll-budget.test.mts` faalt op de
+  **ongewijzigde** code (nagemeten met `git stash`) op de laatste controle, "en de load
+  blijft smal: 106 van 204" tegen een grens van `< totalBefore / 2` (102). De test zet
+  daarvoor een gewone vlucht met **184 inschrijvingen** om naar `relay = true`; een echte
+  estafette telt 3 duiven per hok, dus de fixture is onrealistisch en de assertie ligt op de
+  rand. Niet aangeraakt — die controle bewaakt het leesbudget en mag niet stilletjes
+  losser gezet worden. Nog te repareren.
 
 **Bots bieden nu ook op duiven van spelers (nieuwste)**
 - **Vraag van de eigenaar:** bots mogen kopen én bieden op te koop staande duiven van échte

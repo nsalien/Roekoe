@@ -204,6 +204,34 @@ export function formatFlightTime(iso: string): string {
   return `${label} ${time}`;
 }
 
+/**
+ * A day heading for the flight calendar, e.g. "Vandaag · maandag 1 september".
+ * Today and tomorrow get a plain-language prefix because that is what a player
+ * scans for; the full date stays behind it so a Saturday (titan/estafette) is
+ * recognisable at a glance.
+ */
+export function formatFlightDay(iso: string, nowMs: number = Date.now()): string {
+  if (!iso) return '';
+  const d = new Date(iso);
+  const dayKey = (x: Date) => x.toLocaleDateString('nl-BE', { timeZone: TZ });
+  const long = d.toLocaleDateString('nl-BE', { timeZone: TZ, weekday: 'long', day: 'numeric', month: 'long' });
+  const dk = dayKey(d);
+  if (dk === dayKey(new Date(nowMs))) return `Vandaag · ${long}`;
+  if (dk === dayKey(new Date(nowMs + 86400000))) return `Morgen · ${long}`;
+  return long.charAt(0).toUpperCase() + long.slice(1);
+}
+
+/** The same day, short enough for a filter chip: "Vandaag", "Morgen", "za 6 sep". */
+export function formatFlightDayShort(iso: string, nowMs: number = Date.now()): string {
+  if (!iso) return '';
+  const d = new Date(iso);
+  const dayKey = (x: Date) => x.toLocaleDateString('nl-BE', { timeZone: TZ });
+  const dk = dayKey(d);
+  if (dk === dayKey(new Date(nowMs))) return 'Vandaag';
+  if (dk === dayKey(new Date(nowMs + 86400000))) return 'Morgen';
+  return d.toLocaleDateString('nl-BE', { timeZone: TZ, weekday: 'short', day: 'numeric', month: 'short' });
+}
+
 /** Countdown text until an ISO timestamp, e.g. "over 1u 23m" or "gestart". */
 export function countdownTo(iso: string, nowMs: number = Date.now()): string {
   const diff = Date.parse(iso) - nowMs;

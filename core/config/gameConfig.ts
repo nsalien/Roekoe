@@ -252,6 +252,11 @@ export const BETTING = {
   minRatio: 1.05,
   maxRatio: 25,
   simIterations: 1500, // Monte-Carlo draws used to estimate fair odds
+  /** How long a SETTLED bet stays visible under "Uitslagen". A finished wager is
+   *  news for a day; after that it is just noise on top of the race results.
+   *  Display only — the rows stay in the database (bounded to 100 by
+   *  `boundedCleanups`) so the stats that feed badges keep counting. */
+  historyHours: 24,
 } as const;
 
 /** Money every new player (and bot) starts with. */
@@ -1561,6 +1566,16 @@ export const MARKET_VALUATION = {
   minFactor: 0.1,
   maxFactor: 8,
 };
+
+/**
+ * How far back the in-game verkoopgeschiedenis on the market reaches.
+ *
+ * ⚠️ Display only, and deliberately far SHORTER than
+ * `MARKET_VALUATION.observationDays` (28): the valuation still learns from every
+ * sale in its own window. Trimming the visible list only keeps the market page
+ * about what is happening now instead of a scroll of month-old deals.
+ */
+export const TRADE_HISTORY_DAYS = 7;
 
 /**
  * Real-time recovery from an illness/injury. Progress runs continuously (see
