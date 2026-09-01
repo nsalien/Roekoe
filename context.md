@@ -360,6 +360,7 @@ Roekoe/
 │       │                        void+refund bij uitschrijven duif / afgelaste vlucht)
 │       ├── health.ts            ziekte/kwetsuur + REAL-TIME herstel (tickHealing, per kwartier)
 │       │                        + coveredInInfirmary/careSlots (wie de dokter behandelt)
+│       │                        + idleCareStaff (personeel zonder patiënt — enkel weergave)
 │       ├── breeding.ts          kweek
 │       ├── economy.ts           dagverzorging (applyDayOfCare) + projectie + upkeep + honger + rust
 │       ├── bots.ts              bot-gedrag
@@ -992,6 +993,58 @@ verzoek uit per statement.
 
 Alles hieronder staat **live** op de deploy-branch. Data-migraties liepen door tot
 **`dataVersion = 43`**.
+
+**Ziekenboegpersoneel dat niets te doen heeft, wordt nu benoemd (nieuwste)**
+- **Aanleiding (eigenaar):** de ziekenboegkosten (kine/dokter/voeding) worden dagelijks
+  afgerekend. Nagemeten wat dat precies betekent: **medicatievoer** schaalt met het aantal
+  patiënten (lege boeg = €0), maar de **salarissen** van dokter (€57/dag) en kinesist
+  (€50/dag) lopen door zolang ze op `loft.doctors`/`loft.physios` staan — ziek of niet.
+- ⚠️ **Bewuste keuze van de eigenaar: de economie blijft exact zoals ze is.** Personeel dat
+  je in dienst houdt kost geld, punt. Deze wijziging voegt **geen korting** toe en verandert
+  `dailyRunningCost` niet met één euro; ze maakt de leegloop enkel **zichtbaar**.
+- **Waarom het de moeite was:** aannemen en ontslaan kosten **niets** (`setInfirmaryStaff`
+  zet gewoon een getal), dus een lege ziekenboeg met personeel is puur verlies. En het is de
+  énige terugkerende kost die je nooit tegenkomt: de ziekenboeg is een pagina die je opent
+  wanneer er iets mis is, dus een lége ziekenboeg is een pagina die je niet opent. De **bots
+  doen het intussen wel perfect** (`bots.ts` schaalt de staf elke dagovergang op het echte
+  patiëntenaantal en zet ze op 0 bij een lege boeg) — die asymmetrie was het echte punt.
+- **Nieuwe helper `idleCareStaff(loft, pigeons)`** (health.ts) → `{doctors, physios}`, het
+  personeel **zonder patiënt van hun soort**. Telt ook **gedeeltelijk**: twee dokters en één
+  zieke duif = één dokter stil. ⚠️ **Per soort**, want een dokter behandelt enkel `ziekte` en
+  een kinesist enkel `kwetsuur` — een kinesist met alleen zieke duiven in de boeg zit óók stil,
+  en dat is precies het geval dat een speler mist. Hergebruikt `careSlots`, dus de definitie van
+  "patiënt" blijft één plek.
+- **Drie plaatsen waar het opduikt**, elk één regel (tekstbudget, §0 punt 4):
+  1. **Ziekenboeg** — bij de stepper zelf, in `SlotLine` naast de bestaande "meer patiënten
+     dan plaatsen"-waarschuwing. Dáár staat de knop.
+  2. **Dagbalans** (Overzicht) — de regel Duivendokter/Kinesist krijgt een ⚠️ met het aantal.
+     Nieuw in `DailyCostBreakdown`: `idleDoctors`/`idlePhysios`/`idleStaffCost`.
+     ⚠️ Die drie zitten **al in `total`** — het is een uitsplitsing van een kost die **wél**
+     aangerekend wordt, geen korting. `dailyRunningCostBreakdown` kreeg er een **optionele**
+     vijfde parameter voor (default 0/0), zodat `tickDailyCare` — de biller — ongewijzigd blijft.
+  3. **Belmelding, hoogstens één per week** per hok zolang het duurt, uit `tickDailyCare`.
+     Dat is de load-bearing helft: een rood regeltje op een pagina die je niet opent, lost
+     "vergeten" niet op.
+- ⚠️ **De weekbucket zit in de melding-id**, niet in een kolom: `ntf:staff:idle:<userId>:
+  <floor(dayNumber/7)>`. Stateless (geen migratie, geen extra kolom), deterministisch, en twee
+  gelijktijdige ticks landen op dezelfde rij. Bots krijgen niets (`!loft.isBot`).
+- **Schrijfkost:** hoogstens 1 rij per hok per week, en enkel op de **dagovergang** — een
+  verzoek dat toch al schrijft. `idle-writes` blijft dus op 0 rijen voor een gewone poll.
+- **Geen migratie, geen schemawijziging, geen configknop**, `dataVersion` blijft **43**.
+  Beide typechecks + build groen; 25 van de 26 vaste regressietests groen (`poll-budget`
+  faalde al op de ongewijzigde code, zie het blok hieronder). Spelregels **§5.4** bijgewerkt.
+- **Geverifieerd** met twee wegwerp-tsx-scripts: 15 controles op `idleCareStaff` +
+  `dailyRunningCostBreakdown` (lege boeg, gedeeltelijk stil, zieke duif búiten de boeg telt
+  niet, geen personeel, en vooral: **het totaal is identiek met en zonder de idle-info**, ook
+  zónder de nieuwe parameter), en 10 controles tegen de échte `advanceRealtime` over 47
+  gesimuleerde dagen (verse wereld waarschuwt nog niet, dan precies één melding, herhaald
+  pollen op dezelfde dag maakt er geen tweede, één per week zolang het duurt, personeel op 0
+  → stilte, een dokter mét een zieke patiënt → geen waarschuwing, bots krijgen niets, en het
+  hok betaalt gewoon door).
+  ⚠️ Twee valstrikken in dat tweede script, hier genoteerd voor de volgende die zoiets schrijft:
+  `tickDailyCare` verwerkt maar **2 hokken per verzoek** (`DAILY_CARE_LOFTS_PER_RUN`), dus één
+  poll per dag bereikt het hok niet — pollen tot de dag afgesloten is. En een **verse wereld**
+  merkt "vandaag" als afgehandeld, dus dag 0 is enkel een anker.
 
 **Kalender per dag + filters, en twee lijsten die zichzelf opruimen (nieuwste)**
 - **Vraag van de eigenaar:** de vluchtenlijst was "chaotisch en onoverzichtelijk" — alle

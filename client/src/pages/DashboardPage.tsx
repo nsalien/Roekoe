@@ -66,12 +66,20 @@ export function DashboardPage() {
           amount: costs.upkeepPerPigeon,
         },
       ];
-  const costRows = [
+  // Staff on the payroll with nothing of their kind to treat. The salary is
+  // charged either way (§4.2 spelregels) — this is the one recurring cost that
+  // runs on unnoticed, so the balance names it instead of just billing it.
+  const idleDoctors = costs.idleDoctors ?? 0;
+  const idlePhysios = costs.idlePhysios ?? 0;
+  const idleNote = (n: number, who: string) =>
+    n > 0 ? `${n} ${who}${n === 1 ? '' : 'en'} zonder patient` : undefined;
+  type CostRow = { key: string; label: string; detail: string; unit?: number; amount: number; note?: string };
+  const costRows: CostRow[] = [
     { key: 'base', label: 'Vast onderhoud', detail: 'basiskost van je hok', amount: costs.upkeepBase },
     ...bandRows,
     { key: 'coach', label: 'Privécoach', detail: `${loft.coachedCount} × `, unit: eco.coachSalary, amount: costs.coaches },
-    { key: 'doctor', label: 'Duivendokter', detail: `${loft.doctors} × `, unit: inf.doctorSalary, amount: costs.doctors },
-    { key: 'physio', label: 'Kinesist', detail: `${loft.physios} × `, unit: inf.physioSalary, amount: costs.physios },
+    { key: 'doctor', label: 'Duivendokter', detail: `${loft.doctors} × `, unit: inf.doctorSalary, amount: costs.doctors, note: idleNote(idleDoctors, 'dokter') },
+    { key: 'physio', label: 'Kinesist', detail: `${loft.physios} × `, unit: inf.physioSalary, amount: costs.physios, note: idleNote(idlePhysios, 'kinesist') },
     { key: 'medfeed', label: 'Medicatievoer', detail: loft.medicatedFood ? `${loft.infirmaryCount} × ` : 'uit', unit: loft.medicatedFood ? inf.medicatedFoodPerBird : undefined, amount: costs.medicatedFeed },
   ];
   // How many pigeons eat each food type, and which types are running out.
@@ -238,6 +246,9 @@ export function DashboardPage() {
                     {r.unit !== undefined && <Money value={r.unit} />}
                     {r.unit !== undefined ? '/dag' : ''}
                   </div>
+                  {r.note && (
+                    <div style={{ color: 'var(--warn)', fontSize: '0.8rem' }}>⚠️ {r.note}</div>
+                  )}
                 </div>
                 <div className="num" style={{ whiteSpace: 'nowrap', flexShrink: 0 }}>−<Money value={r.amount} /></div>
               </div>

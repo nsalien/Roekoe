@@ -325,6 +325,12 @@ export interface DailyCostBreakdown {
   doctors: number; // pigeon-doctor salaries
   physios: number; // physiotherapist salaries
   medicatedFeed: number; // medicated feed for the birds in the infirmary
+  /** Staff on the payroll with nothing to treat today, and what they still cost.
+   *  ⚠️ Already counted in `doctors`/`physios`/`total` — this is a breakdown of a
+   *  cost that IS charged, not a discount (see health.idleCareStaff). */
+  idleDoctors: number;
+  idlePhysios: number;
+  idleStaffCost: number;
   total: number; // sum of all of the above
   /** Daily sponsor income, per contract + totalled. Sponsors pay on the same
    *  daily cadence as these costs, so the two belong in one balance. */
@@ -344,6 +350,9 @@ export function dailyRunningCostBreakdown(
   pigeonCount: number,
   coachedCount: number,
   infirmaryBirds: number,
+  /** Staff with no patient of their kind today (health.idleCareStaff). Purely
+   *  informational: it never changes `total`, so the biller can leave it out. */
+  idle: { doctors: number; physios: number } = { doctors: 0, physios: 0 },
 ): DailyCostBreakdown {
   const upkeepBase = DAILY_UPKEEP_BASE;
   // Per-pigeon upkeep is PROGRESSIVE: bird 9 costs more than bird 8, bird 17 more
@@ -354,13 +363,17 @@ export function dailyRunningCostBreakdown(
   const doctors = loft.doctors * INFIRMARY.doctorSalary;
   const physios = loft.physios * INFIRMARY.physioSalary;
   const medicatedFeed = loft.medicatedFood ? infirmaryBirds * INFIRMARY.medicatedFoodPerBird : 0;
+  const idleDoctors = Math.min(loft.doctors, Math.max(0, idle.doctors));
+  const idlePhysios = Math.min(loft.physios, Math.max(0, idle.physios));
+  const idleStaffCost = idleDoctors * INFIRMARY.doctorSalary + idlePhysios * INFIRMARY.physioSalary;
   const total = upkeepBase + upkeepPerPigeon + coaches + doctors + physios + medicatedFeed;
   const sponsors = activeContracts(loft).map((c) => ({
     id: c.def.id, name: c.def.name, icon: c.def.icon, amount: c.contract.dailyStipend,
   }));
   const sponsorTotal = sponsors.reduce((s, x) => s + x.amount, 0);
   return {
-    upkeepBase, upkeepPerPigeon, upkeepBands, coaches, doctors, physios, medicatedFeed, total,
+    upkeepBase, upkeepPerPigeon, upkeepBands, coaches, doctors, physios, medicatedFeed,
+    idleDoctors, idlePhysios, idleStaffCost, total,
     sponsors, sponsorTotal, net: sponsorTotal - total,
   };
 }

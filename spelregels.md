@@ -1220,6 +1220,15 @@ kwetsbare duiven niet nodeloos op de zwaarste vluchten.
   wordt de rest van de plaatsen nog steeds automatisch ingevuld.
 - Wil je iederéén tegelijk behandelen, neem dan een **tweede dokter of kinesist** in
   dienst — elk extra personeelslid geeft er twee plaatsen bij.
+- ⚠️ **Personeel wordt élke dag betaald, ook met een lege ziekenboeg.** Een dokter of
+  kinesist staat op je loonlijst tot je hem zelf op 0 zet; hij kost je dus €57 resp.
+  €50 per dag, ook op een dag dat er niemand ziek of gewond is. Aannemen en ontslaan
+  kosten niets, dus je mag ze gerust op 0 zetten tot je ze nodig hebt.
+  **Het spel waarschuwt je** wanneer dat gebeurt: op de ziekenboegpagina staat het bij
+  de knop zelf, in de **Dagbalans** (Overzicht) krijgt de regel een ⚠️, en je krijgt er
+  hoogstens **één melding per week** over zolang de situatie duurt. Let op de soort:
+  een dokter behandelt enkel **ziektes** en een kinesist enkel **kwetsuren**, dus een
+  kinesist met alleen zieke duiven in de boeg zit óók stil.
 - Zieke/gekwetste duiven en duiven in de ziekenboeg kunnen niet vliegen, trainen
   of broeden.
 - **Energie in de ziekenboeg.** Een duif die in de ziekenboeg herstelt, recupereert

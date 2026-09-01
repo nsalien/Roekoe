@@ -117,6 +117,7 @@ export function InfirmaryPage() {
                 </div>
                 <SlotLine
                   slots={doctorSlots} pinned={pinnedSick} patients={sickIn.length} who="dokter"
+                  staff={loft.doctors} perStaff={cfg.birdsPerDoctor} salary={cfg.doctorSalary}
                 />
               </div>
               <Stepper value={loft.doctors} disabled={busy} onChange={(v) => setStaff(v, loft.physios)} />
@@ -133,6 +134,7 @@ export function InfirmaryPage() {
                 </div>
                 <SlotLine
                   slots={physioSlots} pinned={pinnedInjured} patients={injIn.length} who="kinesist"
+                  staff={loft.physios} perStaff={cfg.birdsPerPhysio} salary={cfg.physioSalary}
                 />
               </div>
               <Stepper value={loft.physios} disabled={busy} onChange={(v) => setStaff(loft.doctors, v)} />
@@ -262,8 +264,17 @@ function InfirmaryIntro({ cfg, onClose }: { cfg: InfirmaryConfig; onClose: () =>
  * "2 van de 2 plaatsen bezet · 3 patienten" — and a nudge to choose when there
  * are more patients than the staff can handle.
  */
-function SlotLine({ slots, pinned, patients, who }: { slots: number; pinned: number; patients: number; who: string }) {
+function SlotLine({
+  slots, pinned, patients, who, staff, perStaff, salary,
+}: {
+  slots: number; pinned: number; patients: number; who: string;
+  staff: number; perStaff: number; salary: number;
+}) {
   const short = patients > slots && slots > 0;
+  // The mirror case, and the one that costs money quietly: staff on the payroll
+  // with nothing of their kind to treat. A salary keeps running whether or not
+  // anyone is ill, so this must be said where the stepper is.
+  const idle = Math.max(0, staff - Math.ceil(patients / perStaff));
   return (
     <>
       <div className="faint">
@@ -273,6 +284,14 @@ function SlotLine({ slots, pinned, patients, who }: { slots: number; pinned: num
       {short && (
         <div style={{ color: 'var(--bad)', fontSize: '0.8rem', marginTop: 2 }}>
           Meer patienten dan plaatsen — kies hieronder wie je {who} behandelt, of neem er een tweede bij.
+        </div>
+      )}
+      {idle > 0 && (
+        <div style={{ color: 'var(--warn)', fontSize: '0.8rem', marginTop: 2 }}>
+          {patients === 0
+            ? `Geen patient voor je ${who} — hij kost je toch `
+            : `${idle} ${who}${idle === 1 ? '' : 'en'} zonder patient — samen `}
+          <Money value={idle * salary} />/dag. Zet hem op 0 tot je hem nodig hebt.
         </div>
       )}
     </>
