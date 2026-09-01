@@ -389,6 +389,7 @@ Roekoe/
 ├── flight-eligibility.test.mts  regressietest: wie niet kan vliegen wordt niet gelost
 ├── prize-rules.test.mts        regressietest: prijzentabellen + 3-duivenlimiet
 ├── market-bidding.test.mts     regressietest: marktprijs + "bieden vanaf"
+├── bot-bidding.test.mts        regressietest: bots kopen/bieden rond de marktwaarde
 ├── age-cup.test.mts             regressietest: leeftijdscriterium (kalender, klassen, cyclus)
 ├── pigeon-logs.test.mts         regressietest: historiekboeken staan NIET in de duivenrij
 ├── season-prizes.test.mts       regressietest: winst-reset + de ceremonie-payload
@@ -931,6 +932,7 @@ npx tsx attribute-balance.test.mts # de drie racevaardigheden blijven gelijkwaar
 npx tsx flight-eligibility.test.mts # een niet-inzetbare duif wordt geschrapt + terugbetaald
 npx tsx prize-rules.test.mts       # prijzentabellen lopen door + max 3 beloonde duiven
 npx tsx market-bidding.test.mts    # marktprijs, bieden vanaf, en geen zwevende biedingen
+npx tsx bot-bidding.test.mts       # bots bieden binnen de band rond de marktwaarde
 npx tsx age-cup.test.mts           # leeftijdscriterium: klassen, afwisseling, 3-seizoenencyclus
 npx tsx pigeon-logs.test.mts       # de logboeken blijven uit de wereldload, legacy blijft leesbaar
 npx tsx season-prizes.test.mts     # seasonWins reset, totalWins niet; ceremonie = laatste seizoen
@@ -979,7 +981,36 @@ verzoek uit per statement.
 Alles hieronder staat **live** op de deploy-branch. Data-migraties liepen door tot
 **`dataVersion = 43`**.
 
-**Verkopen met een marktprijs én een "bieden vanaf" (nieuwste)**
+**Bots bieden nu ook op duiven van spelers (nieuwste)**
+- **Vraag van de eigenaar:** bots mogen kopen én bieden op te koop staande duiven van échte
+  spelers, **binnen een % rond de marktwaarde**. Kopen deden ze al (`maybeBuyFromMarket`, tot
+  `BOT.marketMaxOverpay` = 1,25× de waarde); bieden is nieuw.
+- **Nieuwe `maybeBidOnMarket`** (bots.ts), bereikt **alleen** wanneer kopen niet lukte — te duur of
+  boven budget. Dan biedt de bot wat de duif **wáárd** is in plaats van wat gevraagd wordt:
+  tussen **`BOT.bidMinFactor` (0,85)** en **`BOT.bidMaxFactor` (1,05)** van `valuePigeon()`, nooit onder
+  de ondergrens van de verkoper en nooit op of boven de vraagprijs.
+- ⚠️ **De biedband ligt bewust ONDER `marketMaxOverpay`.** Haggelen is wat een bot doet als de
+  vraagprijs te steil is, dus een bod hoort minder waard te zijn dan een rechtstreekse koop —
+  anders zou hij nooit meer gewoon kopen. De test bewaakt die ordening.
+- **Vraagt de verkoper meer dan de duif waard is, dan biedt de bot niet.** Een hebzuchtige
+  ondergrens levert dus stilte op, geen lowball — het is de markt die de prijs zet (§9.0).
+- **Grenzen die al golden en blijven gelden:** niet op een duif van een ander bothok, niet op
+  een listing jonger dan `BOT.marketMinListedHours` (24 u — spelers hebben eerste keus), niet als
+  de duif zijn hok niet verbetert (`marketMinGain`), en nooit onder `BOT.marketReserve`.
+- **Nieuw: `BOT.maxOpenBids` (2)** en één bod per ronde, plus geen tweede bod op een duif waar hij
+  er al één op heeft staan. Anders zou een bot bij elke dagovergang de inbox van een verkoper
+  vullen — de melding gaat immers wél via de bel.
+- **Draait in `botDailyActions`**, dus één keer per dagovergang: 8 bots × hoogstens 1 bod = een
+  handvol rijen per dag. Geen effect op het schrijfbudget.
+- **Nieuwe blijvende test `bot-bidding.test.mts`** (18 controles): een redelijke vraagprijs koopt
+  hij gewoon, te duur zonder ondergrens laat hij liggen, te duur mét ondergrens levert een bod
+  op binnen de band en onder de vraagprijs, de verkoper krijgt de melding, een ondergrens boven
+  de marktwaarde negeert hij, met een lege kas biedt hij niet, verse listings en botduiven slaat
+  hij over, een tweede ronde legt er niets bovenop, en de band ligt onder de koopgrens.
+- **Geen migratie, geen schemawijziging**, `dataVersion` blijft **43**. Spelregels **§9.1** en
+  **§17** bijgewerkt.
+
+**Verkopen met een marktprijs én een "bieden vanaf"**
 - **Vraag van de eigenaar:** een verkoper zet twee bedragen — een **marktprijs** waarvoor de
   duif meteen van eigenaar wisselt, en optioneel **"bieden vanaf"**, waarboven anderen een bod
   mogen doen dat de verkoper aanvaardt of weigert. **Enkel voor échte spelers** (expliciet):

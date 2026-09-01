@@ -43,6 +43,7 @@ import { expectedFlightEnergyCost, pigeonCommittedToFlight } from './flight.js';
 // while the module is evaluating. `advance-throttle`/`age-cup` exercise the path.
 import { purgePigeon, settlePigeonSale } from './engine.js';
 import { valuePigeon } from './market.js';
+import { makeOffer } from './offers.js';
 import { ageInWeeks, canRace, experienceGain, isAway, noteAttrChange, onRestCure, talent, trainCeil, trainingCost } from './pigeon.js';
 import { clamp, round1 } from './util.js';
 
@@ -325,7 +326,13 @@ function maybeBuyFromMarket(db: Database, loft: Loft, pigeons: Pigeon[], nowMs: 
     if (p.price > valuePigeon(db, p, db.world.currentWeek).value * BOT.marketMaxOverpay) continue;
     if (!best || talent(p) > talent(best)) best = p;
   }
-  if (!best) return;
+  if (!best) {
+    // Nothing worth buying outright — but a player may have opened a listing for
+    // bidding, and haggling is exactly what you do when the asking price is too
+    // steep. See maybeBidOnMarket.
+    maybeBidOnMarket(db, loft, budget, floor, ripeBefore, botIds);
+    return;
+  }
 
   if (!roomToSpare && worst) {
     // Make the place. Same as a player clicking "vrijlaten": no money back.
@@ -333,6 +340,52 @@ function maybeBuyFromMarket(db: Database, loft: Loft, pigeons: Pigeon[], nowMs: 
   }
   settlePigeonSale(db, loft, best);
   loft.stats.buys += 1;
+}
+
+/**
+ * Haggle on a player's listing that carries a "bieden vanaf".
+ *
+ * Only reached when the bird could not simply be bought — the price was over
+ * `BOT.marketMaxOverpay`, or over budget. The bot then offers what the bird is
+ * WORTH rather than what is asked, inside `BOT.bidMinFactor..bidMaxFactor` of the
+ * market valuation, and the seller decides. It never bids on a bot's bird (that
+ * is refused anyway), never below the seller's floor, and never at or above the
+ * asking price — at that point buying outright is the honest move.
+ *
+ * One bid per round, and at most `BOT.maxOpenBids` open at a time, so a bot can
+ * never flood a seller's inbox.
+ */
+function maybeBidOnMarket(
+  db: Database,
+  loft: Loft,
+  budget: number,
+  floor: number,
+  ripeBefore: number,
+  botIds: Set<string>,
+): void {
+  if (budget <= 0) return;
+  const open = db.offers.filter((o) => o.fromUserId === loft.userId).length;
+  if (open >= BOT.maxOpenBids) return;
+
+  let best: { pigeon: Pigeon; bid: number } | null = null;
+  for (const p of db.pigeons) {
+    if (!p.forSale || p.price == null || p.minBid == null) continue;
+    if (p.ownerId === loft.userId || botIds.has(p.ownerId)) continue;
+    if (p.listedAt && Date.parse(p.listedAt) > ripeBefore) continue;
+    if (talent(p) <= floor) continue;
+    if (db.offers.some((o) => o.pigeonId === p.id && o.fromUserId === loft.userId)) continue;
+
+    // What the bot is willing to pay: a band around the bird's real value.
+    const value = valuePigeon(db, p, db.world.currentWeek).value;
+    const ceiling = Math.min(value * BOT.bidMaxFactor, budget, p.price - 1);
+    const wanted = Math.max(p.minBid, Math.round(value * BOT.bidMinFactor));
+    if (wanted > ceiling) continue; // the seller's floor is above what it is worth
+    const bid = Math.round(Math.min(wanted, ceiling));
+    if (bid <= 0) continue;
+    if (!best || talent(p) > talent(best.pigeon)) best = { pigeon: p, bid };
+  }
+  if (!best) return;
+  makeOffer(db, loft.userId, best.pigeon.id, best.bid);
 }
 
 /**

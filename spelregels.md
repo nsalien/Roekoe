@@ -1475,8 +1475,14 @@ Zet je een duif op de markt, dan geef je **twee** bedragen op:
   marktprijs. Weiger je, dan blijft je duif gewoon te koop staan.
 - Wordt je duif intussen voor de **volle marktprijs** gekocht, dan vervallen alle
   openstaande biedingen erop en krijgen die bieders daar bericht van.
-- **Enkel bij échte spelers.** Een computermelker (§17) verkoopt tegen zijn
-  vraagprijs en onderhandelt nooit — op zijn duiven kan je niet bieden.
+- **Verkopen doe je enkel als échte speler.** Een computermelker (§17) verkoopt
+  tegen zijn vraagprijs en onderhandelt nooit — op zijn duiven kan je niet bieden.
+- **Bots kopen en bieden wél op jouw duiven.** Een computermelker die je duif de
+  moeite vindt, koopt ze voor je marktprijs, of doet — als je een ondergrens hebt
+  ingesteld — een bod dat jij aanvaardt of weigert, net als een speler. Hij biedt
+  nooit meer dan de duif volgens de markt waard is (§9.0), dus een torenhoge
+  ondergrens laat hij gewoon liggen. Je duif blijft ook de eerste dag na het te
+  koop zetten alleen voor spelers (§17).
 
 ### 9.1b Privé-biedingen (bieden op een duif die niet te koop staat)
 Je kan een **bod** uitbrengen op de duif van **een andere speler**, ook al staat
@@ -1961,6 +1967,12 @@ hok dun wordt, om te kunnen kweken. **Behalve bij de estafettevlucht** — daar
 geldt geen enkele energiedrempel, net zoals bij jou (§2.9): drie duiven aan de
 start krijgen is daar het punt, en hoeveel energie een duif voor haar etappe
 nodig heeft, beslist de melker zelf.
+
+**Ze handelen ook.** Een bot koopt duiven van spelers die te koop staan, en sinds
+kort **biedt** hij ook: staat er een *bieden vanaf* op je duif en vindt hij de
+vraagprijs te hoog, dan doet hij een bod rond de **marktwaarde** van die duif — jij
+beslist. Hij biedt nooit boven wat ze waard is, en nooit op een duif die nog geen
+dag te koop staat: die eerste dag is voor de spelers.
 
 **Ze winnen ook.** Bots pakken prijzengeld, seizoenspunten, Roekoes en Vleugels
 als ze het verdienen (§15). Ze doen niet mee aan **oefenvluchten** en je kan geen

@@ -846,6 +846,21 @@ export const BOT = {
   marketReserve: 4000, // cash a bot keeps free before it goes shopping
   marketMaxOverpay: 1.25, // never more than 1.25× the estimated value
   marketMaxShare: 0.5, // never more than half its free cash on one bird
+  /**
+   * BIEDEN. A listing by a real player can carry a "bieden vanaf" (Pigeon.minBid);
+   * a bot then haggles instead of walking away, but only inside a band around what
+   * the bird is actually worth (game/market.ts). It offers somewhere between
+   * `bidMinFactor` and `bidMaxFactor` of that value — so it never lowballs a good
+   * bird into insult territory and never talks itself into overpaying either.
+   *
+   * The band sits BELOW `marketMaxOverpay` on purpose: haggling is what a bot does
+   * when the asking price is too steep, so a bid should be worth less than a
+   * straight buy. If the price is already acceptable it just buys.
+   */
+  bidMinFactor: 0.85,
+  bidMaxFactor: 1.05,
+  /** How many bids a bot keeps open at once, so it cannot flood one seller. */
+  maxOpenBids: 2,
   /** The bird has to be a real upgrade on the one it replaces, not a sidegrade. */
   marketMinGain: 3,
 
