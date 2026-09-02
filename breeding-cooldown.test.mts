@@ -80,14 +80,31 @@ async function setup(db: any) {
   return { sireId, damId };
 }
 
-/** Draai de tick met een gestuurde muntworp (0 = komt uit, 1 = komt niet uit). */
-function tickWith(data: any, nowMs: number, roll: number) {
+/**
+ * Draai de tick met een gestuurde muntworp.
+ *
+ * `roll`: 0 = het nest komt uit, 1 = nog niet.
+ *
+ * ⚠️ `forceClutch` stuurt daarnaast de TWEEDE trekking — de succeskans binnen
+ * `breed`. Zonder dat komt ~5–10 % van de worpen leeg uit (na het koppelen staat
+ * de energie op 80, dus successChance ≈ 0,9) en dan valt een test die over de
+ * rustperiode gaat om op een dobbelsteen in plaats van op haar onderwerp.
+ * Gemeten op de ongewijzigde code: 2 op 12 runs rood, altijd met
+ * "er kwamen 0 jong(en)". Zet hem aan zodra een blok jongen NODIG heeft.
+ *
+ * De rest van de trekkingen (tweeling, geslacht, mutatie, namen) blijft
+ * willekeurig — anders krijgen twee jongen dezelfde afgeleide waarden en meet je
+ * een artefact van de test.
+ */
+function tickWith(data: any, nowMs: number, roll: number, forceClutch = false) {
   const real = Math.random;
   let calls = 0;
-  // Enkel de hatch-worp sturen; de rest van de trekkingen (geslacht, mutatie,
-  // namen) mag gewoon willekeurig blijven, anders krijgen twee jongen dezelfde
-  // afgeleide waarden en meet je een artefact van de test.
-  Math.random = () => (calls++ === 0 ? roll : real());
+  Math.random = () => {
+    const i = calls++;
+    if (i === 0) return roll;
+    if (i === 1 && forceClutch) return 0; // `0 > successChance` is nooit waar
+    return real();
+  };
   try { tickBreedingHatch(data, nowMs); } finally { Math.random = real; }
 }
 
@@ -106,7 +123,7 @@ console.log('\nEen uitgekomen koppel wordt ontbonden');
   assert(pairs() === 1, 'koppel staat in SQL');
 
   s = await D1Store.load(db, USER.id);
-  tickWith(s.data, Date.now() + 2 * DAY, 0);
+  tickWith(s.data, Date.now() + 2 * DAY, 0, true); // dit blok telt de jongen, dus de worp moet slagen
   const young = s.data.pigeons.filter((p) => p.ownerId === USER.id).length - 2;
   await s.persist();
   assert(young >= 1, `er kwamen ${young} jong(en)`);
@@ -159,7 +176,7 @@ console.log(`\nRust tussen twee nesten (${BREEDING.cooldownDays} dagen)`);
   // hetzelfde moment geeft dtHours <= 0 en dan komt er niets uit.
   const hatchAt = Date.now() + 2 * DAY;
   s = await D1Store.load(db, USER.id);
-  tickWith(s.data, hatchAt, 0);
+  tickWith(s.data, hatchAt, 0, true); // dit blok gaat over de rust, dus de worp moet slagen
   await s.persist();
 
   s = await D1Store.load(db, USER.id);
@@ -276,7 +293,51 @@ console.log('\nMigratie v44 raakt een vers koppel niet');
   assert(fresh.data.pigeons.find((p) => p.id === damId)!.lastBredAt == null, 'en krijgt geen rustperiode opgelegd');
 }
 
-// === 7. De prijs ============================================================
+// === 7. Eén melding per nest, ook bij gelijktijdige afhandeling =============
+/*
+ * De hatch-tick loopt bij ÉLK verzoek, dus twee overlappende verzoeken kunnen
+ * allebei hetzelfde nest uitbroeden. De jongen overleven dat al (stabiele ids uit
+ * het koppel), maar de melding nam vroeger een verse `newId('ntf')` en dan kreeg
+ * de speler twee "geboren"-bellen voor één nest. Gemeten, niet geredeneerd.
+ */
+console.log('\nEén melding per nest');
+{
+  const db = await freshDb();
+  const { sireId, damId } = await setup(db);
+  const s = await D1Store.load(db, USER.id);
+  startBreeding(s, USER.id, sireId, damId);
+  await s.persist();
+
+  const now = Date.now() + 2 * DAY;
+  const A = await D1Store.load(db, USER.id);
+  const B = await D1Store.load(db, USER.id);
+  tickWith(A.data, now, 0, true); // A: komt uit
+  await A.persist();
+  tickWith(B.data, now, 0, true); // B: laadde vóór A schreef en komt óók uit
+  await B.persist();
+
+  // Tellen op TITEL, niet op het id-voorvoegsel: zonder de fix hebben de twee
+  // rijen een willekeurig id, en dan zou een filter op 'ntf:brood:%' er nul zien
+  // in plaats van de twee die de speler werkelijk in zijn bel krijgt.
+  const rows = db._raw
+    .prepare("SELECT id, title FROM notifications WHERE user_id = ?")
+    .all(USER.id) as { id: string; title: string }[];
+  const nest = rows.filter((r) => /geboren|zonder resultaat/.test(r.title));
+  assert(nest.length === 1, `precies één nest-melding (${nest.length})`);
+  assert(
+    nest.length > 0 && nest.every((r) => r.id.startsWith('ntf:brood:brd_')),
+    'de melding draagt een stabiel id, afgeleid van het koppel',
+  );
+
+  // En de jongen zelf zijn niet gedupliceerd (dat werkte al, maar het hoort in
+  // dezelfde controle: één nest = één melding = één set jongen).
+  const young = db._raw
+    .prepare("SELECT COUNT(*) c FROM pigeons WHERE owner_id = ? AND id LIKE 'pig_brood_%'")
+    .get(USER.id) as { c: number };
+  assert(young.c >= 1 && young.c <= 2, `één worp jongen, geen twee (${young.c})`);
+}
+
+// === 8. De prijs ============================================================
 console.log('\nPrijs');
 assert(BREEDING.cost === 750, `koppelen kost €${BREEDING.cost}`);
 

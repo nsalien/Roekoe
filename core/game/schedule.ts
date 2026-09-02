@@ -2553,6 +2553,18 @@ export function tickStrayReturn(db: Database, nowMs: number): void {
  * fixed hatch time: fitter pairs simply have a higher chance every moment.
  * (`bp.hatchAt` stores the last-checked time.)
  */
+/**
+ * One stable notification id per clutch, so a hatch announces itself exactly once.
+ *
+ * `tickBreedingHatch` runs on EVERY request, so two overlapping requests can both
+ * resolve the same hatch. The young already survive that (they carry ids derived
+ * from the pair, see breeding.ts::breed), but the notification did not: it took a
+ * fresh `newId('ntf')` each time and the player ended up with two "geboren"-bells
+ * for one nest. Measured, not theorised — see §8. All three outcomes share this id
+ * because only one of them can happen for a given pair.
+ */
+const broodNoteId = (pairId: string) => `ntf:brood:${pairId}`;
+
 export function tickBreedingHatch(db: Database, nowMs: number): void {
   const humanIds = new Set(db.lofts.filter((l) => !l.isBot).map((l) => l.userId));
   const hatched = new Set<string>();
@@ -2644,6 +2656,7 @@ export function tickBreedingHatch(db: Database, nowMs: number): void {
         `${sire.name} × ${dam.name} bracht ${young.length === 1 ? 'een jong' : `${young.length} jongen`} voort, maar er is geen plaats. ` +
           'Kies bij Kweek welke je houdt — maak eerst plaats door een duif vrij te laten of te verkopen.',
         null,
+        broodNoteId(bp.id),
       );
       continue;
     }
@@ -2662,6 +2675,7 @@ export function tickBreedingHatch(db: Database, nowMs: number): void {
           `🐣 ${admitted.length === 1 ? 'Een jong' : `${admitted.length} jongen`} geboren!`,
           `${sire.name} × ${dam.name} bracht ${names} voort. Welkom in het hok!`,
           null,
+          broodNoteId(bp.id),
         );
       } else if (young.length === 0) {
         pushNotification(
@@ -2669,6 +2683,7 @@ export function tickBreedingHatch(db: Database, nowMs: number): void {
           '🥚 Koppel zonder resultaat',
           `${sire.name} × ${dam.name} leverde geen jongen op. Lage energie of libido, misschien volgende keer beter.`,
           null,
+          broodNoteId(bp.id),
         );
       }
     }
