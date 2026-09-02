@@ -93,14 +93,6 @@ export function PigeonPage() {
     return run(() => api(`/pigeons/${p.id}/coach`, { method: 'POST', body: { on } }), on ? 'Coach ingehuurd! 🎯' : 'Coach ontslagen');
   }
 
-  function setRation(ration: string) {
-    return run(() => api(`/pigeons/${p.id}/ration`, { method: 'POST', body: { ration } }), 'Voer aangepast 🍽');
-  }
-
-  function setCompartment(on: boolean) {
-    return run(() => api(`/pigeons/${p.id}/compartment`, { method: 'POST', body: { on } }), on ? 'In apart hok 🧱' : 'Terug bij de rest');
-  }
-
   function startRestCure() {
     return run(() => api(`/pigeons/${p.id}/restcure`, { method: 'POST' }), 'Rustkuur gestart 🛌');
   }
@@ -209,17 +201,6 @@ export function PigeonPage() {
                 {p.canRace ? ' klaar om te vliegen' : ' nog niet vluchtklaar'}
               </p>
               <div className="faint">Geschatte waarde <Money value={p.value} /> · eigenaar {p.ownerName}</div>
-              <div className="faint" style={{ fontSize: '0.78rem' }}>
-                {p.valueTrust > 0 ? (
-                  <>
-                    Marktprijs: {p.valueTrust}% bepaald door {p.valueSamples} recente
-                    {p.valueSamples === 1 ? ' verkoop' : ' verkopen'} van vergelijkbare duiven
-                    {p.valueMarket !== null ? <> (gemiddeld <Money value={p.valueMarket} />)</> : null}
-                  </>
-                ) : (
-                  <>Nog geen vergelijkbare verkopen — dit is een schatting op basis van haar eigenschappen</>
-                )}
-              </div>
             </div>
           </div>
 
@@ -420,50 +401,6 @@ export function PigeonPage() {
 
               <hr className="sep" />
 
-              {/* Feeding + private compartment */}
-              <div className="row" style={{ justifyContent: 'space-between', gap: 10, alignItems: 'flex-start' }}>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <strong>🍽 Voer & huisvesting</strong>
-                  <div className="faint" style={{ fontSize: '0.85rem' }}>
-                    Kies een eigen voerschema (vluchten vs. broeden) en of deze duif apart zit.
-                  </div>
-                </div>
-              </div>
-              <div className="row" style={{ gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
-                {state?.feedRations && (
-                  <select
-                    value={p.ration}
-                    disabled={busy}
-                    onChange={(e) => setRation(e.target.value)}
-                    style={{ flex: 1, minWidth: 120, width: 'auto', ...((state.loft?.food[p.ration] ?? 0) <= 0 ? { borderColor: 'var(--bad)', color: 'var(--bad)' } : {}) }}
-                  >
-                    {(Object.keys(state.feedRations) as (keyof typeof state.feedRations)[]).map((k) => {
-                      const kg = state.loft?.food[k] ?? 0;
-                      return (
-                        <option key={k} value={k}>
-                          {kg <= 0 ? '⚠️' : '🍽'} {state.feedRations[k].label} ({Math.round(kg)} kg)
-                        </option>
-                      );
-                    })}
-                  </select>
-                )}
-                <button
-                  className={`btn sm ${p.compartment ? 'accent' : 'ghost'}`}
-                  disabled={busy || p.inInfirmary || (!p.compartment && (state?.loft ? state.loft.compartmentsUsed >= state.loft.compartments : true))}
-                  title={p.inInfirmary ? 'Zit in de ziekenboeg — een apart hok kan pas weer als ze terug in het hok is' : p.compartment ? 'Zit in een apart hok' : 'Zit samen met de rest'}
-                  onClick={() => setCompartment(!p.compartment)}
-                >
-                  🧱 {p.inInfirmary ? '🏥 Ziekenboeg' : p.compartment ? 'Apart hok' : 'Samen'}
-                </button>
-              </div>
-              {state?.feedRations && (state.loft?.food[p.ration] ?? 0) <= 0 && (
-                <p className="faint" style={{ color: 'var(--bad)', fontSize: '0.82rem', margin: '6px 0 0' }}>
-                  ⚠️ Je hebt geen voorraad {state.feedRations[p.ration].label.toLowerCase()} meer. Koop bij op het dashboard, anders krijgt deze duif niets.
-                </p>
-              )}
-
-              <hr className="sep" />
-
               {/* Rustkuur — elke duif mag, maar elke duif maar één keer per week */}
               {(() => {
                 const full = (p.form ?? 0) >= 100 && (p.health ?? 0) >= 100;
@@ -535,6 +472,17 @@ export function PigeonPage() {
             </div>
           )}
 
+          <div className="card">
+            <h2>Afstamming</h2>
+            <div className="grid cols-2">
+              <PedigreeBox label="Vader (doffer)" pigeon={sire} />
+              <PedigreeBox label="Moeder (duivin)" pigeon={dam} />
+            </div>
+            {/* The parents above are the birds you can act on right now; the tree
+                is the history, so it stays folded until asked for. */}
+            <Pedigree root={data.pedigree} mineId={mine ? p.ownerId : undefined} />
+          </div>
+
           {mine && (
             <div className="card" style={{ borderColor: 'var(--bad)' }}>
               <h2>⚠️ Afscheid nemen</h2>
@@ -595,19 +543,6 @@ export function PigeonPage() {
               )}
             </div>
           )}
-
-          <CriteriumCard pigeon={p} />
-
-          <div className="card">
-            <h2>Afstamming</h2>
-            <div className="grid cols-2">
-              <PedigreeBox label="Vader (doffer)" pigeon={sire} />
-              <PedigreeBox label="Moeder (duivin)" pigeon={dam} />
-            </div>
-            {/* The parents above are the birds you can act on right now; the tree
-                is the history, so it stays folded until asked for. */}
-            <Pedigree root={data.pedigree} mineId={mine ? p.ownerId : undefined} />
-          </div>
 
           <div className="card">
             <h2>Wedstrijdhistoriek</h2>
@@ -673,55 +608,3 @@ function PedigreeBox({ label, pigeon }: { label: string; pigeon: Pigeon | null }
   );
 }
 
-/**
- * Leeftijdscriterium standing for this bird.
- *
- * Two things belong here and nowhere else: which bracket she may enter RIGHT NOW
- * (it changes as she ages, and it decides which of the four weekly races she can
- * be entered for), and what she has banked per bracket. A bird that aged up
- * mid-cycle keeps her old bracket's total, so more than one row is normal.
- */
-function CriteriumCard({ pigeon }: { pigeon: Pigeon }) {
-  const { state } = useGame();
-  const cup = state?.ageCup;
-  if (!cup) return null;
-  const standings = Object.entries(pigeon.cup ?? {}).filter(([, v]) => v && v.points > 0);
-  const current = cup.categories.find((c) => c.id === pigeon.ageCat);
-  return (
-    <div className="card">
-      <h2>🏆 Leeftijdscriterium</h2>
-      {current && (
-        <p className="faint" style={{ marginTop: 0 }}>
-          Klasse: <strong>{current.icon} {current.label}</strong>
-        </p>
-      )}
-      {standings.length === 0 ? (
-        <p className="muted" style={{ marginBottom: 0 }}>Nog geen criteriumpunten.</p>
-      ) : (
-        <div className="table-wrap">
-          <table className="data">
-            <thead>
-              <tr><th>Klasse</th><th className="num">Punten</th><th className="num">Zeges</th><th className="num">Vluchten</th></tr>
-            </thead>
-            <tbody>
-              {standings.map(([id, st]) => {
-                const cat = cup.categories.find((c) => c.id === id);
-                return (
-                  <tr key={id}>
-                    <td>{cat ? `${cat.icon} ${cat.label}` : id}</td>
-                    <td className="num"><strong>{st!.points}</strong></td>
-                    <td className="num">{st!.wins}</td>
-                    <td className="num">{st!.races}</td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      )}
-      <p className="faint" style={{ marginTop: 8, marginBottom: 0 }}>
-        <Link to="/wiki#criterium">Meer over het criterium →</Link>
-      </p>
-    </div>
-  );
-}

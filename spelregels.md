@@ -1869,8 +1869,7 @@ Verdiend geld kan je investeren in je hok en je duiven (bij *Mijn hok*, de
   uitbreidingskaart in *Mijn hok* zie je die tarieven vóór je koopt.
 - **Aparte hokken.** Koop losse compartimenten zodat je duiven niet allemaal op
   elkaar zitten. Elk apart hok wordt los gekocht (telkens wat duurder), en je
-  **kiest zelf welke duiven** er een krijgen (knop bij *Mijn hok* of op de
-  duifpagina). Heb je minder aparte hokken dan duiven, dan zitten de rest gewoon
+  **kiest zelf welke duiven** er een krijgen (knop bij *Mijn hok*). Heb je minder aparte hokken dan duiven, dan zitten de rest gewoon
   samen. Een duif in een apart hok **herstelt sneller energie** en heeft een
   **kleinere kans op ziekte**. Gaat een duif naar de **ziekenboeg**, dan **komt
   haar aparte hok meteen vrij**: ze zit daar toch al apart, dus de plek gaat
@@ -1882,7 +1881,7 @@ Verdiend geld kan je investeren in je hok en je duiven (bij *Mijn hok*, de
 - **Ziekenboeg uitbreiden.** Koop extra bedden (van 2 naar 3, 4, 5 of 6) zodat je
   meer zieke duiven tegelijk kan verzorgen.
 - **Voerschema's — per duif.** Elke duif heeft eigen noden (vluchten vs. broeden),
-  dus je kiest **per duif** een voerschema (bij *Mijn hok* of op de duifpagina).
+  dus je kiest **per duif** een voerschema, bij *Mijn hok*.
   Op het overzicht kan je met één klik álle duiven op hetzelfde schema zetten.
   Naast Zuinig/Normaal/Royaal zijn er twee premiumopties: **Premium** (meer
   energie- en gezondheidsherstel én bouwt langzaam conditie op) en **Libido-mix**
