@@ -401,6 +401,7 @@ Roekoe/
 ├── force-finish.test.mts        regressietest: admin-"match beëindigen" == natuurlijk uitvliegen
 ├── one-flight-per-day.test.mts  regressietest: één vlucht per duif per dag (harde regel)
 ├── flight-map.test.mts      regressietest: de live kaart klopt geografisch (Haversine)
+├── flock.test.mts           regressietest: duiven verdwalen pas als de zwerm openbreekt
 ├── limits-report.mts            meet queries/rijen gelezen/geschreven per verzoek
 ├── cpu-sweep.mts                meet CPU per operatie (duurste eerst) — diagnose
 ├── migrations/0001_init.sql     D1-schema voor verse installatie
@@ -664,6 +665,18 @@ Entiteiten: `Pigeon`, `Loft`, `User`, `BreedingPair`, `PendingBrood`, `Flight` (
   / `MORTALITY_CURVE`) draait in `runAgeMortality` **per gerolde gameweek** (rauwe
   weekkans), gedreven door de 4× real-time veroudering (`GAME_WEEKS_PER_REAL_WEEK`).
   `runHealthWeek` (admin) behoudt de oude wekelijkse variant.
+- **Zwerm (`FLOCK`, nieuwste):** duiven worden samen gelost en navigeren in groep, dus
+  verdwalen kan pas zodra het veld openbreekt. `minBirds 3` (minder = geen zwerm),
+  `fullBirds 14` (vanaf hier volle dekking), `breakKm 12` (zover moet het veld uit elkaar
+  liggen), `paceNoise 0.05`, `minChance 0.08` (ook in de bunch peelt er al eens één af).
+  Toegepast in `buildPaceProfile` via `companyFactor(u)`; het veld zelf komt uit
+  `fieldContext` (`flight.ts`), één pas over de deelnemers **bij de lossing**.
+- **Omweg schaalt met de afstand (`LOST`, nieuwste):** `detourFractionShort 0.045` /
+  `detourFractionLong 0.12` en plafond `maxDetourFractionShort 0.07` /
+  `maxDetourFractionLong 0.16`, geblend op `distanceT`. 10 % van 120 km besliste de
+  wedstrijd; nu kost een sprint-omweg ~5 km (max 8). ⚠️ `max` (3,6 → **4,4**) en
+  `distPerKm` (0,0024 → **0,0034**) zijn verhoogd om te compenseren dat de zwerm
+  oriëntatie-episodes wegneemt — zie §8.
 - **Weddenschappen (`BETTING`):** window 12u, inzet €10–€500, houseMargin 0.12,
   simIterations 1500. Wedden op **alle wedstrijdvluchten**; **niet** op oefenvluchten
   (`bettingOpen` weigert `flight.practice`). **`historyHours` (24)** = hoelang een
@@ -958,6 +971,7 @@ npx tsx season-prizes.test.mts     # seasonWins reset, totalWins niet; ceremonie
 npx tsx bot-market.test.mts        # de prijsgrens voor bots (anti-exploit) + hun trainingsregels
 npx tsx one-flight-per-day.test.mts # één vlucht per duif per dag — speler én bots
 npx tsx flight-map.test.mts        # de live kaart: posities, afstanden en de omweg kloppen
+npx tsx flock.test.mts             # verdwalen pas buiten de zwerm + omweg schaalt met afstand
 ```
 Diagnose zonder assertie: `npx tsx cpu-sweep.mts` (CPU per operatie, duurste
 eerst), `npx tsx limits-report.mts` (queries/rijen per verzoek) en
@@ -1000,6 +1014,57 @@ verzoek uit per statement.
 
 Alles hieronder staat **live** op de deploy-branch. Data-migraties liepen door tot
 **`dataVersion = 43`**.
+
+**Duiven vliegen als een zwerm, en verdwalen pas als die openbreekt (nieuwste)**
+- **Vraag van de eigenaar:** "bij de start vertrekken alle duiven samen, ik merk dat er dan
+  al duiven verloren vliegen — dat is niet realistisch. Pas wanneer duiven opgesplitst
+  geraken, door verschillende tempo's, vergroot de kans." Plus: op een korte vlucht moet de
+  omweg korter zijn, want "een duif die 18 km omweg neemt op een vlucht van 120 km kan het
+  wellicht al vergeten".
+- **Nieuw configblok `FLOCK`** + `companyFactor(u)` in `buildPaceProfile`. Het veld loopt uit
+  elkaar met een snelheid die uit het **veld zelf** komt: `fieldContext` (flight.ts) meet de
+  relatieve spreiding tussen p10 en p90 van de attribuutsnelheden. Typische onderlinge
+  afstand na fractie `u` ≈ `u · afstand · (spreiding + paceNoise)`; boven `breakKm` (12) is de
+  bunch weg. Een episode wordt geworpen tegen die factor.
+- ⚠️ **De worp wordt ALTIJD verbruikt**, ook als hij niet doorgaat (`if (rng() >= …) continue`),
+  zodat de rng-stroom uitgelijnd blijft en het profiel per episode reproduceerbaar is.
+  Anders divergeert een her-finalize van de live weergave.
+- ⚠️ **Dekking schaalt óók met de grootte van het veld** (`minBirds 3` → `fullBirds 14`).
+  Eerste versie deed dat niet en toen kreeg een veld van **3** duiven méér bescherming dan een
+  veld van 40 — een kleine steekproef heeft een kleine gemeten spreiding, dus de zwerm leek
+  eeuwig samen te blijven. Precies omgekeerd. Nu: solo 25 % van de afdwalingen in het eerste
+  vijfde, 4 duiven 18 %, vol veld 5 %.
+- **Estafette: de zwerm is PER ETAPPE.** De duiven die dezelfde middenetappe vliegen zijn haar
+  gezelschap — niet haar ploegmaats, die allang thuis of nog niet gelost zijn.
+- **Gemeten (`flock.test.mts`):** van alle afdwalingen valt er nog **2,7 %** in het eerste
+  tiende van de route (gelijk verdeeld zou 10 % zijn) en 5,6 % in het eerste vijfde op een
+  sprint. Op de fond is de lossing zelf net zo rustig (1,5 %) maar breekt het veld sneller
+  open (26 % vs 12 % binnen het eerste derde) — realistisch, en het houdt oriëntatie een
+  fond-eigenschap.
+- **Omweg per afstand:** 120 km gaat van ~12 km gemiddeld (max 18) naar **5,4 km (max 8)**;
+  de fond blijft op tientallen kilometers. Plafond nu 7 % kort / 16 % lang.
+- ⚠️ **DIT KANTELDE DE EIGENSCHAPSBALANS, en dat is bewust geaccepteerd.** Beide ingrepen
+  halen oriëntatie weg uit precies het segment waar ze op *gemiddelde plaats* het meeste
+  opleverde: de korte vlucht, die met gewicht 3 van 7 het zwaarst weegt. Gemeten na enkel de
+  zwerm: oriëntatie zakte van +2,8pp naar **+1,7pp** winkans. Gecompenseerd op de **fond**
+  (waar de eigenaar wél wil dat ze bijt) via `LOST.max` 3,6 → **4,4** en `distPerKm`
+  0,0024 → **0,0034**: terug op **+2,2pp**, binnen de bestaande factor-1,8-grens op winkans.
+- ⚠️ **Op gemiddelde plaats lukte dat niet, en de grens in `attribute-balance.test.mts` is
+  daarom van 1,6 naar 2,1 gezet — met de reden in de test zelf.** Oriëntatie staat daar op
+  −0,33 tegen −0,57 vroeger. Méér verdwalen helpt daar **niet**: dat verzadigt (iedereen
+  verdwaalt, dus +10 oriëntatie scheelt minder) — geprobeerd met `max 4,4` + fond-omweg 0,14
+  en de factor werd erger, niet beter. Dit is een echte versoepeling van een bewaker, geen
+  weggemoffelde regressie: verlaag ze weer zodra de zwerm-parameters opnieuw geijkt worden.
+- **Geen migratie, geen schemawijziging**, `dataVersion` blijft **43**. Een vlucht die al
+  live is behoudt haar bevroren sim en dus het oude gedrag; vanaf de volgende lossing geldt
+  de zwerm.
+- **Nieuwe blijvende test `flock.test.mts`** (17 controles): er wordt effectief verdwaald,
+  bijna niets in het eerste tiende, de fond breekt sneller open dan de sprint, solo > handvol
+  > vol veld qua vroege afdwalingen, de sprint-omweg blijft onder het korte plafond terwijl de
+  fond mag oplopen, en een slechte navigator raakt nog altijd >2,5× vaker van koers dan een
+  goede zonder dat een goede immuun wordt.
+- **Tabellen herrekend** en bijgewerkt in spelregels **§3.5** en wiki 🧭 **Verdwalen** (kans op
+  afdwalen, schone vlucht, omweg, niet-thuis, slecht weer) — de oude cijfers klopten niet meer.
 
 **Live kaart bij een lopende vlucht — echte kaart, echte geografie (nieuwste)**
 - **Vraag van de eigenaar:** een echte kaart (zoals Maps, geen getekende) bij een live

@@ -615,19 +615,26 @@ export const LOST = {
   // is more chances to drift, so a poor navigator can lose the line twice or
   // three times on the fond. The actual count is drawn from that expectation, so
   // an orientation-60 bird genuinely can fly a clean race — just less often
-  // (measured: ~10% of fond flights, ~35% of regional ones).
+  // (measured with the flock in place: ~54% of 150 km flights, ~13% on 500 km).
   //
-  // Tuned so oriëntatie is worth as much over a play week as snelheid and
-  // conditie (+2.6pp win / −0.59 average place against +3.2/+3.3pp and −0.58),
-  // while staying a mid-to-long-distance attribute. `curve` used to be 2.2, which
-  // meant the whole attribute had burnt out below orientation 60 — and since
-  // GENE.floor is 70, every bird in the game lived above that. It was worth
-  // nothing (+0.1pp) before this.
+  // Tuned so oriëntatie stays worth roughly as much over a play week as snelheid
+  // and conditie (+2.2pp win against +3.5/+3.3pp), while remaining a mid-to-long
+  // distance attribute. `curve` used to be 2.2, which meant the whole attribute had
+  // burnt out below orientation 60 — and since GENE.floor is 70, every bird in the
+  // game lived above that. It was worth nothing (+0.1pp) before this.
+  //
+  // ⚠️ `max` and `distPerKm` were RAISED when the FLOCK model landed. A bird can
+  // now only lose the line once the field has strung out, which cut the episodes
+  // sharply — most of all on short flights, where the bunch holds together for the
+  // whole race. Without the compensation oriëntatie fell to +1.7pp. On average
+  // place it is still down (−0.33 against −0.57 before), and that is accepted: the
+  // flock deliberately takes the attribute out of the sprint. See
+  // attribute-balance.test.mts.
   base: 0.02, // expected strays that remain even at orientation 100
-  max: 3.6, // added at orientation 0
+  max: 4.4, // added at orientation 0
   curve: 1.5, // >1 keeps a good navigator safe and makes a poor one genuinely risky
   distBase: 0.75,
-  distPerKm: 0.0024, // ×1.5 at 300 km, ×2.4 at 700 km, ×3.2 at 1000 km
+  distPerKm: 0.0034, // ×1.8 at 300 km, ×3.1 at 700 km, ×4.2 at 1000 km
   weatherK: 2.5, // rough weather (0..0.30) multiplies the chance by up to 1.75
   maxChance: 0.85, // legacy: only used by the pre-episode fallback path
   /** Never more than this many separate off-course episodes in one flight. */
@@ -636,19 +643,30 @@ export const LOST = {
   // Size of one detour, in km: a fraction of the route, scaled by how poor the
   // navigator is, then jittered so the same bird sometimes only wobbles and
   // sometimes loops wide.
-  detourFraction: 0.1,
+  //
+  // The fraction is DISTANCE-DEPENDENT (blended on the usual 100→700 km ramp).
+  // A detour costs a share of the route, and on a sprint that share decides the
+  // race outright: 10% of 120 km is 12 km, and a bird 12 km behind on a race that
+  // lasts an hour and a half is simply out of it. Losing the line on a regional
+  // flight should cost you places, not the day. On the fond the old value stands:
+  // there is time to claw back, and that is where the attribute must bite.
+  detourFractionShort: 0.045,
+  detourFractionLong: 0.09,
   detourSeverityBase: 0.5,
   detourSeveritySpread: 1.5,
   /** ±45% random spread on each detour, so straying is never a fixed tax. */
   detourJitter: 0.45,
   /**
-   * HARD CEILING on the total detour of one flight, as a fraction of the route.
-   * Without it three stacked episodes on a fond flight sent a poor navigator
-   * 30–40% off course — 1000 km became 1300, which is not a race any more. At
-   * 0.16 the worst case is 1160 km, and because a good navigator sits far below
-   * the ceiling it costs nothing where the attribute actually has to do its work.
+   * HARD CEILING on the total detour of one flight, as a fraction of the route —
+   * likewise blended by distance. Without it three stacked episodes on a fond
+   * flight sent a poor navigator 30–40% off course — 1000 km became 1300, which
+   * is not a race any more. At 0.16 the worst fond case is 1160 km, and because a
+   * good navigator sits far below the ceiling it costs nothing where the
+   * attribute actually has to do its work. On a sprint the ceiling is tighter for
+   * the same reason the fraction is.
    */
-  maxDetourFraction: 0.16,
+  maxDetourFractionShort: 0.07,
+  maxDetourFractionLong: 0.16,
   // Losing the way ENTIRELY — rolled per episode, so drifting off three times is
   // three chances to not come home at all. That stacking is why this dropped from
   // 0.35: left alone, a poor navigator failed to get home from one fond flight in
@@ -669,6 +687,44 @@ export const LOST = {
   returnHealthLossMin: 15,
   returnHealthLossMax: 25,
   returnAilmentChance: 0.45,
+} as const;
+
+/**
+ * THE FLOCK. Birds are basketed and released together, and a bunch navigates far
+ * better than a single bird: the ones that know the way carry the ones that do
+ * not. Only once the field strings out — because the fast birds pull away — is a
+ * bird really on her own and able to lose the line.
+ *
+ * That is why straying used to look wrong at the release: a bird could drift off
+ * in the first minutes, while in reality the whole convoy is still one cloud over
+ * the release point. `companyFactor` below suppresses an off-course episode while
+ * the field is still bunched, whatever her oriëntatie.
+ *
+ * The model is deliberately simple, because it has to be computed once per flight
+ * and never again: the field spreads at a rate set by how unequal the birds are.
+ * Typical separation after a fraction `u` of the route ≈ `u · distance · spread`,
+ * where `spread` is the field's relative speed spread plus an allowance for the
+ * day-to-day noise every bird carries. Once that separation passes `breakKm` the
+ * bunch is gone and a bird navigates alone.
+ */
+export const FLOCK = {
+  /** Below this many birds at the start there is no flock to speak of, so no
+   *  protection at all (a two-bird "field" is two solo flights). */
+  minBirds: 3,
+  /** ...and this many is a proper convoy, with the full benefit. In between the
+   *  protection ramps up with the size of the field. ⚠️ Without this a three-bird
+   *  race got MORE cover than a forty-bird one, because a tiny sample has a tiny
+   *  measured speed spread — exactly backwards. */
+  fullBirds: 14,
+  /** How far apart the field has to string out before a bird counts as alone.
+   *  Racing pigeons hold a loose bunch over kilometres, not metres. */
+  breakKm: 12,
+  /** Added to the field's own speed spread: form of the day, weather sensitivity
+   *  and pacing all pull birds apart even in a perfectly matched field. */
+  paceNoise: 0.05,
+  /** Floor on the company factor, so a perfectly matched field is not a magic
+   *  shield — even in a bunch the odd bird peels off. */
+  minChance: 0.08,
 } as const;
 
 /**
