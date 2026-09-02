@@ -145,6 +145,17 @@ export default function FlightMap({
   /** Bumped whenever the map is (re)built, so the layers that live on it are
    *  re-attached. Without this the map came back naked after a rebuild. */
   const [epoch, setEpoch] = useState(0);
+  /**
+   * Manual rebuild trigger for the watchdog below.
+   *
+   * ⚠️ A safety net, not a fix for a known cause. Leaflet writes into a DOM node
+   * that React owns, and if that node is ever swapped out from under it the map
+   * is gone until the page is reloaded — which is exactly what a player reported.
+   * Rather than trust that every path is covered, we simply CHECK on every poll
+   * that the map is still attached to the node we handed it, and rebuild it if it
+   * is not. Costs one DOM comparison a minute.
+   */
+  const [rebuild, setRebuild] = useState(0);
 
   /**
    * ⚠️ THE ROUTE AS A STRING, and this is load-bearing.
@@ -189,8 +200,12 @@ export default function FlightMap({
       ? [[legs[0].fromLat, legs[0].fromLon], ...legs.map((l) => [l.toLat, l.toLon] as [number, number])]
       : [[route.from.lat, route.from.lon], [route.to.lat, route.to.lon]];
     // Casing + core: a single hairline disappears against a busy map.
-    L.polyline(line, { color: cssVar('--brand', '#0284c7'), weight: 7, opacity: 0.18 }).addTo(m);
-    L.polyline(line, { color: cssVar('--brand', '#0284c7'), weight: 2.5, opacity: 0.85, dashArray: '1 7', lineCap: 'round' }).addTo(m);
+    // ⚠️ NEUTRAL, deliberately: the line used to be `--brand` blue and so are the
+    // dots of the rest of the field, so a bird sitting on the route — which is
+    // where they all are — was blue on blue. The map is the backdrop; only the
+    // birds carry colour.
+    L.polyline(line, { color: cssVar('--text-soft', '#556377'), weight: 7, opacity: 0.16 }).addTo(m);
+    L.polyline(line, { color: cssVar('--text-soft', '#556377'), weight: 2, opacity: 0.7, dashArray: '1 7', lineCap: 'round' }).addTo(m);
 
     const pin = (lat: number, lon: number, kind: 'start' | 'home' | 'swap', label: string) =>
       L.marker([lat, lon], { icon: placeIcon(kind, label), interactive: false, keyboard: false }).addTo(m);
@@ -217,7 +232,7 @@ export default function FlightMap({
       markers.current.clear();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [routeKey]);
+  }, [routeKey, rebuild]);
 
   // The basemap. Depends on the map EPOCH as well as the theme, so a rebuilt map
   // gets its tiles back (see the routeKey note above).
@@ -242,7 +257,28 @@ export default function FlightMap({
   // popup survives a poll and ninety pins are not recreated every 60 seconds.
   useEffect(() => {
     const m = map.current;
-    if (!m) return;
+    const box = holder.current;
+    // Watchdog: is the map still on screen at all? If React replaced the node, or
+    // Leaflet lost it, rebuild instead of leaving the player with a blank card
+    // until they reload the page.
+    let alive = false;
+    try {
+      alive = !!m && !!box && box.isConnected && m.getContainer() === box
+        // ...and Leaflet's own DOM is still inside it. Checking only the object
+        // is not enough: the map can keep pointing at a container that has been
+        // emptied, and then the card is blank while everything "looks" fine.
+        && !!box.querySelector('.leaflet-map-pane');
+    } catch {
+      alive = false;
+    }
+    if (!m || !alive) {
+      // ⚠️ Bump unconditionally. The holder div carries `key={rebuild}`, so this
+      // makes React mount a FRESH node and re-point the ref at it — which is the
+      // only way back when the old node was detached: React still believes its
+      // DOM is fine and would never re-run the ref on its own.
+      setRebuild((r) => r + 1);
+      return;
+    }
     // For a relay a bird flies HER OWN leg, so she is placed on that leg's line.
     const legOf = new Map<string, { from: Pt; to: Pt; label: string }>();
     for (const t of teams ?? []) {
@@ -274,6 +310,9 @@ export default function FlightMap({
         lost: Math.abs(off) >= 1,
         legLabel: seg?.label,
       };
+      // A position that is not a real number would make Leaflet throw, and a throw
+      // inside a React effect takes the whole page down, not just the map.
+      if (!Number.isFinite(mk.point.lat) || !Number.isFinite(mk.point.lon)) continue;
       seen.add(bird.pigeonId);
       const cls = dotClass(mk);
       const latlng: [number, number] = [mk.point.lat, mk.point.lon];
@@ -295,13 +334,14 @@ export default function FlightMap({
       if (!seen.has(id)) { entry.marker.remove(); markers.current.delete(id); }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [birds, teams, routeKey, meId, epoch]);
+  }, [birds, teams, routeKey, meId, epoch, rebuild]);
 
   const lostCount = birds.filter((b) => !b.gaveUp && Math.abs(b.offCourseKm ?? 0) >= 1).length;
 
   return (
     <div>
-      <div ref={holder} className="flight-map" />
+      {/* `key` so the watchdog can force a genuinely new node (see the effect). */}
+      <div key={rebuild} ref={holder} className="flight-map" />
       <div className="map-legend">
         <span><i className="bird-dot me" /> jouw duiven</span>
         <span><i className="bird-dot leader" /> leider</span>

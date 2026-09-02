@@ -371,7 +371,13 @@ table.data tr.podium-1 td { background: var(--gold-soft); }
   display: block; border-radius: 50%; box-sizing: border-box;
   width: 10px; height: 10px; background: var(--brand); border: 1.5px solid transparent;
 }
-.bird-dot.other { width: 9px; height: 9px; background: color-mix(in srgb, var(--brand) 70%, transparent); }
+/* Every bird gets a ring in the card colour, so a dot stays readable wherever it
+   sits — on the route line, on a motorway, on a lake. Before this the rest of the
+   field was translucent blue on a blue route line and simply vanished. */
+.bird-dot.other {
+  width: 10px; height: 10px; background: var(--brand);
+  border-color: var(--surface); box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.2);
+}
 .bird-dot.leader { width: 13px; height: 13px; background: var(--gold); border-color: #fff; box-shadow: 0 0 0 1px rgba(0,0,0,0.25); }
 /* Off course is a RING, not a filled dot: gold and amber are neighbours on the
    wheel, so leader and lost were telling each other apart by hue alone. Shape

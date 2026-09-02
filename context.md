@@ -1015,6 +1015,39 @@ verzoek uit per statement.
 Alles hieronder staat **live** op de deploy-branch. Data-migraties liepen door tot
 **`dataVersion = 43`**.
 
+**Live kaart: blauw-op-blauw weg, en een vangnet tegen het verdwijnen (nieuwste)**
+- **Twee meldingen van de eigenaar:** de blauwe bolletjes van "de rest" waren onleesbaar op de
+  eveneens blauwe routelijn, en de kaart verdween nog steeds bij een positie-update.
+- **Blauw-op-blauw opgelost.** De route was `--brand` en de duiven van "de rest" ook — en die
+  duiven zitten per definitie **op** die lijn. De route is nu **neutraal grijs** (casing +
+  gestippelde kern) en elke duif kreeg een **ring in de kaartkleur**, zodat een stip leesbaar
+  blijft waar ze ook staat: op de lijn, op een snelweg, op een meer. De kaart is de achtergrond,
+  alleen de duiven dragen kleur.
+- ⚠️ **Het verdwijnen kon ik NIET reproduceren op de huidige code**, en dat staat hier eerlijk:
+  de échte pagina is nagespeeld met een stub-API en een versnelde poll (18 polls, tabwissel,
+  resize, themawissel, tegels die effectief laden) en de kaart bleef staan. Twee mogelijkheden:
+  de eigenaar draaide nog de vorige bundle (een openstaande tab houdt de oude JS tot een
+  refresh — en het symptoom is exact de bug die dáár in zat), of er is een pad dat ik niet raak.
+- **Daarom een vangnet in plaats van een gok**, en dat is de eigenlijke winst van deze ronde:
+  1. **Watchdog.** Bij élke poll wordt gecontroleerd of de kaart nog écht op het scherm staat:
+     bestaat het `map`-object, is de holder nog verbonden, wijst de kaart naar díé node, én zit
+     Leaflets `.leaflet-map-pane` er nog in. Zo niet → herbouwen. ⚠️ Alleen het object
+     controleren volstaat niet: de kaart kan naar een **leeggemaakte** container blijven wijzen
+     en dan is de kaart weg terwijl alles "in orde" lijkt.
+  2. ⚠️ **De holder draagt `key={rebuild}`.** Zonder die key kan een herbouw niet slagen wanneer
+     de node zelf is losgekoppeld: React gelooft dan dat zijn DOM klopt en zet de ref nooit op
+     een nieuwe node. De key dwingt een verse node af.
+  3. **Foutgrens** (`MapErrorBoundary`, bewust **buiten** de lazy chunk zodat ze ook een mislukte
+     chunk-download vangt). React heeft er standaard geen, dus een worp in de kaart — een rare
+     coördinaat, iets in Leaflet — sleurde de **hele pagina** mee. Nu wordt het een melding met
+     een knop.
+  4. **Niet-eindige coördinaten worden overgeslagen** i.p.v. Leaflet te laten werpen.
+- **Bewezen met sabotage:** de kaart wordt tijdens het pollen leeggemaakt (tegellaag 0, duiven
+  0 — exact het gemelde beeld) en is bij de **volgende poll** volledig terug (tegellaag 1,
+  40 duiven), zonder refresh en zonder fout. Wat de kaart ook velt: ze komt binnen één poll
+  vanzelf terug.
+- **Alleen client**, geen schema/config/migratie.
+
 **Live kaart: verdwijnende kaart gefixt, geen API-sleutel meer, klikbare duiven (nieuwste)**
 - **Drie klachten van de eigenaar:** de kaart verdween soms tot een refresh, de tegels vroegen
   blijkbaar om een **API-sleutel**, en de bolletjes waren nauwelijks aan te klikken.

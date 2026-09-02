@@ -7,6 +7,7 @@ import { useAuth } from '../auth/AuthContext';
 import { useGame } from '../game/GameContext';
 import { useVisiblePoll } from '../game/useVisiblePoll';
 import { Money, Spinner, countdownTo, formatFlightTime, useToast } from '../components/ui';
+import { MapErrorBoundary } from '../components/MapErrorBoundary';
 import type { LiveFlight, LiveResponse } from '../types';
 
 /**
@@ -193,15 +194,17 @@ export function LiveFlightPage() {
             its own, no extra D1 row. Hidden when the release point has no
             coordinates, so we never draw a route through the wrong place. */}
         {live && flight.route && (
-          <Suspense fallback={<div className="flight-map map-loading">Kaart laden…</div>}>
-            <FlightMap
-              route={flight.route}
-              birds={live.birds}
-              teams={live.teams}
-              meId={user?.id}
-              outCount={live.birds.filter((b) => b.gaveUp).length}
-            />
-          </Suspense>
+          <MapErrorBoundary>
+            <Suspense fallback={<div className="flight-map map-loading">Kaart laden…</div>}>
+              <FlightMap
+                route={flight.route}
+                birds={live.birds}
+                teams={live.teams}
+                meId={user?.id}
+                outCount={live.birds.filter((b) => b.gaveUp).length}
+              />
+            </Suspense>
+          </MapErrorBoundary>
         )}
       </div>
 
