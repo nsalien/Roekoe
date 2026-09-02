@@ -18,6 +18,7 @@ import {
   FLIGHT_RISK,
   INJURY,
   IMPROVE_WEIGHTING,
+  FLOCK,
   LOST,
   HEALTH,
   IMPROVE,
@@ -224,6 +225,10 @@ function profileDuration(distanceKm: number, velocity: number, segMult: number[]
  */
 function buildPaceProfile(
   flightId: string, pigeon: Pigeon, distanceKm: number, week: number, weatherFactor: number, practice: boolean,
+  /** The field she is released with (see FLOCK). Birds fly as a bunch and a bunch
+   *  navigates; a bird can only really lose the line once the field has strung
+   *  out. Omitted (solo, or a legacy call) = no flock, i.e. the old behaviour. */
+  field?: { birds: number; spread: number },
 ): { velocity: number; segMult: number[]; durationSeconds: number; dnfAtSeconds: number | null; dnfKind: SimEntry['dnfKind']; lost: SimEntry['lost']; strays: SimEntry['strays']; strayDays?: number } {
   const FD = FLIGHT_DYNAMICS;
   // Seed on the flight id + bird so every flight is a different race, yet the same
@@ -293,7 +298,30 @@ function buildPaceProfile(
       if (p <= limit) episodes = Math.max(0, episodes - 1);
     }
     const segDistM = (distanceKm * 1000) / N;
-    let detourBudget = distanceKm * LOST.maxDetourFraction;
+    const t = distanceT(distanceKm);
+    // A detour is a share of the route, and on a sprint that share decides the
+    // race. Short flights therefore lose a smaller slice than the fond (see LOST).
+    const detourFraction = LOST.detourFractionShort + (LOST.detourFractionLong - LOST.detourFractionShort) * t;
+    const maxDetourFraction = LOST.maxDetourFractionShort + (LOST.maxDetourFractionLong - LOST.maxDetourFractionShort) * t;
+    let detourBudget = distanceKm * maxDetourFraction;
+
+    /**
+     * How alone she is at fraction `u` of the route: 0 while the field is still one
+     * bunch, 1 once it has strung out past FLOCK.breakKm. This is what stops a bird
+     * drifting off in the first minutes, when in reality every bird in the race is
+     * still flying in the same cloud over the release point.
+     */
+    const companyFactor = (u: number): number => {
+      if (!field || field.birds < FLOCK.minBirds) return 1; // no flock to hide in
+      // How far the field has strung out by here: 0 = still one bunch, 1 = alone.
+      const apart = clamp((u * distanceKm * (field.spread + FLOCK.paceNoise)) / FLOCK.breakKm, 0, 1);
+      // ...and how much of a flock there is to hide in at all. A handful of birds
+      // is not a convoy, so the cover scales with the size of the field.
+      const size = clamp(
+        (field.birds - FLOCK.minBirds) / Math.max(1, FLOCK.fullBirds - FLOCK.minBirds), 0, 1,
+      );
+      return clamp(1 - size * (1 - apart), FLOCK.minChance, 1);
+    };
 
     for (let ep = 0; ep < episodes; ep++) {
       // Where in the route she drifts off, and the cumulative time to get there.
@@ -304,6 +332,12 @@ function buildPaceProfile(
       for (let i = 0; i < startSeg; i++) {
         atSecs += (segDistM / Math.max(FD.minSegSpeed, velocity * segMult[i])) * 60;
       }
+
+      // ⚠️ Is she alone yet? Near the release the whole field is still one bunch
+      // and nobody wanders off, however poor her oriëntatie. The roll is consumed
+      // whether or not it passes, so the rng stream stays aligned and the profile
+      // is still reproducible episode by episode.
+      if (rng() >= companyFactor(startSeg / N)) continue;
 
       // Does she lose the way ENTIRELY? Only a genuinely poor navigator, and
       // mostly on a long flight. She is never gone for good — she finds her way
@@ -325,7 +359,7 @@ function buildPaceProfile(
       const wanted = Math.max(
         1,
         Math.round(
-          distanceKm * LOST.detourFraction *
+          distanceKm * detourFraction *
             (LOST.detourSeverityBase + LOST.detourSeveritySpread * room) *
             rf(1 - LOST.detourJitter, 1 + LOST.detourJitter),
         ),
@@ -418,6 +452,33 @@ function raceProgress(s: SimEntry, distanceKm: number, elapsed: number): {
 }
 
 /**
+ * The field a bird is released with, for the flock model (see FLOCK).
+ *
+ * `spread` is how unequal the field is in raw speed — the relative gap between a
+ * quick and a slow bird — because that is what pulls the bunch apart: a field of
+ * near-identical birds stays together for most of the route, a field with a wide
+ * quality gap is strung out within the hour. Measured on the ATTRIBUTE-driven
+ * baseline (no form-of-the-day, no per-bird weather) because those are drawn
+ * inside each profile and this has to be known before the first one is built;
+ * FLOCK.paceNoise covers what they add.
+ *
+ * Uses the 10th and 90th percentile rather than the extremes, so one hopeless
+ * straggler does not declare the whole flock broken.
+ *
+ * COST: one pass over the entrants, once per flight, at release. Never on a poll.
+ */
+function fieldContext(entries: Entry[], distanceKm: number, week: number): { birds: number; spread: number } {
+  const vels = entries
+    .map((e) => pigeonVelocity(e.pigeon, distanceKm, week, 1, 1))
+    .sort((a, b) => a - b);
+  if (vels.length < FLOCK.minBirds) return { birds: vels.length, spread: 0 };
+  const at = (q: number) => vels[clamp(Math.round(q * (vels.length - 1)), 0, vels.length - 1)];
+  const mid = at(0.5);
+  const spread = mid > 0 ? Math.max(0, (at(0.9) - at(0.1)) / mid) : 0;
+  return { birds: vels.length, spread };
+}
+
+/**
  * Start a scheduled flight: apply the weather, freeze each pigeon's VARYING pace
  * profile (see buildPaceProfile) and its resulting homing duration, and flip the
  * flight to `live`. Positions for the rest of the race are derived from this
@@ -430,8 +491,11 @@ export function startLiveFlight(flight: Flight, entries: Entry[], week: number, 
   flight.weatherFactor = w.factor;
   // Reference moment for the rest deduction: when THIS race starts (see RECOVERY).
   const startMs = Date.parse(flight.startAt) || Date.now();
+  // Everybody is released at once, so how quickly the bunch breaks up is a
+  // property of the FIELD, not of one bird. Computed once, here.
+  const field = fieldContext(entries, flight.distanceKm, week);
   flight.sim = entries.map((e) => {
-    const prof = buildPaceProfile(flight.id, e.pigeon, flight.distanceKm, week, w.factor, !!flight.practice);
+    const prof = buildPaceProfile(flight.id, e.pigeon, flight.distanceKm, week, w.factor, !!flight.practice, field);
     // Freeze the total energie this bird spends flying the full route. It is
     // drained gradually during the race (tickFlightEnergy), so a bird pulled
     // out mid-flight has already paid for the distance it covered. An oefenvlucht
@@ -602,6 +666,24 @@ function startLiveRelay(flight: Flight, entries: Entry[], week: number): void {
   const legKm = relayLegKm(flight);
   const startMs = Date.parse(flight.startAt) || Date.now();
   const byId = new Map(entries.map((e) => [e.pigeon.id, e]));
+  // The flock of a relay is PER LEG: every team's second bird flies the same
+  // middle stretch, so those are the birds she has company from — not her own
+  // team-mates, who are long home or not yet released (see FLOCK).
+  const legFields = new Map<number, { birds: number; spread: number }>();
+  {
+    const byLeg = new Map<number, Entry[]>();
+    for (const [, teamEntries] of relayEntryTeams(flight)) {
+      for (let i = 0; i < teamEntries.length; i++) {
+        const e = byId.get(teamEntries[i].pigeonId);
+        if (!e) continue;
+        const legIndex = teamEntries[i].leg ?? i + 1;
+        const list = byLeg.get(legIndex) ?? [];
+        list.push(e);
+        byLeg.set(legIndex, list);
+      }
+    }
+    for (const [legIndex, list] of byLeg) legFields.set(legIndex, fieldContext(list, legKm, week));
+  }
   const sim: SimEntry[] = [];
   for (const [, teamEntries] of relayEntryTeams(flight)) {
     let offset = 0;
@@ -612,7 +694,7 @@ function startLiveRelay(flight: Flight, entries: Entry[], week: number): void {
       const legIndex = fe.leg ?? i + 1;
       const leg = flight.legs?.[legIndex - 1];
       const weatherFactor = leg?.weatherFactor ?? 1;
-      const prof = buildPaceProfile(flight.id, e.pigeon, legKm, week, weatherFactor, false);
+      const prof = buildPaceProfile(flight.id, e.pigeon, legKm, week, weatherFactor, false, legFields.get(legIndex));
       // Each bird pays only for its own leg — a third of the route.
       const expRelief = 1 - (clamp(e.pigeon.experience, 0, 100) / 100 - 0.5) * FLIGHT_FATIGUE.experienceReliefSpread;
       const formCost = round1((FLIGHT_FATIGUE.base + legKm / FLIGHT_FATIGUE.perKmDivisor) * expRelief + randFloat(0, FLIGHT_FATIGUE.jitter));

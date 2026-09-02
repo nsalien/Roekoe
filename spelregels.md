@@ -695,36 +695,55 @@ Oriëntatie is je **navigatie-eigenschap** en doet niets met je snelheid. Ze bep
 of je duif de lijn naar huis houdt — of kilometers omvliegt en soms de weg helemaal
 kwijtraakt. Op een lange vlucht is ze **even veel waard als conditie** (§2.3).
 
+**🕊️ Eerst: duiven vliegen als een zwerm.** Bij de lossing gaan alle korven
+tegelijk open en vertrekt het hele veld als één wolk. Zolang je duif in die groep
+zit, **raakt ze zo goed als niet van koers** — de duiven die de weg kennen slepen
+de rest gewoon mee, ook een duif met een zwakke oriëntatie. Pas wanneer het veld
+**uit elkaar getrokken** wordt — de snelle duiven lopen weg, de groep valt in
+kleinere groepjes uiteen — vliegt ze op haar eigen kompas, en dán pas telt haar
+oriëntatie echt mee.
+
+Daaruit volgt vanzelf:
+- **In de eerste kilometers gebeurt er bijna niets.** Van alle afdwalingen valt er
+  maar zo'n **3 %** in het eerste tiende van de route.
+- **Op een korte vlucht blijft de groep langer samen** — er is minder tijd om uit
+  elkaar te lopen — dus verdwalen is er zeldzamer.
+- **Op de fond breekt het veld snel open**, en daar doet oriëntatie dus het meeste
+  werk. Precies zoals het hoort.
+- **Hoe groter het deelnemersveld, hoe beter de dekking.** Vlieg je in een klein
+  veld van drie of vier duiven, dan is er nauwelijks een groep om je in te
+  verstoppen.
+
 **Het is geen enkele muntworp.** Hoe verder de vlucht, hoe meer gelegenheid om af
 te dwalen: een slechte navigator kan op de fond twee of zelfs drie keer de lijn
 kwijtraken, een goede houdt hem vast. En het blijft **een kans** — ook een matige
 navigator vliegt geregeld een volkomen schone race, ze heeft er alleen minder vaak
 geluk mee.
 
-**Kans dat ze minstens één keer van koers raakt** (mooi weer):
+**Kans dat ze minstens één keer van koers raakt** (mooi weer, vol deelnemersveld):
 
 | Oriëntatie | 150 km | 300 km | 500 km | 700 km | 1000 km |
 |---|---|---|---|---|---|
-| 95 | 7 % | 7 % | 11 % | 13 % | 18 % |
-| 85 | 23 % | 28 % | 37 % | 44 % | 52 % |
-| 70 | 49 % | 59 % | 70 % | 76 % | 85 % |
-| 50 | 75 % | 85 % | 92 % | 95 % | 98 % |
-| 30 | 88 % | 93 % | 96 % | 97 % | 98 % |
+| 95 | 3 % | 7 % | 12 % | 15 % | 21 % |
+| 85 | 12 % | 28 % | 45 % | 52 % | 63 % |
+| 70 | 32 % | 62 % | 75 % | 86 % | 94 % |
+| 50 | 55 % | 84 % | 95 % | 97 % | 99 % |
+| 30 | 68 % | 91 % | 96 % | 97 % | 97 % |
 
 Belangrijker dan die kans is hoe vaak ze **helemaal schoon** thuiskomt — één kleine
 omweg kost je zelden de wedstrijd, drie grote wel:
 
 | Oriëntatie | Vlucht zonder één omweg (150 km) | 500 km | 1000 km |
 |---|---|---|---|
-| 95 | 93 % | 89 % | 82 % |
-| 85 | 77 % | 63 % | 48 % |
-| 70 | 51 % | 30 % | 15 % |
-| 60 | 36 % | 17 % | 6 % |
-| 30 | 12 % | 4 % | 2 % |
+| 95 | 97 % | 88 % | 79 % |
+| 85 | 88 % | 55 % | 37 % |
+| 70 | 68 % | 25 % | 7 % |
+| 60 | 54 % | 13 % | 4 % |
+| 30 | 32 % | 4 % | 3 % |
 
 **Slecht weer maakt het erger, maar niet voor iedereen.** Mist, regen en harde wind
-verhogen de kans fors. Op 700 km gaat een duif met oriëntatie 95 van 13 % naar
-22 %, terwijl oriëntatie 70 van 76 % naar 92 % springt. Een goede navigator merkt
+verhogen de kans fors. Op 700 km gaat een duif met oriëntatie 95 van 15 % naar
+26 %, terwijl oriëntatie 70 van 86 % naar 97 % springt. Een goede navigator merkt
 er weinig van; een slechte is bij ruw weer nagenoeg kansloos.
 
 **Meestal is het een omweg.** Echte extra kilometers: dus echt tijdverlies, een val
@@ -735,16 +754,24 @@ weer op, over precies de kilometers die haar de tijd kostten.
 
 | Oriëntatie | Totale omweg op 300 km | Op 1000 km |
 |---|---|---|
-| 95 | ~18 km | ~63 km |
-| 85 | ~25 km | ~94 km |
-| 70 | ~35 km | ~137 km |
-| 30 | ~47 km | ~159 km |
+| 95 | ~10 km | ~57 km |
+| 85 | ~15 km | ~91 km |
+| 70 | ~22 km | ~140 km |
+| 30 | ~29 km | ~158 km |
 
 *(gemiddelde wanneer ze effectief van koers raakt — komt ze schoon thuis, dan is het nul)*
 
-**Er is een bovengrens.** Hoe slecht het ook loopt, een duif vliegt **nooit meer dan
-~16 % om**. Een fondvlucht van 1000 km wordt in het allerergste geval 1160 km, geen
-odyssee — je verliest de wedstrijd, niet je hele dag.
+**Op een korte vlucht is de omweg kleiner — met opzet.** Een omweg is een hap uit
+de route, en op een sprint van 120 km beslist die hap meteen de hele wedstrijd:
+een duif die daar 18 km omvliegt mag het vergeten. Daarom is de omweg op een korte
+vlucht een **kleiner aandeel** van de route dan op de fond. Op 120 km praat je over
+zo'n **5 km** (hoogstens 8), op de fond over tientallen kilometers. Van koers raken
+kost je op een sprint dus plaatsen, en op de fond je dag.
+
+**Er is een bovengrens.** Hoe slecht het ook loopt, een duif vliegt op de fond
+**nooit meer dan ~16 % om**, en op een korte vlucht **nooit meer dan ~7 %**. Een
+fondvlucht van 1000 km wordt in het allerergste geval 1160 km, geen odyssee — je
+verliest de wedstrijd, niet je hele dag.
 
 **Soms raakt ze de weg helemaal kwijt.** Dan komt ze die dag niet thuis en telt ze
 als DNF. **Je duif is nooit voorgoed weg** — duiven vinden hun weg terug — maar het
@@ -756,16 +783,17 @@ voorraad en lijdt geen honger — ze is er simpelweg niet.
 | Oriëntatie | Niet thuis (300 km) | 1000 km | 1000 km, slecht weer |
 |---|---|---|---|
 | 85 of hoger | praktisch nul | praktisch nul | praktisch nul |
-| 70 | 0,1 % | 0,2 % | 0,3 % |
-| 50 | 1,0 % | 1,7 % | 1,9 % |
-| 30 | 4,2 % | 5,2 % | 5,2 % |
+| 70 | ~0 % | 0,2 % | 0,3 % |
+| 50 | 0,9 % | 1,1 % | 1,3 % |
+| 30 | 4,6 % | 4,8 % | 6,1 % |
 
 **Oriëntatie groeit door te vliegen**, en het snelst op **lange vluchten**. Je kan
 haar ook trainen (tot 80), en een **privécoach** werkt er eveneens aan tot het
 genetische plafond.
 
 > **Strategie.** Zet een duif met zwakke oriëntatie op **korte vluchten bij goed
-> weer** en bouw haar op met oefenvluchten en de coach. Voor de grote fond — zeker
+> weer** — daar blijft de zwerm het langst samen en is de omweg klein — en bouw
+> haar op met oefenvluchten en de coach. Voor de grote fond — zeker
 > met slecht weer op komst — stuur je je beste navigators. Op die vluchten is een
 > goede navigator evenveel waard als een goede conditie.
 

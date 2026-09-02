@@ -565,20 +565,33 @@ export function WikiPage() {
           kwijtraakt. Op een lange vlucht weegt ze even zwaar als conditie.
         </p>
         <p>
+          <strong>🕊️ Duiven vliegen als een zwerm.</strong> Bij de lossing vertrekt het hele
+          veld als één wolk, en zolang je duif in die groep zit raakt ze <strong>zo goed als
+          niet</strong> van koers — de duiven die de weg kennen slepen de rest mee, ook een
+          duif met zwakke oriëntatie. Pas wanneer het veld uit elkaar getrokken wordt (de
+          snellen lopen weg, de groep valt uiteen) vliegt ze op haar eigen kompas.
+        </p>
+        <ul>
+          <li>In het <strong>eerste tiende</strong> van de route gebeurt er bijna niets — zo'n 3 % van alle afdwalingen.</li>
+          <li>Op een <strong>korte vlucht</strong> blijft de groep langer samen, dus verdwaalt er minder.</li>
+          <li>Op de <strong>fond</strong> breekt het veld snel open: daar doet oriëntatie het meeste werk.</li>
+          <li>In een <strong>klein deelnemersveld</strong> is er nauwelijks een groep om je in te verstoppen.</li>
+        </ul>
+        <p>
           <strong>Het is geen enkele muntworp.</strong> Hoe verder de vlucht, hoe meer
           gelegenheid om af te dwalen — een slechte navigator kan op de fond twee of zelfs
           drie keer de lijn kwijtraken, een goede houdt hem. En het blijft een <strong>kans</strong>:
           ook een matige navigator vliegt geregeld een volledig schone race.
         </p>
-        <p><strong>Kans dat ze minstens één keer van koers raakt</strong> (mooi weer):</p>
+        <p><strong>Kans dat ze minstens één keer van koers raakt</strong> (mooi weer, vol veld):</p>
         <MiniTable
           head={['Oriëntatie', '150 km', '300 km', '500 km', '700 km', '1000 km']}
           rows={[
-            ['95', '7 %', '7 %', '11 %', '13 %', '18 %'],
-            ['85', '23 %', '28 %', '37 %', '44 %', '52 %'],
-            ['70', '49 %', '59 %', '70 %', '76 %', '85 %'],
-            ['50', '75 %', '85 %', '92 %', '95 %', '98 %'],
-            ['30', '88 %', '93 %', '96 %', '97 %', '98 %'],
+            ['95', '3 %', '7 %', '12 %', '15 %', '21 %'],
+            ['85', '12 %', '28 %', '45 %', '52 %', '63 %'],
+            ['70', '32 %', '62 %', '75 %', '86 %', '94 %'],
+            ['50', '55 %', '84 %', '95 %', '97 %', '99 %'],
+            ['30', '68 %', '91 %', '96 %', '97 %', '97 %'],
           ]}
         />
         <p style={{ marginTop: 12 }}>
@@ -588,23 +601,29 @@ export function WikiPage() {
         <MiniTable
           head={['Oriëntatie', 'Vlucht zonder één omweg (150 km)', '500 km', '1000 km']}
           rows={[
-            ['95', '93 %', '89 %', '82 %'],
-            ['85', '77 %', '63 %', '48 %'],
-            ['70', '51 %', '30 %', '15 %'],
-            ['60', '36 %', '17 %', '6 %'],
-            ['30', '12 %', '4 %', '2 %'],
+            ['95', '97 %', '88 %', '79 %'],
+            ['85', '88 %', '55 %', '37 %'],
+            ['70', '68 %', '25 %', '7 %'],
+            ['60', '54 %', '13 %', '4 %'],
+            ['30', '32 %', '4 %', '3 %'],
           ]}
         />
         <ul style={{ marginTop: 12 }}>
           <li>
             <strong>Slecht weer maakt het erger — maar niet voor iedereen.</strong> Op 700 km
-            gaat een duif met oriëntatie 95 van 13 % naar 22 %, terwijl oriëntatie 70 van
-            76 % naar 92 % springt. Een goede navigator merkt er weinig van.
+            gaat een duif met oriëntatie 95 van 15 % naar 26 %, terwijl oriëntatie 70 van
+            86 % naar 97 % springt. Een goede navigator merkt er weinig van.
           </li>
           <li>
-            <strong>Er is een bovengrens.</strong> Hoe slecht het ook loopt, een duif vliegt
-            <strong> nooit meer dan ~16 % om</strong>. Een fondvlucht van 1000 km wordt dus in
-            het allerergste geval 1160 km, geen odyssee.
+            <strong>Op een korte vlucht is de omweg kleiner — met opzet.</strong> Een omweg
+            is een hap uit de route, en op een sprint beslist die hap meteen de wedstrijd. Op
+            120 km praat je over zo'n <strong>5 km</strong> (hoogstens 8); op de fond over
+            tientallen kilometers.
+          </li>
+          <li>
+            <strong>Er is een bovengrens.</strong> Op de fond vliegt een duif nooit meer dan
+            <strong> ~16 % om</strong>, op een korte vlucht nooit meer dan ~7 %. 1000 km wordt
+            in het allerergste geval 1160 km, geen odyssee.
           </li>
         </ul>
         <p style={{ marginTop: 12 }}>
@@ -615,10 +634,10 @@ export function WikiPage() {
         <MiniTable
           head={['Oriëntatie', 'Totale omweg op 300 km', 'Op 1000 km']}
           rows={[
-            ['95', '~18 km', '~63 km'],
-            ['85', '~25 km', '~94 km'],
-            ['70', '~35 km', '~137 km'],
-            ['30', '~47 km', '~159 km'],
+            ['95', '~10 km', '~57 km'],
+            ['85', '~15 km', '~91 km'],
+            ['70', '~22 km', '~140 km'],
+            ['30', '~29 km', '~158 km'],
           ]}
         />
         <p className="faint" style={{ marginTop: 4 }}>
@@ -635,9 +654,9 @@ export function WikiPage() {
           head={['Oriëntatie', 'Niet thuis (300 km)', '1000 km', '1000 km, slecht weer']}
           rows={[
             ['85 of hoger', 'praktisch nul', 'praktisch nul', 'praktisch nul'],
-            ['70', '0,1 %', '0,2 %', '0,3 %'],
-            ['50', '1,0 %', '1,7 %', '1,9 %'],
-            ['30', '4,2 %', '5,2 %', '5,2 %'],
+            ['70', '~0 %', '0,2 %', '0,3 %'],
+            ['50', '0,9 %', '1,1 %', '1,3 %'],
+            ['30', '4,6 %', '4,8 %', '6,1 %'],
           ]}
         />
         <p style={{ marginTop: 12 }}>
