@@ -1,100 +1,107 @@
 /**
- * Stamboom: a pigeon's ancestors, collapsed by default.
+ * Stamboom: a genealogy chart, folded away behind one button.
  *
- * Deliberately SPARSE per box (see the tekstbudget rule): a name, whether she is
- * still alive, and — if she is — whose loft she sits in. That last bit is the
- * part players actually act on ("my champion's mother is in Jan's loft").
- * Everything else about an ancestor is one click away on her own page.
+ * Generations run left→right in columns — the bird herself, her parents, the
+ * grandparents and the great-grandparents (PEDIGREE_GENERATIONS = 3 levels of
+ * ancestors). The connectors are pure CSS (see .ped-* in global.css), which
+ * works only because every cell in a column is an equal-height flex child: a
+ * parent's centre then lands exactly where its two children's half-brackets
+ * meet. So EVERY slot is rendered, unknown ones as a faint dash — dropping one
+ * would shift the cells and bend the lines.
+ *
+ * Each box stays SPARSE on purpose (see the tekstbudget rule): a name, the
+ * general score, and — if she is still alive — whose loft she sits in. That
+ * last bit is the part players act on ("my champion's mother is in Jan's
+ * loft"). Everything else is one click away on her own page.
  *
  * A branch simply stops where the line dies out: a dead bird leaves no row, so
- * her own parents are unknowable (see core/game/pedigree.ts). Such a box is shown
+ * her own parents are unknowable (see core/game/pedigree.ts). Such a box is
  * greyed with a †, using the name remembered on the child.
  */
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import type { AncestorNode } from '../types';
 
-function Box({ node, mineId }: { node: AncestorNode | null; mineId?: string }) {
-  if (!node) {
-    return (
-      <div className="faint" style={{ padding: '6px 8px', fontSize: '0.82rem', opacity: 0.6 }}>
-        onbekend
-      </div>
-    );
+/** Column headers, and — via its length — how deep the chart goes. */
+const GEN_LABELS = ['Duif', 'Ouders', 'Grootouders', 'Overgrootouders'];
+
+/** Portrait size per generation; the deepest column is name-only. */
+const PIC = [34, 30, 24, 0];
+
+/**
+ * Flatten the tree into fixed 2^g slot rows. Slot `i` of a generation has its
+ * father at `2i` and its mother at `2i + 1` in the next one — the classic
+ * pedigree numbering, and what lets the CSS pair up cells by index parity.
+ */
+function toGenerations(root: AncestorNode): (AncestorNode | null)[][] {
+  const gens: (AncestorNode | null)[][] = [[root]];
+  for (let g = 1; g < GEN_LABELS.length; g++) {
+    const next: (AncestorNode | null)[] = [];
+    for (const n of gens[g - 1]) next.push(n?.sire ?? null, n?.dam ?? null);
+    gens.push(next);
   }
+  // A generation nobody knows anything about is noise, not information.
+  while (gens.length > 2 && gens[gens.length - 1].every((n) => !n)) gens.pop();
+  return gens;
+}
+
+function Node({
+  node, gen, mineId, hasKids, isRoot,
+}: {
+  node: AncestorNode;
+  gen: number;
+  mineId?: string;
+  hasKids: boolean;
+  isRoot: boolean;
+}) {
   const mine = !!mineId && node.ownerId === mineId;
+  const pic = PIC[Math.min(gen, PIC.length - 1)];
+  const where = !node.alive ? 'overleden' : mine ? 'jouw hok' : node.ownerName ?? '';
+  const sub = [
+    node.talent != null ? `★${node.talent}` : null,
+    // The deepest column is too narrow for a loft name; the sex carries it there.
+    gen >= PIC.length - 1 ? (node.sex === 'doffer' ? '♂' : '♀') : where || null,
+  ].filter(Boolean).join(' · ');
+
+  const cls = [
+    'ped-node', node.sex, hasKids ? 'kids' : '', isRoot ? 'self' : '', node.alive ? '' : 'gone',
+  ].filter(Boolean).join(' ');
+
   const inner = (
-    <div className="row" style={{ gap: 8, alignItems: 'center', minWidth: 0 }}>
-      {node.image ? (
+    <>
+      {pic > 0 && (node.image ? (
         <img
+          className={`ped-pic${node.alive ? '' : ' gone'}`}
           src={`/pigeon-images/${node.image}`}
           alt=""
           loading="lazy"
-          style={{
-            width: 30, height: 30, borderRadius: '50%', objectFit: 'contain', flexShrink: 0,
-            background: 'var(--surface-2)', padding: 2,
-            // A bird that is gone reads as history, not as stock.
-            filter: node.alive ? undefined : 'grayscale(1)', opacity: node.alive ? 1 : 0.65,
-          }}
+          width={pic}
+          height={pic}
+          style={{ width: pic, height: pic }}
         />
       ) : (
-        <span style={{ width: 30, textAlign: 'center', flexShrink: 0 }}>{node.alive ? '🕊️' : '†'}</span>
-      )}
-      <div style={{ minWidth: 0 }}>
-        <div style={{ fontWeight: 600, fontSize: '0.86rem', overflowWrap: 'anywhere' }}>
+        <span className="ped-glyph" style={{ width: pic }}>{node.alive ? '🕊️' : '†'}</span>
+      ))}
+      <div className="ped-body">
+        <div className="ped-name">
+          {/* The portrait slot already carries the †; only the name-only column
+              (deepest generation, pic === 0) has to say it in the name. */}
+          {node.alive || pic > 0 ? '' : '† '}
           {node.name}
-          {node.quirk && <span title="Bijzonderheid" style={{ marginLeft: 4 }}>✨</span>}
+          {node.quirk && <span title="Bijzonderheid"> ✨</span>}
         </div>
-        <div className="faint" style={{ fontSize: '0.75rem' }}>
-          {node.sex === 'doffer' ? '♂' : '♀'}
-          {node.talent != null && ` · ★${node.talent}`}
-          {node.alive ? (mine ? ' · jouw hok' : node.ownerName ? ` · ${node.ownerName}` : '') : ' · overleden'}
-        </div>
+        {sub && <div className="ped-sub">{sub}</div>}
       </div>
-    </div>
+    </>
   );
-
-  const style: React.CSSProperties = {
-    padding: '6px 8px',
-    borderRadius: 8,
-    background: 'var(--surface-2)',
-    border: '1px solid var(--line, rgba(0,0,0,0.10))',
-    minWidth: 0,
-    display: 'block',
-    textDecoration: 'none',
-    color: 'inherit',
-    opacity: node.alive ? 1 : 0.75,
-  };
 
   // Only a bird that still exists has a page to open.
-  return node.alive && node.id ? (
-    <Link to={`/duif/${node.id}`} style={style}>{inner}</Link>
+  const title = `${node.name} · ${node.sex}${node.talent != null ? ` · ★${node.talent}` : ''}${where ? ` · ${where}` : ''}`;
+  return node.alive && node.id && !isRoot ? (
+    <Link className={cls} to={`/duif/${node.id}`} title={title}>{inner}</Link>
   ) : (
-    <div style={style}>{inner}</div>
-  );
-}
-
-/** One generation column, rendered recursively so depth is data-driven. */
-function Branch({ node, mineId, depth }: { node: AncestorNode | null; mineId?: string; depth: number }) {
-  if (depth === 0 || !node) return null;
-  const hasParents = !!(node.sire || node.dam);
-  return (
-    <div style={{ display: 'grid', gap: 6, minWidth: 0 }}>
-      <Box node={node} mineId={mineId} />
-      {hasParents && (
-        <div
-          style={{
-            display: 'grid', gap: 6, minWidth: 0,
-            paddingLeft: 10, marginLeft: 4,
-            borderLeft: '2px solid var(--line, rgba(0,0,0,0.12))',
-          }}
-        >
-          <Branch node={node.sire} mineId={mineId} depth={depth - 1} />
-          <Branch node={node.dam} mineId={mineId} depth={depth - 1} />
-        </div>
-      )}
-    </div>
+    <div className={cls} title={title}>{inner}</div>
   );
 }
 
@@ -108,37 +115,62 @@ export function Pedigree({ root, mineId }: { root: AncestorNode | null; mineId?:
   const [open, setOpen] = useState(false);
   // `root` is the bird herself; her ancestors are what the tree is about.
   const known = countAncestors(root?.sire ?? null) + countAncestors(root?.dam ?? null);
+  const gens = useMemo(() => (root ? toGenerations(root) : []), [root]);
 
   if (!root || known === 0) {
     return <p className="muted" style={{ marginTop: 8 }}>Afkomst onbekend (grondduif).</p>;
   }
 
   return (
-    <div style={{ marginTop: 8 }}>
+    <div style={{ marginTop: 10 }}>
       <button
-        className="btn ghost sm"
+        className="btn secondary block"
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
-        style={{ marginBottom: open ? 10 : 0 }}
       >
-        {open ? '▾' : '▸'} Stamboom · {known} {known === 1 ? 'voorouder' : 'voorouders'}
+        🌳 {open ? 'Verberg stamboom' : 'Toon volledige stamboom'} · {known} {known === 1 ? 'voorouder' : 'voorouders'}
       </button>
+
       {open && (
-        <>
-          <div style={{ display: 'grid', gap: 8, minWidth: 0 }}>
-            <div>
-              <div className="faint" style={{ fontSize: '0.75rem', marginBottom: 4 }}>Vader (doffer)</div>
-              <Branch node={root.sire} mineId={mineId} depth={3} />
-            </div>
-            <div>
-              <div className="faint" style={{ fontSize: '0.75rem', marginBottom: 4 }}>Moeder (duivin)</div>
-              <Branch node={root.dam} mineId={mineId} depth={3} />
+        <div style={{ marginTop: 12, display: 'grid', gap: 8 }}>
+          <div className="ped-scroll">
+            <div className="ped-chart">
+              {gens.map((slots, gen) => (
+                <div className={`ped-gen g${gen}`} key={gen}>
+                  <div className="ped-gen-head">{GEN_LABELS[gen]}</div>
+                  <div className="ped-col">
+                    {slots.map((node, i) => {
+                      // Index parity is the pair: even = father (upper half),
+                      // odd = mother (lower half). That drives the bracket.
+                      const side = gen === 0 ? '' : i % 2 === 0 ? 'sire' : 'dam';
+                      const kids = !!gens[gen + 1] && !!(gens[gen + 1][i * 2] || gens[gen + 1][i * 2 + 1]);
+                      return (
+                        <div className={`ped-cell ${side}${node ? '' : ' empty'}`} key={i}>
+                          {node
+                            ? <Node node={node} gen={gen} mineId={mineId} hasKids={kids} isRoot={gen === 0} />
+                            : <div className="ped-empty" title="onbekend" />}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
-          <p className="faint" style={{ fontSize: '0.78rem', marginTop: 10 }}>
-            Een tak stopt bij een duif die er niet meer is — met haar verdween ook wie háár ouders waren.
+
+          <p className="ped-hint">← Sleep opzij voor de oudere generaties →</p>
+
+          <div className="ped-legend">
+            <span><i className="sw" style={{ background: 'var(--ped-sire)' }} />doffer ♂</span>
+            <span><i className="sw" style={{ background: 'var(--ped-dam)' }} />duivin ♀</span>
+            <span>† overleden</span>
+            <span>✨ bijzonderheid</span>
+          </div>
+          <p className="faint" style={{ fontSize: '0.78rem', margin: 0 }}>
+            Klik een duif die nog leeft om naar haar pagina te gaan. Een tak stopt bij een duif
+            die er niet meer is — met haar verdween ook wie háár ouders waren.
           </p>
-        </>
+        </div>
       )}
     </div>
   );
