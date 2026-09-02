@@ -833,9 +833,10 @@ Entiteiten: `Pigeon`, `Loft`, `User`, `BreedingPair`, `PendingBrood`, `Flight` (
   (of "🏥 Ziekenboeg"-label als ze daar zit), verkoop, uitbreidingen. De statbalken
   tonen een **▲/▼ per dag** (groei/daling door je huidige keuze; via `pigeon.dailyCare`).
 - `PigeonPage` — één duif, in deze volgorde: kop + stats · gezondheid · training · bod ·
-  **Ontwikkeling** (coach + rustkuur + hernoemen) · **Afstamming** (vader + moeder, met
-  daaronder de knop **"Toon volledige stamboom"** → `components/Pedigree.tsx`, het
-  genealogiediagram in kolommen; zie §8) · **"Afscheid nemen"** · **Wedstrijdhistoriek**.
+  **Ontwikkeling** (coach + rustkuur + hernoemen) · **Familie** (vader + moeder, met daaronder
+  de knop **"Toon volledige stamboom"** → `components/Pedigree.tsx`: voorouderkaart +
+  broers/zussen + nakomelingen per partner; zie §8) · **"Afscheid nemen"** ·
+  **Wedstrijdhistoriek**.
   ⚠️ Bewust **niet** hier (zie §8): het leeftijdscriterium (staat op *Ranglijst →
   Criterium*), de voerkeuze en de apart-hok-knop (staan op *Mijn hok*) en de uitleg bij
   de waardeschatting. Verder: **rustkuur**
@@ -1041,6 +1042,59 @@ verzoek uit per statement.
 
 Alles hieronder staat **live** op de deploy-branch. Data-migraties liepen door tot
 **`dataVersion = 45`**.
+
+**De stamboom kijkt nu in alle richtingen (nieuwste)**
+- **Vraag van de eigenaar:** de stamboom toonde enkel voorouders. Klik je op een ouder, dan
+  moet je ook haar **kinderen** zien; broers en zussen moeten zichtbaar zijn; kortom **alle
+  familie — bloedverwant of gekoppeld met jongen als gevolg**.
+- **Drie richtingen, drie vormen**, want een familie is niet één vorm:
+  - **Voorouders** — de bestaande binaire kolommenkaart, ongewijzigd.
+  - **Broers & zussen** — een raster (`.ped-kin`). Ze hebben geen diepte, enkel een graad:
+    **vol** (beide ouders gedeeld) of **half** (+ via welke ouder).
+  - **Nakomelingen** — een **railboom** (`.ped-tree`), **gegroepeerd per partner**. Een nest
+    waaiert willekeurig breed uit (een duif kan zes jongen hebben) en dát kan de binaire
+    kolommenkaart niet uitdrukken; een ingesprongen rail wel, op elke breedte.
+- **Nieuw: `familyOf(db, pigeon, generations)`** (`core/game/pedigree.ts`) → `{siblings,
+  partners, children}`. **Eén pass** over `db.pigeons` bouwt een ouder→jongen-index, en die
+  index beantwoordt alle drie de vragen: de kinderen van een duif zijn waar zíj naar wijst,
+  haar broers/zussen zijn waar haar **ouders** naar wijzen. `AncestorNode` is opgesplitst in
+  een gedeelde **`FamilyMember`** + de twee takvelden, zodat elk vakje hetzelfde toont.
+- **Geen extra query, geen schemakolom, geen migratie**, `dataVersion` blijft **45**. De
+  wereld staat al in het geheugen en `GET /pigeons/:id` wordt **bewust geopend, nooit
+  gepolld** (`DESCENDANT_GENERATIONS` 3). Nagemeten: `query-budget`, `cpu-budget`,
+  `daily-budget`, `poll-budget` en `idle-writes` blijven allemaal groen.
+- ⚠️ **De twee richtingen breken af om TEGENGESTELDE redenen**, en dat staat nu ook in de
+  spelregels:
+  - **omhoog** — een dode duif laat geen rij na, dus háár ouders zijn onkenbaar;
+  - **omlaag** — een dood **jong** laat geen rij na, dus zij én de kleinkinderen achter haar
+    zijn onbereikbaar: we leren haar id nooit om ze aan te knopen.
+  - **Broers, zussen en partners overleven een overlijden wél**, want die worden van een
+    **levende** rij gelezen. Twee volle broers blijven dus vol, ook als beide ouders dood
+    zijn — hun ids staan nog op de jongen. Dat spiegelt `kinship()`.
+- **Een overleden partner blijft zichtbaar** via `sireName`/`damName` op het jong (de
+  denormalisatie die daar net voor bestaat), i.p.v. "onbekend" te worden. Zo'n vakje heeft
+  `id: null` en dus geen eigen pagina.
+- ⚠️ **Twee bugs die de verificatie ophaalde, allebei klassiekers:**
+  1. **`partners` kwam altijd leeg terug.** Het object-literal `{siblings, partners:
+     [...map.values()], children: build(...)}` evalueert **van boven naar beneden**, en het
+     is `build` dat die map vult — dus de spread liep vóór de vulling. Nu draait `build`
+     eerst, in een variabele. De test ving dit meteen ("twee partners ()").
+  2. **309 px horizontale paginaoverloop op 390 px.** Een grid-item krijgt
+     `min-width: auto` en krimpt dus niet onder zijn min-content; de voorouderkaart is
+     ~670 px, dus de sectie-wrapper rekte het hele paneel én de pagina open. Opgelost met
+     **`.ped-panel > * { min-width: 0 }`** — exact dezelfde valstrik als
+     `.grid > * { min-width: 0 }`, de vierde keer nu in dit project. **Meet dit altijd op
+     390 px na een layoutwijziging hier.**
+- **Kaarttitel `Afstamming` → `Familie`** op `PigeonPage`: "afstamming" betekent enkel de
+  opgaande lijn, en die kaart doet nu meer.
+- **`pedigree.test.mts` → 62 controles** (was 39). Nieuwe blokken: elke graad broer/zus (vol,
+  half via vader, half via moeder, en dat een vreemde er géén is), kinderen + kleinkinderen op
+  de juiste tak, de partner is de ándere ouder, de diepte is begrensd, de richting werkt ook
+  vanuit een grootouder, een dode ouder verbergt geen jongen, en een lijn die op zichzelf
+  terugvalt (inteelt) loopt niet oneindig door.
+- ⚠️ **Twee van mijn eigen testverwachtingen waren fout** en zijn gecorrigeerd i.p.v. de code
+  te verbuigen: opa heeft **drie** kinderen (ik + vollezus + halfbroer_v), en twee jongen van
+  een **dode** vader blijven **volle** broer en zus — zijn id staat nog op allebei.
 
 **Eén melding per nest — de uitkomst-melding had geen stabiel id (nieuwste)**
 - **Vraag van de eigenaar:** wanneer kan een nest uitkomen — enkel op de dagovergang of

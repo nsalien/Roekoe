@@ -6,12 +6,14 @@
  *  - verwantschap wordt herkend in de juiste graad (en NIET waar ze er niet is);
  *  - een inteeltjong krijgt echt lagere gen-caps en meestal een afwijking;
  *  - een duif jonger dan BREEDING.minAgeWeeks kan niet kweken — speler én bot;
+ *  - de stamboom kijkt ook OMLAAG en OPZIJ: kinderen, kleinkinderen, partners
+ *    en broers/zussen (vol én half), en niemand komt dubbel of ontbreekt;
  *  - de namenpool is breed genoeg om herhaling te vermijden.
  *
  * Run: npx tsx pedigree.test.mts
  */
 import { BREEDING, INBREEDING, MALE_FIRST_NAMES, FEMALE_FIRST_NAMES, EPITHETS } from './core/config/gameConfig.js';
-import { kinship, pedigreeOf, ancestorIds } from './core/game/pedigree.js';
+import { familyOf, kinship, pedigreeOf, ancestorIds } from './core/game/pedigree.js';
 import { breed } from './core/game/breeding.js';
 import { generatePigeon } from './core/game/pigeon.js';
 import { generatePigeonName, nameKey } from './core/game/names.js';
@@ -81,6 +83,105 @@ console.log('\nVerwantschap herkennen');
   db.pigeons = db.pigeons.filter((p) => p.id !== 'tante');
   ok(kinship(db, neef, dochter) === null,
     'met de tussenschakel dood is verder familie niet meer zichtbaar');
+}
+
+// === X. De familie in alle richtingen =======================================
+console.log('\nFamilie in alle richtingen (familyOf)');
+{
+  const db = world();
+  const opa = bird(db, 'opa', 'doffer', null, null);
+  const oma = bird(db, 'oma', 'duivin', null, null);
+  // Onze duif, plus een volle zus en twee halfbroers via elk één ouder.
+  const ik = bird(db, 'ik', 'duivin', opa.id, oma.id);
+  bird(db, 'vollezus', 'duivin', opa.id, oma.id);
+  bird(db, 'halfbroer_v', 'doffer', opa.id, 'andere_moeder');
+  bird(db, 'halfbroer_m', 'doffer', 'andere_vader', oma.id);
+  bird(db, 'vreemde2', 'doffer', null, null);
+  // Twee partners, twee nesten, en één kleinkind.
+  const partnerA = bird(db, 'partnerA', 'doffer', null, null);
+  const partnerB = bird(db, 'partnerB', 'doffer', null, null);
+  const kind1 = bird(db, 'kind1', 'duivin', partnerA.id, ik.id);
+  bird(db, 'kind2', 'doffer', partnerA.id, ik.id);
+  bird(db, 'kind3', 'duivin', partnerB.id, ik.id);
+  bird(db, 'kleinkind', 'doffer', 'schoonzoon', kind1.id);
+
+  const fam = familyOf(db, ik, 3);
+
+  const sibNames = fam.siblings.map((x) => x.name).sort();
+  ok(sibNames.join(',') === 'halfbroer_m,halfbroer_v,vollezus',
+    `drie broers/zussen gevonden (${sibNames.join(',')})`);
+  ok(fam.siblings.find((x) => x.name === 'vollezus')!.full === true, 'de volle zus is als vol gemarkeerd');
+  const hv = fam.siblings.find((x) => x.name === 'halfbroer_v')!;
+  ok(hv.full === false && hv.sharedSire && !hv.sharedDam, 'halfbroer via de vader: enkel de vader gedeeld');
+  const hm = fam.siblings.find((x) => x.name === 'halfbroer_m')!;
+  ok(hm.full === false && hm.sharedDam && !hm.sharedSire, 'halfbroer via de moeder: enkel de moeder gedeeld');
+  ok(!fam.siblings.some((x) => x.name === 'vreemde2'), 'een onverwante duif is geen broer of zus');
+  ok(!fam.siblings.some((x) => x.name === 'ik'), 'de duif is haar eigen zus niet');
+  ok(fam.siblings[0].full, 'volle broers/zussen staan vooraan');
+
+  const kids = fam.children.map((x) => x.name).sort();
+  ok(kids.join(',') === 'kind1,kind2,kind3', `drie kinderen gevonden (${kids.join(',')})`);
+  ok(fam.children.every((k) => k.partner !== null), 'elk kind kent de ándere ouder');
+  ok(fam.children.find((k) => k.name === 'kind1')!.partner!.name === 'partnerA',
+    'de partner is de andere ouder, niet de duif zelf');
+  const partners = fam.partners.map((x) => x.name).sort();
+  ok(partners.join(',') === 'partnerA,partnerB', `twee partners (${partners.join(',')})`);
+
+  const k1 = fam.children.find((k) => k.name === 'kind1')!;
+  ok(k1.children.length === 1 && k1.children[0].name === 'kleinkind', 'het kleinkind hangt onder het juiste kind');
+  ok(fam.children.find((k) => k.name === 'kind2')!.children.length === 0, 'een kind zonder jongen heeft een lege tak');
+
+  // De diepte is begrensd, en de andere richting blijft werken.
+  const shallow = familyOf(db, ik, 1);
+  ok(shallow.children.length === 3 && shallow.children.every((k) => k.children.length === 0),
+    'met diepte 1 stoppen we bij de kinderen');
+  ok(familyOf(db, partnerA, 3).children.length === 2, 'de partner ziet zijn eigen twee jongen');
+  ok(familyOf(db, opa, 3).children.length === 3,
+    'de kant van de grootvader werkt net zo goed: opa ziet ik + vollezus + halfbroer_v');
+}
+
+// === Y. Een dode ouder verbergt geen kinderen ===============================
+console.log('\nEen dode ouder verbergt geen kinderen');
+{
+  const db = world();
+  const moeder = bird(db, 'moeder', 'duivin', null, null);
+  const vader = bird(db, 'vader2', 'doffer', null, null);
+  bird(db, 'kindA', 'duivin', vader.id, moeder.id);
+  bird(db, 'kindB', 'doffer', vader.id, moeder.id);
+  // De vader sterft: zijn rij verdwijnt uit de wereld.
+  db.pigeons = db.pigeons.filter((x) => x.id !== vader.id);
+
+  const fam = familyOf(db, moeder, 2);
+  ok(fam.children.length === 2, 'de moeder ziet haar twee jongen nog steeds');
+  ok(fam.children.every((k) => k.partner !== null && !k.partner!.alive),
+    'de overleden partner blijft zichtbaar, via de naam die het jong onthoudt');
+  ok(fam.partners.length === 1 && fam.partners[0].id === null,
+    'hij staat één keer in de partnerlijst, zonder eigen pagina');
+  const kindA = db.pigeons.find((x) => x.id === 'kindA')!;
+  const famA = familyOf(db, kindA, 2);
+  ok(famA.siblings.length === 1 && famA.siblings[0].name === 'kindB',
+    'broer en zus vinden elkaar nog via de gedeelde moeder');
+  // ⚠️ De band via de dode vader BLIJFT zichtbaar: zijn id staat nog op beide
+  // levende jongen. Enkel zijn eigen ouders zijn met hem verdwenen (zie kinship).
+  ok(famA.siblings[0].full === true && famA.siblings[0].sharedSire,
+    'ze blijven volle broer en zus — de dode vader is nog steeds herkenbaar aan zijn id');
+}
+
+// === Z. Een lijn die op zichzelf terugvalt loopt niet oneindig door =========
+console.log('\nEen lus in de afstamming');
+{
+  const db = world();
+  const a = bird(db, 'lus_a', 'doffer', null, null);
+  const b = bird(db, 'lus_b', 'duivin', null, null);
+  const c = bird(db, 'lus_c', 'duivin', a.id, b.id);
+  // c wordt met haar eigen vader gekoppeld — inteelt, maar het mág.
+  bird(db, 'lus_d', 'doffer', a.id, c.id);
+  const fam = familyOf(db, a, 3);
+  ok(fam.children.length === 2, 'de doffer ziet beide jongen (ook dat uit zijn eigen dochter)');
+  ok(countDown(fam.children) < 50, 'de recursie loopt niet op hol');
+}
+function countDown(nodes: { children: any[] }[]): number {
+  return nodes.reduce((t, n) => t + 1 + countDown(n.children), 0);
 }
 
 // === 2. Stamboom ============================================================

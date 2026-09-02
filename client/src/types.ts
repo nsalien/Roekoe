@@ -821,18 +821,42 @@ export interface BreedingView {
 
 export type KinshipDegree = 'directe-lijn' | 'volle' | 'half' | 'familie';
 
-/** One box in the stamboom. `alive: false` means the bird is gone and only its
- *  remembered name survives (so it has no owner and no page of its own). */
-export interface AncestorNode {
+/** What every box in de stamboom toont — enkel publieke gegevens. */
+export interface FamilyMember {
   id: string | null;
   name: string;
   sex: Sex;
+  /** `false` = de duif is er niet meer; enkel haar onthouden naam rest nog. */
   alive: boolean;
   ownerName: string | null;
   ownerId: string | null;
   talent: number | null;
   image: string | null;
   quirk: string | null;
+}
+
+/** Eén vakje in de voorouderboom. */
+export interface AncestorNode extends FamilyMember {
   sire: AncestorNode | null;
   dam: AncestorNode | null;
+}
+
+/** Eén vakje aan de nakomelingenkant; `partner` is de ándere ouder. */
+export interface DescendantNode extends FamilyMember {
+  partner: FamilyMember | null;
+  children: DescendantNode[];
+}
+
+/** Broer of zus: `full` = beide ouders gedeeld, anders een halfbroer/-zus. */
+export interface SiblingNode extends FamilyMember {
+  full: boolean;
+  sharedSire: boolean;
+  sharedDam: boolean;
+}
+
+/** Alles rond een duif dat géén voorouder is. */
+export interface FamilyTree {
+  siblings: SiblingNode[];
+  partners: FamilyMember[];
+  children: DescendantNode[];
 }

@@ -1457,20 +1457,31 @@ de ouders ± mutatie. Koppel dus je best gegende duiven om een sterke lijn te bo
 
 ### 7.3 Stamboom & inteelt
 
-Op de pagina van elke duif staan bovenaan haar **vader en moeder**. Daaronder
-staat de knop **"Toon volledige stamboom"**, en die klapt een echt
-**stamboomdiagram** open: van links naar rechts de duif zelf, haar ouders, haar
-grootouders en haar overgrootouders, met de verbindingslijnen ertussen. Doffers
-krijgen een blauwe rand, duivinnen een roze. Per voorouder zie je haar **algemene
-score (★)**, of ze **nog leeft** en, zo ja, in **welk hok** ze zit — ook als dat
-het hok van een andere speler is. Klik erop om naar haar pagina te gaan.
+Op de pagina van elke duif staat de kaart **Familie**: bovenaan haar **vader en
+moeder**, en daaronder de knop **"Toon volledige stamboom"**. Die toont haar hele
+familie, **in alle richtingen** — niet enkel wie haar ouders waren:
 
-Op een smal scherm is het diagram breder dan je toestel: **sleep het opzij** om
-de oudere generaties te zien.
+| Deel | Wat je ziet |
+|---|---|
+| ⬆️ **Voorouders** | Een echt **stamboomdiagram**: van links naar rechts de duif zelf, haar ouders, grootouders en overgrootouders, met de verbindingslijnen ertussen. |
+| ↔️ **Broers & zussen** | Iedereen die minstens één ouder met haar deelt, met erbij of het een **volle** broer/zus is (beide ouders) of een **halve** (en via welke ouder). |
+| ⬇️ **Nakomelingen** | Haar jongen, kleinkinderen en achterkleinkinderen, **gegroepeerd per partner** — zo zie je meteen welk koppel welk nest opleverde. |
 
-Een tak stopt bij een duif die er niet meer is. Dat is geen fout: met haar
-verdwijnt ook wie háár ouders waren. Haar **naam** blijft wel bewaard, dus je
-ziet nog steeds dat ze bestaan heeft.
+Doffers krijgen een blauwe rand, duivinnen een roze. Per duif zie je haar
+**algemene score (★)**, of ze **nog leeft** en, zo ja, in **welk hok** ze zit —
+ook als dat het hok van een andere speler is. Klik erop om naar haar pagina te
+gaan, en van daaruit klim je verder door de familie.
+
+Op een smal scherm is het diagram van de voorouders breder dan je toestel:
+**sleep het opzij** om de oudere generaties te zien.
+
+**Een tak stopt bij een duif die er niet meer is**, en dat werkt beide kanten op.
+Naar boven: met een overleden duif verdwijnt ook wie háár ouders waren. Naar
+beneden: een jong dat gestorven is, is zelf niet meer te zien — en haar eigen
+jongen dus ook niet. Haar **naam** blijft wel bewaard waar een levende duif haar
+onthoudt, dus je ziet nog steeds dat ze bestaan heeft. **Broers, zussen en
+partners overleven zo'n overlijden wél**: die worden herkend aan de duiven die er
+nog zijn.
 
 **Kweken met familie wordt afgeraden.** Kies je bij *Kweek* twee verwanten, dan
 waarschuwt het spel je vooraf en moet je de keuze bevestigen. Je mág doorgaan —

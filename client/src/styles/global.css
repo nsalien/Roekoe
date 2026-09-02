@@ -744,3 +744,38 @@ a.ped-node:active { transform: translateY(1px); }
    stay at two — a third line would push its box past its cell and bend the
    brackets, which is the one thing this layout cannot survive. */
 .ped-gen.g0 .ped-name, .ped-gen.g1 .ped-name, .ped-gen.g2 .ped-name { -webkit-line-clamp: 3; }
+
+/* --- Stamboom: de andere richtingen --------------------------------------- */
+/* Broers/zussen en nakomelingen delen het vakje (.ped-node) met de voorouder-
+   kaart, maar niet haar geometrie: een nest waaiert willekeurig breed uit, wat
+   een binaire kolommenkaart niet kan uitdrukken. Vandaar een raster voor de
+   zijwaartse familie en een railboom voor de neerwaartse. */
+/* ⚠️ Een grid-item krijgt `min-width: auto`, dus het krimpt NIET onder zijn
+   min-content — en de voorouderkaart is ~670 px breed. Zonder deze regel rekt
+   één sectie het hele paneel (en dus de pagina) mee open: gemeten 309 px
+   horizontale overloop op 390 px. Dit is exact dezelfde valstrik als
+   `.grid > * { min-width: 0 }` hierboven; zie de card-breedte-historiek in §8. */
+.ped-panel { display: grid; gap: 14px; min-width: 0; }
+.ped-panel > * { min-width: 0; }
+.ped-sec-head {
+  font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;
+  color: var(--text-faint); margin-bottom: 7px;
+}
+.ped-kin { display: grid; gap: 6px; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); }
+/* Anders dan in de voorouderkaart mag een vakje hier wél groeien — de rijen van
+   dit raster zijn niet aan een vaste celhoogte gebonden. Dus geen ellipsis op
+   "halfbroer · zelfde vader": die regel is juist de reden dat je kijkt. */
+.ped-kin .ped-sub { white-space: normal; }
+.ped-mate { font-size: 0.78rem; color: var(--text-faint); margin: 0 0 6px; }
+
+.ped-tree { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+/* Each deeper level hangs off a rail, so depth stays readable at any fan-out. */
+.ped-tree .ped-tree { margin: 6px 0 0 15px; padding-left: 15px; border-left: 2px solid var(--ped-line, var(--border-strong)); }
+.ped-tree li { min-width: 0; }
+/* ⚠️ The tick hangs off the NODE, not off the <li>: an li that carries nested
+   young is far taller than its own box, so anchoring at its 50% would draw the
+   connector somewhere in the middle of the grandchildren. */
+.ped-tree .ped-tree > li > .ped-node::before {
+  content: ''; position: absolute; top: 50%; right: 100%;
+  width: 15px; height: 2px; background: var(--ped-line, var(--border-strong));
+}

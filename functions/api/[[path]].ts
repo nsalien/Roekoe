@@ -80,7 +80,7 @@ import { pigeonSeasonRankings } from '../../core/game/season.js';
 import { spendAttribute, spendExperience } from '../../core/game/newcomer.js';
 import { velocityBreakdown, weightsForDistance } from '../../core/game/flight.js';
 import { ageInWeeks } from '../../core/game/pigeon.js';
-import { kinship, pedigreeOf } from '../../core/game/pedigree.js';
+import { familyOf, kinship, pedigreeOf } from '../../core/game/pedigree.js';
 import { ownerName } from '../../core/game/engine.js';
 import { fetchFlightWeather, fetchLegForecast, type WeatherResult } from '../../core/game/weather.js';
 import { auctionKind, placeBid } from '../../core/game/auction.js';
@@ -128,6 +128,8 @@ let schemaReady = false;
  * costs no extra query: every ancestor still alive is in the loaded world.
  */
 const PEDIGREE_GENERATIONS = 3;
+/** How far DOWN the family view goes: children, grandchildren, great-grandchildren. */
+const DESCENDANT_GENERATIONS = 3;
 
 /** POSTs that only compute and return a value — safe to throttle like a GET. */
 const READ_ONLY_POSTS = new Set(['/api/bets/preview']);
@@ -581,6 +583,10 @@ app.get('/pigeons/:id', async (c) => {
     // query; the depth is bounded by PEDIGREE_GENERATIONS and by the fact that a
     // branch stops at any ancestor that is no longer alive (see game/pedigree.ts).
     pedigree: pedigreeOf(db, p, PEDIGREE_GENERATIONS),
+    // The other directions: brothers and sisters, the birds she was paired with,
+    // and the line she started. One pass over the already-loaded pigeons, so it
+    // costs no query either — see game/pedigree.ts::familyOf.
+    family: familyOf(db, p, DESCENDANT_GENERATIONS),
     // The race log is not part of the loaded world (it is what made every request
     // parse megabytes — see core/d1.ts::PIGEON_SELECT). One extra query, on a
     // route the player opens on purpose rather than polls.
