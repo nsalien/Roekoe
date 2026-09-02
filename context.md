@@ -832,10 +832,14 @@ Entiteiten: `Pigeon`, `Loft`, `User`, `BreedingPair`, `PendingBrood`, `Flight` (
 - `LoftPage` (Mijn hok) — duivenlijst met per duif: voerkeuze-select, apart/samen-knop
   (of "🏥 Ziekenboeg"-label als ze daar zit), verkoop, uitbreidingen. De statbalken
   tonen een **▲/▼ per dag** (groei/daling door je huidige keuze; via `pigeon.dailyCare`).
-- `PigeonPage` — één duif: stats, afstamming (kaart **Afstamming**: vader + moeder, met
+- `PigeonPage` — één duif, in deze volgorde: kop + stats · gezondheid · training · bod ·
+  **Ontwikkeling** (coach + rustkuur + hernoemen) · **Afstamming** (vader + moeder, met
   daaronder de knop **"Toon volledige stamboom"** → `components/Pedigree.tsx`, het
-  genealogiediagram in kolommen; zie §8), historiek; training; coach; voerkeuze;
-  **rustkuur** (POST `/pigeons/:id/restcure`); hernoemen; **"Afscheid nemen"**
+  genealogiediagram in kolommen; zie §8) · **"Afscheid nemen"** · **Wedstrijdhistoriek**.
+  ⚠️ Bewust **niet** hier (zie §8): het leeftijdscriterium (staat op *Ranglijst →
+  Criterium*), de voerkeuze en de apart-hok-knop (staan op *Mijn hok*) en de uitleg bij
+  de waardeschatting. Verder: **rustkuur**
+  (POST `/pigeons/:id/restcure`); hernoemen; **"Afscheid nemen"**
   (POST `/pigeons/:id/release` = vrijlaten, geen geld; POST `/pigeons/:id/restaurant`
   = verkoop aan het duivenrestaurant voor €50 + moraal-energieklap op de rest van het
   hok). Beide met bevestigingsstap; geblokkeerd zolang de duif ingeschreven/koppelt.
@@ -1037,6 +1041,33 @@ verzoek uit per statement.
 
 Alles hieronder staat **live** op de deploy-branch. Data-migraties liepen door tot
 **`dataVersion = 45`**.
+
+**Duifpagina opgeruimd: vier dingen weg of verplaatst (nieuwste)**
+- **Vraag van de eigenaar**, na het zien van de pagina op een gsm. Vier ingrepen, allemaal
+  **puur UI** — geen endpoint, geen DTO-veld, geen schemakolom, geen migratie,
+  `dataVersion` blijft **45**:
+  1. **"Afscheid nemen" staat nu helemaal onderaan**, tussen *Afstamming* en
+     *Wedstrijdhistoriek*. Het is een onomkeerbare actie; die hoort niet halverwege een
+     pagina die je opent om stats te bekijken.
+  2. **De kaart 🏆 Leeftijdscriterium is weg** (`CriteriumCard` verwijderd). De vier
+     standen staan al onder **Ranglijst → Criterium**, en één duif is niet de plek voor
+     een competitie-overzicht.
+  3. **De marktprijs-herkomst is weg** — de regel "Marktprijs: 85 % bepaald door 9 recente
+     verkopen van vergelijkbare duiven (gemiddeld €4.310)", én de tegenhanger "Nog geen
+     vergelijkbare verkopen …". **De regel "Geschatte waarde · eigenaar" blijft**; het is
+     alleen de uitleg over hóe die schatting tot stand kwam die eruit gaat (dat is
+     wiki-materiaal, §Tekstbudget).
+  4. **🍽 Voer & huisvesting is weg** (voerkeuze + apart-hok-knop, plus de nu callerloze
+     `setRation`/`setCompartment`). Beide staan al **per duif** op *Mijn hok*, inclusief
+     dezelfde "geen voorraad"-waarschuwing — daar zet je ze voor je hele hok in één scherm.
+- ⚠️ **De DTO-velden `valueTrust`/`valueSamples`/`valueMarket` blijven bestaan** en worden
+  nog gestuurd: een oude open tab leest ze nog, en de waardering zelf (`market.ts`) is
+  niet aangeraakt. Enkel de weergave is weg.
+- **De endpoints `POST /pigeons/:id/ration` en `/compartment` blijven ongewijzigd** —
+  `LoftPage` is nu hun enige call-site.
+- Beide typechecks + build groen (bundel 130,54 → **129,70 KB** gzip);
+  `pedigree.test.mts` groen. Spelregels **§13** bijgewerkt (voerschema's per duif zet je
+  bij *Mijn hok*).
 
 **De stamboom is een echt genealogiediagram geworden (nieuwste)**
 - **Vraag van de eigenaar:** de uitklapbare stamboom was "niet zoals ik het wil". Hij wil
