@@ -955,6 +955,13 @@ export function startBreeding(
     if (dam.sex !== 'duivin') return 'De tweede ouder moet een duivin zijn';
     if (sire.form < BREEDING.minParentForm || dam.form < BREEDING.minParentForm)
       return `Beide ouders hebben minstens ${BREEDING.minParentForm} energie nodig (meer energie + libido = sneller een jong)`;
+    // Old enough to raise young — the same eight weeks she needs to race.
+    for (const parent of [sire, dam]) {
+      const weeks = ageInWeeks(parent, db.world.currentWeek);
+      if (weeks < BREEDING.minAgeWeeks) {
+        return `${parent.name} is nog te jong om te kweken (${weeks} van de ${BREEDING.minAgeWeeks} weken)`;
+      }
+    }
     if (sire.ailment || dam.ailment) return 'Een zieke of gekwetste duif kan niet koppelen';
     if (sire.inInfirmary || dam.inInfirmary) return 'Een duif in de ziekenboeg kan niet koppelen';
     if (onRestCure(sire) || onRestCure(dam)) return 'Een duif op rustkuur kan niet koppelen';

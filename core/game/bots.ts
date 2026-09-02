@@ -45,6 +45,7 @@ import { purgePigeon, settlePigeonSale } from './engine.js';
 import { valuePigeon } from './market.js';
 import { makeOffer } from './offers.js';
 import { ageInWeeks, breedingCooldownUntil, canRace, experienceGain, isAway, noteAttrChange, onRestCure, talent, trainCeil, trainingCost } from './pigeon.js';
+import { kinship } from './pedigree.js';
 import { clamp, round1 } from './util.js';
 
 /** What a bot may spend right now without dipping under its cash floor. */
@@ -186,6 +187,7 @@ function canBreed(db: Database, p: Pigeon, nowMs: number): boolean {
     p.form >= BREEDING.minParentForm &&
     p.libido >= BOT.breedMinLibido &&
     !breedingCooldownUntil(p, nowMs) && // same rest between clutches as a player
+    ageInWeeks(p, db.world.currentWeek) >= BREEDING.minAgeWeeks &&
 
     !db.breedingPairs.some((bp) => bp.sireId === p.id || bp.damId === p.id) &&
     !pigeonCommittedToFlight(db, p.id, nowMs)
@@ -207,9 +209,22 @@ function maybeBreed(db: Database, loft: Loft, pigeons: Pigeon[], nowMs: number):
   if (spendable(loft, BOT.breedReserve) < BREEDING.cost) return;
   const free = pigeons.filter((p) => canBreed(db, p, nowMs));
   // Pair the best genes available — that is how a bot lifts its own level.
-  const sire = free.filter((p) => p.sex === 'doffer').sort((a, b) => talent(b) - talent(a))[0];
-  const dam = free.filter((p) => p.sex === 'duivin').sort((a, b) => talent(b) - talent(a))[0];
-  if (!sire || !dam) return;
+  const doffers = free.filter((p) => p.sex === 'doffer').sort((a, b) => talent(b) - talent(a));
+  const duivinnen = free.filter((p) => p.sex === 'duivin').sort((a, b) => talent(b) - talent(a));
+  // …but never two relatives. A bot flock is small and quickly becomes one family,
+  // so without this every bot would end up breeding three-winged birds with
+  // wrecked gene ceilings (see INBREEDING) and quietly ruin its own level.
+  let sire: Pigeon | undefined;
+  let dam: Pigeon | undefined;
+  outer: for (const d of doffers) {
+    for (const h of duivinnen) {
+      if (kinship(db, d, h)) continue;
+      sire = d;
+      dam = h;
+      break outer;
+    }
+  }
+  if (!sire || !dam) return; // only relatives left — rather not breed at all
   loft.money -= BREEDING.cost;
   sire.form = round1(clamp(sire.form - 15, 0, 100));
   dam.form = round1(clamp(dam.form - 15, 0, 100));

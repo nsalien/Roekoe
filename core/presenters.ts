@@ -6,7 +6,7 @@
 
 import type { Database, Flight, Loft, Notification, Pigeon, RaceLogEntry, Trade } from './schema.js';
 import type { PigeonLogs } from './d1.js';
-import { AGE_CUP, AUCTION, BREED_RARITY, CITY_COORDS, COACH, ageCategoryDef, ageCategoryFor, compartmentCost, RELAY, REST_CURE, TRADE_HISTORY_DAYS, TRAINING } from './config/gameConfig.js';
+import { AGE_CUP, AUCTION, BREED_RARITY, CITY_COORDS, COACH, ageCategoryDef, ageCategoryFor, compartmentCost, quirkById, RELAY, REST_CURE, TRADE_HISTORY_DAYS, TRAINING } from './config/gameConfig.js';
 import {
   ageInWeeks,
   breedInfo,
@@ -150,6 +150,13 @@ export function pigeonDTO(db: Database, p: Pigeon, viewerId?: string, viewerIsAd
       if (Number.isNaN(last)) return null;
       const next = last + REST_CURE.cooldownDays * 86400000;
       return next > Date.now() ? new Date(next).toISOString() : null;
+    })(),
+    // Inteelt-merkteken. PUBLIC like the breed: it is visible on the bird, and a
+    // buyer should be able to see that a three-winged pigeon is a three-winged
+    // pigeon before they bid on her.
+    quirk: (() => {
+      const q = quirkById(p.quirk);
+      return q ? { id: q.id, name: q.name, emoji: q.emoji, description: q.description } : null;
     })(),
     // Rest between clutches, per bird (BREEDING.cooldownDays); null = may breed now.
     breedAvailableAt: (() => {

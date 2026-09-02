@@ -142,6 +142,8 @@ export interface Pigeon {
   ageCat?: AgeCategoryId;
   cup?: Partial<Record<AgeCategoryId, CupStanding>> | null;
   titles?: PigeonTitle[];
+  /** A visible oddity from an inbred pairing (see PIGEON_QUIRKS on the server). */
+  quirk?: { id: string; name: string; emoji: string; description: string } | null;
 }
 
 export interface Trade {
@@ -812,4 +814,25 @@ export interface BreedingView {
   capacity: number;
   pigeonCount: number;
   freeSpace: number;
+  /** Doffer/duivin combinations in this loft that are family — only the related
+   *  ones are sent, so an ordinary loft gets an empty list. */
+  related: { sireId: string; damId: string; degree: KinshipDegree }[];
+}
+
+export type KinshipDegree = 'directe-lijn' | 'volle' | 'half' | 'familie';
+
+/** One box in the stamboom. `alive: false` means the bird is gone and only its
+ *  remembered name survives (so it has no owner and no page of its own). */
+export interface AncestorNode {
+  id: string | null;
+  name: string;
+  sex: Sex;
+  alive: boolean;
+  ownerName: string | null;
+  ownerId: string | null;
+  talent: number | null;
+  image: string | null;
+  quirk: string | null;
+  sire: AncestorNode | null;
+  dam: AncestorNode | null;
 }

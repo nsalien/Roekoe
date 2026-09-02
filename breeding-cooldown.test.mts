@@ -234,7 +234,9 @@ console.log('\nMigratie v44');
   await s.persist();
 
   const fresh = await D1Store.load(db, USER.id);
-  assert(fresh.data.world.dataVersion === 44, 'dataVersion op 44');
+  // Niet vastpinnen op 44: latere migraties lopen in dezelfde run door. Wat telt
+  // is dat v44 gepasseerd is.
+  assert((fresh.data.world.dataVersion ?? 0) >= 44, `migratie v44 is gedraaid (${fresh.data.world.dataVersion})`);
   assert(fresh.data.breedingPairs.length === 0, 'het doorbroedende koppel is ontbonden');
   const sire = fresh.data.pigeons.find((p) => p.id === sireId)!;
   assert(sire.lastBredAt != null, 'lastBredAt is teruggerekend uit het jong');

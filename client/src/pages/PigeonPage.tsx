@@ -6,13 +6,15 @@ import { api } from '../api/client';
 import { useGame } from '../game/GameContext';
 import { PigeonAvatar } from '../components/PigeonAvatar';
 import { BreedBadge, Money, PigeonStats, SexBadge, Spinner, formatFlightTime, useToast } from '../components/ui';
-import type { Pigeon, RaceHistoryRow } from '../types';
+import type { AncestorNode, Pigeon, RaceHistoryRow } from '../types';
+import { Pedigree } from '../components/Pedigree';
 
 interface PigeonDetail {
   pigeon: Pigeon;
   sire: Pigeon | null;
   dam: Pigeon | null;
   mine: boolean;
+  pedigree: AncestorNode | null;
   history: RaceHistoryRow[];
 }
 
@@ -141,6 +143,15 @@ export function PigeonPage() {
                 <SexBadge sex={p.sex} />
                 <span className="badge bot">★ talent {p.talent}</span>
                 <BreedBadge breed={p.breed} />
+                {p.quirk && (
+                  <span
+                    className="badge"
+                    style={{ background: 'rgba(168,85,247,0.16)', color: '#a855f7' }}
+                    title={p.quirk.description}
+                  >
+                    {p.quirk.emoji} {p.quirk.name}
+                  </span>
+                )}
                 {p.forSale && <span className="badge sale">te koop · <Money value={p.price ?? 0} /></span>}
                 {p.forSale && p.minBid != null && (
                   <span className="badge" title="Kopers mogen vanaf dit bedrag een bod doen dat jij aanvaardt of weigert">
@@ -593,7 +604,9 @@ export function PigeonPage() {
               <PedigreeBox label="Vader (doffer)" pigeon={sire} />
               <PedigreeBox label="Moeder (duivin)" pigeon={dam} />
             </div>
-            {!sire && !dam && <p className="muted" style={{ marginTop: 8 }}>Afkomst onbekend (grondduif).</p>}
+            {/* The parents above are the birds you can act on right now; the tree
+                is the history, so it stays folded until asked for. */}
+            <Pedigree root={data.pedigree} mineId={mine ? p.ownerId : undefined} />
           </div>
 
           <div className="card">

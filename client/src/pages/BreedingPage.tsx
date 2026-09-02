@@ -29,7 +29,9 @@ export function BreedingPage() {
   const nests = view?.nests ?? [];
   const freeSpace = view?.freeSpace ?? 0;
   const BREED_COST = state.economy.breedCost;
-  const eligible = (p: (typeof state.pigeons)[number]) => !p.ailment && !p.inInfirmary && !p.breeding && !p.racing && !p.onCure;
+  const MIN_BREED_WEEKS = 8; // BREEDING.minAgeWeeks — same age she may first race
+  const eligible = (p: (typeof state.pigeons)[number]) =>
+    !p.ailment && !p.inInfirmary && !p.breeding && !p.racing && !p.onCure && p.ageWeeks >= MIN_BREED_WEEKS;
   /** Resting between clutches — she is eligible in every other way, so she needs
    *  her own line below rather than silently vanishing from the list. */
   const resting = (p: (typeof state.pigeons)[number]) =>
@@ -42,6 +44,15 @@ export function BreedingPage() {
     .sort((a, b) => Date.parse(a) - Date.parse(b))[0];
   const sire = doffers.find((p) => p.id === sireId);
   const dam = duivinnen.find((p) => p.id === damId);
+  // Are these two family? The server works it out (the client has no ancestry)
+  // and sends only the related combinations — usually none.
+  const kin = view?.related?.find((r) => r.sireId === sireId && r.damId === damId)?.degree ?? null;
+  const KIN_LABEL: Record<string, string> = {
+    'directe-lijn': 'rechtstreekse familie — ouder, kind of grootouder',
+    volle: 'volle broer en zus',
+    half: 'halfbroer en halfzus',
+    familie: 'familie van elkaar',
+  };
 
   async function stop(pairId: string) {
     setBusy(true);
@@ -59,6 +70,12 @@ export function BreedingPage() {
 
   async function start() {
     if (!sireId || !damId) return;
+    // A second, deliberate step for an inbred pairing: the consequence lands on a
+    // bird you keep for months, so one stray click should not be enough.
+    if (kin && !window.confirm(
+      `${sire?.name} en ${dam?.name} zijn ${KIN_LABEL[kin] ?? 'familie'}.\n\n` +
+      'Het jong krijgt lagere genetische plafonds en waarschijnlijk een afwijking. Toch koppelen?',
+    )) return;
     setBusy(true);
     try {
       await api('/breeding', { method: 'POST', body: { sireId, damId } });
@@ -141,13 +158,40 @@ export function BreedingPage() {
             </div>
           )}
 
+          {/* Inteelt is allowed — you are warned, not stopped. The warning has to
+              be specific about the consequence, or it reads as decoration. */}
+          {kin && (
+            <div
+              className="card"
+              style={{
+                boxShadow: 'none', marginBottom: 10,
+                background: 'rgba(234,88,12,0.10)',
+                border: '1px solid rgba(234,88,12,0.35)',
+              }}
+            >
+              <strong>⚠️ Deze twee zijn {KIN_LABEL[kin] ?? 'familie van elkaar'}</strong>
+              <p className="muted" style={{ margin: '4px 0 0', fontSize: '0.85rem' }}>
+                Kweken met familie wordt afgeraden. Het jong krijgt <strong>lagere genetische plafonds</strong> —
+                daar traint ze zich nooit meer uit — en er is een grote kans dat ze met een{' '}
+                <strong>afwijking</strong> geboren wordt. Je mag doorgaan, maar reken op een mindere duif.
+              </p>
+              <p className="faint" style={{ margin: '6px 0 0', fontSize: '0.8rem' }}>
+                <Link to="/wiki#inteelt">Meer over inteelt →</Link>
+              </p>
+            </div>
+          )}
+
           {nests.length > 0 && (
             <p className="muted" style={{ fontSize: '0.85rem' }}>
               Er wacht nog een nest op je keuze — beslis daar eerst over voor je opnieuw koppelt.
             </p>
           )}
-          <button className="btn block" disabled={busy || !sireId || !damId || nests.length > 0} onClick={start}>
-            Koppelen · <Money value={BREED_COST} />
+          <button
+            className={kin ? 'btn block danger' : 'btn block'}
+            disabled={busy || !sireId || !damId || nests.length > 0}
+            onClick={start}
+          >
+            {kin ? 'Toch koppelen' : 'Koppelen'} · <Money value={BREED_COST} />
           </button>
         </div>
 

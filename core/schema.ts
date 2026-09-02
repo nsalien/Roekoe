@@ -67,6 +67,27 @@ export interface Pigeon {
   // Pedigree, for breeding UI and inheritance display.
   sireId: string | null;
   damId: string | null;
+  /**
+   * The parents' names as they were at hatch.
+   *
+   * ⚠️ Denormalised ON PURPOSE. A dead bird is simply gone from `db.pigeons`, so
+   * without this a stamboom shows a nameless box for every ancestor that died or
+   * was eaten — which is most of the interesting ones. The ids alone cannot be
+   * resolved back to a name once the row is gone.
+   *
+   * Two short strings on a row that is read on every request, so this is not free;
+   * it is worth it because the pedigree is the only place a line's history lives
+   * once the flights are pruned. It does NOT grow (unlike race_log — see
+   * core/d1.ts PIGEON_SELECT), which is what makes it acceptable here.
+   */
+  sireName?: string | null;
+  damName?: string | null;
+  /**
+   * A visible oddity from an inbred pairing (see PIGEON_QUIRKS). Cosmetic plus a
+   * small speed multiplier; the real cost of inteelt is the lowered gene ceilings,
+   * which are already baked into `genes` at birth.
+   */
+  quirk?: string | null;
   // Market: if listed for sale, price is set. ownerId may be the NPC market.
   forSale: boolean;
   price: number | null;

@@ -140,7 +140,7 @@ krijgen.**
 `core/game/schedule.ts` → `advanceRealtime(db, nowMs, weatherByFlight)` roept in
 volgorde:
 1. `runDataMigrations(db)` — eenmalige datafixes, **gated op `world.dataVersion`**
-   (staat nu op **44**; nieuwe migratie = nieuw `if ((db.world.dataVersion ?? 0) < N)`
+   (staat nu op **45**; nieuwe migratie = nieuw `if ((db.world.dataVersion ?? 0) < N)`
    blok + `db.world.dataVersion = N`). v21 zet **bestaande geplande vluchten terug naar de
    OUDE, kortere afstanden** (regio 30–160 / nat 60–290 / intl 180–950 km): elke nog-
    geplande niet-titan-vlucht buiten haar legacy-venster wordt her-routeerd via
@@ -375,6 +375,7 @@ Roekoe/
 │       ├── badges.ts            badges/XP/level
 │       ├── missions.ts          dagelijkse opdrachten + streak + dilemma-trigger
 │       ├── events.ts            dilemma-kaarten
+│       ├── pedigree.ts          stamboom + verwantschap (kinship/ancestorIds/pedigreeOf)
 │       ├── pigeon.ts, weather.ts, util.ts (seededRng/hashString/clamp/pickWith)
 │       ├── newcomer.ts          starterspakket nieuwe spelers (punten, gratis coach, 2x winst)
 │       ├── names.ts             naamgenerator — UNIEKE voornaam+bijnaam (namesInUse/nameKey)
@@ -407,6 +408,7 @@ Roekoe/
 ├── flight-map.test.mts      regressietest: de live kaart klopt geografisch (Haversine)
 ├── flock.test.mts           regressietest: duiven verdwalen pas als de zwerm openbreekt
 ├── breeding-cooldown.test.mts   regressietest: koppel gaat uiteen na het nest + 3 weken rust
+├── pedigree.test.mts        regressietest: stamboom, inteelt, kweekleeftijd, namenvariatie
 ├── limits-report.mts            meet queries/rijen gelezen/geschreven per verzoek
 ├── cpu-sweep.mts                meet CPU per operatie (duurste eerst) — diagnose
 ├── migrations/0001_init.sql     D1-schema voor verse installatie
@@ -638,6 +640,8 @@ Entiteiten: `Pigeon`, `Loft`, `User`, `BreedingPair`, `PendingBrood`, `Flight` (
   blessurekans. **Geen finish-timer/cutoff meer** (`FLIGHT_CUTOFF_MINUTES` verwijderd):
   `flightTotalSeconds` = de traagste duif die effectief finisht, dus trage/verdwaalde
   duiven worden niet meer weggestreept. Enkel `gaveUp`/`dnfAtSeconds` = DNF.
+- **Kweekleeftijd:** `BREEDING.minAgeWeeks` **8** — even oud als de vluchtleeftijd, maar een
+  eigen knop. Inteelt: zie `INBREEDING` + `PIGEON_QUIRKS` en §8.
 - **Kweken (`BREEDING`):** ouders minstens **20** energie (`minParentForm`, was 40);
   meer energie+libido = sneller een jong. **`cost` 750** (was 200) en
   **`cooldownDays` 21** — het koppel gaat uiteen zodra het nest er is en beide ouders
@@ -925,8 +929,8 @@ en de prestige-seizoensprijzen. Eenmalig per speler (localStorage
 de profielknop herhaalt hem via `window.dispatchEvent(new Event('roekoe:start-tour'))`.
 
 **"Wat is nieuw"-melding:** dezelfde `Tour` maar met een **subset** stappen. Actueel
-= **`BREEDING_NEWS_STEPS`** (kweken: koppel gaat uiteen na het nest · 21 dagen rust ·
-€750). Eigen localStorage-sleutel `roekoe.newsSeen.breeding.<id>`;
+= **`PEDIGREE_NEWS_STEPS`** (stamboom · niet kweken met familie · kweekleeftijd 8
+weken). Eigen localStorage-sleutel `roekoe.newsSeen.stamboom.<id>`;
 toont pas als de hoofd-tour niet open is. `closeTour` zet ook de news-sleutel, zodat een
 nieuwe speler die de volledige tour afrondt niet nog eens de news krijgt. Bump de
 sleutel-suffix + wissel de `steps`-set (import in `Layout`) voor een volgende
@@ -988,6 +992,7 @@ npx tsx one-flight-per-day.test.mts # één vlucht per duif per dag — speler �
 npx tsx flight-map.test.mts        # de live kaart: posities, afstanden en de omweg kloppen
 npx tsx flock.test.mts             # verdwalen pas buiten de zwerm + omweg schaalt met afstand
 npx tsx breeding-cooldown.test.mts  # koppel uiteen na het nest, rust van 3 weken, geen resurrectie
+npx tsx pedigree.test.mts          # verwantschap, inteeltgevolgen, stamboom bij dode voorouders
 ```
 Diagnose zonder assertie: `npx tsx cpu-sweep.mts` (CPU per operatie, duurste
 eerst), `npx tsx limits-report.mts` (queries/rijen per verzoek) en
@@ -1029,7 +1034,68 @@ verzoek uit per statement.
 ## 8. Belangrijkste wijzigingen deze sessie (achtergrond)
 
 Alles hieronder staat **live** op de deploy-branch. Data-migraties liepen door tot
-**`dataVersion = 44`**.
+**`dataVersion = 45`**.
+
+**Stamboom, inteelt, kweekleeftijd en veel meer namen (nieuwste)**
+- **Vier vragen van de eigenaar in één ronde.** Kweken kan pas vanaf 8 weken; er is een
+  uitklapbare stamboom op de duifpagina; kweken met familie waarschuwt en straft; en de
+  namenpools waren te klein.
+- **Kweekleeftijd:** `BREEDING.minAgeWeeks` (8) — eigen knop naast `RACE_AGE_WEEKS`, want
+  het zijn verschillende vragen. Gecheckt in `startBreeding`, in de bot-`canBreed` en in de
+  keuzelijst op `BreedingPage`.
+- **Nieuw bestand `core/game/pedigree.ts`** met `ancestorIds` / `kinship` / `pedigreeOf`.
+- ⚠️ **Het echte ontwerpprobleem: een dode duif laat geen rij achter.** Zonder ingreep
+  toont een stamboom dus een naamloos vakje voor élke voorouder die gestorven is — en dat
+  zijn net de interessante. Opgelost met **`Pigeon.sireName`/`damName`** (kolommen
+  `sire_name`/`dam_name`), gezet bij de geboorte. Bewust gedenormaliseerd: het zijn twee
+  korte strings op een rij die élk verzoek gelezen wordt, dus niet gratis — maar ze
+  **groeien niet** (anders dan `race_log`, zie de historiek-fix verderop), en de stamboom is
+  de enige plek waar de geschiedenis van een lijn nog leeft nadat de vluchten geprunet zijn.
+- ⚠️ **Wat de traversal wél en niet ziet.** Een dode voorouder telt nog mee: haar **id staat
+  op haar levende kind**, dus een gedeelde dode ouder of grootouder legt het verband nog
+  steeds. Wat wegvalt is alles **voorbij** haar — zonder rij zijn háár ouder-ids weg. De
+  check gaat dus pas blind als élke route naar de gedeelde voorouder door een intussen
+  gestorven duif loopt. Dat **faalt bewust open**: een band die niemand kan tonen is er ook
+  een die generaties al verdund hebben. (Broers/zussen worden sowieso rechtstreeks op de
+  twee ouder-ids herkend en overleven de dood van de ouders altijd.)
+- **Inteelt (`INBREEDING`)** — vier graden (`directe-lijn`/`volle`/`half`/`familie`), tot
+  `lookbackGenerations` (3) terug. Gevolg: **gen-caps omlaag** (−22/−18/−11/−5, bodem
+  `minGeneCap` 35) én een **afwijking** (`quirkChance` 0,85/0,75/0,45/0,15).
+  ⚠️ De cap-straf negeert `GENE.floor` met opzet — die vloer beschrijft een *normale* duif,
+  en het punt is net een duif eronder.
+- **`PIGEON_QUIRKS`** (7 stuks: drie vleugels, twee koppen, korte poot, kleurenblind,
+  staartloos, reuzensnavel, ondersteboven) — kolom `quirk`, publiek in de DTO (een koper
+  moet zien wat hij koopt), plus een kleine `flightPenalty` in `pigeonVelocity` zodat de
+  grap niet gratis is.
+- **De prentjes zijn GETEKEND, geen assets** — `QuirkExtras` in `PigeonAvatar` tekent de
+  extra vleugel/kop/bril in SVG bovenop de fallback-duif, en `staartloos`/`ondersteboven`
+  passen de bestaande vormen aan. Zelfde redenering als de bekers in `PrizeCeremony`: scherp
+  op elk scherm, themavast, niets te beheren. Een duif met een quirk toont daarom haar
+  **tekening i.p.v. haar rasfoto** (geen enkele stockfoto heeft drie vleugels); haar ras
+  blijft als badge staan.
+- **UI:** nieuw `components/Pedigree.tsx` (uitklapbaar, per vakje naam · geslacht · ★talent ·
+  leeft/overleden · hok, klikbaar naar `/duif/:id`); waarschuwkaart + `window.confirm` +
+  knop "Toch koppelen" op `BreedingPage`; quirk-badge op `PigeonPage`.
+- **`GET /breeding` levert `related`** — enkel de verwante doffer×duivin-combinaties van het
+  eigen hok (in een gezond hok een handvol of geen). Berekend op de server omdat de client
+  geen afstamming heeft; begrensd door de hokcapaciteit en op een route die bewust geopend
+  wordt, nooit gepolld. `GET /pigeons/:id` draagt `pedigree` (3 generaties) uit de al
+  geladen wereld — **geen extra query**.
+- **Bots kweken nooit met familie** (`maybeBreed` zoekt het beste níet-verwante paar). Een
+  bothok van 12 is binnen enkele generaties één familie; zonder dit zou elke bot zichzelf
+  stilletjes kapotfokken met driewiek-duiven en verwoeste plafonds.
+- **Namen:** voornamen **135 m / 122 v** (was 65/53) en **185** unieke bijnamen (was ~90).
+  Gemeten over 300 duiven: **106 verschillende bijnamen**, drukste komt **11×** voor.
+  ⚠️ Drie vrouwennamen zaten dubbel in de lijst (`Denise`, `Bertha`, `Fien`) — een duplicaat
+  verlaagt de variatie stil, dus `pedigree.test.mts` bewaakt dat nu.
+- **Migratie v45** backfilt `sireName`/`damName` uit nog levende ouders (een al gestorven
+  ouder is onherstelbaar — vanaf hier wordt het onthouden) en stuurt de aankondiging
+  (`ntf:news:stamboom:<userId>` + `PEDIGREE_NEWS_STEPS`, sleutel
+  `roekoe.newsSeen.stamboom.<id>`). **dataVersion → 45.**
+- **Nieuwe blijvende test `pedigree.test.mts`** (39 controles): elke verwantschapsgraad, de
+  drie dood-scenario's, een lijn die op zichzelf terugvalt (die liet de boom vroeger
+  oneindig recursen — vandaar de `guard`), gemeten cap-verlaging en afwijkingskans, dat een
+  **niet-verwant** koppel er nooit een krijgt, en de namenvariatie.
 
 **Broeden: het koppel bleef bestaan na het uitkomen (echte bug) + rust en prijs (nieuwste)**
 - **Melding van een speler:** "een koppel blijft een koppel en blijft verder broeden."

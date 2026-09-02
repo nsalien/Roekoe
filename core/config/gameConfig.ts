@@ -771,6 +771,13 @@ export const BREEDING = {
    *  libido) still make a hatch come faster — this is only the floor. */
   minParentForm: 20,
   /**
+   * How old a bird must be before she may raise young, in GAME weeks — the same
+   * eight weeks she needs to be allowed to race (RACE_AGE_WEEKS). Kept as its own
+   * knob rather than reusing that constant: they answer different questions and
+   * one should be tunable without moving the other.
+   */
+  minAgeWeeks: 8,
+  /**
    * Rest between clutches, per BIRD, in REAL days. A wild pigeon raises roughly
    * four broods a year; pigeons age 4x real time here (GAME_WEEKS_PER_REAL_WEEK),
    * so one duivenjaar is ~13 real weeks and a quarter of that is ~3 real weeks.
@@ -782,6 +789,70 @@ export const BREEDING = {
    */
   cooldownDays: 21,
 } as const;
+
+/**
+ * How closely two birds are related, worst first. `directe-lijn` is a parent with
+ * its own child (or a grandparent with a grandchild); `volle` share both parents;
+ * `half` share one; `familie` merely have a common ancestor somewhere up the tree.
+ */
+export type KinshipDegree = 'directe-lijn' | 'volle' | 'half' | 'familie';
+
+/**
+ * Inteelt. Pairing relatives is allowed — the player is warned, not stopped — but
+ * it has a real cost, because otherwise the warning is decoration.
+ *
+ * `geneCapPenalty` is the part that matters competitively: the youngster's
+ * inherited ceilings are pulled down by that many points, so a line bred on itself
+ * hits a wall it can never train its way out of. `quirkChance` is the visible part:
+ * the bird is born with something strange, which is the tell a player remembers.
+ * Both scale with how close the pairing was.
+ *
+ * ⚠️ The penalty deliberately ignores `GENE.floor`. That floor describes how low a
+ * NORMAL bird can be rolled; the whole point here is a bird below what nature
+ * usually allows. `minGeneCap` is the hard bottom instead.
+ */
+export const INBREEDING = {
+  /** How many generations up we look for a common ancestor. */
+  lookbackGenerations: 3,
+  geneCapPenalty: { 'directe-lijn': 22, volle: 18, half: 11, familie: 5 } as Record<KinshipDegree, number>,
+  quirkChance: { 'directe-lijn': 0.85, volle: 0.75, half: 0.45, familie: 0.15 } as Record<KinshipDegree, number>,
+  /** No inherited ceiling ever drops below this, however incestuous the line. */
+  minGeneCap: 35,
+} as const;
+
+/** Human wording for each degree, for warnings and the pedigree. */
+export const KINSHIP_LABEL: Record<KinshipDegree, string> = {
+  'directe-lijn': 'rechtstreekse familie (ouder, kind of grootouder)',
+  volle: 'volle broer en zus',
+  half: 'halfbroer en halfzus',
+  familie: 'familie van elkaar',
+};
+
+/**
+ * The visible marks of an inbred pairing. Cosmetic in the rules — the real cost is
+ * the gene ceiling — but each is drawn as its own little SVG bird (client
+ * PigeonAvatar), so a player spots one at a glance in the loft.
+ *
+ * Kept light-hearted on purpose: this is a game with birds called "Toekomstige
+ * Soep", so a three-winged pigeon belongs. `flightPenalty` is a small extra
+ * multiplier on her racing speed, so the joke is not entirely free.
+ */
+export const PIGEON_QUIRKS = [
+  { id: 'driewiek', name: 'Drie vleugels', emoji: '🪽', description: 'Geboren met een derde vleugel. Ze weet zelf niet goed welke ze moet gebruiken.', flightPenalty: 0.94 },
+  { id: 'tweekoppen', name: 'Twee koppen', emoji: '🗣️', description: 'Twee koppen, twee meningen over de route naar huis.', flightPenalty: 0.92 },
+  { id: 'kortpoot', name: 'Eén korte poot', emoji: '🦵', description: 'Loopt in cirkels over het dak, maar vliegen doet ze gelukkig met haar vleugels.', flightPenalty: 0.97 },
+  { id: 'kleurenblind', name: 'Kleurenblind', emoji: '🌈', description: 'Ziet de wereld in grijstinten. Het hok vindt ze wel terug — meestal.', flightPenalty: 0.96 },
+  { id: 'staartloos', name: 'Zonder staart', emoji: '🍑', description: 'Geen staartveren. Sturen is een suggestie geworden.', flightPenalty: 0.93 },
+  { id: 'reuzensnavel', name: 'Reuzensnavel', emoji: '🥄', description: 'Een snavel als een soeplepel. Eten gaat haar alvast vlot af.', flightPenalty: 0.97 },
+  { id: 'ondersteboven', name: 'Vliegt ondersteboven', emoji: '🙃', description: 'Vliegt consequent op haar rug. Niemand in het hok weet waarom.', flightPenalty: 0.9 },
+] as const;
+
+export type PigeonQuirkId = (typeof PIGEON_QUIRKS)[number]['id'];
+
+/** Look up a quirk by id (undefined for a bird without one, or an unknown id). */
+export function quirkById(id?: string | null) {
+  return id ? PIGEON_QUIRKS.find((q) => q.id === id) : undefined;
+}
 
 /**
  * Age curve: performance multiplier by age in weeks (interpolated). Only the
@@ -2186,6 +2257,16 @@ export const MALE_FIRST_NAMES = [
   // A nod to real racing legends: Armando (€1,25 M, 2019), Bolt (Leo Heremans),
   // and the decorated war pigeons Gustav, Paddy, Joe (G.I. Joe) and Commando.
   'Armando', 'Bolt', 'Gustav', 'Paddy', 'Joe', 'Commando', 'Klak',
+  // A wider bench, so the same handful stops coming back. Classic Flemish
+  // parish-register names first…
+  'Alfons', 'Camiel', 'Constant', 'Desiré', 'Eugeen', 'Firmin', 'Gerard', 'Hubert', 'Isidoor', 'Jef',
+  'Kamiel', 'Lucien', 'Modest', 'Omer', 'Petrus', 'Remi', 'Urbain', 'Victor', 'Wannes', 'Xavier',
+  'Yvo', 'Bavo', 'Eddy', 'Flor', 'Guido', 'Hendrik', 'Ignace', 'Jan', 'Kris', 'Lode',
+  'Mon', 'Nest', 'Odiel', 'Pier', 'Robert', 'Sus', 'Ward', 'Wouter', 'Bram', 'Jorik',
+  'Toon', 'Seppe', 'Louis', 'Alois', 'Benoit', 'Cyrille', 'Emiel', 'Felix', 'Gilbert', 'Honoré',
+  // …then the nicknames a melker actually shouts across the yard.
+  'Bolle', 'Pitte', 'Zjef', 'Nonkel Frans', 'Den Blauwe', 'Sooi', 'Tist', 'Wies', 'Fik', 'Boma',
+  'Peer', 'Nol', 'Jup', 'Rens', 'Tuurke', 'Sjarel', 'Manne', 'Boke', 'Snor', 'Duke',
 ];
 
 export const FEMALE_FIRST_NAMES = [
@@ -2193,25 +2274,63 @@ export const FEMALE_FIRST_NAMES = [
   'Trees', 'Whitney', 'Kimberly', 'Samantha', 'Yvonne', 'Marleen', 'Sandra', 'Tante', 'Wies', 'Nancy',
   'Denise', 'Simonne', 'Agnes', 'Bea', 'Carine', 'Diane', 'Emma', 'Francine', 'Greet', 'Hilde',
   'Ingrid', 'Josée', 'Katrien', 'Lea', 'Maria', 'Nadine', 'Odette', 'Paula', 'Rosa', 'Sonja',
-  'Tinne', 'Ursula', 'Viviane', 'Wendy', 'Christine', 'Godelieve', 'Martha', 'Zoë',
+  'Tinne', 'Ursula', 'Viviane', 'Wendy', 'Christine', 'Martha', 'Zoë',
   // Real racing hens: New Kim (€1,6 M, 2020), Cher Ami (Croix de Guerre, WO I),
   // Winkie (first Dickin Medal) and Mary of Exeter.
   'Kim', 'Ami', 'Winkie', 'Mary', 'Vita',
+  // A wider bench, so the same handful stops coming back.
+  'Angele', 'Berthe', 'Clara', 'Celine', 'Elza', 'Fernande', 'Georgette', 'Henriette', 'Irma', 'Adele',
+  'Jeanne', 'Julia', 'Klara', 'Leontine', 'Lucienne', 'Madeleine', 'Margriet', 'Nelly', 'Octavie', 'Pauline',
+  'Rachel', 'Renilde', 'Solange', 'Stefanie', 'Therese', 'Valerie', 'Wilhelmine', 'Yolande', 'Zulma', 'Alida',
+  'Cecile', 'Dorothea', 'Elvire', 'Flora', 'Gilberte', 'Helena', 'Ivonne', 'Jenny', 'Lisette', 'Amandine',
+  'Mariette', 'Nora', 'Olga', 'Philomena', 'Regine', 'Suzanne', 'Tilly', 'Rosalie', 'Blanche', 'Colette',
+  // …and the yard nicknames.
+  'Mieke', 'Lowieke', 'Zus', 'Moemoe', 'Bomma', 'Netje', 'Sien', 'Trui', 'Roosje', 'Fientje',
+  'Lotte', 'Bieke', 'Wieze', 'Lien', 'Miet', 'Stien', 'Fanny', 'Doortje', 'Neel', 'Pollie',
 ];
 
 /** All first names (both sexes), used to detect legacy/wrong-gender names. */
 export const PIGEON_FIRST_NAMES = [...MALE_FIRST_NAMES, ...FEMALE_FIRST_NAMES];
 
 export const EPITHETS = {
-  slowSpeed: ['de Trage', 'de Slak', 'op Slippers', 'de Treuzelaar', 'de Zondagsvlieger', 'met de Handrem'],
-  fastSpeed: ['de Hete', 'de Rappe', 'de Bliksem', 'Turbo', 'de Kogel', 'Speedy'],
-  lowEndurance: ['de Fatsy', 'de Dikke', 'Kortademig', 'de Puffer', 'met de Zwembandjes', 'de Frietvreter', 'de Hijger'],
-  highEndurance: ['de Taaie', 'de Diesel', 'den IJzeren', 'de Volhouder', 'de Marathon'],
-  lowOrientation: ['de Verdwaalde', 'de Toerist', 'Zonder-GPS', 'de Dwaler', 'Blindganger'],
-  highOrientation: ['de Slimme', 'het Kompas', 'de GPS', 'de Wegwijze', 'de Navigator'],
+  slowSpeed: [
+    'de Trage', 'de Slak', 'op Slippers', 'de Treuzelaar', 'de Zondagsvlieger', 'met de Handrem',
+    'de Wandelaar', 'de Sukkelaar', 'de Achterblijver', 'met Tegenwind', 'de Bezembinder',
+    'de Slome', 'op Halve Kracht', 'de Kruipolie', 'de Sloompot',
+  ],
+  fastSpeed: [
+    'de Hete', 'de Rappe', 'de Bliksem', 'Turbo', 'de Kogel', 'Speedy',
+    'de Raket', 'de Snelbinder', 'de Straaljager', 'de Wervelwind', 'de Sprinter',
+    'de Vurige', 'de Pijl', 'de Snelheidsduivel', 'de Vlugge',
+  ],
+  lowEndurance: [
+    'de Fatsy', 'de Dikke', 'Kortademig', 'de Puffer', 'met de Zwembandjes', 'de Frietvreter', 'de Hijger',
+    'de Snelle Doder', 'met de Krieken', 'de Blaasbalg', 'de Zwoeger', 'de Buikschuiver',
+    'de Vroege Opgever', 'met de Slappe Knieën',
+  ],
+  highEndurance: [
+    'de Taaie', 'de Diesel', 'den IJzeren', 'de Volhouder', 'de Marathon',
+    'de Onvermoeibare', 'de Werkezel', 'de Machine', 'de Stoomlocomotief', 'de Doorbijter',
+    'de Fondbeul', 'de Ossenkop', 'zonder Rem',
+  ],
+  lowOrientation: [
+    'de Verdwaalde', 'de Toerist', 'Zonder-GPS', 'de Dwaler', 'Blindganger',
+    'de Omweg', 'de Zwerver', 'de Verkeerde Kant Op', 'de Landkaartloze', 'de Rondtrekker',
+    'de Vergeetachtige', 'zonder Kompas', 'de Dooltuin',
+  ],
+  highOrientation: [
+    'de Slimme', 'het Kompas', 'de GPS', 'de Wegwijze', 'de Navigator',
+    'de Rechtdoorzee', 'de Thuisvinder', 'de Kaartlezer', 'de Loods', 'de Speurneus',
+    'de Peilstok', 'met de Ingebouwde Kaart',
+  ],
   neutral: [
     'de Verschrikkelijke', "van 't Stad", 'Junior', 'de Derde', 'de Kale', 'de Legende', 'met de Snor',
     'de Zatte', 'de Gepensioneerde', 'de Mysterieuze', 'uit de Goot', 'de Onverwoestbare', 'Bonus',
+    'de Brave', 'de Deftige', 'de Koppige', 'de Luie', 'de Nerveuze', 'de Trotse', 'de Bescheiden',
+    'van Achter de Kerk', 'uit het Zolderhok', 'met de Ring', 'de Eeuwige Tweede', 'de Buurman',
+    'de Stille', 'de Luidruchtige', 'de Chagrijnige', 'de Gulzige', 'de Nieuwsgierige', 'de Eigenwijze',
+    'van de Overkant', 'met de Kromme Teen', 'de Zondagskind', 'de Gelukzak', 'de Pechvogel',
+    'de Charmeur', 'de Dagdromer', 'de Betweter', 'de Bink', 'de Braveling',
   ],
   /**
    * Knipoog naar de échte duivensport: legendarische kampioenen en de klassiekers
@@ -2223,6 +2342,8 @@ export const EPITHETS = {
     'de Blauwe Prins', 'Dolce Vita', 'de Miljoenenduif', 'de Barcelona-Kampioen',
     'van Klak', 'de Dickin-Medaille', 'het Wonder van Wetteren', 'de Nationale',
     'de Fondkoning', 'de Asduif', 'de Bourges-Winnaar', 'de Perpignan-Held',
+    'de Limoges-Legende', 'de Nationale Held', 'het Kanon van de Kempen', 'de Bliksem van Brugge',
+    'de Pride of Wetteren', 'de Vale Wonder', 'de Zilveren Pijl', 'de Keizer',
   ],
   // Pikzwarte humor: galgenhumor over duivenpech, sperwers en de soeppot.
   dark: [
@@ -2231,6 +2352,9 @@ export const EPITHETS = {
     'de Weduwmaker', 'de Kamikaze', 'Uitvaart Inbegrepen', 'de Hartaanval', 'de Wees',
     'Vulling voor de Kat', 'de Zelfmoordvlieger', 'Laatste Wens', 'de Nabestaande', 'de Doodskist-Ontwijker',
     'Postuum Kampioen', 'de Grafdelver', 'Bijna Opgegeten', 'de Onterfde', 'met een Testament op Zak',
+    'de Rouwadvertentie', 'Volgende in de Rij', 'de Kattensnack', 'met de Grafsteen Besteld',
+    'de Bijna-Vergetene', 'Reeds Afgeschreven', 'de Laatste der Worp', 'met één Vleugel in het Graf',
+    'de Urnenvuller', 'Klaar voor de Pan', 'de Rouwstoet', 'de Doodsklok',
   ],
 } as const;
 

@@ -63,6 +63,7 @@ import { newId } from '../store.js';
 import { applyDayOfCare, dailyRunningCost } from './economy.js';
 import { billableCoachedCount, newNewcomerPerks, tickNewcomerExpiry, winningsMultiplier } from './newcomer.js';
 import { awardBroodBadges, breed } from './breeding.js';
+import { kinship } from './pedigree.js';
 import { awardBadge, awardFlightBadges, evaluateBadges } from './badges.js';
 import { ensureAuctions } from './auction.js';
 import { botDailyActions, botEntryContext, botRaceCandidates } from './bots.js';
@@ -1993,6 +1994,48 @@ function runDataMigrations(db: Database): void {
     announceBreedingRules(db, 'ntf:news:breeding');
     db.world.dataVersion = 44;
   }
+
+  if ((db.world.dataVersion ?? 0) < 45) {
+    backfillParentNames(db);
+    announcePedigree(db, 'ntf:news:stamboom');
+    db.world.dataVersion = 45;
+  }
+}
+
+/**
+ * Remember the parents' names on every existing bird, so the stamboom can name an
+ * ancestor after she dies (see Pigeon.sireName).
+ *
+ * ⚠️ Only fills what is still knowable: a parent that already died left no row, so
+ * that name is gone for good and the branch will show "onbekend". Nothing to be
+ * done about that — this is the point at which we START remembering.
+ */
+function backfillParentNames(db: Database): void {
+  const byId = new Map(db.pigeons.map((p) => [p.id, p]));
+  for (const p of db.pigeons) {
+    if (p.sireId && !p.sireName) p.sireName = byId.get(p.sireId)?.name ?? null;
+    if (p.damId && !p.damName) p.damName = byId.get(p.damId)?.name ?? null;
+  }
+}
+
+/** Tell every real player about the stamboom, inteelt and the breeding age. */
+function announcePedigree(db: Database, idPrefix: string): void {
+  for (const loft of db.lofts) {
+    if (loft.isBot) continue;
+    pushNotification(
+      db, loft.userId, 'info',
+      '🌳 Nieuw: de stamboom van je duiven',
+      `Op de duifpagina staat voortaan een uitklapbare stamboom: ouders, grootouders en overgrootouders, ` +
+        `met per voorouder of ze nog leeft en in welk hok ze zit.\n\n` +
+        `⚠️ Kweek je met familie, dan waarschuwt het spel je nu vooraf. Doe je het toch, dan krijgt het jong ` +
+        `blijvend lagere genetische plafonds en grote kans op een afwijking — van drie vleugels tot een duif ` +
+        `die ondersteboven vliegt.\n\n` +
+        `Verder kan een duif pas kweken vanaf ${BREEDING.minAgeWeeks} weken, net als voor vluchten.\n\n` +
+        `Meer uitleg staat in de wiki onder "Stamboom & inteelt".`,
+      null,
+      `${idPrefix}:${loft.userId}`,
+    );
+  }
 }
 
 /**
@@ -2557,7 +2600,10 @@ export function tickBreedingHatch(db: Database, nowMs: number): void {
     }
 
     hatched.add(bp.id);
-    const young = breed(sire, dam, bp.ownerId, db.world.currentWeek, namesInUse(db.pigeons), bp.id);
+    // Kinship is resolved HERE, at the hatch, not at pairing time: an ancestor may
+    // have died in between, and the tree is only walkable through living birds.
+    const kin = kinship(db, sire, dam);
+    const young = breed(sire, dam, bp.ownerId, db.world.currentWeek, namesInUse(db.pigeons), bp.id, kin);
     if (young.length > 0) {
       // The rest is per BIRD and starts at the hatch, so it survives the pair
       // being dissolved and follows her if she is sold. Deliberately NOT set on

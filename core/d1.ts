@@ -173,6 +173,9 @@ function rowToPigeon(r: any): Pigeon {
     lastRaceAt: r.last_race_at ?? null,
     lastRestCureAt: r.last_rest_cure_at ?? null,
     lastBredAt: r.last_bred_at ?? null,
+    sireName: r.sire_name ?? null,
+    damName: r.dam_name ?? null,
+    quirk: r.quirk ?? null,
     awayUntil: r.away_until ?? null,
     lastRaceWasPractice: !!r.last_race_practice,
     seasonPeakSpeed: r.season_peak_speed ?? 0,
@@ -358,7 +361,7 @@ const PIGEON_COLUMNS = [
   'compartment', 'hunger_days', 'rest_days', 'cure_until', 'season_peak_speed', 'season_podiums',
   'season_start_score', 'season_practice_gain', 'trained_at', 'genes', 'decline_rate',
   'care_assigned', 'last_race_at', 'last_race_practice', 'last_rest_cure_at', 'away_until',
-  'cup', 'titles', 'listed_at', 'min_bid', 'last_bred_at',
+  'cup', 'titles', 'listed_at', 'min_bid', 'last_bred_at', 'sire_name', 'dam_name', 'quirk',
 ];
 
 /**
@@ -397,6 +400,9 @@ function pigeonRow(p: Pigeon): unknown[] {
     p.listedAt ?? null,
     p.minBid ?? null,
     p.lastBredAt ?? null,
+    p.sireName ?? null,
+    p.damName ?? null,
+    p.quirk ?? null,
   ];
 }
 
@@ -1137,6 +1143,13 @@ const SCHEMA_STEPS: string[] = [
 
   // When this bird's last clutch hatched — drives BREEDING.cooldownDays.
   'ALTER TABLE pigeons ADD COLUMN last_bred_at TEXT',
+
+  // Parents' names at hatch, so a stamboom can still name an ancestor that has
+  // died (a dead bird leaves no row to look the name up in), plus the visible
+  // mark of an inbred pairing (PIGEON_QUIRKS).
+  'ALTER TABLE pigeons ADD COLUMN sire_name TEXT',
+  'ALTER TABLE pigeons ADD COLUMN dam_name TEXT',
+  'ALTER TABLE pigeons ADD COLUMN quirk TEXT',
 ];
 
 /**

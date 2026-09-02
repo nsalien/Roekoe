@@ -28,6 +28,7 @@ const SECTIONS = [
   { id: 'estafette', icon: '🔗', label: 'Estafettevlucht' },
   { id: 'criterium', icon: '🏆', label: 'Leeftijdscriterium' },
   { id: 'broeden', icon: '🥚', label: 'Kweken & broeden' },
+  { id: 'inteelt', icon: '🌳', label: 'Stamboom & inteelt' },
   { id: 'ziekte', icon: '🤒', label: 'Ziekte' },
   { id: 'ziekenboeg', icon: '🏥', label: 'De ziekenboeg' },
   { id: 'sterfte', icon: '🕯️', label: 'Sterfte' },
@@ -937,6 +938,53 @@ export function WikiPage() {
           <li>Zolang een nest op je keuze wacht, kan je <strong>geen nieuw koppel</strong> starten.</li>
           <li>Er is <strong>geen tijdslimiet</strong> — een nest verloopt nooit.</li>
         </ul>
+      </Section>
+
+      <Section id="inteelt" icon="🌳" title="Stamboom & inteelt">
+        <p className="muted" style={{ marginTop: 0 }}>
+          Op de pagina van elke duif kan je haar <strong>stamboom</strong> uitklappen: ouders, grootouders en
+          overgrootouders. Per voorouder zie je of ze <strong>nog leeft</strong> en, zo ja, in <strong>welk hok</strong>{' '}
+          ze zit — ook als dat het hok van een andere speler is. Klik erop om naar haar pagina te gaan.
+        </p>
+        <p>
+          Een tak stopt bij een duif die er niet meer is. Dat is geen fout: met haar verdwijnt ook wie háár ouders
+          waren. Haar naam blijft wel bewaard, dus je ziet nog wél dat ze bestaan heeft.
+        </p>
+
+        <p style={{ marginTop: 14 }}>
+          <strong>Kweken met familie wordt afgeraden.</strong> Kies je twee verwanten, dan zegt het spel dat vóór je
+          koppelt. Je mag doorgaan — maar het jong betaalt de rekening, en die blijft.
+        </p>
+        <ul>
+          <li>
+            <strong>Lagere genetische plafonds.</strong> De <a href="#genen">gen-caps</a> van het jong gaan omlaag,
+            en dáár traint of coacht ze zich nooit meer uit. Hoe nauwer de verwantschap, hoe harder de klap.
+          </li>
+          <li>
+            <strong>Grote kans op een afwijking.</strong> Drie vleugels, twee koppen, geen staart, of een duif die
+            consequent ondersteboven vliegt. Je ziet het meteen aan haar prentje. Zo'n duif vliegt ook een tikje
+            trager.
+          </li>
+        </ul>
+        <MiniTable
+          head={['Verwantschap', 'Plafonds omlaag', 'Kans op een afwijking']}
+          rows={[
+            ['Ouder, kind of grootouder', '−22', '85 %'],
+            ['Volle broer en zus', '−18', '75 %'],
+            ['Halfbroer en halfzus', '−11', '45 %'],
+            ['Verder familie', '−5', '15 %'],
+          ]}
+        />
+        <p className="muted" style={{ fontSize: '0.9rem' }}>
+          Verwantschap wordt tot <strong>drie generaties</strong> terug bekeken, en enkel via voorouders die nog
+          leven — is de gemeenschappelijke voorouder al dood, dan ziet niemand het verband nog. Ook de
+          computermelkers (§bots) kweken nooit met familie.
+        </p>
+
+        <p style={{ marginTop: 14 }}>
+          <strong>Een duif kan pas kweken vanaf 8 weken</strong> — dezelfde leeftijd waarop ze aan haar eerste
+          vlucht mag beginnen.
+        </p>
       </Section>
 
       <Section id="ziekte" icon="🤒" title="Kans op ziekte">

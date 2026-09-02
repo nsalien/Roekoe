@@ -707,6 +707,47 @@ export const BREEDING_NEWS_STEPS: Step[] = [
   },
 ];
 
+/**
+ * The stamboom, inteelt and the breeding age. Three steps: what is new to look
+ * at, what to avoid, and the one new rule.
+ */
+export const PEDIGREE_NEWS_STEPS: Step[] = [
+  {
+    route: '/hok', selector: '[data-tour="pigeon"]',
+    title: '🌳 Je duiven hebben nu een stamboom',
+    body: (
+      <>
+        Op de pagina van elke duif kan je haar <strong>voorouders</strong> uitklappen — tot en met de
+        overgrootouders, met per duif of ze nog leeft en in welk hok ze zit.
+      </>
+    ),
+  },
+  {
+    route: '/kweek', selector: '[data-tour="breed"]',
+    title: '⚠️ Kweek niet met familie',
+    body: (
+      <>
+        Koppel je twee verwanten, dan zegt het spel dat nu vooraf. Doe je het toch, dan krijgt het jong{' '}
+        <strong>blijvend lagere genetische plafonds</strong> en grote kans op een <strong>afwijking</strong> —
+        van drie vleugels tot een duif die ondersteboven vliegt.
+      </>
+    ),
+  },
+  {
+    route: '/kweek', selector: '[data-tour="breed"]',
+    title: '🐣 En pas vanaf 8 weken',
+    body: (
+      <>
+        Een duif mag pas kweken zodra ze <strong>8 weken</strong> oud is — dezelfde leeftijd waarop ze mag vliegen.
+        <br />
+        <span className="faint" style={{ display: 'inline-block', marginTop: 4 }}>
+          Meer: 📖 Wiki → Stamboom &amp; inteelt.
+        </span>
+      </>
+    ),
+  },
+];
+
 export const AGE_CUP_NEWS_STEPS: Step[] = [
   {
     route: '/',

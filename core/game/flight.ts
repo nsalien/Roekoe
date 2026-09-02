@@ -34,7 +34,7 @@ import {
   TITAN,
   TOURNEY_RISK,
 } from '../config/gameConfig.js';
-import { AGE_CUP, RELAY } from '../config/gameConfig.js';
+import { AGE_CUP, RELAY, quirkById } from '../config/gameConfig.js';
 import type { Ailment, Database, Flight, FlightResult, Loft, Pigeon, SimEntry } from '../schema.js';
 import { relayEntryTeams, relayLegKm, relaySimTeams } from './relay.js';
 import { ageMultiplier, conditionScore, experienceGain, flightForm, noteAttrChange, raceCeil } from './pigeon.js';
@@ -113,9 +113,14 @@ export function pigeonVelocity(
   // above — zero benefit on a full one), costs less energie per flight, and
   // recovers faster. Same cleanup orientation got, for the same reason.
   const age = ageMultiplier(pigeon, currentWeek);
+  // A bird born of an inbred pairing carries a small, permanent handicap. The
+  // real cost of inteelt is her lowered gene ceilings; this is the visible tax
+  // that goes with the three wings (see PIGEON_QUIRKS).
+  const quirkFactor = quirkById(pigeon.quirk)?.flightPenalty ?? 1;
 
   // Base racing pigeons average ~1200 m/min; scale attribute score around that.
-  const velocity = (700 + baseAttr * 9) * formFactor * healthFactor * age * weatherFactor * luck;
+  const velocity =
+    (700 + baseAttr * 9) * formFactor * healthFactor * age * quirkFactor * weatherFactor * luck;
   return round1(velocity);
 }
 

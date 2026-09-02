@@ -80,6 +80,7 @@ import { pigeonSeasonRankings } from '../../core/game/season.js';
 import { spendAttribute, spendExperience } from '../../core/game/newcomer.js';
 import { velocityBreakdown, weightsForDistance } from '../../core/game/flight.js';
 import { ageInWeeks } from '../../core/game/pigeon.js';
+import { kinship, pedigreeOf } from '../../core/game/pedigree.js';
 import { ownerName } from '../../core/game/engine.js';
 import { fetchFlightWeather, fetchLegForecast, type WeatherResult } from '../../core/game/weather.js';
 import { auctionKind, placeBid } from '../../core/game/auction.js';
@@ -119,6 +120,14 @@ const app = new Hono<{ Bindings: Env; Variables: Vars }>().basePath('/api');
 app.use('*', cors());
 
 let schemaReady = false;
+
+/**
+ * How many generations of ancestors the stamboom carries. Three (ouders,
+ * grootouders, overgrootouders) is up to 14 small nodes — plenty to read on a
+ * phone, and it fits the depth the kinship check already looks back over. It
+ * costs no extra query: every ancestor still alive is in the loaded world.
+ */
+const PEDIGREE_GENERATIONS = 3;
 
 /** POSTs that only compute and return a value — safe to throttle like a GET. */
 const READ_ONLY_POSTS = new Set(['/api/bets/preview']);
@@ -568,6 +577,10 @@ app.get('/pigeons/:id', async (c) => {
     sire: sire ? pigeonDTO(db, sire, user.id, user.isAdmin) : null,
     dam: dam ? pigeonDTO(db, dam, user.id, user.isAdmin) : null,
     mine: p.ownerId === user.id,
+    // The stamboom. Built from the world already in memory, so it costs no extra
+    // query; the depth is bounded by PEDIGREE_GENERATIONS and by the fact that a
+    // branch stops at any ancestor that is no longer alive (see game/pedigree.ts).
+    pedigree: pedigreeOf(db, p, PEDIGREE_GENERATIONS),
     // The race log is not part of the loaded world (it is what made every request
     // parse megabytes — see core/d1.ts::PIGEON_SELECT). One extra query, on a
     // route the player opens on purpose rather than polls.
@@ -792,6 +805,19 @@ app.get('/breeding', (c) => {
       createdAt: b.createdAt,
       young: b.young.map((y) => broodYoungDTO(y)),
     }));
+  // Which of MY doffer/duivin combinations are relatives, so the pairing form can
+  // warn before the click rather than after the hatch. Computed here because the
+  // client has no ancestry to reason with; only the related pairs are sent, which
+  // in a healthy loft is a handful or none. Bounded by the loft capacity (20),
+  // and this route is opened on purpose, never polled.
+  const mine = db.pigeons.filter((p) => p.ownerId === user.id);
+  const related: { sireId: string; damId: string; degree: string }[] = [];
+  for (const d of mine.filter((p) => p.sex === 'doffer')) {
+    for (const h of mine.filter((p) => p.sex === 'duivin')) {
+      const degree = kinship(db, d, h);
+      if (degree) related.push({ sireId: d.id, damId: h.id, degree });
+    }
+  }
   return c.json({
     pairs,
     nests,
@@ -799,6 +825,7 @@ app.get('/breeding', (c) => {
     capacity: loft?.capacity ?? 0,
     pigeonCount: owned,
     freeSpace: Math.max(0, (loft?.capacity ?? 0) - owned),
+    related,
   });
 });
 

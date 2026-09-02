@@ -1,6 +1,14 @@
 /** Breeding: pairing pigeons and producing young that inherit attributes. */
 
-import { BREEDING, DEFAULT_BREED_ID, GENE, MIXED_BREED_ID } from '../config/gameConfig.js';
+import {
+  BREEDING,
+  DEFAULT_BREED_ID,
+  GENE,
+  INBREEDING,
+  MIXED_BREED_ID,
+  PIGEON_QUIRKS,
+  type KinshipDegree,
+} from '../config/gameConfig.js';
 import type { Database, Loft, Pigeon, PigeonGenes } from '../schema.js';
 import { newId } from '../store.js';
 import { awardBadge, evaluateBadges } from './badges.js';
@@ -62,6 +70,12 @@ export function breed(
    * append that can happen inside `advanceRealtime`.
    */
   pairId?: string,
+  /**
+   * How closely the parents are related, when they are. Drives the lowered gene
+   * ceilings and the chance of a visible quirk — see INBREEDING. `null`/omitted
+   * is an ordinary pairing and behaves exactly as before.
+   */
+  kin?: KinshipDegree | null,
 ): Pigeon[] {
   const avgLibido = (sire.libido + dam.libido) / 2;
   // Low energie (form) makes a pair less likely to produce young.
@@ -74,14 +88,22 @@ export function breed(
 
   const young: Pigeon[] = [];
   const childBreed = inheritBreed(sire, dam);
+  // Inteelt: the ceilings come down, and the bird is likely born with something
+  // visibly odd. Applied per youngster, so a twin can differ from its sibling.
+  const capPenalty = kin ? INBREEDING.geneCapPenalty[kin] : 0;
+  const inbredCap = (v: number) => (capPenalty ? Math.max(INBREEDING.minGeneCap, v - capPenalty) : v);
   for (let i = 0; i < count; i++) {
     // GENETICS inherit first (average of parents' caps ± mutation), then the
     // starting skills are inherited and clamped to the youngster's own ceilings.
     const genes: PigeonGenes = {
-      speed: inheritGeneCap(geneCap(sire, 'speed'), geneCap(dam, 'speed')),
-      endurance: inheritGeneCap(geneCap(sire, 'endurance'), geneCap(dam, 'endurance')),
-      orientation: inheritGeneCap(geneCap(sire, 'orientation'), geneCap(dam, 'orientation')),
+      speed: inbredCap(inheritGeneCap(geneCap(sire, 'speed'), geneCap(dam, 'speed'))),
+      endurance: inbredCap(inheritGeneCap(geneCap(sire, 'endurance'), geneCap(dam, 'endurance'))),
+      orientation: inbredCap(inheritGeneCap(geneCap(sire, 'orientation'), geneCap(dam, 'orientation'))),
     };
+    const quirk =
+      kin && Math.random() < INBREEDING.quirkChance[kin]
+        ? PIGEON_QUIRKS[Math.floor(Math.random() * PIGEON_QUIRKS.length)].id
+        : null;
     const declineRate = round1(
       clamp(
         ((sire.declineRate ?? 1) + (dam.declineRate ?? 1)) / 2 + randFloat(-0.3, 0.3),
@@ -113,6 +135,10 @@ export function breed(
       experience: 0,
       sireId: sire.id,
       damId: dam.id,
+      // Remembered here so the stamboom can still name them once they are gone.
+      sireName: sire.name,
+      damName: dam.name,
+      quirk,
       forSale: false,
       price: null,
       createdAtWeek: hatchWeek,

@@ -1336,7 +1336,8 @@ begeeft — zie §3.2). Bij overlijden krijgt de eigenaar een melding.
 
 ## 7. Kweken (broeden)
 
-**Voorwaarden:** een doffer + een duivin, beide met energie ≥ **20**, geen
+**Voorwaarden:** een doffer + een duivin, beide **minstens 8 weken oud** (dezelfde
+leeftijd waarop ze mogen vliegen), beide met energie ≥ **20**, geen
 ziekte/kwetsuur, niet in de ziekenboeg, **niet ingeschreven voor een vlucht**, en
 geen van beide mag nog **uitrusten van een vorig nest** (§7.2).
 Kost **€750** en **−15 energie** per ouder. Dat bedrag gaat er **meteen** af bij
@@ -1445,6 +1446,42 @@ weken zijn zowat drie duivenmaanden.
 mutatie (±8), begrensd op de **gen-cap** van het jong (zie §7bis). Ook de
 **genen zelf** (de plafonds + het verouderingstempo) erven over — gemiddelde van
 de ouders ± mutatie. Koppel dus je best gegende duiven om een sterke lijn te bouwen.
+
+---
+
+### 7.3 Stamboom & inteelt
+
+Op de pagina van elke duif kan je haar **stamboom** uitklappen: ouders,
+grootouders en overgrootouders. Per voorouder zie je of ze **nog leeft** en, zo
+ja, in **welk hok** ze zit — ook als dat het hok van een andere speler is. Klik
+erop om naar haar pagina te gaan.
+
+Een tak stopt bij een duif die er niet meer is. Dat is geen fout: met haar
+verdwijnt ook wie háár ouders waren. Haar **naam** blijft wel bewaard, dus je
+ziet nog steeds dat ze bestaan heeft.
+
+**Kweken met familie wordt afgeraden.** Kies je bij *Kweek* twee verwanten, dan
+waarschuwt het spel je vooraf en moet je de keuze bevestigen. Je mág doorgaan —
+maar het jong betaalt de rekening, en die blijft:
+
+- **Lagere genetische plafonds.** De gen-caps van het jong gaan omlaag, en daar
+  traint of coacht ze zich **nooit meer uit** (§7bis, §8).
+- **Grote kans op een afwijking.** Drie vleugels, twee koppen, geen staart, een
+  reuzensnavel of een duif die consequent ondersteboven vliegt. Je ziet het
+  meteen aan haar prentje, en zo'n duif vliegt ook een tikje trager.
+
+| Verwantschap | Plafonds omlaag | Kans op een afwijking |
+|---|---|---|
+| Ouder, kind of grootouder | −22 | 85 % |
+| Volle broer en zus | −18 | 75 % |
+| Halfbroer en halfzus | −11 | 45 % |
+| Verder familie | −5 | 15 % |
+
+Verwantschap wordt tot **drie generaties** terug bekeken. Loopt de enige link
+naar een gemeenschappelijke voorouder via duiven die intussen gestorven zijn,
+dan is het verband niet meer te zien en waarschuwt het spel niet — zo'n
+verwantschap is dan ook al flink verwaterd. **Computermelkers kweken nooit met
+familie** (§17).
 
 ---
 
@@ -1669,6 +1706,9 @@ Doffers krijgen mannennamen, duivinnen vrouwennamen. De bijnaam is een mix van
 karaktergebonden, neutrale en pikzwarte humor, met voorkeur voor alliteratie
 (zelfde beginletter), bv. *Stevie de Snelle*, *Dirk de Doodgraver*,
 *Nadine de Nabestaande*.
+
+De naamvoorraad is bewust **ruim**: ruim 250 voornamen en bijna 200 bijnamen, dus
+in een club van een paar honderd duiven kom je zelden twee keer dezelfde tegen.
 
 **Elke naam is uniek.** Geen twee duiven in de club dragen dezelfde combinatie van
 voornaam én bijnaam — of ze nu geboren, gekweekt, geveild, geadopteerd of via een
@@ -2067,7 +2107,8 @@ bij hen roteert het hok over de dagen heen, net als bij jou.
 
 **En de rust tussen twee nesten geldt ook voor hen** (§7.2). Een bot betaalt
 dezelfde €750 en zijn ouders rusten dezelfde drie weken uit, dus hij kan zijn hok
-niet sneller aanvullen dan jij.
+niet sneller aanvullen dan jij. Hij koppelt bovendien **nooit twee verwanten**
+(§7.3) en houdt zich aan dezelfde kweekleeftijd van 8 weken.
 
 **Ze kiezen hun duiven met verstand.** Een bot zet een duif enkel in als ze de
 route ook echt aankan (genoeg energie voor de afstand) en niet als haar
