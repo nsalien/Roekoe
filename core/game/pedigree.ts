@@ -23,8 +23,8 @@ import { INBREEDING, type KinshipDegree } from '../config/gameConfig.js';
 import type { Database, Pigeon } from '../schema.js';
 import { breedInfo, talent } from './pigeon.js';
 
-/** One box in the tree. `alive` false means we only know it from a parent's name. */
-export interface AncestorNode {
+/** What every box in the family view shows — public facts only. */
+export interface FamilyMember {
   id: string | null; // null once we only have a remembered name
   name: string;
   sex: 'doffer' | 'duivin';
@@ -36,8 +36,46 @@ export interface AncestorNode {
   /** Breed image filename, so the tree can show the same little portrait. */
   image: string | null;
   quirk: string | null;
+}
+
+/** One box in the ancestor chart. `alive` false = known only by a remembered name. */
+export interface AncestorNode extends FamilyMember {
   sire: AncestorNode | null;
   dam: AncestorNode | null;
+}
+
+/**
+ * One box on the descendant side. `partner` is the OTHER parent of this bird —
+ * the bird our subject was paired with to produce it — which is what makes a
+ * clutch readable ("these three are all out of Kim").
+ */
+export interface DescendantNode extends FamilyMember {
+  partner: FamilyMember | null;
+  children: DescendantNode[];
+}
+
+/** A brother or sister: `full` when BOTH parents are shared, else a half sibling. */
+export interface SiblingNode extends FamilyMember {
+  full: boolean;
+  sharedSire: boolean;
+  sharedDam: boolean;
+}
+
+/**
+ * Everything around a bird that is not an ancestor: the brothers and sisters she
+ * grew up with, the birds she was paired with, and the line she started.
+ *
+ * ⚠️ This side of the family survives death BETTER than the ancestor side, and
+ * for the same reason it is bounded by it: a child, a sibling and a partner are
+ * all found by reading ids OFF A LIVING ROW, so a dead parent does not hide them.
+ * What is lost is the reverse: a dead CHILD leaves no row, so neither she nor the
+ * grandchildren behind her can be reached — we never learn her id to link them
+ * with. Same truncation as `pedigreeOf`, mirrored.
+ */
+export interface FamilyTree {
+  siblings: SiblingNode[];
+  partners: FamilyMember[];
+  children: DescendantNode[];
 }
 
 /**
@@ -141,4 +179,109 @@ export function pedigreeOf(db: Database, pigeon: Pigeon, generations: number): A
 
   const root = build(pigeon.id, pigeon.name, pigeon.sex, generations, new Set());
   return root;
+}
+
+/**
+ * The other half of the family: siblings, partners and the line a bird started.
+ *
+ * ONE pass over `db.pigeons` builds a parent → children index, and that index
+ * answers all three questions: a bird's children are what it maps to, and her
+ * siblings are what her PARENTS map to. This runs on `GET /pigeons/:id`, a route
+ * a player opens on purpose and never polls, and it adds no query — the world is
+ * already in memory (see §Performance in context.md before making it do more).
+ *
+ * `generations` counts DOWNWARD levels (1 = children, 2 = + grandchildren, …).
+ */
+export function familyOf(db: Database, pigeon: Pigeon, generations: number): FamilyTree {
+  const ownerOf = (p: Pigeon) => db.lofts.find((l) => l.userId === p.ownerId) ?? null;
+  const member = (b: Pigeon): FamilyMember => ({
+    id: b.id,
+    name: b.name,
+    sex: b.sex,
+    alive: true, // it has a row, so it is in the world
+    ownerName: ownerOf(b)?.name ?? null,
+    ownerId: b.ownerId,
+    // Only what is PUBLIC about someone else's bird — the general score and the
+    // breed portrait. Individual attributes stay hidden, exactly as everywhere
+    // else (see presenters.ts info-hiding).
+    talent: talent(b),
+    image: breedInfo(b.breed).image,
+    quirk: b.quirk ?? null,
+  });
+
+  // Parent id → its young. Both parents are indexed, so one map serves children
+  // AND siblings.
+  const byParent = new Map<string, Pigeon[]>();
+  const index = (parentId: string | null | undefined, child: Pigeon) => {
+    if (!parentId) return;
+    const list = byParent.get(parentId);
+    if (list) list.push(child);
+    else byParent.set(parentId, [child]);
+  };
+  for (const b of db.pigeons) {
+    index(b.sireId, b);
+    index(b.damId, b);
+  }
+  const byId = new Map(db.pigeons.map((b) => [b.id, b] as const));
+
+  // --- Brothers and sisters -------------------------------------------------
+  // Read off the SIBLINGS' own rows, so a dead parent hides nobody.
+  const sibs = new Map<string, SiblingNode>();
+  for (const parentId of [pigeon.sireId, pigeon.damId]) {
+    if (!parentId) continue;
+    for (const b of byParent.get(parentId) ?? []) {
+      if (b.id === pigeon.id || sibs.has(b.id)) continue;
+      const sharedSire = !!pigeon.sireId && b.sireId === pigeon.sireId;
+      const sharedDam = !!pigeon.damId && b.damId === pigeon.damId;
+      sibs.set(b.id, { ...member(b), full: sharedSire && sharedDam, sharedSire, sharedDam });
+    }
+  }
+  // Full siblings first, then the strongest link, then by talent — the order a
+  // breeder reads them in.
+  const siblings = [...sibs.values()].sort(
+    (a, b) => Number(b.full) - Number(a.full) || (b.talent ?? 0) - (a.talent ?? 0),
+  );
+
+  // --- The line she started -------------------------------------------------
+  const partners = new Map<string, FamilyMember>();
+  const build = (parent: Pigeon, left: number, guard: Set<string>): DescendantNode[] => {
+    if (left <= 0) return [];
+    const out: DescendantNode[] = [];
+    for (const child of byParent.get(parent.id) ?? []) {
+      // A line that folds back on itself (inteelt!) would otherwise recurse forever.
+      if (guard.has(child.id)) continue;
+      const viaSire = child.sireId === parent.id;
+      const otherId = viaSire ? child.damId : child.sireId;
+      const living = otherId ? byId.get(otherId) ?? null : null;
+      // The other parent may be dead — no row, so no id and no stats. The child
+      // still REMEMBERS the name (sireName/damName is denormalised onto it for
+      // exactly this), so the mate stays visible instead of becoming "onbekend".
+      const remembered = viaSire ? child.damName : child.sireName;
+      const other: FamilyMember | null = living
+        ? member(living)
+        : remembered
+          ? {
+            id: null, name: remembered, sex: viaSire ? 'duivin' : 'doffer', alive: false,
+            ownerName: null, ownerId: null, talent: null, image: null, quirk: null,
+          }
+          : null;
+      if (other && parent.id === pigeon.id) {
+        // A dead mate has no id, so key on the name instead.
+        const key = other.id ?? `†${other.name}`;
+        if (!partners.has(key)) partners.set(key, other);
+      }
+      out.push({
+        ...member(child),
+        partner: other,
+        children: build(child, left - 1, new Set(guard).add(child.id)),
+      });
+    }
+    // Strongest first: a clutch reads as a line, not as a shuffled bag.
+    return out.sort((a, b) => (b.talent ?? 0) - (a.talent ?? 0));
+  };
+
+  // ⚠️ `build` FILLS `partners`, so it has to run before the object is assembled —
+  // a literal evaluates its properties top to bottom and would spread an empty map.
+  const children = build(pigeon, generations, new Set([pigeon.id]));
+  return { siblings, partners: [...partners.values()], children };
 }

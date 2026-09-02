@@ -6,7 +6,7 @@ import { api } from '../api/client';
 import { useGame } from '../game/GameContext';
 import { PigeonAvatar } from '../components/PigeonAvatar';
 import { BreedBadge, Money, PigeonStats, SexBadge, Spinner, formatFlightTime, useToast } from '../components/ui';
-import type { AncestorNode, Pigeon, RaceHistoryRow } from '../types';
+import type { AncestorNode, FamilyTree, Pigeon, RaceHistoryRow } from '../types';
 import { Pedigree } from '../components/Pedigree';
 
 interface PigeonDetail {
@@ -15,6 +15,7 @@ interface PigeonDetail {
   dam: Pigeon | null;
   mine: boolean;
   pedigree: AncestorNode | null;
+  family: FamilyTree | null;
   history: RaceHistoryRow[];
 }
 
@@ -473,14 +474,14 @@ export function PigeonPage() {
           )}
 
           <div className="card">
-            <h2>Afstamming</h2>
+            <h2>Familie</h2>
             <div className="grid cols-2">
               <PedigreeBox label="Vader (doffer)" pigeon={sire} />
               <PedigreeBox label="Moeder (duivin)" pigeon={dam} />
             </div>
             {/* The parents above are the birds you can act on right now; the tree
                 is the history, so it stays folded until asked for. */}
-            <Pedigree root={data.pedigree} mineId={mine ? p.ownerId : undefined} />
+            <Pedigree root={data.pedigree} family={data.family} mineId={mine ? p.ownerId : undefined} />
           </div>
 
           {mine && (
