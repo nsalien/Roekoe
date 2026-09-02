@@ -1366,7 +1366,9 @@ tweelingkans = clamp(libido_gem/100 · 0.7 · energiefactor, 0, 0.7)
 > 20, dan valt de succeskans terug naar ~**52%** en komt de worp vaker leeg uit.
 > Koppel dus goed uitgeruste, energieke duiven met een hoog libido.
 
-**Uitkomen: onvoorspelbaar.** Er is géén vaste tijd en geen aftelklok. Elk
+**Uitkomen: onvoorspelbaar, en op eender welk moment.** Er is géén vaste tijd en
+geen aftelklok, en het is **niet** gebonden aan de dagovergang: een nest kan om
+het even welk uur van de dag uitkomen, ook 's nachts. Elk
 moment is er een willekeurige kans dat de eieren uitkomen; die kans is groter
 naarmate het **libido en de energie** van de ouders hoger zijn. Een topfit koppel
 komt gemiddeld al na ~1 dag uit, een lusteloos koppel kan tot ~6 dagen duren —
@@ -1378,6 +1380,10 @@ gebeurt.
 > bij een futloos koppel (fertiliteit ~20) eerder ~4,9 dag. Omdat het een kans
 > per moment is, weet je nooit exact wanneer — soms is het er al in enkele uren,
 > soms pas na een week.
+
+**Je krijgt er altijd een melding van** (belknop), of het nest nu meteen in je
+hok past, moet wachten omdat je hok vol zit (§7.1), of leeg uitkwam. Eén melding
+per nest — je hoeft er dus niet voor te blijven kijken.
 
 ### 7.1 Een vol hok bij het uitkomen: jij kiest
 

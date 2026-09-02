@@ -1042,6 +1042,50 @@ verzoek uit per statement.
 Alles hieronder staat **live** op de deploy-branch. Data-migraties liepen door tot
 **`dataVersion = 45`**.
 
+**Eén melding per nest — de uitkomst-melding had geen stabiel id (nieuwste)**
+- **Vraag van de eigenaar:** wanneer kan een nest uitkomen — enkel op de dagovergang of
+  eender wanneer? En: zorg dat de speler een melding krijgt.
+- **Antwoord op de eerste vraag, gemeten** (40 nesten doorgespoeld tegen de echte engine):
+  **eender wanneer.** `tickBreedingHatch` draait bij **élk verzoek**, niet op de
+  dagovergang. Per koppel wordt er hoogstens **één keer per `BREEDING.hatchCheckMinutes`
+  (15 min)** geworpen, en de kans per uur volgt uit de vruchtbaarheid (libido + energie).
+  De uitkomsten spreidden over **22 van de 24 uren** van de dag. Omdat de verstreken uren
+  blijven optellen in `hatchAt`, gaat er niets verloren als er een tijd niemand pollt — de
+  volle tijd wordt dan in één keer verrekend.
+- **De melding bestónd al** en komt betrouwbaar aan, ook in de twee gevallen die het
+  makkelijkst stuk gaan: wanneer het **verzoek van een ándere speler** de hatch uitlokt
+  (viewer-scoped inbox — nagemeten, de eigenaar krijgt ze), en wanneer de worp **leeg**
+  uitkomt ("🥚 Koppel zonder resultaat").
+- ⚠️ **Wat er wél stuk was: bij gelijktijdige afhandeling kreeg de speler er TWEE.** De
+  drie hatch-meldingen namen een verse `newId('ntf')`, dus twee overlappende verzoeken die
+  allebei hetzelfde nest afhandelen schreven twee rijen. De **jongen** overleefden dat al
+  (stabiele ids uit het koppel, `pig_brood_<pairId>_<i>`), de melding niet — precies de
+  stabiele-id-regel die dit project op élke append binnen `advanceRealtime` toepast.
+  Gemeten vóór de fix: 2 meldingen, ná: 1.
+- **Fix:** `broodNoteId(pairId)` = `ntf:brood:<pairId>`, gedeeld door alle drie de
+  uitkomsten (er kan er maar één gebeuren per koppel) → `INSERT OR REPLACE` houdt er
+  precies één over. **Eén regel per melding, geen migratie, geen schemakolom**,
+  `dataVersion` blijft **45**.
+- ⚠️ **Wat NIET opgelost is, en bewust:** `breed()` gebruikt rauwe `Math.random()`, dus
+  twee gelijktijdige worpen kunnen een verschillend **aantal** jongen opleveren (de ids zijn
+  stabiel, de inhoud niet). De melding beschrijft dan de worp van het verzoek dat als laatste
+  schreef. Dat is strikt beter dan twee tegenstrijdige meldingen, maar de nette fix is
+  `breed()` seeden op het koppel-id — dat raakt namen, rassen, genen en de tweelingworp, dus
+  een aparte ingreep. Dit is dezelfde wortel als de gedocumenteerde flakiness van
+  `brood-choice.test.mts`.
+- **`breeding-cooldown.test.mts` uitgebreid én ontflakkerd.** Nieuw blok "Eén melding per
+  nest": twee verzoeken die allebei hetzelfde nest afhandelen → precies **één** melding, met
+  een id afgeleid van het koppel. ⚠️ Het telt op **titel**, niet op het id-voorvoegsel —
+  zonder de fix hebben de rijen een willekeurig id en zou een filter op `ntf:brood:%` er
+  **nul** zien in plaats van de twee die de speler werkelijk krijgt. Geverifieerd door de fix
+  tijdelijk terug te draaien: 2 → rood, 1 → groen.
+- ⚠️ **Bestaande flakiness gevonden en gerepareerd (niet veroorzaakt):** de test viel op de
+  **ongewijzigde** code ~**2 op 12** runs om met "er kwamen 0 jong(en)". Oorzaak: `tickWith`
+  stuurde enkel de **hatch**-worp; de succeskans binnen `breed` bleef echt, en na het
+  koppelen staat de energie op 80 → successChance ≈ 0,9, dus ~10 % lege worpen. `tickWith`
+  kreeg een `forceClutch`-vlag die ook de tweede trekking stuurt; aangezet in de drie blokken
+  die jongen nódig hebben. **25 runs op rij groen** (was 4 op 15 rood).
+
 **Duifpagina opgeruimd: vier dingen weg of verplaatst (nieuwste)**
 - **Vraag van de eigenaar**, na het zien van de pagina op een gsm. Vier ingrepen, allemaal
   **puur UI** — geen endpoint, geen DTO-veld, geen schemakolom, geen migratie,
