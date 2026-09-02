@@ -95,6 +95,17 @@ console.log('\n=== 2. Ook ná het afronden van de eerste vlucht blijft de dag op
   tickFlights(db, startMs + 2000, undefined, f1.id); // forceer de afronding
   ok(f1.status === 'completed' && f1.sim.length > 0, `${f1.name} is uitgevlogen en afgerond`);
   ok(Date.parse(f2.startAt) > startMs && f2.status === 'scheduled', `${f2.name} staat diezelfde dag nog gepland`);
+  // Deze duif kan van haar ochtendvlucht gewond of ziek zijn thuisgekomen — dat is
+  // een gewone uitkomst, maar dan weigert `canRace` haar vóór de dagregel eraan
+  // toekomt en meet dit blok iets anders dan het beweert. Even opknappen, zodat
+  // enkel de één-vlucht-per-dag-regel de weigering kan veroorzaken.
+  {
+    const p = db.pigeons.find((x) => x.id === bird)!;
+    p.ailment = null;
+    p.inInfirmary = false;
+    p.health = Math.max(p.health, 80);
+    p.form = Math.max(p.form, 50);
+  }
   const err = enterFlight(store, userId, f2.id, bird);
   ok(err != null && err.includes('één vlucht per dag'),
      `een duif die vanochtend gevlogen heeft, mag 's middags niet opnieuw: "${err}"`);
