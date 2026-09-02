@@ -116,6 +116,7 @@ console.log('\nFamilie in alle richtingen (familyOf)');
   const hm = fam.siblings.find((x) => x.name === 'halfbroer_m')!;
   ok(hm.full === false && hm.sharedDam && !hm.sharedSire, 'halfbroer via de moeder: enkel de moeder gedeeld');
   ok(!fam.siblings.some((x) => x.name === 'vreemde2'), 'een onverwante duif is geen broer of zus');
+  ok(fam.siblings.filter((x) => !x.full).length === 2, 'béide halfbroers tellen mee, niet enkel de volle zus');
   ok(!fam.siblings.some((x) => x.name === 'ik'), 'de duif is haar eigen zus niet');
   ok(fam.siblings[0].full, 'volle broers/zussen staan vooraan');
 
@@ -138,6 +139,43 @@ console.log('\nFamilie in alle richtingen (familyOf)');
   ok(familyOf(db, partnerA, 3).children.length === 2, 'de partner ziet zijn eigen twee jongen');
   ok(familyOf(db, opa, 3).children.length === 3,
     'de kant van de grootvader werkt net zo goed: opa ziet ik + vollezus + halfbroer_v');
+}
+
+// === Y0. Halfbroers/-zussen in de lastige gevallen ==========================
+/*
+ * Een halfbroer deelt maar ÉÉN ouder, dus hij hangt aan één draadje — en dat
+ * draadje kan op twee manieren onzichtbaar lijken: hij zit in het hok van een
+ * andere speler, of de ouder die ze delen is intussen gestorven. Allebei moeten
+ * ze gewoon opduiken; de band wordt van de LEVENDE jongen gelezen, niet van de
+ * ouder.
+ */
+console.log('\nHalfbroers en halfzussen: ander hok, en een dode gedeelde ouder');
+{
+  const db = world();
+  const pa = bird(db, 'pa', 'doffer', null, null);
+  const ma = bird(db, 'ma', 'duivin', null, null);
+  const ma2 = bird(db, 'ma2', 'duivin', null, null);
+  const dode = bird(db, 'dode_vader', 'doffer', null, null);
+
+  const ik2 = bird(db, 'ik2', 'duivin', pa.id, ma.id);
+  bird(db, 'half_zelfde_vader', 'doffer', pa.id, ma2.id);
+  const elders = bird(db, 'half_ander_hok', 'duivin', pa.id, ma2.id);
+  elders.ownerId = 'usr_b'; // andermans duif
+  const wees = bird(db, 'wees', 'duivin', dode.id, ma2.id);
+  bird(db, 'half_via_dode', 'doffer', dode.id, null);
+  db.pigeons = db.pigeons.filter((x) => x.id !== dode.id); // de gedeelde vader sterft
+
+  const f = familyOf(db, ik2, 2);
+  ok(f.siblings.some((x) => x.name === 'half_ander_hok'),
+    'een halfzus in het hok van een andere speler wordt gewoon getoond');
+  ok(f.siblings.every((x) => !x.full), 'ze zijn allemaal half — enkel de vader is gedeeld');
+
+  const fw = familyOf(db, wees, 2);
+  const viaDode = fw.siblings.find((x) => x.name === 'half_via_dode');
+  ok(!!viaDode, 'een halfbroer via een GESTORVEN gedeelde vader wordt nog gevonden');
+  ok(viaDode?.sharedSire === true && viaDode?.sharedDam === false,
+    'en de band loopt herkenbaar via de vader');
+  ok(fw.siblings.length === 3, `wees heeft drie half-verwanten (${fw.siblings.map((x) => x.name).join(',')})`);
 }
 
 // === Y. Een dode ouder verbergt geen kinderen ===============================
