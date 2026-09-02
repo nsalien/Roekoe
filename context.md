@@ -1015,6 +1015,47 @@ verzoek uit per statement.
 Alles hieronder staat **live** op de deploy-branch. Data-migraties liepen door tot
 **`dataVersion = 43`**.
 
+**Live kaart: verdwijnende kaart gefixt, geen API-sleutel meer, klikbare duiven (nieuwste)**
+- **Drie klachten van de eigenaar:** de kaart verdween soms tot een refresh, de tegels vroegen
+  blijkbaar om een **API-sleutel**, en de bolletjes waren nauwelijks aan te klikken.
+- ⚠️ **De verdwijnende kaart was geen toeval maar een levenscyclusfout — gereproduceerd vóór
+  er iets veranderde.** `route` komt als **verse JSON bij elke poll**, dus de objectidentiteit
+  wijzigt elke 60 s. De map-creatie hing op `[route]` en brak de kaart dus elke poll af en
+  bouwde ze opnieuw — terwijl de **tegellaag** aan een `[theme]`-only effect hing en daardoor
+  **niet** opnieuw werd toegevoegd. Gemeten in de browser: tegellaag aanwezig bij de eerste
+  render, en **weg vanaf poll 1**, blijvend. Een refresh gaf precies één pollcyclus soelaas —
+  exact wat de eigenaar beschreef.
+  **Fix:** de kaart hangt nu aan een **`routeKey`** (de route als string, `useMemo`) i.p.v. aan
+  de objectidentiteit, en de tegellaag hangt aan `[theme, epoch]`, waarbij `epoch` bij elke
+  (her)bouw opgehoogd wordt. Nagemeten: tegellaag blijft 1 over alle polls.
+  **Regel voor deze pagina: hang nooit een effect rechtstreeks aan een object dat uit een poll komt.**
+- **Weg met Carto, terug naar OpenStreetMap.** Carto's basemap-CDN blijkt een sleutel te willen;
+  een sleutel in een statische bundle is een **publieke** sleutel, dus dat kan hier niet. OSM is
+  sleutelloos. Geen `{s}`-subdomeinen (dat raadt OSM af). ⚠️ OSM heeft **geen donkere variant**,
+  dus het donkere thema wordt in **CSS** gemaakt: `invert(1) hue-rotate(180deg)` + demping op
+  `.leaflet-tile-pane`; het lichte thema wordt licht ontzadigd zodat de duiven bóven de kaart
+  lezen i.p.v. ermee te concurreren.
+- **Duiven zijn nu `divIcon`-markers i.p.v. `circleMarker`s.** Het klikdoel van een circle is de
+  cirkel zelf, dus een bolletje van 4 px vroeg 4 px nauwkeurig mikken — onbruikbaar op een gsm.
+  Een divIcon heeft een echt **vak van 26 × 26 px** terwijl het zichtbare bolletje 9–15 px blijft.
+  Nagemeten: een klik **9 px schuin naast** het midden opent de popup.
+- ⚠️ **`setIcon` alleen bij een echte verandering**: die herbouwt de DOM-node en zou een open
+  popup bij élke poll dichtklappen. De klasse wordt per marker bijgehouden.
+- **Visueel opgeknapt:** route als **casing + gestippelde kern** i.p.v. één grijze streepjeslijn,
+  losplaats/thuis/wisselpunten als gelabelde pins (niet-interactief, zodat ze geen kliks van de
+  duiven stelen), en een **legende** onder de kaart. ⚠️ "Leider" (goud) en "van koers" (amber)
+  liggen naast elkaar op de kleurencirkel en waren niet uit elkaar te houden — van koers is nu
+  een **ring** i.p.v. een gevulde stip, dus vorm én kleur verschillen.
+- **Geverifieerd in de browser** (beide thema's, 390 px en 1100 px): geen horizontale overflow,
+  geen console-fout, tegellaag blijft staan over 9 polls, 47 markers blijven 47, en de open
+  popup overleeft de polls.
+- ⚠️ **Nog steeds niet verifieerbaar vanuit deze omgeving:** of de tegels effectief laden. De
+  egress-policy blokkeert `tile.openstreetmap.org`, dus alle screenshots tonen de kaart mét
+  lege achtergrond. De terugval (melding na 3 mislukte tegels, route en duiven blijven werken)
+  is wél getest. OSM's gebruiksvoorwaarden zijn voor een club van tien spelers ruim voldoende,
+  maar de tegel-URL staat op één plek als het ooit knelt.
+- **Alleen client**, geen schema/config/migratie.
+
 **Duiven vliegen als een zwerm, en verdwalen pas als die openbreekt (nieuwste)**
 - **Vraag van de eigenaar:** "bij de start vertrekken alle duiven samen, ik merk dat er dan
   al duiven verloren vliegen — dat is niet realistisch. Pas wanneer duiven opgesplitst
