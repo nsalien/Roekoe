@@ -10,6 +10,7 @@ import { AGE_CUP, AUCTION, BREED_RARITY, CITY_COORDS, COACH, ageCategoryDef, age
 import {
   ageInWeeks,
   breedInfo,
+  breedingCooldownUntil,
   canRace,
   estimateValue,
   experienceGain,
@@ -149,6 +150,12 @@ export function pigeonDTO(db: Database, p: Pigeon, viewerId?: string, viewerIsAd
       if (Number.isNaN(last)) return null;
       const next = last + REST_CURE.cooldownDays * 86400000;
       return next > Date.now() ? new Date(next).toISOString() : null;
+    })(),
+    // Rest between clutches, per bird (BREEDING.cooldownDays); null = may breed now.
+    breedAvailableAt: (() => {
+      if (!revealed) return null;
+      const until = breedingCooldownUntil(p);
+      return until ? new Date(until).toISOString() : null;
     })(),
     // Per-attribute training cooldown (own birds only).
     trainAvailableAt: (() => {

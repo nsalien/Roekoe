@@ -140,7 +140,7 @@ krijgen.**
 `core/game/schedule.ts` → `advanceRealtime(db, nowMs, weatherByFlight)` roept in
 volgorde:
 1. `runDataMigrations(db)` — eenmalige datafixes, **gated op `world.dataVersion`**
-   (staat nu op **42**; nieuwe migratie = nieuw `if ((db.world.dataVersion ?? 0) < N)`
+   (staat nu op **44**; nieuwe migratie = nieuw `if ((db.world.dataVersion ?? 0) < N)`
    blok + `db.world.dataVersion = N`). v21 zet **bestaande geplande vluchten terug naar de
    OUDE, kortere afstanden** (regio 30–160 / nat 60–290 / intl 180–950 km): elke nog-
    geplande niet-titan-vlucht buiten haar legacy-venster wordt her-routeerd via
@@ -185,7 +185,11 @@ volgorde:
    `TOURNEY_RISK.deathChance`.) **Ook `runAgeDecline(db, week)`** draait hier: boven de
    piekleeftijd (`AGING.peakEndWeeks`) zakken snelheid/conditie/oriëntatie **echt** (per-duif
    `declineRate`); `AGE_CURVE` is daarom neerwaarts afgevlakt.
-5. `tickBreedingHatch(db, nowMs)` — jongen komen uit in echte tijd.
+5. `tickBreedingHatch(db, nowMs)` — jongen komen uit in echte tijd. **Het koppel gaat
+   daarbij ALTIJD uiteen** (ook bij een lege worp of een verdwenen ouder), en beide
+   ouders krijgen `lastBredAt` → `BREEDING.cooldownDays` (21 d) rust. Een koppel waarvan
+   de ouders nog rusten wordt hier ontbonden i.p.v. te broeden — het vangnet tegen een
+   koppel dat via een gelijktijdig verzoek terugkwam (zie §8).
 6. `tickFlightEnergy(db, nowMs)` — trekt vlucht-energie **geleidelijk per 30 min** af.
 7. `tickHealing(db, nowMs)` — **real-time herstel** van ziekte/kwetsuur + 12u-statusupdates.
 8. `tickRestCures(db, nowMs)` — laat afgelopen **rustkuren** aflopen (+40 energie, melding).
@@ -402,6 +406,7 @@ Roekoe/
 ├── one-flight-per-day.test.mts  regressietest: één vlucht per duif per dag (harde regel)
 ├── flight-map.test.mts      regressietest: de live kaart klopt geografisch (Haversine)
 ├── flock.test.mts           regressietest: duiven verdwalen pas als de zwerm openbreekt
+├── breeding-cooldown.test.mts   regressietest: koppel gaat uiteen na het nest + 3 weken rust
 ├── limits-report.mts            meet queries/rijen gelezen/geschreven per verzoek
 ├── cpu-sweep.mts                meet CPU per operatie (duurste eerst) — diagnose
 ├── migrations/0001_init.sql     D1-schema voor verse installatie
@@ -460,6 +465,10 @@ Entiteiten: `Pigeon`, `Loft`, `User`, `BreedingPair`, `PendingBrood`, `Flight` (
   uitrol (geen historiek van daarvoor).
 - `Pigeon.hungerDays` — opeenvolgende dagen zonder voer (drijft verhongeren).
 - `Pigeon.restDays` — opeenvolgende gevoede rustdagen zonder vlucht (rustbonus).
+- `Pigeon.lastBredAt?` — ISO-tijd waarop haar laatste nest **uitkwam** (kolom `last_bred_at
+  TEXT`); drijft de rust van `BREEDING.cooldownDays` (21 d) tussen twee nesten. Staat op de
+  **duif** en niet op het koppel, zodat ze het koppel overleeft en meeverhuist bij verkoop.
+  Leeg bij een mislukte worp — zie §8.
 - `Pigeon.cureUntil?` — ISO-tijd waarop een betaalde **rustkuur** afloopt (eigen
   D1-kolom `cure_until TEXT`; duif kan niet vliegen zolang de kuur loopt).
 - `Flight.practice?` — **oefenvlucht** (eigen D1-kolom `practice INTEGER DEFAULT 0`).
@@ -630,7 +639,11 @@ Entiteiten: `Pigeon`, `Loft`, `User`, `BreedingPair`, `PendingBrood`, `Flight` (
   `flightTotalSeconds` = de traagste duif die effectief finisht, dus trage/verdwaalde
   duiven worden niet meer weggestreept. Enkel `gaveUp`/`dnfAtSeconds` = DNF.
 - **Kweken (`BREEDING`):** ouders minstens **20** energie (`minParentForm`, was 40);
-  meer energie+libido = sneller een jong.
+  meer energie+libido = sneller een jong. **`cost` 750** (was 200) en
+  **`cooldownDays` 21** — het koppel gaat uiteen zodra het nest er is en beide ouders
+  rusten dan drie echte weken (≈ 4 nesten per duivenjaar bij de 4× veroudering). De rust
+  hangt aan de **duif** (`Pigeon.lastBredAt`), niet aan het koppel, en wordt **niet**
+  opgelegd na een lege worp. Zie §8.
 - **Ziekenboeg (`INFIRMARY`):** basiscapaciteit **2** (was 4); upgrades 3/4/5/6 voor
   €800/1200/1800/2400 (`INFIRMARY_CAPACITY_TIERS`). Dokter €400/wk, kinesist €350/wk,
   medicatievoer €45/duif/wk. **`energyRecoveryFactor 0.5`** — een duif in de ziekenboeg
@@ -893,7 +906,10 @@ Entiteiten: `Pigeon`, `Loft`, `User`, `BreedingPair`, `PendingBrood`, `Flight` (
   (`components/NestChoice.tsx`) zodra een worp op een keuze wacht. Dat scherm toont per
   jong de score **en de gen-caps** (daar gaat de keuze over), heeft een uitklapbaar
   *Maak plaats* met 🕊️/🍲 per volwassen duif, en blokkeert het koppelformulier zolang het
-  nest openstaat. Nav-teller op **Kweek** = `state.pendingNests`.
+  nest openstaat. Nav-teller op **Kweek** = `state.pendingNests`. Duiven die **uitrusten
+  van een vorig nest** (`pigeonDTO.breedAvailableAt`) vallen uit beide keuzelijsten, met
+  eronder één regel hoeveel er rusten en wanneer de eerste weer mag — een duif die
+  zwijgend uit de lijst verdwijnt leest als een bug.
 - Verder: `SponsorsPage`, `LoginPage`.
 
 **Rondleiding (`components/Tour.tsx`):** interactieve spotlight-tour die per stap
@@ -909,13 +925,12 @@ en de prestige-seizoensprijzen. Eenmalig per speler (localStorage
 de profielknop herhaalt hem via `window.dispatchEvent(new Event('roekoe:start-tour'))`.
 
 **"Wat is nieuw"-melding:** dezelfde `Tour` maar met een **subset** stappen. Actueel
-= **`AGE_CUP_NEWS_STEPS`** (leeftijdscriterium: intro + de vier klassen/inschrijven +
-waarom de stand drie seizoenen loopt). Eigen localStorage-sleutel
-`roekoe.newsSeen.agecup2.<id>` (de `2` omdat de eerste, te lange versie opnieuw
-getoond moest worden); toont pas als de hoofd-tour niet open is. `closeTour` zet ook de news-sleutel, zodat een
+= **`BREEDING_NEWS_STEPS`** (kweken: koppel gaat uiteen na het nest · 21 dagen rust ·
+€750). Eigen localStorage-sleutel `roekoe.newsSeen.breeding.<id>`;
+toont pas als de hoofd-tour niet open is. `closeTour` zet ook de news-sleutel, zodat een
 nieuwe speler die de volledige tour afrondt niet nog eens de news krijgt. Bump de
 sleutel-suffix + wissel de `steps`-set (import in `Layout`) voor een volgende
-aankondiging. De vorige sets `FAREWELL_NEWS_STEPS`, `REST_CURE_NEWS_STEPS`,
+aankondiging. De vorige sets `PRIZE_NEWS_STEPS`, `AGE_CUP_NEWS_STEPS`, `FAREWELL_NEWS_STEPS`, `REST_CURE_NEWS_STEPS`,
 `RELAY_NEWS_STEPS`, `GENES_NEWS_STEPS`, `BREED_NEWS_STEPS`, `BID_NEWS_STEPS` en
 `SEASON_NEWS_STEPS` blijven in `Tour.tsx` als referentie. (De oude `FeatureTour` met gecentreerde kaarten
 is verwijderd — alles zit nu in `Tour`.)
@@ -972,6 +987,7 @@ npx tsx bot-market.test.mts        # de prijsgrens voor bots (anti-exploit) + hu
 npx tsx one-flight-per-day.test.mts # één vlucht per duif per dag — speler én bots
 npx tsx flight-map.test.mts        # de live kaart: posities, afstanden en de omweg kloppen
 npx tsx flock.test.mts             # verdwalen pas buiten de zwerm + omweg schaalt met afstand
+npx tsx breeding-cooldown.test.mts  # koppel uiteen na het nest, rust van 3 weken, geen resurrectie
 ```
 Diagnose zonder assertie: `npx tsx cpu-sweep.mts` (CPU per operatie, duurste
 eerst), `npx tsx limits-report.mts` (queries/rijen per verzoek) en
@@ -1013,7 +1029,72 @@ verzoek uit per statement.
 ## 8. Belangrijkste wijzigingen deze sessie (achtergrond)
 
 Alles hieronder staat **live** op de deploy-branch. Data-migraties liepen door tot
-**`dataVersion = 43`**.
+**`dataVersion = 44`**.
+
+**Broeden: het koppel bleef bestaan na het uitkomen (echte bug) + rust en prijs (nieuwste)**
+- **Melding van een speler:** "een koppel blijft een koppel en blijft verder broeden."
+  De in-memory logica was nochtans correct — `tickBreedingHatch` zet de id in `hatched`
+  en filtert die aan het eind uit `db.breedingPairs`. Gereproduceerd tegen de echte
+  engine mét een D1-ronde, en toen pas werd het zichtbaar.
+- ⚠️ **Oorzaak: `diff` kreeg voor `breeding_pairs` geen `previousRows`**, dus élke
+  gewijzigde koppelrij ging via **`INSERT OR REPLACE`** i.p.v. een smalle `UPDATE`. En
+  `tickBreedingHatch` **herstempelt `hatchAt`** bij elke check die níet uitkomt. Twee
+  overlappende verzoeken volstonden dus: A komt uit → verwijdert de rij + maakt de jongen;
+  B (geladen vóór A schreef) komt niet uit → herstempelt → **schrijft dezelfde rij terug**.
+  Het nest was geboren én het koppel stond er nog, en bleef doorbroeden. De tick loopt bij
+  **élk** verzoek over **álle** koppels van **alle** spelers, dus dit is geen exotisch geval.
+- **Fix in `core/d1.ts`:** nieuwe module-level `breedingPairRow` + `BREEDING_PAIR_COLUMNS`,
+  `rowSnapshots.breedingPairs`, en `previousRows` meegegeven aan de diff. Een smalle
+  `UPDATE` op een verwijderde rij is een no-op, dus de delete wint. ⚠️ **Dit is een
+  correctheidsfix, geen querybudget-optimalisatie** — dat staat zo in de code, anders
+  haalt iemand het later weg "omdat een koppel toch maar 7 kolommen heeft".
+- ⚠️ **Zelfde klasse bug loert bij elke tabel zónder `previousRows` die óók rijen wist.**
+  `flights` is de kandidaat (`pruneOldFlights`), maar die prunet herhaaldelijk dus hij
+  heelt zichzelf. Niet aangeraakt.
+- **Meegenomen: stabiele id's voor de jongen.** `breed(..., pairId)` geeft ze
+  `pig_brood_<pairId>_<i>` i.p.v. `newId('pig')`. Twee gelijktijdige verzoeken die
+  dezelfde worp afhandelen schrijven nu dezelfde rijen i.p.v. **twee nesten uit één
+  koppeling** — de stabiele-id-regel die dit project al toepast op elke append binnen
+  `advanceRealtime`.
+- **Rust tussen twee nesten (`BREEDING.cooldownDays` = 21 echte dagen).** Nieuw veld
+  **`Pigeon.lastBredAt`** (kolom `last_bred_at TEXT`, achteraan `SCHEMA_STEPS`), gezet op
+  **beide ouders** bij het uitkomen. Helpers `breedingCooldownUntil` /
+  `breedingCooldownDaysLeft` (pigeon.ts). Gecheckt in `startBreeding` (met de naam van de
+  duif + het aantal dagen in de foutmelding), in de bot-`canBreed`, en — als vangnet — in
+  `tickBreedingHatch` zelf: een koppel waarvan de ouders nog rusten hoort niet te bestaan
+  en wordt daar **ontbonden**, zodat een gereanimeerd of verouderd koppel zichzelf opruimt.
+- **Waarom 21 dagen:** een duif broedt ~4× per jaar; duiven verouderen hier **4× real-time**
+  (`GAME_WEEKS_PER_REAL_WEEK`), dus een duivenjaar is ~13 echte weken en een kwart daarvan
+  ~3 echte weken.
+- ⚠️ **Een MISLUKTE worp legt géén rust op.** Het koppel gaat wel uiteen, maar `lastBredAt`
+  blijft leeg. De speler betaalde al €750 + 2×15 energie; daar drie weken bovenop leggen
+  bestraft een dobbelsteen i.p.v. een keuze. De rust hangt aan de **duif**, niet aan het
+  koppel, dus een andere partner kiezen omzeilt ze niet.
+- **Prijs `BREEDING.cost` 200 → 750.** (De eigenaar sprak van "300 → 750"; de code stond op
+  **200**.) Een lopend koppel betaalt niets bij: het bedrag gaat er **bij het koppelen** af,
+  niet bij het uitkomen — de "oude prijs blijft gelden"-vraag is dus per constructie voldaan.
+- **Migratie v44** (`applyBreedingCooldown`): ⚠️ er is **geen historiek** om te lezen, dus
+  "heeft dit koppel onlangs gebroed?" wordt **gereconstrueerd** uit het enige duurzame
+  spoor — de nakomelingen zelf (`sireId`/`damId` + `birthWeek` binnen het venster, omgerekend
+  van gameweken naar echte tijd). `lastBredAt` wordt daaruit teruggerekend, en elk koppel
+  waarvan de ouders nu rusten wordt ontbonden mét een melding die zegt **waarom** en
+  **binnen hoeveel dagen** ze weer mogen (`ntf:admin:breedreset:<pairId>`). Jongen die
+  verkocht/gestorven/vrijgelaten zijn laten geen spoor na, dus dit **onder**telt: zo'n
+  koppel blijft staan. Dat is de goede kant om op te falen.
+- **Aankondiging aan iedereen:** belmelding `ntf:news:breeding:<userId>` per echte speler
+  (prijs, rust, en dat het blijven-staan een fout was) + eerste-login-`BREEDING_NEWS_STEPS`
+  (sleutel `roekoe.newsSeen.breeding.<id>`, actieve set in `Layout.tsx`).
+- **UI:** `pigeonDTO.breedAvailableAt`; `BreedingPage` filtert rustende duiven uit beide
+  keuzelijsten en zet eronder één regel ("🪺 2 duiven rusten uit … eerstvolgende nog 15
+  dagen") — anders verdwijnt een duif zwijgend uit de lijst. Wiki `#broeden` + spelregels
+  **§7** / nieuwe **§7.2** / §17.
+- **Nieuwe blijvende test `breeding-cooldown.test.mts`** (30 controles), met het
+  gelijktijdigheidsgeval als kernblok. **Draai hem na élke wijziging aan
+  `tickBreedingHatch`, `breeding.ts` of de breeding_pairs-diff in `core/d1.ts`.**
+- **Lokaal end-to-end geverifieerd** tegen `wrangler pages dev`: de API weigert een rustende
+  duif met de juiste tekst, een vrij koppel lukt, €750 gaat er effectief af, `data_version`
+  staat op 44 en elke echte speler heeft de aankondiging. Alle 25 regressietests + beide
+  typechecks + build groen.
 
 **Live kaart: blauw-op-blauw weg, en een vangnet tegen het verdwijnen (nieuwste)**
 - **Twee meldingen van de eigenaar:** de blauwe bolletjes van "de rest" waren onleesbaar op de

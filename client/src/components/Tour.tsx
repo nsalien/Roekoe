@@ -666,6 +666,47 @@ export const PRIZE_NEWS_STEPS: Step[] = [
   },
 ];
 
+/**
+ * Breeding gets a rest between clutches, a dearer fee, and the pairing now really
+ * does end at the hatch (it used to be able to linger — a bug). Three short steps;
+ * the mechanics live in the wiki.
+ */
+export const BREEDING_NEWS_STEPS: Step[] = [
+  {
+    route: '/kweek', selector: '[data-tour="breed"]',
+    title: '🪺 Een koppel gaat uiteen na het nest',
+    body: (
+      <>
+        Zodra de jongen er zijn, is het koppel voorbij — dat hoorde altijd al zo te zijn, maar bleef soms staan
+        en bleef dan doorbroeden. Dat is nu gerepareerd.
+      </>
+    ),
+  },
+  {
+    route: '/kweek', selector: '[data-tour="breed"]',
+    title: '😴 Daarna 3 weken rust',
+    body: (
+      <>
+        Beide ouders rusten <strong>21 dagen</strong> voor ze opnieuw kunnen koppelen — ongeveer{' '}
+        <strong>vier nesten per duivenjaar</strong>, net als in het echt. Je ziet per duif wanneer ze weer mag.
+      </>
+    ),
+  },
+  {
+    route: '/kweek', selector: '[data-tour="breed"]',
+    title: '💶 En koppelen kost €750',
+    body: (
+      <>
+        Was €200. Een koppel dat nu al loopt betaalt <strong>niets bij</strong> — dat was al afgerekend.
+        <br />
+        <span className="faint" style={{ display: 'inline-block', marginTop: 4 }}>
+          Meer: 📖 Wiki → Kweken &amp; broeden.
+        </span>
+      </>
+    ),
+  },
+];
+
 export const AGE_CUP_NEWS_STEPS: Step[] = [
   {
     route: '/',

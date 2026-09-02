@@ -50,6 +50,7 @@ import { voidBetsForWithdrawnPigeon } from './betting.js';
 import { birdStillOut, flightClaimingDay, flightDay, pigeonAirborne, pigeonCommittedToFlight } from './flight.js';
 import {
   ageInWeeks,
+  breedingCooldownDaysLeft,
   canRace,
   experienceGain,
   generatePigeon,
@@ -958,6 +959,14 @@ export function startBreeding(
     if (sire.inInfirmary || dam.inInfirmary) return 'Een duif in de ziekenboeg kan niet koppelen';
     if (onRestCure(sire) || onRestCure(dam)) return 'Een duif op rustkuur kan niet koppelen';
     if (isAway(sire) || isAway(dam)) return 'Een duif die nog niet thuis is van haar vlucht kan niet koppelen';
+    // Rest between clutches, per bird (BREEDING.cooldownDays). Named so the
+    // player knows WHICH of the two is not ready and for how long.
+    for (const parent of [sire, dam]) {
+      const days = breedingCooldownDaysLeft(parent);
+      if (days > 0) {
+        return `${parent.name} moet nog uitrusten van het vorige nest — over ${days} ${days === 1 ? 'dag' : 'dagen'} kan het weer`;
+      }
+    }
     const alreadyBreeding = db.breedingPairs.some(
       (bp) => bp.sireId === sireId || bp.damId === sireId || bp.sireId === damId || bp.damId === damId,
     );

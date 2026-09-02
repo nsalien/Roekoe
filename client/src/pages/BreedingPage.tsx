@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../api/client';
 import { useGame } from '../game/GameContext';
-import { Money, Spinner, useToast } from '../components/ui';
+import { Money, Spinner, timeUntil, useToast } from '../components/ui';
 import { PigeonAvatar } from '../components/PigeonAvatar';
 import { NestChoice } from '../components/NestChoice';
 import type { BreedingView } from '../types';
@@ -30,8 +30,16 @@ export function BreedingPage() {
   const freeSpace = view?.freeSpace ?? 0;
   const BREED_COST = state.economy.breedCost;
   const eligible = (p: (typeof state.pigeons)[number]) => !p.ailment && !p.inInfirmary && !p.breeding && !p.racing && !p.onCure;
-  const doffers = state.pigeons.filter((p) => p.sex === 'doffer' && eligible(p));
-  const duivinnen = state.pigeons.filter((p) => p.sex === 'duivin' && eligible(p));
+  /** Resting between clutches — she is eligible in every other way, so she needs
+   *  her own line below rather than silently vanishing from the list. */
+  const resting = (p: (typeof state.pigeons)[number]) =>
+    !!p.breedAvailableAt && Date.parse(p.breedAvailableAt) > Date.now();
+  const doffers = state.pigeons.filter((p) => p.sex === 'doffer' && eligible(p) && !resting(p));
+  const duivinnen = state.pigeons.filter((p) => p.sex === 'duivin' && eligible(p) && !resting(p));
+  const restingBirds = state.pigeons.filter((p) => eligible(p) && resting(p));
+  const nextFree = restingBirds
+    .map((p) => p.breedAvailableAt!)
+    .sort((a, b) => Date.parse(a) - Date.parse(b))[0];
   const sire = doffers.find((p) => p.id === sireId);
   const dam = duivinnen.find((p) => p.id === damId);
 
@@ -93,6 +101,15 @@ export function BreedingPage() {
           <p className="faint" style={{ margin: '0 0 12px', fontSize: '0.82rem' }}>
             <Link to="/wiki#broeden">Meer over kweken &amp; overerving →</Link>
           </p>
+
+          {/* A bird resting between clutches is eligible in every other way, so
+              without this line she would just quietly be missing from the list. */}
+          {restingBirds.length > 0 && (
+            <p className="muted" style={{ margin: '0 0 12px', fontSize: '0.85rem' }}>
+              🪺 {restingBirds.length} {restingBirds.length === 1 ? 'duif rust' : 'duiven rusten'} uit van een vorig
+              nest{nextFree ? ` (eerstvolgende ${timeUntil(nextFree)})` : ''}.
+            </p>
+          )}
 
           <div className="field">
             <label>Vader (doffer)</label>

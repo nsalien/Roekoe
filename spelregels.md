@@ -1337,12 +1337,15 @@ begeeft — zie §3.2). Bij overlijden krijgt de eigenaar een melding.
 ## 7. Kweken (broeden)
 
 **Voorwaarden:** een doffer + een duivin, beide met energie ≥ **20**, geen
-ziekte/kwetsuur, niet in de ziekenboeg, en **niet ingeschreven voor een vlucht**.
-Kost **€200** en **−15 energie** per ouder.
+ziekte/kwetsuur, niet in de ziekenboeg, **niet ingeschreven voor een vlucht**, en
+geen van beide mag nog **uitrusten van een vorig nest** (§7.2).
+Kost **€750** en **−15 energie** per ouder. Dat bedrag gaat er **meteen** af bij
+het koppelen, niet bij het uitkomen.
 
 Een duif die aan het **broeden** is, **kan niet deelnemen aan vluchten**. Wil je
 haar terug laten vliegen, dan **stop je het koppel** (knop bij *Kweek*) — het
-koppel vervalt zonder jongen en de duiven zijn weer vluchtklaar.
+koppel vervalt zonder jongen en de duiven zijn weer vluchtklaar. Je krijgt het
+inschrijfgeld dan **niet** terug.
 
 **Kans op jongen** (bij het uitkomen):
 ```
@@ -1406,6 +1409,35 @@ koppelt, kan niet weg.
 > Jongen in het nest zitten nog niet in je hok: ze **eten niet**, kosten geen
 > onderhoud en kunnen niet ziek worden. Hun **geboortedatum ligt wel vast** vanaf
 > het uitkomen — wacht je weken, dan komen ze navenant ouder binnen.
+
+### 7.2 Na het nest: het koppel gaat uiteen en de ouders rusten
+
+**Een koppel is voor één nest.** Zodra de jongen er zijn, is het koppel voorbij:
+de twee duiven staan weer los in je hok en kunnen meteen weer vliegen, trainen
+en verkocht worden. Ook een **mislukte worp** beëindigt het koppel — je €750 en
+de energie zijn dan gewoon weg.
+
+**Daarna rusten beide ouders 21 dagen** (3 weken) voor ze opnieuw kunnen
+koppelen. Dat komt neer op ongeveer **vier nesten per duivenjaar**, net als bij
+echte duiven — duiven verouderen hier 4× zo snel als de klok (§6), dus drie echte
+weken zijn zowat drie duivenmaanden.
+
+- De rust hangt **aan de duif, niet aan het koppel**. Je kan haar dus ook niet
+  omzeilen door haar met een andere partner te koppelen.
+- Ze telt vanaf het moment dat de jongen **uitkwamen**.
+- Een **mislukte worp legt géén rust op**: er zijn geen jongen geweest, en je
+  hebt het inschrijfgeld en de energie al betaald. Je mag meteen opnieuw
+  proberen.
+- Bij *Kweek* verdwijnen rustende duiven uit de keuzelijsten, met eronder een
+  regeltje hoeveel er uitrusten en wanneer de eerste weer mag. Op de duifpagina
+  staat het per duif.
+- **Computermelkers volgen dezelfde regel** (§17).
+
+> **Strategie.** Met een rust van drie weken per duif is kweken geen kraan meer
+> die je kan openzetten: wil je meerdere nesten tegelijk, dan heb je meerdere
+> koppels nodig — en dus een breder hok. Kies je fokkoppels dus met zorg, want
+> een misgelopen worp kost je niet alleen €750 maar ook je beurt.
+
 
 ---
 
@@ -2032,6 +2064,10 @@ er nog bij naarmate hun duiven uitrusten.
 **Eén vlucht per duif per dag geldt ook voor hen** (§3.9). Een bot die zijn duif 's
 ochtends op het criterium zet, heeft haar 's middags niet meer beschikbaar — dus ook
 bij hen roteert het hok over de dagen heen, net als bij jou.
+
+**En de rust tussen twee nesten geldt ook voor hen** (§7.2). Een bot betaalt
+dezelfde €750 en zijn ouders rusten dezelfde drie weken uit, dus hij kan zijn hok
+niet sneller aanvullen dan jij.
 
 **Ze kiezen hun duiven met verstand.** Een bot zet een duif enkel in als ze de
 route ook echt aankan (genoeg energie voor de afstand) en niet als haar

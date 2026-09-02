@@ -116,6 +116,8 @@ export interface Pigeon {
   awayUntil: string | null;
   /** When this bird may take its next rest cure (one per bird per week), or null. */
   restCureAvailableAt: string | null;
+  /** When this bird may raise another clutch (rest between nests), or null if now. */
+  breedAvailableAt: string | null;
   trainAvailableAt: { speed: string | null; endurance: string | null; orientation: string | null };
   racing: boolean;
   breeding: boolean;

@@ -44,7 +44,7 @@ import { expectedFlightEnergyCost, pigeonCommittedToFlight } from './flight.js';
 import { purgePigeon, settlePigeonSale } from './engine.js';
 import { valuePigeon } from './market.js';
 import { makeOffer } from './offers.js';
-import { ageInWeeks, canRace, experienceGain, isAway, noteAttrChange, onRestCure, talent, trainCeil, trainingCost } from './pigeon.js';
+import { ageInWeeks, breedingCooldownUntil, canRace, experienceGain, isAway, noteAttrChange, onRestCure, talent, trainCeil, trainingCost } from './pigeon.js';
 import { clamp, round1 } from './util.js';
 
 /** What a bot may spend right now without dipping under its cash floor. */
@@ -185,6 +185,8 @@ function canBreed(db: Database, p: Pigeon, nowMs: number): boolean {
     !isAway(p) &&
     p.form >= BREEDING.minParentForm &&
     p.libido >= BOT.breedMinLibido &&
+    !breedingCooldownUntil(p, nowMs) && // same rest between clutches as a player
+
     !db.breedingPairs.some((bp) => bp.sireId === p.id || bp.damId === p.id) &&
     !pigeonCommittedToFlight(db, p.id, nowMs)
   );

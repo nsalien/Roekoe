@@ -99,7 +99,7 @@ import {
 } from './flight.js';
 import type { WeatherResult } from './weather.js';
 import { generatePigeonName, isLegacyName, isWrongGenderName, nameKey, namesInUse } from './names.js';
-import { canRace, conditionScore, generatePigeon, isAway, noteAttrChange, rollBreed, rollGenes, talent } from './pigeon.js';
+import { breedingCooldownDaysLeft, breedingCooldownUntil, canRace, conditionScore, generatePigeon, isAway, noteAttrChange, rollBreed, rollGenes, talent } from './pigeon.js';
 import { NPC_OWNER_ID, ownerName } from './engine.js';
 import { pickRelayRoute, relayEntryTeams, relayLegKm, relayTeamComplete } from './relay.js';
 import { bell, clamp, hashString, haversineKm, pick, randFloat, round1, seededRng } from './util.js';
@@ -1987,6 +1987,105 @@ function runDataMigrations(db: Database): void {
     announcePrizeRules(db, 'ntf:news:prizerules');
     db.world.dataVersion = 43;
   }
+
+  if ((db.world.dataVersion ?? 0) < 44) {
+    applyBreedingCooldown(db);
+    announceBreedingRules(db, 'ntf:news:breeding');
+    db.world.dataVersion = 44;
+  }
+}
+
+/**
+ * Bring existing pairs under the new rest between clutches (BREEDING.cooldownDays).
+ *
+ * ⚠️ There is no history to read: `lastBredAt` ships empty, so "has this pair bred
+ * recently?" has to be RECONSTRUCTED. The only durable trace of a clutch is the
+ * offspring itself — `Pigeon.sireId`/`damId` plus `birthWeek` — so that is what we
+ * go on. Young that were sold, released or died leave no trace, which means this
+ * UNDER-counts: a pair whose only youngster is gone keeps its pairing. That errs
+ * on the side of not taking something away, which is the right way round.
+ *
+ * `birthWeek` is in game weeks and those run GAME_WEEKS_PER_REAL_WEEK faster than
+ * the clock, so the window is converted rather than compared to real days.
+ */
+function applyBreedingCooldown(db: Database): void {
+  const nowMs = Date.now();
+  const windowGameWeeks = (BREEDING.cooldownDays / 7) * GAME_WEEKS_PER_REAL_WEEK;
+  const cutoff = db.world.currentWeek - windowGameWeeks;
+
+  /** Most recent birthWeek among this pair's own offspring, if any survives. */
+  const lastClutchWeek = (sireId: string, damId: string): number | null => {
+    let latest: number | null = null;
+    for (const p of db.pigeons) {
+      if (p.sireId !== sireId || p.damId !== damId) continue;
+      if (latest === null || p.birthWeek > latest) latest = p.birthWeek;
+    }
+    return latest;
+  };
+
+  // 1. Backfill `lastBredAt` on every bird we can prove bred recently, so the
+  //    cooldown starts from the real hatch instead of from the deploy.
+  for (const p of db.pigeons) {
+    if (!p.sireId || !p.damId) continue;
+    if (p.birthWeek <= cutoff) continue;
+    const weeksAgo = Math.max(0, db.world.currentWeek - p.birthWeek);
+    const bredAtMs = nowMs - (weeksAgo / GAME_WEEKS_PER_REAL_WEEK) * 7 * 86400000;
+    for (const parent of [p.sireId, p.damId]) {
+      const bird = db.pigeons.find((x) => x.id === parent);
+      if (!bird) continue;
+      const known = bird.lastBredAt ? Date.parse(bird.lastBredAt) : NaN;
+      if (Number.isNaN(known) || bredAtMs > known) bird.lastBredAt = new Date(bredAtMs).toISOString();
+    }
+  }
+
+  // 2. Dissolve any pairing whose parents are now resting, and say why. These are
+  //    the couples that kept on breeding through the resurrection bug.
+  const dissolved: string[] = [];
+  for (const bp of db.breedingPairs) {
+    const sire = db.pigeons.find((p) => p.id === bp.sireId);
+    const dam = db.pigeons.find((p) => p.id === bp.damId);
+    if (!sire || !dam) continue;
+    if (lastClutchWeek(bp.sireId, bp.damId) === null) continue; // never hatched — let it run
+    const days = Math.max(breedingCooldownDaysLeft(sire, nowMs), breedingCooldownDaysLeft(dam, nowMs));
+    if (days <= 0) continue;
+    dissolved.push(bp.id);
+    const loft = db.lofts.find((l) => l.userId === bp.ownerId);
+    if (!loft || loft.isBot) continue;
+    pushNotification(
+      db, loft.userId, 'info',
+      '🪺 Koppel ontbonden — je duiven rusten uit',
+      `${sire.name} en ${dam.name} hadden al een nest en stonden nog als koppel. Dat hoorde niet: een koppel ` +
+        `gaat uiteen zodra de jongen er zijn.\n\nZe kunnen over ${days} ${days === 1 ? 'dag' : 'dagen'} ` +
+        `opnieuw koppelen. Je betaalt niets — het inschrijfgeld van dit koppel was al afgerekend.`,
+      null,
+      `ntf:admin:breedreset:${bp.id}`,
+    );
+  }
+  if (dissolved.length > 0) {
+    const gone = new Set(dissolved);
+    db.breedingPairs = db.breedingPairs.filter((bp) => !gone.has(bp.id));
+  }
+}
+
+/** Tell every real player about the new breeding rules (rest, price, pairing). */
+function announceBreedingRules(db: Database, idPrefix: string): void {
+  const weeks = Math.round(BREEDING.cooldownDays / 7);
+  for (const loft of db.lofts) {
+    if (loft.isBot) continue;
+    pushNotification(
+      db, loft.userId, 'info',
+      '🪺 Kweken verandert: rust tussen twee nesten',
+      `Een koppel gaat voortaan uiteen zodra de jongen er zijn, en beide ouders rusten dan ` +
+        `${BREEDING.cooldownDays} dagen (${weeks} weken) voor ze opnieuw kunnen koppelen — ongeveer vier ` +
+        `nesten per duivenjaar, zoals in het echt.\n\n` +
+        `Bleef bij jou een koppel na de geboorte gewoon staan? Dat was een fout, en ze is nu weg.\n\n` +
+        `Koppelen kost daarbij €${BREEDING.cost} in plaats van €200. Een koppel dat nu al loopt betaalt ` +
+        `niets bij: dat inschrijfgeld was al afgerekend aan de oude prijs.\n\n` +
+        `Meer uitleg staat in de wiki onder "Kweken & broeden".`,
+      null,
+      `${idPrefix}:${loft.userId}`,
+    );
+  }
 }
 
 /**
@@ -2426,6 +2525,15 @@ export function tickBreedingHatch(db: Database, nowMs: number): void {
       hatched.add(bp.id); // a parent was sold or died — the pairing lapses
       continue;
     }
+    // A pair whose parents are still resting between clutches must not hatch.
+    // In normal play `startBreeding` already refuses to make one, so this only
+    // fires for a pair that should no longer exist — a stale row, or one an
+    // overlapping request wrote back. Dissolving it here makes that self-healing
+    // instead of leaving a couple that quietly breeds forever.
+    if (breedingCooldownUntil(sire, nowMs) || breedingCooldownUntil(dam, nowMs)) {
+      hatched.add(bp.id);
+      continue;
+    }
     const dtHours = (nowMs - checkedAt) / 3600000;
     if (dtHours <= 0) continue;
     // Only check every so often. Restamping `hatchAt` on every request made each
@@ -2449,7 +2557,16 @@ export function tickBreedingHatch(db: Database, nowMs: number): void {
     }
 
     hatched.add(bp.id);
-    const young = breed(sire, dam, bp.ownerId, db.world.currentWeek, namesInUse(db.pigeons));
+    const young = breed(sire, dam, bp.ownerId, db.world.currentWeek, namesInUse(db.pigeons), bp.id);
+    if (young.length > 0) {
+      // The rest is per BIRD and starts at the hatch, so it survives the pair
+      // being dissolved and follows her if she is sold. Deliberately NOT set on
+      // an empty clutch: the fee and the energie are already gone, and locking
+      // the parents out for three weeks on top would punish a dice roll.
+      const stamp = new Date(nowMs).toISOString();
+      sire.lastBredAt = stamp;
+      dam.lastBredAt = stamp;
+    }
     const loft = db.lofts.find((l) => l.userId === bp.ownerId);
     const owned = db.pigeons.filter((p) => p.ownerId === bp.ownerId).length;
     const space = (loft?.capacity ?? 0) - owned;

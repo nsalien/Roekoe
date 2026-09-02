@@ -172,6 +172,7 @@ function rowToPigeon(r: any): Pigeon {
     minBid: r.min_bid ?? null,
     lastRaceAt: r.last_race_at ?? null,
     lastRestCureAt: r.last_rest_cure_at ?? null,
+    lastBredAt: r.last_bred_at ?? null,
     awayUntil: r.away_until ?? null,
     lastRaceWasPractice: !!r.last_race_practice,
     seasonPeakSpeed: r.season_peak_speed ?? 0,
@@ -357,7 +358,7 @@ const PIGEON_COLUMNS = [
   'compartment', 'hunger_days', 'rest_days', 'cure_until', 'season_peak_speed', 'season_podiums',
   'season_start_score', 'season_practice_gain', 'trained_at', 'genes', 'decline_rate',
   'care_assigned', 'last_race_at', 'last_race_practice', 'last_rest_cure_at', 'away_until',
-  'cup', 'titles', 'listed_at', 'min_bid',
+  'cup', 'titles', 'listed_at', 'min_bid', 'last_bred_at',
 ];
 
 /**
@@ -395,6 +396,7 @@ function pigeonRow(p: Pigeon): unknown[] {
     p.titles && p.titles.length ? JSON.stringify(p.titles) : null,
     p.listedAt ?? null,
     p.minBid ?? null,
+    p.lastBredAt ?? null,
   ];
 }
 
@@ -424,6 +426,29 @@ function loftRow(l: Loft): unknown[] {
     l.newcomer ? JSON.stringify(l.newcomer) : '',
     l.seasonWins ?? 0,
   ];
+}
+
+const BREEDING_PAIR_COLUMNS = [
+  'id', 'owner_id', 'sire_id', 'dam_id', 'hatch_week', 'hatch_at', 'created_at_week',
+];
+
+/**
+ * ⚠️ This mapper exists so `persist` can write a breeding pair with a narrow
+ * `UPDATE` instead of `INSERT OR REPLACE`, and that is a correctness fix, not a
+ * query-budget one.
+ *
+ * `tickBreedingHatch` restamps `hatch_at` on every check that does not hatch,
+ * and it DELETES the row on the check that does. With an upsert, two overlapping
+ * requests — the tick runs over EVERY pair on EVERY request, from any player —
+ * could interleave as: request A hatches and deletes the row, request B (which
+ * loaded before A wrote) merely restamps and upserts the very same row back.
+ * The clutch was born, the pair came back, and it kept on hatching. That is
+ * exactly the "koppel blijft doorbroeden" a player reported.
+ *
+ * A narrow UPDATE on a row that is gone is simply a no-op, so the delete wins.
+ */
+function breedingPairRow(bp: BreedingPair): unknown[] {
+  return [bp.id, bp.ownerId, bp.sireId, bp.damId, 0, bp.hatchAt, bp.createdAtWeek];
 }
 
 /** How `D1Store.load` should size the pigeon read — see the file header. */
@@ -616,6 +641,7 @@ export class D1Store implements Store {
     const rowSnapshots: Record<string, Map<string, unknown[]>> = {
       pigeons: rowSnapshot(dbObj.pigeons, (p) => p.id, pigeonRow),
       lofts: rowSnapshot(dbObj.lofts, (l) => l.userId, loftRow),
+      breedingPairs: rowSnapshot(dbObj.breedingPairs, (bp) => bp.id, breedingPairRow),
     };
 
     return new D1Store(db, dbObj, snapshots, rowSnapshots, worldExisted, JSON.stringify(dbObj.world), viewerId, narrowed);
@@ -680,9 +706,12 @@ export class D1Store implements Store {
     diff(this.snapshots.breedingPairs, w.breedingPairs, (bp) => bp.id, {
       db,
       table: 'breeding_pairs',
-      columns: ['id', 'owner_id', 'sire_id', 'dam_id', 'hatch_week', 'hatch_at', 'created_at_week'],
+      columns: BREEDING_PAIR_COLUMNS,
       keyColumn: 'id',
-      row: (bp) => [bp.id, bp.ownerId, bp.sireId, bp.damId, 0, bp.hatchAt, bp.createdAtWeek],
+      row: breedingPairRow,
+      // Not for the query budget — see `breedingPairRow`. Without this a
+      // concurrent request resurrects a pair that just hatched.
+      previousRows: this.rowSnapshots.breedingPairs,
       stmts,
     });
 
@@ -1105,6 +1134,9 @@ const SCHEMA_STEPS: string[] = [
   // buy it (see BOT.marketMinListedHours).
   'ALTER TABLE pigeons ADD COLUMN listed_at TEXT',
   'ALTER TABLE pigeons ADD COLUMN min_bid REAL',
+
+  // When this bird's last clutch hatched — drives BREEDING.cooldownDays.
+  'ALTER TABLE pigeons ADD COLUMN last_bred_at TEXT',
 ];
 
 /**

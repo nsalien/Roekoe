@@ -886,11 +886,26 @@ export function WikiPage() {
 
       <Section id="broeden" icon="🥚" title="Kweken & broeden">
         <p className="muted" style={{ marginTop: 0 }}>
-          Koppelen kost <strong>€200</strong> en <strong>−15 energie per ouder</strong>. Beide ouders hebben minstens
-          <strong> 20 energie</strong> nodig, mogen niet ziek of gekwetst zijn, niet in de ziekenboeg zitten en niet
-          ingeschreven staan voor een vlucht. Een broedende duif <strong>kan niet vliegen</strong> — stop het koppel
-          als je haar terug wil inzetten (het vervalt dan zonder jongen).
+          Koppelen kost <strong>€750</strong> en <strong>−15 energie per ouder</strong>, meteen afgerekend bij het
+          koppelen. Beide ouders hebben minstens <strong>20 energie</strong> nodig, mogen niet ziek of gekwetst zijn,
+          niet in de ziekenboeg zitten, niet ingeschreven staan voor een vlucht en niet nog <strong>uitrusten van een
+          vorig nest</strong> (zie hieronder). Een broedende duif <strong>kan niet vliegen</strong> — stop het koppel
+          als je haar terug wil inzetten (het vervalt dan zonder jongen, en zonder terugbetaling).
         </p>
+        <p style={{ marginTop: 12 }}>
+          <strong>Een koppel is voor één nest.</strong> Zodra de jongen er zijn, gaat het koppel uiteen en staan beide
+          duiven weer los in je hok. Daarna <strong>rusten ze allebei 21 dagen</strong> voor ze opnieuw kunnen
+          koppelen — ongeveer <strong>vier nesten per duivenjaar</strong>, net als bij echte duiven.
+        </p>
+        <ul>
+          <li>De rust hangt aan de <strong>duif</strong>, niet aan het koppel: een andere partner kiezen omzeilt ze niet.</li>
+          <li>Ze telt vanaf het moment dat de jongen <strong>uitkwamen</strong>.</li>
+          <li>
+            Een <strong>mislukte worp legt geen rust op</strong> — er zijn geen jongen geweest, en je hebt de €750 en
+            de energie al betaald. Je mag meteen opnieuw proberen.
+          </li>
+          <li>Rustende duiven staan niet in de keuzelijst bij <em>Kweek</em>; op de duifpagina zie je wanneer ze weer mag.</li>
+        </ul>
         <p><strong>Wat een jong erft:</strong> elke vaardigheid is het <strong>gemiddelde van beide ouders ± een
           mutatie</strong> (tot ±8), begrensd op haar eigen gen-cap. Ook de <a href="#genen">genen</a> zelf — de
           plafonds én het verouderingstempo — erven zo over. Twee ouders van hetzelfde <a href="#rassen">ras</a> geven

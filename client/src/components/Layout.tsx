@@ -7,7 +7,7 @@ import { useGame } from '../game/GameContext';
 import { api } from '../api/client';
 import { useToast } from './ui';
 import { NotificationsBell } from './NotificationsBell';
-import { Tour, PRIZE_NEWS_STEPS } from './Tour';
+import { Tour, BREEDING_NEWS_STEPS } from './Tour';
 import { PrizeCeremony } from './PrizeCeremony';
 
 interface NavItem { to: string; label: string; short: string; icon: string; end?: boolean }
@@ -67,7 +67,7 @@ export function Layout() {
   // `agecup2`, not `agecup`: the first run was too wordy to read (and its card
   // could not be scrolled to the buttons), so the shortened version has to reach
   // the players who already clicked the old one away.
-  const newsKey = user?.id ? `roekoe.newsSeen.prizerules.${user.id}` : null;
+  const newsKey = user?.id ? `roekoe.newsSeen.breeding.${user.id}` : null;
   const [showNews, setShowNews] = useState(false);
 
   function closeTour() {
@@ -207,7 +207,7 @@ export function Layout() {
       {showCeremony && !showTour && ceremony && (
         <PrizeCeremony season={ceremony.season} awards={ceremony.awards} onClose={closeCeremony} />
       )}
-      {showNews && !showTour && !showCeremony && <Tour steps={PRIZE_NEWS_STEPS} onClose={closeNews} />}
+      {showNews && !showTour && !showCeremony && <Tour steps={BREEDING_NEWS_STEPS} onClose={closeNews} />}
       {state?.pendingEvent && !showTour && !showNews && !showCeremony && <EventModal />}
     </div>
   );

@@ -747,7 +747,7 @@ export const ENERGIE_IMPACT: {
 
 /** Breeding settings. */
 export const BREEDING = {
-  cost: 200,
+  cost: 750,
   weeksToHatch: 2, // legacy
   // Hatching is unpredictable: each moment there is a random chance, tuned so
   // that on average a maximally fertile pair (high libido + energie) hatches in
@@ -770,6 +770,17 @@ export const BREEDING = {
   /** Parents must have at least this much energie to breed. Higher energie (and
    *  libido) still make a hatch come faster — this is only the floor. */
   minParentForm: 20,
+  /**
+   * Rest between clutches, per BIRD, in REAL days. A wild pigeon raises roughly
+   * four broods a year; pigeons age 4x real time here (GAME_WEEKS_PER_REAL_WEEK),
+   * so one duivenjaar is ~13 real weeks and a quarter of that is ~3 real weeks.
+   *
+   * Counted from the moment a clutch HATCHES, and only when young were actually
+   * produced — a pair that comes up empty already paid the fee and the energie,
+   * so locking the parents out for three weeks on top of that would punish a
+   * dice roll rather than a decision.
+   */
+  cooldownDays: 21,
 } as const;
 
 /**

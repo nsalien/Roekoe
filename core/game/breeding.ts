@@ -54,6 +54,14 @@ export function breed(
   hatchWeek: number,
   /** Names already in the world, so a youngster never duplicates one (names.namesInUse). */
   taken?: Set<string>,
+  /**
+   * The pair this clutch came from. When given, the young get ids derived from it
+   * instead of random ones, so two overlapping requests that both resolve the
+   * same hatch write the SAME rows (`INSERT OR REPLACE`) rather than two clutches
+   * from one pairing — the stable-id rule this codebase already applies to every
+   * append that can happen inside `advanceRealtime`.
+   */
+  pairId?: string,
 ): Pigeon[] {
   const avgLibido = (sire.libido + dam.libido) / 2;
   // Low energie (form) makes a pair less likely to produce young.
@@ -87,7 +95,7 @@ export function breed(
     const libido = inherit(sire.libido, dam.libido, 100); // libido isn't gene-capped
     const sex: 'doffer' | 'duivin' = Math.random() < 0.5 ? 'doffer' : 'duivin';
     young.push({
-      id: newId('pig'),
+      id: pairId ? `pig_brood_${pairId}_${i}` : newId('pig'),
       ownerId,
       name: (() => {
         const n = generatePigeonName(sex, { speed, endurance, orientation }, taken);

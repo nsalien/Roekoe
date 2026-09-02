@@ -121,6 +121,13 @@ export interface Pigeon {
    *  only one a week — the cooldown is per pigeon, not per loft. */
   lastRestCureAt?: string | null;
   /**
+   * ISO time this bird's last clutch HATCHED, driving `BREEDING.cooldownDays`.
+   * Set on both parents by `tickBreedingHatch`, and only when young were actually
+   * produced. Lives on the bird rather than on the pair so it survives the pair
+   * being dissolved (which is the whole point) and travels with her when sold.
+   */
+  lastBredAt?: string | null;
+  /**
    * VERLOREN: she lost her way completely on a flight and is not home yet. Set at
    * finalize, cleared by tickStrayReturn when she finally turns up (a few days
    * later, on an empty tank). While this is in the future she is not in the loft:

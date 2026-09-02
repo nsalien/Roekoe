@@ -2,6 +2,7 @@
 
 import {
   AGE_CURVE,
+  BREEDING,
   BREED_RARITY,
   DEFAULT_BREED_ID,
   EXPERIENCE,
@@ -218,6 +219,26 @@ export function canRace(pigeon: Pigeon, currentWeek: number): boolean {
 /** Whether a paid rest cure is still running (bird rests, can do nothing). */
 export function onRestCure(pigeon: Pigeon, nowMs: number = Date.now()): boolean {
   return !!pigeon.cureUntil && Date.parse(pigeon.cureUntil) > nowMs;
+}
+
+/**
+ * When this bird may raise another clutch, or `null` if she is free right now.
+ * Counted from her last HATCH (`lastBredAt`), per bird — pairing her with a
+ * different partner does not reset it, because the rest is hers, not the pair's.
+ *
+ * A bird that has never bred (or bred before this shipped) returns null.
+ */
+export function breedingCooldownUntil(pigeon: Pigeon, nowMs: number = Date.now()): number | null {
+  const last = pigeon.lastBredAt ? Date.parse(pigeon.lastBredAt) : NaN;
+  if (Number.isNaN(last)) return null;
+  const until = last + BREEDING.cooldownDays * 86400000;
+  return until > nowMs ? until : null;
+}
+
+/** Whole days (rounded up) until this bird may breed again; 0 when she is free. */
+export function breedingCooldownDaysLeft(pigeon: Pigeon, nowMs: number = Date.now()): number {
+  const until = breedingCooldownUntil(pigeon, nowMs);
+  return until ? Math.ceil((until - nowMs) / 86400000) : 0;
 }
 
 /**
