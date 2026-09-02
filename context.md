@@ -15,10 +15,10 @@
 
 | Rol | Branch | Doel |
 |-----|--------|------|
-| **Dev** | `claude/hallo-qz9tmx` | Alle ontwikkeling/commits komen hier **eerst**. |
+| **Dev** | `claude/hallo-ca55co` | Alle ontwikkeling/commits komen hier **eerst**. |
 | **Prod** | `claude/roekoe-game-website-jwa0vo` | Elke commit wordt hierheen **gecherry-pickt**; deze branch triggert de **Cloudflare Pages**-deploy naar productie. |
 
-> Vorige dev-branches (niet meer gebruiken): `claude/hallo-fsp9nx`, `claude/hallo-mzjn0e`, `claude/hallo-su75jy`, `claude/hallo-rkr49f`, `claude/hallo-pvwabx`,
+> Vorige dev-branches (niet meer gebruiken): `claude/hallo-qz9tmx`, `claude/hallo-fsp9nx`, `claude/hallo-mzjn0e`, `claude/hallo-su75jy`, `claude/hallo-rkr49f`, `claude/hallo-pvwabx`,
 > `claude/context-spelregels-q2ywtx`, `claude/hallo-49m6hj`, `claude/hallo-xifh0c`,
 > `claude/hallo-w97s85`, `claude/hallo-hrtwtv`. Ontwikkelt een sessie op een nieuwe
 > `claude/…`-branch, gebruik die dan als dev-branch en **werk deze tabel meteen bij** —
@@ -832,7 +832,9 @@ Entiteiten: `Pigeon`, `Loft`, `User`, `BreedingPair`, `PendingBrood`, `Flight` (
 - `LoftPage` (Mijn hok) — duivenlijst met per duif: voerkeuze-select, apart/samen-knop
   (of "🏥 Ziekenboeg"-label als ze daar zit), verkoop, uitbreidingen. De statbalken
   tonen een **▲/▼ per dag** (groei/daling door je huidige keuze; via `pigeon.dailyCare`).
-- `PigeonPage` — één duif: stats, afstamming, historiek; training; coach; voerkeuze;
+- `PigeonPage` — één duif: stats, afstamming (kaart **Afstamming**: vader + moeder, met
+  daaronder de knop **"Toon volledige stamboom"** → `components/Pedigree.tsx`, het
+  genealogiediagram in kolommen; zie §8), historiek; training; coach; voerkeuze;
   **rustkuur** (POST `/pigeons/:id/restcure`); hernoemen; **"Afscheid nemen"**
   (POST `/pigeons/:id/release` = vrijlaten, geen geld; POST `/pigeons/:id/restaurant`
   = verkoop aan het duivenrestaurant voor €50 + moraal-energieklap op de rest van het
@@ -1036,6 +1038,54 @@ verzoek uit per statement.
 Alles hieronder staat **live** op de deploy-branch. Data-migraties liepen door tot
 **`dataVersion = 45`**.
 
+**De stamboom is een echt genealogiediagram geworden (nieuwste)**
+- **Vraag van de eigenaar:** de uitklapbare stamboom was "niet zoals ik het wil". Hij wil
+  één knop **"Toon volledige stamboom"**, dáár waar vader en moeder al staan, die een
+  **visueel** stamboomdiagram opent i.p.v. de ingesprongen lijstjes van de vorige versie.
+- **Wat het nu is:** generaties als **kolommen van links naar rechts** — Duif · Ouders ·
+  Grootouders · Overgrootouders — met echte haakverbindingen ertussen. Per vakje: portret,
+  naam, ★talent en het hok waar ze zit; **doffers krijgen een blauwe linkerrand, duivinnen
+  een roze** (met een legende eronder). Een overleden voorouder staat grijs met een †, een
+  levende is klikbaar naar `/duif/:id`.
+- **Alleen client.** `GET /pigeons/:id` droeg `pedigree` (3 generaties) al mee uit de al
+  geladen wereld — **geen extra query, geen schemakolom, geen migratie**, `dataVersion`
+  blijft **45**. `core/game/pedigree.ts` is niet aangeraakt.
+- **De verbindingslijnen zijn PURE CSS** (`.ped-*` in `global.css`), geen gemeten
+  SVG-overlay. Dat werkt op één geometrische eigenschap: elke cel in een kolom is een
+  **even hoge** flex-child, dus het midden van een ouder ligt exact waar de twee
+  halve bussen van haar kinderen samenkomen. Elke cel is één horizontale stomp + een
+  halve verticale bus (`::before`/`::after`), plus een uitgaande stomp op de ouder
+  (`.ped-node.kids::after`).
+- ⚠️ **Daarom wordt ELKE plek getekend, ook een onbekende voorouder** (als een vage
+  streepje-doos). Een slot overslaan verschuift de cellen en buigt alle lijnen krom. Een
+  lege plek krijgt wél géén haak — de andere helft van het paar bereikt de ouder nog
+  steeds, dus het wordt netjes een L in plaats van een T.
+- ⚠️ **Twee bugs die de screenshots blootlegden, allebei dezelfde klasse.** `flex: 1 1 0`
+  **plus** een expliciete `min-height` **vervangt** het inhoud-gebaseerde minimum van een
+  flex-item, dus een cel die korter is dan haar vakje laat dat vakje overlopen — de
+  vakjes botsten dan zichtbaar op elkaar:
+  1. Bij **twee kolommen** (een duif waarvan alle grootouders weg zijn) is er geen diepe
+     kolom die de hoogte opdrijft, en botsten vader en moeder.
+  2. Bij **vier kolommen** botsten de overgrootouders: hun vakje is ~60 px (2 regels naam
+     + de ★-regel) tegen een cel van 46 px.
+  Opgelost met een minimum **per generatie** (`g0/g1/g2` 80 px, `g3` 64 px). **Verhoog je
+  de `-webkit-line-clamp` van een naam, dan moeten die twee getallen mee.**
+- **Breedte:** het diagram is ~670 px en dus breder dan een gsm. Het scrollt in zijn eigen
+  `.ped-scroll`; de **pagina** zelf mag nooit meeschuiven (§Card-breedte — daar is het al
+  drie keer misgegaan). Onder 760 px staat er één regeltje "← Sleep opzij voor de oudere
+  generaties →", want een diagram dat zwijgend bij *Ouders* ophoudt leest als ontbrekende
+  data, niet als iets wat je kan slepen.
+- **Geverifieerd met een wegwerp-harness** (Playwright + de **échte** gebouwde CSS, de
+  exacte DOM die `Pedigree.tsx` uitspuwt) over **drie boomvormen** (2, 3 en 4 kolommen) ×
+  **beide thema's** × **390 px en 1100 px** — 12 combinaties, allemaal: horizontale
+  paginaoverflow **0 px**, alle cellen binnen een kolom **exact even hoog**, elke
+  ouderstomp landt op **0,00 px** van de bus van haar kinderen, en **0 px** overloop van
+  een vakje buiten zijn cel. `pedigree.test.mts` (39 controles) + beide typechecks +
+  build groen.
+- ⚠️ **Om te onthouden bij een volgende wijziging aan dit diagram:** meet de drie
+  boomvormen, niet alleen de volle. De volle boom verbergt het probleem, want daar zet de
+  8-cellige diepste kolom de hoogte voor iedereen.
+
 **Stamboom, inteelt, kweekleeftijd en veel meer namen (nieuwste)**
 - **Vier vragen van de eigenaar in één ronde.** Kweken kan pas vanaf 8 weken; er is een
   uitklapbare stamboom op de duifpagina; kweken met familie waarschuwt en straft; en de
@@ -1074,7 +1124,8 @@ Alles hieronder staat **live** op de deploy-branch. Data-migraties liepen door t
   **tekening i.p.v. haar rasfoto** (geen enkele stockfoto heeft drie vleugels); haar ras
   blijft als badge staan.
 - **UI:** nieuw `components/Pedigree.tsx` (uitklapbaar, per vakje naam · geslacht · ★talent ·
-  leeft/overleden · hok, klikbaar naar `/duif/:id`); waarschuwkaart + `window.confirm` +
+  leeft/overleden · hok, klikbaar naar `/duif/:id`) — **die ingesprongen lijstvorm is
+  intussen vervangen door het genealogiediagram bovenaan §8**; waarschuwkaart + `window.confirm` +
   knop "Toch koppelen" op `BreedingPage`; quirk-badge op `PigeonPage`.
 - **`GET /breeding` levert `related`** — enkel de verwante doffer×duivin-combinaties van het
   eigen hok (in een gezond hok een handvol of geen). Berekend op de server omdat de client

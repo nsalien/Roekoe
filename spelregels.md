@@ -1451,10 +1451,16 @@ de ouders ± mutatie. Koppel dus je best gegende duiven om een sterke lijn te bo
 
 ### 7.3 Stamboom & inteelt
 
-Op de pagina van elke duif kan je haar **stamboom** uitklappen: ouders,
-grootouders en overgrootouders. Per voorouder zie je of ze **nog leeft** en, zo
-ja, in **welk hok** ze zit — ook als dat het hok van een andere speler is. Klik
-erop om naar haar pagina te gaan.
+Op de pagina van elke duif staan bovenaan haar **vader en moeder**. Daaronder
+staat de knop **"Toon volledige stamboom"**, en die klapt een echt
+**stamboomdiagram** open: van links naar rechts de duif zelf, haar ouders, haar
+grootouders en haar overgrootouders, met de verbindingslijnen ertussen. Doffers
+krijgen een blauwe rand, duivinnen een roze. Per voorouder zie je haar **algemene
+score (★)**, of ze **nog leeft** en, zo ja, in **welk hok** ze zit — ook als dat
+het hok van een andere speler is. Klik erop om naar haar pagina te gaan.
+
+Op een smal scherm is het diagram breder dan je toestel: **sleep het opzij** om
+de oudere generaties te zien.
 
 Een tak stopt bij een duif die er niet meer is. Dat is geen fout: met haar
 verdwijnt ook wie háár ouders waren. Haar **naam** blijft wel bewaard, dus je
