@@ -14,6 +14,7 @@
  *
  * Run: npx tsx family-chart.test.mts
  */
+import { readFileSync } from 'node:fs';
 import { buildLayout, centre, type Layout } from './client/src/components/Pedigree.js';
 import type { AncestorNode, FamilyMember, FamilyTree } from './client/src/types.js';
 
@@ -164,6 +165,34 @@ console.log('\nOneven aantal broers/zussen tegenover partners blijft gecentreerd
     const self = c.cells.findIndex((x) => x.self);
     ok(self === (c.cells.length - 1) / 2, `${nSib} broers/zussen + ${nMate} partners → duif blijft in het midden`);
   }
+}
+
+// === De avatar mag zichzelf niet wegcijferen ================================
+/*
+ * ⚠️ Een echte, lang onopgemerkte bug: `PigeonAvatar` zette `padding: '10%'` op
+ * het ronde kader. Procentuele padding rekent tegen de breedte van het
+ * CONTAINING BLOCK, niet tegen het kader zelf — dus naast een rij van 340 px
+ * werd dat 34 px padding op een avatar van 44 px. De inhoudsdoos klapte samen
+ * tot nul en de foto werd op 0×0 gelegd. De afbeelding LAADDE gewoon, dus er
+ * kwam geen enkele fout: enkel een leeg rondje.
+ *
+ * Gemeten in de browser, vóór → na:
+ *   44px → 0 (onzichtbaar) → 32   ·   54px → 0 → 40   ·   64px → 0 → 48
+ *   112px → 42 (halve grootte) → 86  ·  120px → 50 → 92
+ *
+ * Dit raakte élke avatar onder ~100 px in het hele spel, niet enkel de
+ * stamboom. Een browsertest hoort hier niet thuis, maar de regel wel: de
+ * padding moet uit de `size`-prop komen, nooit uit een percentage.
+ */
+console.log('\nDe avatar rekent zijn padding in pixels, niet in procenten');
+{
+  const src = readFileSync('./client/src/components/PigeonAvatar.tsx', 'utf8');
+  const pad = src.match(/padding:\s*([^,\n]+)/g) ?? [];
+  ok(pad.length > 0, `er staat padding op het kader (${pad.length}×)`);
+  ok(!pad.some((l) => l.includes('%')),
+    `geen enkele padding in procenten (${pad.join(' | ')})`);
+  ok(pad.some((l) => l.includes('size')),
+    'de padding wordt uit de size-prop berekend');
 }
 
 console.log(fail === 0 ? `\n✅ ${pass} geslaagd, 0 gefaald\n` : `\n❌ ${pass} geslaagd, ${fail} gefaald\n`);

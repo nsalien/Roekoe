@@ -118,7 +118,16 @@ export function PigeonAvatar({
           // A little inner padding so the WHOLE bird (tail + feet) stays inside
           // the frame — the photos are near full-bleed squares, so a plain
           // circular crop would clip the extremities.
-          padding: showcase ? '3%' : '10%',
+          //
+          // ⚠️ In PIXELS, computed from `size` — never a percentage. Percentage
+          // padding resolves against the CONTAINING BLOCK's width, not this box's
+          // own, so `10%` next to a 340 px-wide row meant 34 px of padding on a
+          // 44 px avatar: the content box collapsed to zero and the photo laid
+          // out at 0×0. The image loaded fine, so nothing errored and nothing
+          // showed — just an empty ring. It only stayed invisible on the SMALL
+          // avatars (44/54/64), which is why the 120 px header photo looked fine
+          // and the parent boxes on the pigeon page did not.
+          padding: Math.round(size * (showcase ? 0.03 : 0.1)),
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
