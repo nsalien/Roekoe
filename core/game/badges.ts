@@ -253,8 +253,35 @@ function isDarkName(name: string): boolean {
 }
 
 /** Update stats + award badges after a flight is finalized. */
-export function awardFlightBadges(db: Database, flight: Flight): void {
+/**
+ * Medals, race counts and the win badges after a flight.
+ *
+ * A PODIUM IS A PODIUM, whatever the format: medals (gold/silver/bronze, which
+ * feed the `podium_*` badges and the trophy tiles) are booked for every
+ * competitive flight — the titanenwedstrijd, the estafette and the
+ * leeftijdscriterium included. Only oefenvluchten never get here.
+ *
+ * ⚠️ `opts.tierWins` is the exception, and it is not optional bookkeeping. The
+ * `regionalWins`/`nationalWins`/`intlWins` counters mean "won a REGIONAL /
+ * NATIONAL / INTERNATIONAL race" and feed the `reg_win_*`/`nat_win_*`/
+ * `intl_win_*` badges. A titan, an estafette and a criterium are none of those —
+ * and all three carry `type: 'international'` internally, so counting them would
+ * silently inflate the international badges and put a claim on the profile that
+ * never happened. The caller passes `tierWins: false` for those formats.
+ */
+export function awardFlightBadges(
+  db: Database,
+  flight: Flight,
+  opts: { tierWins?: boolean } = {},
+): void {
+  const tierWins = opts.tierWins !== false;
   for (const r of flight.results) {
+    // ⚠️ An estafette writes a row per BIRD, and a bird whose team was knocked out
+    // before her leg never left the handover — she gets `finished: false` and no
+    // race counted. (This undercounts by one: the bird the team actually failed on
+    // did fly part of her leg but is also marked unfinished. Not crediting a race
+    // that may not have happened is the safe way to be wrong here.)
+    if (flight.relay && r.finished === false) continue;
     const p = db.pigeons.find((x) => x.id === r.pigeonId);
     if (p) p.races += 1;
   }
@@ -262,7 +289,11 @@ export function awardFlightBadges(db: Database, flight: Flight): void {
   for (const ownerId of owners) {
     const loft = db.lofts.find((l) => l.userId === ownerId);
     if (!loft) continue;
-    const mine = flight.results.filter((r) => r.ownerId === ownerId && r.finished !== false);
+    let mine = flight.results.filter((r) => r.ownerId === ownerId && r.finished !== false);
+    // ⚠️ In an estafette every bird of a team carries the TEAM's rank, so a winning
+    // team of three would otherwise book three gold medals for one victory. A loft
+    // fields exactly one team, so its rows collapse to a single placing.
+    if (flight.relay) mine = mine.slice(0, 1);
     for (const r of mine) {
       if (r.rank === 1) loft.stats.gold += 1;
       else if (r.rank === 2) loft.stats.silver += 1;
@@ -270,9 +301,11 @@ export function awardFlightBadges(db: Database, flight: Flight): void {
     }
     const winner = mine.find((r) => r.rank === 1);
     if (winner) {
-      if (flight.type === 'regional') loft.stats.regionalWins += 1;
-      else if (flight.type === 'national') loft.stats.nationalWins += 1;
-      else loft.stats.intlWins += 1;
+      if (tierWins) {
+        if (flight.type === 'regional') loft.stats.regionalWins += 1;
+        else if (flight.type === 'national') loft.stats.nationalWins += 1;
+        else loft.stats.intlWins += 1;
+      }
 
       if (flight.weatherFactor < 0.92) awardBadge(db, loft, 'storm_win');
       const p = db.pigeons.find((x) => x.id === winner.pigeonId);
@@ -283,8 +316,12 @@ export function awardFlightBadges(db: Database, flight: Flight): void {
         if (p.everAiled) awardBadge(db, loft, 'comeback');
         if (isDarkName(p.name)) awardBadge(db, loft, 'galgenhumor');
       }
-      const top3 = flight.results.filter((r) => r.rank <= 3);
-      if (top3.length >= 3 && top3.every((r) => r.ownerId === ownerId)) awardBadge(db, loft, 'full_podium');
+      // Not for an estafette: there each team owns three rows, so "the whole
+      // podium is mine" cannot be read off the rank column the same way.
+      if (!flight.relay) {
+        const top3 = flight.results.filter((r) => r.rank <= 3);
+        if (top3.length >= 3 && top3.every((r) => r.ownerId === ownerId)) awardBadge(db, loft, 'full_podium');
+      }
     }
     evaluateBadges(db, loft);
   }

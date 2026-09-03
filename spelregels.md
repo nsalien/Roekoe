@@ -356,9 +356,11 @@ aankomt, zie je gewoon op de vluchtkalender.
 Bij de **Titanenwedstrijd**:
 - **Elke duivenmelker mag maar één duif inschrijven.**
 - **Middellange tot lange** afstand (~200–600 km).
-- Er is **inschrijfgeld** (€50) en er valt **enkel geld** te winnen: **geen
-  seizoenspunten** en **geen medailles**, dus het telt **niet mee voor de
-  melkerranglijst (de Roekoe, §15.2)**. Prijzengeld: **1e €1800, 2e €1200, 3e €900**.
+- Er is **inschrijfgeld** (€50) en er valt **geld** te winnen: **geen
+  seizoenspunten**, dus het telt **niet mee voor de melkerranglijst (de Roekoe,
+  §15.2)**. Prijzengeld: **1e €1800, 2e €1200, 3e €900**.
+- **Een podium telt wél mee voor je medailles en je prestaties** (§15.5) — goud,
+  zilver en brons worden hier net zo geboekt als op een gewone wedstrijd.
 - **Voor de duivenranglijsten (de Vleugel, §15.3) telt de titanenwedstrijd wél mee.**
   De snelheid, podiumplaatsen en vooruitgang van je duif in deze wedstrijd tellen dus
   gewoon mee voor de drie ranglijsten van individuele duiven — het is alleen de
@@ -413,9 +415,9 @@ niets uit.
 | 5e | €800 |
 
 - Vanaf de **6e plaats** is er geen prijzengeld meer.
-- Net als de titan: **enkel geld**. Geen seizoenspunten, geen medailles, dus het
-  telt **niet mee voor de melkerranglijst** (§15.2). Er kan ook **niet op gewed**
-  worden.
+- Net als de titan: geen seizoenspunten, dus het telt **niet mee voor de
+  melkerranglijst** (§15.2). Er kan ook **niet op gewed** worden. Een podiumplaats
+  levert je wél een **medaille** op (§15.5) — één per ploeg, niet één per duif.
 - **Voor de duivenranglijsten (§15.3) telt ze wél mee**: elke duif krijgt haar
   eigen gemiddelde over haar etappe. Duiven die door de uitschakeling nooit
   gevlogen hebben, tellen nergens mee.
@@ -484,10 +486,14 @@ staan — die blijft bij haar, ook als je haar later verkoopt. Je ziet ze op haa
 duifpagina.
 
 **Wat het níet doet.** Het criterium is een **aparte rangschikking**: **geen
-seizoenspunten**, geen medailles en geen overwinningen voor je hok, geen
-sponsorpremie (§12) en je kan er **niet op wedden**. De **melkerranglijst (de
-Roekoe, §15.2) beweegt er dus niet door.** Voor de gewone **duivenranglijsten**
-(§15.3) telt de vlucht wél mee, net als de titanenwedstrijd.
+seizoenspunten** en geen overwinningen voor je hok, geen sponsorpremie (§12) en je
+kan er **niet op wedden**. De **melkerranglijst (de Roekoe, §15.2) beweegt er dus
+niet door.** Voor de gewone **duivenranglijsten** (§15.3) telt de vlucht wél mee,
+net als de titanenwedstrijd.
+
+**Wat het wél doet: medailles.** Een podiumplaats op een criteriumvlucht levert
+gewoon goud, zilver of brons op, met de bijhorende prestaties (§15.5) — een
+podium is een podium, op welke wedstrijd dan ook.
 
 **Je duif wordt ouder — en klimt mee.** Duiven verouderen **4× sneller** dan de
 echte klok (§6), dus over een volledige cyclus van drie seizoenen wordt een duif
@@ -2082,6 +2088,35 @@ prijsuitreiking komt ook binnen als **melding**.
 
 Win je iets, dan krijg je bij je eerstvolgende bezoek een **prijsuitreiking op je
 scherm**: elke prijs apart, met de beker en het prijzengeld erbij.
+
+### 15.5 Medailles: een podium is een podium
+
+Elke **top-3-plaats** levert je een medaille op — **goud** voor een zege, **zilver**
+voor de tweede, **brons** voor de derde plaats. Ze worden levenslang bijgehouden bij
+**Prestaties** en voeden de podiumbadges (*Op het schavot*, *Podiumbeest*,
+*Podiumvaste waarde*).
+
+**Dat geldt op élke wedstrijd**, ook op de formats die geen seizoenspunten geven:
+
+| Wedstrijd | Medaille bij een podium? | Seizoenspunten? |
+|---|---|---|
+| Regionaal / nationaal / internationaal | ✅ | ✅ |
+| Titanenwedstrijd (§2.8) | ✅ | ❌ |
+| Estafettevlucht (§2.9) | ✅ (één per ploeg) | ❌ |
+| Leeftijdscriterium (§2.10) | ✅ | ❌ |
+| Oefenvlucht (§2.7) | ❌ | ❌ |
+
+- Zet je meerdere duiven in en pakken ze 1-2-3, dan krijg je **alle drie** de
+  medailles. Bij een **estafette** telt je ploeg als één deelnemer, dus een
+  ploegzege is **één** gouden medaille en niet drie.
+- Een duif die **niet finisht** (opgegeven, uitgevallen of de weg kwijt) levert
+  nooit een medaille op.
+- **Let op het verschil met "overwinningen".** De badges *Regiowinnaar*,
+  *Nationale zege* en *Internationale zege* tellen alleen zeges op de drie
+  competitieniveaus. Een titan, een estafette of een criterium is geen regionale,
+  nationale of internationale vlucht, dus die tellen daar níet mee — je medaille
+  krijg je wel. Hetzelfde geldt voor de kolom **Winst** op de ranglijst en voor de
+  drempels van je sponsors (§12).
 
 ---
 

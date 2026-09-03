@@ -1048,7 +1048,50 @@ verzoek uit per statement.
 Alles hieronder staat **live** op de deploy-branch. Data-migraties liepen door tot
 **`dataVersion = 45`**.
 
-**Oriëntatie woog veel te zwaar op de fond — het plafond wás de uitkomst (nieuwste)**
+**Een podium telt nu op élke wedstrijd mee voor je medailles (nieuwste)**
+- **Vraag van de eigenaar:** "krijg je bij het behalen van een podiumplaats ook de badge
+  op de criteriumvluchten? Zo niet, dit moet op alle wedstrijden gelden." Antwoord was
+  **nee**: `tickFlights` sloeg `awardFlightBadges` **volledig** over voor titan, estafette
+  én criterium (`if (flight.titan || flight.relay || flight.ageCat) continue;` stond vóór
+  de aanroep), dus daar werden geen medailles geboekt — en de `podium_*`-badges lezen
+  `stats.gold + silver + bronze`.
+- **Fix:** `awardFlightBadges(db, flight, { tierWins })` wordt nu **vóór** de `continue`
+  aangeroepen, voor élke niet-oefenvlucht. Medailles, de vluchtteller op de duif en de
+  situationele winbadges (storm_win, wonderkind, oude_meester, comeback, galgenhumor)
+  gelden dus overal.
+- ⚠️ **Behalve de TIER-tellers, en dat is de kern van de nieuwe parameter.**
+  `regionalWins`/`nationalWins`/`intlWins` betekenen "won een regionale/nationale/
+  internationale vlucht" en voeden de `reg_win_*`/`nat_win_*`/`intl_win_*`-badges. Titan,
+  estafette én criterium dragen **intern `type: 'international'`** (de valstrik die elders
+  in dit bestand al staat), dus zonder `tierWins: false` zou een titanzege stilletijk als
+  **internationale zege** op het profiel komen. De sponsordrempels lezen `loft.totalWins`
+  (niet deze tellers), dus de sponsoreconomie blijft onaangeroerd.
+- ⚠️ **Estafette-valstrik, gevonden bij het bouwen:** `finalizeRelayFlight` schrijft **één
+  resultaatrij per DUIF met de rang van de PLOEG**. Zonder ingreep boekte een ploegzege van
+  drie duiven dus **drie gouden medailles**. Een hok zet exact één ploeg in, dus de rijen
+  worden per eigenaar tot **één plaatsing** samengevouwen. Ook `full_podium` (het hele
+  podium is van jou) is voor een estafette uitgeschakeld — dat is daar niet uit de
+  rangkolom af te lezen.
+- ⚠️ **Vluchtteller bij een estafette:** een duif wier ploeg vóór haar etappe uitviel is
+  **nooit gelost** en krijgt `finished: false`; die telt geen vlucht. Bekende onder­telling
+  van één: de duif waaróp de ploeg strandde vloog wél een stuk maar staat ook op
+  `finished: false`. Een vlucht níet crediteren die misschien niet plaatsvond is hier de
+  veilige kant om fout te zitten.
+- **Bewust ongemoeid:** seizoenspunten, `totalWins`/`seasonWins`, weddenschappen, dag­
+  opdrachten en sponsorpremies blijven uit voor de drie speciale formats — dat was nooit
+  de vraag en het raakt de Roekoe en de sponsoreconomie.
+- **Nieuwe blijvende test `podium-badges.test.mts`** (25 controles): medailles + podiumbadge
+  op gewone vlucht/titan/criterium, de tier-teller die bij de drie niveaus blijft (met de
+  titan-als-international-valstrik expliciet), de estafetteploeg die precies één medaille
+  boekt, de niet-geloste ploegduif die geen vlucht telt, en een DNF die geen medaille geeft.
+- **Geen migratie, geen schemawijziging**, `dataVersion` blijft **45**. Bestaande medaille­
+  tellingen blijven staan; er wordt niets met terugwerkende kracht bijgeteld voor titans,
+  estafettes en criteriums die al gevlogen zijn.
+- Spelregels: nieuwe **§15.5 (Medailles: een podium is een podium)** met de tabel per
+  wedstrijdsoort, plus **§2.8**, **§2.9** en **§2.10** rechtgezet — die beloofden alle drie
+  expliciet "geen medailles".
+
+**Oriëntatie woog veel te zwaar op de fond — het plafond wás de uitkomst**
 - **Melding van de eigenaar:** duif met snelheid 83 / conditie 83 / **oriëntatie 60** had
   op een vlucht van 733 km al ~120 km omgevlogen en zat pas halverwege, terwijl een duif
   met 74/84/**74** al binnen was. "Er is maar 14 oriëntatie verschil, dat is niet zóveel."
