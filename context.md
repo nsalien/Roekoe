@@ -1045,6 +1045,40 @@ verzoek uit per statement.
 Alles hieronder staat **live** op de deploy-branch. Data-migraties liepen door tot
 **`dataVersion = 45`**.
 
+**De lege duivenrondjes: `padding: 10%` legde élke kleine avatar op 0×0 (nieuwste)**
+- **Melding van de eigenaar:** de twee ouder-rondjes op de duifpagina bleven leeg, ook na de
+  vorige ronde. ⚠️ **Mijn eerste diagnose was fout** — ik dacht aan een mislukte fotolading
+  en bouwde daar een `onError`-vangnet voor. Dat kon per definitie niet werken: de foto
+  **laadde perfect**.
+- **De echte oorzaak, gemeten in de browser:** `img.naturalWidth = 300`, `complete = true`,
+  maar `getBoundingClientRect()` gaf **0×0**. `PigeonAvatar` zette **`padding: '10%'`** op het
+  ronde kader, en **procentuele padding rekent tegen de breedte van het CONTAINING BLOCK**,
+  niet tegen de doos zelf. Naast een rij van ~340 px werd dat **34 px padding op een avatar
+  van 44 px** → inhoudsdoos negatief → nul. Geen fout, geen 404, gewoon een leeg rondje.
+- ⚠️ **Dit raakte élke avatar onder ~100 px in het HELE spel**, niet enkel de stamboom — en de
+  grote stonden op halve grootte. Gemeten, vóór → na:
+
+  | Maat | Vóór | Na |
+  |---|---|---|
+  | 44 px (ouderdozen, hoklijst) | **0 — onzichtbaar** | 32 |
+  | 54 px | **0 — onzichtbaar** | 40 |
+  | 64 px | **0 — onzichtbaar** | 48 |
+  | 112 px | 42 (halve grootte) | 86 |
+  | 120 px (kop duifpagina) | 50 (halve grootte) | 92 |
+
+  Dát verklaart waarom de foto op de **kop** van de duifpagina wél verscheen en in de
+  ouderdozen niet, en waarom het diagram (dat een eigen `<img>` met **pixel**breedte had)
+  altijd goed stond.
+- **Fix:** `padding: Math.round(size * (showcase ? 0.03 : 0.1))` — in pixels, uit de
+  `size`-prop. **Nooit een percentage op een doos die zichzelf moet opmeten.**
+- **Het `onError`-vangnet blijft staan**, maar met een eerlijk etiket: het was niet de
+  oorzaak. Een échte 404 hoort de getekende duif te tonen i.p.v. een leeg kader, dus het is
+  op zichzelf juist gedrag.
+- **Nieuwe controle in `family-chart.test.mts`** (→ 42): de padding van de avatar mag **geen
+  procent** bevatten en moet uit `size` komen. Een browsertest hoort daar niet thuis, de
+  regel wel. Geverifieerd door de oude regel terug te zetten: 2 controles worden rood.
+- **Alleen client**, geen migratie, `dataVersion` blijft **45**.
+
 **Elke duif in de stamboom toont haar eigen, juiste foto (nieuwste)**
 - **Melding van de eigenaar:** in de stamboom stond niet altijd de juiste foto, en op de
   duifpagina bleven de twee ouder-rondjes **leeg**.
