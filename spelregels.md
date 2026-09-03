@@ -217,8 +217,15 @@ etappes met hun wisselpunten, en vliegt elke duif op haar eigen etappe.
 **Live-bord.** Tijdens de vlucht zie je per duif de afgelegde afstand en haar
 **snelheid in km/u**. Dat is de **echte, effectieve snelheid** — berekend uit haar
 eigenschappen, vorm-van-de-dag en het weer op het stuk dat ze op dat moment vliegt,
-geen opsmuk. Om het rustig leesbaar te houden **verspringt het cijfer om de ~5
-minuten** in plaats van elke seconde te flikkeren.
+geen opsmuk. Het **loopt vloeiend mee**: bij elke verversing van het bord (om het
+minuutje) staat er een actueel cijfer, dat geleidelijk op- en afloopt naarmate je
+duif versnelt, wegzakt of een omweg vliegt.
+
+> Vroeger sprong dat cijfer maar tien keer per vlucht — één keer per stuk waarin
+> de route intern verdeeld is. Op een fondvlucht stond het daardoor tot een uur
+> lang stil terwijl de afgelegde afstand ernaast elke minuut opschoof, wat las
+> als een defect. De onderliggende race is niet veranderd: enkel de **weergave**
+> loopt nu netjes tussen die stukken door.
 
 **📻 Live verslag.** Het verslag naast het bord meldt **enkel wat er echt gebeurt**,
 kort en zakelijk — geen sfeerzinnen, geen herhaling van wat het bord al toont. Je
