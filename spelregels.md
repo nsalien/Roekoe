@@ -1315,16 +1315,21 @@ gerolde gameweek** (met de rauwe weekkans hieronder, dus de curve blijft kloppen
 hoe snel duiven ook verouderen); de sterftekans van een onbehandelde aandoening
 draait **elke dag** (weekkans → dagkans via `1 − (1 − p)^(1/7)`).
 ```
-leeftijd (interp, per week): 4j 0.001 · 6j 0.006 · 8j 0.025 · 10j 0.07 · 12j 0.16 · 15j 0.40
+leeftijd (interp, per week): tot 4j 0 · 6j 0.006 · 8j 0.025 · 10j 0.07 · 12j 0.16 · 15j 0.40
 onbehandelde aandoening (per week):
     buiten de boeg: matig +0.03 · ernstig +0.10
     in de boeg:     matig +0.005 · ernstig +0.025
 ```
-Ouderdom weegt pas echt door vanaf ~4 jaar en loopt daarna op; jonge duiven
-sterven zo goed als nooit vanzelf. Met de 4× versnelde veroudering bereikt een
-duif van ~2,5 jaar de gevaarlijke leeftijd (~4 jaar) na zo'n **4–5 echte maanden**.
-Ook **vluchten** kunnen dodelijk zijn (een uitgeputte duif die het onderweg
-begeeft — zie §3.2). Bij overlijden krijgt de eigenaar een melding.
+**Vóór haar vierde verjaardag sterft een duif nooit van ouderdom** — die kans is
+daar exact **nul**, niet "klein". Vier jaar is dezelfde grens waarop haar
+vaardigheden beginnen te zakken (zie hierboven): ouderdom begint op één moment.
+Daarna loopt de kans op, en met de 4× versnelde veroudering bereikt een duif van
+~2,5 jaar die grens na zo'n **4–5 echte maanden**.
+
+Een jonge duif kan dus wél sterven — door een **onbehandelde** ziekte of
+kwetsuur, door **honger** (§4.0), of doordat ze **uitgeput aan een vlucht begint**
+(§3.2) — maar nooit "op hoge leeftijd". Bij elk overlijden krijgt de eigenaar
+een melding die de **reden** noemt.
 
 > **Voorbeeld.** Een gezonde duif van **8 jaar** heeft ~**2.5% kans/week** om te
 > sterven; op **12 jaar** al ~**16%**. Een duif met een **onbehandelde ernstige**

@@ -1924,7 +1924,15 @@ export const ILLNESS = {
 /** Weekly death probability by age in weeks (interpolated). Old birds fade. */
 export const MORTALITY_CURVE: { weeks: number; p: number }[] = [
   { weeks: 0, p: 0 },
-  { weeks: 208, p: 0.001 }, // ~4 years
+  // ⚠️ EXPLICIET nul tot het einde van de piek (208 wk = `AGING.peakEndWeeks`,
+  // dezelfde grens waarop de vaardigheden beginnen te zakken). Zonder dit anker
+  // interpoleerde de curve lineair vanaf de GEBOORTE naar de eerste waarde, en
+  // droeg een duif dus vanaf dag één een "hoge leeftijd"-risico mee. Gemeten op
+  // de oude curve: 2,5 % van de duiven stierf van ouderdom vóór haar 2e, en
+  // 9,8 % vóór haar 4e verjaardag — terwijl de spelregels beloven dat jonge
+  // duiven zo goed als nooit vanzelf sterven. Een gemelde bug: een duif van 2
+  // jaar die "op hoge leeftijd vredig insliep".
+  { weeks: 208, p: 0 }, // ~4 jaar — piek voorbij; pas hier begint ouderdom te tellen
   { weeks: 312, p: 0.006 }, // ~6 years
   { weeks: 416, p: 0.025 }, // ~8 years
   { weeks: 520, p: 0.07 }, // ~10 years
