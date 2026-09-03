@@ -690,8 +690,9 @@ Entiteiten: `Pigeon`, `Loft`, `User`, `BreedingPair`, `PendingBrood`, `Flight` (
   liggen), `paceNoise 0.05`, `minChance 0.08` (ook in de bunch peelt er al eens één af).
   Toegepast in `buildPaceProfile` via `companyFactor(u)`; het veld zelf komt uit
   `fieldContext` (`flight.ts`), één pas over de deelnemers **bij de lossing**.
-- **Omweg schaalt met de afstand (`LOST`, nieuwste):** `detourFractionShort 0.045` /
-  `detourFractionLong 0.09` en plafond `maxDetourFractionShort 0.07` /
+- **Omweg schaalt met de afstand (`LOST`):** `detourFractionShort 0.055` /
+  `detourFractionLong 0.04` (⚠️ **kort is nu GROTER dan lang** — bewust omgekeerd bij de
+  oriëntatie-herbalans, zie §8) en plafond `maxDetourFractionShort 0.07` /
   `maxDetourFractionLong 0.16`, geblend op `distanceT`. 10 % van 120 km besliste de
   wedstrijd; nu kost een sprint-omweg ~5 km (max 8). ⚠️ `max` (3,6 → **4,4**) en
   `distPerKm` (0,0024 → **0,0034**) zijn verhoogd om te compenseren dat de zwerm
@@ -1047,7 +1048,63 @@ verzoek uit per statement.
 Alles hieronder staat **live** op de deploy-branch. Data-migraties liepen door tot
 **`dataVersion = 45`**.
 
-**Het km/u-cijfer op het live-bord stond stil terwijl de afstand liep (nieuwste)**
+**Oriëntatie woog veel te zwaar op de fond — het plafond wás de uitkomst (nieuwste)**
+- **Melding van de eigenaar:** duif met snelheid 83 / conditie 83 / **oriëntatie 60** had
+  op een vlucht van 733 km al ~120 km omgevlogen en zat pas halverwege, terwijl een duif
+  met 74/84/**74** al binnen was. "Er is maar 14 oriëntatie verschil, dat is niet zóveel."
+- ⚠️ **De oorzaak is VERZADIGING, niet de curve.** `expected = (base + max·room^curve) ·
+  (distBase + km·distPerKm)` gaf bij oriëntatie 60 op 733 km **3,67** verwachte episodes
+  tegen een `maxEpisodes` van **3**: de Poisson-trekking was afgetopt, dus ze trok bijna
+  altijd het maximum. En één fond-episode was ~**73 km**, dus **twee** episodes gingen al
+  over het plafond van 117 km. Gemeten vóór de ingreep: gemiddeld **102 km** omweg, het
+  **plafond geraakt in 72,6 %** van de vluchten, **5,5 %** schoon. Dat is geen kans meer
+  maar een vaste tol — en dáárom voelde 14 punten als een afgrond: duif A zat vastgeklemd
+  op het maximum, duif B (oriëntatie 74, 33 % plafond) zat nog in de variabele zone. Twee
+  duiven aan weerszijden van een verzadigingsgrens zien er extreem verschillend uit terwijl
+  de onderliggende curve vloeiend is.
+- **De ingreep verplaatst het gewicht van de fond naar de middenafstanden i.p.v. de
+  eigenschap te verzwakken.** `distBase` 0,75 → **1,0** en `distPerKm` 0,0034 → **0,002**
+  (de afstandsramp is veel vlakker: ×1,24 op 120 km, ×1,6 op 300, ×2,47 op 733, ×3,0 op
+  1000 — was ×1,16 / ×1,77 / ×3,24 / ×4,15); `detourFractionLong` 0,09 → **0,04** met
+  `maxEpisodes` 3 → **5**; `maxDetourFractionLong` 0,16 → **0,15**;
+  `detourFractionShort` 0,045 → **0,055**.
+- ⚠️ **`detourFractionLong` en `maxEpisodes` horen bij elkaar.** Kleinere episodes én meer
+  toegelaten episodes samen zorgen dat het **aantal** afdwalingen eindelijk een gradiënt
+  wordt (één ~29 km, twee ~58, drie ~87) i.p.v. dat iedereen op het plafond landt. Verhoog
+  de fractie nooit terug zonder `maxEpisodes` mee te verlagen.
+- ⚠️ **`strandedMax` 0,07 → 0,045, en dat was geen cosmetica.** "Helemaal de weg kwijt"
+  wordt **per episode** gerold, dus het cap-verhoging 3 → 5 gaf er stilletjes twee worpen
+  bij: oriëntatie 30 op 1000 km ging van 4,8 % naar **7,4 %** — de zwaarste uitkomst van
+  de hele eigenschap werd erger terwijl we ze milder aan het maken waren. Na de correctie
+  weer op de oude cijfers (ori 30 → 4,9 %, ori 50 → 1,3 %, niets boven 80).
+- **Gemeten na de ingreep** (dezelfde twee duiven, 733 km, 2.500 vluchten): A gaat van
+  102 → **66 km** gemiddeld, plafond 72,6 % → **23,6 %**, schoon 5,5 % → **10,0 %**;
+  B van 71 → **32 km**. Het plafond zelf 117 → **109 km**. Op 1000 km zakt de omweg van
+  een góéde navigator (85) van ~91 naar ~42 km.
+- **Oriëntatie blijft even veel waard** — dat was de harde voorwaarde: `attribute-balance`
+  geeft **+10 oriëntatie = 2,1pp winkans** (ongewijzigd), tegen snelheid 3,6pp en conditie
+  3,3pp; beide factorgrenzen (1,8 winkans / 2,1 plaats) blijven groen zonder ze aan te raken.
+- ⚠️ **Wat NIET gelukt is, en dat hoort hier eerlijk te staan:** de **verhouding** tussen
+  oriëntatie 60 en 74 is vrijwel dezelfde gebleven (omweg 2,1× vs 2,3× vroeger). Dat komt
+  doordat frequentie met `room^1.5` en omvang met `room` schaalt — die twee samen zijn de
+  eigenschap. Geprobeerd om `curve` te verlagen (1,5 → 1,25 → 1,1): dat maakt de verhouding
+  wél vlakker maar **tilt de absolute straf voor beide duiven op** (A 66 → 84 km), precies
+  wat de eigenaar niet wil, en bij 1,1 sneuvelt de balansbewaker (factor 2,04). Wat is
+  opgelost is de verzadiging; de gradiënt zelf is by design.
+- ⚠️ **Twee assertie's in `flock.test.mts` vervangen, niet verzwakt.** Ze toetsten het
+  *mechanisme* (`detourFractionShort < detourFractionLong`), en die ordening is bewust
+  omgekeerd. De *bedoeling* erachter — "een sprint-omweg kost je plaatsen, niet je dag" —
+  wordt nog steeds bewaakt door de assertie's die er al stonden (< 8 km absoluut, onder het
+  strengere korte plafond) en die groen blijven. In de plaats kwam de invariant die er nu
+  écht toe doet: **twee fond-episodes moeten samen ONDER het plafond passen** (2 × 41 = 82
+  km tegen 150) — precies het gat waardoor dit stilletjes kon ontsporen.
+- **Geen migratie, geen schemawijziging**, `dataVersion` blijft **45**. Alleen configwaarden,
+  dus een vlucht die al **live** is houdt haar bevroren sim en dus het oude gedrag; vanaf de
+  volgende lossing geldt de nieuwe afstelling.
+- Spelregels **§3.5** (drie tabellen + de bovengrens + de "niet thuis"-tabel) en wiki
+  🧭 **Verdwalen** herrekend en herschreven.
+
+**Het km/u-cijfer op het live-bord stond stil terwijl de afstand liep**
 - **Melding van de eigenaar:** de afgelegde afstand ververst regelmatig, de snelheid
   "blijkbaar niet". Klopt, en het pollritme was **niet** de oorzaak — dat is 60 s
   (`useVisiblePoll` in `LiveFlightPage`) en `kmDone` is een continue waarde, dus die

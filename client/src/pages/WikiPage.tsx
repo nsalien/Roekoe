@@ -588,11 +588,12 @@ export function WikiPage() {
         <MiniTable
           head={['Oriëntatie', '150 km', '300 km', '500 km', '700 km', '1000 km']}
           rows={[
-            ['95', '3 %', '7 %', '12 %', '15 %', '21 %'],
-            ['85', '12 %', '28 %', '45 %', '52 %', '63 %'],
-            ['70', '32 %', '62 %', '75 %', '86 %', '94 %'],
-            ['50', '55 %', '84 %', '95 %', '97 %', '99 %'],
-            ['30', '68 %', '91 %', '96 %', '97 %', '97 %'],
+            ['95', '5 %', '8 %', '11 %', '13 %', '18 %'],
+            ['85', '19 %', '29 %', '37 %', '44 %', '52 %'],
+            ['70', '46 %', '63 %', '72 %', '80 %', '86 %'],
+            ['60', '60 %', '77 %', '85 %', '91 %', '95 %'],
+            ['50', '76 %', '88 %', '93 %', '97 %', '99 %'],
+            ['30', '89 %', '97 %', '98 %', '99 %', '100 %'],
           ]}
         />
         <p style={{ marginTop: 12 }}>
@@ -602,29 +603,37 @@ export function WikiPage() {
         <MiniTable
           head={['Oriëntatie', 'Vlucht zonder één omweg (150 km)', '500 km', '1000 km']}
           rows={[
-            ['95', '97 %', '88 %', '79 %'],
-            ['85', '88 %', '55 %', '37 %'],
-            ['70', '68 %', '25 %', '7 %'],
-            ['60', '54 %', '13 %', '4 %'],
-            ['30', '32 %', '4 %', '3 %'],
+            ['95', '94 %', '89 %', '82 %'],
+            ['85', '80 %', '62 %', '48 %'],
+            ['70', '51 %', '28 %', '14 %'],
+            ['60', '40 %', '15 %', '5 %'],
+            ['30', '14 %', '2 %', '0 %'],
           ]}
         />
         <ul style={{ marginTop: 12 }}>
           <li>
             <strong>Slecht weer maakt het erger — maar niet voor iedereen.</strong> Op 700 km
-            gaat een duif met oriëntatie 95 van 15 % naar 26 %, terwijl oriëntatie 70 van
-            86 % naar 97 % springt. Een goede navigator merkt er weinig van.
+            gaat een duif met oriëntatie 95 van 13 % naar 21 %, terwijl oriëntatie 70 van
+            80 % naar 92 % springt. Een goede navigator merkt er weinig van.
           </li>
           <li>
-            <strong>Op een korte vlucht is de omweg kleiner — met opzet.</strong> Een omweg
-            is een hap uit de route, en op een sprint beslist die hap meteen de wedstrijd. Op
-            120 km praat je over zo'n <strong>5 km</strong> (hoogstens 8); op de fond over
-            tientallen kilometers.
+            <strong>De fond is milder geworden.</strong> Oriëntatie woog daar veel te zwaar:
+            een duif met oriëntatie 60 vloog op ~730 km gemiddeld 102 km om en zat in bijna
+            drie op vier vluchten tegen het maximum. Dat was geen risico meer maar een vaste
+            tol. Nu is dat gemiddeld <strong>66 km</strong> en raakt ze het maximum nog in
+            ongeveer één op vier vluchten.
+          </li>
+          <li>
+            <strong>Op een korte vlucht blijft de omweg klein.</strong> Een omweg is een hap
+            uit de route, en op een sprint beslist die hap meteen de wedstrijd. Op 120 km
+            praat je over zo'n <strong>6 km</strong> (hoogstens 8); op de fond over tientallen
+            kilometers. Je raakt op een sprint wél iets vaker van koers dan vroeger: de
+            eigenschap telt nu over de hele kalender mee in plaats van bijna alleen op de fond.
           </li>
           <li>
             <strong>Er is een bovengrens.</strong> Op de fond vliegt een duif nooit meer dan
-            <strong> ~16 % om</strong>, op een korte vlucht nooit meer dan ~7 %. 1000 km wordt
-            in het allerergste geval 1160 km, geen odyssee.
+            <strong> ~15 % om</strong>, op een korte vlucht nooit meer dan ~7 %. 1000 km wordt
+            in het allerergste geval 1150 km, geen odyssee.
           </li>
         </ul>
         <p style={{ marginTop: 12 }}>
@@ -633,12 +642,13 @@ export function WikiPage() {
           omvang varieert sterk — soms een wiebeltje, soms een lus.
         </p>
         <MiniTable
-          head={['Oriëntatie', 'Totale omweg op 300 km', 'Op 1000 km']}
+          head={['Oriëntatie', 'Op 300 km', 'Op 700 km', 'Op 1000 km']}
           rows={[
-            ['95', '~10 km', '~57 km'],
-            ['85', '~15 km', '~91 km'],
-            ['70', '~22 km', '~140 km'],
-            ['30', '~29 km', '~158 km'],
+            ['95', '~9 km', '~17 km', '~26 km'],
+            ['85', '~13 km', '~26 km', '~42 km'],
+            ['70', '~20 km', '~51 km', '~83 km'],
+            ['60', '~23 km', '~71 km', '~114 km'],
+            ['30', '~28 km', '~102 km', '~148 km'],
           ]}
         />
         <p className="faint" style={{ marginTop: 4 }}>
@@ -655,8 +665,8 @@ export function WikiPage() {
           head={['Oriëntatie', 'Niet thuis (300 km)', '1000 km', '1000 km, slecht weer']}
           rows={[
             ['85 of hoger', 'praktisch nul', 'praktisch nul', 'praktisch nul'],
-            ['70', '~0 %', '0,2 %', '0,3 %'],
-            ['50', '0,9 %', '1,1 %', '1,3 %'],
+            ['70', '~0 %', '0,1 %', '0,1 %'],
+            ['50', '0,9 %', '1,3 %', '1,7 %'],
             ['30', '4,6 %', '4,8 %', '6,1 %'],
           ]}
         />

@@ -630,15 +630,30 @@ export const LOST = {
   // place it is still down (−0.33 against −0.57 before), and that is accepted: the
   // flock deliberately takes the attribute out of the sprint. See
   // attribute-balance.test.mts.
+  //
+  // ⚠️ REBALANCED (owner report): the attribute was far too heavy on the fond. At
+  // orientation 60 over 733 km the expectation came out at 3.67 episodes against a
+  // `maxEpisodes` of 3 — the draw was SATURATED, so she drew the maximum almost
+  // every time and the ceiling below became the normal result instead of the rare
+  // worst case. Measured before: 102 km of detour on average, the ceiling hit in
+  // 72.6% of flights and only 5.5% clean. Fourteen points of orientation (60 vs 74)
+  // therefore read as the difference between finishing and being an hour behind.
+  //
+  // The fix moves the attribute's weight OFF the fond and onto the middle
+  // distances rather than weakening it outright: `distBase` up, `distPerKm` down,
+  // so the distance ramp is far flatter (×1.24 at 120 km, ×1.6 at 300, ×2.47 at
+  // 733, ×3.0 at 1000 — it was ×1.16 / ×1.77 / ×3.24 / ×4.15). Measured after:
+  // 66 km on average, the ceiling in 23.5%, and oriëntatie is worth the SAME over
+  // a play week (2.1pp win chance, unchanged) — see attribute-balance.test.mts.
   base: 0.02, // expected strays that remain even at orientation 100
   max: 4.4, // added at orientation 0
   curve: 1.5, // >1 keeps a good navigator safe and makes a poor one genuinely risky
-  distBase: 0.75,
-  distPerKm: 0.0034, // ×1.8 at 300 km, ×3.1 at 700 km, ×4.2 at 1000 km
+  distBase: 1.0,
+  distPerKm: 0.002, // ×1.6 at 300 km, ×2.4 at 700 km, ×3.0 at 1000 km
   weatherK: 2.5, // rough weather (0..0.30) multiplies the chance by up to 1.75
   maxChance: 0.85, // legacy: only used by the pre-episode fallback path
   /** Never more than this many separate off-course episodes in one flight. */
-  maxEpisodes: 3,
+  maxEpisodes: 5,
   // --- How BIG the detour is ------------------------------------------------
   // Size of one detour, in km: a fraction of the route, scaled by how poor the
   // navigator is, then jittered so the same bird sometimes only wobbles and
@@ -648,31 +663,48 @@ export const LOST = {
   // A detour costs a share of the route, and on a sprint that share decides the
   // race outright: 10% of 120 km is 12 km, and a bird 12 km behind on a race that
   // lasts an hour and a half is simply out of it. Losing the line on a regional
-  // flight should cost you places, not the day. On the fond the old value stands:
-  // there is time to claw back, and that is where the attribute must bite.
-  detourFractionShort: 0.045,
-  detourFractionLong: 0.09,
+  // flight should cost you places, not the day.
+  //
+  // ⚠️ The LONG fraction was more than halved (0.09 → 0.04) and `maxEpisodes` went
+  // 3 → 5. That pair is the heart of the rebalance and they only work together:
+  // one episode on the fond used to be ~73 km, so TWO already blew past the 117 km
+  // ceiling and every bird with more than one stray landed on the cap. Smaller
+  // episodes, more of them allowed, means the number of strays finally shows up as
+  // a GRADIENT (one stray ~29 km, two ~58, three ~87) instead of everyone maxing
+  // out. Do not raise the fraction back without lowering maxEpisodes with it.
+  detourFractionShort: 0.055,
+  detourFractionLong: 0.04,
   detourSeverityBase: 0.5,
   detourSeveritySpread: 1.5,
   /** ±45% random spread on each detour, so straying is never a fixed tax. */
   detourJitter: 0.45,
   /**
    * HARD CEILING on the total detour of one flight, as a fraction of the route —
-   * likewise blended by distance. Without it three stacked episodes on a fond
-   * flight sent a poor navigator 30–40% off course — 1000 km became 1300, which
-   * is not a race any more. At 0.16 the worst fond case is 1160 km, and because a
-   * good navigator sits far below the ceiling it costs nothing where the
-   * attribute actually has to do its work. On a sprint the ceiling is tighter for
-   * the same reason the fraction is.
+   * likewise blended by distance. Without it stacked episodes on a fond flight
+   * sent a poor navigator 30–40% off course — 1000 km became 1300, which is not a
+   * race any more. At 0.15 the worst fond case is 1150 km.
+   *
+   * ⚠️ This is meant to be the RARE worst case, not the normal result. It stopped
+   * being that once one episode grew to ~73 km: two of them already exceeded the
+   * cap, so an orientation-60 bird sat on the ceiling in 72.6% of fond flights.
+   * With the smaller episodes above it is back to 23.5%. If you ever raise
+   * `detourFractionLong` again, re-measure this rate — a ceiling that binds most
+   * of the time turns the whole attribute from a risk into a flat tax.
    */
   maxDetourFractionShort: 0.07,
-  maxDetourFractionLong: 0.16,
-  // Losing the way ENTIRELY — rolled per episode, so drifting off three times is
-  // three chances to not come home at all. That stacking is why this dropped from
-  // 0.35: left alone, a poor navigator failed to get home from one fond flight in
-  // three, which is a punishment, not a mechanic. At 0.07 it stays a real risk for
-  // a genuinely bad navigator on a long flight (~1.5%) and vanishes above 80.
-  strandedMax: 0.07,
+  maxDetourFractionLong: 0.15,
+  // Losing the way ENTIRELY — rolled PER EPISODE, so drifting off repeatedly is
+  // repeatedly risky. That stacking is why this dropped from 0.35: left alone, a
+  // poor navigator failed to get home from one fond flight in three, which is a
+  // punishment, not a mechanic.
+  //
+  // ⚠️ It is coupled to `maxEpisodes`, and that bit on the rebalance: raising the
+  // cap 3 → 5 silently added two more chances to be stranded, pushing an
+  // orientation-30 bird on 1000 km from 4.8% to 7.4% — the harshest outcome in the
+  // whole attribute got WORSE while we were making it milder. Lowered 0.07 → 0.045
+  // to hold the old rates (measured after: ori 30 → 4.8% on 1000 km, ori 50 → 1.2%,
+  // nothing at all above 80). **Change `maxEpisodes` and you must re-measure this.**
+  strandedMax: 0.045,
   strandedCurve: 3.5,
   // How long she stays out before finding her way home.
   returnDaysBase: 1,

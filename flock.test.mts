@@ -103,16 +103,37 @@ console.log('\nDe omweg schaalt met de afstand');
 
   ok('een omweg op 120 km blijft klein in absolute km', avg(sprint.eps) < 8,
     `gemiddeld ${avg(sprint.eps).toFixed(1)} km`);
-  ok('en ook als aandeel van de route kleiner dan op de fond',
-    frac(sprint.eps, 120) < frac(fond.eps, 1000),
-    `${(frac(sprint.eps, 120) * 100).toFixed(1)}% vs ${(frac(fond.eps, 1000) * 100).toFixed(1)}%`);
+  // ⚠️ Hier stond: "en ook als AANDEEL van de route kleiner dan op de fond". Die
+  // ordening (detourFractionShort < detourFractionLong) is bij de oriëntatie-
+  // herbalans bewust OMGEKEERD — zie LOST in gameConfig. De bedoeling erachter is
+  // niet veranderd en wordt hierboven en hieronder nog steeds bewaakt: een
+  // sprint-omweg blijft klein in absolute km (< 8) en onder het strengere korte
+  // plafond, dus ze kost je plaatsen en niet je dag. Wat het aandeel betreft is de
+  // fond nu net milder, en dát was de hele ingreep.
+  ok('een fond-omweg blijft groter in absolute km dan een sprint-omweg',
+    avg(fond.eps) > avg(sprint.eps) * 3,
+    `fond ${avg(fond.eps).toFixed(0)} km vs sprint ${avg(sprint.eps).toFixed(1)} km`);
   ok('geen enkele sprint-omweg gaat over het korte plafond',
     worst(sprint.eps) <= 120 * LOST.maxDetourFractionShort + 1,
     `ergste ${worst(sprint.eps).toFixed(0)} km vs plafond ${(120 * LOST.maxDetourFractionShort).toFixed(0)} km`);
   ok('op de fond mag het wél oplopen', worst(fond.eps) > 40,
     `ergste ${worst(fond.eps).toFixed(0)} km`);
   ok('het korte plafond is strenger dan het lange', LOST.maxDetourFractionShort < LOST.maxDetourFractionLong);
-  ok('de korte omweg-fractie is kleiner dan de lange', LOST.detourFractionShort < LOST.detourFractionLong);
+  // DE INVARIANT VAN DE HERBALANS: het plafond moet het zeldzame ergste geval zijn,
+  // niet de normale uitkomst. Dat ging eerder stuk zonder dat iemand het zag — één
+  // fond-episode groeide tot ~73 km, dus TWEE episodes overschreden het plafond van
+  // 117 km al, en een duif met oriëntatie 60 zat in 73% van de fondvluchten op het
+  // maximum. De eigenschap was daar geen kans meer maar een vaste tol, en juist
+  // daardoor voelde 14 punten oriëntatie als een klif. Zo lang twee episodes samen
+  // onder het plafond passen, blijft het aantal afdwalingen een gradiënt.
+  {
+    const perEpisode = 1000 * LOST.detourFractionLong * (LOST.detourSeverityBase + LOST.detourSeveritySpread * 0.35);
+    const ceiling = 1000 * LOST.maxDetourFractionLong;
+    ok('twee fond-episodes passen samen ONDER het plafond (geen verzadiging)',
+      perEpisode * 2 < ceiling,
+      `2 x ${perEpisode.toFixed(0)} km = ${(perEpisode * 2).toFixed(0)} km vs plafond ${ceiling.toFixed(0)} km`);
+  }
+  ok('het lange plafond blijft ruimer dan het korte', LOST.maxDetourFractionShort < LOST.maxDetourFractionLong);
 }
 
 console.log('\nOriëntatie blijft doen waarvoor ze dient');
