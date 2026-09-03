@@ -731,26 +731,27 @@ geluk mee.
 
 | Oriëntatie | 150 km | 300 km | 500 km | 700 km | 1000 km |
 |---|---|---|---|---|---|
-| 95 | 3 % | 7 % | 12 % | 15 % | 21 % |
-| 85 | 12 % | 28 % | 45 % | 52 % | 63 % |
-| 70 | 32 % | 62 % | 75 % | 86 % | 94 % |
-| 50 | 55 % | 84 % | 95 % | 97 % | 99 % |
-| 30 | 68 % | 91 % | 96 % | 97 % | 97 % |
+| 95 | 5 % | 8 % | 11 % | 13 % | 18 % |
+| 85 | 19 % | 29 % | 37 % | 44 % | 52 % |
+| 70 | 46 % | 63 % | 72 % | 80 % | 86 % |
+| 60 | 60 % | 77 % | 85 % | 91 % | 95 % |
+| 50 | 76 % | 88 % | 93 % | 97 % | 99 % |
+| 30 | 89 % | 97 % | 98 % | 99 % | 100 % |
 
 Belangrijker dan die kans is hoe vaak ze **helemaal schoon** thuiskomt — één kleine
 omweg kost je zelden de wedstrijd, drie grote wel:
 
 | Oriëntatie | Vlucht zonder één omweg (150 km) | 500 km | 1000 km |
 |---|---|---|---|
-| 95 | 97 % | 88 % | 79 % |
-| 85 | 88 % | 55 % | 37 % |
-| 70 | 68 % | 25 % | 7 % |
-| 60 | 54 % | 13 % | 4 % |
-| 30 | 32 % | 4 % | 3 % |
+| 95 | 94 % | 89 % | 82 % |
+| 85 | 80 % | 62 % | 48 % |
+| 70 | 51 % | 28 % | 14 % |
+| 60 | 40 % | 15 % | 5 % |
+| 30 | 14 % | 2 % | 0 % |
 
 **Slecht weer maakt het erger, maar niet voor iedereen.** Mist, regen en harde wind
-verhogen de kans fors. Op 700 km gaat een duif met oriëntatie 95 van 15 % naar
-26 %, terwijl oriëntatie 70 van 86 % naar 97 % springt. Een goede navigator merkt
+verhogen de kans fors. Op 700 km gaat een duif met oriëntatie 95 van 13 % naar
+21 %, terwijl oriëntatie 70 van 80 % naar 92 % springt. Een goede navigator merkt
 er weinig van; een slechte is bij ruw weer nagenoeg kansloos.
 
 **Meestal is het een omweg.** Echte extra kilometers: dus echt tijdverlies, een val
@@ -759,25 +760,34 @@ omvang varieert sterk: soms een wiebeltje, soms een lus. **Op de live kaart
 (§2.4) zie je het gebeuren**: je duif buigt van de route af en komt er verderop
 weer op, over precies de kilometers die haar de tijd kostten.
 
-| Oriëntatie | Totale omweg op 300 km | Op 1000 km |
-|---|---|---|
-| 95 | ~10 km | ~57 km |
-| 85 | ~15 km | ~91 km |
-| 70 | ~22 km | ~140 km |
-| 30 | ~29 km | ~158 km |
+| Oriëntatie | Totale omweg op 300 km | Op 700 km | Op 1000 km |
+|---|---|---|---|
+| 95 | ~9 km | ~17 km | ~26 km |
+| 85 | ~13 km | ~26 km | ~42 km |
+| 70 | ~20 km | ~51 km | ~83 km |
+| 60 | ~23 km | ~71 km | ~114 km |
+| 30 | ~28 km | ~102 km | ~148 km |
 
 *(gemiddelde wanneer ze effectief van koers raakt — komt ze schoon thuis, dan is het nul)*
 
-**Op een korte vlucht is de omweg kleiner — met opzet.** Een omweg is een hap uit
-de route, en op een sprint van 120 km beslist die hap meteen de hele wedstrijd:
-een duif die daar 18 km omvliegt mag het vergeten. Daarom is de omweg op een korte
-vlucht een **kleiner aandeel** van de route dan op de fond. Op 120 km praat je over
-zo'n **5 km** (hoogstens 8), op de fond over tientallen kilometers. Van koers raken
-kost je op een sprint dus plaatsen, en op de fond je dag.
+**De fond is bewust milder geworden.** Oriëntatie woog daar veel te zwaar: een duif
+met oriëntatie 60 vloog op een vlucht van ~730 km gemiddeld **102 km** om en zat in
+**bijna drie op vier** vluchten tegen het maximum aan. Dat maakte van de eigenschap
+geen risico meer maar een vaste tol — en daardoor voelde een verschil van veertien
+punten oriëntatie aan als een afgrond in plaats van een gradiënt. Nu is dat
+gemiddeld **66 km** en raakt ze het maximum nog in ongeveer één op vier vluchten.
+Op 1000 km ging de omweg van een goede navigator van ~57 naar ~26 km.
+
+**Op een korte vlucht blijft de omweg klein.** Een omweg is een hap uit de route,
+en op een sprint van 120 km beslist die hap meteen de wedstrijd. Daar praat je over
+zo'n **6 km** (hoogstens 8), tegen tientallen kilometers op de fond. Van koers raken
+kost je op een sprint dus plaatsen, en op de fond nog altijd je dag — alleen niet
+meer je hele week. Je raakt op een sprint wél iets **vaker** van koers dan vroeger:
+de eigenschap telt nu over de hele kalender mee in plaats van bijna alleen op de fond.
 
 **Er is een bovengrens.** Hoe slecht het ook loopt, een duif vliegt op de fond
-**nooit meer dan ~16 % om**, en op een korte vlucht **nooit meer dan ~7 %**. Een
-fondvlucht van 1000 km wordt in het allerergste geval 1160 km, geen odyssee — je
+**nooit meer dan ~15 % om**, en op een korte vlucht **nooit meer dan ~7 %**. Een
+fondvlucht van 1000 km wordt in het allerergste geval 1150 km, geen odyssee — je
 verliest de wedstrijd, niet je hele dag.
 
 **Soms raakt ze de weg helemaal kwijt.** Dan komt ze die dag niet thuis en telt ze
@@ -790,9 +800,12 @@ voorraad en lijdt geen honger — ze is er simpelweg niet.
 | Oriëntatie | Niet thuis (300 km) | 1000 km | 1000 km, slecht weer |
 |---|---|---|---|
 | 85 of hoger | praktisch nul | praktisch nul | praktisch nul |
-| 70 | ~0 % | 0,2 % | 0,3 % |
-| 50 | 0,9 % | 1,1 % | 1,3 % |
-| 30 | 4,6 % | 4,8 % | 6,1 % |
+| 70 | ~0 % | 0,1 % | 0,1 % |
+| 50 | 0,9 % | 1,3 % | 1,7 % |
+| 30 | 3,2 % | 4,9 % | 5,0 % |
+
+*(deze kansen zijn bewust gelijk gehouden aan vroeger — de herbalans hierboven gaat
+over de omweg, niet over het risico dat je duif helemaal wegblijft)*
 
 **Oriëntatie groeit door te vliegen**, en het snelst op **lange vluchten**. Je kan
 haar ook trainen (tot 80), en een **privécoach** werkt er eveneens aan tot het
