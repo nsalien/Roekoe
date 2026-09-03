@@ -1045,6 +1045,38 @@ verzoek uit per statement.
 Alles hieronder staat **live** op de deploy-branch. Data-migraties liepen door tot
 **`dataVersion = 45`**.
 
+**Elke duif in de stamboom toont haar eigen, juiste foto (nieuwste)**
+- **Melding van de eigenaar:** in de stamboom stond niet altijd de juiste foto, en op de
+  duifpagina bleven de twee ouder-rondjes **leeg**.
+- ⚠️ **De oorzaak: het diagram had zijn EIGEN fotologica.** Het tekende een kale
+  `<img src={/pigeon-images/${node.image}}>` op een platgeslagen bestandsnaam, naast de
+  `PigeonAvatar` die de rest van het spel gebruikt. Daardoor negeerde het de regel die daar
+  wél in zit: **een duif met een AFWIJKING krijgt de getekende duif in plaats van haar
+  rasfoto** — geen enkele stockfoto heeft drie vleugels. Een driewiek-duif werd in de
+  stamboom dus stilletjes als een gewone Meulemans getoond.
+- **Fix: één component, één antwoord op "welke foto hoort hier".** `FamilyMember` draagt nu
+  het **volledige ras én de afwijking** in exact de vorm die `pigeonDTO` stuurt
+  (`breedPayload`/`quirkPayload` in `pedigree.ts`), en `Pedigree.tsx` rendert `PigeonAvatar`.
+  De eigen `<img>` is weg. **`FamilyMember.image`/`.quirk: string` zijn vervangen door
+  `.breed`/`.quirk`-objecten** — een DTO-vormwijziging, geen migratie.
+- **Ook de verste kolom krijgt nu een portret** (22 px). De vraag was "steeds de correcte
+  foto, als die gekend is", en die avatar is korter dan de twee tekstregels ernaast, dus de
+  celhoogte beweegt er niet door (nagemeten: spill blijft 0 px).
+- **De lege rondjes: een vangnet, want de oorzaak was niet te reproduceren.** Alle twaalf
+  rasfoto's bestaan (nieuwe controle in `pedigree.test.mts`) en laden in de harness (21 van
+  21). `PigeonAvatar` valt nu bij een **mislukte** fotolading terug op de getekende duif in
+  plaats van een leeg rondje te laten staan. ⚠️ Dat onthoudt **welke bestandsnaam** faalde,
+  niet een boolean: het component wordt voor een hele lijst duiven hergebruikt, en een
+  boolean zou de goede foto van een látere duif verbergen omdat een eerdere brak.
+- **Alleen client + de DTO-vorm**: geen query, geen schemakolom, geen migratie,
+  `dataVersion` blijft **45**.
+- **`pedigree.test.mts` → 89 controles**: elke levende duif in het diagram draagt een ras dat
+  naar een echte foto wijst, de vader draagt **zijn eigen** ras (niet dat van de duif), een
+  zus met een afwijking draagt die volledig mee (naam + emoji, niet enkel een id), een
+  overleden voorouder draagt **géén** ras — zodat er geen foto verschijnt die niet van haar
+  is — en **elk van de twaalf rasfoto's bestaat effectief op schijf**. Dat laatste is precies
+  het soort fout dat niemand opmerkt tot een speler het meldt.
+
 **Eén diagram voor de hele familie — de zandloper (nieuwste)**
 - **Vraag van de eigenaar:** broers, zussen en partners stonden **apart onder** het
   diagram opgelijst. Ze moeten **erin**. "Alle gerelateerde familie in deze diagram."

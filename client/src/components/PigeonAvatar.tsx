@@ -5,6 +5,7 @@
  * (older data), we fall back to a little procedurally-tinted SVG pigeon.
  */
 
+import { useState } from 'react';
 import type { Pigeon, Sex } from '../types';
 
 function hashHue(id: string): number {
@@ -75,10 +76,17 @@ export function PigeonAvatar({
 }) {
   const elite = pigeon.talent >= 75;
   const quirk = pigeon.quirk?.id ?? null;
+  // ⚠️ Which photo FAILED, not a boolean: this component is reused for a whole
+  // list of birds, so a boolean would keep a later bird's good photo hidden
+  // because an earlier one broke. Comparing the filename resets it by itself.
+  const [failed, setFailed] = useState<string | null>(null);
   // A quirky bird gets the DRAWN pigeon rather than her breed photo — the whole
   // point of the quirk is that you can see it, and no stock photo has three
   // wings. Her breed still shows as a badge on her page.
-  const image = quirk ? undefined : pigeon.breed?.image;
+  const candidate = quirk ? undefined : pigeon.breed?.image;
+  // And a photo that will not load falls back to the drawn bird as well. An
+  // empty ring reads as a bug; a drawn pigeon reads as "no photo for this one".
+  const image = candidate && candidate !== failed ? candidate : undefined;
 
   if (image) {
     // Legendary/rare breeds get a warmer frame so the prize photos stand out.
@@ -120,6 +128,7 @@ export function PigeonAvatar({
           src={`/pigeon-images/${image}`}
           alt={pigeon.breed?.name ?? 'Duif'}
           loading="lazy"
+          onError={() => setFailed(image)}
           style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block' }}
         />
       </div>
