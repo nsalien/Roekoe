@@ -409,6 +409,7 @@ Roekoe/
 ├── flock.test.mts           regressietest: duiven verdwalen pas als de zwerm openbreekt
 ├── breeding-cooldown.test.mts   regressietest: koppel gaat uiteen na het nest + 3 weken rust
 ├── pedigree.test.mts        regressietest: stamboom, inteelt, kweekleeftijd, namenvariatie
+├── family-chart.test.mts    regressietest: de GEOMETRIE van het stamboomdiagram (buildLayout)
 ├── limits-report.mts            meet queries/rijen gelezen/geschreven per verzoek
 ├── cpu-sweep.mts                meet CPU per operatie (duurste eerst) — diagnose
 ├── migrations/0001_init.sql     D1-schema voor verse installatie
@@ -834,9 +835,9 @@ Entiteiten: `Pigeon`, `Loft`, `User`, `BreedingPair`, `PendingBrood`, `Flight` (
   tonen een **▲/▼ per dag** (groei/daling door je huidige keuze; via `pigeon.dailyCare`).
 - `PigeonPage` — één duif, in deze volgorde: kop + stats · gezondheid · training · bod ·
   **Ontwikkeling** (coach + rustkuur + hernoemen) · **Familie** (vader + moeder, met daaronder
-  de knop **"Toon volledige stamboom"** → `components/Pedigree.tsx`: voorouderkaart +
-  broers/zussen + nakomelingen per partner; zie §8) · **"Afscheid nemen"** ·
-  **Wedstrijdhistoriek**.
+  de knop **"Toon volledige stamboom"** → `components/Pedigree.tsx`: **één zandloper**
+  met voorouders links, de duif + broers/zussen + partners in het midden en de
+  nakomelingen rechts; zie §8) · **"Afscheid nemen"** · **Wedstrijdhistoriek**.
   ⚠️ Bewust **niet** hier (zie §8): het leeftijdscriterium (staat op *Ranglijst →
   Criterium*), de voerkeuze en de apart-hok-knop (staan op *Mijn hok*) en de uitleg bij
   de waardeschatting. Verder: **rustkuur**
@@ -1000,6 +1001,7 @@ npx tsx flight-map.test.mts        # de live kaart: posities, afstanden en de om
 npx tsx flock.test.mts             # verdwalen pas buiten de zwerm + omweg schaalt met afstand
 npx tsx breeding-cooldown.test.mts  # koppel uiteen na het nest, rust van 3 weken, geen resurrectie
 npx tsx pedigree.test.mts          # verwantschap, inteeltgevolgen, stamboom bij dode voorouders
+npx tsx family-chart.test.mts      # het diagram: duif in het midden, elke lijn wijst ergens naar
 ```
 Diagnose zonder assertie: `npx tsx cpu-sweep.mts` (CPU per operatie, duurste
 eerst), `npx tsx limits-report.mts` (queries/rijen per verzoek) en
@@ -1042,6 +1044,56 @@ verzoek uit per statement.
 
 Alles hieronder staat **live** op de deploy-branch. Data-migraties liepen door tot
 **`dataVersion = 45`**.
+
+**Eén diagram voor de hele familie — de zandloper (nieuwste)**
+- **Vraag van de eigenaar:** broers, zussen en partners stonden **apart onder** het
+  diagram opgelijst. Ze moeten **erin**. "Alle gerelateerde familie in deze diagram."
+- **Nu één zandloper**, van links naar rechts:
+  `Overgrootouders · Grootouders · Ouders │ DEZE DUIF + broers/zussen + partners │ Kinderen · Kleinkinderen`.
+  De drie losse secties van de vorige ronde (`.ped-kin` raster, `.ped-tree` railboom,
+  `.ped-sec-head`) zijn **weg**.
+- ⚠️ **De CSS-pariteitstrucs zijn vervangen — dit is de kern van de wijziging.** Die
+  `.ped-cell.sire::after` / `.dam::after`-aanpak werkte enkel voor een **binaire** boom
+  (iedereen heeft exact 2 ouders) en een nest waaiert willekeurig breed uit. Nu berekent
+  **`buildLayout`** (geëxporteerd uit `Pedigree.tsx`) per verbinding een **`LinkGroup`
+  `{left[], right[]}`**, en `centre(i, n) = (i+0.5)/n·100` zet de posities als
+  **percentages** inline. **Eén** mechanisme dekt 2-ouders-naar-1-kind,
+  1-ouder-naar-zes-jongen én een hele broedergroep aan één koppel.
+- ⚠️ **De duif staat DEAD CENTRE van haar kolom, en dat is geen cosmetica.** De bundel van
+  haar ouders ontmoet elkaar op exact 50 % (vader 25 % + moeder 75 %), dus als zij
+  wegschuift landt hun lijn *naast* haar. Broers/zussen gaan bovenaan, partners onderaan,
+  en de **kortste kant wordt met lege cellen opgevuld** tot ze weer precies in het midden
+  staat. `family-chart.test.mts` toetst dat voor 0/3, 5/1, 1/0 en 4/4.
+- **Elk nest hangt aan BEIDE ouders**: de bundel vertrekt bij de duif én bij de juiste
+  partnerdoos. Jongen worden per partner gesorteerd zodat één nest **aaneengesloten** ligt
+  en de haak één ononderbroken span blijft. Twee nesten in dezelfde tussenruimte krijgen
+  een **zijdelingse verschuiving van 5 px**, anders tekenen ze over elkaar.
+- **Een partner hangt niet aan zijn schoonouders**: de oudersbundel verbindt enkel met de
+  broedergroep (duif + broers/zussen), niet met de partnerdozen. Apart getoetst.
+- ⚠️ **Auto-centrering bij het openklappen.** Het diagram is ~1.000 px breed en de duif
+  staat in het **midden**, dus zonder ingreep opende het op de **overgrootouders** en leek
+  haar eigen tak te ontbreken (gemeten op 390 px: de kolom "Deze duif" stond volledig
+  buiten beeld). Opgelost met `scrollLeft` op de scrollcontainer — **bewust niet**
+  `scrollIntoView`, want dat versleept ook de pagina zelf.
+- **Nieuwe blijvende test `family-chart.test.mts`** (39 controles) tegen de **échte**
+  `buildLayout`: kolomvolgorde, de duif exact in het midden (en dat 25 %+75 % daar
+  samenkomen), broers/zussen/partners staan er allemaal in met het juiste label, de
+  oudersbundel raakt de broedergroep en niet de partners, elk nest hangt aan beide ouders
+  en ligt aaneengesloten, kleinkinderen hangen aan hun eigen ouder, **geen enkele lijn
+  wijst naar een lege of onbestaande cel**, en een duif zonder familie geeft geen kapot
+  diagram.
+- **In de browser nagemeten** (Playwright op de échte gebouwde CSS, gerenderd uit de échte
+  `buildLayout`, beide thema's × 390 px en 1100 px): horizontale paginaoverloop **0 px**,
+  cellen binnen een kolom **exact even hoog**, **0 px** overloop van een vakje buiten zijn
+  cel, en — de eigenlijke controle — alle **28 verbindingslijnen** landen op **0,02 px** van
+  het hart van de cel waar ze naar wijzen, met de bundel exact van de bovenste tot de
+  onderste lijn.
+- **Alleen client**, op `familyOf` na dat al bestond: geen query, geen schemakolom, geen
+  migratie, `dataVersion` blijft **45**.
+- ⚠️ **Bestaande fout opnieuw bevestigd, niet veroorzaakt:** `poll-budget.test.mts` faalt op
+  de laatste controle ("de load blijft smal: 103–110 van 204", grens 102). Nagemeten met
+  `git stash`: **dezelfde spreiding met én zonder deze wijziging**. Blijft de bekende
+  onrealistische fixture uit §Kalender-per-dag — niet aangeraakt.
 
 **De stamboom kijkt nu in alle richtingen (nieuwste)**
 - **Vraag van de eigenaar:** de stamboom toonde enkel voorouders. Klik je op een ouder, dan
