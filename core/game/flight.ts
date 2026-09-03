@@ -422,6 +422,43 @@ function buildPaceProfile(
   return { velocity, segMult, durationSeconds, dnfAtSeconds, dnfKind, lost, strays, strayDays };
 }
 
+/**
+ * The pace multiplier at a point along the route, SMOOTHED across segment borders.
+ *
+ * `segMult` holds one value per segment (`FLIGHT_DYNAMICS.segments` = 10), so the
+ * raw multiplier `raceProgress` returns is a staircase with ten steps in a whole
+ * flight. Measured: one step lasts ~9 min on a 120 km regional, ~45 min on 733 km
+ * and ~66 min on the fond — while the board polls every 60 s. The distance moved
+ * every minute and the km/h sat frozen for the best part of an hour, which reads
+ * as a broken figure rather than a steady one.
+ *
+ * Treating each value as a sample at the CENTRE of its segment and interpolating
+ * between neighbours gives a figure that moves with every poll. It invents no
+ * motion: the birds still speed up and slow down exactly where the frozen profile
+ * says they do, the ramp is just drawn instead of stepped.
+ *
+ * ⚠️ DISPLAY ONLY — never feed this back into the race. Positions, durations, the
+ * finishing order, the energy drain and the commentary all keep reading the raw
+ * `segMult` through `raceProgress`; interpolating there would change finish times
+ * and break the invariant "live-einde == einduitslag" (§Finish-timer).
+ *
+ * COST: O(1), no loop over the segments. It REPLACES a second `raceProgress` call
+ * per bird per poll (which walked all ten segments), so the hottest endpoint of
+ * the game got cheaper, not dearer — see `cpu-budget.test.mts`.
+ */
+export function smoothPaceMult(seg: number[] | undefined, progress: number): number {
+  if (!seg || seg.length === 0) return 1; // legacy flight without a pace profile
+  const N = seg.length;
+  if (N === 1) return seg[0];
+  // Position expressed in segment centres: the centre of segment i sits at i + 0.5,
+  // so the first and last half-segment sit outside the interpolation and hold flat.
+  const x = clamp(progress, 0, 1) * N - 0.5;
+  if (x <= 0) return seg[0];
+  if (x >= N - 1) return seg[N - 1];
+  const i = Math.floor(x);
+  return seg[i] + (seg[i + 1] - seg[i]) * (x - i);
+}
+
 /** How far home a bird is at `elapsed` seconds, from its frozen pace profile.
  *  Stops (freezes) at a mid-flight DNF or the moment its owner pulled it. */
 function raceProgress(s: SimEntry, distanceKm: number, elapsed: number): {
@@ -1569,21 +1606,22 @@ export function liveSnapshot(flight: Flight, nowMs: number): LiveSnapshot {
   // final standings): a bird past the cutoff (durationSeconds > total) then stays a
   // non-finisher, exactly as finalizeFlight records it.
   const view = Math.min(elapsed, total);
-  // The displayed km/h is the bird's REAL effective speed on the segment it is
-  // flying (frozen velocity × the current pace multiplier × 0.06 to go m/min→km/h)
-  // — not a cosmetic number. To keep it steady instead of flickering on every
-  // poll, we sample the segment on a 5-minute grid: the value only steps when the
-  // race genuinely moves into a new 5-minute block. No random wobble.
-  const SPEED_STEP_SECONDS = 300;
-  const speedView = Math.min(Math.floor(view / SPEED_STEP_SECONDS) * SPEED_STEP_SECONDS, total);
-
+  // The displayed km/h is the bird's REAL effective speed where she is flying
+  // (frozen velocity × the pace multiplier × 0.06 to go m/min→km/h) — not a
+  // cosmetic number. It is read through `smoothPaceMult`, which interpolates
+  // across the segment borders: the raw multiplier only steps ten times in a whole
+  // flight (~45 min per step on 733 km) and the figure sat visibly frozen while the
+  // distance beside it moved every minute. Display only — the race itself still
+  // runs on the raw `segMult`.
+  //
+  // This also replaced a SECOND `raceProgress` call per bird (it walked all ten
+  // segments again just to re-read the multiplier on a 5-minute grid), so the
+  // hottest endpoint of the game does less work than before.
   const rows = flight.sim.map((s) => {
     const gaveUp = !!s.gaveUp;
     const { kmDone, finished, stopped } = raceProgress(s, dist, view);
     const moving = !finished && !gaveUp && !stopped;
-    // Effective speed sampled on the 5-minute grid (honest, stable between polls).
-    const { curMult: speedMult } = raceProgress(s, dist, speedView);
-    const speedKmh = moving ? round1(s.velocity * speedMult * 0.06) : 0;
+    const speedKmh = moving ? round1(s.velocity * smoothPaceMult(s.segMult, kmDone / dist) * 0.06) : 0;
     const bird: LiveBird = {
       pigeonId: s.pigeonId,
       pigeonName: s.pigeonName,
@@ -1644,8 +1682,6 @@ function relaySnapshot(flight: Flight, nowMs: number): LiveSnapshot {
   const legKm = relayLegKm(flight);
   const routeKm = legKm * RELAY.teamSize;
   const view = Math.min(elapsed, total);
-  const SPEED_STEP_SECONDS = 300;
-  const speedView = Math.min(Math.floor(view / SPEED_STEP_SECONDS) * SPEED_STEP_SECONDS, total);
 
   const birds: LiveBird[] = [];
   const rows = relayTeams(flight).map((team) => {
@@ -1670,8 +1706,9 @@ function relaySnapshot(flight: Flight, nowMs: number): LiveSnapshot {
           status = 'onderweg';
           activeLeg = legNo;
           reachedEnd = false;
-          const { curMult } = raceProgress(s, legKm, Math.max(0, speedView - (s.legStartSeconds ?? 0)));
-          legSpeed = round1(s.velocity * curMult * 0.06);
+          // Same smoothing as the solo board, on her OWN leg: her profile covers
+          // the leg, so the fraction is leg-local (see smoothPaceMult).
+          legSpeed = round1(s.velocity * smoothPaceMult(s.segMult, legKmDone / legKm) * 0.06);
           speedKmh = legSpeed;
         }
       } else if (!reachedEnd) {

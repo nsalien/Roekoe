@@ -691,7 +691,7 @@ Entiteiten: `Pigeon`, `Loft`, `User`, `BreedingPair`, `PendingBrood`, `Flight` (
   Toegepast in `buildPaceProfile` via `companyFactor(u)`; het veld zelf komt uit
   `fieldContext` (`flight.ts`), één pas over de deelnemers **bij de lossing**.
 - **Omweg schaalt met de afstand (`LOST`, nieuwste):** `detourFractionShort 0.045` /
-  `detourFractionLong 0.12` en plafond `maxDetourFractionShort 0.07` /
+  `detourFractionLong 0.09` en plafond `maxDetourFractionShort 0.07` /
   `maxDetourFractionLong 0.16`, geblend op `distanceT`. 10 % van 120 km besliste de
   wedstrijd; nu kost een sprint-omweg ~5 km (max 8). ⚠️ `max` (3,6 → **4,4**) en
   `distPerKm` (0,0024 → **0,0034**) zijn verhoogd om te compenseren dat de zwerm
@@ -1047,7 +1047,59 @@ verzoek uit per statement.
 Alles hieronder staat **live** op de deploy-branch. Data-migraties liepen door tot
 **`dataVersion = 45`**.
 
-**Een duif van 2 jaar stierf "op hoge leeftijd" — de sterftecurve liep vanaf de geboorte (nieuwste)**
+**Het km/u-cijfer op het live-bord stond stil terwijl de afstand liep (nieuwste)**
+- **Melding van de eigenaar:** de afgelegde afstand ververst regelmatig, de snelheid
+  "blijkbaar niet". Klopt, en het pollritme was **niet** de oorzaak — dat is 60 s
+  (`useVisiblePoll` in `LiveFlightPage`) en `kmDone` is een continue waarde, dus die
+  schoof wél elke minuut op.
+- ⚠️ **De echte oorzaak was `FLIGHT_DYNAMICS.segments` (10).** `raceProgress` geeft
+  `curMult = seg[i]` — de multiplicator van het **huidige segment**, en die is binnen
+  een segment constant. Er bestaan dus maar **tien snelheidswaarden in een hele
+  vlucht**. Gemeten hoe lang één segment duurt: **9 min** (120 km regio) · 19 min
+  (300 km) · 33 min (500 km) · **45 min (733 km)** · **66 min (1000 km fond)**, met
+  uitschieters tot 113 min. Naast een afstand die elke minuut opschuift leest dat als
+  een defect cijfer.
+- ⚠️ **Het 5-minutenraster (`SPEED_STEP_SECONDS = 300`) deed in de praktijk niets** en
+  is weg. Het was bedoeld tegen flikkeren tussen polls, maar één segment is op álles
+  boven een oefenvlucht véél langer dan 5 minuten — het raster bond dus nooit. Alleen
+  bij de kortste oefenvluchten (~5 min per segment) was het van dezelfde orde.
+- **Nieuwe helper `smoothPaceMult(seg, progress)`** (geëxporteerd uit `flight.ts`):
+  behandelt elke `segMult`-waarde als een monster op het **midden** van haar segment en
+  interpoleert lineair tussen de buren. Kop en staart (de eerste/laatste halve segment)
+  houden bewust **vlak** — daar ligt geen tweede midden om naartoe te interpoleren, en
+  een waarde verzinnen voorbij het profiel zou motie tonen die de sim niet heeft.
+- ⚠️ **Uitsluitend weergave.** Posities, duur, aankomstvolgorde, de energie-afrekening
+  en het 📻-verslag lezen nog steeds de **rauwe** `segMult` via `raceProgress`. Een
+  interpolatie die daarin lekt zou finishtijden verschuiven en de invariant
+  **"live-einde == einduitslag"** breken. `live-speed.test.mts` bewaakt precies dat.
+- **Het werd GOEDKOPER, niet duurder** — dat was de voorwaarde van de eigenaar op de
+  gratis limieten. `liveSnapshot` riep `raceProgress` **twee keer per duif per poll**
+  aan (de tweede alleen om de multiplicator op het raster te herlezen, mét een lus over
+  alle tien de segmenten); die aanroep is weg en vervangen door een **O(1)**-helper.
+  Gecontroleerde A/B op dezelfde bevroren vlucht (90 duiven, 992 km): mediaan
+  **0,0369 → 0,0333 ms** (−10 %). Zelfde wijziging in `relaySnapshot`, per etappe.
+- **Budgetten nagemeten:** dagbudget onveranderd op **24,3 % gelezen / 7,4 % geschreven**
+  (158 rijen per verzoek), `cpu-budget` en `query-budget` groen, idle poll schrijft nog
+  steeds 0 rijen. De DTO krijgt **geen** nieuw veld — `speedKmh` bestond al, dus de
+  payload per poll is identiek en er is geen client- of typewijziging nodig.
+- **Geen migratie, geen schemawijziging, geen configknop**, `dataVersion` blijft **45**.
+  Een vlucht die tijdens de deploy al live is, werkt gewoon mee: de helper leest het
+  bestaande `segMult` en een legacy-vlucht zonder profiel valt terug op 1.
+- **Nieuwe blijvende test `live-speed.test.mts`** (25 controles): de interpolatiewiskunde
+  (exact op de middens, continu, nooit buiten het bereik van de segmenten, geklemd i.p.v.
+  geëxtrapoleerd), het cijfer beweegt over een echte 60 s-poll (246 waarden i.p.v.
+  hoogstens 10, nooit langer dan 10 polls stil in het binnenstuk), de race zelf verandert
+  niet (bevroren finishtijden, monotone `kmDone`, live-einde == einduitslag), de
+  randgevallen (binnen/uit de race = 0 km/u) en de estafette per etappe. Plus een
+  CPU-assertie die **structureel** is (de helper mag geen lus over de segmenten hebben),
+  niet enkel een klokmeting.
+- Spelregels **§2.4** herschreven; het verouderde 5-minutenraster staat nu correct in §8.
+- ⚠️ **Twee tests stonden al rood vóór deze wijziging** (nagemeten met `git stash` op de
+  ongewijzigde boom): `brood-choice.test.mts` (bekende flakiness, ongeseede `Math.random`)
+  en `poll-budget.test.mts` ("de load blijft smal: 105 van 204", de bekende onrealistische
+  estafette-fixture). Niet veroorzaakt, niet aangeraakt, nog te repareren.
+
+**Een duif van 2 jaar stierf "op hoge leeftijd" — de sterftecurve liep vanaf de geboorte**
 - **Melding van een speler:** "Theo Toekomstige Soep" (2 jaar) overleed met de melding dat
   ze **op hoge leeftijd** vredig insliep. Terecht als bug gemeld: de spelregels beloven dat
   jonge duiven zo goed als nooit vanzelf sterven.
@@ -4298,9 +4350,9 @@ Een **estafette duurt 16–19 uur**: één speler die er één volledig volgt ko
   voor déze duif** (o.b.v. haar eigen eigenschappen) onder de coach-knop; economy-DTO
   kreeg `coachMaxDailyGain`/`coachAttributeCap`/`coachExpDailyGain`.
 - **Live-vlucht km/u = echte effectieve snelheid** (`liveSnapshot` in flight.ts): de
-  cosmetische ±5%-wobble is weg; de km/u wordt **op een 5-minutenraster** bemonsterd
-  (`SPEED_STEP_SECONDS = 300`), dus stabiel tussen polls, geen nep-jitter. Posities
-  blijven continu. Lage perf-impact (pure berekening, geen extra werk).
+  cosmetische ±5%-wobble is weg. (Het 5-minutenraster `SPEED_STEP_SECONDS` dat hier
+  toen bijkwam is **intussen verwijderd** — het bond nooit; zie het kopstuk van §8.)
+  Posities blijven continu. Lage perf-impact (pure berekening, geen extra werk).
 - **Veiling-countdown live** (`AuctionCard` in MarketPage): zelf-plannende tick (30 s
   ver weg, **1 s in de laatste 5 min**), `countdownTo(endAt, nowMs)`; bij het sluiten
   `onExpire → load()+refresh()`. MarketPage pollt bovendien elke 15 s zolang een veiling
