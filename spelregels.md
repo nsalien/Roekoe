@@ -1458,22 +1458,33 @@ de ouders ± mutatie. Koppel dus je best gegende duiven om een sterke lijn te bo
 ### 7.3 Stamboom & inteelt
 
 Op de pagina van elke duif staat de kaart **Familie**: bovenaan haar **vader en
-moeder**, en daaronder de knop **"Toon volledige stamboom"**. Die toont haar hele
-familie, **in alle richtingen** — niet enkel wie haar ouders waren:
+moeder**, en daaronder de knop **"Toon volledige stamboom"**. Die opent **één
+diagram met haar hele familie**, van links naar rechts:
 
-| Deel | Wat je ziet |
-|---|---|
-| ⬆️ **Voorouders** | Een echt **stamboomdiagram**: van links naar rechts de duif zelf, haar ouders, grootouders en overgrootouders, met de verbindingslijnen ertussen. |
-| ↔️ **Broers & zussen** | Iedereen die minstens één ouder met haar deelt, met erbij of het een **volle** broer/zus is (beide ouders) of een **halve** (en via welke ouder). |
-| ⬇️ **Nakomelingen** | Haar jongen, kleinkinderen en achterkleinkinderen, **gegroepeerd per partner** — zo zie je meteen welk koppel welk nest opleverde. |
+```
+Overgrootouders · Grootouders · Ouders │ DEZE DUIF │ Kinderen · Kleinkinderen
+                                       │ broers    │
+                                       │ & zussen  │
+                                       │ partners  │
+```
+
+- **Links haar voorouders** — ouders, grootouders en overgrootouders, met de
+  verbindingslijnen ertussen.
+- **In het midden haar eigen generatie** — de duif zelf, met daarboven haar
+  **broers en zussen** (met erbij of het een **volle** broer/zus is, of een
+  **halve** en via welke ouder) en daaronder de duiven waarmee ze **gekoppeld**
+  is geweest en jongen kreeg.
+- **Rechts haar nakomelingen** — kinderen en kleinkinderen. Elk nest hangt aan
+  **beide** ouders, dus je ziet meteen welk koppel welk jong opleverde.
 
 Doffers krijgen een blauwe rand, duivinnen een roze. Per duif zie je haar
 **algemene score (★)**, of ze **nog leeft** en, zo ja, in **welk hok** ze zit —
 ook als dat het hok van een andere speler is. Klik erop om naar haar pagina te
 gaan, en van daaruit klim je verder door de familie.
 
-Op een smal scherm is het diagram van de voorouders breder dan je toestel:
-**sleep het opzij** om de oudere generaties te zien.
+Op een smal scherm is het diagram breder dan je toestel. Het **opent gecentreerd
+op de duif zelf**; **sleep opzij** voor haar voorouders (links) en haar jongen
+(rechts).
 
 **Een tak stopt bij een duif die er niet meer is**, en dat werkt beide kanten op.
 Naar boven: met een overleden duif verdwijnt ook wie háár ouders waren. Naar

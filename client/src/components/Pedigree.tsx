@@ -1,77 +1,205 @@
 /**
- * Stamboom: a bird's whole family, folded away behind one button.
+ * Stamboom: ONE diagram for a bird's whole family, folded behind one button.
  *
- * Three sections, because a family is not one shape:
+ * Shape is an hourglass, read left to right:
  *
- *  - **Voorouders** — a binary chart, generations as columns left→right. The
- *    connectors are pure CSS (see .ped-* in global.css) and that works ONLY
- *    because every cell in a column is an equal-height flex child: a parent's
- *    centre then lands exactly where its two children's half-brackets meet. So
- *    every slot is rendered, unknown ones as a faint dash — dropping one would
- *    shift the cells and bend the lines.
- *  - **Broers & zussen** — a plain grid. Siblings have no depth, only a degree.
- *  - **Nakomelingen** — a rail tree, grouped per partner. Offspring fan out
- *    arbitrarily (a bird can have six young), which the binary column chart
- *    cannot express; an indented rail can, at any width.
+ *   Overgrootouders · Grootouders · Ouders │ DEZE GENERATIE │ Kinderen · Kleinkinderen
+ *                                          │ broers/zussen  │
+ *                                          │ de duif zelf   │
+ *                                          │ partners       │
  *
- * Each box stays SPARSE on purpose (see the tekstbudget rule): a name, the
- * general score, and — if she is still alive — whose loft she sits in. That last
- * bit is the part players act on ("my champion's mother is in Jan's loft").
+ * ⚠️ The connectors are NOT drawn with CSS parity tricks any more. That only ever
+ * worked for a binary tree (everyone has exactly two parents) and a clutch fans
+ * out arbitrarily wide. Instead `buildLayout` lays every column out as
+ * equal-height cells and emits LINK GROUPS — {left cells, right cells} — whose
+ * positions are computed here as PERCENTAGES of the column height and written
+ * inline. One mechanism covers two-parents-to-one-child, one-parent-to-six-young
+ * and a whole sibship hanging off one couple.
  *
- * ⚠️ The two directions truncate for OPPOSITE reasons, and both are honest:
- * upward, a dead bird leaves no row so her own parents are unknowable; downward,
- * a dead CHILD leaves no row so she and the grandchildren behind her cannot be
- * reached at all. Siblings and partners survive either death, because they are
- * read off a living row.
+ * The one invariant that mechanism rests on: every cell WITHIN a column is the
+ * same height (`flex: 1 1 0`). Columns may differ from each other. Break that and
+ * every line in the diagram points somewhere else.
+ *
+ * ⚠️ Both directions truncate, for OPPOSITE reasons, and both are honest: upward
+ * a dead bird leaves no row so her own parents are unknowable; downward a dead
+ * CHILD leaves no row, so she and the grandchildren behind her cannot be reached
+ * at all. Siblings and partners survive either death — they are read off a
+ * living row (see core/game/pedigree.ts).
  */
 
-import { useMemo, useState } from 'react';
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import type { AncestorNode, DescendantNode, FamilyMember, FamilyTree, SiblingNode } from '../types';
 
-/** Column headers of the ancestor chart, and — via its length — how deep it goes. */
-const GEN_LABELS = ['Duif', 'Ouders', 'Grootouders', 'Overgrootouders'];
-
-/** Portrait size per generation; the deepest column is name-only. */
-const PIC = [34, 30, 24, 0];
-
-/** Depth labels on the descendant side. */
+/** How deep the ancestor side goes, oldest label first. */
+const UP_LABELS = ['Overgrootouders', 'Grootouders', 'Ouders'];
 const DOWN_LABELS = ['Kinderen', 'Kleinkinderen', 'Achterkleinkinderen'];
 
-/**
- * Flatten the ancestors into fixed 2^g slot rows. Slot `i` of a generation has
- * its father at `2i` and its mother at `2i + 1` in the next one — the classic
- * pedigree numbering, and what lets the CSS pair up cells by index parity.
- */
+export interface Cell {
+  key: string;
+  node: FamilyMember | null;
+  note?: string;
+  /** Portrait size; 0 renders a name-only box. */
+  pic: number;
+  self?: boolean;
+}
+export interface Column { label: string; cells: Cell[]; tall: boolean; }
+/** Cells on the left of a gap that connect to cells on its right. */
+export interface LinkGroup { left: number[]; right: number[] }
+export interface Layout { columns: Column[]; gaps: LinkGroup[][] }
+
+/** Flatten the ancestors into fixed 2^g slot rows (classic pedigree numbering). */
 function toGenerations(root: AncestorNode): (AncestorNode | null)[][] {
   const gens: (AncestorNode | null)[][] = [[root]];
-  for (let g = 1; g < GEN_LABELS.length; g++) {
+  for (let g = 1; g <= UP_LABELS.length; g++) {
     const next: (AncestorNode | null)[] = [];
     for (const n of gens[g - 1]) next.push(n?.sire ?? null, n?.dam ?? null);
     gens.push(next);
   }
   // A generation nobody knows anything about is noise, not information.
-  while (gens.length > 2 && gens[gens.length - 1].every((n) => !n)) gens.pop();
+  while (gens.length > 1 && gens[gens.length - 1].every((n) => !n)) gens.pop();
   return gens;
 }
 
-/** The one box used everywhere, so the whole view reads as one family. */
-function Box({
-  node, pic = 30, mineId, extraClass = '', note, linkable = true,
-}: {
-  node: FamilyMember;
-  pic?: number;
-  mineId?: string;
-  extraClass?: string;
-  /** Replaces the loft line when the relationship matters more (e.g. "volle zus"). */
-  note?: string;
-  linkable?: boolean;
-}) {
+/**
+ * Turn the family into columns plus the links between them.
+ *
+ * ⚠️ The subject sits DEAD CENTRE of her own column, padded with blank cells if
+ * the siblings above and the partners below are uneven. That is not cosmetic:
+ * her parents' bracket meets at the vertical middle of the gap, so if she drifts
+ * off centre the line from her parents lands next to her instead of on her.
+ */
+export function buildLayout(root: AncestorNode, family: FamilyTree | null): Layout {
+  const columns: Column[] = [];
+  const gaps: LinkGroup[][] = [];
+
+  // --- Ancestors, oldest column first --------------------------------------
+  const gens = toGenerations(root); // gens[0] = the bird, gens[1] = parents, …
+  const upper = gens.slice(1).reverse(); // e.g. [great-grandparents, grandparents, parents]
+  upper.forEach((slots, i) => {
+    // `upper` is reversed, so the label list has to be read from the back too.
+    const label = UP_LABELS[UP_LABELS.length - upper.length + i] ?? '';
+    columns.push({
+      label,
+      tall: i === upper.length - 1, // the parents column carries the biggest boxes
+      cells: slots.map((n, j) => ({
+        key: `up${i}-${j}`,
+        node: n,
+        pic: i === upper.length - 1 ? 30 : i === upper.length - 2 ? 24 : 0,
+        note: i <= upper.length - 3 ? (n?.sex === 'doffer' ? '♂' : '♀') : undefined,
+      })),
+    });
+    // Between two ancestor columns: right slot k descends from left slots 2k, 2k+1.
+    if (i > 0) {
+      const groups: LinkGroup[] = [];
+      const right = columns[columns.length - 1].cells;
+      right.forEach((_, k) => {
+        const left = [k * 2, k * 2 + 1].filter((s) => upper[i - 1][s]);
+        if (left.length && right[k].node) groups.push({ left, right: [k] });
+      });
+      gaps.push(groups);
+    }
+  });
+
+  // --- The subject's own generation: siblings, herself, partners ------------
+  const siblings = family?.siblings ?? [];
+  const partners = family?.partners ?? [];
+  const above = siblings;
+  const below = partners;
+  const arm = Math.max(above.length, below.length);
+  const blank = (k: string): Cell => ({ key: k, node: null, pic: 0 });
+  const cells: Cell[] = [
+    ...Array.from({ length: arm - above.length }, (_, i) => blank(`pad-a${i}`)),
+    ...above.map((s, i) => ({ key: `sib${i}`, node: s as FamilyMember, pic: 30, note: siblingNote(s) })),
+    { key: 'self', node: root, pic: 34, self: true },
+    ...below.map((p, i) => ({ key: `mate${i}`, node: p, pic: 30, note: 'partner' })),
+    ...Array.from({ length: arm - below.length }, (_, i) => blank(`pad-b${i}`)),
+  ];
+  const selfIndex = arm; // dead centre of 2·arm + 1 cells
+  columns.push({ label: 'Deze duif', tall: true, cells });
+
+  // Parents → the whole sibship (the subject and everyone sharing a parent).
+  if (upper.length > 0) {
+    const parentSlots = [0, 1].filter((s) => upper[upper.length - 1][s]);
+    const kin = cells.map((c, i) => (c.node && !c.key.startsWith('mate') ? i : -1)).filter((i) => i >= 0);
+    gaps.push(parentSlots.length ? [{ left: parentSlots, right: kin }] : []);
+  }
+
+  // --- Descendants ---------------------------------------------------------
+  // Young are ordered per partner so one clutch stays contiguous, which keeps
+  // its bracket a single unbroken span instead of a comb.
+  const kids = [...(family?.children ?? [])].sort((a, b) =>
+    (a.partner?.id ?? '').localeCompare(b.partner?.id ?? ''));
+
+  if (kids.length > 0) {
+    // From the subject AND the matching partner box, so both parents show a line.
+    const groups: LinkGroup[] = [];
+    const byMate = new Map<string, number[]>();
+    kids.forEach((k, i) => {
+      const key = k.partner?.id ?? '—';
+      byMate.set(key, [...(byMate.get(key) ?? []), i]);
+    });
+    for (const [key, idxs] of byMate) {
+      const mateAt = below.findIndex((p) => (p.id ?? '') === key);
+      const left = mateAt >= 0 ? [selfIndex, selfIndex + 1 + mateAt] : [selfIndex];
+      groups.push({ left, right: idxs });
+    }
+    gaps.push(groups);
+    columns.push({
+      label: DOWN_LABELS[0],
+      tall: true,
+      cells: kids.map((k, i) => ({ key: `d0-${i}`, node: k, pic: 30 })),
+    });
+
+    // Deeper levels: each parent fans to a contiguous run of its own young.
+    let level = kids;
+    for (let d = 1; d < DOWN_LABELS.length; d++) {
+      const next: DescendantNode[] = [];
+      const groups2: LinkGroup[] = [];
+      level.forEach((n, i) => {
+        if (!n.children.length) return;
+        const start = next.length;
+        next.push(...n.children);
+        groups2.push({ left: [i], right: n.children.map((_, j) => start + j) });
+      });
+      if (!next.length) break;
+      gaps.push(groups2);
+      columns.push({
+        label: DOWN_LABELS[d],
+        tall: false,
+        cells: next.map((k, i) => ({
+          key: `d${d}-${i}`,
+          node: k,
+          pic: 24,
+          note: k.partner ? `uit ${k.partner.name}` : undefined,
+        })),
+      });
+      level = next;
+    }
+  }
+
+  return { columns, gaps };
+}
+
+/** How a sibling is related, in the words a breeder uses. */
+function siblingNote(s: SiblingNode): string {
+  const word = s.sex === 'doffer' ? 'broer' : 'zus';
+  return s.full ? `volle ${word}` : `half${word} · zelfde ${s.sharedSire ? 'vader' : 'moeder'}`;
+}
+
+/** Centre of cell `i` in a column of `n`, as a percentage of the column height. */
+export const centre = (i: number, n: number) => ((i + 0.5) / n) * 100;
+
+/** The one box used everywhere, so the whole diagram reads as one family. */
+function Box({ cell, mineId }: { cell: Cell; mineId?: string }) {
+  const node = cell.node!;
   const mine = !!mineId && node.ownerId === mineId;
   const where = !node.alive ? 'overleden' : mine ? 'jouw hok' : node.ownerName ?? '';
-  const sub = [node.talent != null ? `★${node.talent}` : null, note ?? (where || null)]
+  const sub = [node.talent != null ? `★${node.talent}` : null, cell.note ?? (where || null)]
     .filter(Boolean).join(' · ');
-  const cls = ['ped-node', node.sex, node.alive ? '' : 'gone', extraClass].filter(Boolean).join(' ');
+  const cls = ['ped-node', node.sex, node.alive ? '' : 'gone', cell.self ? 'self' : '']
+    .filter(Boolean).join(' ');
+  const pic = cell.pic;
 
   const inner = (
     <>
@@ -87,8 +215,7 @@ function Box({
       ))}
       <div className="ped-body">
         <div className="ped-name">
-          {/* The portrait slot already carries the †; only a box without one
-              (the name-only column) has to say it in the name. */}
+          {/* A box with a portrait already shows the †; a name-only one must say it. */}
           {node.alive || pic > 0 ? '' : '† '}
           {node.name}
           {node.quirk && <span title="Bijzonderheid"> ✨</span>}
@@ -99,40 +226,47 @@ function Box({
   );
 
   const title = `${node.name} · ${node.sex}${node.talent != null ? ` · ★${node.talent}` : ''}${where ? ` · ${where}` : ''}`;
-  // Only a bird that still exists has a page to open.
-  return node.alive && node.id && linkable
+  // Only a bird that still exists has a page to open; the subject is already here.
+  return node.alive && node.id && !cell.self
     ? <Link className={cls} to={`/duif/${node.id}`} title={title}>{inner}</Link>
     : <div className={cls} title={title}>{inner}</div>;
 }
 
-/** How a sibling is related, in the words a breeder uses. */
-function siblingNote(s: SiblingNode): string {
-  const word = s.sex === 'doffer' ? 'broer' : 'zus';
-  if (s.full) return `volle ${word}`;
-  return `half${word} · zelfde ${s.sharedSire ? 'vader' : 'moeder'}`;
-}
-
-/** The descendant side: a rail tree, so an arbitrary fan-out still reads. */
-function Offspring({ nodes, mineId, depth = 0 }: { nodes: DescendantNode[]; mineId?: string; depth?: number }) {
-  if (nodes.length === 0) return null;
+/** One gap's worth of connectors, positioned purely in percentages. */
+function Gap({ groups, nLeft, nRight }: { groups: LinkGroup[]; nLeft: number; nRight: number }) {
   return (
-    <ul className="ped-tree">
-      {nodes.map((n) => (
-        <li key={n.id ?? n.name}>
-          <Box
-            node={n}
-            pic={depth === 0 ? 30 : 24}
-            mineId={mineId}
-            note={n.partner && depth > 0 ? `uit ${n.partner.name}` : undefined}
-          />
-          <Offspring nodes={n.children} mineId={mineId} depth={depth + 1} />
-        </li>
-      ))}
-    </ul>
+    <div className="ped-gap">
+      <div className="ped-gen-head" aria-hidden>&nbsp;</div>
+      <div className="ped-gap-area">
+        {groups.map((g, gi) => {
+          const lc = g.left.map((i) => centre(i, nLeft));
+          const rc = g.right.map((i) => centre(i, nRight));
+          const all = [...lc, ...rc];
+          const top = Math.min(...all);
+          const bottom = Math.max(...all);
+          // Two clutches from one bird share the subject's stub, so nudge each
+          // bundle sideways — otherwise they draw straight over each other.
+          const shift = groups.length > 1 ? (gi - (groups.length - 1) / 2) * 5 : 0;
+          const busX = `calc(50% - 1px + ${shift}px)`;
+          return (
+            <div key={gi}>
+              <i className="ped-bus" style={{ left: busX, top: `${top}%`, height: `${bottom - top}%` }} />
+              {lc.map((y, i) => (
+                <i key={`l${i}`} className="ped-tick"
+                  style={{ left: 0, width: `calc(50% + ${shift}px)`, top: `calc(${y}% - 1px)` }} />
+              ))}
+              {rc.map((y, i) => (
+                <i key={`r${i}`} className="ped-tick"
+                  style={{ left: `calc(50% + ${shift}px)`, right: 0, top: `calc(${y}% - 1px)` }} />
+              ))}
+            </div>
+          );
+        })}
+      </div>
+    </div>
   );
 }
 
-/** Count what we actually know, so the toggle can say something useful. */
 const countAncestors = (n: AncestorNode | null): number =>
   n ? 1 + countAncestors(n.sire) + countAncestors(n.dam) : 0;
 const countDescendants = (nodes: DescendantNode[]): number =>
@@ -146,29 +280,35 @@ export function Pedigree({
   mineId?: string;
 }) {
   const [open, setOpen] = useState(false);
-  // `root` is the bird herself; her ancestors are what the chart is about.
   const upward = countAncestors(root?.sire ?? null) + countAncestors(root?.dam ?? null);
   const siblings = family?.siblings ?? [];
-  const kids = family?.children ?? [];
-  const downward = countDescendants(kids);
-  const total = upward + siblings.length + downward;
-  const gens = useMemo(() => (root ? toGenerations(root) : []), [root]);
+  const partners = family?.partners ?? [];
+  const downward = countDescendants(family?.children ?? []);
+  const total = upward + siblings.length + partners.length + downward;
+  const layout = useMemo(() => (root ? buildLayout(root, family) : null), [root, family]);
+  const scroller = useRef<HTMLDivElement | null>(null);
+  const selfCol = useRef<HTMLDivElement | null>(null);
 
-  if (total === 0) {
+  // ⚠️ Het diagram is breder dan een gsm en de duif staat in het MIDDEN, dus
+  // zonder dit opent het op de overgrootouders en lijkt haar eigen tak te
+  // ontbreken. Gemeten op 390 px: de kolom "Deze duif" begon volledig buiten
+  // beeld. Bewust via scrollLeft en niet via scrollIntoView — dat laatste
+  // versleept ook de pagina zelf.
+  useEffect(() => {
+    if (!open) return;
+    const s = scroller.current;
+    const t = selfCol.current;
+    if (!s || !t) return;
+    const delta = t.getBoundingClientRect().left - s.getBoundingClientRect().left;
+    s.scrollLeft += delta - Math.max(0, (s.clientWidth - t.offsetWidth) / 2);
+  }, [open]);
+
+  if (!root || total === 0) {
     return (
       <p className="muted" style={{ marginTop: 8 }}>
         Nog geen familie bekend — geen ouders, broers, zussen of jongen.
       </p>
     );
-  }
-
-  // Top-level young are grouped per partner: a clutch reads as a clutch.
-  const byPartner = new Map<string, { partner: FamilyMember | null; young: DescendantNode[] }>();
-  for (const k of kids) {
-    const key = k.partner?.id ?? '—';
-    const g = byPartner.get(key);
-    if (g) g.young.push(k);
-    else byPartner.set(key, { partner: k.partner, young: [k] });
   }
 
   return (
@@ -177,88 +317,40 @@ export function Pedigree({
         🌳 {open ? 'Verberg stamboom' : 'Toon volledige stamboom'} · {total} {total === 1 ? 'verwant' : 'verwanten'}
       </button>
 
-      {open && (
+      {open && layout && (
         <div className="ped-panel" style={{ marginTop: 12 }}>
-          {upward > 0 && (
-            <div>
-              <div className="ped-sec-head">Voorouders</div>
-              <div className="ped-scroll">
-                <div className="ped-chart">
-                  {gens.map((slots, gen) => (
-                    <div className={`ped-gen g${gen}`} key={gen}>
-                      <div className="ped-gen-head">{GEN_LABELS[gen]}</div>
-                      <div className="ped-col">
-                        {slots.map((node, i) => {
-                          // Index parity is the pair: even = father (upper half),
-                          // odd = mother (lower half). That drives the bracket.
-                          const side = gen === 0 ? '' : i % 2 === 0 ? 'sire' : 'dam';
-                          const hasKids = !!gens[gen + 1] && !!(gens[gen + 1][i * 2] || gens[gen + 1][i * 2 + 1]);
-                          return (
-                            <div className={`ped-cell ${side}${node ? '' : ' empty'}`} key={i}>
-                              {node ? (
-                                <Box
-                                  node={node}
-                                  pic={PIC[Math.min(gen, PIC.length - 1)]}
-                                  mineId={mineId}
-                                  extraClass={`${hasKids ? 'kids' : ''} ${gen === 0 ? 'self' : ''}`}
-                                  note={gen >= PIC.length - 1 ? (node.sex === 'doffer' ? '♂' : '♀') : undefined}
-                                  linkable={gen !== 0}
-                                />
-                              ) : (
-                                <div className="ped-empty" title="onbekend" />
-                              )}
-                            </div>
-                          );
-                        })}
-                      </div>
+          <div className="ped-scroll" ref={scroller}>
+            <div className="ped-chart">
+              {layout.columns.map((col, ci) => (
+                <Fragment key={col.label + ci}>
+                  {ci > 0 && (
+                    <Gap
+                      groups={layout.gaps[ci - 1] ?? []}
+                      nLeft={layout.columns[ci - 1].cells.length}
+                      nRight={col.cells.length}
+                    />
+                  )}
+                  <div
+                    className={`ped-gen${col.tall ? ' tall' : ''}${col.label === 'Deze duif' ? ' wide' : ''}`}
+                    ref={col.label === 'Deze duif' ? selfCol : undefined}
+                  >
+                    <div className="ped-gen-head">{col.label}</div>
+                    <div className="ped-col">
+                      {col.cells.map((cell) => (
+                        <div className="ped-cell" key={cell.key}>
+                          {cell.node
+                            ? <Box cell={cell} mineId={mineId} />
+                            : <div className="ped-empty" title="onbekend" />}
+                        </div>
+                      ))}
                     </div>
-                  ))}
-                </div>
-              </div>
-              <p className="ped-hint">← Sleep opzij voor de oudere generaties →</p>
-            </div>
-          )}
-
-          {siblings.length > 0 && (
-            <div>
-              <div className="ped-sec-head">
-                Broers &amp; zussen <span className="faint">· {siblings.length}</span>
-              </div>
-              <div className="ped-kin">
-                {siblings.map((s) => (
-                  <Box key={s.id ?? s.name} node={s} mineId={mineId} note={siblingNote(s)} />
-                ))}
-              </div>
-            </div>
-          )}
-
-          {kids.length > 0 && (
-            <div>
-              <div className="ped-sec-head">
-                Nakomelingen <span className="faint">· {downward}</span>
-              </div>
-              {[...byPartner.values()].map((g, i) => (
-                <div key={g.partner?.id ?? `onbekend-${i}`} style={{ marginTop: i === 0 ? 0 : 10 }}>
-                  <div className="ped-mate">
-                    {g.partner ? (
-                      <>
-                        gekoppeld met{' '}
-                        {g.partner.id
-                          ? <Link to={`/duif/${g.partner.id}`}>{g.partner.name}</Link>
-                          : <strong>{g.partner.name}</strong>}
-                      </>
-                    ) : (
-                      'andere ouder onbekend'
-                    )}
                   </div>
-                  <Offspring nodes={g.young} mineId={mineId} />
-                </div>
+                </Fragment>
               ))}
-              <p className="faint" style={{ fontSize: '0.76rem', margin: '8px 0 0' }}>
-                {DOWN_LABELS.join(' → ')} — zover de lijn reikt.
-              </p>
             </div>
-          )}
+          </div>
+
+          <p className="ped-hint">← Sleep opzij voor de rest van de familie →</p>
 
           <div className="ped-legend">
             <span><i className="sw" style={{ background: 'var(--ped-sire)' }} />doffer ♂</span>
@@ -267,8 +359,9 @@ export function Pedigree({
             <span>✨ bijzonderheid</span>
           </div>
           <p className="faint" style={{ fontSize: '0.78rem', margin: 0 }}>
-            Klik een duif die nog leeft om naar haar pagina te gaan. Een tak stopt bij een duif
-            die er niet meer is — met haar verdwenen ook haar ouders en haar eigen jongen.
+            Broers, zussen en partners staan in dezelfde kolom als de duif zelf. Klik een duif
+            die nog leeft om naar haar pagina te gaan. Een tak stopt bij een duif die er niet
+            meer is — met haar verdwenen ook haar ouders en haar eigen jongen.
           </p>
         </div>
       )}
