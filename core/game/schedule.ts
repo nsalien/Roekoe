@@ -952,11 +952,17 @@ export function tickFlights(
             if (r.velocity > st.best) st.best = r.velocity;
           }
         }
-        // The weekend specials and the leeftijdscriterium stop here: no medals/wins
-        // badges, no bets (none can be placed on them), no win/podium missions and
-        // no sponsor bonuses — money + the pigeon standings above are all they feed.
-        if (flight.titan || flight.relay || flight.ageCat) continue;
-        awardFlightBadges(db, flight);
+        // A PODIUM IS A PODIUM, whatever the format (owner's call): medals and the
+        // win badges are booked for the titan, the estafette and the criterium too,
+        // not just the three competition tiers. Only the TIER win counters stay
+        // behind — a titan is not an international victory, however its `type`
+        // field reads. See awardFlightBadges.
+        const specialFormat = !!(flight.titan || flight.relay || flight.ageCat);
+        awardFlightBadges(db, flight, { tierWins: !specialFormat });
+        // The weekend specials and the leeftijdscriterium stop here: no bets (none
+        // can be placed on them), no win/podium missions and no sponsor bonuses —
+        // money, medals and the pigeon standings above are all they feed.
+        if (specialFormat) continue;
         settleFlightBets(db, flight);
         // Daily-mission progress for win/podium.
         for (const ownerId of new Set(flight.results.map((r) => r.ownerId))) {
