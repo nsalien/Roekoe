@@ -15,6 +15,14 @@ export interface PrizeTable {
 }
 export type BreedRarity = 'algemeen' | 'ongewoon' | 'zeldzaam' | 'legendarisch' | 'gemengd';
 
+/** De inteelt-afwijking. Publiek, net als het ras — een koper moet zien dat een
+ *  driewiek-duif een driewiek-duif is. Bepaalt ook of de foto gebruikt wordt. */
+export interface PigeonQuirk {
+  id: string;
+  name: string;
+  emoji: string;
+  description: string;
+}
 export interface PigeonBreed {
   id: string;
   name: string;
@@ -143,7 +151,7 @@ export interface Pigeon {
   cup?: Partial<Record<AgeCategoryId, CupStanding>> | null;
   titles?: PigeonTitle[];
   /** A visible oddity from an inbred pairing (see PIGEON_QUIRKS on the server). */
-  quirk?: { id: string; name: string; emoji: string; description: string } | null;
+  quirk?: PigeonQuirk | null;
 }
 
 export interface Trade {
@@ -831,8 +839,12 @@ export interface FamilyMember {
   ownerName: string | null;
   ownerId: string | null;
   talent: number | null;
-  image: string | null;
-  quirk: string | null;
+  /** ⚠️ Het VOLLEDIGE ras en de afwijking, in dezelfde vorm als `Pigeon` — niet
+   *  enkel een bestandsnaam. De stamboom tekent haar vakjes met dezelfde
+   *  `PigeonAvatar` als de rest van het spel, en die heeft allebei nodig om de
+   *  juiste foto te kiezen (een duif met een afwijking krijgt de getekende duif). */
+  breed: PigeonBreed | null;
+  quirk: PigeonQuirk | null;
 }
 
 /** Eén vakje in de voorouderboom. */

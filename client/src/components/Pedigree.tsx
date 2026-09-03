@@ -29,6 +29,7 @@
 
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { PigeonAvatar } from './PigeonAvatar';
 import type { AncestorNode, DescendantNode, FamilyMember, FamilyTree, SiblingNode } from '../types';
 
 /** How deep the ancestor side goes, oldest label first. */
@@ -85,7 +86,10 @@ export function buildLayout(root: AncestorNode, family: FamilyTree | null): Layo
       cells: slots.map((n, j) => ({
         key: `up${i}-${j}`,
         node: n,
-        pic: i === upper.length - 1 ? 30 : i === upper.length - 2 ? 24 : 0,
+        // Ook de verste kolom krijgt haar portret: de vraag was "steeds de
+        // correcte foto, als die gekend is". Een 22 px-avatar is korter dan de
+        // twee tekstregels ernaast, dus de celhoogte beweegt er niet door.
+        pic: i === upper.length - 1 ? 30 : i === upper.length - 2 ? 24 : 22,
         note: i <= upper.length - 3 ? (n?.sex === 'doffer' ? '♂' : '♀') : undefined,
       })),
     });
@@ -203,14 +207,26 @@ function Box({ cell, mineId }: { cell: Cell; mineId?: string }) {
 
   const inner = (
     <>
-      {pic > 0 && (node.image ? (
-        <img
-          className={`ped-pic${node.alive ? '' : ' gone'}`}
-          src={`/pigeon-images/${node.image}`}
-          alt="" loading="lazy" width={pic} height={pic}
-          style={{ width: pic, height: pic }}
-        />
+      {/* ⚠️ Dezelfde `PigeonAvatar` als de rest van het spel, en niet een eigen
+          <img> op de bestandsnaam. Die tweede weg negeerde de regel dat een duif
+          met een AFWIJKING de getekende duif krijgt in plaats van haar rasfoto —
+          geen enkele stockfoto heeft drie vleugels — en toonde dus stilletjes de
+          verkeerde duif. Eén component, één antwoord op "welke foto hoort hier". */}
+      {pic > 0 && (node.breed || node.id ? (
+        <div className={node.alive ? undefined : 'ped-pic gone'} style={{ display: 'flex', flexShrink: 0 }}>
+          <PigeonAvatar
+            pigeon={{
+              id: node.id ?? node.name,
+              sex: node.sex,
+              talent: node.talent ?? 0,
+              breed: node.breed ?? undefined,
+              quirk: node.quirk,
+            }}
+            size={pic}
+          />
+        </div>
       ) : (
+        // Geen ras én geen rij meer: we weten enkel nog haar naam.
         <span className="ped-glyph" style={{ width: pic }}>{node.alive ? '🕊️' : '†'}</span>
       ))}
       <div className="ped-body">

@@ -12,7 +12,8 @@
  *
  * Run: npx tsx pedigree.test.mts
  */
-import { BREEDING, INBREEDING, MALE_FIRST_NAMES, FEMALE_FIRST_NAMES, EPITHETS } from './core/config/gameConfig.js';
+import { existsSync } from 'node:fs';
+import { BREEDING, INBREEDING, MALE_FIRST_NAMES, FEMALE_FIRST_NAMES, EPITHETS, PIGEON_BREEDS } from './core/config/gameConfig.js';
 import { familyOf, kinship, pedigreeOf, ancestorIds } from './core/game/pedigree.js';
 import { breed } from './core/game/breeding.js';
 import { generatePigeon } from './core/game/pigeon.js';
@@ -139,6 +140,65 @@ console.log('\nFamilie in alle richtingen (familyOf)');
   ok(familyOf(db, partnerA, 3).children.length === 2, 'de partner ziet zijn eigen twee jongen');
   ok(familyOf(db, opa, 3).children.length === 3,
     'de kant van de grootvader werkt net zo goed: opa ziet ik + vollezus + halfbroer_v');
+}
+
+// === P. De juiste foto reist mee met elke duif in de stamboom ===============
+/*
+ * De stamboom tekende vroeger zijn eigen <img> op een bestandsnaam, los van de
+ * `PigeonAvatar` die de rest van het spel gebruikt. Daardoor negeerde hij de
+ * regel dat een duif met een AFWIJKING de getekende duif krijgt in plaats van
+ * haar rasfoto — geen enkele stockfoto heeft drie vleugels — en toonde hij
+ * stilletjes de verkeerde duif. Daarom draagt elke tak nu het VOLLEDIGE ras én
+ * de afwijking, in dezelfde vorm als `pigeonDTO`.
+ */
+console.log('\nElke duif in de stamboom draagt haar ras én haar afwijking');
+{
+  const db = world();
+  const pa = bird(db, 'pa_f', 'doffer', null, null);
+  const ma = bird(db, 'ma_f', 'duivin', null, null);
+  const ik3 = bird(db, 'ik3', 'duivin', pa.id, ma.id);
+  const zus = bird(db, 'zus_f', 'duivin', pa.id, ma.id);
+  const mate = bird(db, 'mate_f', 'doffer', null, null);
+  const jong = bird(db, 'jong_f', 'doffer', mate.id, ik3.id);
+  // Eén duif met een afwijking, één met een uitgesproken ras.
+  zus.quirk = 'driewiek';
+  pa.breed = 'meulemans';
+  jong.breed = 'golden-ace';
+
+  const tree = pedigreeOf(db, ik3, 3)!;
+  const fam = familyOf(db, ik3, 2);
+  const boxes = [tree, tree.sire!, tree.dam!, ...fam.siblings, ...fam.partners, ...fam.children];
+
+  ok(boxes.every((b) => b.breed !== null), 'elke levende duif in het diagram draagt een ras');
+  ok(boxes.every((b) => typeof b.breed?.image === 'string' && b.breed!.image.endsWith('.png')),
+    'en dat ras wijst naar een echte foto');
+  ok(tree.sire!.breed!.id === 'meulemans' && tree.sire!.breed!.rarity === 'zeldzaam',
+    'de vader draagt zijn eigen ras, niet dat van de duif');
+  ok(fam.children[0].breed!.id === 'golden-ace', 'het jong draagt zijn eigen ras');
+
+  const zusNode = fam.siblings.find((x) => x.name === 'zus_f')!;
+  ok(zusNode.quirk?.id === 'driewiek', 'de zus met een afwijking draagt die mee');
+  ok(typeof zusNode.quirk?.name === 'string' && typeof zusNode.quirk?.emoji === 'string',
+    'volledig genoeg voor de avatar (naam + emoji), niet enkel een id');
+  ok(fam.children[0].quirk === null, 'een duif zonder afwijking draagt er geen');
+
+  // Een duif die er niet meer is heeft geen rij, dus ook geen ras — dan valt de
+  // stamboom terug op haar onthouden naam en een 🕊️/†, niet op een vreemde foto.
+  const dood = bird(db, 'dood_f', 'doffer', null, null);
+  const weeskind = bird(db, 'wees_f', 'duivin', dood.id, ma.id);
+  db.pigeons = db.pigeons.filter((x) => x.id !== dood.id);
+  const wt = pedigreeOf(db, weeskind, 2)!;
+  ok(wt.sire!.breed === null && wt.sire!.alive === false,
+    'een overleden voorouder draagt geen ras — geen foto die niet van haar is');
+  ok(wt.sire!.name === 'dood_f', 'wel nog haar onthouden naam');
+
+  // ⚠️ En de foto's moeten ook ECHT bestaan. Een ras dat naar een ontbrekend
+  // bestand wijst geeft een leeg rondje in plaats van een duif, en dat is precies
+  // het soort fout dat niemand opmerkt tot een speler het meldt.
+  for (const b of PIGEON_BREEDS) {
+    ok(existsSync(`./client/public/pigeon-images/${b.image}`),
+      `de foto van ${b.name} bestaat (${b.image})`);
+  }
 }
 
 // === Y0. Halfbroers/-zussen in de lastige gevallen ==========================

@@ -22,6 +22,7 @@
 import { INBREEDING, type KinshipDegree } from '../config/gameConfig.js';
 import type { Database, Pigeon } from '../schema.js';
 import { breedInfo, talent } from './pigeon.js';
+import { BREED_RARITY, quirkById } from '../config/gameConfig.js';
 
 /** What every box in the family view shows — public facts only. */
 export interface FamilyMember {
@@ -33,10 +34,29 @@ export interface FamilyMember {
   ownerName: string | null;
   ownerId: string | null;
   talent: number | null;
-  /** Breed image filename, so the tree can show the same little portrait. */
-  image: string | null;
-  quirk: string | null;
+  /**
+   * ⚠️ The FULL breed and quirk, in exactly the shape `pigeonDTO` sends them —
+   * not a flattened image filename. The stamboom renders these through the same
+   * `PigeonAvatar` as every other screen, and that component needs both to pick
+   * the right picture: a bird with a QUIRK gets the drawn pigeon rather than her
+   * breed photo, because no stock photo has three wings. Send only the filename
+   * and the tree quietly shows an ordinary Meulemans where a three-winged bird
+   * should be.
+   */
+  breed: { id: string; name: string; rarity: string; rarityLabel: string; image: string } | null;
+  quirk: { id: string; name: string; emoji: string; description: string } | null;
 }
+
+/** The breed exactly as `pigeonDTO` sends it, so one avatar component serves both. */
+const breedPayload = (breedId: string | undefined): FamilyMember['breed'] => {
+  const b = breedInfo(breedId);
+  return { id: b.id, name: b.name, rarity: b.rarity, rarityLabel: BREED_RARITY[b.rarity].label, image: b.image };
+};
+/** Idem for the inbreeding quirk — it decides whether the photo is used at all. */
+const quirkPayload = (quirkId: string | undefined | null): FamilyMember['quirk'] => {
+  const q = quirkById(quirkId ?? undefined);
+  return q ? { id: q.id, name: q.name, emoji: q.emoji, description: q.description } : null;
+};
 
 /** One box in the ancestor chart. `alive` false = known only by a remembered name. */
 export interface AncestorNode extends FamilyMember {
@@ -147,7 +167,7 @@ export function pedigreeOf(db: Database, pigeon: Pigeon, generations: number): A
     if (!bird) {
       // Known by name only — a leaf, because its own parents died with it.
       return rememberedName
-        ? { id: null, name: rememberedName, sex, alive: false, ownerName: null, ownerId: null, talent: null, image: null, quirk: null, sire: null, dam: null }
+        ? { id: null, name: rememberedName, sex, alive: false, ownerName: null, ownerId: null, talent: null, breed: null, quirk: null, sire: null, dam: null }
         : null;
     }
     const node = (b: Pigeon, sire: AncestorNode | null, dam: AncestorNode | null): AncestorNode => ({
@@ -161,8 +181,8 @@ export function pedigreeOf(db: Database, pigeon: Pigeon, generations: number): A
       // breed portrait. The individual attributes stay hidden here exactly as
       // they do everywhere else (see presenters.ts info-hiding).
       talent: talent(b),
-      image: breedInfo(b.breed).image,
-      quirk: b.quirk ?? null,
+      breed: breedPayload(b.breed),
+      quirk: quirkPayload(b.quirk),
       sire,
       dam,
     });
@@ -205,8 +225,8 @@ export function familyOf(db: Database, pigeon: Pigeon, generations: number): Fam
     // breed portrait. Individual attributes stay hidden, exactly as everywhere
     // else (see presenters.ts info-hiding).
     talent: talent(b),
-    image: breedInfo(b.breed).image,
-    quirk: b.quirk ?? null,
+    breed: breedPayload(b.breed),
+    quirk: quirkPayload(b.quirk),
   });
 
   // Parent id → its young. Both parents are indexed, so one map serves children
@@ -262,7 +282,7 @@ export function familyOf(db: Database, pigeon: Pigeon, generations: number): Fam
         : remembered
           ? {
             id: null, name: remembered, sex: viaSire ? 'duivin' : 'doffer', alive: false,
-            ownerName: null, ownerId: null, talent: null, image: null, quirk: null,
+            ownerName: null, ownerId: null, talent: null, breed: null, quirk: null,
           }
           : null;
       if (other && parent.id === pigeon.id) {
