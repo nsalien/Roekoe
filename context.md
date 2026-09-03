@@ -409,6 +409,7 @@ Roekoe/
 ├── flock.test.mts           regressietest: duiven verdwalen pas als de zwerm openbreekt
 ├── breeding-cooldown.test.mts   regressietest: koppel gaat uiteen na het nest + 3 weken rust
 ├── pedigree.test.mts        regressietest: stamboom, inteelt, kweekleeftijd, namenvariatie
+├── mortality.test.mts       regressietest: ouderdomssterfte raakt geen jonge duiven
 ├── family-chart.test.mts    regressietest: de GEOMETRIE van het stamboomdiagram (buildLayout)
 ├── limits-report.mts            meet queries/rijen gelezen/geschreven per verzoek
 ├── cpu-sweep.mts                meet CPU per operatie (duurste eerst) — diagnose
@@ -1001,6 +1002,7 @@ npx tsx flight-map.test.mts        # de live kaart: posities, afstanden en de om
 npx tsx flock.test.mts             # verdwalen pas buiten de zwerm + omweg schaalt met afstand
 npx tsx breeding-cooldown.test.mts  # koppel uiteen na het nest, rust van 3 weken, geen resurrectie
 npx tsx pedigree.test.mts          # verwantschap, inteeltgevolgen, stamboom bij dode voorouders
+npx tsx mortality.test.mts         # geen duif sterft van 'hoge leeftijd' vóór haar 4e
 npx tsx family-chart.test.mts      # het diagram: duif in het midden, elke lijn wijst ergens naar
 ```
 Diagnose zonder assertie: `npx tsx cpu-sweep.mts` (CPU per operatie, duurste
@@ -1044,6 +1046,43 @@ verzoek uit per statement.
 
 Alles hieronder staat **live** op de deploy-branch. Data-migraties liepen door tot
 **`dataVersion = 45`**.
+
+**Een duif van 2 jaar stierf "op hoge leeftijd" — de sterftecurve liep vanaf de geboorte (nieuwste)**
+- **Melding van een speler:** "Theo Toekomstige Soep" (2 jaar) overleed met de melding dat
+  ze **op hoge leeftijd** vredig insliep. Terecht als bug gemeld: de spelregels beloven dat
+  jonge duiven zo goed als nooit vanzelf sterven.
+- ⚠️ **De oorzaak zat in de VORM van `MORTALITY_CURVE`, niet in de code eromheen.** De
+  eerste twee ankers waren `{ weeks: 0, p: 0 }` en `{ weeks: 208, p: 0.001 }`, en
+  `interpolate` trekt daar een **rechte lijn** tussen. Een duif droeg dus vanaf haar
+  geboorte een ouderdomsrisico dat gestaag opliep — precies wat de tabel *niet* bedoelde.
+- **Gemeten op de oude curve** (met de echte `ageMortality`):
+
+  | Leeftijd | Kans per échte week | Cumulatief dood aan "ouderdom" |
+  |---|---|---|
+  | 1 jaar | 0,10 % | 0,6 % vóór 1 jaar |
+  | 2 jaar | 0,20 % | **2,5 % vóór 2 jaar** |
+  | 3 jaar | 0,30 % | 5,6 % vóór 3 jaar |
+  | 4 jaar | 0,40 % | **9,8 % vóór 4 jaar** |
+
+  Bijna **één duif op tien** haalde haar piek dus niet, met een melding die haar leeftijd
+  er zelf bij noemde. Theo was geen uitzondering maar een verwacht geval.
+- **Fix: een expliciet NUL-anker op `AGING.peakEndWeeks` (208 wk = 4 jaar)** en het
+  `0.001`-anker daar weg. Dat is dezelfde grens waarop `runAgeDecline` de vaardigheden laat
+  zakken, dus **ouderdom begint nu op één plek in het spel**. Alles vanaf 6 jaar is
+  **onveranderd** (6j 0.006 · 8j 0.025 · 10j 0.07 · 12j 0.16 · 15j 0.40); enkel het stuk
+  4→6 jaar wordt iets milder (van ~30 % naar ~27 % over dat venster).
+- **Alleen een configwaarde**: geen migratie, geen schemakolom, `dataVersion` blijft **45**.
+  Dekt meteen ook de admin-only `runHealthWeek`, die dezelfde `ageMortality` gebruikt.
+- **Nieuwe blijvende test `mortality.test.mts`** (18 controles): elke week van 0 t/m 208
+  staat op **exact 0**, het gemelde geval (2 jaar) loopt geen risico, de curve loopt daarna
+  monotoon op, de vijf ijkpunten uit de spelregels kloppen nog, er staat een **nul-anker op
+  208** (⚠️ zonder dat interpoleert de curve weer vanaf de geboorte), en — het sterkste —
+  **200 duiven binnen hun piek 207 gameweken doorgerold tegen de échte
+  `runAgeMortality`**: 63 sterfgevallen, allemaal ≥ 4 jaar, geen enkele jonger.
+  Geverifieerd door de oude curve terug te zetten: 6 controles worden rood, met
+  "jongste: 1 jaar".
+- Spelregels **§6** herschreven: vóór vier jaar is de kans **exact nul**, niet "klein", en
+  wat een jonge duif wél kan doden (onbehandelde aandoening, honger, uitgeput starten).
 
 **De lege duivenrondjes: `padding: 10%` legde élke kleine avatar op 0×0 (nieuwste)**
 - **Melding van de eigenaar:** de twee ouder-rondjes op de duifpagina bleven leeg, ook na de
