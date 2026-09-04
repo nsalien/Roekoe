@@ -4,6 +4,7 @@ import { NavLink, Link, Outlet } from 'react-router-dom';
 import { useEffect, useRef, useState } from 'react';
 import { useAuth } from '../auth/AuthContext';
 import { useGame } from '../game/GameContext';
+import { MARKET_SEEN_EVENT, hasMarketNews, marketSeenAt } from '../game/marketSeen';
 import { api } from '../api/client';
 import { useToast } from './ui';
 import { NotificationsBell } from './NotificationsBell';
@@ -11,6 +12,35 @@ import { Tour, PEDIGREE_NEWS_STEPS } from './Tour';
 import { PrizeCeremony } from './PrizeCeremony';
 
 interface NavItem { to: string; label: string; short: string; icon: string; end?: boolean }
+
+/**
+ * What a nav button nags about. Two different things, so two markers:
+ * `count` is a numbered pill for items waiting on a decision of yours (a bid on
+ * your bird, a nest, a sponsor offer), `news` a plain dot for "something new to
+ * look at" — no action needed, and no honest number to put on it.
+ */
+interface NavBadge { count: number; news: boolean; title: string }
+
+/**
+ * When this player last looked at the market. The value lives in localStorage
+ * (game/marketSeen.ts), which re-renders nothing on its own, so this listens for
+ * the event the market page fires — and for `storage`, so a second tab that
+ * looked clears the dot here too.
+ */
+function useMarketSeenAt(userId: string | null | undefined): number {
+  const [at, setAt] = useState(() => marketSeenAt(userId));
+  useEffect(() => {
+    const sync = () => setAt(marketSeenAt(userId));
+    sync();
+    window.addEventListener(MARKET_SEEN_EVENT, sync);
+    window.addEventListener('storage', sync);
+    return () => {
+      window.removeEventListener(MARKET_SEEN_EVENT, sync);
+      window.removeEventListener('storage', sync);
+    };
+  }, [userId]);
+  return at;
+}
 
 const NAV: NavItem[] = [
   { to: '/', label: 'Overzicht', short: 'Start', icon: '🏠', end: true },
@@ -129,6 +159,40 @@ export function Layout() {
   const initial = (user?.username ?? '?').charAt(0).toUpperCase();
   const navItems = state?.isAdmin ? [...NAV, ADMIN_NAV] : NAV;
 
+  // A bird going up for sale had no signal at all: the market sends no bell
+  // notification, so you only found out by opening the page on the off chance.
+  // The dot stays until this player has actually looked (per browser — see
+  // game/marketSeen.ts; it is a convenience, not game state).
+  const marketSeenAt = useMarketSeenAt(user?.id);
+  const marketNews = hasMarketNews(
+    state?.world.marketNewsAt, state?.world.marketNewsBy, user?.id, marketSeenAt,
+  );
+
+  function badgeFor(n: NavItem): NavBadge {
+    if (n.to === '/sponsors') {
+      const count = state?.loft?.sponsorOfferCount ?? 0;
+      return { count, news: false, title: `${count} nieuw aanbod` };
+    }
+    if (n.to === '/markt') {
+      const count = state?.offers?.received.length ?? 0;
+      const parts = [];
+      if (count > 0) parts.push(`${count} nieuw bod op je duiven`);
+      if (marketNews) parts.push('nieuw op de markt — er staat een duif te koop die je nog niet zag');
+      return { count, news: marketNews, title: parts.join(' · ') };
+    }
+    if (n.to === '/kweek') {
+      // A held clutch is waiting on a decision and blocks new pairs, so Kweek
+      // nags until it is resolved.
+      const count = state?.pendingNests ?? 0;
+      return {
+        count,
+        news: false,
+        title: `${count} nest${count === 1 ? '' : 'en'} wacht${count === 1 ? '' : 'en'} op je keuze`,
+      };
+    }
+    return { count: 0, news: false, title: '' };
+  }
+
   return (
     <div className="app">
       <header className="topbar">
@@ -138,22 +202,14 @@ export function Layout() {
           </Link>
           <nav className="nav">
             {navItems.map((n) => {
-              const offers = n.to === '/sponsors'
-                ? state?.loft?.sponsorOfferCount ?? 0
-                : n.to === '/markt'
-                  ? state?.offers?.received.length ?? 0
-                  // A held clutch is waiting on a decision and blocks new pairs,
-                  // so Kweek nags until it is resolved.
-                  : n.to === '/kweek'
-                    ? state?.pendingNests ?? 0
-                    : 0;
-              const dotTitle = n.to === '/kweek'
-                ? `${offers} nest${offers === 1 ? '' : 'en'} wacht${offers === 1 ? '' : 'en'} op je keuze`
-                : `${offers} nieuw aanbod`;
+              const badge = badgeFor(n);
               return (
                 <NavLink key={n.to} to={n.to} end={n.end} className={({ isActive }) => (isActive ? 'active' : '')}>
                   {n.label}
-                  {offers > 0 && <span className="nav-dot" title={dotTitle}>{offers}</span>}
+                  {badge.count > 0 && <span className="nav-dot" title={badge.title}>{badge.count}</span>}
+                  {badge.news && (
+                    <span className="nav-dot plain" title={badge.title} aria-label={badge.title} />
+                  )}
                 </NavLink>
               );
             })}
@@ -199,7 +255,7 @@ export function Layout() {
       </main>
 
       {/* Bottom tab bar — only shown on phones (see global.css). */}
-      <BottomNav items={navItems} />
+      <BottomNav items={navItems} badgeFor={badgeFor} />
 
       {showTour && <Tour onClose={closeTour} />}
       {/* De ceremonie gaat vóór de "wat is nieuw"-run: net gewonnen weegt zwaarder
@@ -248,7 +304,22 @@ function EventModal() {
   );
 }
 
-function BottomNav({ items }: { items: NavItem[] }) {
+/**
+ * The icon of a bottom-bar tab, with its markers pinned to it. The phone bar has
+ * no room for a label badge, so the count rides the top-right corner and the
+ * "something new" dot the top-left — the same two signals as the desktop nav.
+ */
+function NavIcon({ icon, badge }: { icon: string; badge: NavBadge }) {
+  return (
+    <span className="ico">
+      {icon}
+      {badge.news && <span className="bn-dot news" aria-label={badge.title} />}
+      {badge.count > 0 && <span className="bn-dot" aria-label={badge.title}>{badge.count}</span>}
+    </span>
+  );
+}
+
+function BottomNav({ items, badgeFor }: { items: NavItem[]; badgeFor: (n: NavItem) => NavBadge }) {
   const [open, setOpen] = useState(false);
   const primary = items.slice(0, PRIMARY);
   const overflow = items.slice(PRIMARY);
@@ -265,7 +336,7 @@ function BottomNav({ items }: { items: NavItem[] }) {
               end={n.end}
               className={({ isActive }) => (isActive ? 'active' : '')}
             >
-              <span className="ico">{n.icon}</span>
+              <NavIcon icon={n.icon} badge={badgeFor(n)} />
               <span>{n.short}</span>
             </NavLink>
           ))}
@@ -274,7 +345,7 @@ function BottomNav({ items }: { items: NavItem[] }) {
       <nav className="bottomnav">
         {primary.map((n) => (
           <NavLink key={n.to} to={n.to} end={n.end} className={({ isActive }) => (isActive ? 'active' : '')}>
-            <span className="ico">{n.icon}</span>
+            <NavIcon icon={n.icon} badge={badgeFor(n)} />
             <span>{n.short}</span>
           </NavLink>
         ))}

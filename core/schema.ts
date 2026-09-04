@@ -815,6 +815,25 @@ export interface World {
   ageCupStartedAt?: string;
   /** Seasons completed in the current criterium cycle (0..AGE_CUP.seasons - 1). */
   ageCupSeasonsDone?: number;
+  /**
+   * When a bird was last put up for sale, and by whom — the "there is something
+   * new on the market" marker behind the dot on the Markt nav button. Set by
+   * `noteMarketNews` (game/market.ts) from a listing and from a new auction.
+   *
+   * It lives on the WORLD row on purpose. `/state` is a narrow-load path (see
+   * core/d1.ts): it reads the viewer's own pigeons and nothing else, so it may
+   * not count other players' fresh listings — that would drag the whole
+   * `pigeons` table back onto the hottest route in the game, which is exactly
+   * what the narrow load exists to prevent. One timestamp on a row every request
+   * loads anyway costs no query and no row.
+   *
+   * `marketNewsBy` is the seller's userId (empty for the auction house), so the
+   * seller is not nagged about his own bird. Only the LATEST offering is kept: a
+   * list would have to be pruned whenever a bird is sold or unlisted again, and
+   * the badge only needs to know *that* there is something new.
+   */
+  marketNewsAt?: string;
+  marketNewsBy?: string;
 }
 
 /** The full database document persisted to disk. */
