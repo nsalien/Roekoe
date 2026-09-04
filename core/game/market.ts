@@ -177,3 +177,20 @@ export function valuePigeon(db: Database, pigeon: Pigeon, currentWeek: number, n
 export function marketValue(db: Database, pigeon: Pigeon, currentWeek: number): number {
   return valuePigeon(db, pigeon, currentWeek).value;
 }
+
+/**
+ * Note that a fresh bird is on offer, so the Markt nav button can show a dot
+ * until the player has actually looked (see `World.marketNewsAt` in schema.ts).
+ *
+ * `byUserId` is the seller, so his own listing does not nag him; leave it empty
+ * for the auction house. Writes two short strings on a row that every request
+ * loads anyway — no extra query, no extra row.
+ *
+ * ⚠️ Only call this when a bird is *genuinely* newly on offer. Calling it on a
+ * tick that runs every request would stamp the world row on every poll, which is
+ * the write leak `idle-writes.test.mts` exists to catch (§503-fix ronde 4).
+ */
+export function noteMarketNews(db: Database, byUserId = '', nowMs = Date.now()): void {
+  db.world.marketNewsAt = new Date(nowMs).toISOString();
+  db.world.marketNewsBy = byUserId;
+}

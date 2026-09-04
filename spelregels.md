@@ -1626,6 +1626,11 @@ een grind.
   verkoop stuurt de prijzen nog een tijdje nadat ze van dit lijstje af is.
 - Elke duif toont haar eigenaar; je koopt niet je eigen duiven en je hok mag niet
   vol zitten.
+- **Je ziet het als er iets nieuws staat.** Zodra iemand een duif te koop zet — of er
+  een nieuwe **veiling** opent (§12) — verschijnt er een **oranje stipje** op de
+  **Markt**-knop in het menu. Het blijft staan tot je de markt effectief opent, en
+  verdwijnt dan vanzelf. Je eigen duif te koop zetten geeft je geen stip: die kende je
+  al. Zo mis je geen aanbod meer omdat je toevallig niet ging kijken.
 
 ### 9.0 Wat is een duif waard? De markt beslist
 
@@ -1833,7 +1838,9 @@ onderdelen van het spel worden er één keer via aangekondigd.
 - **Opvangcentrum-veiling.** Op willekeurige maar regelmatige momenten (gemiddeld
   ~1 per 9 uur) duikt er een duif uit het opvangcentrum op de markt op. Het is
   geen renduif — de eigenschappen zijn matig — maar met training groeit ze en kan
-  je ze later opnieuw verkopen. **Startbod: €25**, venster van 6 uur.
+  je ze later opnieuw verkopen. **Startbod: €25**, venster van 6 uur. Er komt geen
+  belmelding van, maar je ziet het **stipje** op de Markt-knop (§9) — het venster is
+  kort, dus zonder dat liep zo'n duif geregeld af zonder dat iemand ze zag.
 - **Sponsors.** Er is **niets beschikbaar tot je het verdient**. Zodra je duiven
   en resultaten een drempel halen (bv. je eerste overwinning, veel deelnames, een
   getalenteerde duif, seizoenspunten, niveau of gouden medailles), **biedt** die

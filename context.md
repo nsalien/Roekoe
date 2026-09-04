@@ -411,6 +411,7 @@ Roekoe/
 ├── pedigree.test.mts        regressietest: stamboom, inteelt, kweekleeftijd, namenvariatie
 ├── mortality.test.mts       regressietest: ouderdomssterfte raakt geen jonge duiven
 ├── family-chart.test.mts    regressietest: de GEOMETRIE van het stamboomdiagram (buildLayout)
+├── market-news.test.mts     regressietest: de "nieuw op de markt"-stip (markering + D1-rondrit)
 ├── limits-report.mts            meet queries/rijen gelezen/geschreven per verzoek
 ├── cpu-sweep.mts                meet CPU per operatie (duurste eerst) — diagnose
 ├── migrations/0001_init.sql     D1-schema voor verse installatie
@@ -494,6 +495,12 @@ Entiteiten: `Pigeon`, `Loft`, `User`, `BreedingPair`, `PendingBrood`, `Flight` (
   (trofeeën). Zo overleven historiek + trofeeën het **wissen van oude vluchtrijen**
   (2-daagse retentie). Medaille-**tellingen** komen uit `loft.stats.gold/silver/bronze`
   (blijvend). Zie §Performance.
+- `World.marketNewsAt` / `marketNewsBy` — wanneer er voor het laatst een duif te koop
+  kwam en door wie (leeg = het veilinghuis); kolommen `market_news_at`/`market_news_by`.
+  Voedt de **stip op de Markt-knop** (zie §8). Staat op de **wereldrij** omdat `/state`
+  een smal-laadpad is: daar de verse listings tellen zou de hele `pigeons`-tabel terug op
+  de heetste route trekken. Gezet door `noteMarketNews` (market.ts) — **nooit vanuit een
+  tick die elk verzoek draait**, anders stempelt elke poll de wereldrij.
 - `World.seasonStartedAt` / `seasonEndsAt` / `seasonWeek` — real-time seizoensklok
   (kolommen `season_started_at`/`season_ends_at`/`season_week`). `seasonYear` = het
   seizoensnummer; `currentWeek` blijft de monotone speelweek (leeftijden/vluchten).
@@ -911,7 +918,9 @@ Entiteiten: `Pigeon`, `Loft`, `User`, `BreedingPair`, `PendingBrood`, `Flight` (
   **bedrag** → Bied. De bieder ziet **enkel de algemene score** (★talent), niet de
   precieze eigenschappen — verwijzing naar ranglijst/vluchtresultaten. `/market` levert
   `biddable` (alle niet-te-koop duiven van echte spelers, elk met `revealed:false`).
-  Nav-badge op **Markt** = ontvangen biedingen. De **verkoopgeschiedenis** onderaan toont
+  Nav-badge op **Markt** = ontvangen biedingen; daarnaast een **stip** zodra er een duif
+  te koop staat die deze speler nog niet zag (§8). De pagina zet die stip uit door bij
+  het laden `markMarketSeen` te roepen met wat er op het scherm staat. De **verkoopgeschiedenis** onderaan toont
   enkel de laatste **7 dagen** (`TRADE_HISTORY_DAYS`, server-side in `recentTrades`).
 - `PigeonPage` bij andermans (niet-bot) duif: kaart **"Bied op deze duif"** (bod
   uitbrengen / lopend bod intrekken). Statbalken verborgen (`revealed:false`) →
@@ -1005,6 +1014,7 @@ npx tsx breeding-cooldown.test.mts  # koppel uiteen na het nest, rust van 3 weke
 npx tsx pedigree.test.mts          # verwantschap, inteeltgevolgen, stamboom bij dode voorouders
 npx tsx mortality.test.mts         # geen duif sterft van 'hoge leeftijd' vóór haar 4e
 npx tsx family-chart.test.mts      # het diagram: duif in het midden, elke lijn wijst ergens naar
+npx tsx market-news.test.mts       # de markt-stip: markering, D1-rondrit, en géén stempel op een poll
 ```
 Diagnose zonder assertie: `npx tsx cpu-sweep.mts` (CPU per operatie, duurste
 eerst), `npx tsx limits-report.mts` (queries/rijen per verzoek) en
@@ -1030,10 +1040,10 @@ verzoek uit per statement.
 3. **Geen PR** tenzij expliciet gevraagd.
 4. Commit messages in het **Nederlands**, en eindig met de footer:
    ```
-   Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>
-   Claude-Session: https://claude.ai/code/session_XXXX
+   Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
    ```
-   (De `Claude-Session`-URL verschilt per sessie — gebruik de actuele.)
+   (Volgt de sessie die de commit maakt. De `Claude-Session:`-regel die hier vroeger
+   stond wordt al een tijd niet meer gezet — de laatste commits dragen ze niet.)
 
 ### Veiligheid / niet doen
 - **Nooit** een echte `wrangler.toml` committen (staat in `.gitignore`).
@@ -1047,6 +1057,68 @@ verzoek uit per statement.
 
 Alles hieronder staat **live** op de deploy-branch. Data-migraties liepen door tot
 **`dataVersion = 45`**.
+
+**Een stip op de Markt-knop zodra er een duif te koop staat (nieuwste)**
+- **Vraag van de eigenaar:** een duif die te koop gezet wordt valt niet op — "nu zal een
+  speler het misschien vaak niet opmerken". Klopt: de markt is het **enige** deel van het
+  spel dat helemaal geen signaal gaf. Een ontvangen bod heeft een navigatieteller, een
+  zondagveiling een belmelding, maar een gewone listing en een **opvangcentrum-veiling**
+  hadden niets — je vond ze door de pagina toevallig te openen, en zes uur later was de
+  opvangduif alweer weg.
+- **Nieuw:** `World.marketNewsAt` + `marketNewsBy` (kolommen `market_news_at`/
+  `market_news_by`, achteraan `SCHEMA_STEPS`), gezet door **`noteMarketNews`**
+  (`core/game/market.ts`) vanuit `listForSale` (met de verkoper) en vanuit
+  `createSundayAuction`/`createShelterAuction` (leeg = het veilinghuis).
+- ⚠️ **Waarom dit op de WERELDRIJ staat en niet als teller op `/state`.** `/state` is een
+  smal-laadpad (`NARROW_PATHS`): het leest de eigen duiven en verder niets. "Hoeveel verse
+  listings zijn er?" tellen betekent **andermans duiven lezen**, en dat trekt de hele
+  `pigeons`-tabel terug op de heetste route van het spel — precies wat de smalle load moet
+  voorkomen. Eén tijdstempel op een rij die élk verzoek toch al laadt kost **geen query en
+  geen rij**; `/state` stuurt `db.world` sowieso in zijn geheel door, dus er was ook geen
+  DTO-veld nodig.
+- ⚠️ **En daarom is het een STIP en geen getal.** Eén tijdstempel weet *dát* er iets nieuw
+  is, niet hoevéél. Een teller zou ofwel het leesbudget kosten, ofwel een lijstje op de
+  wereldrij vragen dat bij élke verkoop/terugtrekking bijgewerkt moet blijven — dat soort
+  gedenormaliseerde spiegel loopt hier gegarandeerd uit de pas.
+- **Gezien-zijn staat in localStorage** (`roekoe.marketSeen.<userId>`, epoch-ms), net als
+  de tour, de ceremonie en de "wat is nieuw"-sleutels: het is een gemak per browser, geen
+  spelstaat, dus het hoort geen D1-schrijf te kosten. `client/src/game/marketSeen.ts` is
+  bewust **React-vrij** (zoals `components/geo.ts`) zodat de test de regels rechtstreeks
+  kan draaien; de hook die erop abonneert staat in `Layout.tsx`.
+- ⚠️ **localStorage ververst niets vanzelf, en de nav staat in een ander component.**
+  `markMarketSeen` vuurt daarom `roekoe:market-seen` af (zelfde truc als
+  `roekoe:start-tour`), en de hook luistert óók op `storage` zodat een tweede tab die de
+  markt opende de stip hier mee wist.
+- **De verkoper is vrijgesteld van zijn eigen listing** (`marketNewsBy`). ⚠️ Bekende
+  keerzijde: omdat enkel de **laatste** aanbieding bewaard wordt, maskeert zijn eigen
+  listing er één van een ander die hij nog niet zag. Listings zijn zeldzaam genoeg dat dat
+  hoogstens een gemiste por is — de duif staat er gewoon.
+- **Uitschrijven wist de markering niet.** Het is een logboekje van "er is iets gebeurd",
+  geen spiegel van wat er nú te koop staat: zou het wél wissen, dan poetst iemand die zijn
+  duif meteen terugtrekt de stip weg bij iedereen die nog niet gekeken had. Keerzijde: je
+  kan de markt openen en de duif al verkocht vinden. De stip verdwijnt dan gewoon.
+- **De phone-balk had helemaal geen badges** (`BottomNav` toonde er nooit één), dus zonder
+  ingreep was de hele functie onzichtbaar op een gsm — waar dit spel het meest gespeeld
+  wordt. `NavIcon` hangt ze nu aan het icoon: de **teller rechtsboven**, de **nieuw-stip
+  linksboven**. Meegenomen gevolg: ontvangen biedingen en wachtende nesten krijgen daar nu
+  óók hun teller. Op de brede nav staan beide markers achter het label.
+- **Nagemeten in de browser** op de **échte gebouwde CSS**, 390 px en 1100 px × beide
+  thema's: geen horizontale paginaoverloop (390 van 390), en beide markers blijven binnen
+  hun tab (stip 207–215, teller 234–249 in een tab van 196–259).
+- **Geen migratie, geen configknop, geen extra query**, `dataVersion` blijft **45**. Beide
+  typechecks + build groen; `d1-partial-load`, `query-budget`, `idle-writes`,
+  `advance-throttle`, `cpu-budget`, `daily-budget`, `market-bidding` en `bot-market` groen
+  (duurste verzoek onveranderd op 42/50).
+- **Nieuwe blijvende test `market-news.test.mts`** (38 controles): de markering wordt gezet
+  bij een listing én bij een opvangcentrum-veiling, **twaalf polls op rij zetten hem niet**
+  (de schrijflek-regel van §503-fix ronde 4), hij overleeft de rondrit door D1 via **beide**
+  schrijfpaden (INSERT op een verse wereld én UPDATE) — het stilste faalgeval dat er is —
+  een persist zonder wijziging herschrijft de wereldrij niet, en de badge-regel zelf:
+  eigen listing nagt niet, veiling nagt iedereen, kijken wist de stip, de stand gaat nooit
+  achteruit, en privémodus crasht niet.
+- ⚠️ **Bestaande fout opnieuw bevestigd, niet veroorzaakt:** `poll-budget.test.mts` faalt
+  nog steeds op "de load blijft smal: 107 van 204" — dezelfde bekende onrealistische
+  estafette-fixture als in de vorige rondes.
 
 **Een podium telt nu op élke wedstrijd mee voor je medailles (nieuwste)**
 - **Vraag van de eigenaar:** "krijg je bij het behalen van een podiumplaats ook de badge

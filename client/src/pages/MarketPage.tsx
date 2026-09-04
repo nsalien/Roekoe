@@ -3,7 +3,9 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../api/client';
+import { useAuth } from '../auth/AuthContext';
 import { useGame } from '../game/GameContext';
+import { markMarketSeen } from '../game/marketSeen';
 import { useVisiblePoll } from '../game/useVisiblePoll';
 import { BreedBadge, Money, PigeonStats, Spinner, countdownTo, useToast } from '../components/ui';
 import { PigeonCard } from '../components/PigeonCard';
@@ -23,6 +25,7 @@ function ago(iso: string): string {
 
 export function MarketPage() {
   const { state, refresh } = useGame();
+  const { user } = useAuth();
   const toast = useToast();
   const [listings, setListings] = useState<Pigeon[] | null>(null);
   const [biddable, setBiddable] = useState<Pigeon[]>([]);
@@ -40,6 +43,19 @@ export function MarketPage() {
   useEffect(() => {
     load();
   }, [load, state?.world.currentWeek]);
+
+  // Looking at the market is what clears the dot on the Markt nav button.
+  // Marked from what is actually ON SCREEN plus the world marker: the /market
+  // response can be a beat ahead of the /state poll the badge reads, and without
+  // the birds in front of us the dot would linger over something already seen.
+  useEffect(() => {
+    if (!listings) return; // still loading — nothing has been seen yet
+    markMarketSeen(user?.id, [
+      state?.world.marketNewsAt,
+      ...listings.map((p) => p.listedAt),
+      ...auctions.map((a) => a.startAt),
+    ]);
+  }, [user?.id, listings, auctions, state?.world.marketNewsAt]);
 
   // While any auction is in its final minutes, gently poll the board so other
   // players' bids and anti-snipe extensions appear without a manual refresh.

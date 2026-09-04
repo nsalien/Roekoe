@@ -47,6 +47,7 @@ import { newNewcomerPerks } from './newcomer.js';
 import { careSlots, runHealthWeek } from './health.js';
 import { nameKey, namesInUse } from './names.js';
 import { voidBetsForWithdrawnPigeon } from './betting.js';
+import { noteMarketNews } from './market.js';
 import { birdStillOut, flightClaimingDay, flightDay, pigeonAirborne, pigeonCommittedToFlight } from './flight.js';
 import {
   ageInWeeks,
@@ -715,6 +716,10 @@ export function listForSale(
     // Starts the clock the bots have to wait out (BOT.marketMinListedHours).
     // Re-listing restarts it, which is the honest reading: it is a new offer.
     pigeon.listedAt = new Date().toISOString();
+    // Put a dot on everyone else's Markt button until they have looked. A bird
+    // going up for sale was easy to miss: the market has no bell notification,
+    // so you only found out by opening the page on the off chance.
+    noteMarketNews(db, userId);
     return null;
   });
 }

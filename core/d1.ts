@@ -521,6 +521,8 @@ export class D1Store implements Store {
         leaderboard: worldRow.leaderboard ?? '',
         ageCupStartedAt: worldRow.age_cup_started_at ?? '',
         ageCupSeasonsDone: worldRow.age_cup_seasons_done ?? 0,
+        marketNewsAt: worldRow.market_news_at ?? '',
+        marketNewsBy: worldRow.market_news_by ?? '',
       };
     }
 
@@ -667,16 +669,16 @@ export class D1Store implements Store {
     const wd = w.world;
     if (!this.worldExisted) {
       stmts.push(
-        db.prepare('INSERT INTO world (id, current_week, season_year, seeded, data_version, last_daily_tick, last_shelter_spawn, season_started_at, season_ends_at, season_week, last_advance, daily_care_cursor, leaderboard, age_cup_started_at, age_cup_seasons_done, version) VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)')
-          .bind(wd.currentWeek, wd.seasonYear, b(wd.seeded), wd.dataVersion ?? 0, wd.lastDailyTick ?? '', wd.lastShelterSpawn ?? '', wd.seasonStartedAt ?? '', wd.seasonEndsAt ?? '', wd.seasonWeek ?? 1, wd.lastAdvance ?? '', wd.dailyCareCursor ?? '', wd.leaderboard ?? '', wd.ageCupStartedAt ?? '', wd.ageCupSeasonsDone ?? 0),
+        db.prepare('INSERT INTO world (id, current_week, season_year, seeded, data_version, last_daily_tick, last_shelter_spawn, season_started_at, season_ends_at, season_week, last_advance, daily_care_cursor, leaderboard, age_cup_started_at, age_cup_seasons_done, market_news_at, market_news_by, version) VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)')
+          .bind(wd.currentWeek, wd.seasonYear, b(wd.seeded), wd.dataVersion ?? 0, wd.lastDailyTick ?? '', wd.lastShelterSpawn ?? '', wd.seasonStartedAt ?? '', wd.seasonEndsAt ?? '', wd.seasonWeek ?? 1, wd.lastAdvance ?? '', wd.dailyCareCursor ?? '', wd.leaderboard ?? '', wd.ageCupStartedAt ?? '', wd.ageCupSeasonsDone ?? 0, wd.marketNewsAt ?? '', wd.marketNewsBy ?? ''),
       );
     } else if (JSON.stringify(wd) !== this.worldSnapshot) {
       // Only write the world row when something in it actually changed. Previously
       // this ran on EVERY request (even read-only polls), burning the write quota
       // and making `world` (id=1) a hot row that concurrent requests locked on.
       stmts.push(
-        db.prepare('UPDATE world SET current_week = ?, season_year = ?, seeded = ?, data_version = ?, last_daily_tick = ?, last_shelter_spawn = ?, season_started_at = ?, season_ends_at = ?, season_week = ?, last_advance = ?, daily_care_cursor = ?, leaderboard = ?, age_cup_started_at = ?, age_cup_seasons_done = ?, version = version + 1 WHERE id = 1')
-          .bind(wd.currentWeek, wd.seasonYear, b(wd.seeded), wd.dataVersion ?? 0, wd.lastDailyTick ?? '', wd.lastShelterSpawn ?? '', wd.seasonStartedAt ?? '', wd.seasonEndsAt ?? '', wd.seasonWeek ?? 1, wd.lastAdvance ?? '', wd.dailyCareCursor ?? '', wd.leaderboard ?? '', wd.ageCupStartedAt ?? '', wd.ageCupSeasonsDone ?? 0),
+        db.prepare('UPDATE world SET current_week = ?, season_year = ?, seeded = ?, data_version = ?, last_daily_tick = ?, last_shelter_spawn = ?, season_started_at = ?, season_ends_at = ?, season_week = ?, last_advance = ?, daily_care_cursor = ?, leaderboard = ?, age_cup_started_at = ?, age_cup_seasons_done = ?, market_news_at = ?, market_news_by = ?, version = version + 1 WHERE id = 1')
+          .bind(wd.currentWeek, wd.seasonYear, b(wd.seeded), wd.dataVersion ?? 0, wd.lastDailyTick ?? '', wd.lastShelterSpawn ?? '', wd.seasonStartedAt ?? '', wd.seasonEndsAt ?? '', wd.seasonWeek ?? 1, wd.lastAdvance ?? '', wd.dailyCareCursor ?? '', wd.leaderboard ?? '', wd.ageCupStartedAt ?? '', wd.ageCupSeasonsDone ?? 0, wd.marketNewsAt ?? '', wd.marketNewsBy ?? ''),
       );
     }
 
@@ -1150,6 +1152,12 @@ const SCHEMA_STEPS: string[] = [
   'ALTER TABLE pigeons ADD COLUMN sire_name TEXT',
   'ALTER TABLE pigeons ADD COLUMN dam_name TEXT',
   'ALTER TABLE pigeons ADD COLUMN quirk TEXT',
+
+  // When a bird was last put up for sale and by whom — the dot on the Markt nav
+  // button (World.marketNewsAt). On the world row because `/state` runs on a
+  // narrow load and may not read other players' pigeons to count listings.
+  "ALTER TABLE world ADD COLUMN market_news_at TEXT NOT NULL DEFAULT ''",
+  "ALTER TABLE world ADD COLUMN market_news_by TEXT NOT NULL DEFAULT ''",
 ];
 
 /**

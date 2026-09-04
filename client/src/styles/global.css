@@ -168,6 +168,12 @@ span.bad { color: var(--bad); font-weight: 700; }
   border-radius: 999px; background: var(--accent); color: #fff;
   font-size: 0.7rem; font-weight: 800; line-height: 1; vertical-align: middle;
 }
+/* "Something new to look at", with no honest number to put on it (a fresh
+   listing on the market). Deliberately smaller than the numbered pill so the
+   two read as different things when a button carries both. */
+.nav a .nav-dot.plain {
+  min-width: 8px; width: 8px; height: 8px; padding: 0; margin-left: 5px;
+}
 
 .topbar-right { margin-left: auto; display: flex; align-items: center; gap: 8px; }
 .chip {
@@ -476,6 +482,20 @@ hr.sep { border: none; border-top: 1px solid var(--border); margin: 16px 0; }
   .bottomnav a.active { color: var(--brand-strong); }
   .bottomnav a:hover { color: var(--text-soft); }
 }
+
+/* Badges on the phone bar. There is no room next to the label, so they hang off
+   the icon: the count top-right, the "new on the market" dot top-left, the same
+   two signals the desktop nav shows after the label. The icon is the positioning
+   context, so it must be inline-flex — a bare inline span has no reliable box. */
+.bottomnav a .ico, .bottomnav-sheet a .ico { position: relative; display: inline-flex; }
+.bn-dot {
+  position: absolute; top: -5px; right: -9px;
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 15px; height: 15px; padding: 0 4px;
+  border-radius: 999px; background: var(--accent); color: #fff;
+  font-size: 0.62rem; font-weight: 800; line-height: 1;
+}
+.bn-dot.news { right: auto; left: -8px; min-width: 8px; width: 8px; height: 8px; padding: 0; }
 
 @media (max-width: 420px) {
   .grid.cols-3 { grid-template-columns: 1fr 1fr; }

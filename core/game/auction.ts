@@ -16,7 +16,7 @@ import { newId } from '../store.js';
 import { AUCTION } from '../config/gameConfig.js';
 import { awardBadge } from './badges.js';
 import { generatePigeon, talent } from './pigeon.js';
-import { marketValue } from './market.js';
+import { marketValue, noteMarketNews } from './market.js';
 import { namesInUse } from './names.js';
 import { randFloat } from './util.js';
 
@@ -104,6 +104,8 @@ function createSundayAuction(db: Database, key: string, startMs: number, endMs: 
     minBid, minIncrement: Math.max(25, Math.round((minBid * 0.05) / 5) * 5),
     currentBid: 0, currentBidderId: null, currentBidderName: null, bids: [], status: 'open',
   });
+  // Empty seller: this is the auction house, so nobody is exempt from the dot.
+  noteMarketNews(db, '', startMs);
   for (const loft of db.lofts) {
     if (!loft.isBot) {
       notify(db, loft, '🔨 Zondagveiling geopend!',
@@ -131,6 +133,9 @@ function createShelterAuction(db: Database, nowMs: number): void {
     minBid: AUCTION.shelterStartBid, minIncrement: 5,
     currentBid: 0, currentBidderId: null, currentBidderName: null, bids: [], status: 'open',
   });
+  // The shelter bird gets no bell notification (the Sunday one does), so without
+  // this it appears and closes six hours later with nothing to point at it.
+  noteMarketNews(db, '', nowMs);
 }
 
 function closeAuction(db: Database, a: Auction): void {

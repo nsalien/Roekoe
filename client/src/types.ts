@@ -587,6 +587,10 @@ export interface World {
   seasonStartedAt: string;
   seasonEndsAt: string;
   seasonWeek: number;
+  /** When a bird was last put up for sale / auctioned, and by whom (empty = the
+   *  auction house). Drives the dot on the Markt button — see marketSeen.ts. */
+  marketNewsAt?: string;
+  marketNewsBy?: string;
 }
 
 export interface PigeonRankRow {
