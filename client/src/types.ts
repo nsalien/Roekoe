@@ -811,9 +811,15 @@ export interface BroodYoung {
   declineRate: number;
 }
 
-/** A clutch that hatched into a full loft and is waiting on your keep/let-go choice. */
+/** Where a waiting bird came from — see `BroodOrigin` in core/schema.ts. */
+export type BroodOrigin = 'nest' | 'erfenis' | 'zwerver';
+
+/** A bird that arrived into a full loft and is waiting on your keep/let-go choice:
+ *  usually a hatched clutch, otherwise a pigeon an event handed you. */
 export interface PendingNest {
   id: string;
+  /** `nest` = a clutch (blocks a new pair); anything else came from an event. */
+  origin: BroodOrigin;
   sire: string;
   dam: string;
   createdAt: string;

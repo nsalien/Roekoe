@@ -310,20 +310,29 @@ export function resolveBrood(
     db.pigeons.push(...keep);
     loft.pendingBroods = loft.pendingBroods.filter((b) => b.id !== brood.id);
 
+    // ⚠️ Only a real clutch feeds the brood badges. A bird an event handed over
+    // (an inheritance, a stray) shares this queue but was never bred here, so
+    // counting it in `stats.babies`/`tweeling`/`dynastie` would be a lie.
+    const isNest = (brood.origin ?? 'nest') === 'nest';
     if (keep.length > 0) {
-      awardBroodBadges(db, loft, keep, brood.young.length, brood.dynasty);
+      if (isNest) awardBroodBadges(db, loft, keep, brood.young.length, brood.dynasty);
+      else evaluateBadges(db, loft);
       const names = keep.map((y) => y.name).join(' en ');
       notify(
-        db, userId, 'info', `🐣 ${keep.length === 1 ? 'Een jong' : `${keep.length} jongen`} in het hok`,
+        db, userId, 'info',
+        isNest ? `🐣 ${keep.length === 1 ? 'Een jong' : `${keep.length} jongen`} in het hok` : '🕊️ Er is plaats gemaakt',
         `${names} ${keep.length === 1 ? 'hoort' : 'horen'} nu bij ${loft.name}.`,
       );
     }
     const released = brood.young.length - keep.length;
     if (released > 0) {
       notify(
-        db, userId, 'info', '🕊️ Jongen vrijgelaten',
-        `${released === 1 ? 'Eén jong' : `${released} jongen`} uit het nest van ${brood.sireName} × ${brood.damName} ` +
-          `${released === 1 ? 'vloog' : 'vlogen'} uit — je krijgt er niets voor terug.`,
+        db, userId, 'info', '🕊️ Vrijgelaten',
+        isNest
+          ? `${released === 1 ? 'Eén jong' : `${released} jongen`} uit het nest van ${brood.sireName} × ${brood.damName} ` +
+            `${released === 1 ? 'vloog' : 'vlogen'} uit — je krijgt er niets voor terug.`
+          : `${brood.young.filter((y) => !keep.includes(y)).map((y) => y.name).join(' en ')} ` +
+            `${released === 1 ? 'vloog' : 'vlogen'} uit — je krijgt er niets voor terug.`,
       );
     }
     return null;
@@ -985,7 +994,10 @@ export function startBreeding(
     if (alreadyBreeding) return 'Een van deze duiven koppelt al';
     const racing = pigeonCommittedToFlight(db, sireId) || pigeonCommittedToFlight(db, damId);
     if (racing) return 'Een ingeschreven duif kan niet koppelen — schrijf ze eerst uit voor een vlucht';
-    if (loft.pendingBroods?.length)
+    // Only a real clutch blocks a new pair — the rule exists so nests do not pile
+    // up. A bird an event handed over shares the waiting queue but has nothing to
+    // do with breeding, so it must not lock the pairing form.
+    if (loft.pendingBroods?.some((b) => (b.origin ?? 'nest') === 'nest'))
       return 'Er wacht nog een nest op je keuze — beslis eerst welke jongen je houdt';
     if (loft.money < BREEDING.cost) return 'Niet genoeg geld om te koppelen';
     loft.money -= BREEDING.cost;

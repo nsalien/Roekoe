@@ -4,7 +4,7 @@
  * missions.ts) and resolved here.
  */
 
-import type { Database, EventCard, Loft, Pigeon } from '../schema.js';
+import type { BroodOrigin, Database, EventCard, Loft, Pigeon } from '../schema.js';
 import { newId } from '../store.js';
 import { estimateValue, experienceGain, generatePigeon, noteAttrChange } from './pigeon.js';
 import { marketValue } from './market.js';
@@ -125,6 +125,47 @@ function notify(db: Database, loft: Loft, title: string, body: string): void {
   });
 }
 
+/** The bell message for a bird parked in the waiting queue — it has to say where
+ *  to go, because the dilemma card is gone the moment it is answered. */
+function waitingBody(name: string): string {
+  return `${name} hoort bij je hok, maar er is geen plaats. Ga naar Kweek en kies: laat een duif vrij of ` +
+    'verkoop er een aan het restaurant om plaats te maken — of laat haar alsnog gaan. Ze wacht tot je beslist.';
+}
+
+/**
+ * Hand a bird an event awarded to the loft.
+ *
+ * Fits → straight into `db.pigeons`. Loft full → it waits on `pendingBroods`, the
+ * same queue a clutch that hatched into a full loft uses, so the owner can free a
+ * perch (release / restaurant, both offered on that screen) instead of the bird
+ * simply evaporating. A dilemma is consumed on the click — there is no second
+ * chance to pick again after making room — so "je hok zit vol, jammer" threw away
+ * a choice the player had already paid for with the two options they gave up.
+ *
+ * ⚠️ The entry carries an `origin`, and that is load-bearing: it keeps the bird out
+ * of the brood badges (`stats.babies`, `tweeling`, `dynastie`) and out of the
+ * new-pair block, both of which are about *breeding*.
+ *
+ * Returns whether the bird went straight in, so the caller can word its result.
+ */
+function handPigeon(db: Database, loft: Loft, p: Pigeon, origin: BroodOrigin): boolean {
+  const owned = db.pigeons.filter((x) => x.ownerId === loft.userId).length;
+  if (owned < loft.capacity) {
+    db.pigeons.push(p);
+    return true;
+  }
+  loft.pendingBroods = [...(loft.pendingBroods ?? []), {
+    id: newId('brood'),
+    sireId: '', damId: '', sireName: '', damName: '',
+    young: [p],
+    dynasty: false,
+    origin,
+    createdAt: new Date().toISOString(),
+    createdAtWeek: db.world.currentWeek,
+  }];
+  return false;
+}
+
 /**
  * Resolve the loft's pending event with the chosen option. Returns a short
  * result message, or an error string prefixed with '!'.
@@ -150,11 +191,13 @@ export function resolveEvent(db: Database, loft: Loft, choice: number, week: num
     }
     case 'stray': {
       if (choice === 0) {
-        if (owned.length >= loft.capacity) return 'Je hok zit vol — de duif vliegt weg.';
         const p = generatePigeon({ ownerId: loft.userId, currentWeek: week, quality: randFloat(0.3, 0.6) , taken: namesInUse(db.pigeons) });
-        db.pigeons.push(p);
-        notify(db, loft, '🕊️ Nieuwe duif', `${p.name} maakt voortaan deel uit van je hok.`);
-        return `Je hield de duif: ${p.name}.`;
+        if (handPigeon(db, loft, p, 'zwerver')) {
+          notify(db, loft, '🕊️ Nieuwe duif', `${p.name} maakt voortaan deel uit van je hok.`);
+          return `Je hield de duif: ${p.name}.`;
+        }
+        notify(db, loft, '🕊️ De zwerver wacht — je hok zit vol', waitingBody(p.name));
+        return `Je hield ${p.name}, maar je hok zit vol: ze wacht bij Kweek tot je plaats maakt.`;
       }
       const tip = Math.round(randFloat(40, 90));
       loft.money += tip;
@@ -266,20 +309,25 @@ export function resolveEvent(db: Database, loft: Loft, choice: number, week: num
         loft.money += 600;
         return 'Je koos de spaarpot: €600 rijker.';
       }
-      if (owned.length >= loft.capacity) return 'Je hok zit vol — je kan geen duif plaatsen, dus de erfenis gaat aan je neus voorbij.';
       if (choice === 1) {
         // Old champion: strong genes but old (frail, low value, higher mortality).
         const p = generatePigeon({ ownerId: loft.userId, currentWeek: week, quality: randFloat(0.82, 0.96), birthWeek: week - randInt(280, 430) , taken: namesInUse(db.pigeons) });
-        db.pigeons.push(p);
-        notify(db, loft, '🏆 Een oude kampioen', `${p.name} — ooit een topper, nu op leeftijd — verhuist naar jouw hok.`);
-        return `Je koos de oude kampioen: ${p.name}. Sterke genen, maar tel wel haar jaren.`;
+        if (handPigeon(db, loft, p, 'erfenis')) {
+          notify(db, loft, '🏆 Een oude kampioen', `${p.name} — ooit een topper, nu op leeftijd — verhuist naar jouw hok.`);
+          return `Je koos de oude kampioen: ${p.name}. Sterke genen, maar tel wel haar jaren.`;
+        }
+        notify(db, loft, '🏆 Een oude kampioen — je hok zit vol', waitingBody(p.name));
+        return `Je koos de oude kampioen: ${p.name}. Je hok zit vol, dus ze wacht bij Kweek tot je plaats maakt.`;
       }
       // Young prospect: unknown quality.
       const lucky = Math.random() < 0.45;
       const p = generatePigeon({ ownerId: loft.userId, currentWeek: week, quality: lucky ? randFloat(0.7, 0.9) : randFloat(0.2, 0.45), birthWeek: week - randInt(8, 20) , taken: namesInUse(db.pigeons) });
-      db.pigeons.push(p);
-      notify(db, loft, lucky ? '🌟 Een ruwe diamant' : '🐣 Een gewone jong', `Uit de erfenis kwam ${p.name}.`);
-      return lucky ? `De jonge belofte ${p.name} blijkt veel in haar mars te hebben!` : `De jonge belofte ${p.name} is voorlopig maar gewoontjes.`;
+      if (handPigeon(db, loft, p, 'erfenis')) {
+        notify(db, loft, lucky ? '🌟 Een ruwe diamant' : '🐣 Een gewone jong', `Uit de erfenis kwam ${p.name}.`);
+        return lucky ? `De jonge belofte ${p.name} blijkt veel in haar mars te hebben!` : `De jonge belofte ${p.name} is voorlopig maar gewoontjes.`;
+      }
+      notify(db, loft, '🐣 De jonge belofte — je hok zit vol', waitingBody(p.name));
+      return `De jonge belofte ${p.name} wacht bij Kweek: je hok zit vol, dus maak eerst plaats.`;
     }
     case 'scout': {
       if (choice !== 0) return 'Je houdt je duif liever veilig thuis.';

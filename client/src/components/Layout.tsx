@@ -181,13 +181,13 @@ export function Layout() {
       return { count, news: marketNews, title: parts.join(' · ') };
     }
     if (n.to === '/kweek') {
-      // A held clutch is waiting on a decision and blocks new pairs, so Kweek
-      // nags until it is resolved.
+      // Anything waiting for a perch nags here: a held clutch (which also blocks
+      // new pairs) or a bird an event handed over into a full loft.
       const count = state?.pendingNests ?? 0;
       return {
         count,
         news: false,
-        title: `${count} nest${count === 1 ? '' : 'en'} wacht${count === 1 ? '' : 'en'} op je keuze`,
+        title: `${count} ${count === 1 ? 'nest of duif wacht' : 'nesten of duiven wachten'} op je keuze — kies wie een plaats krijgt`,
       };
     }
     return { count: 0, news: false, title: '' };

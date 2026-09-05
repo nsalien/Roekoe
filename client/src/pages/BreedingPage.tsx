@@ -27,6 +27,9 @@ export function BreedingPage() {
   if (loading || !state) return <Spinner />;
   const pairs = view?.pairs ?? [];
   const nests = view?.nests ?? [];
+  // Only a real clutch locks the pairing form (see startBreeding in engine.ts);
+  // a bird an event handed over waits in the same list but is not a nest.
+  const blockingNests = nests.filter((n) => n.origin === 'nest');
   const freeSpace = view?.freeSpace ?? 0;
   const BREED_COST = state.economy.breedCost;
   const MIN_BREED_WEEKS = 8; // BREEDING.minAgeWeeks — same age she may first race
@@ -97,7 +100,8 @@ export function BreedingPage() {
         <h1>Kweek</h1>
       </div>
 
-      {/* A held clutch comes first: it blocks new pairs and the young are waiting. */}
+      {/* Waiting birds come first: a held clutch blocks new pairs, and anything
+          waiting here is a bird that is not in the loft yet. */}
       {nests.length > 0 && (
         <div className="stack" style={{ marginBottom: 16 }}>
           {nests.map((nest) => (
@@ -181,14 +185,14 @@ export function BreedingPage() {
             </div>
           )}
 
-          {nests.length > 0 && (
+          {blockingNests.length > 0 && (
             <p className="muted" style={{ fontSize: '0.85rem' }}>
               Er wacht nog een nest op je keuze — beslis daar eerst over voor je opnieuw koppelt.
             </p>
           )}
           <button
             className={kin ? 'btn block danger' : 'btn block'}
-            disabled={busy || !sireId || !damId || nests.length > 0}
+            disabled={busy || !sireId || !damId || blockingNests.length > 0}
             onClick={start}
           >
             {kin ? 'Toch koppelen' : 'Koppelen'} · <Money value={BREED_COST} />

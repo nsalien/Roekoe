@@ -806,6 +806,9 @@ app.get('/breeding', (c) => {
   const nests = (loft?.pendingBroods ?? [])
     .map((b) => ({
       id: b.id,
+      // `origin` decides the copy on the card AND whether the pairing form locks:
+      // an inherited bird waits here, but it is not a nest (see resolveBrood).
+      origin: b.origin ?? 'nest',
       sire: b.sireName,
       dam: b.damName,
       createdAt: b.createdAt,

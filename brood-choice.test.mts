@@ -68,7 +68,13 @@ function primeFullLoftWithPair(s: Store): { sireId: string; damId: string } {
     const dam = mine.find((p) => p.sex === 'duivin')!;
     // Max libido + energie: `breed` then hits its success and twin ceilings, and
     // `tickBreedingHatch` hatches on the very first check.
-    for (const p of [sire, dam]) { p.libido = 100; p.form = 100; p.health = 100; p.ailment = null; }
+    // ⚠️ `lastBredAt` moet mee gewist worden: de rust van BREEDING.cooldownDays
+    // kwam er ná deze test, en zonder dit weigert het TWEEDE koppel hierna met
+    // "rust nog X dagen" — een faalgeval waar deze test niet over gaat (dat
+    // bewaakt `breeding-cooldown.test.mts`).
+    for (const p of [sire, dam]) {
+      p.libido = 100; p.form = 100; p.health = 100; p.ailment = null; p.lastBredAt = null;
+    }
     // Exactly full: capacity equals the birds already owned.
     loft.capacity = mine.length;
     loft.money = 100000;

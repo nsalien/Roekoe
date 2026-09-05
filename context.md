@@ -15,10 +15,10 @@
 
 | Rol | Branch | Doel |
 |-----|--------|------|
-| **Dev** | `claude/hallo-ca55co` | Alle ontwikkeling/commits komen hier **eerst**. |
+| **Dev** | `claude/hallo-r1wgvn` | Alle ontwikkeling/commits komen hier **eerst**. |
 | **Prod** | `claude/roekoe-game-website-jwa0vo` | Elke commit wordt hierheen **gecherry-pickt**; deze branch triggert de **Cloudflare Pages**-deploy naar productie. |
 
-> Vorige dev-branches (niet meer gebruiken): `claude/hallo-qz9tmx`, `claude/hallo-fsp9nx`, `claude/hallo-mzjn0e`, `claude/hallo-su75jy`, `claude/hallo-rkr49f`, `claude/hallo-pvwabx`,
+> Vorige dev-branches (niet meer gebruiken): `claude/hallo-ca55co`, `claude/hallo-qz9tmx`, `claude/hallo-fsp9nx`, `claude/hallo-mzjn0e`, `claude/hallo-su75jy`, `claude/hallo-rkr49f`, `claude/hallo-pvwabx`,
 > `claude/context-spelregels-q2ywtx`, `claude/hallo-49m6hj`, `claude/hallo-xifh0c`,
 > `claude/hallo-w97s85`, `claude/hallo-hrtwtv`. Ontwikkelt een sessie op een nieuwe
 > `claude/…`-branch, gebruik die dan als dev-branch en **werk deze tabel meteen bij** —
@@ -412,6 +412,7 @@ Roekoe/
 ├── mortality.test.mts       regressietest: ouderdomssterfte raakt geen jonge duiven
 ├── family-chart.test.mts    regressietest: de GEOMETRIE van het stamboomdiagram (buildLayout)
 ├── market-news.test.mts     regressietest: de "nieuw op de markt"-stip (markering + D1-rondrit)
+├── event-arrival.test.mts   regressietest: een duif uit een gebeurtenis overleeft een vol hok
 ├── limits-report.mts            meet queries/rijen gelezen/geschreven per verzoek
 ├── cpu-sweep.mts                meet CPU per operatie (duurste eerst) — diagnose
 ├── migrations/0001_init.sql     D1-schema voor verse installatie
@@ -1015,6 +1016,7 @@ npx tsx pedigree.test.mts          # verwantschap, inteeltgevolgen, stamboom bij
 npx tsx mortality.test.mts         # geen duif sterft van 'hoge leeftijd' vóór haar 4e
 npx tsx family-chart.test.mts      # het diagram: duif in het midden, elke lijn wijst ergens naar
 npx tsx market-news.test.mts       # de markt-stip: markering, D1-rondrit, en géén stempel op een poll
+npx tsx event-arrival.test.mts    # een duif uit een gebeurtenis gaat nooit verloren aan een vol hok
 ```
 Diagnose zonder assertie: `npx tsx cpu-sweep.mts` (CPU per operatie, duurste
 eerst), `npx tsx limits-report.mts` (queries/rijen per verzoek) en
@@ -1057,6 +1059,65 @@ verzoek uit per statement.
 
 Alles hieronder staat **live** op de deploy-branch. Data-migraties liepen door tot
 **`dataVersion = 45`**.
+
+**Een erfenis gaat niet meer verloren omdat je hok vol zit (nieuwste)**
+- **Vraag van de eigenaar:** kiest een speler bij de erfeniskaart *de oude kampioen* terwijl
+  zijn hok vol zit, dan moet hij de kans krijgen een duif naar keuze vrij te laten of aan de
+  bistro te verkopen.
+- ⚠️ **De kaart is verbruikt op de klik, en dát is waarom dit erger was dan een gemiste kans.**
+  `resolveEvent` zet `loft.pendingEvent = null` op regel één. De oude tak
+  (`if (owned.length >= loft.capacity) return 'Je hok zit vol — … gaat aan je neus voorbij.'`)
+  gaf de speler dus **niets**, terwijl hij op dat moment al de spaarpot én de jonge belofte had
+  weggegeven. Er is ook geen weg terug: plaats maken en opnieuw kiezen kan niet, de kaart is weg.
+- **Nieuw: één wachtrij voor élke duif die je nog moet plaatsen.** Er komt géén tweede
+  mechanisme bij — de duif wordt geparkeerd op **`Loft.pendingBroods`**, exact waar een nest
+  belandt dat in een vol hok uitkwam, en `NestChoice.tsx` heeft die "Maak plaats"-lade met
+  🕊️/🍲 per duif al. Nieuwe helper **`handPigeon(db, loft, p, origin)`** (events.ts): past ze,
+  dan gaat ze rechtstreeks in `db.pigeons`; past ze niet, dan wacht ze. Beide erfenis-takken
+  (oude kampioen én jonge belofte) en de **verdwaalde duif** lopen erdoor.
+- ⚠️ **`PendingBrood.origin` is het load-bearing veld, niet de wachtrij zelf.** Een geërfde duif
+  deelt het scherm met een nest maar is er geen, en zonder dat onderscheid zou ze twee dingen
+  stilletjes vervuilen: de **kweekbadges** (`stats.babies`, `tweeling`, `dynastie` in
+  `awardBroodBadges`) en het **slot op het koppelformulier**. Beide gaan over *kweken*.
+  `resolveBrood` slaat de badges nu over (maar draait wél `evaluateBadges`, anders mist een
+  verzamelbadge op ras haar trigger), en `startBreeding` blokkeert enkel nog op een entry met
+  `origin === 'nest'`. **`BreedingPage` filtert op dezelfde regel** — deed hij dat niet, dan
+  zou de knop uitgrijzen terwijl de server hem zou toelaten.
+- ⚠️ **Optioneel veld in een bestaande JSON-kolom** (`lofts.pending_broods`): **geen migratie,
+  geen schemakolom, geen extra query**, `dataVersion` blijft **45**. Een rij van vóór deze
+  wijziging heeft geen `origin` en leest overal als `'nest'` — daarom staat die default
+  (`b.origin ?? 'nest'`) op élke leesplek en niet op één.
+- **De sireName/damName-velden blijven leeg** bij een niet-nest. Ze verzinnen zou het
+  ergste zijn: "Nest van  × " in de kop, en een stamboom die naar niet-bestaande ouders wijst.
+  De DTO stuurt `origin` mee en de client kiest de kop.
+- **Waar de speler het vindt:** de kaart staat bij **Kweek**, waar het mechanisme al leeft.
+  Drie wegwijzers, want de dilemma-modal is weg zodra je klikt: de tekst in de modal zelf, een
+  **belmelding** die letterlijk zegt *"Ga naar Kweek en kies: laat een duif vrij of verkoop er
+  een aan het restaurant"*, en de bestaande **teller op Kweek** in de nav (tooltip
+  veralgemeend van "nesten" naar "nesten of duiven"). Bewust **geen** kaart op het Overzicht:
+  dat zou de wachtende duif op `/state` moeten zetten, en dat is een smal-laadpad.
+- ⚠️ **`gamble` (kat in een zak) is bewust NIET aangepast.** Die kaart checkt de capaciteit
+  **vóór** ze €300 afhoudt, dus een vol hok kost de speler daar niets — dat is beschermend,
+  niet lossy. Door de wachtrij sturen zou hem €300 laten betalen voor een duif die hij
+  misschien niet kwijt kan.
+- **Nieuwe blijvende test `event-arrival.test.mts`** (46 controles): de oude kampioen in een vol
+  hok wacht i.p.v. te verdwijnen, met de juiste `origin` en zonder verzonnen ouders; ze
+  **overleeft de rondrit door D1** (het stilste faalgeval — een optioneel veld in een
+  JSON-kolom); houden lukt pas ná plaats maken, via **beide** wegen (vrijlaten én bistro);
+  niets houden mag, met een melding die geen nest verzint; met plaats zat verandert er niets;
+  de spaarpot blijft gewoon €600; de zwerver volgt dezelfde regel maar "laten gaan" blijft een
+  fooi; geen enkele kweekbadge; en — het contrast — een wachtende erfenis blokkeert het
+  koppelen **niet** terwijl een echt nest dat nog steeds wél doet.
+  Geverifieerd door de oude tak terug te zetten: **8 controles worden rood**.
+- ⚠️ **Bestaande fout gevonden en gerepareerd (niet veroorzaakt):** `brood-choice.test.mts`
+  faalde **deterministisch** (3/3 runs op de ongewijzigde boom, nagemeten met `git stash`) op
+  "nieuw koppel na een afgehandeld nest". Oorzaak: `primeFullLoftWithPair` wist `lastBredAt`
+  niet, en de **kweekrust** (`BREEDING.cooldownDays`, 21 d) kwam er ná die test — dus het
+  tweede koppel werd geweigerd wegens rust. Fixture-fix van één regel; de rust zelf blijft
+  bewaakt door `breeding-cooldown.test.mts`. **5 runs op rij groen** (de eerder
+  gedocumenteerde flakiness van deze test dook daarbij niet meer op).
+- Spelregels **§7.1** en **§12** bijgewerkt; wiki 🥚 **Kweken & broeden** kreeg de alinea over
+  de gedeelde wachtkamer.
 
 **Een stip op de Markt-knop zodra er een duif te koop staat (nieuwste)**
 - **Vraag van de eigenaar:** een duif die te koop gezet wordt valt niet op — "nu zal een
