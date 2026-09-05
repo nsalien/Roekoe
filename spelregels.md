@@ -1424,6 +1424,12 @@ tot jij beslist. Je krijgt een melding, en bij *Kweek* verschijnt het nest met
 alle jongen erin: naam, geslacht, algemene score én hun **gen-caps**, zodat je
 ziet welk jong een plaats waard is.
 
+> **Dezelfde wachtkamer geldt voor een duif die je uit een gebeurtenis krijgt**
+> (§12) — de erfenis of de verdwaalde duif. Kies je die terwijl je hok vol zit,
+> dan wacht ze daar tot je plaats maakt, precies zoals een nest. Zo'n duif is
+> géén nest: ze telt niet mee voor je kweekbadges en ze houdt het koppelformulier
+> **niet** tegen.
+
 Per jong kies je **houden** of niet. Wat je niet kiest, **vliegt weg** — dat
 brengt niets op (het duivenrestaurant is enkel voor volwassen duiven, §9.2). Je
 mag:
@@ -1809,6 +1815,15 @@ onderdelen van het spel worden er één keer via aangekondigd.
   (~€15–60 per opdracht) + XP. Elke dag dat je speelt verhoogt je **streak** met
   een groeiende dagbonus (€5 + €2 per streakdag, tot €25). Samen leveren bonus +
   opdrachten zo ongeveer **€750 per week** op — een basisinkomen, geen hoofdbron.
+- **Een duif uit een gebeurtenis gaat nooit verloren aan een vol hok.** Levert je
+  keuze een duif op — de **erfenis** (de oude kampioen of de jonge belofte) of de
+  **verdwaalde duif** — en zit je hok op dat moment vol, dan verdwijnt ze niet: ze
+  wacht bij **Kweek** tot je beslist. Daar maak je plaats met dezelfde twee knoppen
+  als bij *Afscheid nemen* (§9.2): 🕊️ een duif vrijlaten of 🍲 er een verkopen aan
+  het restaurant. Wil je haar toch niet, dan laat je haar alsnog gaan. Je krijgt er
+  een melding van, en het menu-item **Kweek** blijft je eraan herinneren tot je
+  gekozen hebt. (Een dilemma is verbruikt zodra je klikt — je kan dus niet
+  achteraf plaats maken en opnieuw kiezen. Vandaar deze wachtkamer.)
 - **Gebeurtenissen (dilemma's).** Nu en dan (~1 op 3 dagen) verschijnt een
   keuzekaartje dat je écht doet twijfelen: een koopman die je beste duif wil kopen,
   een verdwaalde duif, een griepgolf, een gulle frituursponsor, een kwakzalver, een

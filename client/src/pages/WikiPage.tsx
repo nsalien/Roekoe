@@ -948,6 +948,12 @@ export function WikiPage() {
           <li>Zolang een nest op je keuze wacht, kan je <strong>geen nieuw koppel</strong> starten.</li>
           <li>Er is <strong>geen tijdslimiet</strong> — een nest verloopt nooit.</li>
         </ul>
+        <p style={{ marginTop: 12 }}>
+          <strong>Dezelfde wachtkamer vangt een duif uit een gebeurtenis op.</strong> Kies je bij een dilemma de{' '}
+          <em>erfenis</em> of de <em>verdwaalde duif</em> terwijl je hok vol zit, dan gaat ze niet verloren: ze wacht
+          hier tot je plaats maakt. Zo'n duif is <strong>geen nest</strong> — ze telt niet mee voor je kweekbadges en
+          ze houdt het koppelformulier <strong>niet</strong> tegen.
+        </p>
       </Section>
 
       <Section id="inteelt" icon="🌳" title="Stamboom & inteelt">

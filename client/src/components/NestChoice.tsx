@@ -1,11 +1,15 @@
 /**
- * The keep-or-let-go screen for a clutch that hatched into a full loft.
+ * The keep-or-let-go screen for birds that arrived into a full loft.
  *
- * The young are real birds already — they just aren't in the loft yet. Nothing
- * happens to them until the owner confirms, so this screen has to make two things
- * obvious at a glance: which youngster is worth a perch (talent + gene ceilings,
- * which is what you are really betting on), and how to free a perch if you want
- * to keep more than fit.
+ * Two shapes, one screen: a hatched clutch, or a single bird an event handed the
+ * player (the inheritance, a stray). The decision is identical, so `origin` only
+ * swaps the copy — everything below it is shared.
+ *
+ * The birds are real already — they just aren't in the loft yet. Nothing happens
+ * to them until the owner confirms, so this screen has to make two things obvious
+ * at a glance: which bird is worth a perch (talent + gene ceilings, which is what
+ * you are really betting on), and how to free a perch if you want to keep more
+ * than fit.
  */
 
 import { useState } from 'react';
@@ -57,6 +61,14 @@ export function NestChoice({
 
   const releasing = nest.young.length - keep.length;
   const tooMany = keep.length > freeSpace;
+  const isNest = nest.origin === 'nest';
+  const one = nest.young.length === 1;
+  // A gift is always a single bird, so "houd je haar?" reads better than a tally.
+  const heading = isNest
+    ? `🐣 Nest van ${nest.sire} × ${nest.dam}`
+    : nest.origin === 'erfenis'
+      ? '📜 Een duif uit de erfenis'
+      : '🕊️ De verdwaalde duif';
 
   function toggle(id: string) {
     setConfirm(false);
@@ -69,8 +81,12 @@ export function NestChoice({
       await api(`/breeding/nest/${nest.id}`, { method: 'POST', body: { keep } });
       toast.show(
         keep.length === 0
-          ? 'Het nest is uitgevlogen — je hield geen enkel jong.'
-          : `${keep.length === 1 ? 'Eén jong' : `${keep.length} jongen`} in je hok! 🐣`,
+          ? isNest
+            ? 'Het nest is uitgevlogen — je hield geen enkel jong.'
+            : 'Je liet haar gaan.'
+          : isNest
+            ? `${keep.length === 1 ? 'Eén jong' : `${keep.length} jongen`} in je hok! 🐣`
+            : 'Ze staat in je hok! 🕊️',
         'ok',
       );
       await onDone();
@@ -106,16 +122,24 @@ export function NestChoice({
 
   return (
     <div className="card" style={{ borderLeft: '4px solid var(--accent, #f59e0b)' }}>
-      <h2 style={{ marginTop: 0 }}>
-        🐣 Nest van {nest.sire} × {nest.dam}
-      </h2>
+      <h2 style={{ marginTop: 0 }}>{heading}</h2>
       <p className="muted" style={{ marginTop: 0 }}>
-        {nest.young.length === 1 ? 'Er is één jong' : `Er zijn ${nest.young.length} jongen`} geboren, maar je hok zat
-        vol. Kies wie je houdt. Wie je niet kiest, <strong>vliegt weg</strong> — daar krijg je niets voor terug.
+        {isNest ? (
+          <>
+            {one ? 'Er is één jong' : `Er zijn ${nest.young.length} jongen`} geboren, maar je hok zat vol. Kies wie je
+            houdt. Wie je niet kiest, <strong>vliegt weg</strong> — daar krijg je niets voor terug.
+          </>
+        ) : (
+          <>
+            Ze hoort bij je hok, maar er was geen plaats. Maak hieronder plaats — laat een duif vrij of verkoop er een
+            aan het restaurant — en houd haar. Kies je haar niet, dan <strong>vliegt ze weg</strong> en krijg je er
+            niets voor terug.
+          </>
+        )}
       </p>
       <p className={freeSpace === 0 ? 'muted' : 'faint'} style={{ marginTop: 0, fontSize: '0.85rem' }}>
         {freeSpace === 0
-          ? '🏠 Geen enkele vrije plaats — maak eerst plaats als je een jong wil houden.'
+          ? `🏠 Geen enkele vrije plaats — maak eerst plaats als je ${isNest ? 'een jong' : 'haar'} wil houden.`
           : `🏠 Nog ${freeSpace} vrije ${freeSpace === 1 ? 'plaats' : 'plaatsen'} in je hok.`}
       </p>
 
@@ -158,8 +182,16 @@ export function NestChoice({
 
       <div className="row" style={{ justifyContent: 'space-between', gap: 8, marginTop: 12, flexWrap: 'wrap' }}>
         <span className="muted">
-          Je houdt <strong>{keep.length}</strong> van {nest.young.length}
-          {releasing > 0 && <> · {releasing} {releasing === 1 ? 'vliegt' : 'vliegen'} weg</>}
+          {isNest ? (
+            <>
+              Je houdt <strong>{keep.length}</strong> van {nest.young.length}
+              {releasing > 0 && <> · {releasing} {releasing === 1 ? 'vliegt' : 'vliegen'} weg</>}
+            </>
+          ) : keep.length > 0 ? (
+            <>Je <strong>houdt</strong> haar</>
+          ) : (
+            <>Je laat haar <strong>gaan</strong></>
+          )}
         </span>
         <div className="row" style={{ gap: 8 }}>
           <button className="btn ghost sm" disabled={busy} onClick={() => setMakeRoom((v) => !v)}>
@@ -167,7 +199,8 @@ export function NestChoice({
           </button>
           {confirm ? (
             <button className="btn danger sm" disabled={busy || tooMany} onClick={submit}>
-              Zeker? {releasing > 0 ? `${releasing} ${releasing === 1 ? 'jong' : 'jongen'} weg` : 'bevestig'}
+              Zeker?{' '}
+              {releasing === 0 ? 'bevestig' : isNest ? `${releasing} ${releasing === 1 ? 'jong' : 'jongen'} weg` : 'ze vliegt weg'}
             </button>
           ) : (
             <button className="btn sm" disabled={busy || tooMany} onClick={() => setConfirm(true)}>

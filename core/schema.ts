@@ -281,7 +281,7 @@ export interface Loft {
   missionsDay: string; // date key (yyyy-mm-dd, Brussels) the missions belong to
   streak: number; // consecutive active days
   pendingEvent: EventCard | null; // an unresolved dilemma awaiting the player
-  pendingBroods: PendingBrood[]; // hatched young awaiting a keep/let-go choice
+  pendingBroods: PendingBrood[]; // birds awaiting a keep/let-go choice (clutch or event gift)
   // Sponsoring: companies that offer to back the loft once it performs well.
   sponsorship: SponsorState;
   // Season prizes won at each rollover (Roekoes + Vleugels) — see season.ts.
@@ -460,10 +460,24 @@ export interface BreedingPair {
 }
 
 /**
- * A hatched clutch that did not fit in the loft and is waiting on the owner's
- * decision: which youngsters to keep (freeing perches first if needed) and which
- * to let go. The young are NOT in `db.pigeons` yet — they live on `Loft.pendingBroods`
- * until the owner resolves the nest, so nothing is ever silently lost to a full loft.
+ * Where a held bird came from. A `nest` is a hatched clutch; the others are birds
+ * an event handed the player. They share one waiting queue because the decision is
+ * identical — keep it (freeing a perch first) or let it go — but they are NOT
+ * broods: only a `nest` earns brood badges and blocks a new pair (see
+ * `resolveBrood` / `startBreeding`). Absent on every row written before this
+ * existed, so treat `undefined` as `nest`.
+ */
+export type BroodOrigin = 'nest' | 'erfenis' | 'zwerver';
+
+/**
+ * A bird that did not fit in the loft and is waiting on the owner's decision:
+ * which to keep (freeing perches first if needed) and which to let go. They are
+ * NOT in `db.pigeons` yet — they live on `Loft.pendingBroods` until the owner
+ * resolves the entry, so nothing is ever silently lost to a full loft.
+ *
+ * Usually a hatched clutch, hence the name and the parent fields. An event that
+ * hands out a pigeon (the inheritance, a stray) uses the same queue when the loft
+ * is full; such an entry carries an `origin` and leaves the parent fields empty.
  *
  * It hangs off the loft (like `pendingEvent`) rather than living in its own table
  * because the lofts row is loaded on every request anyway, and the heaviest request
@@ -474,7 +488,8 @@ export interface BreedingPair {
  */
 export interface PendingBrood {
   id: string;
-  /** Parents, by id and by name: either may be gone by the time the owner picks. */
+  /** Parents, by id and by name: either may be gone by the time the owner picks.
+   *  Empty for anything but a `nest` — an inherited bird has no parents here. */
   sireId: string;
   damId: string;
   sireName: string;
@@ -484,6 +499,8 @@ export interface PendingBrood {
   /** Whether a grandparent was still in the loft at hatch — the `dynastie` badge
    *  is awarded on resolve, when the parents may no longer be around to ask. */
   dynasty: boolean;
+  /** Absent = a hatched clutch (every row written before this shipped). */
+  origin?: BroodOrigin;
   createdAt: string;
   createdAtWeek: number;
 }
