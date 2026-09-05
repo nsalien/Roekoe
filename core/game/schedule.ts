@@ -80,6 +80,7 @@ import {
   runHealthDay,
   tickHealing,
 } from './health.js';
+import { inheritanceCard } from './events.js';
 import { tickSeason } from './season.js';
 import { progressMissions } from './missions.js';
 import { activeContracts, evaluateSponsorOffers, offerStarterSponsor } from './sponsors.js';
@@ -2005,6 +2006,39 @@ function runDataMigrations(db: Database): void {
     backfillParentNames(db);
     announcePedigree(db, 'ntf:news:stamboom');
     db.world.dataVersion = 45;
+  }
+
+  if ((db.world.dataVersion ?? 0) < 46) {
+    // One-off (owner request): hand the erfenis-dilemma to one player. Matched on
+    // loft name OR username, case-insensitive, real players only — a bot that
+    // happens to share the name is untouched (same shape as v39).
+    //
+    // The card is built by `inheritanceCard()` rather than written out here, so a
+    // reworded or reworked dilemma can never leave this hand-out quoting a version
+    // of itself that no longer exists.
+    //
+    // ⚠️ It OVERWRITES an unanswered dilemma if one is open. That is the deliberate
+    // trade: a migration fires once, so skipping on a busy loft would drop the gift
+    // for good. An unanswered card is by definition one the player has not acted on.
+    // A live event carries no state beyond itself (`resolveEvent` reads `pendingEvent`
+    // and nothing else), so nothing else breaks.
+    const TARGET = 'roekoeloos';
+    for (const loft of db.lofts) {
+      if (loft.isBot) continue;
+      const user = db.users.find((u) => u.id === loft.userId);
+      if (![loft.name, user?.username ?? ''].some((n) => n.trim().toLowerCase() === TARGET)) continue;
+      loft.pendingEvent = inheritanceCard();
+      pushNotification(
+        db, loft.userId, 'info',
+        '📜 Er ligt een erfenis op je te wachten',
+        'Een overleden dorpsgenoot liet jou iets na. Open het Overzicht en kies: de spaarpot, ' +
+          'de oude kampioen of de jonge belofte. Zit je hok vol? Dan wacht de duif bij Kweek tot ' +
+          'je plaats maakt — ze gaat niet verloren.',
+        null,
+        `ntf:admin:erfenis:${loft.userId}`,
+      );
+    }
+    db.world.dataVersion = 46;
   }
 }
 

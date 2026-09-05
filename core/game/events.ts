@@ -16,6 +16,21 @@ function owendBy(db: Database, loft: Loft): Pigeon[] {
   return db.pigeons.filter((p) => p.ownerId === loft.userId);
 }
 
+/**
+ * The inheritance dilemma, as its own builder so a hand-out (a data migration
+ * that gives one player this card) cannot drift from what `makeEvent` deals.
+ *
+ * Deliberately free of random values: two concurrent requests that both write it
+ * land on the same card instead of two different ones.
+ */
+export function inheritanceCard(): EventCard {
+  return {
+    key: 'inheritance', icon: '📜', title: 'Erfenis van een oude melker',
+    text: 'Een overleden dorpsgenoot liet jou iets na — maar je mag maar één ding kiezen: zijn spaarpot, zijn laatste kampioen (sterke genen, maar op leeftijd), of zijn jonge belofte (goedkoop gehouden, niemand weet wat erin zit). Kiezen is verliezen.',
+    options: [{ label: 'De spaarpot (€600)' }, { label: 'De oude kampioen' }, { label: 'De jonge belofte' }],
+  };
+}
+
 /** Build a random dilemma for a loft, or null if none fits right now. */
 export function makeEvent(db: Database, loft: Loft, week: number): EventCard | null {
   const owned = owendBy(db, loft);
@@ -80,11 +95,7 @@ export function makeEvent(db: Database, loft: Loft, week: number): EventCard | n
         options: [{ label: 'Toedienen (€200)' }, { label: 'Poten op de grond houden' }],
       };
     case 'inheritance':
-      return {
-        key: 'inheritance', icon: '📜', title: 'Erfenis van een oude melker',
-        text: 'Een overleden dorpsgenoot liet jou iets na — maar je mag maar één ding kiezen: zijn spaarpot, zijn laatste kampioen (sterke genen, maar op leeftijd), of zijn jonge belofte (goedkoop gehouden, niemand weet wat erin zit). Kiezen is verliezen.',
-        options: [{ label: 'De spaarpot (€600)' }, { label: 'De oude kampioen' }, { label: 'De jonge belofte' }],
-      };
+      return inheritanceCard();
     case 'scout': {
       const best = [...owned].sort((a, b) => estimateValue(b, week) - estimateValue(a, week))[0];
       return {
