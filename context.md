@@ -140,7 +140,7 @@ krijgen.**
 `core/game/schedule.ts` → `advanceRealtime(db, nowMs, weatherByFlight)` roept in
 volgorde:
 1. `runDataMigrations(db)` — eenmalige datafixes, **gated op `world.dataVersion`**
-   (staat nu op **45**; nieuwe migratie = nieuw `if ((db.world.dataVersion ?? 0) < N)`
+   (staat nu op **46**; nieuwe migratie = nieuw `if ((db.world.dataVersion ?? 0) < N)`
    blok + `db.world.dataVersion = N`). v21 zet **bestaande geplande vluchten terug naar de
    OUDE, kortere afstanden** (regio 30–160 / nat 60–290 / intl 180–950 km): elke nog-
    geplande niet-titan-vlucht buiten haar legacy-venster wordt her-routeerd via
@@ -1058,7 +1058,32 @@ verzoek uit per statement.
 ## 8. Belangrijkste wijzigingen deze sessie (achtergrond)
 
 Alles hieronder staat **live** op de deploy-branch. Data-migraties liepen door tot
-**`dataVersion = 45`**.
+**`dataVersion = 46`**.
+
+**Migratie v46 — de erfeniskaart voor "Roekoeloos" (nieuwste)**
+- Op verzoek van de eigenaar krijgt die ene speler het dilemma **📜 Erfenis van een oude
+  melker** in handen. Match op **hoknaam óf gebruikersnaam**, hoofdletter-ongevoelig, **enkel
+  echte spelers** — een bot die toevallig zo heet blijft ongemoeid (zelfde vorm als v39).
+- **De kaart komt uit `inheritanceCard()`**, nieuw geëxporteerd uit `events.ts` en nu ook
+  gebruikt door `makeEvent`. ⚠️ Een migratie die de tekst zelf overschrijft zou bij de eerste
+  herformulering een versie van het dilemma uitdelen die niet meer bestaat. De kaart bevat
+  **geen enkele random waarde**, dus twee gelijktijdige verzoeken die de migratie allebei
+  draaien schrijven exact dezelfde kaart; de melding heeft daarnaast een stabiele id
+  (`ntf:admin:erfenis:<userId>`).
+- ⚠️ **Ze OVERSCHRIJFT een openstaand dilemma.** Bewuste afweging: een migratie vuurt één
+  keer, dus overslaan bij een bezet hok laat het geschenk voorgoed vallen. Een onbeantwoorde
+  kaart is per definitie een kaart waar de speler nog niets mee deed, en een openstaand
+  dilemma draagt geen staat buiten zichzelf (`resolveEvent` leest enkel `pendingEvent`).
+- **Timing is goed:** dit landt samen met het blok hieronder, dus als Roekoeloos *de oude
+  kampioen* kiest terwijl zijn hok vol zit, wacht de duif bij Kweek in plaats van te
+  verdwijnen. De belmelding zegt dat er ook bij.
+- **Geen schemawijziging, geen nieuwe kolom, geen configknop.** **dataVersion → 46.**
+- **Geverifieerd** met een wegwerp-tsx-script tegen de échte `advanceRealtime` (22 controles):
+  match op hoknaam én op gebruikersnaam, een derde speler krijgt niets, een gelijknamige bot
+  krijgt niets, de kaart klopt (drie keuzes, "De oude kampioen" op index 1), ze **overleeft de
+  rondrit door D1** (`pending_event` is een JSON-kolom), vijf passen na het beantwoorden delen
+  er geen tweede uit en betalen niet nog eens, en de keuze werkt end-to-end — vol hok → ze
+  wacht als `origin: 'erfenis'`, plaats zat → ze komt rechtstreeks binnen.
 
 **Een erfenis gaat niet meer verloren omdat je hok vol zit (nieuwste)**
 - **Vraag van de eigenaar:** kiest een speler bij de erfeniskaart *de oude kampioen* terwijl
