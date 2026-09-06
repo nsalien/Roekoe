@@ -65,7 +65,7 @@ import { billableCoachedCount, newNewcomerPerks, tickNewcomerExpiry, winningsMul
 import { awardBroodBadges, breed } from './breeding.js';
 import { kinship } from './pedigree.js';
 import { awardBadge, awardFlightBadges, evaluateBadges } from './badges.js';
-import { ensureAuctions } from './auction.js';
+import { ensureAuctions, recomputeAuctionLeader } from './auction.js';
 import { botDailyActions, botEntryContext, botRaceCandidates } from './bots.js';
 import type { BotEntryContext } from './bots.js';
 import { settleFlightBets, voidBetsForWithdrawnPigeon, voidOrphanedBets, refundFlightBets } from './betting.js';
@@ -2039,6 +2039,89 @@ function runDataMigrations(db: Database): void {
       );
     }
     db.world.dataVersion = 46;
+  }
+
+  if ((db.world.dataVersion ?? 0) < 47) {
+    // One-off (owner request): "De Vluchtige Vleugel" mistyped his bid on the
+    // Sunday auction — €11.500 where €1.550 was meant.
+    //
+    // ⚠️ A player cannot undo this himself, and that is why it needs a migration
+    // rather than a nudge: a bid only ever goes up, `placeBid` refuses a raise
+    // from the standing leader ("Je bent al de hoogste bieder"), and there is no
+    // withdraw. Left alone the bid stands until the hammer falls and buys the
+    // bird at ~7× her market value.
+    correctAuctionBid(db, { loft: 'de vluchtige vleugel', pigeon: 'adele de asduif', from: 11500, to: 1550 });
+    db.world.dataVersion = 47;
+  }
+}
+
+/**
+ * Put ONE mistyped auction bid right, and nothing else.
+ *
+ * Matched on loft name OR username, case-insensitive, real players only — a bot
+ * that happens to share the name is untouched (same shape as v33/v39/v46). The
+ * bird is found by name because pigeon names are unique (spelregels §10).
+ *
+ * ⚠️ Guarded on the exact wrong amount. A migration fires once, but between
+ * writing it and the deploy landing the player can bid again — and then the
+ * stored amount is one he meant. Overwriting that would be a second error on top
+ * of the first, so anything other than `from` is left strictly alone.
+ *
+ * No money moves: an auction bid is never held in escrow (`placeBid` only checks
+ * that the bidder HAS the money; it is debited at close), so correcting the
+ * amount is the whole correction.
+ */
+function correctAuctionBid(
+  db: Database,
+  spec: { loft: string; pigeon: string; from: number; to: number },
+): void {
+  const pigeon = db.pigeons.find((p) => p.name.trim().toLowerCase() === spec.pigeon);
+  if (!pigeon) return;
+  const auction = db.auctions.find((a) => a.pigeonId === pigeon.id && a.status === 'open');
+  if (!auction) return;
+
+  const bidder = db.lofts.find((loft) => {
+    if (loft.isBot) return false;
+    const user = db.users.find((u) => u.id === loft.userId);
+    return [loft.name, user?.username ?? ''].some((n) => n.trim().toLowerCase() === spec.loft);
+  });
+  if (!bidder) return;
+
+  const bid = (auction.bids ?? []).find((b) => b.userId === bidder.userId);
+  if (!bid || bid.amount !== spec.from) return; // already corrected, or he re-bid on purpose
+
+  bid.amount = spec.to;
+  bid.name = bidder.name;
+  // The leader cache is not derived on read — see recomputeAuctionLeader.
+  recomputeAuctionLeader(auction);
+
+  pushNotification(
+    db, bidder.userId, 'info',
+    '⚖️ Je bod is rechtgezet',
+    `Je bod van €${spec.from} op ${pigeon.name} was een vergissing en staat nu op €${spec.to}. ` +
+      `Je hoeft niets te doen — de veiling loopt gewoon door.`,
+    null,
+    `ntf:admin:bidfix:${auction.id}:${bidder.userId}`,
+  );
+
+  // Everyone else who bid was staring at a bid that was never real, and may well
+  // have stopped bidding because of it. The bar just dropped and the hammer has
+  // not fallen yet, so they get told — while they can still act on it.
+  const leader = auction.currentBidderName
+    ? `Hoogste bod nu: €${auction.currentBid} door ${auction.currentBidderName}.`
+    : 'Er staat nu geen bod meer op.';
+  for (const b of auction.bids ?? []) {
+    if (b.userId === bidder.userId) continue;
+    const other = db.lofts.find((l) => l.userId === b.userId);
+    if (!other || other.isBot) continue;
+    pushNotification(
+      db, other.userId, 'info',
+      '⚖️ Bod op de veiling rechtgezet',
+      `Het bod van €${spec.from} op ${pigeon.name} was een vergissing en is rechtgezet naar €${spec.to}. ` +
+        `${leader} Jouw eigen bod is niet aangeraakt.`,
+      null,
+      `ntf:admin:bidfix:${auction.id}:${other.userId}`,
+    );
   }
 }
 
