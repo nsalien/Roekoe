@@ -15,10 +15,10 @@
 
 | Rol | Branch | Doel |
 |-----|--------|------|
-| **Dev** | `claude/hallo-r1wgvn` | Alle ontwikkeling/commits komen hier **eerst**. |
+| **Dev** | `claude/hallo-nno7pb` | Alle ontwikkeling/commits komen hier **eerst**. |
 | **Prod** | `claude/roekoe-game-website-jwa0vo` | Elke commit wordt hierheen **gecherry-pickt**; deze branch triggert de **Cloudflare Pages**-deploy naar productie. |
 
-> Vorige dev-branches (niet meer gebruiken): `claude/hallo-ca55co`, `claude/hallo-qz9tmx`, `claude/hallo-fsp9nx`, `claude/hallo-mzjn0e`, `claude/hallo-su75jy`, `claude/hallo-rkr49f`, `claude/hallo-pvwabx`,
+> Vorige dev-branches (niet meer gebruiken): `claude/hallo-r1wgvn`, `claude/hallo-ca55co`, `claude/hallo-qz9tmx`, `claude/hallo-fsp9nx`, `claude/hallo-mzjn0e`, `claude/hallo-su75jy`, `claude/hallo-rkr49f`, `claude/hallo-pvwabx`,
 > `claude/context-spelregels-q2ywtx`, `claude/hallo-49m6hj`, `claude/hallo-xifh0c`,
 > `claude/hallo-w97s85`, `claude/hallo-hrtwtv`. Ontwikkelt een sessie op een nieuwe
 > `claude/…`-branch, gebruik die dan als dev-branch en **werk deze tabel meteen bij** —
@@ -1058,9 +1058,46 @@ verzoek uit per statement.
 ## 8. Belangrijkste wijzigingen deze sessie (achtergrond)
 
 Alles hieronder staat **live** op de deploy-branch. Data-migraties liepen door tot
-**`dataVersion = 46`**.
+**`dataVersion = 47`**.
 
-**Migratie v46 — de erfeniskaart voor "Roekoeloos" (nieuwste)**
+**Migratie v47 — een verkeerd getypt veilingbod rechtgezet (nieuwste)**
+- **Melding van de eigenaar:** "De Vluchtige Vleugel" bood **€11.500** op de zondagveiling
+  (*Adele de Asduif*, geschatte waarde €3.190) waar **€1.550** bedoeld was. Zet het op 1.550.
+- ⚠️ **Waarom dit een migratie moet zijn en geen tip aan de speler:** een bod kan alleen
+  omhóóg, `placeBid` weigert een verhoging van de staande leider ("Je bent al de hoogste
+  bieder") en er is geen intrekken. Zonder ingreep bleef dat bod staan tot de hamer viel en
+  kocht hij de duif voor ~7× haar marktwaarde.
+- **Er gaat geen geld heen en weer.** Een veilingbod staat **niet in escrow** — `placeBid`
+  controleert enkel dat de bieder het bedrag *heeft*, het wordt pas bij het sluiten
+  afgehouden. Het bedrag rechtzetten ís dus de hele rechtzetting.
+- ⚠️ **`currentBid`/`currentBidderId`/`currentBidderName` zijn een CACHE, geen afgeleide.**
+  `placeBid` houdt ze bij terwijl er geboden wordt, en `closeAuction` leest bewust `bids`
+  i.p.v. die cache — dus wie een bod ná plaatsing wijzigt, moet de cache zelf terugzetten.
+  Zonder dat toont de markt een leider die niet meer leidt en rekent `placeBid` zijn
+  minimum-volgend-bod tegen een bod dat niet meer bestaat, waardoor de veiling **boven elk
+  echt bod vastloopt**. Daarvoor is `recomputeAuctionLeader(a)` toegevoegd (auction.ts) —
+  één plek waar die invariant leeft.
+- ⚠️ **Gegrendeld op het exacte foute bedrag (11500).** Een migratie vuurt één keer, maar
+  tussen schrijven en deployen kan de speler opnieuw bieden — en dan is het opgeslagen
+  bedrag er één die hij bedoelde. Dat overschrijven zou een tweede fout op de eerste zijn,
+  dus alles behalve `from` blijft onaangeroerd. Match op **hoknaam óf gebruikersnaam**,
+  hoofdletter-ongevoelig, **enkel echte spelers** (zelfde vorm als v33/v39/v46); de duif
+  wordt op **naam** gevonden, want duivennamen zijn uniek (spelregels §10).
+- **De andere bieders krijgen ook bericht.** Zij keken tegen een bod aan dat nooit echt was
+  en kunnen daarom gestopt zijn met bieden. De lat zakt en de hamer is nog niet gevallen,
+  dus ze horen het te weten **terwijl ze er nog iets mee kunnen**. Wie niet bood krijgt
+  niets, bots krijgen niets. Stabiele id `ntf:admin:bidfix:<auctionId>:<userId>`.
+- **Geen schemawijziging, geen nieuwe kolom, geen configknop.** **dataVersion → 47.**
+- **Geverifieerd** met een wegwerp-tsx-script tegen de échte `advanceRealtime` (50 controles):
+  het gemelde geval (11500 → 1550, stand volgt mee, één melding, veiling blijft open, geen geld
+  bewogen), idempotent over vijf passen, een bod dat hij **wél** bedoelde blijft staan, een
+  tweede bieder wordt correct de nieuwe leider en krijgt bericht, een **gelijknamige bot**
+  blijft ongemoeid, match werkt ook op de gebruikersnaam, ontbrekende duif/speler/gesloten
+  veiling crashen niet, bieden werkt daarna gewoon door (minimum volgt de nieuwe stand, 1550
+  ligt boven de openingsprijs van €960), en de rechtzetting **overleeft de rondrit door D1**
+  (`auction_bids` én de veilingrij) zonder dat een tweede verzoek er nog iets aan doet.
+
+**Migratie v46 — de erfeniskaart voor "Roekoeloos"**
 - Op verzoek van de eigenaar krijgt die ene speler het dilemma **📜 Erfenis van een oude
   melker** in handen. Match op **hoknaam óf gebruikersnaam**, hoofdletter-ongevoelig, **enkel
   echte spelers** — een bot die toevallig zo heet blijft ongemoeid (zelfde vorm als v39).

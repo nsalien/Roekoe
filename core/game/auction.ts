@@ -271,6 +271,24 @@ export function ensureAuctions(db: Database, nowMs: number): void {
  * (and has room) wins; if not, it cascades to the next highest bidder.
  * Returns an error string or null.
  */
+/**
+ * Re-derive the standings from the bid rows.
+ *
+ * `currentBid`/`currentBidderId`/`currentBidderName` are a **cache** of "who
+ * holds the highest bid". `placeBid` keeps that cache in step as bids come in,
+ * and `closeAuction` deliberately reads `bids` instead of the cache — so a bid
+ * that changes AFTER it was placed (an admin correction) has to put the cache
+ * back in step itself. Without that the market shows a leader who no longer
+ * leads, and `placeBid` computes its minimum next bid against a bid that no
+ * longer exists — which would lock the auction above every real offer.
+ */
+export function recomputeAuctionLeader(a: Auction): void {
+  const top = [...(a.bids ?? [])].sort((x, y) => y.amount - x.amount)[0];
+  a.currentBid = top?.amount ?? 0;
+  a.currentBidderId = top?.userId ?? null;
+  a.currentBidderName = top?.name ?? null;
+}
+
 export function placeBid(db: Database, userId: string, auctionId: string, amount: number): string | null {
   const a = db.auctions.find((x) => x.id === auctionId && x.status === 'open');
   if (!a) return 'Deze veiling loopt niet (meer)';
