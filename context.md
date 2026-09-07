@@ -888,10 +888,14 @@ Entiteiten: `Pigeon`, `Loft`, `User`, `BreedingPair`, `PendingBrood`, `Flight` (
   poll van 60 s — **geen eigen verzoek, geen extra D1-rij**.
   **Enkel voor admins** staat er bij een live vlucht ook **⏩ Match beëindigen**
   (met bevestiging) → `POST /admin/flights/:id/finish`; zie §8.
-  Onder het verslag staat de **💬 Tribune**: de chatbox met spelersreacties (zie §8). Twee
-  aparte stromen die bewust niet door elkaar lopen — het verslag is de reporter, de tribune
-  zijn de spelers. De box komt mee op dezelfde poll; wie zelf iets stuurt krijgt de verse
-  regels uit het POST-antwoord terug, want 60 s wachten op je eigen kreet voelt kapot.
+  **Meteen onder de kaart** staat de **💬 Tribune**: de chatbox met spelersreacties (zie §8).
+  ⚠️ Die plek is bewust: het is het énige blok op deze pagina waar de speler zélf iets doet,
+  en het stond onder de standen én het verslag — bij een veld van 90 duiven een scherm of drie
+  lager, dus je riep iets naar een race die je niet meer zag. Het 📻 verslag staat nu eronder.
+  Twee aparte stromen die bewust niet door elkaar lopen — het verslag is de reporter, de
+  tribune zijn de spelers. De box komt mee op dezelfde poll; wie zelf iets stuurt krijgt de
+  verse regels uit het POST-antwoord terug, want 60 s wachten op je eigen kreet voelt kapot.
+  Kaartvolgorde: **kaart → tribune → stand → verslag → samenvatting → uitslag**.
 - `InfirmaryPage` (Ziekenboeg) — zieke/gekwetste duiven; dokter/kinesist/medicatievoer;
   **herstelbalk per duif** (`ailment.healed`).
 - `ProfilePage` — hoknaam, **thema-toggle (donker/licht)**, **"Start rondleiding"**.
@@ -1075,7 +1079,32 @@ verzoek uit per statement.
 Alles hieronder staat **live** op de deploy-branch. Data-migraties liepen door tot
 **`dataVersion = 47`**.
 
-**De tribune — reageren op een live vlucht met kant-en-klare kreten (nieuwste)**
+**De tribune staat nu onder de kaart, en de winkelprijzen onder hun uitspraak (nieuwste)**
+- **Twee vragen van de eigenaar**, allebei puur layout — geen endpoint, geen DTO-veld, geen
+  schemakolom, geen migratie, `dataVersion` blijft **47**.
+- **1. De tribune is omhooggeschoven** tot **meteen onder de 🗺️ live kaart**. Ze stond
+  helemaal onderaan, ná de standenlijst én het 📻 verslag. ⚠️ Dat is de plek waar het
+  precies fout gaat: het is het **enige** blok op die pagina waar de speler zelf iets doet,
+  en bij een veld van 90 duiven staat de standenlijst een paar schermen hoog — je zat dus te
+  scrollen naar een chatbox terwijl de race die je becommentarieert uit beeld was. Nieuwe
+  volgorde: **kaart → tribune → stand → verslag → samenvatting → uitslag**.
+  De comment boven het blok zei letterlijk *"systeemcommentaar staat hierboven"* en is
+  meeverhuisd — dat verslag staat nu ónder de tribune.
+- **2. De prijs staat op een eigen regel onder de uitspraak.** In de winkel achter
+  🔒 *nog N in …* stond elk item als een `.row` met `justify-content: space-between`: tekst
+  links, prijsknop rechts. ⚠️ Die lijst mengt *"Amai."* met zinnen van tien woorden, dus de
+  prijskolom danste per rij heen en weer en een lange tekst brak over twee regels met de knop
+  ergens in het midden ertussen. Nu een nieuwe klasse **`.reaction-locked-item`** (kolom-flex,
+  `align-items: flex-start`, scheidingslijn tussen twee items): elke prijs begint op dezelfde
+  x, hoe lang de zin erboven ook is. `min-width: 0` + `overflow-wrap: anywhere` houden een
+  lange zin binnen de kaart — zie §Card-breedte, daar is het hier al vier keer misgegaan.
+- **In de browser nagemeten** (Playwright op de **échte gebouwde CSS**, met de exacte DOM die
+  `ReactionPicker` uitspuwt, 390 px en 1100 px × beide thema's, korte en lange uitspraken door
+  elkaar — 20 controles): horizontale paginaoverloop **0 px**, elke prijs staat onder zijn
+  uitspraak en links uitgelijnd ermee, **alle prijzen op dezelfde x**, en geen enkel element
+  loopt buiten zijn rij.
+
+**De tribune — reageren op een live vlucht met kant-en-klare kreten**
 - **Wat het is.** Onder elke live vlucht staat een chatbox waarin spelers reageren met
   **vooraf geschreven** boodschappen; zelf typen kan niet. Naar de vlucht in het algemeen,
   of recht naar een andere melker — die gerichte regels zijn **voor iedereen zichtbaar** én

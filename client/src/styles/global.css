@@ -813,6 +813,18 @@ a.ped-node:active { transform: translateY(1px); }
    betekent scrollen door dingen die je niet kunt sturen. */
 .reaction-locked { margin-top: 10px; font-size: 0.85rem; }
 .reaction-locked > summary { cursor: pointer; color: var(--muted); }
+/* Eén item in de winkel: tekst op zijn eigen regel, prijs eronder. Naast elkaar
+   (space-between) zag dit er rommelig uit zodra korte en lange uitspraken door
+   elkaar staan — de knop stond dan bij elke rij op een andere hoogte. Nu begint
+   elke prijs op dezelfde x, hoe lang de zin erboven ook is. `min-width: 0` +
+   `overflow-wrap` houden een lange zin binnen de kaart (zie §Card-breedte). */
+.reaction-locked-item {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 4px;
+  min-width: 0; overflow-wrap: anywhere;
+}
+.reaction-locked-item + .reaction-locked-item {
+  border-top: 1px solid var(--border); padding-top: 6px;
+}
 
 .reaction-target {
   margin-top: 8px; padding: 8px 10px;

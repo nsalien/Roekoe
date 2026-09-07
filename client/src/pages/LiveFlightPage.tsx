@@ -220,6 +220,48 @@ export function LiveFlightPage() {
         )}
       </div>
 
+      {/* Chatbox: reacties van spelers. Staat bewust meteen ONDER de kaart: dit
+          is het enige blok op de pagina waar je zelf iets doet, en met de standen
+          en het verslag ertussen stond het bij een vol veld een scherm of drie
+          lager — je riep dan iets naar een race die je niet meer zag.
+          Systeemcommentaar staat verderop in het 📻 live verslag; dit is
+          uitsluitend wat spelers zelf roepen, zodat de twee stromen niet door
+          elkaar lopen. */}
+      {(flight.status === 'live' || isDone) && (
+        <div className="card">
+          <h2>💬 Tribune</h2>
+          <div ref={chatRef} className="chat-box">
+            {(!chat || chat.length === 0) && (
+              <p className="muted" style={{ margin: 0 }}>Nog stil op de tribune…</p>
+            )}
+            {(chat ?? []).map((c) => {
+              const mine = c.userId === user?.id;
+              const atMe = c.targetId === user?.id;
+              return (
+                <div key={c.id} className={`chat-line${atMe ? ' at-me' : ''}${mine ? ' mine' : ''}`}>
+                  <span className="chat-who">
+                    {c.userName}
+                    {c.targetName && (
+                      <>
+                        <span className="faint"> → </span>
+                        <span className="chat-target">{c.targetName}</span>
+                      </>
+                    )}
+                  </span>
+                  <span className="chat-text">{c.text}</span>
+                  {(c.repeat ?? 1) > 1 && <span className="chat-repeat">×{c.repeat}</span>}
+                </div>
+              );
+            })}
+          </div>
+          {flight.status === 'live' && id && (
+            <div style={{ marginTop: 10 }}>
+              <ReactionPicker flightId={id} onPosted={(next) => setChat(next as ChatLine[])} />
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Per-team live board (estafettevlucht) */}
       {live?.teams && (
         <div className="card">
@@ -376,44 +418,6 @@ export function LiveFlightPage() {
               </div>
             ))}
           </div>
-        </div>
-      )}
-
-      {/* Chatbox: reacties van spelers. Systeemcommentaar staat hierboven in
-          het live verslag; dit is uitsluitend wat spelers zelf roepen, zodat de
-          twee stromen niet door elkaar lopen. */}
-      {(flight.status === 'live' || isDone) && (
-        <div className="card">
-          <h2>💬 Tribune</h2>
-          <div ref={chatRef} className="chat-box">
-            {(!chat || chat.length === 0) && (
-              <p className="muted" style={{ margin: 0 }}>Nog stil op de tribune…</p>
-            )}
-            {(chat ?? []).map((c) => {
-              const mine = c.userId === user?.id;
-              const atMe = c.targetId === user?.id;
-              return (
-                <div key={c.id} className={`chat-line${atMe ? ' at-me' : ''}${mine ? ' mine' : ''}`}>
-                  <span className="chat-who">
-                    {c.userName}
-                    {c.targetName && (
-                      <>
-                        <span className="faint"> → </span>
-                        <span className="chat-target">{c.targetName}</span>
-                      </>
-                    )}
-                  </span>
-                  <span className="chat-text">{c.text}</span>
-                  {(c.repeat ?? 1) > 1 && <span className="chat-repeat">×{c.repeat}</span>}
-                </div>
-              );
-            })}
-          </div>
-          {flight.status === 'live' && id && (
-            <div style={{ marginTop: 10 }}>
-              <ReactionPicker flightId={id} onPosted={(next) => setChat(next as ChatLine[])} />
-            </div>
-          )}
         </div>
       )}
 
