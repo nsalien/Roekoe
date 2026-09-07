@@ -15,10 +15,10 @@
 
 | Rol | Branch | Doel |
 |-----|--------|------|
-| **Dev** | `claude/hallo-nno7pb` | Alle ontwikkeling/commits komen hier **eerst**. |
+| **Dev** | `claude/prosper-postuum-tinne-race-j515f6` | Alle ontwikkeling/commits komen hier **eerst**. |
 | **Prod** | `claude/roekoe-game-website-jwa0vo` | Elke commit wordt hierheen **gecherry-pickt**; deze branch triggert de **Cloudflare Pages**-deploy naar productie. |
 
-> Vorige dev-branches (niet meer gebruiken): `claude/hallo-r1wgvn`, `claude/hallo-ca55co`, `claude/hallo-qz9tmx`, `claude/hallo-fsp9nx`, `claude/hallo-mzjn0e`, `claude/hallo-su75jy`, `claude/hallo-rkr49f`, `claude/hallo-pvwabx`,
+> Vorige dev-branches (niet meer gebruiken): `claude/hallo-nno7pb`, `claude/hallo-r1wgvn`, `claude/hallo-ca55co`, `claude/hallo-qz9tmx`, `claude/hallo-fsp9nx`, `claude/hallo-mzjn0e`, `claude/hallo-su75jy`, `claude/hallo-rkr49f`, `claude/hallo-pvwabx`,
 > `claude/context-spelregels-q2ywtx`, `claude/hallo-49m6hj`, `claude/hallo-xifh0c`,
 > `claude/hallo-w97s85`, `claude/hallo-hrtwtv`. Ontwikkelt een sessie op een nieuwe
 > `claude/…`-branch, gebruik die dan als dev-branch en **werk deze tabel meteen bij** —
@@ -337,6 +337,7 @@ Roekoe/
 │   └── src/
 │       ├── pages/               één bestand per scherm (zie §6)
 │       ├── components/          ui.tsx (Money/Spinner/StatBar+perDay/DailyGains verwijderd/…),
+│       │                        ReactionPicker.tsx (tribune-kiezer: recent-rij, icoontabs, winkel),
 │       │                        Layout (+ auto-tour), PigeonCard (+ tourId/▲▼),
 │       │                        Tour.tsx (interactieve rondleiding), PrizeCeremony.tsx,
 │       │                        PigeonAvatar, NotificationsBell,
@@ -349,6 +350,7 @@ Roekoe/
 │   └── index.html               inline script zet data-theme (dark default) vóór paint
 ├── core/                        runtime-neutrale spelkern
 │   ├── config/gameConfig.ts     ← ALLE instelbare getallen ("de knoppen")
+│   ├── config/reactions.ts      vluchtreacties: de 90 templates + FLIGHT_CHAT (importeert niets)
 │   ├── schema.ts                datamodel (entiteiten + Database)
 │   ├── store.ts                 Store-interface + in-memory basis + newId()
 │   ├── d1.ts                    D1-persistentie (load(viewerId)/diff/ensureSchema/
@@ -373,6 +375,7 @@ Roekoe/
 │       ├── market.ts            marktgestuurde duivenwaarde (prijs uit echte verkopen)
 │       ├── sponsors.ts          sponsors
 │       ├── badges.ts            badges/XP/level
+│       ├── reactions.ts         tribune: wie welke reactie heeft, kopen, posten (cooldown/×N/melding)
 │       ├── missions.ts          dagelijkse opdrachten + streak + dilemma-trigger
 │       ├── events.ts            dilemma-kaarten
 │       ├── pedigree.ts          stamboom + verwantschap (kinship/ancestorIds/pedigreeOf)
@@ -481,6 +484,14 @@ Entiteiten: `Pigeon`, `Loft`, `User`, `BreedingPair`, `PendingBrood`, `Flight` (
 - `Flight.titan?` — **titanenwedstrijd** (eigen D1-kolom `titan INTEGER DEFAULT 0`).
 - `Loft.lastRestCure?` — laatste rustkuur (kolom `last_rest_cure`); weeklimiet.
 - `Loft.awards?: SeasonAward[]` — gewonnen Roekoes/Vleugels (kolom `awards` JSON).
+- `Flight.chat?: ChatLine[]` — de tribune (kolom `chat` JSON, begrensd op 50 regels).
+  ⚠️ **Auteursnaam, doelwitnaam én tekst staan bevroren op elke regel**: `/live` wordt uit
+  alleen de vluchtrij beantwoord, dus er is geen lofts-tabel om ze in op te zoeken.
+- `Loft.unlockedReactions?: string[]` — **enkel gekóchte** reacties (kolom
+  `unlocked_reactions` JSON). Startgeschenk, mijlpalen en badge-reacties worden afgeleid uit
+  `level`/`badges` en staan er dus bewust **niet** in — daarom had de tribune geen migratie
+  nodig.
+- `Notification.kind` heeft er `'taunt'` bij (gerichte tribune-reactie).
 - `Pigeon.trainedAt?` — laatste trainingstijd per categorie (kolom `trained_at` JSON),
   voor de 1×/week-limiet per eigenschap.
 - `Pigeon.seasonPeakSpeed?` / `seasonPodiums?` / `seasonStartScore?` /
@@ -877,6 +888,10 @@ Entiteiten: `Pigeon`, `Loft`, `User`, `BreedingPair`, `PendingBrood`, `Flight` (
   poll van 60 s — **geen eigen verzoek, geen extra D1-rij**.
   **Enkel voor admins** staat er bij een live vlucht ook **⏩ Match beëindigen**
   (met bevestiging) → `POST /admin/flights/:id/finish`; zie §8.
+  Onder het verslag staat de **💬 Tribune**: de chatbox met spelersreacties (zie §8). Twee
+  aparte stromen die bewust niet door elkaar lopen — het verslag is de reporter, de tribune
+  zijn de spelers. De box komt mee op dezelfde poll; wie zelf iets stuurt krijgt de verse
+  regels uit het POST-antwoord terug, want 60 s wachten op je eigen kreet voelt kapot.
 - `InfirmaryPage` (Ziekenboeg) — zieke/gekwetste duiven; dokter/kinesist/medicatievoer;
   **herstelbalk per duif** (`ailment.healed`).
 - `ProfilePage` — hoknaam, **thema-toggle (donker/licht)**, **"Start rondleiding"**.
@@ -894,7 +909,7 @@ Entiteiten: `Pigeon`, `Loft`, `User`, `BreedingPair`, `PendingBrood`, `Flight` (
   `genen` · **`coach`** · `ervaring` · `energie` (energie/voer/honger/rustkuur) · `vlucht` ·
   `eigenschappen` · `verdwalen` · `vorm` · `lage-energie` · **`titan`** · `estafette` ·
   `broeden` (kweken/overerving) · `ziekte` · **`ziekenboeg`** · `sterfte` · `rassen` ·
-  `veilingen` · `hok` · `waarde` · `afscheid`. Bewust
+  `veilingen` · **`tribune`** · `hok` · `waarde` · `afscheid`. Bewust
   **niet 100% transparant**: richtwaarden i.p.v. exacte formules, geluk blijft benoemd.
   Geen backend/kosten. Cijfers **handmatig** in sync houden met `core/config/gameConfig.ts`.
   `WikiPage` scrollt naar de hash bij mount, dus `/wiki#coach` landt op de juiste sectie.
@@ -1059,6 +1074,67 @@ verzoek uit per statement.
 
 Alles hieronder staat **live** op de deploy-branch. Data-migraties liepen door tot
 **`dataVersion = 47`**.
+
+**De tribune — reageren op een live vlucht met kant-en-klare kreten (nieuwste)**
+- **Wat het is.** Onder elke live vlucht staat een chatbox waarin spelers reageren met
+  **vooraf geschreven** boodschappen; zelf typen kan niet. Naar de vlucht in het algemeen,
+  of recht naar een andere melker — die gerichte regels zijn **voor iedereen zichtbaar** én
+  leveren de genoemde speler een melding op (nieuwe `Notification.kind: 'taunt'`).
+- **Twee assen.** *Level bepaalt of je iets mág zeggen, munten of je ervoor wil betalen.*
+  Elke gratis categorie gaat over jezelf of over de vlucht; zodra een boodschap zich op een
+  persoon richt staat er een level vóór. Sneer = level 5 / 100 munten, Scherp = 7 / 250,
+  Zwart = 9 / 500. ⚠️ **Geijkt op een gemiddelde speler van level 5-6.** Een eerdere opzet
+  zette Zwart op level 14 — de theoretische top van alle 64 badges samen — en dat was dode
+  inhoud: gebouwd, betaald, nooit gezien. Wie de levels verschuift moet `levelForXp`
+  (badges.ts) erbij nemen: de XP-afstand tussen 7 en 9 is groter dan die tussen 1 en 5.
+- ⚠️ **Vier ontgrendelroutes, want geen categorie mag ooit helemaal dicht staan.** Een slotje
+  zonder zichtbare inhoud geeft een speler niets om naar toe te werken. Daarom heeft elke
+  zware categorie vanaf level 1 iets bruikbaars: `gift` (startgeschenk, bewust de meest
+  absurde regels en niet de venijnigste), `milestone` (cadeau bij level 3/5/7/9, zonder
+  munten), `badge` (hangt aan een badge — de diepvriesregel komt vrij dóór 🕯️ *Vredig
+  Heengegaan*), en de winkel. Een level 5-hok dat nooit een munt uitgeeft heeft er **vier**;
+  met twee fun-badges op level 6 **zes**.
+- ⚠️ **Routes 1-3 worden AFGELEID uit `level` en `badges`, niet opgeslagen.** Alleen aankopen
+  staan op de loft (`Loft.unlockedReactions`). Daardoor had dit **geen migratie** nodig:
+  bestaande spelers hebben hun startgeschenk en mijlpalen op het moment van deployen.
+- ⚠️ **De chatbox rijdt mee op de flight-rij (`Flight.chat`), en dat is een bewuste keuze.**
+  `/api/flights/:id/live` wordt buiten de wereldload om beantwoord uit **alleen die ene rij**
+  (de live-snelkoppeling in `functions/api`), dus een aparte tabel had een extra query gekost
+  op de heetste route van het spel. Daarom staan **auteursnaam, doelwitnaam en tekst bevroren
+  op elke regel**: er is geen lofts-tabel om ze in op te zoeken.
+- ⚠️ **Eén blob betekent last-write-wins**: twee reacties op hetzelfde moment kunnen er één
+  kosten. Hier aanvaard, bij `auction_bids` niet — die kregen juist een eigen tabel. Het
+  verschil is wat een verloren schrijfactie kóst: een bod is geld en een claim op een duif,
+  een kreet is een kreet.
+- **Rem op de tribune.** 20 s tussen twee kreten, herhalingen vouwen samen tot `×N`, box
+  begrensd op 50 regels, en één melker mag hoogstens **40%** ervan vullen. ⚠️ Dat laatste is
+  een *aandeel* en geen teller per vlucht: een teller zou moeten meten wat iemand VERSTUURDE
+  en dat staat nergens — zodra de box trimt zakt zo'n telling vanzelf en mag dezelfde speler
+  weer.
+- **De kiezer is gebouwd voor het scherm dat het vaakst gezien wordt** (level 5-6, ±50
+  ontgrendeld): recent-rij van 6 bovenaan (lost het leeuwendeel van de keuzes op), tabs met
+  enkel iconen, zoekveld pas boven de 20, en vergrendelde regels in een uitklapper **onder**
+  het raster in plaats van ertussen. Eerst de tekst kiezen, dán pas het doelwit — de meeste
+  boodschappen zijn vlucht-breed en mogen geen tik extra kosten.
+- **Nieuw:** `core/config/reactions.ts` (90 templates + `FLIGHT_CHAT`),
+  `core/game/reactions.ts`, `client/src/components/ReactionPicker.tsx`. **Gewijzigd:**
+  schema (`ChatLine`, `Flight.chat`, `Loft.unlockedReactions`, kind `taunt`), `d1.ts` (twee
+  ALTERs achteraan `SCHEMA_STEPS` + beide mappers), `presenters.ts` (chat in `liveFlightDTO`
+  én `liveBoardDTO`), `badges.ts` (level-up- en badgemelding noemen nu wat je erbij kreeg —
+  afgekapt op 3, want West-Vlaams gooit er veertien tegelijk open), `[[path]].ts` (4 routes),
+  wiki-sectie **De tribune**. **Geen migratie, geen `dataVersion`-bump.**
+- ⚠️ **Importcyclus vermeden:** `badges.ts` heeft de ontgrendel-queries nodig en
+  `game/reactions.ts` heeft `BADGE_MAP` nodig. `reactionsUnlockedByLevels/ByBadge` staan
+  daarom in **`config/reactions.ts`** (dat niets importeert), niet in `game/`.
+- **Twee tests.** `reactions.test.mts` (41 controles) bewaakt de ontgrendelroutes — dat elke
+  categorie op level 1 iets bruikbaars heeft, dat de bistro- en hospice-regel achter level 9
+  + 500 blijven, dat munten géén level kopen — en de leesbaarheid van de box.
+  `reactions-persist.test.mts` rijdt de twee nieuwe kolommen tegen een **echte SQLite-engine**
+  heen en weer: `LOFT_COLUMNS` en `loftRow` zijn twee lijsten die met de hand in de pas
+  moeten blijven, en dat is het soort fout dat in het geheugen groen blijft en pas opvalt als
+  iemand 500 munten kwijt is.
+- **Nog niet gedaan:** mute-toggle voor gerichte berichten, en het leenpakket van drie
+  sneren voor nieuwe spelers via `NEWCOMER`.
 
 **Migratie v47 — een verkeerd getypt veilingbod rechtgezet (nieuwste)**
 - **Melding van de eigenaar:** "De Vluchtige Vleugel" bood **€11.500** op de zondagveiling
