@@ -416,6 +416,7 @@ Roekoe/
 ├── family-chart.test.mts    regressietest: de GEOMETRIE van het stamboomdiagram (buildLayout)
 ├── market-news.test.mts     regressietest: de "nieuw op de markt"-stip (markering + D1-rondrit)
 ├── event-arrival.test.mts   regressietest: een duif uit een gebeurtenis overleeft een vol hok
+├── offer-visibility.test.mts regressietest: een uitgebracht bod overleeft de smalle load
 ├── limits-report.mts            meet queries/rijen gelezen/geschreven per verzoek
 ├── cpu-sweep.mts                meet CPU per operatie (duurste eerst) — diagnose
 ├── migrations/0001_init.sql     D1-schema voor verse installatie
@@ -1036,6 +1037,7 @@ npx tsx mortality.test.mts         # geen duif sterft van 'hoge leeftijd' vóór
 npx tsx family-chart.test.mts      # het diagram: duif in het midden, elke lijn wijst ergens naar
 npx tsx market-news.test.mts       # de markt-stip: markering, D1-rondrit, en géén stempel op een poll
 npx tsx event-arrival.test.mts    # een duif uit een gebeurtenis gaat nooit verloren aan een vol hok
+npx tsx offer-visibility.test.mts # je eigen bod blijft zichtbaar + intrekbaar op een SMALLE load
 ```
 Diagnose zonder assertie: `npx tsx cpu-sweep.mts` (CPU per operatie, duurste
 eerst), `npx tsx limits-report.mts` (queries/rijen per verzoek) en
@@ -1079,7 +1081,47 @@ verzoek uit per statement.
 Alles hieronder staat **live** op de deploy-branch. Data-migraties liepen door tot
 **`dataVersion = 47`**.
 
-**In de tribune staat de boodschap nu altijd onder de naam (nieuwste)**
+**Je eigen bod was onzichtbaar op de Markt — de smalle load at het op (nieuwste)**
+- **Vraag van de eigenaar:** een bod dat je op een duif uitbracht moet je op de **Markt**
+  kunnen zien en kunnen **intrekken** zolang het niet aanvaard is.
+- ⚠️ **Dat bestond allemaal al — en werkte toch niet.** `MarketPage` heeft de kaart *"Jouw
+  uitgebrachte biedingen"* mét een **Trek in**-knop (`POST /offers/:id/withdraw`), en
+  `PigeonPage` toont hetzelfde per duif. Beide lezen `state.offers.sent`, en dát kwam
+  structureel leeg terug. Niet de UI was stuk, maar de data eronder.
+- ⚠️ **De oorzaak is het smal-laadpad.** `/api/state` staat in `NARROW_PATHS`: bij een verse
+  engine laadt `D1Store.load` **enkel de eigen duiven** (+ estafetteploegen). Een bod dat jíj
+  uitbracht staat per definitie op **andermans** duif, en `offersFor` verifieert of die duif
+  nog van de verkoper is (`p.ownerId === o.toUserId`). Zonder die rij is `p` undefined en
+  valt je eigen bod stilletjes weg. `received` bleef wél werken — dat zijn je eigen duiven,
+  en dus precies de helft die de bug verbergt.
+- ⚠️ **Het knipperde bovendien**, wat het als een spookbug liet lezen: een POST of `/market`
+  doet een **volle** load en toonde het bod wél; een doorgethrottelde poll (binnen
+  `ADVANCE_THROTTLE_SECONDS`) niet. Ondertussen stond het bod gewoon in de database en kon
+  de eigenaar het aanvaarden.
+- **Fix in `core/d1.ts::load`:** de `offers`-tabel wordt nu **vóór** het smalle duiven-blok
+  gelezen, en de duiven waarop de kijker een **openstaand** bod heeft, gaan mee in dezelfde
+  `entrantIds`-set. Twee redenen dat dit de hete route niet opblaast: het is begrensd door de
+  **eigen** openstaande biedingen (een handvol), niet door de kalender, en boven 400 ids valt
+  de bestaande guard sowieso terug op een volle read. Geen extra query — `offers` werd al elk
+  verzoek gelezen, alleen te laat.
+- **Waarom niet `offersFor` versoepelen.** De eigenaarscheck is er niet voor niets: hij
+  verbergt een weesbod op een duif die intussen van eigenaar wisselde. Hem laten vallen zodra
+  de rij ontbreekt maakt van een correctheidsguard iets dat afhangt van welk laadpad je
+  toevallig trof. De test bewaakt expliciet dat dit weesbod **nog steeds** verborgen wordt,
+  mét de duif geladen — anders bewaakt hij niets.
+- **Geen schemawijziging, geen migratie, geen configknop**, `dataVersion` blijft **47**. Geen
+  client-wijziging: de UI werkte al, ze kreeg alleen nooit data.
+- **Nieuwe blijvende test `offer-visibility.test.mts`** (27 controles): je bod overleeft een
+  smalle poll (en de volle load geeft exact hetzelfde — geen knipperend bod), intrekken werkt
+  en wist de rij écht uit D1, andermans bod trek je niet in (ook de verkoper niet — die
+  weigert), na aanvaarden valt er niets meer in te trekken, meerdere biedingen landen bij de
+  juiste speler zonder te lekken, en een weesbod blijft verborgen. **Geverifieerd door de fix
+  terug te draaien: 10 controles worden rood.**
+- Nagemeten: `d1-partial-load`, `query-budget`, `idle-writes`, `advance-throttle`,
+  `cpu-budget`, `daily-budget`, `poll-budget`, `market-bidding`, `bot-market`, `names`,
+  `market-news` en `event-arrival` blijven groen.
+
+**In de tribune staat de boodschap nu altijd onder de naam**
 - **Melding van de eigenaar**, met een screenshot: *"'t Es were van dadde."* stond netjes
   onder **Duivenhemel VZW**, maar *"Allez hop!"* van dezelfde speler hing er **naast**.
 - ⚠️ **Oorzaak: `.chat-line` was een WRAPPENDE rij** (`display:flex; flex-wrap:wrap`). Naam en
