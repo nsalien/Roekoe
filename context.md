@@ -1079,7 +1079,31 @@ verzoek uit per statement.
 Alles hieronder staat **live** op de deploy-branch. Data-migraties liepen door tot
 **`dataVersion = 47`**.
 
-**De tribune staat nu onder de kaart, en de winkelprijzen onder hun uitspraak (nieuwste)**
+**In de tribune staat de boodschap nu altijd onder de naam (nieuwste)**
+- **Melding van de eigenaar**, met een screenshot: *"'t Es were van dadde."* stond netjes
+  onder **Duivenhemel VZW**, maar *"Allez hop!"* van dezelfde speler hing er **naast**.
+- ⚠️ **Oorzaak: `.chat-line` was een WRAPPENDE rij** (`display:flex; flex-wrap:wrap`). Naam en
+  tekst staan dan naast elkaar tot het niet meer past, en dán pas breekt de tekst af. Met
+  korte en lange kreten door elkaar — precies waar de tribune uit bestaat — begint de tekst
+  dus op élke regel ergens anders: soms achter de naam, soms eronder. Het was geen fout in de
+  data of in de wrapping; het was een layout die van de lengte van de zin afhing.
+- **Nu een vaste kolom** (`flex-direction: column; align-items: stretch`): naam boven,
+  boodschap eronder, **altijd**, ook als ze samen op één regel zouden passen. Elke tekst
+  begint op dezelfde x en de naam blijft de ankerkolom.
+- ⚠️ **Het ×N-telletje mocht daar niet in meegaan.** Als derde kind van een kolom-flex zou
+  het op een eigen regel belanden, terwijl het bij de tekst hoort ("Amai. ×4"). Tekst en
+  telletje zitten daarom samen in een nieuwe **`.chat-body`** (de wrappende rij die
+  `.chat-line` vroeger was), zodat `.chat-repeat` zijn `margin-left: auto` naar de rechterrand
+  houdt. `.chat-who` verloor zijn `flex-shrink: 0` (zinloos in een kolom) en kreeg
+  `overflow-wrap: anywhere` — een hoknaam kan één lang woord zijn.
+- **In de browser nagemeten** (Playwright op de échte gebouwde CSS, 390 px en 1100 px × beide
+  thema's, met de mix uit de melding: kort, lang, gericht, ×N en een hoknaam zonder spaties —
+  28 controles): elke boodschap staat onder haar naam en links ermee uitgelijnd, **alle
+  boodschappen op dezelfde x**, het ×N blijft op de tekstregel, geen horizontale
+  paginaoverloop, niets buiten zijn regel.
+- **Alleen client** (`LiveFlightPage.tsx` + `global.css`), geen migratie, `dataVersion` blijft **47**.
+
+**De tribune staat nu onder de kaart, en de winkelprijzen onder hun uitspraak**
 - **Twee vragen van de eigenaar**, allebei puur layout — geen endpoint, geen DTO-veld, geen
   schemakolom, geen migratie, `dataVersion` blijft **47**.
 - **1. De tribune is omhooggeschoven** tot **meteen onder de 🗺️ live kaart**. Ze stond

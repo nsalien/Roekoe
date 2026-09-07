@@ -248,8 +248,13 @@ export function LiveFlightPage() {
                       </>
                     )}
                   </span>
-                  <span className="chat-text">{c.text}</span>
-                  {(c.repeat ?? 1) > 1 && <span className="chat-repeat">×{c.repeat}</span>}
+                  {/* Tekst staat altijd op een eigen regel onder de naam (zie
+                      .chat-line); het ×N-telletje hoort bij die tekst en blijft
+                      dus binnen dezelfde regel. */}
+                  <span className="chat-body">
+                    <span className="chat-text">{c.text}</span>
+                    {(c.repeat ?? 1) > 1 && <span className="chat-repeat">×{c.repeat}</span>}
+                  </span>
                 </div>
               );
             })}
