@@ -573,6 +573,16 @@ export class D1Store implements Store {
     // lines further down, so the set was always empty and every foreign bird on
     // a narrowed load came back unnamed.)
     dbObj.flights = (flights.results as any[]).map(rowToFlight);
+    // Private offers must be read BEFORE the narrow pigeon block below: a bid you
+    // placed sits on SOMEONE ELSE's bird, and `offersFor` needs that row to exist
+    // (see the comment there). Loading it afterwards is what made an outgoing bid
+    // vanish from the market on every throttled poll.
+    try {
+      dbObj.offers = ((await db.prepare('SELECT * FROM offers').all()).results as any[]).map(rowToOffer);
+    } catch {
+      // offers table not present yet (database predating it).
+      dbObj.offers = [];
+    }
     if (narrowed) {
       // The viewer's own birds (idx_pigeons_owner) plus the relay teams of any
       // flight that has not finished. Those teams are the ONLY birds outside the
@@ -586,6 +596,16 @@ export class D1Store implements Store {
       for (const f of dbObj.flights) {
         if (f.status === 'completed' || !f.relay) continue;
         for (const e of f.entries ?? []) entrantIds.add(e.pigeonId);
+      }
+      // Plus every bird this viewer has an OUTSTANDING BID on. Those are always
+      // someone else's, so without them `offersFor` drops the offer (it verifies
+      // the bird still belongs to the seller) and "Jouw uitgebrachte biedingen"
+      // came back empty — you could neither see nor withdraw your own bid.
+      // Unlike the entrant list this is bounded by the viewer's OWN pending
+      // offers (a handful), not by the calendar; and if someone ever bids on
+      // hundreds of birds, the > 400 fallback below turns it into a full read.
+      for (const o of dbObj.offers) {
+        if (o.status === 'pending' && o.fromUserId === viewer) entrantIds.add(o.pigeonId);
       }
       // Above a few hundred entrants the narrow read stops being narrow, and the
       // bound parameters start approaching SQLite's variable limit. At that point
@@ -629,12 +649,7 @@ export class D1Store implements Store {
       // auction_bids table not present yet — fall back to the JSON column.
     }
 
-    // Private pigeon offers (guarded for databases predating the table).
-    try {
-      dbObj.offers = ((await db.prepare('SELECT * FROM offers').all()).results as any[]).map(rowToOffer);
-    } catch {
-      dbObj.offers = [];
-    }
+    // (Private pigeon offers are read further up — the narrow pigeon read needs them.)
     const snapshots: Record<string, Map<string, string>> = {
       users: snapshot(dbObj.users, (u) => u.id),
       lofts: snapshot(dbObj.lofts, (l) => l.userId),
