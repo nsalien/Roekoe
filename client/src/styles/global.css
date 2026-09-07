@@ -748,17 +748,29 @@ a.ped-node:active { transform: translateY(1px); }
   max-height: 240px; overflow-y: auto;
   display: flex; flex-direction: column; gap: 4px;
 }
+/* Naam boven, boodschap eronder — ALTIJD, ook als ze samen op één regel zouden
+   passen. Dit was een wrappende rij, en dan hangt "Allez hop!" naast de naam
+   terwijl de zin erboven wél afbreekt: in een box met korte en lange kreten door
+   elkaar begint de tekst dan op elke regel ergens anders. Eén vaste kolom leest
+   rustiger en houdt de naam de ankerkolom. */
 .chat-line {
-  display: flex; flex-wrap: wrap; align-items: baseline; gap: 7px;
+  display: flex; flex-direction: column; align-items: stretch; gap: 2px;
   padding: 6px 10px; border-radius: 9px;
   background: var(--surface-2); font-size: 0.9rem;
   border-left: 3px solid transparent;
+}
+/* Tekst + het ×N-telletje blijven wél samen op één regel. */
+.chat-body {
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: 7px;
+  min-width: 0;
 }
 /* Je eigen regel, en een regel die AAN jou gericht is, krijgen een rand — zodat
    je in een volle box in één oogopslag ziet wat jou aangaat. */
 .chat-line.mine { border-left-color: var(--border-strong); }
 .chat-line.at-me { background: var(--brand-soft); border-left-color: var(--accent); }
-.chat-who { font-weight: 700; flex-shrink: 0; }
+/* Geen flex-shrink meer nodig: de naam heeft nu zijn eigen regel. Wél
+   overflow-wrap, want een hoknaam kan één lang woord zijn. */
+.chat-who { font-weight: 700; min-width: 0; overflow-wrap: anywhere; }
 .chat-target { color: var(--accent); font-weight: 700; }
 .chat-text { min-width: 0; overflow-wrap: anywhere; }
 .chat-repeat {
