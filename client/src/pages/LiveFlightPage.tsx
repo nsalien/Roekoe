@@ -8,7 +8,8 @@ import { useGame } from '../game/GameContext';
 import { useVisiblePoll } from '../game/useVisiblePoll';
 import { Money, Spinner, countdownTo, formatFlightTime, useToast } from '../components/ui';
 import { MapErrorBoundary } from '../components/MapErrorBoundary';
-import type { LiveFlight, LiveResponse } from '../types';
+import { ReactionPicker } from '../components/ReactionPicker';
+import type { ChatLine, LiveFlight, LiveResponse } from '../types';
 
 /**
  * The live map, loaded ONLY when someone is actually watching a race. Leaflet
@@ -34,12 +35,18 @@ export function LiveFlightPage() {
   const [busy, setBusy] = useState(false);
   const wasCompleted = useRef(false);
   const feedRef = useRef<HTMLDivElement>(null);
+  const chatRef = useRef<HTMLDivElement>(null);
+  // De chatbox komt mee met de poll, maar die loopt maar elke 60 s. Wie zelf net
+  // iets stuurde moet dat meteen zien staan, dus houdt de pagina de laatste
+  // serverantwoord-versie apart bij en gebruikt de nieuwste van de twee.
+  const [chat, setChat] = useState<ChatLine[] | null>(null);
 
   const load = useCallback(async () => {
     if (!id) return;
     try {
       const res = await api<LiveResponse>(`/flights/${id}/live`);
       setData(res);
+      if (res.chat) setChat(res.chat);
       // When the race just finished, refresh loft/money once.
       if (res.flight.status === 'completed' && !wasCompleted.current) {
         wasCompleted.current = true;
@@ -70,6 +77,11 @@ export function LiveFlightPage() {
   useEffect(() => {
     if (feedRef.current) feedRef.current.scrollTop = feedRef.current.scrollHeight;
   }, [data?.commentary.length]);
+
+  // Idem voor de chatbox: het nieuwste staat onderaan.
+  useEffect(() => {
+    if (chatRef.current) chatRef.current.scrollTop = chatRef.current.scrollHeight;
+  }, [chat?.length]);
 
   async function giveUp(pigeonId: string, name: string) {
     if (!id) return;
@@ -364,6 +376,44 @@ export function LiveFlightPage() {
               </div>
             ))}
           </div>
+        </div>
+      )}
+
+      {/* Chatbox: reacties van spelers. Systeemcommentaar staat hierboven in
+          het live verslag; dit is uitsluitend wat spelers zelf roepen, zodat de
+          twee stromen niet door elkaar lopen. */}
+      {(flight.status === 'live' || isDone) && (
+        <div className="card">
+          <h2>💬 Tribune</h2>
+          <div ref={chatRef} className="chat-box">
+            {(!chat || chat.length === 0) && (
+              <p className="muted" style={{ margin: 0 }}>Nog stil op de tribune…</p>
+            )}
+            {(chat ?? []).map((c) => {
+              const mine = c.userId === user?.id;
+              const atMe = c.targetId === user?.id;
+              return (
+                <div key={c.id} className={`chat-line${atMe ? ' at-me' : ''}${mine ? ' mine' : ''}`}>
+                  <span className="chat-who">
+                    {c.userName}
+                    {c.targetName && (
+                      <>
+                        <span className="faint"> → </span>
+                        <span className="chat-target">{c.targetName}</span>
+                      </>
+                    )}
+                  </span>
+                  <span className="chat-text">{c.text}</span>
+                  {(c.repeat ?? 1) > 1 && <span className="chat-repeat">×{c.repeat}</span>}
+                </div>
+              );
+            })}
+          </div>
+          {flight.status === 'live' && id && (
+            <div style={{ marginTop: 10 }}>
+              <ReactionPicker flightId={id} onPosted={(next) => setChat(next as ChatLine[])} />
+            </div>
+          )}
         </div>
       )}
 

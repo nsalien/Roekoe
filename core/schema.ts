@@ -288,6 +288,15 @@ export interface Loft {
   awards?: SeasonAward[];
   // Starter package for an account created after this shipped — see NEWCOMER.
   newcomer?: NewcomerPerks;
+  /**
+   * Vluchtreacties this loft BOUGHT (template ids, see config/reactions.ts).
+   *
+   * Only purchases live here. The other three unlock routes — the starter gift,
+   * the level milestones and the badge-bound ones — are derived from `level` and
+   * `badges` on the fly, so they need no storage and no migration: an existing
+   * loft simply has them the moment the feature ships.
+   */
+  unlockedReactions?: string[];
 }
 
 /**
@@ -634,6 +643,31 @@ export interface SimEntry {
  *  - `live`: started; positions derive from the frozen `sim` + elapsed time.
  *  - `completed`: everyone home; `results` is final.
  */
+/**
+ * One player reaction in a flight's chatbox (see config/reactions.ts).
+ *
+ * ⚠️ Everything needed to RENDER the line is frozen on it — the author's name,
+ * the target's name and the text itself. That is not denormalisation for its own
+ * sake: `/api/flights/:id/live` is answered from the flight row ALONE, without
+ * loading the world (see the live shortcut in functions/api), so there is no
+ * lofts table around to look a name up in. It also keeps a line readable after
+ * the author renames his loft or a template's wording is edited.
+ */
+export interface ChatLine {
+  id: string;
+  at: string; // ISO timestamp
+  userId: string;
+  userName: string;
+  templateId: string;
+  text: string; // frozen at post time
+  cat: string; // ReactionCat — drives the accent colour in the feed
+  /** Set when the line is aimed at one player; that player also gets a bell. */
+  targetId?: string | null;
+  targetName?: string | null;
+  /** Same author + same template repeated inside FLIGHT_CHAT.collapseSeconds. */
+  repeat?: number;
+}
+
 export interface Flight {
   id: string;
   week: number;
@@ -669,6 +703,21 @@ export interface Flight {
   weatherFactor: number;
   results: FlightResult[]; // empty until completed
   recap: string; // sports-reporter summary, written at finish
+  /**
+   * The flight's chatbox: player reactions, oldest first, capped at
+   * FLIGHT_CHAT.keep. It rides on the flight row on purpose — the live board is
+   * served from that single row (see the live shortcut in functions/api), so a
+   * separate table would have cost an extra query on the game's hottest route.
+   * It is pruned with the flight itself.
+   *
+   * ⚠️ One blob means LAST WRITE WINS: two players reacting in the same instant
+   * can cost one of the two lines. That is accepted here and would not be
+   * elsewhere — `auction_bids` was split into its own table for exactly this
+   * reason. The difference is what a lost write costs: a bid is money and a
+   * standing claim on a bird, a shout is a shout. Trading the hottest route's
+   * query budget for that is not worth it.
+   */
+  chat?: ChatLine[];
   createdAt: string;
 }
 
@@ -766,7 +815,7 @@ export interface Bet {
 export interface Notification {
   id: string;
   userId: string;
-  kind: 'result' | 'improve' | 'info' | 'health' | 'badge';
+  kind: 'result' | 'improve' | 'info' | 'health' | 'badge' | 'taunt';
   title: string;
   body: string;
   flightId: string | null;

@@ -21,6 +21,7 @@ const SECTIONS = [
   { id: 'verdwalen', icon: '🧭', label: 'Verdwalen' },
   { id: 'een-per-dag', icon: '🗓️', label: 'Eén vlucht per dag' },
   { id: 'prijzengeld', icon: '💶', label: 'Prijzengeld' },
+  { id: 'tribune', icon: '💬', label: 'De tribune' },
   { id: 'vorm', icon: '🎯', label: 'Vluchtvorm & blessures' },
   { id: 'lage-energie', icon: '🪫', label: 'Lage energie' },
   { id: 'sponsors', icon: '🤝', label: 'Sponsors' },
@@ -1113,6 +1114,54 @@ export function WikiPage() {
           <li>Twee <strong>verschillende</strong> rassen geven een <strong>Gemengd</strong> jong.</li>
         </ul>
         <p><strong>Strategie:</strong> rariteit is puur geluk. Een legendarisch ras is een mooie verzamelaarsprijs en verkoopt wat duurder, maar maakt je duif geen greintje sneller.</p>
+      </Section>
+
+      <Section id="tribune" icon="💬" title="De tribune: reageren tijdens een vlucht">
+        <p className="muted" style={{ marginTop: 0 }}>
+          Onder elke <strong>live vlucht</strong> staat een tribune: een chatbox waarin je met kant-en-klare
+          kreten kan reageren. Je kiest uit een lijst — zelf typen kan niet, en dat is bewust: zo blijft het
+          kort, en zo weet iedereen dat wat er staat ook echt uit het spel komt.
+        </p>
+
+        <p><strong>Twee soorten boodschappen:</strong></p>
+        <ul>
+          <li><strong>Naar de vlucht.</strong> Iedereen die meekijkt ziet ze. “Allez hop!”, “Schanduleus!”</li>
+          <li>
+            <strong>Naar een speler.</strong> Ook openbaar — iedereen leest ze — maar de speler die je noemt
+            krijgt er bovendien een melding van. Je kiest eerst de tekst, dan pas naar wie.
+          </li>
+        </ul>
+
+        <p><strong>Hoe je er meer krijgt.</strong> Je level bepaalt wat je mág zeggen, munten of je ervoor wil
+        betalen. Er zijn vier manieren om aan een reactie te komen:</p>
+        <MiniTable
+          head={['Route', 'Wat het is']}
+          rows={[
+            ['Startgeschenk', 'twee scherpere reacties zitten vanaf dag één in je hok — gratis'],
+            ['Mijlpaal', 'bij level 3, 5, 7 en 9 krijg je er telkens één cadeau, zonder munten'],
+            ['Badge', 'sommige hangen aan een badge: je verdient de grap door het moment zelf te beleven'],
+            ['Winkel', 'de rest: level gehaald én betaald (100, 250 of 500 munten)'],
+          ]}
+        />
+
+        <ul style={{ marginTop: 12 }}>
+          <li>
+            <strong>Geen enkele categorie staat helemaal dicht.</strong> Ook een verse speler heeft al iets uit
+            de zwaarste rubrieken staan — je ziet dus altijd wat er te halen valt.
+          </li>
+          <li>
+            <strong>Recent staat bovenaan.</strong> De laatste zes die je gebruikte staan altijd op dezelfde
+            plek, zodat je niet elke keer moet zoeken.
+          </li>
+          <li>
+            <strong>Er zit een rem op.</strong> 20 seconden tussen twee kreten, dezelfde kreet vouwt samen tot
+            ×2, ×3 … en niemand mag meer dan een deel van de tribune vullen.
+          </li>
+          <li>
+            <strong>De tribune verdwijnt met de vlucht.</strong> Zolang de uitslag zichtbaar is blijft hij
+            staan; daarna wordt hij samen met de vlucht opgeruimd.
+          </li>
+        </ul>
       </Section>
 
       <Section id="veilingen" icon="🔨" title="Veilingen: bieden, slotfase & anti-snipe">

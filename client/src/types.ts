@@ -511,10 +511,49 @@ export interface FlightRoute {
   }[];
 }
 
+/** One line in a flight's chatbox. Names are frozen server-side (see ChatLine). */
+export interface ChatLine {
+  id: string;
+  at: string;
+  userId: string;
+  userName: string;
+  templateId: string;
+  text: string;
+  cat: string;
+  targetId?: string | null;
+  targetName?: string | null;
+  repeat?: number;
+}
+
+export interface ReactionView {
+  id: string;
+  text: string;
+  cat: string;
+  channel: 'vlucht' | 'speler';
+  owned: boolean;
+  lock?: string;
+  price?: number;
+  route: 'gift' | 'milestone' | 'badge' | 'gratis' | 'winkel';
+}
+
+export interface ReactionsResponse {
+  cats: { id: string; label: string; icon: string }[];
+  items: ReactionView[];
+  ownedCount: number;
+  level: number;
+  money: number;
+}
+
+export interface ChatTarget {
+  userId: string;
+  name: string;
+}
+
 export interface LiveResponse {
   flight: LiveFlight;
   live: LiveSnapshot | null;
   commentary: CommentLine[];
+  chat?: ChatLine[];
 }
 
 export interface RankingRow {
@@ -770,7 +809,7 @@ export interface SponsorView {
   offers: Sponsor[];
 }
 
-export type NotificationKind = 'result' | 'improve' | 'info' | 'health' | 'badge';
+export type NotificationKind = 'result' | 'improve' | 'info' | 'health' | 'badge' | 'taunt';
 
 export interface AppNotification {
   id: string;

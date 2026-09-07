@@ -453,6 +453,7 @@ export function liveFlightDTO(db: Database, f: Flight, nowMs: number) {
     flight: flightDTO(db, f),
     live: isRunning ? liveSnapshot(f, nowMs) : null,
     commentary: isRunning ? flightCommentary(f, nowMs) : [],
+    chat: f.chat ?? [],
   };
 }
 
@@ -546,6 +547,9 @@ export function liveBoardDTO(f: Flight, nowMs: number) {
     },
     live: isRunning ? liveSnapshot(f, nowMs) : null,
     commentary: isRunning ? flightCommentary(f, nowMs) : [],
+    // The chatbox is already frozen on the flight row (author and target names
+    // included), which is exactly why it can ride on this world-less response.
+    chat: f.chat ?? [],
   };
 }
 

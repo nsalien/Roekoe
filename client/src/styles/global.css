@@ -739,3 +739,83 @@ a.ped-node:active { transform: translateY(1px); }
    Exact dezelfde valstrik als `.grid > * { min-width: 0 }`; zie §8. */
 .ped-panel { display: grid; gap: 12px; min-width: 0; }
 .ped-panel > * { min-width: 0; }
+
+/* --- Vluchtreacties: de tribune + de kiezer ------------------------------- */
+
+/* De chatbox. Bewust smaller in beeld dan het live verslag erboven: het is een
+   nevenstroom, geen tweede hoofdmoot. */
+.chat-box {
+  max-height: 240px; overflow-y: auto;
+  display: flex; flex-direction: column; gap: 4px;
+}
+.chat-line {
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: 7px;
+  padding: 6px 10px; border-radius: 9px;
+  background: var(--surface-2); font-size: 0.9rem;
+  border-left: 3px solid transparent;
+}
+/* Je eigen regel, en een regel die AAN jou gericht is, krijgen een rand — zodat
+   je in een volle box in één oogopslag ziet wat jou aangaat. */
+.chat-line.mine { border-left-color: var(--border-strong); }
+.chat-line.at-me { background: var(--brand-soft); border-left-color: var(--accent); }
+.chat-who { font-weight: 700; flex-shrink: 0; }
+.chat-target { color: var(--accent); font-weight: 700; }
+.chat-text { min-width: 0; overflow-wrap: anywhere; }
+.chat-repeat {
+  margin-left: auto; flex-shrink: 0;
+  font-size: 0.78rem; font-weight: 700; color: var(--muted);
+}
+
+.reaction-picker {
+  border: 1px solid var(--border); border-radius: var(--r-sm);
+  padding: 10px; background: var(--surface);
+}
+.reaction-recent { margin-top: 8px; }
+.reaction-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+
+/* Tabs zijn alleen iconen: negen labels naast elkaar passen niet op een
+   telefoon, negen emoji wel. De titel houdt ze leesbaar voor wie hovert. */
+.reaction-tabs {
+  display: flex; gap: 4px; margin-top: 10px;
+  overflow-x: auto; padding-bottom: 2px;
+}
+.reaction-tab {
+  flex: 1 0 auto; min-width: 38px;
+  font-size: 1.05rem; line-height: 1; cursor: pointer;
+  padding: 7px 0; border-radius: 8px;
+  border: 1px solid var(--border); background: var(--surface-2);
+}
+.reaction-tab.on { border-color: var(--brand); background: var(--brand-soft); }
+
+.reaction-search {
+  width: 100%; margin-top: 8px; padding: 7px 10px;
+  font: inherit; font-size: 0.88rem;
+  border-radius: 8px; border: 1px solid var(--border-strong);
+  background: var(--surface); color: var(--text);
+}
+
+.reaction-grid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 6px;
+  margin-top: 8px; max-height: 210px; overflow-y: auto;
+}
+@media (max-width: 420px) { .reaction-grid { grid-template-columns: 1fr; } }
+
+.reaction-chip {
+  font: inherit; font-size: 0.85rem; text-align: left; cursor: pointer;
+  padding: 7px 10px; border-radius: 8px;
+  border: 1px solid var(--border); background: var(--surface-2); color: var(--text);
+  overflow-wrap: anywhere;
+}
+.reaction-chip:hover { border-color: var(--brand); background: var(--brand-soft); }
+.reaction-chip:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* De winkel staat buiten het raster: vergrendelde regels tussen bruikbare zetten
+   betekent scrollen door dingen die je niet kunt sturen. */
+.reaction-locked { margin-top: 10px; font-size: 0.85rem; }
+.reaction-locked > summary { cursor: pointer; color: var(--muted); }
+
+.reaction-target {
+  margin-top: 8px; padding: 8px 10px;
+  border-radius: 8px; background: var(--brand-soft);
+  border: 1px solid var(--brand);
+}

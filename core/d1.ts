@@ -115,6 +115,7 @@ function rowToLoft(r: any): Loft {
     sponsorship: parseSponsorship(r),
     awards: r.awards ? JSON.parse(r.awards) : [],
     newcomer: r.newcomer ? JSON.parse(r.newcomer) : undefined,
+    unlockedReactions: r.unlocked_reactions ? JSON.parse(r.unlocked_reactions) : [],
   };
 }
 
@@ -224,6 +225,7 @@ function rowToFlight(r: any): Flight {
     weatherFactor: r.weather_factor,
     results: JSON.parse(r.results || '[]'),
     recap: r.recap ?? '',
+    chat: r.chat ? JSON.parse(r.chat) : [],
     createdAt: r.created_at,
   };
 }
@@ -411,7 +413,7 @@ const LOFT_COLUMNS = [
   'season_points', 'total_wins', 'is_bot', 'infirmary_capacity', 'medicated_food', 'doctors',
   'physios', 'xp', 'level', 'stats', 'badges', 'missions', 'missions_day', 'streak',
   'pending_event', 'sponsorship', 'last_rest_cure', 'awards', 'pending_broods', 'newcomer',
-  'season_wins',
+  'season_wins', 'unlocked_reactions',
 ];
 
 function loftRow(l: Loft): unknown[] {
@@ -431,6 +433,9 @@ function loftRow(l: Loft): unknown[] {
     // column-narrowed UPDATE keeps skipping it.
     l.newcomer ? JSON.stringify(l.newcomer) : '',
     l.seasonWins ?? 0,
+    // '' rather than '[]' for a loft that never bought one, so its
+    // column-narrowed UPDATE keeps skipping this column.
+    l.unlockedReactions?.length ? JSON.stringify(l.unlockedReactions) : '',
   ];
 }
 
@@ -730,6 +735,7 @@ export class D1Store implements Store {
         'id', 'week', 'template_key', 'name', 'type', 'distance_km', 'entry_fee', 'from_city',
         'to_city', 'start_at', 'status', 'entries', 'sim', 'weather', 'weather_factor', 'results',
         'recap', 'created_at', 'practice', 'titan', 'relay', 'legs', 'age_cat', 'cup_sprint',
+        'chat',
       ],
       keyColumn: 'id',
       row: (f) => [
@@ -738,6 +744,9 @@ export class D1Store implements Store {
         JSON.stringify(f.entries), JSON.stringify(f.sim), f.weather, f.weatherFactor,
         JSON.stringify(f.results), f.recap, f.createdAt, b(f.practice), b(f.titan),
         b(f.relay), f.legs ? JSON.stringify(f.legs) : null, f.ageCat ?? null, b(f.cupSprint),
+        // '' for the many flights nobody shouted at, so their narrowed UPDATE
+        // keeps skipping the column.
+        f.chat?.length ? JSON.stringify(f.chat) : '',
       ],
       stmts,
     });
@@ -1158,6 +1167,12 @@ const SCHEMA_STEPS: string[] = [
   // narrow load and may not read other players' pigeons to count listings.
   "ALTER TABLE world ADD COLUMN market_news_at TEXT NOT NULL DEFAULT ''",
   "ALTER TABLE world ADD COLUMN market_news_by TEXT NOT NULL DEFAULT ''",
+
+  // Vluchtreacties (see config/reactions.ts): the flight's chatbox rides on the
+  // flight row, because the live board is served from that row alone; the
+  // purchased template ids ride on the loft.
+  "ALTER TABLE flights ADD COLUMN chat TEXT NOT NULL DEFAULT ''",
+  "ALTER TABLE lofts ADD COLUMN unlocked_reactions TEXT NOT NULL DEFAULT ''",
 ];
 
 /**
