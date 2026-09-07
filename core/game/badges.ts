@@ -18,6 +18,7 @@ import {
 } from '../config/gameConfig.js';
 import type { Database, Flight, Loft, Pigeon } from '../schema.js';
 import { newId } from '../store.js';
+import { reactionsUnlockedByLevels, reactionsUnlockedByBadge } from '../config/reactions.js';
 
 export interface BadgeDef {
   key: string;
@@ -191,11 +192,42 @@ export function levelForXp(xp: number): { level: number; intoLevel: number; need
   return { level, intoLevel: remaining, needForNext: need };
 }
 
+/**
+ * The level-up bell, plus what that level actually handed over.
+ *
+ * A bare "level 6 bereikt" tells a player nothing he can act on. Naming the
+ * reactions that came free with it does — and those are the milestone route of
+ * config/reactions.ts, which costs no coins and would otherwise go unnoticed.
+ */
+function notifyLevelUp(db: Database, loft: Loft, before: number): void {
+  const gained = reactionsUnlockedByLevels(before, loft.level);
+  // One level can open a whole category at once (West-Vlaams holds fourteen),
+  // and fourteen shouts in a bell is a wall of text, not a message.
+  const named = gained.slice(0, 3).map((r) => `"${r.text}"`).join(', ');
+  const rest = gained.length - 3;
+  const extra = gained.length
+    ? ` Nieuw in je reactiekiezer: ${named}${rest > 0 ? ` en nog ${rest}` : ''}.`
+    : '';
+  db.notifications.push({
+    id: newId('ntf'), userId: loft.userId, kind: 'badge',
+    title: `⭐ Level ${loft.level} bereikt!`,
+    body: `Je hok is gestegen naar niveau ${loft.level}. Anderen zien dit in de ranglijst.${extra}`,
+    flightId: null, createdAt: new Date().toISOString(), read: false,
+  });
+}
+
 function pushBadge(db: Database, userId: string, def: BadgeDef): void {
+  // Some badges also hand over a reaction — you earn the joke by living the
+  // moment it is about (see the badge route in config/reactions.ts).
+  const gained = reactionsUnlockedByBadge(def.key);
+  const extra = gained.length
+    ? ` Je ontgrendelt ook een reactie: ${gained.map((r) => `"${r.text}"`).join(', ')}`
+    : '';
+
   db.notifications.push({
     id: newId('ntf'), userId, kind: 'badge',
     title: `${def.icon} Badge ontgrendeld: ${def.label}`,
-    body: `${def.description} +${def.xp} XP.`,
+    body: `${def.description} +${def.xp} XP.${extra}`,
     flightId: null, createdAt: new Date().toISOString(), read: false,
   });
 }
@@ -207,12 +239,7 @@ export function grantXp(db: Database, loft: Loft, amount: number): void {
   loft.xp += amount;
   loft.level = levelForXp(loft.xp).level;
   if (!loft.isBot && loft.level > before) {
-    db.notifications.push({
-      id: newId('ntf'), userId: loft.userId, kind: 'badge',
-      title: `⭐ Level ${loft.level} bereikt!`,
-      body: `Je hok is gestegen naar niveau ${loft.level}. Anderen zien dit in de ranglijst.`,
-      flightId: null, createdAt: new Date().toISOString(), read: false,
-    });
+    notifyLevelUp(db, loft, before);
   }
 }
 
@@ -228,12 +255,7 @@ export function awardBadge(db: Database, loft: Loft, key: string): boolean {
   if (!loft.isBot) {
     pushBadge(db, loft.userId, def);
     if (loft.level > before) {
-      db.notifications.push({
-        id: newId('ntf'), userId: loft.userId, kind: 'badge',
-        title: `⭐ Level ${loft.level} bereikt!`,
-        body: `Je hok is gestegen naar niveau ${loft.level}. Anderen zien dit in de ranglijst.`,
-        flightId: null, createdAt: new Date().toISOString(), read: false,
-      });
+      notifyLevelUp(db, loft, before);
     }
   }
   return true;

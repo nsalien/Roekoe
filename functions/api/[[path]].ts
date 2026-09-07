@@ -85,6 +85,7 @@ import { ownerName } from '../../core/game/engine.js';
 import { fetchFlightWeather, fetchLegForecast, type WeatherResult } from '../../core/game/weather.js';
 import { auctionKind, placeBid } from '../../core/game/auction.js';
 import { betsView, placeBet, previewBet } from '../../core/game/betting.js';
+import { buyReaction, chatTargets, postReaction, reactionsFor } from '../../core/game/reactions.js';
 import { makeOffer, withdrawOffer, respondOffer, offersFor } from '../../core/game/offers.js';
 import type { BetKind } from '../../core/schema.js';
 import { refreshDailyMissions } from '../../core/game/missions.js';
@@ -1006,6 +1007,60 @@ app.get('/flights/:id/live', (c) => {
   const f = db.flights.find((x) => x.id === c.req.param('id'));
   if (!f) return c.json({ error: 'Vlucht niet gevonden' }, 404);
   return c.json(liveFlightDTO(db, f, Date.now()));
+});
+
+/**
+ * Who this player may aim a targeted reaction at on this flight.
+ *
+ * Its own route, like `/entrants`: naming another loft needs the world, and the
+ * live board deliberately answers without it. Fetched once when the picker
+ * opens, never on a poll.
+ */
+app.get('/flights/:id/targets', (c) => {
+  const user = requireUser(c);
+  const db = c.get('store').data;
+  const f = db.flights.find((x) => x.id === c.req.param('id'));
+  if (!f) return c.json({ error: 'Vlucht niet gevonden' }, 404);
+  return c.json({ targets: chatTargets(db, f, user.id) });
+});
+
+/** Post a reaction into a flight's chatbox (see core/game/reactions.ts). */
+app.post('/flights/:id/react', async (c) => {
+  const user = requireUser(c);
+  const body = await c.req.json().catch(() => ({}));
+  const store = c.get('store');
+  const err = postReaction(
+    store,
+    user.id,
+    c.req.param('id'),
+    String(body.templateId ?? ''),
+    body.targetId ? String(body.targetId) : null,
+  );
+  if (err) return c.json({ error: err }, 400);
+  await store.persist();
+  const f = store.data.flights.find((x) => x.id === c.req.param('id'));
+  return c.json({ ok: true, chat: f?.chat ?? [] });
+});
+
+// --- Reactions (de kiezer + de winkel) -------------------------------------
+app.get('/reactions', (c) => {
+  const user = requireUser(c);
+  const db = c.get('store').data;
+  const loft = db.lofts.find((l) => l.userId === user.id);
+  if (!loft) return c.json({ error: 'Hok niet gevonden' }, 404);
+  const view = reactionsFor(loft);
+  return c.json({ ...view, level: loft.level, money: Math.round(loft.money) });
+});
+
+app.post('/reactions/buy', async (c) => {
+  const user = requireUser(c);
+  const body = await c.req.json().catch(() => ({}));
+  const store = c.get('store');
+  const err = buyReaction(store, user.id, String(body.id ?? ''));
+  if (err) return c.json({ error: err }, 400);
+  await store.persist();
+  const loft = store.data.lofts.find((l) => l.userId === user.id)!;
+  return c.json({ ok: true, ...reactionsFor(loft), level: loft.level, money: Math.round(loft.money) });
 });
 
 app.post('/flights/:id/enter', async (c) => {
