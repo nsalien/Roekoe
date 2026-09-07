@@ -248,15 +248,19 @@ export function ReactionPicker({
                 <span className="faint">{lockedHere[0].lock}</span>
               </summary>
               <div className="stack" style={{ gap: 6, marginTop: 8 }}>
+                {/* Prijs op een EIGEN regel onder de tekst, niet ernaast. Deze
+                    lijst mengt "Amai." met een zin van tien woorden; naast elkaar
+                    danste de prijskolom dan per rij heen en weer en brak een lange
+                    tekst over twee regels met de knop ergens in het midden. */}
                 {lockedHere.map((i) => (
-                  <div key={i.id} className="row" style={{ justifyContent: 'space-between', gap: 8 }}>
-                    <span className="sm faint" style={{ minWidth: 0, overflowWrap: 'anywhere' }}>{i.text}</span>
+                  <div key={i.id} className="reaction-locked-item">
+                    <span className="sm faint">{i.text}</span>
                     {i.price != null ? (
                       <button className="btn ghost sm" disabled={busy} onClick={() => buy(i)}>
                         {i.price} 🪙
                       </button>
                     ) : (
-                      <span className="badge" style={{ flexShrink: 0 }}>{i.lock}</span>
+                      <span className="badge">{i.lock}</span>
                     )}
                   </div>
                 ))}
