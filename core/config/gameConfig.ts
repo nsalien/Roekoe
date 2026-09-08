@@ -780,6 +780,19 @@ export const ENERGIE_IMPACT: {
 /** Breeding settings. */
 export const BREEDING = {
   cost: 750,
+  /**
+   * Share of `cost` handed back when a clutch comes up EMPTY (see
+   * `failedBreedRefund`). A pairing that produces nothing is a dice roll the
+   * player cannot steer — the fee and the energie are spent and there is no bird
+   * to show for it — so half the fee comes back. Deliberately NOT the whole fee:
+   * koppelen has to stay a bet, not a free lottery ticket.
+   *
+   * Only an empty clutch pays out. A pair that lapses because a parent was sold
+   * or died is not a failed clutch (refunding that would make "koppel, verkoop de
+   * doffer" a money printer), and cancelling a pair yourself still costs the full
+   * fee — see `stopBreeding`.
+   */
+  failedRefundRate: 0.5,
   weeksToHatch: 2, // legacy
   // Hatching is unpredictable: each moment there is a random chance, tuned so
   // that on average a maximally fertile pair (high libido + energie) hatches in
@@ -821,6 +834,16 @@ export const BREEDING = {
    */
   cooldownDays: 21,
 } as const;
+
+/**
+ * What comes back when a clutch hatches EMPTY: half the koppel fee, rounded to
+ * whole euros. One helper so the payout, the bell, the kweekpagina and the wiki
+ * cannot drift apart — the same reason `dailyPigeonUpkeep` and
+ * `sponsorPodiumBonus` live next to their tables.
+ */
+export function failedBreedRefund(): number {
+  return Math.round(BREEDING.cost * BREEDING.failedRefundRate);
+}
 
 /**
  * How closely two birds are related, worst first. `directe-lijn` is a parent with

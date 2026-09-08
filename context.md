@@ -15,12 +15,13 @@
 
 | Rol | Branch | Doel |
 |-----|--------|------|
-| **Dev** | `claude/prosper-postuum-tinne-race-j515f6` | Alle ontwikkeling/commits komen hier **eerst**. |
+| **Dev** | `claude/hallo-v71l3e` | Alle ontwikkeling/commits komen hier **eerst**. |
 | **Prod** | `claude/roekoe-game-website-jwa0vo` | Elke commit wordt hierheen **gecherry-pickt**; deze branch triggert de **Cloudflare Pages**-deploy naar productie. |
 
 > Vorige dev-branches (niet meer gebruiken): `claude/hallo-nno7pb`, `claude/hallo-r1wgvn`, `claude/hallo-ca55co`, `claude/hallo-qz9tmx`, `claude/hallo-fsp9nx`, `claude/hallo-mzjn0e`, `claude/hallo-su75jy`, `claude/hallo-rkr49f`, `claude/hallo-pvwabx`,
 > `claude/context-spelregels-q2ywtx`, `claude/hallo-49m6hj`, `claude/hallo-xifh0c`,
-> `claude/hallo-w97s85`, `claude/hallo-hrtwtv`. Ontwikkelt een sessie op een nieuwe
+> `claude/hallo-w97s85`, `claude/hallo-hrtwtv`,
+> `claude/prosper-postuum-tinne-race-j515f6`. Ontwikkelt een sessie op een nieuwe
 > `claude/…`-branch, gebruik die dan als dev-branch en **werk deze tabel meteen bij** —
 > de prod-branch hierboven verandert nooit.
 
@@ -670,6 +671,12 @@ Entiteiten: `Pigeon`, `Loft`, `User`, `BreedingPair`, `PendingBrood`, `Flight` (
   rusten dan drie echte weken (≈ 4 nesten per duivenjaar bij de 4× veroudering). De rust
   hangt aan de **duif** (`Pigeon.lastBredAt`), niet aan het koppel, en wordt **niet**
   opgelegd na een lege worp. Zie §8.
+- **Lege worp betaalt de helft terug (`BREEDING.failedRefundRate` 0,5, nieuwste):** helper
+  **`failedBreedRefund()`** (gameConfig, naast de tabel — één plek voor het bedrag) →
+  **€375**, gestort in `tickBreedingHatch` zodra `young.length === 0`. Ook voor **bots**.
+  ⚠️ **Enkel een lege worp**: een koppel dat vervalt omdat een ouder verkocht/dood is, en
+  `stopBreeding`, betalen niets terug — anders is "koppel, verkoop de doffer" een geldpers.
+  Vraagt om determinisme in `breed()`; zie §8.
 - **Ziekenboeg (`INFIRMARY`):** basiscapaciteit **2** (was 4); upgrades 3/4/5/6 voor
   €800/1200/1800/2400 (`INFIRMARY_CAPACITY_TIERS`). Dokter €400/wk, kinesist €350/wk,
   medicatievoer €45/duif/wk. **`energyRecoveryFactor 0.5`** — een duif in de ziekenboeg
@@ -1081,7 +1088,65 @@ verzoek uit per statement.
 Alles hieronder staat **live** op de deploy-branch. Data-migraties liepen door tot
 **`dataVersion = 47`**.
 
-**Je eigen bod was onzichtbaar op de Markt — de smalle load at het op (nieuwste)**
+**Een lege worp betaalt de helft van het koppelgeld terug (nieuwste)**
+- **Vraag van de eigenaar:** faalt een koppel om een jong te maken en gaat het uiteen, dan
+  krijgt de speler de **helft van de €750** terug.
+- **Nieuwe knop `BREEDING.failedRefundRate` (0,5)** + helper **`failedBreedRefund()`** in
+  `gameConfig.ts` (→ **€375**). Eén plek voor het bedrag, zodat de uitbetaling, de bel, de
+  kweekpagina en de wiki niet uit elkaar kunnen lopen — dezelfde reden dat
+  `dailyPigeonUpkeep` en `sponsorPodiumBonus` naast hun tabel staan.
+- **Gestort in `tickBreedingHatch`** zodra `young.length === 0`, vóór de meldingstak en dus
+  **ook voor bots** — die betalen dezelfde fee (`bots.ts::maybeBreed`) en §17 van de
+  spelregels belooft dat ze met exact dezelfde regels spelen.
+- ⚠️ **Enkel een LEGE WORP betaalt terug, en dat is de hele afbakening.** Een koppel dat
+  vervalt omdat een ouder verkocht is of gestorven (`!sire || !dam`) is geen mislukte worp:
+  daar terugbetalen maakt van "koppel, verkoop de doffer" een geldpers. `stopBreeding` blijft
+  eveneens zonder terugbetaling (stond al zo in de spelregels), anders koppel je en stop je
+  meteen om de helft terug te halen. Het zelfhelende cooldown-pad betaalt ook niets — dat
+  ontbindt een rij die niet had mogen bestaan.
+- ⚠️ **Dit dwong determinisme af in `breed()`, en dát is de dragende helft van de wijziging.**
+  `tickBreedingHatch` draait bij élk verzoek, dus twee overlappende verzoeken handelen
+  routinematig hetzelfde nest af. **Dubbel storten was niet het gat** — beide schrijven
+  `basis + 375` als absolute waarde, dus last-write-wins houdt er één over. Het gat is dat ze
+  het **oneens** kunnen zijn: A ziet een lege worp en stort €375, B maakt een jong en raakt
+  `money` niet aan → de **kolom-smalle diff** (`previousRows`) houdt allebei, en de speler
+  heeft een jong **én** het geld. **Gemeten** op een koppel met lage vruchtbaarheid:
+  **1.586 van 4.000** afhandelingen waren het oneens.
+- **Fix:** de twee **tel-trekkingen** in `breed` (slaagt de worp? één of twee jongen?) lopen
+  via `seededRng(hashString('clutch:' + pairId))` i.p.v. `Math.random`. Nagemeten: **0 van
+  4.000** oneens. Meegenomen: het sluit ook een bestaand gat waarbij A een tweeling schreef
+  en B niet — `pig_brood_<pair>_1` bleef dan als weesrij staan.
+- ⚠️ **Bewust enkel die twee trekkingen.** De per-duif-worpen (genen, naam, geslacht,
+  afwijking) blijven op `Math.random`: die bepalen wat een jong **is**, en beide verzoeken
+  schrijven dat naar **dezelfde rij-id**, dus last-write-wins settelt het. Ze óók seeden is
+  de grotere ingreep die elders in §8 al als openstaand staat. `breed()` **zonder** `pairId`
+  (enkel tests) gedraagt zich exact als vroeger.
+- **Geen migratie, geen schemawijziging, geen extra query of rij**, `dataVersion` blijft
+  **47**. Nieuw DTO-veld `economy.breedFailRefund`; `BreedingPage` zet er één zinsdeel bij
+  ("Blijft de worp leeg, dan krijg je €375 terug") — de rest staat in de wiki (§Tekstbudget).
+  De bel-melding "🥚 Koppel zonder resultaat" noemt het bedrag.
+- **`breeding-cooldown.test.mts` → 40 controles.** Blok 4 toetst nu ook de teruggave (bedrag,
+  exact de helft, de andere helft blijft weg, de melding noemt het bedrag, en dat ze de
+  **rondrit door D1** overleeft); nieuw blok 4b (twee gelijktijdige verzoeken → één teruggave
+  én **geen jong ernaast**) en 4c (een geslaagde worp betaalt niets terug).
+  **Geverifieerd door de fix terug te draaien: 2 controles worden rood.**
+- ⚠️ **De testhelper `forceClutch` is weg, vervangen door `pairIdWhere`.** Hij patchte de
+  succeskans via `Math.random`, en die trekking is nu geseed — een patch bereikt haar niet
+  eens meer. Een blok kiest voortaan een **koppel-id met de gewenste afloop**
+  (`PAIR_HATCHES` / `PAIR_EMPTY`). Meteen het einde van de gedocumenteerde flakiness van deze
+  test (was 2 op 12 rood met "er kwamen 0 jong(en)"): de uitkomst is nu een eigenschap van het
+  koppel in plaats van een muntworp per verzoek.
+- **Nagemeten:** beide typechecks + build groen, en alle 38 regressietests groen behalve
+  `age-cup` (zie hieronder).
+- ⚠️ **Bestaande flakiness gevonden, niet veroorzaakt:** `age-cup.test.mts` viel 1 op 23 runs
+  om op *"een duif uit een andere klasse wordt geweigerd"* — `enterFlight` antwoordt dan
+  "niet vluchtklaar (te jong, ziek, gewond…)" i.p.v. de leeftijdsklasse-melding, omdat de
+  fixture als `wrong` om het even welke duif van een andere klasse pakt en die soms
+  toevallig ziek/te jong is. Kan onmogelijk van deze wijziging komen: die test raakt broeden
+  nergens (0 treffers op `startBreeding`/`breedingPairs`), dus `breed()` draait er niet. Nog
+  te repareren — de fixture hoort op `canRace` te filteren.
+
+**Je eigen bod was onzichtbaar op de Markt — de smalle load at het op**
 - **Vraag van de eigenaar:** een bod dat je op een duif uitbracht moet je op de **Markt**
   kunnen zien en kunnen **intrekken** zolang het niet aanvaard is.
 - ⚠️ **Dat bestond allemaal al — en werkte toch niet.** `MarketPage` heeft de kaart *"Jouw

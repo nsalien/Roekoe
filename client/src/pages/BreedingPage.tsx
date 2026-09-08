@@ -32,6 +32,7 @@ export function BreedingPage() {
   const blockingNests = nests.filter((n) => n.origin === 'nest');
   const freeSpace = view?.freeSpace ?? 0;
   const BREED_COST = state.economy.breedCost;
+  const BREED_FAIL_REFUND = state.economy.breedFailRefund;
   const MIN_BREED_WEEKS = 8; // BREEDING.minAgeWeeks — same age she may first race
   const eligible = (p: (typeof state.pigeons)[number]) =>
     !p.ailment && !p.inInfirmary && !p.breeding && !p.racing && !p.onCure && p.ageWeeks >= MIN_BREED_WEEKS;
@@ -117,7 +118,8 @@ export function BreedingPage() {
               (overerving, genen, uitkomsttijd) staat in de wiki. */}
           <p className="muted" style={{ marginBottom: 4 }}>
             Kost <Money value={BREED_COST} /> + 15 energie per ouder. Hoog <strong>❤ libido</strong> en veel
-            <strong> ⚡ energie</strong> = meer kans op (twee) jongen.
+            <strong> ⚡ energie</strong> = meer kans op (twee) jongen. Blijft de worp leeg, dan krijg je{' '}
+            <Money value={BREED_FAIL_REFUND} /> terug.
           </p>
           <p className="faint" style={{ margin: '0 0 12px', fontSize: '0.82rem' }}>
             <Link to="/wiki#broeden">Meer over kweken &amp; overerving →</Link>

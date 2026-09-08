@@ -24,6 +24,7 @@ import {
   BOT_LOFT_CAPACITY,
   BOT_LOFT_NAMES,
   BREEDING,
+  failedBreedRefund,
   DEFAULT_BOT_COUNT,
   FEED_RATIONS,
   FLIGHT_FATIGUE,
@@ -2758,6 +2759,20 @@ export function tickBreedingHatch(db: Database, nowMs: number): void {
     const grandIds = [sire.sireId, sire.damId, dam.sireId, dam.damId].filter(Boolean) as string[];
     const dynasty = grandIds.some((gid) => db.pigeons.some((p) => p.id === gid));
 
+    // An empty clutch hands back half the koppel fee (BREEDING.failedRefundRate).
+    // The pairing produced nothing the player could steer, so the fee is not
+    // fully spent — but half of it stays gone, otherwise koppelen is a free
+    // lottery ticket. Bots get it too: they pay the same fee
+    // (bots.ts::maybeBreed) and §17 of the rules promises they play by exactly
+    // the same ones.
+    //
+    // Safe against the double-resolve this tick is prone to: `breed` seeds the
+    // clutch-count rolls on the pair, so two overlapping requests either both
+    // see an empty clutch or neither does. And a request that never touched
+    // `money` leaves that column alone in the column-narrow diff, so the one
+    // that did refund is not overwritten.
+    if (young.length === 0 && loft) loft.money += failedBreedRefund();
+
     // The clutch does not fit. A human owner decides which young to keep — the
     // whole clutch is held (not the first `space` of it), so the choice is really
     // theirs. Bots have no UI, so their overflow is still dropped.
@@ -2804,7 +2819,8 @@ export function tickBreedingHatch(db: Database, nowMs: number): void {
         pushNotification(
           db, loft.userId, 'info',
           '🥚 Koppel zonder resultaat',
-          `${sire.name} × ${dam.name} leverde geen jongen op. Lage energie of libido, misschien volgende keer beter.`,
+          `${sire.name} × ${dam.name} leverde geen jongen op. Je krijgt €${failedBreedRefund()} van het koppelgeld terug. ` +
+            'Lage energie of libido, misschien volgende keer beter.',
           null,
           broodNoteId(bp.id),
         );

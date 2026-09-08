@@ -258,6 +258,8 @@ export interface EconomyCosts {
   upkeepBands: { upTo: number; perPigeon: number }[];
   trainCost: number;
   breedCost: number;
+  /** Handed back when a clutch comes up empty (BREEDING.failedRefundRate). */
+  breedFailRefund: number;
   betMinStake: number;
   betMaxStake: number;
   betWindowHours: number;
