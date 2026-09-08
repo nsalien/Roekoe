@@ -23,6 +23,7 @@ import {
   BETTING,
   BOT,
   BREEDING,
+  failedBreedRefund,
   COACH,
   FEED_RATIONS,
   FOOD_RESALE_RATE,
@@ -449,6 +450,9 @@ app.get('/state', (c) => {
       upkeepBands: UPKEEP_BANDS,
       trainCost: TRAINING.cost,
       breedCost: BREEDING.cost,
+      // What comes back when a clutch hatches empty, so the kweekpagina can say
+      // what a failed pairing really costs before the player commits.
+      breedFailRefund: failedBreedRefund(),
       betMinStake: BETTING.minStake,
       betMaxStake: BETTING.maxStake,
       betWindowHours: BETTING.windowHours,

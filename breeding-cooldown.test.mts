@@ -16,7 +16,8 @@ import { D1Store, ensureSchema } from './core/d1.js';
 import { createLoftForUser, startBreeding } from './core/game/engine.js';
 import { advanceRealtime, tickBreedingHatch } from './core/game/schedule.js';
 import { breedingCooldownDaysLeft, breedingCooldownUntil } from './core/game/pigeon.js';
-import { BREEDING, GAME_WEEKS_PER_REAL_WEEK } from './core/config/gameConfig.js';
+import { hashString, seededRng } from './core/game/util.js';
+import { BREEDING, failedBreedRefund, GAME_WEEKS_PER_REAL_WEEK } from './core/config/gameConfig.js';
 import type { User } from './core/schema.js';
 
 let failures = 0;
@@ -83,29 +84,51 @@ async function setup(db: any) {
 /**
  * Draai de tick met een gestuurde muntworp.
  *
- * `roll`: 0 = het nest komt uit, 1 = nog niet.
+ * `roll`: 0 = het nest komt uit, 1 = nog niet. Dat is de ENIGE trekking die deze
+ * helper nog stuurt; de rest (geslacht, mutatie, namen) blijft willekeurig,
+ * anders krijgen twee jongen dezelfde afgeleide waarden en meet je een artefact
+ * van de test.
  *
- * ⚠️ `forceClutch` stuurt daarnaast de TWEEDE trekking — de succeskans binnen
- * `breed`. Zonder dat komt ~5–10 % van de worpen leeg uit (na het koppelen staat
- * de energie op 80, dus successChance ≈ 0,9) en dan valt een test die over de
- * rustperiode gaat om op een dobbelsteen in plaats van op haar onderwerp.
- * Gemeten op de ongewijzigde code: 2 op 12 runs rood, altijd met
- * "er kwamen 0 jong(en)". Zet hem aan zodra een blok jongen NODIG heeft.
- *
- * De rest van de trekkingen (tweeling, geslacht, mutatie, namen) blijft
- * willekeurig — anders krijgen twee jongen dezelfde afgeleide waarden en meet je
- * een artefact van de test.
+ * ⚠️ Of de worp SLAAGT stuur je niet meer hier maar via het koppel-id — zie
+ * `pairIdWhere`. `breed` seedt die trekking op het koppel (breeding.ts), dus een
+ * `Math.random`-patch bereikt haar niet eens meer.
  */
-function tickWith(data: any, nowMs: number, roll: number, forceClutch = false) {
+function tickWith(data: any, nowMs: number, roll: number) {
   const real = Math.random;
   let calls = 0;
-  Math.random = () => {
-    const i = calls++;
-    if (i === 0) return roll;
-    if (i === 1 && forceClutch) return 0; // `0 > successChance` is nooit waar
-    return real();
-  };
+  Math.random = () => (calls++ === 0 ? roll : real());
   try { tickBreedingHatch(data, nowMs); } finally { Math.random = real; }
+}
+
+/**
+ * Geef het koppel een id waarvan de uitkomst vastligt.
+ *
+ * `breed` seedt de twee tel-trekkingen (slaagt de worp? één of twee jongen?) op
+ * het koppel-id, zodat twee gelijktijdige verzoeken tot hetzelfde oordeel komen —
+ * en dat moet ook, want een lege worp betaalt geld terug. Het gevolg voor deze
+ * test is dat een worp geen muntworp per verzoek meer is maar een eigenschap van
+ * het koppel: we kiezen dus een id met de gewenste afloop in plaats van
+ * `Math.random` te patchen.
+ *
+ * Meteen ook het einde van een gedocumenteerde flakiness: met de oude
+ * `forceClutch` viel 2 op 12 runs om met "er kwamen 0 jong(en)".
+ */
+function pairIdWhere(want: (firstRoll: number) => boolean): string {
+  for (let i = 0; i < 20000; i++) {
+    const id = `brd_test_${i}`;
+    if (want(seededRng(hashString(`clutch:${id}`))())) return id;
+  }
+  throw new Error('geen koppel-id met de gevraagde afloop gevonden');
+}
+
+/** Een koppel dat zeker jongen geeft: de eerste trekking ligt onder elke succeskans. */
+const PAIR_HATCHES = pairIdWhere((r) => r < 0.05);
+/** Een koppel dat zeker leeg uitkomt: de eerste trekking ligt boven elke succeskans. */
+const PAIR_EMPTY = pairIdWhere((r) => r > 0.99);
+
+/** Herdoop het net gemaakte koppel, vóór de eerste persist. */
+function setPairId(store: any, id: string) {
+  store.mutate((d: any) => { d.breedingPairs[d.breedingPairs.length - 1].id = id; });
 }
 
 const DAY = 86400000;
@@ -117,13 +140,14 @@ console.log('\nEen uitgekomen koppel wordt ontbonden');
   const { sireId, damId } = await setup(db);
   let s = await D1Store.load(db, USER.id);
   assert(startBreeding(s, USER.id, sireId, damId) === null, 'koppelen lukt');
+  setPairId(s, PAIR_HATCHES); // dit blok telt de jongen, dus de worp moet slagen
   await s.persist();
 
   const pairs = () => db._raw.prepare('SELECT COUNT(*) c FROM breeding_pairs').get().c as number;
   assert(pairs() === 1, 'koppel staat in SQL');
 
   s = await D1Store.load(db, USER.id);
-  tickWith(s.data, Date.now() + 2 * DAY, 0, true); // dit blok telt de jongen, dus de worp moet slagen
+  tickWith(s.data, Date.now() + 2 * DAY, 0);
   const young = s.data.pigeons.filter((p) => p.ownerId === USER.id).length - 2;
   await s.persist();
   assert(young >= 1, `er kwamen ${young} jong(en)`);
@@ -142,6 +166,7 @@ console.log('\nGelijktijdige verzoeken (de gemelde bug)');
   const { sireId, damId } = await setup(db);
   let s = await D1Store.load(db, USER.id);
   startBreeding(s, USER.id, sireId, damId);
+  setPairId(s, PAIR_HATCHES);
   await s.persist();
 
   const now = Date.now() + 2 * DAY;
@@ -170,13 +195,14 @@ console.log(`\nRust tussen twee nesten (${BREEDING.cooldownDays} dagen)`);
   const { sireId, damId } = await setup(db);
   let s = await D1Store.load(db, USER.id);
   startBreeding(s, USER.id, sireId, damId);
+  setPairId(s, PAIR_HATCHES); // dit blok gaat over de rust, dus de worp moet slagen
   await s.persist();
 
   // Ruim voorbij `hatchAt`: startBreeding zet die stempel op nu, dus tikken op
   // hetzelfde moment geeft dtHours <= 0 en dan komt er niets uit.
   const hatchAt = Date.now() + 2 * DAY;
   s = await D1Store.load(db, USER.id);
-  tickWith(s.data, hatchAt, 0, true); // dit blok gaat over de rust, dus de worp moet slagen
+  tickWith(s.data, hatchAt, 0);
   await s.persist();
 
   s = await D1Store.load(db, USER.id);
@@ -204,8 +230,8 @@ console.log(`\nRust tussen twee nesten (${BREEDING.cooldownDays} dagen)`);
   assert(startBreeding(s, USER.id, sireId, damId) === null, 'na de rustperiode lukt koppelen weer');
 }
 
-// === 4. Een MISLUKTE worp kost geen rust =====================================
-console.log('\nEen mislukte worp legt geen rust op');
+// === 4. Een MISLUKTE worp: geen rust, wel de helft van het geld terug ========
+console.log('\nEen mislukte worp legt geen rust op en betaalt de helft terug');
 {
   const db = await freshDb();
   const { sireId, damId } = await setup(db);
@@ -213,15 +239,13 @@ console.log('\nEen mislukte worp legt geen rust op');
   // Libido/energie laag → de worp komt leeg uit, maar het koppel gaat wél uiteen.
   s.mutate((d) => { for (const p of d.pigeons) { p.libido = 1; p.form = 20; } });
   startBreeding(s, USER.id, sireId, damId);
+  setPairId(s, PAIR_EMPTY);
+  const afterFee = s.data.lofts.find((l) => l.userId === USER.id)!.money;
   await s.persist();
 
   s = await D1Store.load(db, USER.id);
   const before = s.data.pigeons.filter((p) => p.ownerId === USER.id).length;
-  // 0 laat de hatch slagen; de succeskans binnen `breed` faalt door libido 1.
-  const real = Math.random;
-  let calls = 0;
-  Math.random = () => (calls++ === 0 ? 0 : 0.999999);
-  try { tickBreedingHatch(s.data, Date.now() + 5 * DAY); } finally { Math.random = real; }
+  tickWith(s.data, Date.now() + 5 * DAY, 0);
   const after = s.data.pigeons.filter((p) => p.ownerId === USER.id).length;
   await s.persist();
 
@@ -230,6 +254,81 @@ console.log('\nEen mislukte worp legt geen rust op');
   assert(fresh.data.breedingPairs.length === 0, 'het koppel gaat ook bij een mislukking uiteen');
   assert(fresh.data.pigeons.find((p) => p.id === sireId)!.lastBredAt == null,
     'geen rustperiode na een lege worp — dat zou een dobbelsteen bestraffen');
+
+  // De teruggave zelf, en dat ze de rondrit door D1 overleeft — een bedrag dat
+  // enkel in het geheugen klopt is precies het stilste faalgeval dat er is.
+  const money = fresh.data.lofts.find((l) => l.userId === USER.id)!.money;
+  assert(money === afterFee + failedBreedRefund(),
+    `de helft van het koppelgeld komt terug: €${money - afterFee} van €${BREEDING.cost}`);
+  assert(failedBreedRefund() * 2 === BREEDING.cost, `teruggave is exact de helft (€${failedBreedRefund()})`);
+  assert(money < afterFee + BREEDING.cost, 'de andere helft blijft weg — koppelen blijft een gok');
+
+  const note = fresh.data.notifications.find((n) => /zonder resultaat/.test(n.title));
+  assert(!!note, 'de speler krijgt een melding over de lege worp');
+  assert(note!.body.includes(`€${failedBreedRefund()}`), 'die melding noemt het teruggegeven bedrag');
+}
+
+// === 4b. Twee gelijktijdige verzoeken zien DEZELFDE worp =====================
+/*
+ * `tickBreedingHatch` loopt bij ÉLK verzoek, dus twee overlappende verzoeken
+ * kunnen allebei hetzelfde nest afhandelen — en sinds de teruggave gaat dat over
+ * geld.
+ *
+ * ⚠️ Dubbel storten is NIET het faalgeval: beide verzoeken schrijven
+ * `basis + 375` als absolute waarde, dus last-write-wins houdt er één over. Het
+ * echte gat is dat ze het ONEENS kunnen zijn — A ziet een lege worp en geeft geld
+ * terug, B maakt een jong en raakt `money` niet aan. De kolom-smalle diff houdt
+ * dan allebei: een jong én de teruggave. Daarom seedt `breed` de tel-trekkingen
+ * op het koppel. Gemeten op een koppel met lage vruchtbaarheid: zonder seeding
+ * zijn twee afhandelingen het in 1.586 van 4.000 gevallen oneens, met seeding
+ * 0 van 4.000.
+ */
+console.log('\nTwee gelijktijdige verzoeken zien dezelfde worp');
+{
+  const db = await freshDb();
+  const { sireId, damId } = await setup(db);
+  const s = await D1Store.load(db, USER.id);
+  s.mutate((d) => { for (const p of d.pigeons) { p.libido = 1; p.form = 20; } });
+  startBreeding(s, USER.id, sireId, damId);
+  setPairId(s, PAIR_EMPTY);
+  const afterFee = s.data.lofts.find((l) => l.userId === USER.id)!.money;
+  await s.persist();
+
+  const now = Date.now() + 5 * DAY;
+  const A = await D1Store.load(db, USER.id);
+  const B = await D1Store.load(db, USER.id);
+  tickWith(A.data, now, 0);
+  await A.persist();
+  tickWith(B.data, now, 0); // B laadde vóór A schreef en handelt hetzelfde nest af
+  await B.persist();
+
+  const fresh = await D1Store.load(db, USER.id);
+  const money = fresh.data.lofts.find((l) => l.userId === USER.id)!.money;
+  assert(money === afterFee + failedBreedRefund(),
+    `precies één teruggave na twee gelijktijdige verzoeken (€${money - afterFee})`);
+  assert(fresh.data.pigeons.filter((p) => p.id.startsWith('pig_brood_')).length === 0,
+    'en er staat geen jong naast de teruggave — beide verzoeken zien dezelfde lege worp');
+}
+
+// === 4c. Een GESLAAGDE worp betaalt niets terug ==============================
+console.log('\nEen geslaagde worp betaalt niets terug');
+{
+  const db = await freshDb();
+  const { sireId, damId } = await setup(db);
+  const s = await D1Store.load(db, USER.id);
+  startBreeding(s, USER.id, sireId, damId);
+  setPairId(s, PAIR_HATCHES);
+  const afterFee = s.data.lofts.find((l) => l.userId === USER.id)!.money;
+  await s.persist();
+
+  const t = await D1Store.load(db, USER.id);
+  tickWith(t.data, Date.now() + 2 * DAY, 0);
+  await t.persist();
+
+  const fresh = await D1Store.load(db, USER.id);
+  assert(fresh.data.pigeons.filter((p) => p.id.startsWith('pig_brood_')).length >= 1, 'er kwam een jong');
+  assert(fresh.data.lofts.find((l) => l.userId === USER.id)!.money === afterFee,
+    'het koppelgeld blijft betaald wanneer er wél een jong is');
 }
 
 // === 5. Migratie v44: bestaande koppels die al gebroed hebben ================
@@ -306,14 +405,15 @@ console.log('\nEén melding per nest');
   const { sireId, damId } = await setup(db);
   const s = await D1Store.load(db, USER.id);
   startBreeding(s, USER.id, sireId, damId);
+  setPairId(s, PAIR_HATCHES);
   await s.persist();
 
   const now = Date.now() + 2 * DAY;
   const A = await D1Store.load(db, USER.id);
   const B = await D1Store.load(db, USER.id);
-  tickWith(A.data, now, 0, true); // A: komt uit
+  tickWith(A.data, now, 0); // A: komt uit
   await A.persist();
-  tickWith(B.data, now, 0, true); // B: laadde vóór A schreef en komt óók uit
+  tickWith(B.data, now, 0); // B: laadde vóór A schreef en komt óók uit
   await B.persist();
 
   // Tellen op TITEL, niet op het id-voorvoegsel: zonder de fix hebben de twee
@@ -340,5 +440,6 @@ console.log('\nEén melding per nest');
 // === 8. De prijs ============================================================
 console.log('\nPrijs');
 assert(BREEDING.cost === 750, `koppelen kost €${BREEDING.cost}`);
+assert(failedBreedRefund() === 375, `een lege worp geeft €${failedBreedRefund()} terug`);
 
 console.log(failures === 0 ? '\nAlles groen.\n' : `\n${failures} controle(s) gefaald.\n`);

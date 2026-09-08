@@ -913,8 +913,8 @@ export function WikiPage() {
           <li>De rust hangt aan de <strong>duif</strong>, niet aan het koppel: een andere partner kiezen omzeilt ze niet.</li>
           <li>Ze telt vanaf het moment dat de jongen <strong>uitkwamen</strong>.</li>
           <li>
-            Een <strong>mislukte worp legt geen rust op</strong> — er zijn geen jongen geweest, en je hebt de €750 en
-            de energie al betaald. Je mag meteen opnieuw proberen.
+            Een <strong>mislukte worp legt geen rust op</strong> — er zijn geen jongen geweest, en je hebt de energie
+            al betaald. Je mag meteen opnieuw proberen.
           </li>
           <li>Rustende duiven staan niet in de keuzelijst bij <em>Kweek</em>; op de duifpagina zie je wanneer ze weer mag.</li>
         </ul>
@@ -933,6 +933,21 @@ export function WikiPage() {
           <li><strong>Sterk koppel</strong> (hoge libido, goede energie): bijna altijd raak, met een goede kans op een <strong>tweede</strong> jong.</li>
           <li><strong>Zwak koppel</strong> (laag libido of lage energie): kan met lege handen achterblijven — een echt lusteloos koppel slaagt maar in zowat <strong>1 op 5</strong> van de pogingen.</li>
           <li>Een tweede jong komt er alleen bij <strong>hoge libido</strong> (tot ± 70% kans op een tweede).</li>
+        </ul>
+        <p style={{ marginTop: 12 }}>
+          <strong>Een lege worp geeft je de helft van het koppelgeld terug: €375.</strong> Er komt geen duif uit, en
+          dat is een dobbelsteen die je niet zelf gooit. De <strong>andere helft blijft weg</strong>, samen met de
+          15 energie per ouder — koppelen blijft een gok waar je iets voor op tafel legt. Je krijgt er een melding
+          van, met het bedrag erbij.
+        </p>
+        <ul>
+          <li>Alleen een <strong>lege worp</strong> betaalt terug. Komt er wél een jong (of een tweeling), dan heb je waar je voor betaalde.</li>
+          <li>
+            <strong>Zelf het koppel stoppen betaalt niets terug</strong>, en een koppel dat vervalt omdat een ouder
+            verkocht is of gestorven, evenmin. Anders kon je koppelen, meteen stoppen, en zo je geld half terughalen
+            wanneer je maar wil.
+          </li>
+          <li>Computermelkers vallen onder exact dezelfde regel.</li>
         </ul>
         <p><strong>Strategie:</strong> koppel duiven met <em>hoge libido en goede energie</em>, en zet <em>Libido-mix</em> voer in tijdens de kweekperiode.</p>
         <p style={{ marginTop: 12 }}>

@@ -1386,8 +1386,8 @@ energie_gem = (Energie_vader + Energie_moeder) / 2
 energiefactor = clamp(0.5 + energie_gem/200, 0.5, 1)      // lage energie halveert de kans
 succeskans  = clamp((0.55 + libido_gem/100 · 0.45) · energiefactor, 0.2, 1)
 ```
-Mislukt de worp, dan zijn er **geen** jongen. Bij succes: 1 jong, met kans op een
-tweede:
+Mislukt de worp, dan zijn er **geen** jongen — maar je krijgt wel **€375 terug**,
+de helft van het koppelgeld (§7.2). Bij succes: 1 jong, met kans op een tweede:
 ```
 tweelingkans = clamp(libido_gem/100 · 0.7 · energiefactor, 0, 0.7)
 ```
@@ -1458,8 +1458,25 @@ koppelt, kan niet weg.
 
 **Een koppel is voor één nest.** Zodra de jongen er zijn, is het koppel voorbij:
 de twee duiven staan weer los in je hok en kunnen meteen weer vliegen, trainen
-en verkocht worden. Ook een **mislukte worp** beëindigt het koppel — je €750 en
-de energie zijn dan gewoon weg.
+en verkocht worden. Ook een **mislukte worp** beëindigt het koppel.
+
+**Bij een lege worp krijg je de helft van het koppelgeld terug: €375.** Er komt
+geen duif uit, en dat is een dobbelsteen die je niet zelf gooit — het volledige
+bedrag laten liggen voelt daarom als een straf voor pech. De **andere helft blijft
+weg**, samen met de 15 energie per ouder: koppelen blijft een gok waar je iets voor
+op tafel legt, geen gratis lot. Je krijgt er een melding van, met het bedrag erbij.
+
+Alleen een **lege worp** betaalt terug:
+
+| Wat er gebeurt | Krijg je iets terug? |
+|---|---|
+| De worp komt leeg uit | **€375** (de helft) |
+| Er komt één jong of een tweeling | niets — je hebt waar je voor betaalde |
+| Je **stopt het koppel zelf** (knop bij *Kweek*) | niets |
+| Een ouder wordt verkocht of sterft, het koppel vervalt | niets |
+
+> Die laatste twee zijn bewust: anders kon je een koppel starten, meteen stoppen
+> of de doffer verkopen, en zo je geld half terughalen wanneer je maar wil.
 
 **Daarna rusten beide ouders 21 dagen** (3 weken) voor ze opnieuw kunnen
 koppelen. Dat komt neer op ongeveer **vier nesten per duivenjaar**, net als bij
@@ -1479,8 +1496,9 @@ weken zijn zowat drie duivenmaanden.
 
 > **Strategie.** Met een rust van drie weken per duif is kweken geen kraan meer
 > die je kan openzetten: wil je meerdere nesten tegelijk, dan heb je meerdere
-> koppels nodig — en dus een breder hok. Kies je fokkoppels dus met zorg, want
-> een misgelopen worp kost je niet alleen €750 maar ook je beurt.
+> koppels nodig — en dus een breder hok. Kies je fokkoppels dus met zorg: een
+> misgelopen worp kost je €375 en de energie, maar vooral je tijd — je hebt niets
+> om te tonen en mag meteen opnieuw beginnen.
 
 
 ---
@@ -2221,7 +2239,8 @@ ochtends op het criterium zet, heeft haar 's middags niet meer beschikbaar — d
 bij hen roteert het hok over de dagen heen, net als bij jou.
 
 **En de rust tussen twee nesten geldt ook voor hen** (§7.2). Een bot betaalt
-dezelfde €750 en zijn ouders rusten dezelfde drie weken uit, dus hij kan zijn hok
+dezelfde €750, krijgt bij een lege worp dezelfde €375 terug en zijn ouders rusten
+dezelfde drie weken uit, dus hij kan zijn hok
 niet sneller aanvullen dan jij. Hij koppelt bovendien **nooit twee verwanten**
 (§7.3) en houdt zich aan dezelfde kweekleeftijd van 8 weken.
 

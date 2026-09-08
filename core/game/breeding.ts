@@ -14,7 +14,7 @@ import { newId } from '../store.js';
 import { awardBadge, evaluateBadges } from './badges.js';
 import { geneCap, talent } from './pigeon.js';
 import { generatePigeonName, nameKey } from './names.js';
-import { clamp, randFloat, round1 } from './util.js';
+import { clamp, hashString, randFloat, round1, seededRng } from './util.js';
 
 /**
  * A youngster's breed: it inherits the parents' breed only when BOTH parents
@@ -82,9 +82,27 @@ export function breed(
   const avgEnergy = (sire.form + dam.form) / 2;
   const energyFactor = clamp(0.5 + avgEnergy / 200, 0.5, 1);
   const successChance = clamp((0.55 + (avgLibido / 100) * 0.45) * energyFactor, 0.2, 1);
-  if (Math.random() > successChance) return []; // no young this time
+  /**
+   * The two rolls that decide HOW MANY young come out are seeded on the pair, so
+   * two overlapping requests that both resolve the same hatch reach the same
+   * verdict. `tickBreedingHatch` runs on EVERY request, so that is routine here.
+   *
+   * This carries money now: an empty clutch refunds half the fee
+   * (BREEDING.failedRefundRate). Without a shared verdict one request could hand
+   * the refund back while the other wrote a youngster, and the column-narrow diff
+   * would keep both — a bird AND the money. It also stops one request writing a
+   * twin the other never made, since `pig_brood_<pair>_1` would survive as an
+   * orphan row.
+   *
+   * Deliberately only these two. The per-bird rolls below (genes, name, sex,
+   * quirk) still use `Math.random`: they decide what a youngster IS, and both
+   * requests write that to the SAME row id, so last-write-wins settles it.
+   * Seeding those too is a bigger change — see context.md §8.
+   */
+  const roll = pairId ? seededRng(hashString(`clutch:${pairId}`)) : Math.random;
+  if (roll() > successChance) return []; // no young this time
   const secondChance = clamp((avgLibido / 100) * 0.7 * energyFactor, 0, 0.7);
-  const count = Math.random() < secondChance ? 2 : 1;
+  const count = roll() < secondChance ? 2 : 1;
 
   const young: Pigeon[] = [];
   const childBreed = inheritBreed(sire, dam);
