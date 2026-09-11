@@ -141,7 +141,7 @@ krijgen.**
 `core/game/schedule.ts` → `advanceRealtime(db, nowMs, weatherByFlight)` roept in
 volgorde:
 1. `runDataMigrations(db)` — eenmalige datafixes, **gated op `world.dataVersion`**
-   (staat nu op **46**; nieuwe migratie = nieuw `if ((db.world.dataVersion ?? 0) < N)`
+   (staat nu op **48**; nieuwe migratie = nieuw `if ((db.world.dataVersion ?? 0) < N)`
    blok + `db.world.dataVersion = N`). v21 zet **bestaande geplande vluchten terug naar de
    OUDE, kortere afstanden** (regio 30–160 / nat 60–290 / intl 180–950 km): elke nog-
    geplande niet-titan-vlucht buiten haar legacy-venster wordt her-routeerd via
@@ -1086,9 +1086,45 @@ verzoek uit per statement.
 ## 8. Belangrijkste wijzigingen deze sessie (achtergrond)
 
 Alles hieronder staat **live** op de deploy-branch. Data-migraties liepen door tot
-**`dataVersion = 47`**.
+**`dataVersion = 48`**.
 
-**Een lege worp betaalt de helft van het koppelgeld terug (nieuwste)**
+**Migratie v48 — de erfeniskaart opnieuw voor "Roekoeloos" (nieuwste)**
+- **Vraag van de eigenaar:** geef "Roekoeloos" het dilemma 📜 **Erfenis van een oude melker**.
+- ⚠️ **Dat is exact wat v46 deed, en die is op.** Een migratie is gegate op `dataVersion` en
+  vuurt dus **precies één keer per wereld**; de productiewereld staat allang voorbij 46. Er is
+  geen manier om v46 te "hertriggeren" — een tweede uitdeling heeft haar eigen versie nodig.
+  Vandaar v48, met dezelfde kaart.
+- **De uitdeel-logica is uit v46 gelicht naar `handInheritanceCard(db, target, noteId)`**
+  (schedule.ts), nu gedeeld door beide. Twee kopieën van dezelfde ingreep lopen gegarandeerd
+  uit elkaar zodra iemand er één aanpast; v46 gedraagt zich verder identiek (zelfde melding-id
+  `ntf:admin:erfenis:<userId>`), wat telt omdat een verse database beide nog afspeelt.
+- ⚠️ **Eigen melding-id (`ntf:admin:erfenis2`), en dat is geen detail.** Meldingen dedupliceren
+  op een stabiel id (`INSERT OR REPLACE`), dus v46's id hergebruiken zou de **oude rij
+  overschrijven** in plaats van een nieuwe bel te laten rinkelen — en wie de eerste al gelezen
+  had, zou nooit merken dat er een tweede erfenis klaarstaat. De helper plakt daarom
+  `:<userId>` zélf achter een per-uitdeling unieke prefix.
+- **Onveranderd t.o.v. v46:** match op **hoknaam óf gebruikersnaam**, hoofdletter-ongevoelig,
+  **enkel echte spelers** (een gelijknamige bot blijft ongemoeid); de kaart komt uit
+  `inheritanceCard()` zodat een herformulering de uitdeling niet laat liegen; ze bevat geen
+  random waarde, dus twee gelijktijdige verzoeken schrijven dezelfde kaart; en ze
+  **overschrijft** een openstaand dilemma (een migratie vuurt één keer, dus overslaan bij een
+  bezet hok laat het geschenk voorgoed vallen).
+- **Geen schemawijziging, geen nieuwe kolom, geen configknop.** **dataVersion → 48.**
+- **Geverifieerd** met een wegwerp-tsx-script tegen de échte `advanceRealtime` (15 controles):
+  match op hoknaam én op gebruikersnaam, een derde speler krijgt niets, een gelijknamige bot
+  krijgt niets, de kaart klopt (drie keuzes, "De oude kampioen" op index 1), ze **overleeft de
+  rondrit door D1** (`pending_event` is een JSON-kolom), de nieuwe bel staat er precies één
+  keer náást de oude v46-rij, vijf passen delen er geen tweede uit, en een beantwoorde kaart
+  komt niet terug zonder nog eens te betalen.
+- ⚠️ **`age-cup.test.mts` is vandaag permanent rood geworden, en niet door deze wijziging**
+  (nagemeten met `git stash`: identiek rood op de ongewijzigde boom). Het is een **tijdbom in
+  de test**: `T0` staat hard op `2026-09-04T09:00:00Z`, dus de fixture zet `seasonEndsAt` op
+  **2026-09-11T09:00Z** — en migratie **v40 vergelijkt met de échte wandklok**
+  (`ends > Date.now()`). Sinds dat moment gepasseerd is, valt de anker-fallback op `Date.now()`
+  en faalt *"de cyclus is verankerd op het einde van het lopende seizoen"* bij élke run. De fix
+  hoort in de test (`T0` relatief aan nu), niet in v40. Nog te doen.
+
+**Een lege worp betaalt de helft van het koppelgeld terug**
 - **Vraag van de eigenaar:** faalt een koppel om een jong te maken en gaat het uiteen, dan
   krijgt de speler de **helft van de €750** terug.
 - **Nieuwe knop `BREEDING.failedRefundRate` (0,5)** + helper **`failedBreedRefund()`** in

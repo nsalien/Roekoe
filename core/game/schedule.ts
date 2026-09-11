@@ -2010,35 +2010,9 @@ function runDataMigrations(db: Database): void {
   }
 
   if ((db.world.dataVersion ?? 0) < 46) {
-    // One-off (owner request): hand the erfenis-dilemma to one player. Matched on
-    // loft name OR username, case-insensitive, real players only — a bot that
-    // happens to share the name is untouched (same shape as v39).
-    //
-    // The card is built by `inheritanceCard()` rather than written out here, so a
-    // reworded or reworked dilemma can never leave this hand-out quoting a version
-    // of itself that no longer exists.
-    //
-    // ⚠️ It OVERWRITES an unanswered dilemma if one is open. That is the deliberate
-    // trade: a migration fires once, so skipping on a busy loft would drop the gift
-    // for good. An unanswered card is by definition one the player has not acted on.
-    // A live event carries no state beyond itself (`resolveEvent` reads `pendingEvent`
-    // and nothing else), so nothing else breaks.
-    const TARGET = 'roekoeloos';
-    for (const loft of db.lofts) {
-      if (loft.isBot) continue;
-      const user = db.users.find((u) => u.id === loft.userId);
-      if (![loft.name, user?.username ?? ''].some((n) => n.trim().toLowerCase() === TARGET)) continue;
-      loft.pendingEvent = inheritanceCard();
-      pushNotification(
-        db, loft.userId, 'info',
-        '📜 Er ligt een erfenis op je te wachten',
-        'Een overleden dorpsgenoot liet jou iets na. Open het Overzicht en kies: de spaarpot, ' +
-          'de oude kampioen of de jonge belofte. Zit je hok vol? Dan wacht de duif bij Kweek tot ' +
-          'je plaats maakt — ze gaat niet verloren.',
-        null,
-        `ntf:admin:erfenis:${loft.userId}`,
-      );
-    }
+    // One-off (owner request): hand the erfenis-dilemma to "Roekoeloos".
+    // See `handInheritanceCard` for the matching rules and the overwrite trade.
+    handInheritanceCard(db, 'roekoeloos', 'ntf:admin:erfenis');
     db.world.dataVersion = 46;
   }
 
@@ -2053,6 +2027,62 @@ function runDataMigrations(db: Database): void {
     // bird at ~7× her market value.
     correctAuctionBid(db, { loft: 'de vluchtige vleugel', pigeon: 'adele de asduif', from: 11500, to: 1550 });
     db.world.dataVersion = 47;
+  }
+
+  if ((db.world.dataVersion ?? 0) < 48) {
+    // One-off (owner request): "Roekoeloos" gets the erfenis-dilemma AGAIN.
+    //
+    // ⚠️ v46 handed him the same card, and that one is spent: a migration is
+    // gated on `dataVersion`, so it fires exactly once per world and re-running
+    // it is not possible. A second hand-out therefore needs its own version —
+    // there is no way to "re-trigger" v46.
+    //
+    // Its own notification id (`erfenis2`) for the same reason: bells dedupe on
+    // a stable id, so reusing v46's would overwrite the old row instead of
+    // ringing a new one, and a player who already read the first would never
+    // learn that a second erfenis is waiting.
+    handInheritanceCard(db, 'roekoeloos', 'ntf:admin:erfenis2');
+    db.world.dataVersion = 48;
+  }
+}
+
+/**
+ * Hand the erfenis-dilemma to one named player.
+ *
+ * Matched on loft name OR username, case-insensitive, real players only — a bot
+ * that happens to share the name is untouched (same shape as v33/v39/v46).
+ *
+ * The card comes from `inheritanceCard()` rather than being written out here, so
+ * a reworded or reworked dilemma can never leave a hand-out quoting a version of
+ * itself that no longer exists. It carries no random value, so two concurrent
+ * requests that both run the migration write exactly the same card.
+ *
+ * ⚠️ It OVERWRITES an unanswered dilemma if one is open. That is the deliberate
+ * trade: a migration fires once, so skipping on a busy loft would drop the gift
+ * for good. An unanswered card is by definition one the player has not acted on,
+ * and a live event carries no state beyond itself (`resolveEvent` reads
+ * `pendingEvent` and nothing else), so nothing else breaks.
+ *
+ * ⚠️ `noteId` must be UNIQUE PER HAND-OUT, not per player. Notifications dedupe on
+ * a stable id (INSERT OR REPLACE), so reusing an earlier migration's id would
+ * quietly overwrite that bell instead of ringing a new one — and a player who
+ * already read the first would never see that a second erfenis arrived.
+ */
+function handInheritanceCard(db: Database, target: string, noteId: string): void {
+  for (const loft of db.lofts) {
+    if (loft.isBot) continue;
+    const user = db.users.find((u) => u.id === loft.userId);
+    if (![loft.name, user?.username ?? ''].some((n) => n.trim().toLowerCase() === target)) continue;
+    loft.pendingEvent = inheritanceCard();
+    pushNotification(
+      db, loft.userId, 'info',
+      '📜 Er ligt een erfenis op je te wachten',
+      'Een overleden dorpsgenoot liet jou iets na. Open het Overzicht en kies: de spaarpot, ' +
+        'de oude kampioen of de jonge belofte. Zit je hok vol? Dan wacht de duif bij Kweek tot ' +
+        'je plaats maakt — ze gaat niet verloren.',
+      null,
+      `${noteId}:${loft.userId}`,
+    );
   }
 }
 
