@@ -2044,6 +2044,42 @@ function runDataMigrations(db: Database): void {
     handInheritanceCard(db, 'roekoeloos', 'ntf:admin:erfenis2');
     db.world.dataVersion = 48;
   }
+
+  if ((db.world.dataVersion ?? 0) < 49) {
+    // One-off (owner request): put €2000 in the kassa of "Marcel De Neut".
+    //
+    // Matched on loft name OR username, real players only — a bot that happens to
+    // share the name is untouched (same shape as v33/v39/v46/v48).
+    //
+    // ⚠️ Whitespace is COLLAPSED, not just trimmed. This is a three-word name, so
+    // a stray double space in either the loft name or the username would make a
+    // plain `trim()` miss silently — and a migration that finds nobody is
+    // indistinguishable from one that ran fine.
+    //
+    // Two concurrent requests that both run this write `base + 2000` as an
+    // absolute value, so last-write-wins leaves exactly one grant; the stable
+    // notification id keeps it to one bell.
+    // ⚠️ Every match gets it, not just the first. `find` would pick one loft
+    // arbitrarily when the loft name of one player equals the username of
+    // another — and silently paying the wrong one is worse than paying both.
+    // Same shape as `handInheritanceCard`.
+    const norm = (s: string) => s.trim().toLowerCase().replace(/\s+/g, ' ');
+    for (const loft of db.lofts) {
+      if (loft.isBot) continue;
+      const user = db.users.find((u) => u.id === loft.userId);
+      if (![loft.name, user?.username ?? ''].some((n) => norm(n) === 'marcel de neut')) continue;
+      loft.money += 2000;
+      pushNotification(
+        db, loft.userId, 'info',
+        '🪙 Er is €2.000 op je rekening gezet',
+        'De beheerder heeft €2.000 aan je kassa toegevoegd. Je duiven, punten en de rest ' +
+          'van je hok blijven ongewijzigd.',
+        null,
+        `ntf:admin:grant2000:${loft.userId}`,
+      );
+    }
+    db.world.dataVersion = 49;
+  }
 }
 
 /**

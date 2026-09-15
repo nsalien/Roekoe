@@ -141,7 +141,7 @@ krijgen.**
 `core/game/schedule.ts` → `advanceRealtime(db, nowMs, weatherByFlight)` roept in
 volgorde:
 1. `runDataMigrations(db)` — eenmalige datafixes, **gated op `world.dataVersion`**
-   (staat nu op **48**; nieuwe migratie = nieuw `if ((db.world.dataVersion ?? 0) < N)`
+   (staat nu op **49**; nieuwe migratie = nieuw `if ((db.world.dataVersion ?? 0) < N)`
    blok + `db.world.dataVersion = N`). v21 zet **bestaande geplande vluchten terug naar de
    OUDE, kortere afstanden** (regio 30–160 / nat 60–290 / intl 180–950 km): elke nog-
    geplande niet-titan-vlucht buiten haar legacy-venster wordt her-routeerd via
@@ -1086,9 +1086,38 @@ verzoek uit per statement.
 ## 8. Belangrijkste wijzigingen deze sessie (achtergrond)
 
 Alles hieronder staat **live** op de deploy-branch. Data-migraties liepen door tot
-**`dataVersion = 48`**.
+**`dataVersion = 49`**.
 
-**Migratie v48 — de erfeniskaart opnieuw voor "Roekoeloos" (nieuwste)**
+**Migratie v49 — €2.000 voor "Marcel De Neut" (nieuwste)**
+- **Vraag van de eigenaar:** zet 2.000 munten op de kassa van die speler. Zelfde vorm als de
+  geld-rechtzetting van v33, maar dan een bijschrijving.
+- **Match op hoknaam óf gebruikersnaam, enkel echte spelers** — een gelijknamige bot blijft
+  ongemoeid. ⚠️ **Spaties worden samengetrokken, niet enkel getrimd** (`replace(/\s+/g, ' ')`,
+  zoals v39): dit is een naam van drie woorden, dus een dubbele spatie in de hoknaam of de
+  gebruikersnaam zou een kale `trim()` stil laten missen — en een migratie die niemand vindt is
+  niet te onderscheiden van een die gewoon gelopen heeft.
+- ⚠️ **Élke match krijgt het, niet enkel de eerste.** De eerste versie gebruikte `find` (zoals
+  v33) en dat viel door de mand in de verificatie: staat de hoknaam van de ene speler gelijk aan
+  de gebruikersnaam van de andere, dan betaalt `find` er willekeurig één — en stil de verkeerde
+  betalen is erger dan allebei betalen. Nu een lus over alle hokken, zelfde vorm als
+  `handInheritanceCard`.
+- **Veilig bij gelijktijdige afhandeling:** twee verzoeken die de migratie allebei draaien
+  schrijven `basis + 2000` als **absolute** waarde, dus last-write-wins laat precies één
+  bijschrijving over; de stabiele melding-id (`ntf:admin:grant2000:<userId>`) houdt het op één bel.
+- **Geen schemawijziging, geen kolom, geen configknop.** **dataVersion → 49.**
+- **Geverifieerd** met een wegwerpscript tegen de échte `advanceRealtime` (13 controles): match
+  op hoknaam én op een gebruikersnaam met rommelige spaties, een derde speler krijgt niets, een
+  gelijknamige bot krijgt de gift niet, precies één bel per doelwit die het bedrag noemt, het
+  geld **overleeft de rondrit door D1**, vijf passen betalen niet nog eens, en een wereld zonder
+  die speler loopt gewoon door zonder iemands kassa te raken.
+  ⚠️ Valstrik voor de volgende die zoiets schrijft: de kassa van een **bot** beweegt sowieso
+  (`botDailyActions` koopt voer), dus "de bot staat stil" is geen geldige assertie — toets dat
+  hij de **gift** niet kreeg.
+- ⚠️ **Twee tests stonden al rood vóór deze wijziging** (nagemeten met `git stash`, 3/3 runs
+  identiek): `age-cup` (de tijdbom hieronder) en `poll-budget` ("de load blijft smal: 104 van
+  204", de bekende onrealistische estafette-fixture). Niet veroorzaakt, niet aangeraakt.
+
+**Migratie v48 — de erfeniskaart opnieuw voor "Roekoeloos"**
 - **Vraag van de eigenaar:** geef "Roekoeloos" het dilemma 📜 **Erfenis van een oude melker**.
 - ⚠️ **Dat is exact wat v46 deed, en die is op.** Een migratie is gegate op `dataVersion` en
   vuurt dus **precies één keer per wereld**; de productiewereld staat allang voorbij 46. Er is
