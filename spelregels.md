@@ -51,7 +51,7 @@ Elke dag heeft haar **eigen vaste programma**:
 | **Dinsdag** | 10:00 regionaal · 12:00 **oefenvlucht** (§2.7) |
 | **Woensdag** | 06:00 **criterium 1–2 jaar** (§2.10) · 08:00 nationaal |
 | **Donderdag** | 06:00 **criterium 2–3 jaar** (§2.10) · 08:00 internationaal |
-| **Vrijdag** | 06:00 **criterium ouder dan 3 jaar** (§2.10) · 06:00 **nationaal — lange omloop** · 12:00 **oefenvlucht** (§2.7) · 17:00 regionaal |
+| **Vrijdag** | 06:00 **criterium ouder dan 3 jaar** (§2.10) · 07:00 **nationaal — lange omloop** · 12:00 **oefenvlucht** (§2.7) · 17:00 regionaal |
 | **Zaterdag** | 08:00 **Titanenwedstrijd** (§2.8) of 05:00 **Estafettevlucht** (§2.9) — week om week, en de **enige** vlucht die dag |
 | **Zondag** | 08:00 nationaal · 17:00 regionaal |
 
@@ -66,10 +66,11 @@ leeftijdsvluchten.
 > conditie de fond), en dit is de wedstrijd die een **conditie-duif** betaalt
 > zonder dat je meteen naar de internationale hoeft.
 >
-> Ze start om **06:00**, tegelijk met het criterium voor duiven ouder dan 3 jaar.
+> Ze start om **07:00**, een uur na het criterium voor duiven ouder dan 3 jaar.
 > Omdat een duif **hoogstens één vlucht per dag** doet (§3.9), moet je met een
-> oude duif dus kiezen tussen die twee. De regiovlucht is naar **17:00**
-> opgeschoven om plaats te maken. Bewust **minder vluchten dan
+> duif ouder dan drie nog steeds kiezen tussen die twee — dat het een uur later
+> is, verandert daar niets aan. De regiovlucht is naar **17:00** opgeschoven om
+> plaats te maken. Bewust **minder vluchten dan
 vroeger** (toen was er élke dag een lange én een korte vlucht): alle melkers
 putten uit dezelfde duiven, dus een lichtere kalender betekent **meer duiven aan
 de start van élke vlucht** en dus een **sterker deelnemersveld** om tegen te

@@ -768,7 +768,7 @@ Entiteiten: `Pigeon`, `Loft`, `User`, `BreedingPair`, `PendingBrood`, `Flight` (
   prijsuitreiking (`awards [2000,1600,1200]` per klasse) + reset.
 - **Schema (`REAL_SCHEDULE` — vaste weekkalender):** één vast programma per
   weekdag i.p.v. het oude dagelijkse lang+kort-ritme. **ma** 08:00 intl · **di** 10:00 regio
-  + 12:00 oefenvlucht · **wo** 08:00 nat · **do** 08:00 intl · **vr** 06:00 **nat lang
+  + 12:00 oefenvlucht · **wo** 08:00 nat · **do** 08:00 intl · **vr** 07:00 **nat lang
   (430–500 km)** + 12:00 oefenvlucht + 17:00 regio · **za** 08:00 **Titan** (`TITAN.hour` van 11 → **8**) · **zo** 08:00 nat +
   17:00 regio. Dat is **8 wedstrijden + 2 oefenvluchten/week** (3 regio, 2 nat, 2 intl,
   1 titan) tegen 11–13 + 2–4 vroeger — bewust minder, zodat er **meer duiven per vlucht**
@@ -1087,9 +1087,10 @@ Alles hieronder staat **live** op de deploy-branch. Data-migraties liepen door t
 > daarvoor volstaan §2 t/m §7.
 
 **Extra nationale op vrijdag, vastgeprikt op de lange kant (nieuwste)**
-- **Vraag van de eigenaar:** een extra **nationale** wedstrijd, altijd op **vrijdag om 06:00**,
-  op het **hoogste aantal km dat een nationale vlucht kan zijn**; de regiovlucht van vrijdag
-  schuift op naar **17:00**.
+- **Vraag van de eigenaar:** een extra **nationale** wedstrijd, altijd op **vrijdag**, op het
+  **hoogste aantal km dat een nationale vlucht kan zijn**; de regiovlucht van vrijdag schuift
+  op naar **17:00**. Eerst op 06:00 gezet, **meteen daarna naar 07:00** verplaatst om de load
+  te spreiden (zie hieronder).
 - **Nieuw slot `fri-national-long`** in `REAL_SCHEDULE`, en `fri-regional` van 10:00 → 17:00.
   De week telt nu **3 regionaal · 3 nationaal · 2 internationaal** = 9 wedstrijdvluchten
   (+ 4 criterium, + 2 oefen, + het zaterdagslot). Geteld uit de definitie, niet geschat.
@@ -1101,18 +1102,22 @@ Alles hieronder staat **live** op de deploy-branch. Data-migraties liepen door t
   venster, 470–500 zakt naar 79,5 %. En `pickRoute` valt terug op het **dichtstbijzijnde**
   stadspaar, dus een te smal venster levert stilletjes uitschieters op (tot ~550 km) in plaats
   van een foutmelding. Houd het venster breed genoeg dat de pool het kan bedienen.
-- ⚠️ **Ze deelt 06:00 met het criterium "Ouder dan 3 jaar"** (`cup-o3` vliegt vrijdag op
-  `AGE_CUP.hour`). Technisch geen probleem — de kalender dedupet op **slot-key**, niet op
-  starttijd — maar door de **één-vlucht-per-dag-regel** moet een duif ouder dan drie jaar
-  **kiezen** tussen die twee. Bewust zo gelaten (de eigenaar vroeg expliciet 06:00); verzet er
-  één als het ooit als fout leest i.p.v. als keuze.
+- ⚠️ **Ze staat op 07:00 en niet op 06:00, en dat is een PLATFORMkeuze.** Het criterium
+  "Ouder dan 3 jaar" vliegt vrijdag op `AGE_CUP.hour` (06:00). Twee vluchten die hetzelfde
+  startmoment delen, gaan in **één verzoek** van `scheduled → live`: dat bevriest beide sims
+  (`startLiveFlight` over alle deelnemers) én haalt twee weervoorspellingen op, binnen dezelfde
+  invocatie van 10 ms CPU — precies het soort piek waar §Performance over gaat. Een uur ertussen
+  geeft elk zijn eigen verzoek.
+- ⚠️ **Dat neemt de KEUZE niet weg.** Één-vlucht-per-dag telt per **kalenderdag**, niet per uur,
+  dus een duif ouder dan drie jaar kiest nog steeds tussen het criterium en deze nationale.
 - **Waarom dit de balans helpt:** de kalender leunde zwaar naar de korte kant (5,5 startplaatsen
   per week onder 400 km tegen 2,5 erboven — zie het blok hieronder). Op 459 km staat de weging
   op **0,43/0,57**, dus dit is de wedstrijd die een conditie-duif betaalt zonder meteen naar de
   internationale te moeten. Dit is **punt 1** uit de balansanalyse, gedeeltelijk uitgevoerd.
 - **Geverifieerd** tegen de échte `ensureFlightsScheduled`: één concrete vrijdag levert exact
-  4 vluchten — 06:00 `fri-national-long` (456 km, type `national`), 06:00 `cup-o3`, 12:00
-  oefenvlucht, 17:00 `fri-regional` (161 km).
+  4 vluchten — 06:00 `cup-o3`, 07:00 `fri-national-long` (type `national`, binnen 430–500 km),
+  12:00 oefenvlucht, 17:00 `fri-regional`. Vier verschillende starttijden, dus vier aparte
+  live-overgangen.
 - **Geen migratie, geen schemawijziging**, `dataVersion` blijft **49**. Bestaande geplande
   vluchten blijven staan; de nieuwe kalender geldt vanaf de eerstvolgende dag buiten de horizon
   (`SCHEDULE_HORIZON_DAYS` 4).
