@@ -2142,6 +2142,18 @@ export interface ScheduleSlot {
   /** A leeftijdscriterium race: only birds in this age bracket may enter (see AGE_CUP). */
   ageCat?: AgeCategoryId;
   everyNDays?: number; // only schedule this slot every N calendar days (default: every day)
+  /**
+   * Narrow this slot's route to part of its tier's window, so one fixed race can
+   * sit at a known end of the scale (see `fri-national-long`). Omitted = the full
+   * tier window, exactly as before.
+   *
+   * ⚠️ These are a TARGET, not a guarantee. `pickRoute` falls back to the closest
+   * city pair it can find, so a narrow window near the edge of a pool can land a
+   * little outside it — measured on 430–500: 98.8 % inside, the rest up to ~524 km.
+   * Keep the window wide enough that the pool can actually serve it.
+   */
+  minKm?: number;
+  maxKm?: number;
 }
 
 /**
@@ -2229,8 +2241,20 @@ export const REAL_SCHEDULE: ScheduleSlot[] = [
   { key: 'tue-practice', tier: 'regional', weekday: 2, hour: 12, minute: 0, practice: true },
   { key: 'wed-national', tier: 'national', weekday: 3, hour: 8, minute: 0 },
   { key: 'thu-international', tier: 'international', weekday: 4, hour: 8, minute: 0 },
-  { key: 'fri-regional', tier: 'regional', weekday: 5, hour: 10, minute: 0 },
+  // Friday's long national. Deliberately pinned to the TOP of the national window
+  // (430–500 km instead of 200–500): the calendar was short-heavy, so this is the
+  // slot that pays a conditie-duif. At 06:00 it starts early enough to be home
+  // well before the evening.
+  //
+  // ⚠️ It shares 06:00 with the criterium 'Ouder dan 3 jaar' (AGE_CATEGORIES o3
+  // flies Friday at AGE_CUP.hour). That is allowed — the calendar dedupes per
+  // slot key, not per start time — but because of the one-flight-per-day rule a
+  // bird over three years old must CHOOSE between the two. Move one of them if
+  // that ever reads as a mistake rather than a decision.
+  { key: 'fri-national-long', tier: 'national', weekday: 5, hour: 6, minute: 0, minKm: 430, maxKm: 500 },
   { key: 'fri-practice', tier: 'regional', weekday: 5, hour: 12, minute: 0, practice: true },
+  // Moved from 10:00 to 17:00 to make room for the long national above.
+  { key: 'fri-regional', tier: 'regional', weekday: 5, hour: 17, minute: 0 },
   // The weekend special. Its key stays 'titan' (it is the same calendar slot, and
   // the key is what dedupes a day) but its FORMAT alternates: on relay weeks
   // `ensureFlightsScheduled` builds an estafettevlucht at RELAY.hour instead.
