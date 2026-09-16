@@ -51,13 +51,25 @@ Elke dag heeft haar **eigen vaste programma**:
 | **Dinsdag** | 10:00 regionaal · 12:00 **oefenvlucht** (§2.7) |
 | **Woensdag** | 06:00 **criterium 1–2 jaar** (§2.10) · 08:00 nationaal |
 | **Donderdag** | 06:00 **criterium 2–3 jaar** (§2.10) · 08:00 internationaal |
-| **Vrijdag** | 06:00 **criterium ouder dan 3 jaar** (§2.10) · 10:00 regionaal · 12:00 **oefenvlucht** (§2.7) |
+| **Vrijdag** | 06:00 **criterium ouder dan 3 jaar** (§2.10) · 06:00 **nationaal — lange omloop** · 12:00 **oefenvlucht** (§2.7) · 17:00 regionaal |
 | **Zaterdag** | 08:00 **Titanenwedstrijd** (§2.8) of 05:00 **Estafettevlucht** (§2.9) — week om week, en de **enige** vlucht die dag |
 | **Zondag** | 08:00 nationaal · 17:00 regionaal |
 
-Dat zijn **8 wedstrijdvluchten + 4 criteriumvluchten + 2 oefenvluchten per week**:
-3 regionale, 2 nationale, 2 internationale, 1 weekendwedstrijd en 4
-leeftijdsvluchten. Bewust **minder vluchten dan
+Dat zijn **9 wedstrijdvluchten + 4 criteriumvluchten + 2 oefenvluchten per week**:
+**3 regionale, 3 nationale, 2 internationale**, 1 weekendwedstrijd en 4
+leeftijdsvluchten.
+
+> **De vrijdagnationale is bewust de langste van de drie.** Waar een gewone
+> nationale vlucht overal tussen 200 en 500 km kan uitkomen, wordt deze
+> **vastgeprikt op het bovenste stuk van dat venster — 430 tot 500 km**. De
+> kalender leunde zwaar naar de korte kant (zie §2.3: snelheid wint de sprint,
+> conditie de fond), en dit is de wedstrijd die een **conditie-duif** betaalt
+> zonder dat je meteen naar de internationale hoeft.
+>
+> Ze start om **06:00**, tegelijk met het criterium voor duiven ouder dan 3 jaar.
+> Omdat een duif **hoogstens één vlucht per dag** doet (§3.9), moet je met een
+> oude duif dus kiezen tussen die twee. De regiovlucht is naar **17:00**
+> opgeschoven om plaats te maken. Bewust **minder vluchten dan
 vroeger** (toen was er élke dag een lange én een korte vlucht): alle melkers
 putten uit dezelfde duiven, dus een lichtere kalender betekent **meer duiven aan
 de start van élke vlucht** en dus een **sterker deelnemersveld** om tegen te

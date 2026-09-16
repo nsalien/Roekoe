@@ -240,6 +240,8 @@ function cupStanding(p: Pigeon, cat: AgeCategoryId): CupStanding {
 function makeRealtimeFlight(
   templateKey: string, tier: FlightTier, startMs: number, week: number, practice = false, titan = false, relay = false,
   cup?: CupSpec,
+  /** Optional narrowing of the tier's route window (ScheduleSlot.minKm/maxKm). */
+  range?: { minKm?: number; maxKm?: number },
 ): Flight {
   const cfg = FLIGHT_TIERS[tier];
   // Leeftijdscriterium: an age-restricted race. Its distance window comes from the
@@ -312,7 +314,7 @@ function makeRealtimeFlight(
     ? pickRouteInRange(TITAN.minKm, TITAN.maxKm)
     : practice
       ? pickRoute(tier, 0)
-      : pickRoute(tier);
+      : pickRoute(tier, range?.minKm, range?.maxKm);
   const effectiveTier: FlightTier = titan ? (route.distanceKm >= 300 ? 'international' : 'national') : tier;
   return {
     id: newId('flt'),
@@ -481,6 +483,7 @@ export function ensureFlightsScheduled(db: Database, nowMs: number): void {
         ?? (slot.tiers ? slot.tiers[Math.abs(hashDate(y, m, d)) % slot.tiers.length] : 'national');
       const flight = makeRealtimeFlight(
         templateKey, tier, startMs, db.world.currentWeek, !!slot.practice, !!slot.titan && !relay, relay, cup,
+        { minKm: slot.minKm, maxKm: slot.maxKm },
       );
       db.flights.push(flight);
       botsEnterFlight(db, flight);
