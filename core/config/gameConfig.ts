@@ -2243,15 +2243,18 @@ export const REAL_SCHEDULE: ScheduleSlot[] = [
   { key: 'thu-international', tier: 'international', weekday: 4, hour: 8, minute: 0 },
   // Friday's long national. Deliberately pinned to the TOP of the national window
   // (430–500 km instead of 200–500): the calendar was short-heavy, so this is the
-  // slot that pays a conditie-duif. At 06:00 it starts early enough to be home
-  // well before the evening.
+  // slot that pays a conditie-duif. At 07:00 it still starts early enough to be
+  // home well before the evening.
   //
-  // ⚠️ It shares 06:00 with the criterium 'Ouder dan 3 jaar' (AGE_CATEGORIES o3
-  // flies Friday at AGE_CUP.hour). That is allowed — the calendar dedupes per
-  // slot key, not per start time — but because of the one-flight-per-day rule a
-  // bird over three years old must CHOOSE between the two. Move one of them if
-  // that ever reads as a mistake rather than a decision.
-  { key: 'fri-national-long', tier: 'national', weekday: 5, hour: 6, minute: 0, minKm: 430, maxKm: 500 },
+  // ⚠️ 07:00 and not 06:00, deliberately: the criterium 'Ouder dan 3 jaar' flies
+  // Friday at AGE_CUP.hour (06:00), and two races sharing a start instant means
+  // ONE request carries both `scheduled → live` transitions — freezing both sims
+  // and fetching two forecasts in the same invocation, on a 10 ms CPU budget.
+  // An hour apart puts each in its own request.
+  //
+  // ⚠️ It does NOT undo the choice: one-flight-per-day is per CALENDAR DAY, so a
+  // bird over three years old still picks one of the two.
+  { key: 'fri-national-long', tier: 'national', weekday: 5, hour: 7, minute: 0, minKm: 430, maxKm: 500 },
   { key: 'fri-practice', tier: 'regional', weekday: 5, hour: 12, minute: 0, practice: true },
   // Moved from 10:00 to 17:00 to make room for the long national above.
   { key: 'fri-regional', tier: 'regional', weekday: 5, hour: 17, minute: 0 },
