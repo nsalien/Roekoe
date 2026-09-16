@@ -607,7 +607,9 @@ Entiteiten: `Pigeon`, `Loft`, `User`, `BreedingPair`, `PendingBrood`, `Flight` (
   gameweek `declinePerWeekBase(0.08)·(leeftijd−208)/52·declineRate` van de 3 skills af
   (bodem `floor 5`). `Pigeon.declineRate` ~0.6–1.6. `AGE_CURVE` neerwaartse tak afgevlakt → 1.0.
 - **Snelheidsmodel (`DISTANCE_WEIGHTING` + `ENERGIE_IMPACT`):** korte-vlucht­weging
-  snelheid **0.68** / conditie **0.32**; lang **0.26/0.74**. Oriëntatie staat op **0** (die
+  snelheid **0.68** / conditie **0.32**; lang (700 km) **0.26/0.74**; **ultra (1200 km)
+  `0.15/0.85`** — een **derde anker** zodat conditie voorbij `longKm` blijft doorwegen (zie §8).
+  Oriëntatie staat op **0** (die
   werkt via `LOST`). Was 0.83/0.17 en 0.31/0.69 — dat maakte snelheid over de kort-zware
   kalender meer waard dan conditie; zie §Balans onderaan §8. Energiefactor is
   **afstandsafhankelijk** (kort `0.80→1.05`, lang
@@ -1083,6 +1085,93 @@ Alles hieronder staat **live** op de deploy-branch. Data-migraties liepen door t
 > met ⚠️ zijn de load-bearing stukken — valstrikken waar dit project al een keer in
 > getrapt is. Nieuwste bovenaan. Voor "hoe werkt het spel nu" hoef je §8 niet te lezen;
 > daarvoor volstaan §2 t/m §7.
+
+**Conditie weegt nu door voorbij 700 km — een derde anker op de afstandsblend (nieuwste)**
+- **Melding van de eigenaar:** "deze duif presteert ALTIJD slecht terwijl het een goeie duif is,
+  en veel slechtere duiven vliegen beter" — met het vermoeden dat **conditie** te weinig
+  impact heeft tegenover snelheid en oriëntatie.
+- **Eerst gemeten, drie simulaties** (weggegooid na afloop, tegen de échte `startLiveFlight` +
+  `finalizeFlight`):
+  1. **Zes archetypes met GELIJK talent (★75), tegen elkaar, 1.200 races per niveau.** Gewogen
+     over de weekkalender: sprinter 90/70/65 **10,0 %** winst, stayer 65/90/70 **8,9 %**,
+     navigator 65/70/90 **6,3 %** — en de beste van allemaal was **85/85/55**, een duif die haar
+     oriëntatie gewoon laat vallen.
+  2. ⚠️ **Per niveau apart is het wél in balans**: sprinter wint regionaal 12,5 % tegen 7,4 %,
+     stayer wint internationaal 11,3 % tegen 6,7 % — bijna spiegelbeeldig. Met een gelijke
+     kalender (2/2/2) komen ze op 9,6 % tegen 9,2 %. **Het is dus niet de formule maar de
+     kalender**: 5,5 startplaatsen per week onder 400 km (3 regionaal, 2 nationaal met midden
+     350, titan, estafette-etappes van ~300 km) tegen 2,5 erboven.
+  3. **En de blend verzadigde op 700 km.** `t = clamp((km − 100)/600, 0, 1)` staat op 1 vanaf
+     `longKm`, terwijl de kalender tot **1200 km** reikt: een Barcelona van 1100 km woog exact
+     als een vlucht van 700. Gemeten: +10 conditie was **+4,42 km/u op 800 km én op 1100 km**,
+     cijfer voor cijfer identiek.
+- **Uitgevoerd op verzoek van de eigenaar: punt 3.** Nieuw **derde anker** `DISTANCE_WEIGHTING.
+  ultraKm` (1200) + `ultra` (`0.15/0.85`); `weightsForDistance` interpoleert nu over **twee
+  segmenten** (short→long→ultra).
+- ⚠️ **Niets ONDER 700 km beweegt.** De eerste tak is letterlijk de oude formule, dus de
+  sprinter/stayer-verhouding op de rest van de kalender blijft staan zoals ze gebalanceerd was.
+  Nagemeten in de archetype-simulatie: de rijen voor regionaal en nationaal zijn **cijfer voor
+  cijfer identiek** aan de run ervoor; enkel internationaal verschuift (stayer 11,3 → 12,0 %,
+  sprinter 6,7 → 6,0 %).
+- ⚠️ **`distanceT` is bewust NIET meeveranderd.** Die helper wordt gedeeld door de
+  **energiefactor** (`energieFactor`) en door de **`LOST`-omwegfracties**, en klemt nog steeds op
+  `longKm`. Hem mee uitrekken zou stilzwijgend een lage tank én een slechte navigator harder
+  straffen op de fond — een andere balansvraag die niet gesteld was. Het nieuwe anker wordt
+  **enkel** door `weightsForDistance` gelezen.
+- **Effect (gemeten):** +10 conditie gaat van +4,42 km/u (vlak vanaf 700) naar **+4,55 op 800 ·
+  +4,81 op 1000 · +5,07 km/u op 1200**; in tijd op 1100 km ruim **een half uur** tegen een
+  kwartier voor tien punten snelheid. De bewaker `attribute-balance` schuift van
+  snelheid 3,6pp / conditie 3,3pp naar **3,5pp / 3,4pp** — praktisch gelijk — en internationaal
+  van conditie 4,7pp naar **5,1pp**. Alle bestaande grenzen blijven groen zonder ze aan te raken.
+- **Geen migratie, geen schemawijziging**, `dataVersion` blijft **49**. Alleen configwaarden +
+  één helper, dus een vlucht die al **live** is houdt haar bevroren sim en dus het oude gedrag;
+  vanaf de volgende lossing geldt de nieuwe curve.
+- **`attribute-balance.test.mts` → 25 controles.** Nieuw blok: conditie stijgt monotoon van
+  `longKm` tot `ultraKm`, de gewichten sommeren overal tot 1, op `ultraKm` weegt ze duidelijk
+  zwaarder dan op `longKm`, **+10 conditie levert op 1100 km meetbaar meer op dan op 800 km**, en
+  — de belangrijkste — **geen enkele afstand onder `longKm` is bewogen** (de oude formule staat
+  als referentie in de test herhaald). **Geverifieerd door de fix terug te draaien: 3 controles
+  worden rood**, met exact het oude beeld (0.74 vlak van 700 tot 1200).
+- **Nog NIET gedaan, en dit is de grotere hefboom:** punt 1 uit de analyse — de **kalender**
+  herwegen (één regionale vlucht inruilen voor een internationale maakt sprinter en stayer per
+  saldo gelijk). En punt 3: **oriëntatie is op élk niveau de zwakste** eigenschap, omdat ze 0
+  meetelt in de snelheid en haar schade geplafonneerd is (7 % kort / 15 % lang) — je kan ze dus
+  straffeloos dumpen. ⚠️ Dat plafond is er net gekomen omdat oriëntatie ooit een vaste tol werd
+  i.p.v. een risico (zie het blok "Oriëntatie woog veel te zwaar op de fond"), dus daar klein
+  beginnen en opnieuw meten.
+- Spelregels **§2.3** (de formule met drie ankers + de km/u-tabel per afstand) en wiki
+  📋 **Wat doet elke eigenschap** bijgewerkt.
+- ⚠️ **`age-cup` blijft rood** — de tijdbom met de vaste `T0`, niet door deze wijziging (zelfde
+  assertie als vorige week). `poll-budget` was deze ronde groen.
+
+**Migratie v49 — €2.000 voor "Marcel De Neut"**
+- **Vraag van de eigenaar:** zet 2.000 munten op de kassa van die speler. Zelfde vorm als de
+  geld-rechtzetting van v33, maar dan een bijschrijving.
+- **Match op hoknaam óf gebruikersnaam, enkel echte spelers** — een gelijknamige bot blijft
+  ongemoeid. ⚠️ **Spaties worden samengetrokken, niet enkel getrimd** (`replace(/\s+/g, ' ')`,
+  zoals v39): dit is een naam van drie woorden, dus een dubbele spatie in de hoknaam of de
+  gebruikersnaam zou een kale `trim()` stil laten missen — en een migratie die niemand vindt is
+  niet te onderscheiden van een die gewoon gelopen heeft.
+- ⚠️ **Élke match krijgt het, niet enkel de eerste.** De eerste versie gebruikte `find` (zoals
+  v33) en dat viel door de mand in de verificatie: staat de hoknaam van de ene speler gelijk aan
+  de gebruikersnaam van de andere, dan betaalt `find` er willekeurig één — en stil de verkeerde
+  betalen is erger dan allebei betalen. Nu een lus over alle hokken, zelfde vorm als
+  `handInheritanceCard`.
+- **Veilig bij gelijktijdige afhandeling:** twee verzoeken die de migratie allebei draaien
+  schrijven `basis + 2000` als **absolute** waarde, dus last-write-wins laat precies één
+  bijschrijving over; de stabiele melding-id (`ntf:admin:grant2000:<userId>`) houdt het op één bel.
+- **Geen schemawijziging, geen kolom, geen configknop.** **dataVersion → 49.**
+- **Geverifieerd** met een wegwerpscript tegen de échte `advanceRealtime` (13 controles): match
+  op hoknaam én op een gebruikersnaam met rommelige spaties, een derde speler krijgt niets, een
+  gelijknamige bot krijgt de gift niet, precies één bel per doelwit die het bedrag noemt, het
+  geld **overleeft de rondrit door D1**, vijf passen betalen niet nog eens, en een wereld zonder
+  die speler loopt gewoon door zonder iemands kassa te raken.
+  ⚠️ Valstrik voor de volgende die zoiets schrijft: de kassa van een **bot** beweegt sowieso
+  (`botDailyActions` koopt voer), dus "de bot staat stil" is geen geldige assertie — toets dat
+  hij de **gift** niet kreeg.
+- ⚠️ **Twee tests stonden al rood vóór deze wijziging** (nagemeten met `git stash`, 3/3 runs
+  identiek): `age-cup` (de tijdbom hieronder) en `poll-budget` ("de load blijft smal: 104 van
+  204", de bekende onrealistische estafette-fixture). Niet veroorzaakt, niet aangeraakt.
 
 **Eenmalige migraties (het patroon, niet de inhoud)**
 - `runDataMigrations` (schedule.ts) is óók de plek voor **handmatige rechtzettingen** op

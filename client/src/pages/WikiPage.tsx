@@ -547,6 +547,14 @@ export function WikiPage() {
           vluchten</em>: snelheid wint de regiovlucht, conditie en oriëntatie winnen de fond.
           Een hok dat alles op één eigenschap zet, komt de helft van de kalender tekort.
         </p>
+        <p>
+          <strong>Hoe verder de vlucht, hoe zwaarder conditie weegt — ook boven de 700 km.</strong>{' '}
+          Op een regiovlucht koopt <em>+10 snelheid</em> je zo'n 3,5 km/u en <em>+10 conditie</em> nog
+          geen 2. Rond 350 km staan ze gelijk, en daarna keert het om: op 700 km is conditie al ruim
+          twee keer zoveel waard, en dat blijft oplopen tot de allerlangste fond van 1.200 km. Op zo'n
+          rit wint tien punten conditie je ruim een half uur, tegen een kwartier voor dezelfde tien
+          punten snelheid. Voor de grote fond bouw je dus een stayer, niet een sprinter.
+        </p>
         <MiniTable
           head={['Eigenschap', 'Wat ze doet', 'Waar ze het zwaarst weegt']}
           rows={[

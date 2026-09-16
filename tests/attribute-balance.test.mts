@@ -19,8 +19,8 @@
  *
  * Draai: npx tsx attribute-balance.test.mts
  */
-import { startLiveFlight, finalizeFlight, type Entry } from '../core/game/flight.js';
-import { FLIGHT_TIERS, LOST } from '../core/config/gameConfig.js';
+import { startLiveFlight, finalizeFlight, pigeonVelocity, weightsForDistance, type Entry } from '../core/game/flight.js';
+import { DISTANCE_WEIGHTING, FLIGHT_TIERS, LOST } from '../core/config/gameConfig.js';
 import type { Flight, Pigeon, SimEntry } from '../core/schema.js';
 
 const WEEK = 400;
@@ -210,6 +210,54 @@ ok('betere oriëntatie is altijd beter (monotoon over het bereik)',
     const rk = levels.map((o) => measure(intl, null, o).meanRank);
     return rk.every((r, i) => i === 0 || r <= rk[i - 1] + 0.05);
   })(), 'gemeten op 40/60/75/90');
+
+// --- 4. De grote fond weegt zwaarder dan de gewone fond -------------------
+/*
+ * De afstandsblend liep vroeger vol op DISTANCE_WEIGHTING.longKm (700) terwijl
+ * de kalender tot 1200 km reikt: een Barcelona van 1100 km woog exact als een
+ * vlucht van 700, dus de laatste 500 km kochten conditie NIETS. Gemeten vóór de
+ * derde anker: +10 conditie was zowel op 800 als op 1100 km precies +4,42 km/u.
+ *
+ * Deze controles bewaken de twee helften van de fix: de curve loopt door TOT
+ * ultraKm, en alles ERONDER is niet bewogen (anders herbalanceer je stilletjes
+ * de hele kalender mee).
+ */
+console.log('\nDe grote fond: conditie blijft zwaarder wegen voorbij longKm');
+{
+  const { shortKm, longKm, ultraKm, short, long } = DISTANCE_WEIGHTING;
+  const w = (km: number) => weightsForDistance(km);
+
+  const marks = [longKm, 800, 900, 1000, 1100, ultraKm];
+  const ends = marks.map((km) => w(km).endurance);
+  ok('conditie blijft stijgen van longKm tot ultraKm',
+    ends.every((e, i) => i === 0 || e > ends[i - 1]),
+    marks.map((km, i) => `${km}:${ends[i].toFixed(2)}`).join(' '));
+  ok('snelheid zakt navenant, en de drie blijven samen 1',
+    marks.every((km) => Math.abs(w(km).speed + w(km).endurance + w(km).orientation - 1) < 1e-9),
+    'som van de gewichten');
+  ok('op ultraKm weegt conditie duidelijk zwaarder dan op longKm',
+    w(ultraKm).endurance - w(longKm).endurance > 0.05,
+    `${w(longKm).endurance.toFixed(2)} → ${w(ultraKm).endurance.toFixed(2)}`);
+
+  // ⚠️ Dit is de belangrijkste van de vier: de rest van de kalender mag NIET
+  // meebewegen. De oude formule is hier letterlijk herhaald als referentie.
+  const oud = (km: number) => {
+    const t = Math.min(1, Math.max(0, (km - shortKm) / (longKm - shortKm)));
+    return short.endurance + (long.endurance - short.endurance) * t;
+  };
+  const onder = [100, 150, 200, 300, 400, 500, 600, 700];
+  ok('geen enkele afstand ONDER longKm is bewogen',
+    onder.every((km) => Math.abs(w(km).endurance - oud(km)) < 1e-9),
+    onder.map((km) => `${km}:${w(km).endurance.toFixed(3)}`).join(' '));
+
+  // En het effect waar het de speler om gaat, in km/u.
+  const p = (en: number): Pigeon => bird('u', { endurance: en });
+  const kmh = (b: Pigeon, km: number) => pigeonVelocity(b, km, WEEK, 1, 1) * 60 / 1000;
+  const winst = (km: number) => kmh(p(BASE + DELTA), km) - kmh(p(BASE), km);
+  ok('+10 conditie levert op 1100 km meetbaar meer op dan op 800 km',
+    winst(1100) > winst(800) + 0.1,
+    `800 km +${winst(800).toFixed(2)} km/u · 1100 km +${winst(1100).toFixed(2)} km/u`);
+}
 
 console.log(`\n${fail === 0 ? '✅' : '❌'} ${pass} geslaagd, ${fail} gefaald`);
 process.exit(fail ? 1 : 0);
