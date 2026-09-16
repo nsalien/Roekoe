@@ -103,9 +103,13 @@ energieverbruik (§3) en meer gewicht op conditie en oriëntatie (§2.3).
 Per duif, bevroren bij de start:
 
 ```
-gewicht(afstand): t = clamp((afstand − 100) / 600, 0, 1)
-  gewicht.snelheid = 0.68 + (0.26 − 0.68)·t
-  gewicht.conditie = 0.32 + (0.74 − 0.32)·t
+gewicht(afstand) — drie ankers: 100 km → 700 km → 1200 km
+  tot 700 km:  t = (afstand − 100) / 600
+    gewicht.snelheid = 0.68 + (0.26 − 0.68)·t
+    gewicht.conditie = 0.32 + (0.74 − 0.32)·t
+  vanaf 700 km: t = (afstand − 700) / 500
+    gewicht.snelheid = 0.26 + (0.15 − 0.26)·t
+    gewicht.conditie = 0.74 + (0.85 − 0.74)·t
 
 basisscore = gewicht.snelheid·Snelheid + gewicht.conditie·Conditie
 # Oriëntatie zit hier BEWUST niet in — zie §3.5.
@@ -128,7 +132,27 @@ snelheid = (700 + basisscore·9) · energiefactor · gezondheidsf. · leeftijdfa
 
 **Je tempo komt van snelheid en conditie**: snelheid is de sprint-eigenschap die
 op korte vluchten het zwaarst weegt (0.68), conditie neemt het over naarmate de
-vlucht langer wordt (tot 0.74).
+vlucht langer wordt — tot 0.74 op 700 km, en daarna **verder oplopend tot 0.85 op
+de allerlangste fond**.
+
+> **Hoe verder de vlucht, hoe zwaarder conditie weegt — ook boven de 700 km.**
+> Vroeger stopte die opbouw daar: een Barcelona van 1.100 km telde exact zoals een
+> vlucht van 700 km, dus de laatste vierhonderd kilometer leverden je stayer niets
+> extra op. Dat klopte niet met waar de grote fond voor staat. Nu blijft de balans
+> doorschuiven tot 1.200 km.
+>
+> | Afstand | +10 snelheid | +10 conditie |
+> |---|---|---|
+> | 150 km | +3,5 km/u | +1,9 km/u |
+> | 350 km | +2,9 | +2,8 |
+> | 500 km | +2,3 | +3,5 |
+> | 700 km | +1,6 | +4,4 |
+> | 900 km | +1,3 | +4,7 |
+> | 1100 km | +1,0 | **+4,9** |
+>
+> Op een vlucht van 1.100 km wint je duif met tien punten conditie ruim **een half
+> uur** — tegen een kwartier voor dezelfde tien punten snelheid. **Niets onder de
+> 700 km is veranderd**: de sprint blijft de sprint.
 
 > **De drie racevaardigheden zijn even veel waard.** Tien punten snelheid, tien
 > punten conditie en tien punten oriëntatie leveren over een volledige speelweek

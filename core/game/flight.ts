@@ -62,14 +62,27 @@ function energieFactor(form: number, experience: number, t: number): { factor: n
   return { factor: short + (long - short) * t, effectiveForm };
 }
 
-/** Attribute weighting for a given distance (interpolated short<->long). */
+/**
+ * Attribute weighting for a given distance, over THREE anchors: short → long →
+ * ultra. The second leg (`longKm` → `ultraKm`) exists because the blend used to
+ * stop at 700 km while the calendar runs to 1200 — a flight of 1100 km weighed
+ * exactly like one of 700, so the grote fond gave conditie no extra pull. See
+ * DISTANCE_WEIGHTING.ultra.
+ *
+ * Deliberately NOT sharing `distanceT`: that one still clamps at `longKm` and
+ * drives the energie multiplier and the LOST detour fractions, which must not
+ * move here.
+ */
 export function weightsForDistance(distanceKm: number) {
-  const { shortKm, longKm, short, long } = DISTANCE_WEIGHTING;
-  const t = clamp((distanceKm - shortKm) / (longKm - shortKm), 0, 1);
+  const { shortKm, longKm, ultraKm, short, long, ultra } = DISTANCE_WEIGHTING;
+  const [from, to, t] =
+    distanceKm <= longKm
+      ? [short, long, clamp((distanceKm - shortKm) / (longKm - shortKm), 0, 1)]
+      : [long, ultra, clamp((distanceKm - longKm) / (ultraKm - longKm), 0, 1)];
   return {
-    speed: short.speed + (long.speed - short.speed) * t,
-    endurance: short.endurance + (long.endurance - short.endurance) * t,
-    orientation: short.orientation + (long.orientation - short.orientation) * t,
+    speed: from.speed + (to.speed - from.speed) * t,
+    endurance: from.endurance + (to.endurance - from.endurance) * t,
+    orientation: from.orientation + (to.orientation - from.orientation) * t,
   };
 }
 

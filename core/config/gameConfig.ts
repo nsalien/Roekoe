@@ -575,6 +575,30 @@ export const DISTANCE_WEIGHTING = {
    */
   short: { speed: 0.68, endurance: 0.32, orientation: 0 },
   long: { speed: 0.26, endurance: 0.74, orientation: 0 },
+  /**
+   * A THIRD anchor, for the grote fond (`longKm` → `ultraKm`).
+   *
+   * The blend used to stop dead at `longKm` (700), while the calendar reaches
+   * 1200: a Barcelona of 1100 km weighed exactly like a flight of 700, so the
+   * last 500 km bought conditie nothing. Measured before this change: +10
+   * conditie was worth +4.42 km/u at 800 km AND at 1100 km, identical.
+   *
+   * Now conditie keeps gaining all the way out, which is what the distance is
+   * for — the grote fond is a stayer's race.
+   *
+   * ⚠️ Nothing BELOW 700 km moves. The short→long ramp is untouched, so the
+   * sprinter/stayer split on the rest of the calendar stays exactly as it was
+   * balanced; this segment only continues past the point where the old curve
+   * flat-lined.
+   *
+   * ⚠️ This anchor is read ONLY by `weightsForDistance`. `distanceT` — which
+   * drives the energie multiplier and the LOST detour fractions — deliberately
+   * still clamps at `longKm`. Stretching that too would quietly make a low tank
+   * and a bad navigator harsher on the fond, which is a different balance
+   * question and was not the intent.
+   */
+  ultraKm: 1200,
+  ultra: { speed: 0.15, endurance: 0.85, orientation: 0 },
 } as const;
 
 /**
