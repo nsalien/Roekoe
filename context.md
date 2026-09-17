@@ -141,7 +141,7 @@ krijgen.**
 `core/game/schedule.ts` → `advanceRealtime(db, nowMs, weatherByFlight)` roept in
 volgorde:
 1. `runDataMigrations(db)` — eenmalige datafixes, **gated op `world.dataVersion`**
-   (staat nu op **49**; nieuwe migratie = nieuw `if ((db.world.dataVersion ?? 0) < N)`
+   (staat nu op **50**; nieuwe migratie = nieuw `if ((db.world.dataVersion ?? 0) < N)`
    blok + `db.world.dataVersion = N`). De oudere migraties hebben hun werk gedaan en
    zijn enkel nog van belang als **patroon** — zie §8, kop *Eenmalige migraties*.
 2. `ensureFlightsScheduled(db, nowMs)` — plant vluchten volgens `REAL_SCHEDULE`.
@@ -1085,7 +1085,7 @@ verzoek uit per statement.
 ## 8. Ontwerpbeslissingen & valstrikken (achtergrond)
 
 Alles hieronder staat **live** op de deploy-branch. Data-migraties liepen door tot
-**`dataVersion = 49`**.
+**`dataVersion = 50`**.
 
 > **Hoe je dit leest.** Elk blok is één ronde werk: wat er mis was, waaróm de fix zo
 > gekozen is, en wat je bij een volgende wijziging niet opnieuw mag stukmaken. De regels
@@ -1230,7 +1230,8 @@ Alles hieronder staat **live** op de deploy-branch. Data-migraties liepen door t
 - `runDataMigrations` (schedule.ts) is óók de plek voor **handmatige rechtzettingen** op
   vraag van de eigenaar: geld bij- of afboeken, een kwetsuur wissen, een duif-eigenschap
   corrigeren, één vlucht verzetten, een verkeerd bod terugzetten, een dilemmakaart of een
-  starterspakket uitdelen. Die van v30/v33/v36/v37/v39/v46/v47/v48/v49 zijn allang gedraaid
+  starterspakket uitdelen, of een aankoop terugdraaien die per ongeluk gebeurde (v50:
+  geld terug + de hokcapaciteit weer omlaag). Die van v30/v33/v36/v37/v39/v46/v47/v48/v49/v50 zijn allang gedraaid
   en hun details zijn hier weggehaald; het **patroon** hieronder blijft gelden.
 - ⚠️ **Elke zo'n ingreep krijgt een stabiele melding-id** (`ntf:admin:<wat>:<id>`) en matcht
   **enkel echte spelers** (een gelijknamige bot blijft ongemoeid). Zonder die stabiele id
@@ -1249,6 +1250,15 @@ Alles hieronder staat **live** op de deploy-branch. Data-migraties liepen door t
 - ⚠️ **Herkondigen doe je met dezelfde melding-id** (zie v42): `notifications` wordt **per
   viewer** geladen, dus `persist` kan enkel wissen wat het geladen heeft. Een nieuwe id
   laat de oude rij staan bij iedereen behalve de speler wiens verzoek de migratie draait.
+- ⚠️ **Een terugdraai gate je op de exacte situatie, en doet anders NIETS** (zie v50, een
+  per ongeluk gekochte hokuitbreiding). Tussen de vraag en de deploy speelt de eigenaar
+  verder: staat de capaciteit intussen hoger, zitten er meer duiven in dan de lagere
+  capaciteit, of zijn er meer compartimenten dan plaatsen (`buyCompartment` capt op
+  `loft.capacity`), dan is een **half toegepaste** terugdraai erger dan geen. Geld
+  teruggeven én de plaatsen laten staan is een cadeau; de plaatsen afnemen terwijl er
+  duiven in zitten is een straf. Sla in die gevallen de hele speler over en leg het terug
+  bij de eigenaar. Schrijf de waarden **absoluut** (`money += bedrag`, `capacity = 14`),
+  niet als delta, zodat twee gelijktijdige verzoeken op één terugbetaling uitkomen.
 
 **Een lege worp betaalt de helft van het koppelgeld terug**
 - **Knop `BREEDING.failedRefundRate` (0,5)** + helper **`failedBreedRefund()`** in

@@ -37,6 +37,7 @@ import {
   INFIRMARY,
   LOST,
   PRIZE_MONEY,
+  LOFT_CAPACITY_TIERS,
   REWARD_BIRDS_PER_LOFT,
   REST_CURE,
   IMPROVE_ATTR_LABEL,
@@ -2082,6 +2083,51 @@ function runDataMigrations(db: Database): void {
       );
     }
     db.world.dataVersion = 49;
+  }
+
+  if ((db.world.dataVersion ?? 0) < 50) {
+    // One-off (owner request): undo an ACCIDENTAL 14 → 16 capacity upgrade for
+    // "'t Vliegend Paradijs" — refund the €17.500 and put the loft back on 14.
+    //
+    // Same matching shape as v49: loft name OR username, case-insensitive, real
+    // players only, whitespace COLLAPSED (this is a three-word name starting with
+    // an apostrophe, so a plain trim() would let a stray double space pass
+    // silently), and EVERY match is handled rather than the first.
+    const norm = (s: string) => s.trim().toLowerCase().replace(/\s+/g, ' ');
+    const refund = LOFT_CAPACITY_TIERS.find((t) => t.capacity === 16)?.price ?? 17500;
+    for (const loft of db.lofts) {
+      if (loft.isBot) continue;
+      const user = db.users.find((u) => u.id === loft.userId);
+      if (![loft.name, user?.username ?? ''].some((n) => norm(n) === "'t vliegend paradijs")) continue;
+      // ⚠️ Only act on the exact situation the owner described. A migration fires
+      // once per world and cannot be re-triggered, so it must not half-apply to a
+      // loft that has moved on since the request:
+      //  - capacity must still be 16 (already upgraded further → 14 would strip
+      //    tiers the player DID pay for on purpose);
+      //  - at most 14 birds, or dropping to 14 leaves the loft over its capacity
+      //    and unable to take in a brood it may already be expecting;
+      //  - at most 14 compartments, since buyCompartment caps on capacity — more
+      //    of them than places is a state nothing else in the game produces.
+      // Any of these → do nothing at all and leave it to the owner, rather than
+      // silently handing out €17.500 on top of the places.
+      const birds = db.pigeons.filter((p) => p.ownerId === loft.userId).length;
+      if (loft.capacity !== 16 || birds > 14 || (loft.compartments ?? 0) > 14) continue;
+      // Both writes are ABSOLUTE for the concurrent case: two requests that each
+      // run this migration write `base + 17500` and `14`, so last-write-wins
+      // settles on one refund, not two.
+      loft.money += refund;
+      loft.capacity = 14;
+      pushNotification(
+        db, loft.userId, 'info',
+        '🏠 Je hokuitbreiding is teruggedraaid',
+        `De uitbreiding van 14 naar 16 plaatsen is ongedaan gemaakt: je hok heeft weer plaats voor `
+          + `14 duiven en de €${refund.toLocaleString('nl-NL')} staat terug op je rekening. `
+          + `Je duiven, punten en de rest van je hok blijven ongewijzigd.`,
+        null,
+        `ntf:admin:undocap:${loft.userId}`,
+      );
+    }
+    db.world.dataVersion = 50;
   }
 }
 
