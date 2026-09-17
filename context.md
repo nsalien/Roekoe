@@ -824,6 +824,13 @@ Entiteiten: `Pigeon`, `Loft`, `User`, `BreedingPair`, `PendingBrood`, `Flight` (
 - `LoftPage` (Mijn hok) — duivenlijst met per duif: voerkeuze-select, apart/samen-knop
   (of "🏥 Ziekenboeg"-label als ze daar zit), verkoop, uitbreidingen. De statbalken
   tonen een **▲/▼ per dag** (groei/daling door je huidige keuze; via `pigeon.dailyCare`).
+  ⚠️ **Beide uitbreidingen in `UpgradesCard` vragen eerst een `window.confirm`**
+  ("Ben je zeker dat je …"): hokcapaciteit (`POST /loft/capacity`) en een apart hok
+  (`POST /loft/compartment`). Het zijn de duurste, onomkeerbare aankopen van het spel en
+  de knoppen liggen op gsm één misklik ver. De capaciteitsvraag noemt **ook de
+  daghuur van de volgende duif** (`nextBirdRate` uit `upkeepBands`) — de prijs is de
+  zichtbare helft van die aankoop, de hogere `UPKEEP_BANDS`-schijf de helft die later
+  bijt. Zelfde patroon als opgeven/sponsor opzeggen/inteelt-waarschuwing.
 - `PigeonPage` — één duif, in deze volgorde: kop + stats · gezondheid · training · bod ·
   **Ontwikkeling** (coach + rustkuur + hernoemen) · **Familie** (vader + moeder, met daaronder
   de knop **"Toon volledige stamboom"** → `components/Pedigree.tsx`: **één zandloper**

@@ -188,6 +188,12 @@ function LoftUpgrades({
   const nextBirdRate = upkeepBands.length
     ? (upkeepBands.find((b) => loft.pigeonCount + 1 <= b.upTo) ?? upkeepBands[upkeepBands.length - 1]).perPigeon
     : null;
+  // Both upgrades are irreversible, cost more than anything else a player buys,
+  // and sit one stray tap away on a phone — so each one asks first. Bound to a
+  // const so the narrowing survives into the click handler.
+  const nextCap = loft.nextCapacity;
+  const compartmentCost = loft.compartmentCost;
+  const euro = (n: number) => `€${n.toLocaleString('nl-NL')}`;
   return (
     <div className="card" style={{ marginBottom: 18 }} data-tour="upgrades">
       <h2 style={{ marginTop: 0 }}>🏗️ Uitbreidingen</h2>
@@ -198,13 +204,22 @@ function LoftUpgrades({
           <div className="faint" style={{ margin: '2px 0 8px' }}>
             Nu plaats voor <strong>{loft.capacity}</strong> duiven.
           </div>
-          {loft.nextCapacity ? (
+          {nextCap ? (
             <button
               className="btn accent sm"
-              disabled={busy || loft.money < loft.nextCapacity.price}
-              onClick={() => act(() => api('/loft/capacity', { method: 'POST' }), 'Hok uitgebreid! 🏠')}
+              disabled={busy || loft.money < nextCap.price}
+              onClick={() => {
+                // Name the recurring cost too: the price is the visible half of
+                // this purchase, the higher daily upkeep is the half that bites later.
+                if (!window.confirm(
+                  `Ben je zeker dat je je hok wil uitbreiden naar ${nextCap.capacity} plaatsen voor ${euro(nextCap.price)}?\n\n`
+                  + `Dat bedrag gaat er meteen af.`
+                  + (nextBirdRate !== null ? ` Je volgende duif kost daarna €${nextBirdRate}/dag aan onderhoud.` : ''),
+                )) return;
+                act(() => api('/loft/capacity', { method: 'POST' }), 'Hok uitgebreid! 🏠');
+              }}
             >
-              Naar {loft.nextCapacity.capacity} · <Money value={loft.nextCapacity.price} />
+              Naar {nextCap.capacity} · <Money value={nextCap.price} />
             </button>
           ) : (
             <div className="faint">Maximale capaciteit bereikt.</div>
@@ -226,13 +241,19 @@ function LoftUpgrades({
           <div className="faint" style={{ margin: '2px 0 8px' }}>
             {loft.compartmentsUsed}/{loft.compartments} in gebruik. Kies per duif hieronder wie apart zit — beter energieherstel en minder ziekte.
           </div>
-          {loft.compartmentCost != null ? (
+          {compartmentCost != null ? (
             <button
               className="btn sm"
-              disabled={busy || loft.money < loft.compartmentCost}
-              onClick={() => act(() => api('/loft/compartment', { method: 'POST' }), 'Apart hok gebouwd! 🧱')}
+              disabled={busy || loft.money < compartmentCost}
+              onClick={() => {
+                if (!window.confirm(
+                  `Ben je zeker dat je een apart hok wil bijbouwen voor ${euro(compartmentCost)}?\n\n`
+                  + `Dat bedrag gaat er meteen af, en elk volgend apart hok wordt duurder.`,
+                )) return;
+                act(() => api('/loft/compartment', { method: 'POST' }), 'Apart hok gebouwd! 🧱');
+              }}
             >
-              Bijbouwen · <Money value={loft.compartmentCost} />
+              Bijbouwen · <Money value={compartmentCost} />
             </button>
           ) : (
             <div className="faint">Elke plaats heeft al een apart hok.</div>
