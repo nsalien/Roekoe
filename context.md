@@ -606,12 +606,13 @@ Entiteiten: `Pigeon`, `Loft`, `User`, `BreedingPair`, `PendingBrood`, `Flight` (
 - **Veroudering (`AGING`):** `runAgeDecline` trekt boven `peakEndWeeks 208` per gerolde
   gameweek `declinePerWeekBase(0.08)·(leeftijd−208)/52·declineRate` van de 3 skills af
   (bodem `floor 5`). `Pigeon.declineRate` ~0.6–1.6. `AGE_CURVE` neerwaartse tak afgevlakt → 1.0.
-- **Snelheidsmodel (`DISTANCE_WEIGHTING` + `ENERGIE_IMPACT`):** korte-vlucht­weging
-  snelheid **0.68** / conditie **0.32**; lang (700 km) **0.26/0.74**; **ultra (1200 km)
-  `0.15/0.85`** — een **derde anker** zodat conditie voorbij `longKm` blijft doorwegen (zie §8).
-  Oriëntatie staat op **0** (die
-  werkt via `LOST`). Was 0.83/0.17 en 0.31/0.69 — dat maakte snelheid over de kort-zware
-  kalender meer waard dan conditie; zie §Balans onderaan §8. Energiefactor is
+- **Snelheidsmodel (`DISTANCE_WEIGHTING` + `ENERGIE_IMPACT` + `SUSTAIN`):** korte-vlucht­weging
+  snelheid **0.76** / conditie **0.24**; lang (700 km) **0.46/0.54**; **ultra (1200 km)
+  `0.38/0.62`**. Oriëntatie staat op **0** (die werkt via `LOST`).
+  ⚠️ **Deze tabel zet enkel het tempo dat een duif VRAAGT.** Of ze het kan vasthouden staat
+  in het nieuwe blok **`SUSTAIN`** — conditie's eigen mechaniek (zie §8, nieuwste blok).
+  Snelheid is daarom op élk anker verhoogd zonder dat conditie zwakker werd: ze wisselde
+  van kanaal. Energiefactor is
   **afstandsafhankelijk** (kort `0.80→1.05`, lang
   `0.45→1.20`, geblend op `t`) en werkt op de **effectieve energie** = `energie +
   (ervaring/100)·(100−energie)·0.35` (ervaring laat energie **doseren**). Zie
@@ -1003,7 +1004,8 @@ npx tsx tests/poll-budget.test.mts       # polls + smalle load blijven binnen he
 npx tsx tests/force-finish.test.mts      # admin-"match beëindigen" == natuurlijk uitvliegen
 npx tsx tests/newcomer.test.mts          # starterspakket: punten, tijdvenster, afloopmelding
 npx tsx tests/velocity-model.test.mts    # ervaring raakt de snelheid van een frisse duif niet
-npx tsx tests/attribute-balance.test.mts # de drie racevaardigheden blijven gelijkwaardig
+npx tsx tests/attribute-balance.test.mts # elke racevaardigheid houdt haar eigen rol per afstand
+npx tsx tests/upset-balance.test.mts     # kwaliteit loont, maar een verrassing blijft mogelijk
 npx tsx tests/flight-eligibility.test.mts # een niet-inzetbare duif wordt geschrapt + terugbetaald
 npx tsx tests/prize-rules.test.mts       # prijzentabellen lopen door + max 3 beloonde duiven
 npx tsx tests/market-bidding.test.mts    # marktprijs, bieden vanaf, en geen zwevende biedingen
@@ -1034,17 +1036,20 @@ Alles in één keer (bash, vanuit de root):
 for f in tests/*.test.mts; do printf '%-26s ' "$(basename "$f")"; npx tsx "$f" >/dev/null 2>&1 && echo OK || echo FAIL; done
 ```
 
-**Stand van de suite (volledig gedraaid bij het verhuizen naar `tests/`): 38 van de 39
-groen.** Eén echte rode en twee bekende flakies — controleer of een rode test hierin staat
-vóór je gaat zoeken:
+**Stand van de suite: 38 van de 41 groen.** Drie bekende rode — controleer of een rode test
+hierin staat vóór je gaat zoeken:
 - `age-cup` — **echt rood**, één assertie ("de cyclus is verankerd op het einde van het
-  lopende seizoen"); de overige 68 controles zijn groen. Nagemeten op de versie van vóór de
-  verhuizing: identiek rood, dus niet veroorzaakt. Nog te repareren.
-- `brood-choice` — **flaky**, ~1 op 5: `breed()` gebruikt rauwe `Math.random()`, dus soms
-  komt er geen tweede nest en valt de test over een `undefined`. Zie §8, *Openstaande ideeën*.
-- `cpu-budget` — **flaky op een belaste machine**: de koude odds-meting (~7,6 ms tegen een
-  budget van 10) schiet erover zodra er iets anders draait. Draai hem apart, niet naast een
-  andere testrun.
+  lopende seizoen"); de overige 68 controles zijn groen. Nog te repareren.
+- `poll-budget` — **rood op zijn eigen fixture**: die flipt een gewone vlucht met ~184
+  inschrijvingen naar `relay = true`, wat geen echte estafette is (3 duiven per hok). De
+  assertie "de load blijft smal" ligt daardoor op de rand. **Repareer de fixture, zet de
+  assertie niet losser** — ze bewaakt het leesbudget.
+- `cpu-budget` — **rood op een belaste machine**: de koude odds-meting schiet over haar
+  budget (gemeten 6,3–8,4 ms over 3 runs op de ongewijzigde boom). Draai hem apart, niet
+  naast een andere testrun.
+- `brood-choice` — was flaky (~1 op 5) door de rauwe `Math.random()` in `breed()`; sinds de
+  twee tel-trekkingen geseed zijn is dat opgelost, maar de per-duif-worpen zijn dat nog
+  niet. Zie §8, *Openstaande ideeën*.
 
 Diagnose zonder assertie: `npx tsx tests/cpu-sweep.mts` (CPU per operatie, duurste
 eerst), `npx tsx tests/limits-report.mts` (queries/rijen per verzoek) en
@@ -1093,7 +1098,98 @@ Alles hieronder staat **live** op de deploy-branch. Data-migraties liepen door t
 > getrapt is. Nieuwste bovenaan. Voor "hoe werkt het spel nu" hoef je §8 niet te lezen;
 > daarvoor volstaan §2 t/m §7.
 
-**Extra nationale op vrijdag, vastgeprikt op de lange kant (nieuwste)**
+**Conditie kreeg een eigen mechaniek, en het toeval is teruggeschroefd (nieuwste)**
+- **Vier vragen van de eigenaar in één ronde:** (1) er zit te veel toeval in — "HEEL goeie
+  duiven lijken te vaak, meer wel dan niet, slecht te presteren"; (2) snelheid mag op élk
+  vluchttype iets meer wegen; (3) oriëntatie heeft te veel impact, **zelfs op korte
+  vluchten**; (4) conditie moet meer betekenen, **vooral vanaf 300 km**, en wel zó dat een
+  duif haar hoge tempo lang kan *aanhouden* en na een inzinking sneller weer kan versnellen.
+- **Eerst gemeten, op zijn eigen geval.** Een duif die op élke as beter is (snelheid +16,
+  conditie +15, energie +13, ervaring +72) tegen zeven identieke zwakkere op 166 km:
+  **wint 33,1 % · top-3 64,3 % · laatste 4,2 %** (1 op 24). De oorzaak was niet de
+  eigenschappen maar `FLIGHT_DYNAMICS`: ±17 % dagvorm plus 16 % kans op een offday van
+  −14…−36 % overstemde een kwaliteitsverschil van ~15 %.
+- ⚠️ **Waarom een slechte dag als een defect leest, en niet als pech:** de dagvorm wordt
+  **één keer per duif per vlucht** getrokken en geldt dan voor de hele rit. Een offday
+  verliest haar dus niet één duel maar **alle zeven tegelijk**. Onafhankelijk zou "alle
+  zeven kloppen haar" 0,026 % zijn; gemeten was het 4,2 % — een factor 160. Reken hier nooit
+  met onafhankelijke duels.
+- **(1) Toeval:** `dayNoise` 0,17 → **0,10**, `offDayChance` 0,16 → **0,07** en de diepte
+  0,64–0,86 → **0,82–0,93**; `bigDay` mee getrimd (0,14 → 0,10, 1,12–1,36 → **1,08–1,22**)
+  maar mínder hard, want dát is wat een outsider laat plaatsen. Gemeten na: **wint 55 % ·
+  top-3 85 % · laatste 0,6 %** (1 op 170).
+- **(4) `SUSTAIN` — het hart van deze ronde.** Conditie was tot nu toe een **tweede
+  snelheid**: ze voedde hetzelfde `basisscore`-getal en deed verder niets, dus een
+  conditie-40 en een conditie-90 duif zakten identiek weg (namelijk niet). Nu heeft ze een
+  eigen mechaniek, zoals oriëntatie er één heeft met `LOST`. Per segment: vraagt ze méér dan
+  haar houdbare aandeel → vermoeidheid stapelt; houdt ze in → die zakt weg, **sneller
+  naarmate haar conditie beter is**; opgestapelde vermoeidheid trekt haar effectieve tempo
+  omlaag. Geïmplementeerd als één pas in `buildPaceProfile` (flight.ts).
+- ⚠️ **Dit is de ENIGE laag die de finishtijd mag veranderen.** De willekeurige pacing
+  erboven blijft **genormaliseerd** (`Σ 1/m = N`) — precies zodat plaatsen wisselen tijdens
+  de rit géén willekeurige uitslag geeft. Hou die twee gescheiden: pacing is theater,
+  `SUSTAIN` is de eigenschap. Draait **vóór** de `LOST`-omwegen, zodat de twee mechanismen
+  onafhankelijk blijven en de ijking van oriëntatie niet meeschuift.
+- ⚠️ **`refSegKm` (45) is waarom het pas vanaf ~300 km bijt.** Vermoeidheid moet zich over
+  grond opstapelen; de belasting per segment loopt 0,33 op 150 km · 0,67 op 300 · 1,11 op
+  500 · 2,0 op 900. Zonder die schaal telde conditie op een sprint even hard als op de fond,
+  en dat was net níet de vraag. `penalty` (0,18) is de mastervolume: op 0,26 (de eerste
+  poging) werd conditie 13,6pp waard op 700 km tegen snelheid 3,8 — ze werd niet relevant,
+  ze nam het over.
+- **(2) + (3):** omdat conditie haar impact nu elders vandaan haalt, kon haar statische
+  gewicht omlaag en **snelheid op élk anker omhoog** (0,68→**0,76** / 0,26→**0,46** /
+  0,15→**0,38**). Oriëntatie: `max` 4,4 → **3,8** en de afstandsramp steiler (`distBase`
+  1,0 → **0,7**, `distPerKm` 0,002 → **0,0025**), zodat de knip vooral op de korte kant
+  landt: verdwaalkans −30 % op 120 km, −21 % op 300, −12 % op 700, −8 % op 1000.
+- **Gemeten eindresultaat** (winkans per +10 punten): 150 km snelheid **9,7** / conditie 4,2
+  / oriëntatie 0,8 · 350 km **8,6 / 7,2 / 2,7** · 700 km 4,7 / **10,8** / 2,6 · 1100 km 4,6 /
+  **11,4** / 6,9. De kruising conditie-boven-snelheid ligt rond **350–500 km**, exact waar de
+  eigenaar ze vroeg.
+- ⚠️ **`attribute-balance.test.mts` is BEWUST herschreven, niet losser gezet.** Hij bewaakte
+  "de drie zijn ongeveer even veel waard" (factor 1,8 op winkans) — een doel dat de eigenaar
+  in deze ronde heeft **vervangen** door een rolverdeling. Die gelijkheidsgrenzen zijn dus
+  weg, met de reden in de test zelf, en er kwamen strengere assertie's voor in de plaats op
+  wat nu wél de bedoeling is (rangorde per afstand, de kruising, niets dood). Zet ze niet
+  terug zonder de eigenaar.
+- ⚠️ **Meegenomen: de weging in die test stond al jaren scheef.** Ze woog 3 regio / 2 nat /
+  2 intl — maar de vrijdagnationale kwam erbij (nat is 3/week) en **criterium, titan en
+  estafette zaten er helemaal niet in**, samen **10 van de 26** wedstrijd-startplaatsen per
+  twee weken. §8 baseerde zijn balansconclusies op dat gemiddelde. Nu 11 / 7 / 8, geteld uit
+  de echte kalender.
+- **Nieuwe blijvende test `upset-balance.test.mts`** (6 controles): kwaliteit moet lonen
+  (wint > 45 %, top-3 > 75 %, laatste < 1,5 %) **én** een verrassing moet mogelijk blijven
+  (wint < 80 %, top-3 < 95 %) **én** een klein verschil geeft een klein voordeel (3 punten
+  beter → 17,6 % in een veld van 8, tegen 12,5 % bij gelijk spel). Die ondergrenzen zijn de
+  helft die telt: zonder hen draait iemand `dayNoise` bij de volgende pechklacht naar nul en
+  is de uitslag een sorteertabel. **Geverifieerd door de config terug te draaien: 3 van de 6
+  worden rood, met exact de oude cijfers (33,1 / 64,3 / 3,9).**
+- `attribute-balance.test.mts` kreeg er een vijfde blok bij dat de `SUSTAIN`-mechaniek
+  **structureel** toetst op het bevroren profiel (tempo in het laatste derde t.o.v. het
+  eerste): een zwakke conditie zakt weg, een sterke houdt vast, het verschil **groeit met de
+  afstand**, en op een sprint blijft het een nuance (< 2,5 % verschil, gemeten 1,4 %).
+- **Geen migratie, geen schemawijziging, geen extra query of rij**, `dataVersion` blijft
+  **50**. Enkel configwaarden + één pas in `buildPaceProfile`, dus een vlucht die al **live**
+  is houdt haar bevroren sim en dus het oude gedrag; vanaf de volgende lossing geldt het
+  nieuwe model.
+- **Zichtbaar zonder UI-werk:** `raceProgress` leest het aangepaste `segMult`, dus het
+  live-bord, de km/u en het 📻-verslag tonen het verval vanzelf — een duif die "wegzakt"
+  (`overtakeTired`) is nu écht een duif die haar tempo niet houdt.
+- Spelregels: **§1** (conditie + de rolverdeling), **§2.3** (gewichten + km/u-tabel + een
+  nieuw blok over de dagvorm), **nieuwe §2.3b** (conditie = tempo vasthouden, met de
+  verval-tabel) en **§3.5** (verdwaaltabellen opnieuw gemeten). Wiki: 📋 *Wat doet elke
+  eigenschap* en 🧭 *Verdwalen*.
+- ⚠️ **Drie tests stonden al rood vóór deze ronde** (nagemeten met `git stash`, 3/3 runs
+  identiek): `age-cup` (de tijdbom met de vaste `T0`), `poll-budget` (de onrealistische
+  estafette-fixture) en **`cpu-budget`** (de koude odds-meting, 6,3–8,4 ms op een belaste
+  machine — zelfde assertie, zelfde orde). Niet veroorzaakt, niet aangeraakt.
+- **Nog open, en het is de volgende hefboom:** oriëntatie is nu met opzet de zwakste
+  eigenschap (2,1pp gewogen tegen snelheid 8,3 en conditie 7,1). Dat is wat gevraagd is,
+  maar het betekent ook dat je ze op een sprinthok zo goed als gratis kan dumpen. Als dat
+  gaat knellen, is de knop `LOST.strandedMax` (het risico dat ze helemáál wegblijft)
+  eerder dan de omwegkans — een zeldzaam maar duur gevolg straft dumpen zonder de sprint
+  weer tot een navigatiewedstrijd te maken.
+
+**Extra nationale op vrijdag, vastgeprikt op de lange kant**
 - **Vraag van de eigenaar:** een extra **nationale** wedstrijd, altijd op **vrijdag**, op het
   **hoogste aantal km dat een nationale vlucht kan zijn**; de regiovlucht van vrijdag schuift
   op naar **17:00**. Eerst op 06:00 gezet, **meteen daarna naar 07:00** verplaatst om de load

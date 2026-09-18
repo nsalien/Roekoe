@@ -18,7 +18,7 @@ Elke duif (0–100 per waarde):
 | Eigenschap | Type | Betekenis |
 |---|---|---|
 | **Snelheid** | vaardigheid | Rauwe snelheid. Weegt het zwaarst op korte vluchten. |
-| **Conditie** | vaardigheid | Fitheid/uithouding. Laat een duif haar snelheid **aanhouden** op lange vluchten; verbetert door te vliegen; tilt gezondheid en libido op. |
+| **Conditie** | vaardigheid | Fitheid/uithouding. Bepaalt hoe lang een duif een hoog tempo **kan aanhouden** en hoe snel ze na een inzinking weer kan versnellen (§2.3b). Weegt zwaarder naarmate de vlucht langer wordt; verbetert door te vliegen; tilt gezondheid en libido op. |
 | **Oriëntatie** | vaardigheid | Navigatie. **Maakt niet sneller** — bepaalt of je duif omvliegt of de weg kwijtraakt (§3.5). Weegt zwaarder op lange vluchten en bij slecht weer. |
 | **Energie** | dynamisch | "Fut". Daalt door vluchten, stijgt door rust + eten. Lage energie = slechtere prestaties, meer kans op ziekte/blessure, minder kans op broeden. |
 | **Gezondheid** | dynamisch | Algemene gezondheid. Vermenigvuldigt de vluchtsnelheid; laag = niet vluchtklaar. |
@@ -29,9 +29,17 @@ Een duif is **vluchtklaar** als: niet gepensioneerd, geen ziekte/kwetsuur, niet
 in de ziekenboeg, minstens **8 weken** oud en gezondheid > 15.
 
 **Talent** (voor marktprijs/bots) = gemiddelde van snelheid, conditie, oriëntatie.
-Dat gemiddelde is eerlijk, want de **drie racevaardigheden zijn even veel waard**:
-tien punten van elk leveren over een volledige speelweek ongeveer hetzelfde op. Ze
-leveren het alleen op verschillende vluchten — zie §2.3 en §3.5.
+
+**De drie hebben elk een eigen rol**, en die rol hangt af van de afstand:
+
+| Eigenschap | Waar ze het meest opbrengt |
+|---|---|
+| **Snelheid** | overal, en het sterkst op de **korte** vlucht |
+| **Conditie** | groeit met de afstand, neemt het over vanaf ongeveer **300–500 km** |
+| **Oriëntatie** | nauwelijks op een sprint, echt op de **fond** |
+
+Wie alles op één eigenschap zet, staat dus een deel van de kalender met lege
+handen. Zie §2.3, §2.3b en §3.5.
 
 > **Genen.** Snelheid, conditie en oriëntatie hebben elk een **aangeboren maximum**
 > (per duif verschillend, **nooit 100**). Hoe die plafonds werken, hoe je ernaartoe
@@ -118,11 +126,11 @@ Per duif, bevroren bij de start:
 ```
 gewicht(afstand) — drie ankers: 100 km → 700 km → 1200 km
   tot 700 km:  t = (afstand − 100) / 600
-    gewicht.snelheid = 0.68 + (0.26 − 0.68)·t
-    gewicht.conditie = 0.32 + (0.74 − 0.32)·t
+    gewicht.snelheid = 0.76 + (0.46 − 0.76)·t
+    gewicht.conditie = 0.24 + (0.54 − 0.24)·t
   vanaf 700 km: t = (afstand − 700) / 500
-    gewicht.snelheid = 0.26 + (0.15 − 0.26)·t
-    gewicht.conditie = 0.74 + (0.85 − 0.74)·t
+    gewicht.snelheid = 0.46 + (0.38 − 0.46)·t
+    gewicht.conditie = 0.54 + (0.62 − 0.54)·t
 
 basisscore = gewicht.snelheid·Snelheid + gewicht.conditie·Conditie
 # Oriëntatie zit hier BEWUST niet in — zie §3.5.
@@ -143,36 +151,43 @@ snelheid = (700 + basisscore·9) · energiefactor · gezondheidsf. · leeftijdfa
 # Ervaring zit hier BEWUST niet in — zie hieronder en §3.7.
 ```
 
-**Je tempo komt van snelheid en conditie**: snelheid is de sprint-eigenschap die
-op korte vluchten het zwaarst weegt (0.68), conditie neemt het over naarmate de
-vlucht langer wordt — tot 0.74 op 700 km, en daarna **verder oplopend tot 0.85 op
-de allerlangste fond**.
+**Dit is het tempo dat je duif VRAAGT.** Snelheid weegt hier overal het zwaarst —
+0.76 op een sprint en nog altijd 0.38 op de grote fond — en conditie neemt geleidelijk
+toe met de afstand. Maar of ze dat gevraagde tempo ook echt kan **vasthouden**, is
+een tweede vraag, en dáár beslist conditie over: zie **§2.3b**.
 
-> **Hoe verder de vlucht, hoe zwaarder conditie weegt — ook boven de 700 km.**
-> Vroeger stopte die opbouw daar: een Barcelona van 1.100 km telde exact zoals een
-> vlucht van 700 km, dus de laatste vierhonderd kilometer leverden je stayer niets
-> extra op. Dat klopte niet met waar de grote fond voor staat. Nu blijft de balans
-> doorschuiven tot 1.200 km.
+> **Het tempo dat ze vraagt, in km/u per +10 punten:**
 >
 > | Afstand | +10 snelheid | +10 conditie |
 > |---|---|---|
-> | 150 km | +3,5 km/u | +1,9 km/u |
-> | 350 km | +2,9 | +2,8 |
-> | 500 km | +2,3 | +3,5 |
-> | 700 km | +1,6 | +4,4 |
-> | 900 km | +1,3 | +4,7 |
-> | 1100 km | +1,0 | **+4,9** |
+> | 150 km | **+4,0 km/u** | +1,5 |
+> | 350 km | +3,6 | +2,1 |
+> | 500 km | +3,2 | +2,6 |
+> | 700 km | +2,8 | +3,2 |
+> | 900 km | +2,6 | +3,4 |
+> | 1100 km | +2,4 | **+3,6** |
 >
-> Op een vlucht van 1.100 km wint je duif met tien punten conditie ruim **een half
-> uur** — tegen een kwartier voor dezelfde tien punten snelheid. **Niets onder de
-> 700 km is veranderd**: de sprint blijft de sprint.
+> Bovenop deze tabel komt nog het **vasthouden** van dat tempo (§2.3b), en dát is
+> waar conditie op de langere vluchten haar echte werk doet.
 
-> **De drie racevaardigheden zijn even veel waard.** Tien punten snelheid, tien
-> punten conditie en tien punten oriëntatie leveren over een volledige speelweek
-> ongeveer hetzelfde op — ze leveren het alleen op **verschillende vluchten**.
-> Snelheid wint de regiovlucht, conditie en oriëntatie (§3.5) winnen de fond, en
-> op een nationale vlucht wegen alle drie ongeveer even zwaar. Wie alles op één
-> eigenschap zet, staat de halve kalender met lege handen.
+**Vorm van de dag.** Naast alles hierboven krijgt elke duif bij de lossing een
+**dagvorm**: meestal een kleine afwijking naar boven of onder, af en toe een echt
+goede of echt mindere dag. Die trekking gebeurt **één keer per duif per vlucht** en
+geldt dan voor haar hele rit — een mindere dag kost haar dus niet één duel maar de
+hele wedstrijd.
+
+> **De uitschieters zijn kleiner gemaakt.** De dagvorm woog vroeger zwaarder dan
+> het verschil in kwaliteit tussen twee duiven: een duidelijk betere duif (op élke
+> eigenschap beter) won tegen zeven zwakkere maar **33 %** van de tijd, en werd in
+> **1 op de 24** vluchten zelfs allerlaatste. Dat leest niet als pech maar als een
+> kapotte uitslag, en het maakt trainen en coachen zinloos. De everyday-schommeling
+> is bijna gehalveerd en de kans op een slechte dag meer dan gehalveerd (én minder
+> diep). Diezelfde duif wint nu **55 %** en wordt nog in **1 op de 170** vluchten
+> laatste.
+>
+> **Wat bewust blijft:** een verrassing moet kunnen. De topper staat nog altijd in
+> ongeveer **1 op de 7** vluchten buiten het podium. Zou dat niet meer zo zijn, dan
+> is de uitslag een sorteertabel en hoef je geen enkele vlucht te volgen.
 
 > **Oriëntatie maakt een duif niet sneller.** Ze bepaalt of je duif de weg vindt —
 > of ze omvliegt, of zelfs helemaal de weg kwijtraakt. Zie **§3.5**. Vroeger telde
@@ -217,6 +232,44 @@ ze wint het nooit van een even snelle duif die gewoon uitgerust is.
 > Een futloze duif (energie 30, gezondheid 45) op dezelfde vlucht haalt maar
 > ~70 km/u en verliest zo een half uur — energie en gezondheid maken echt
 > het verschil.
+
+### 2.3b Conditie: het tempo vasthouden (en terugkomen)
+
+Snelheid bepaalt **hoe hard** je duif kan vliegen. Conditie bepaalt **hoe lang ze
+dat volhoudt** — en dat is een aparte mechaniek, geen tweede snelheidsbonus.
+
+Een vlucht is intern in stukken verdeeld, en per stuk vraagt je duif een bepaald
+tempo (ze versnelt, ze houdt in, ze gaat er weer over — dat is wat je live op het
+bord ziet gebeuren). Conditie bepaalt welk deel van dat gevraagde tempo ze
+**onbeperkt** kan volhouden:
+
+- vraagt ze **meer** dan dat, dan bouwt ze vermoeidheid op;
+- houdt ze even **in**, dan zakt die vermoeidheid weer weg — en **hoe beter haar
+  conditie, hoe sneller ze zo weer kan versnellen**;
+- opgestapelde vermoeidheid trekt haar effectieve tempo naar beneden.
+
+Een duif met snelheid 90 en zwakke conditie haalt dus nog steeds dezelfde
+topsnelheid — maar enkel in **vlagen**, en elke vlaag betaalt ze verderop terug.
+Dezelfde duif met sterke conditie zit gewoon het hele eind tegen haar plafond aan.
+
+**Hoeveel tempo houdt ze over in het laatste derde van de rit?** (100 % = ze vliegt
+er nog even hard als bij de lossing)
+
+| Conditie | 150 km | 300 km | 500 km | 700 km |
+|---|---|---|---|---|
+| 40 | 94 % | 90 % | 87 % | 89 % |
+| 55 | 98 % | 92 % | 89 % | 88 % |
+| 70 | 99 % | 93 % | 92 % | 92 % |
+| 85 | 99 % | 97 % | 96 % | 95 % |
+| 95 | 100 % | 100 % | 96 % | 97 % |
+
+> **Waarom je dit vooral vanaf ~300 km merkt.** Vermoeidheid moet zich opstapelen
+> over kilometers. Op een regiovlucht van 150 km is er amper tijd om leeg te
+> lopen — daar is conditie een nuance en wint snelheid. Vanaf de middenafstand
+> begint het te tellen, en op de fond beslist het de wedstrijd.
+
+Je ziet het ook gewoon gebeuren: in het **📻 live verslag** (§2.4) is een duif die
+"wegzakt" en wordt voorbijgestoken meestal een duif die haar tempo niet meer houdt.
 
 ### 2.4 Duur (echte tijd)
 ```
@@ -774,28 +827,33 @@ geluk mee.
 
 | Oriëntatie | 150 km | 300 km | 500 km | 700 km | 1000 km |
 |---|---|---|---|---|---|
-| 95 | 5 % | 8 % | 11 % | 13 % | 18 % |
-| 85 | 19 % | 29 % | 37 % | 44 % | 52 % |
-| 70 | 46 % | 63 % | 72 % | 80 % | 86 % |
-| 60 | 60 % | 77 % | 85 % | 91 % | 95 % |
-| 50 | 76 % | 88 % | 93 % | 97 % | 99 % |
-| 30 | 89 % | 97 % | 98 % | 99 % | 100 % |
+| 95 | 3 % | 6 % | 10 % | 13 % | 18 % |
+| 85 | 11 % | 21 % | 33 % | 41 % | 53 % |
+| 70 | 26 % | 46 % | 64 % | 75 % | 87 % |
+| 60 | 36 % | 61 % | 78 % | 88 % | 95 % |
+| 50 | 47 % | 71 % | 88 % | 95 % | 98 % |
+| 30 | 64 % | 89 % | 96 % | 99 % | 100 % |
 
 Belangrijker dan die kans is hoe vaak ze **helemaal schoon** thuiskomt — één kleine
 omweg kost je zelden de wedstrijd, drie grote wel:
 
 | Oriëntatie | Vlucht zonder één omweg (150 km) | 500 km | 1000 km |
 |---|---|---|---|
-| 95 | 94 % | 89 % | 82 % |
-| 85 | 80 % | 62 % | 48 % |
-| 70 | 51 % | 28 % | 14 % |
-| 60 | 40 % | 15 % | 5 % |
-| 30 | 14 % | 2 % | 0 % |
+| 95 | 97 % | 91 % | 81 % |
+| 85 | 90 % | 67 % | 48 % |
+| 70 | 74 % | 35 % | 14 % |
+| 60 | 64 % | 21 % | 5 % |
+| 30 | 36 % | 4 % | 0 % |
+
+> **De sprint is bewust rustiger geworden.** Van koers raken op een korte vlucht
+> gebeurde te vaak: een duif met oriëntatie 70 vloog bijna de helft van haar
+> regiovluchten niet meer schoon. Dat is nu ongeveer een kwart. Op de **fond** is
+> er nauwelijks iets veranderd — daar hoort oriëntatie ook thuis.
 
 **Slecht weer maakt het erger, maar niet voor iedereen.** Mist, regen en harde wind
-verhogen de kans fors. Op 700 km gaat een duif met oriëntatie 95 van 13 % naar
-21 %, terwijl oriëntatie 70 van 80 % naar 92 % springt. Een goede navigator merkt
-er weinig van; een slechte is bij ruw weer nagenoeg kansloos.
+verhogen de kans fors, en ze doen dat het hardst bij wie het toch al moeilijk had.
+Een goede navigator merkt er weinig van; een slechte is bij ruw weer op de fond
+nagenoeg kansloos. De tabellen hierboven gaan uit van **gemiddeld** weer.
 
 **Meestal is het een omweg.** Echte extra kilometers: dus echt tijdverlies, een val
 in de stand, én **extra energie** — die kilometers moeten gevlogen worden. De
@@ -813,13 +871,13 @@ weer op, over precies de kilometers die haar de tijd kostten.
 
 *(gemiddelde wanneer ze effectief van koers raakt — komt ze schoon thuis, dan is het nul)*
 
-**De fond is bewust milder geworden.** Oriëntatie woog daar veel te zwaar: een duif
-met oriëntatie 60 vloog op een vlucht van ~730 km gemiddeld **102 km** om en zat in
-**bijna drie op vier** vluchten tegen het maximum aan. Dat maakte van de eigenschap
-geen risico meer maar een vaste tol — en daardoor voelde een verschil van veertien
-punten oriëntatie aan als een afgrond in plaats van een gradiënt. Nu is dat
-gemiddeld **66 km** en raakt ze het maximum nog in ongeveer één op vier vluchten.
-Op 1000 km ging de omweg van een goede navigator van ~57 naar ~26 km.
+**De fond is eerder al milder gemaakt.** Oriëntatie woog daar ooit veel te zwaar:
+een duif met oriëntatie 60 vloog op ~730 km gemiddeld **102 km** om en zat bijna
+altijd tegen het maximum aan. Dat maakte van de eigenschap geen risico meer maar een
+vaste tol, en daardoor voelde veertien punten oriëntatie als een afgrond in plaats
+van een gradiënt. De omweg per keer is sindsdien ongeveer gehalveerd (gemiddeld
+**66 km** in datzelfde geval); de **kans** om van koers te raken is in de ronde
+hierboven nog eens apart verlaagd, het sterkst op de korte vlucht.
 
 **Op een korte vlucht blijft de omweg klein.** Een omweg is een hap uit de route,
 en op een sprint van 120 km beslist die hap meteen de wedstrijd. Daar praat je over
