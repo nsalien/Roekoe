@@ -541,38 +541,60 @@ export function WikiPage() {
           werken niet allemaal op je snelheid.
         </p>
         <p>
-          <strong>De drie racevaardigheden zijn even veel waard.</strong> Tien punten
-          snelheid, tien punten conditie en tien punten oriëntatie leveren je over een
-          volledige speelweek ongeveer evenveel op. Ze leveren het alleen <em>op andere
-          vluchten</em>: snelheid wint de regiovlucht, conditie en oriëntatie winnen de fond.
-          Een hok dat alles op één eigenschap zet, komt de helft van de kalender tekort.
+          <strong>Elke eigenschap heeft haar eigen terrein.</strong> Snelheid telt op élke
+          vlucht mee en weegt het zwaarst op de sprint. Conditie wordt belangrijker naarmate
+          de rit langer duurt en neemt het over vanaf ongeveer 300 à 500 km. Oriëntatie doet
+          op een regiovlucht bijna niets en beslist mee op de fond. Een hok dat alles op één
+          eigenschap zet, komt dus een deel van de kalender tekort.
         </p>
         <p>
-          <strong>Hoe verder de vlucht, hoe zwaarder conditie weegt — ook boven de 700 km.</strong>{' '}
-          Op een regiovlucht koopt <em>+10 snelheid</em> je zo'n 3,5 km/u en <em>+10 conditie</em> nog
-          geen 2. Rond 350 km staan ze gelijk, en daarna keert het om: op 700 km is conditie al ruim
-          twee keer zoveel waard, en dat blijft oplopen tot de allerlangste fond van 1.200 km. Op zo'n
-          rit wint tien punten conditie je ruim een half uur, tegen een kwartier voor dezelfde tien
-          punten snelheid. Voor de grote fond bouw je dus een stayer, niet een sprinter.
+          <strong>Snelheid is het tempo dat ze vraagt, conditie of ze het volhoudt.</strong>{' '}
+          Twee duiven met snelheid 90 halen allebei hetzelfde toptempo. Maar die met zwakke
+          conditie haalt het enkel in <em>vlagen</em> — elke versnelling bouwt vermoeidheid op,
+          en die trekt haar verderop weer naar beneden. Met sterke conditie zit ze het hele
+          eind tegen haar plafond aan, en na een rustiger stuk kan ze ook sneller weer
+          versnellen. Op een sprint van 150 km is er amper tijd om leeg te lopen (daar wint
+          snelheid); vanaf de middenafstand begint dit te tellen, en op de fond beslist het
+          de wedstrijd.
         </p>
+        <MiniTable
+          head={['Conditie', 'Tempo in het laatste derde van de rit — 300 km', '700 km']}
+          rows={[
+            ['40', '90 % van haar begintempo', '89 %'],
+            ['55', '92 %', '88 %'],
+            ['70', '93 %', '92 %'],
+            ['85', '97 %', '95 %'],
+            ['95', '100 %', '97 %'],
+          ]}
+        />
         <MiniTable
           head={['Eigenschap', 'Wat ze doet', 'Waar ze het zwaarst weegt']}
           rows={[
-            ['⚡ Snelheid', 'Rauw tempo. Bepaalt samen met conditie hoe snel je duif vliegt.', 'Korte vluchten (sprint)'],
-            ['💪 Conditie', 'Dat tempo kunnen aanhouden. Bepaalt samen met snelheid je tempo.', 'Lange vluchten (fond)'],
+            ['⚡ Snelheid', 'Het tempo dat je duif vraagt. Telt overal mee.', 'Korte vluchten (sprint)'],
+            ['💪 Conditie', 'Dat tempo kunnen vasthouden en er weer bovenop komen.', 'Vanaf ±300 km, en de fond'],
             ['🧭 Oriëntatie', 'De weg vinden. Bepaalt of je duif omvliegt of de weg helemaal kwijtraakt.', 'Lange vluchten en slecht weer'],
             ['❤️ Gezondheid', 'Samen met energie je vluchtvorm: de kans op blessure en ziekte. Heel lage gezondheid maakt een duif zelfs niet-vluchtklaar.', 'Overal'],
             ['🔋 Energie', 'De tank. Samen met gezondheid je vluchtvorm; bij een bijna lege tank valt een duif uit of erger.', 'Overal, zwaarder op lange vluchten'],
             ['🎓 Ervaring', 'Zuiniger vliegen en sneller herstellen. Maakt niet sneller.', 'Vooral op een lage tank'],
           ]}
         />
+        <p style={{ marginTop: 12 }}>
+          <strong>🎲 Vorm van de dag.</strong> Bij elke lossing krijgt je duif nog een dagvorm
+          mee: meestal een kleine afwijking, af en toe een echt goede of mindere dag. Die
+          uitschieters zijn onlangs een stuk kleiner gemaakt — een duidelijk betere duif won
+          vroeger maar een derde van haar duels en werd te vaak laatste, wat trainen en
+          coachen zinloos liet lijken. Kwaliteit weegt nu duidelijk zwaarder. Een verrassing
+          blijft wél mogelijk: ook een topper staat nog geregeld buiten het podium.
+        </p>
       </Section>
 
       <Section id="verdwalen" icon="🧭" title="Verdwalen: waar oriëntatie voor dient">
         <p className="muted" style={{ marginTop: 0 }}>
           Oriëntatie is je navigatie-eigenschap. Ze maakt je duif niet sneller — ze bepaalt
           of ze de lijn naar huis houdt, of kilometers omvliegt en soms de weg helemaal
-          kwijtraakt. Op een lange vlucht weegt ze even zwaar als conditie.
+          kwijtraakt. Het is een <strong>afstandseigenschap</strong>: op een regiovlucht doet
+          ze bijna niets, op de fond beslist ze mee. De kans om van koers te raken is
+          onlangs verlaagd, met de grootste knip op de korte vluchten.
         </p>
         <p>
           <strong>🕊️ Duiven vliegen als een zwerm.</strong> Bij de lossing vertrekt het hele
@@ -597,12 +619,12 @@ export function WikiPage() {
         <MiniTable
           head={['Oriëntatie', '150 km', '300 km', '500 km', '700 km', '1000 km']}
           rows={[
-            ['95', '5 %', '8 %', '11 %', '13 %', '18 %'],
-            ['85', '19 %', '29 %', '37 %', '44 %', '52 %'],
-            ['70', '46 %', '63 %', '72 %', '80 %', '86 %'],
-            ['60', '60 %', '77 %', '85 %', '91 %', '95 %'],
-            ['50', '76 %', '88 %', '93 %', '97 %', '99 %'],
-            ['30', '89 %', '97 %', '98 %', '99 %', '100 %'],
+            ['95', '3 %', '6 %', '10 %', '13 %', '18 %'],
+            ['85', '11 %', '21 %', '33 %', '41 %', '53 %'],
+            ['70', '26 %', '46 %', '64 %', '75 %', '87 %'],
+            ['60', '36 %', '61 %', '78 %', '88 %', '95 %'],
+            ['50', '47 %', '71 %', '88 %', '95 %', '98 %'],
+            ['30', '64 %', '89 %', '96 %', '99 %', '100 %'],
           ]}
         />
         <p style={{ marginTop: 12 }}>
@@ -612,18 +634,19 @@ export function WikiPage() {
         <MiniTable
           head={['Oriëntatie', 'Vlucht zonder één omweg (150 km)', '500 km', '1000 km']}
           rows={[
-            ['95', '94 %', '89 %', '82 %'],
-            ['85', '80 %', '62 %', '48 %'],
-            ['70', '51 %', '28 %', '14 %'],
-            ['60', '40 %', '15 %', '5 %'],
-            ['30', '14 %', '2 %', '0 %'],
+            ['95', '97 %', '91 %', '81 %'],
+            ['85', '90 %', '67 %', '48 %'],
+            ['70', '74 %', '35 %', '14 %'],
+            ['60', '64 %', '21 %', '5 %'],
+            ['30', '36 %', '4 %', '0 %'],
           ]}
         />
         <ul style={{ marginTop: 12 }}>
           <li>
-            <strong>Slecht weer maakt het erger — maar niet voor iedereen.</strong> Op 700 km
-            gaat een duif met oriëntatie 95 van 13 % naar 21 %, terwijl oriëntatie 70 van
-            80 % naar 92 % springt. Een goede navigator merkt er weinig van.
+            <strong>Slecht weer maakt het erger — maar niet voor iedereen.</strong> Het treft
+            het hardst wie het toch al moeilijk had: een goede navigator merkt er weinig van,
+            een slechte is bij ruw weer op de fond nagenoeg kansloos. De tabellen hierboven
+            gaan uit van gemiddeld weer.
           </li>
           <li>
             <strong>De fond is milder geworden.</strong> Oriëntatie woog daar veel te zwaar:

@@ -27,6 +27,7 @@ import {
   PRACTICE,
   PRIZE_MONEY,
   REWARD_BIRDS_PER_LOFT,
+  SUSTAIN,
   prizeForRank,
   type PrizeTable,
   RANKING_POINTS,
@@ -286,6 +287,35 @@ function buildPaceProfile(
   // and the getting-lost penalty applied AFTER this.
   const invAvg = segMult.reduce((sum, m) => sum + 1 / m, 0) / N;
   for (let i = 0; i < N; i++) segMult[i] = segMult[i] * invAvg;
+
+  // CONDITIE — holding that pace, and recovering to go again (see SUSTAIN).
+  //
+  // Everything above only decides what pace she ASKS for in each segment. This
+  // pass decides how much of it she can actually hold: asking above her
+  // sustainable share builds fatigue, easing off drains it back (faster the
+  // better her conditie), and accumulated fatigue pulls her effective pace down.
+  //
+  // ⚠️ This is the ONE layer that is allowed to change the finish time — that is
+  // the whole point of the attribute. The normalisation just above it must stay,
+  // so the random pacing keeps being pure theatre and only conditie (and LOST)
+  // move the result. Runs BEFORE the detours below so the two stay independent.
+  {
+    const S = SUSTAIN;
+    const cond = clamp(pigeon.endurance / 100, 0, 1);
+    const sustain = S.sustainFloor + (S.sustainCeil - S.sustainFloor) * Math.pow(cond, S.curve);
+    const recover = S.recoverMin + (S.recoverMax - S.recoverMin) * cond;
+    // How much ground one segment covers, in units of SUSTAIN.refSegKm. This is
+    // what makes conditie a tiebreaker on a sprint and decisive on the fond.
+    const load = distanceKm / N / S.refSegKm;
+    let fatigue = 0;
+    for (let i = 0; i < N; i++) {
+      const ask = segMult[i];
+      if (ask > sustain) fatigue += (ask - sustain) * S.drain * load;
+      else fatigue -= (sustain - ask) * recover * load;
+      fatigue = clamp(fatigue, 0, 1);
+      segMult[i] = clamp(ask * (1 - fatigue * S.penalty), 0.05, 2);
+    }
+  }
 
   // ORIËNTATIE — the whole of what the attribute does (see LOST in gameConfig).
   //

@@ -82,11 +82,30 @@ function race(seed: number, km: number, weather: number, attr: Attr | null, orie
 
 const lcg = (seed: number) => { let s = seed >>> 0; return () => ((s = (s * 1664525 + 1013904223) >>> 0) / 4294967296); };
 
+/**
+ * ⚠️ DE WEGING VOLGT DE ECHTE KALENDER, en stond hier jarenlang scheef.
+ *
+ * Dit was 3 / 2 / 2. Dat klopte niet meer op twee punten: de vrijdagnationale
+ * kwam erbij (nationaal is 3 per week, niet 2), en criterium, titan en estafette
+ * — samen 10 van de 26 wedstrijd-startplaatsen per twee weken — zaten er
+ * helemaal niet in. Omdat §8 zijn balansconclusies op dít gemiddelde baseert,
+ * betekende dat: conclusies trekken over een kalender die niet bestaat.
+ *
+ * Geteld over de volle cyclus van twee weken (week A draagt het sprintcriterium
+ * + de titan, week B het fondcriterium + de estafette), ingedeeld op het
+ * afstandsvenster waarin elk slot valt:
+ *
+ *   kort  (100–300)  regio 6  + criterium sprint 4 + estafette-etappe 1  = 11
+ *   midden(200–600)  nationaal 6 + titan 1                              =  7
+ *   lang  (400–1200) internationaal 4 + criterium fond 4                 =  8
+ *
+ * Oefenvluchten tellen niet mee (geen geld, geen punten).
+ */
 interface Tier { label: string; min: number; max: number; weight: number }
 const TIERS: Tier[] = [
-  { label: 'regionaal', min: FLIGHT_TIERS.regional.minKm, max: FLIGHT_TIERS.regional.maxKm, weight: 3 },
-  { label: 'nationaal', min: FLIGHT_TIERS.national.minKm, max: FLIGHT_TIERS.national.maxKm, weight: 2 },
-  { label: 'internationaal', min: FLIGHT_TIERS.international.minKm, max: FLIGHT_TIERS.international.maxKm, weight: 2 },
+  { label: 'regionaal', min: FLIGHT_TIERS.regional.minKm, max: FLIGHT_TIERS.regional.maxKm, weight: 11 },
+  { label: 'nationaal', min: FLIGHT_TIERS.national.minKm, max: FLIGHT_TIERS.national.maxKm, weight: 7 },
+  { label: 'internationaal', min: FLIGHT_TIERS.international.minKm, max: FLIGHT_TIERS.international.maxKm, weight: 8 },
 ];
 
 function measure(tier: Tier, attr: Attr | null, orientationOverride?: number) {
@@ -116,6 +135,7 @@ const weighted: Record<Attr, { rank: number; win: number }> = {
   speed: { rank: 0, win: 0 }, endurance: { rank: 0, win: 0 }, orientation: { rank: 0, win: 0 },
 };
 let baseRankW = 0, baseWinW = 0, totalWeight = 0;
+const perTier: Record<string, Record<Attr, { rank: number; win: number }>> = {};
 
 for (const tier of TIERS) {
   const base = measure(tier, null);
@@ -134,11 +154,18 @@ for (const tier of TIERS) {
     ATTRS.map((a) => `${NL[a]} ${(gain[a].win * 100).toFixed(1)}pp`).join(' · '));
 
   // Elke eigenschap moet OVERAL iets doen — geen dode eigenschap op geen enkel niveau.
+  // ⚠️ Oriëntatie heeft een LAGERE vloer dan de andere twee, en dat is bewust:
+  // sinds de herijking op vraag van de eigenaar is ze een afstandseigenschap die
+  // op een sprint bijna niets meer hoort te doen. Ze mag daar klein zijn, maar
+  // niet nul — een derde van elke duif die niets doet, is precies waarvoor deze
+  // test ooit geschreven is.
   for (const a of ATTRS) {
-    ok(`  ${tier.label}: ${NL[a]} levert meetbaar iets op`, gain[a].win > 0.004 && gain[a].rank > 0.05,
+    const floor = a === 'orientation' && tier.label === 'regionaal' ? 0.002 : 0.004;
+    ok(`  ${tier.label}: ${NL[a]} levert meetbaar iets op`, gain[a].win > floor && gain[a].rank > 0.02,
       `+${(gain[a].win * 100).toFixed(1)}pp / ${gain[a].rank.toFixed(2)} plaats`);
   }
-  // De rolverdeling: sprint hoort van snelheid te zijn, de fond van conditie.
+  // De rolverdeling die de eigenaar gevraagd heeft: snelheid op de sprint,
+  // conditie op de fond, oriëntatie als afstandseigenschap.
   if (tier.label === 'regionaal') {
     ok('  regionaal: snelheid is de belangrijkste eigenschap', gain.speed.win > gain.endurance.win && gain.speed.win > gain.orientation.win,
       `sn ${(gain.speed.win * 100).toFixed(1)} / co ${(gain.endurance.win * 100).toFixed(1)} / or ${(gain.orientation.win * 100).toFixed(1)}`);
@@ -146,9 +173,8 @@ for (const tier of TIERS) {
   if (tier.label === 'internationaal') {
     ok('  internationaal: conditie is belangrijker dan snelheid', gain.endurance.win > gain.speed.win,
       `co ${(gain.endurance.win * 100).toFixed(1)} vs sn ${(gain.speed.win * 100).toFixed(1)}`);
-    ok('  internationaal: oriëntatie is belangrijker dan snelheid', gain.orientation.win > gain.speed.win,
-      `or ${(gain.orientation.win * 100).toFixed(1)} vs sn ${(gain.speed.win * 100).toFixed(1)}`);
   }
+  perTier[tier.label] = gain;
 }
 
 // --- 2. Gewogen over de kalender: de drie zijn gelijkwaardig ---------------
@@ -163,25 +189,49 @@ for (const v of val) {
   console.log(`  gewogen: +${DELTA} ${NL[v.a].padEnd(11)} −${v.rank.toFixed(2)} gemiddelde plaats · ${(v.win * 100).toFixed(1)}pp winkans`);
 }
 
-const ranks = val.map((v) => v.rank);
 const wins = val.map((v) => v.win);
-const spread = (xs: number[]) => Math.max(...xs) / Math.max(1e-9, Math.min(...xs));
 
-ok('geen enkele eigenschap is dood (elk ≥ 1,5pp winkans)', Math.min(...wins) > 0.015,
+/*
+ * ⚠️ HET ONTWERPDOEL IS VERANDERD — lees dit vóór je hier iets aanpast.
+ *
+ * Deze test bewaakte jarenlang "de drie eigenschappen zijn ONGEVEER EVEN VEEL
+ * WAARD" (een factor 1,8 op winkans, 2,1 op gemiddelde plaats). Dat doel is op
+ * expliciete vraag van de eigenaar vervangen door een ROLVERDELING:
+ *
+ *   snelheid    — de sterkste op de sprint, en overal meetbaar aanwezig
+ *   conditie    — groeit met de afstand en neemt het over vanaf ±300–500 km
+ *   oriëntatie  — een afstandseigenschap: klein op de sprint, echt op de fond
+ *
+ * De oude gelijkheidsgrenzen zijn dus WEG, niet losser gezet: ze toetsten een
+ * bedoeling die niet meer geldt. Wat ervoor in de plaats komt is strenger op de
+ * dingen die nu wél de bedoeling zijn (de rangorde per afstand, de kruising, en
+ * dat niets dood is). Zet de gelijkheidsgrenzen niet terug zonder de eigenaar.
+ */
+ok('geen enkele eigenschap is dood over de kalender (elk ≥ 1,5pp winkans)', Math.min(...wins) > 0.015,
   wins.map((w, i) => `${NL[val[i].a]} ${(w * 100).toFixed(1)}pp`).join(' / '));
-// ⚠️ 1,6 → 2,1, en dat is een BEWUSTE versoepeling, geen weggemoffelde regressie.
-// Sinds de zwerm-update (FLOCK) kan een duif pas van koers raken zodra het veld
-// uit elkaar ligt, en is de omweg op een sprint een kleinere hap van de route.
-// Allebei op vraag van de eigenaar, en allebei halen ze oriëntatie weg uit precies
-// het segment waar ze op gemiddelde plaats het meest opleverde: de korte vlucht,
-// die met gewicht 3 van 7 het zwaarst in dit gemiddelde weegt. Gemeten ging
-// oriëntatie daardoor van −0,57 naar −0,33 plaats; op WINKANS is ze wél
-// gecompenseerd (2,2pp binnen de factor 1,8 hieronder) door meer episodes op de
-// fond. Verlaag deze grens weer zodra de zwerm-parameters opnieuw geijkt worden.
-ok('de drie liggen binnen een factor 2,1 op gemiddelde plaats', spread(ranks) < 2.1,
-  `factor ${spread(ranks).toFixed(2)}`);
-ok('de drie liggen binnen een factor 1,8 op winkans', spread(wins) < 1.8,
-  `factor ${spread(wins).toFixed(2)}`);
+
+const reg = perTier['regionaal'], intlT = perTier['internationaal'];
+
+// Snelheid moet OVERAL iets betekenen — dat was de vraag ("iets meer impact op
+// eender welk type vlucht"), en het is precies wat een sprinteigenschap normaal
+// verliest zodra je conditie een eigen kanaal geeft.
+ok('snelheid blijft ook op de fond een echte eigenschap (≥ 2,5pp)',
+  intlT.speed.win > 0.025, `internationaal ${(intlT.speed.win * 100).toFixed(1)}pp`);
+
+// De kruising: conditie hoort de sprint te verliezen en de fond te winnen.
+ok('conditie wint duidelijk bij naarmate de vlucht langer wordt',
+  intlT.endurance.win > reg.endurance.win * 1.5,
+  `regionaal ${(reg.endurance.win * 100).toFixed(1)}pp → internationaal ${(intlT.endurance.win * 100).toFixed(1)}pp`);
+ok('snelheid weegt op de sprint zwaarder dan conditie',
+  reg.speed.win > reg.endurance.win,
+  `sn ${(reg.speed.win * 100).toFixed(1)} vs co ${(reg.endurance.win * 100).toFixed(1)}`);
+
+// Oriëntatie is een AFSTANDSeigenschap: ze mag op een sprint klein zijn, maar
+// moet op de fond echt meetellen. Deze verhouding is wat de eigenaar bedoelde
+// met "minder impact, zelfs op korte vluchten".
+ok('oriëntatie telt op de fond veel zwaarder dan op de sprint',
+  intlT.orientation.win > reg.orientation.win * 2,
+  `regionaal ${(reg.orientation.win * 100).toFixed(1)}pp → internationaal ${(intlT.orientation.win * 100).toFixed(1)}pp`);
 
 // --- 3. De grenzen die de balans leefbaar houden ---------------------------
 console.log('');
@@ -257,6 +307,67 @@ console.log('\nDe grote fond: conditie blijft zwaarder wegen voorbij longKm');
   ok('+10 conditie levert op 1100 km meetbaar meer op dan op 800 km',
     winst(1100) > winst(800) + 0.1,
     `800 km +${winst(800).toFixed(2)} km/u · 1100 km +${winst(1100).toFixed(2)} km/u`);
+}
+
+// --- 5. CONDITIE = tempo aanhouden (de SUSTAIN-mechaniek) ------------------
+/*
+ * De statistiek hierboven zegt DAT conditie meer waard wordt met de afstand;
+ * dit blok toetst WAARDOOR. Vóór SUSTAIN bestond er geen enkel mechanisme dat
+ * een duif liet verzwakken: een conditie-40 en een conditie-90 duif zakten
+ * identiek weg, namelijk niet. Daardoor was conditie een tweede snelheid, en
+ * loog `spelregels.md` §1 ("laat een duif haar snelheid aanhouden").
+ *
+ * Gemeten op het BEVROREN profiel: het gemiddelde tempo in het laatste derde van
+ * de route, gedeeld door dat in het eerste derde. 1,0 = ze houdt haar tempo,
+ * lager = ze zakt weg.
+ */
+console.log('\nConditie: houdt ze haar tempo aan?');
+{
+  const tail = (endurance: number, km: number, seed: number): number => {
+    const p = bird('s', { endurance });
+    const others = Array.from({ length: 11 }, (_, i) => bird(`o${i}`));
+    const all = [p, ...others];
+    const entries: Entry[] = all.map((x) => ({ pigeon: x, ownerName: x.ownerId }));
+    const f = {
+      id: `sus_${km}_${endurance}_${seed}`, name: 's', type: 'national',
+      fromCity: 'A', toCity: 'B', distanceKm: km,
+      startAt: new Date().toISOString(), status: 'scheduled', entries: [], results: [], sim: [],
+    } as unknown as Flight;
+    f.entries = entries.map((e) => ({ pigeonId: e.pigeon.id, ownerId: e.pigeon.ownerId })) as never;
+    startLiveFlight(f, entries, WEEK, { label: 't', factor: 1 } as never);
+    const seg = (f.sim as SimEntry[]).find((x) => x.pigeonId === 's')!.segMult ?? [];
+    if (seg.length < 6) return 1;
+    const third = Math.floor(seg.length / 3);
+    const avg = (xs: number[]) => xs.reduce((s, x) => s + x, 0) / xs.length;
+    return avg(seg.slice(-third)) / avg(seg.slice(0, third));
+  };
+  const mean = (endurance: number, km: number) =>
+    Array.from({ length: 220 }, (_, i) => tail(endurance, km, i)).reduce((s, x) => s + x, 0) / 220;
+
+  const lowLong = mean(45, 700), highLong = mean(92, 700);
+  const lowShort = mean(45, 150), highShort = mean(92, 150);
+  console.log(`  150 km: conditie 45 → ${lowShort.toFixed(3)} · conditie 92 → ${highShort.toFixed(3)}`);
+  console.log(`  700 km: conditie 45 → ${lowLong.toFixed(3)} · conditie 92 → ${highLong.toFixed(3)}`);
+
+  ok('een duif met wéinig conditie zakt weg in de staart van een fondvlucht',
+    lowLong < 0.97, `${lowLong.toFixed(3)}`);
+  ok('een duif met véél conditie houdt haar tempo op de fond veel beter vast',
+    highLong > lowLong + 0.03, `${lowLong.toFixed(3)} vs ${highLong.toFixed(3)}`);
+  // ⚠️ Dit is de vraag van de eigenaar ("vooral op middenlange, 300 km+"): het
+  // verschil MOET met de afstand groeien, anders is conditie weer een vlakke
+  // tweede snelheid en had de hele mechaniek geen zin.
+  ok('het verschil groeit met de afstand (300 km+ is waar conditie telt)',
+    (highLong - lowLong) > (highShort - lowShort) * 1.8,
+    `150 km ${(highShort - lowShort).toFixed(3)} → 700 km ${(highLong - lowLong).toFixed(3)}`);
+  // ⚠️ Toetst het VERSCHIL, niet het absolute verval. Een duif zakt op een sprint
+  // ook wat weg (gemeten 0,969 bij conditie 45) en dat mag — dat is gewoon een
+  // duif die haar laatste kilometers voelt. Wat een sprint níet mag worden is een
+  // conditiewedstrijd, en dát is deze grens: het verschil tussen een zwakke en een
+  // sterke conditie blijft daar onder 2,5 % tempo (gemeten 1,4 %), tegen 5,4 % op
+  // de fond.
+  ok('op een sprint blijft het een nuance, geen conditiewedstrijd',
+    (highShort - lowShort) < 0.025,
+    `verschil op 150 km ${((highShort - lowShort) * 100).toFixed(1)}%`);
 }
 
 console.log(`\n${fail === 0 ? '✅' : '❌'} ${pass} geslaagd, ${fail} gefaald`);

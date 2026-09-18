@@ -191,9 +191,25 @@ export const FLIGHT_DYNAMICS = {
   // swing plus great/off days, so a favourite can land mid-pack and an outsider
   // can reach the top — while the CENTRE of each bird's spread still tracks its
   // attributes, so the best is still the most LIKELY to win (just not certain).
-  dayNoise: 0.17, // ±17% everyday variation
-  bigDayChance: 0.14, bigDayMin: 1.12, bigDayMax: 1.36, // a great day
-  offDayChance: 0.16, offDayMin: 0.64, offDayMax: 0.86, // an off day
+  //
+  // ⚠️ NARROWED on the owner's report that "really good birds perform badly more
+  // often than not". Measured on the old values (a bird 15% faster on paper,
+  // against seven identical weaker birds over 166 km): she won only 33% and came
+  // dead LAST in 4.2% — one race in 24. The cause is that this block was the
+  // dominant term: ±17% everyday swing plus a 16% chance of an off day worth
+  // another −14…−36% swamped a 15% gap in quality. Since the draw is made ONCE
+  // per bird per flight, an off day loses her every duel in that race at once,
+  // which is why a bad day reads as "the simulation is random" rather than as
+  // bad luck.
+  //
+  // The off-day tail is cut hardest (chance halved AND the depth roughly halved),
+  // because that is the outcome the owner actually sees. The big-day tail is
+  // trimmed too but less: it is what lets an outsider place, and without some of
+  // it the results turn into a ranking table. See `upset-balance.test.mts` for the
+  // measured before/after and the floor that keeps upsets possible.
+  dayNoise: 0.1, // ±10% everyday variation (was 0.17)
+  bigDayChance: 0.1, bigDayMin: 1.08, bigDayMax: 1.22, // a great day
+  offDayChance: 0.07, offDayMin: 0.82, offDayMax: 0.93, // an off day
   // Weather: rough weather (rain/wind) hurts some birds more than others, so bad
   // weather makes a race more of a lottery; good weather rewards the best.
   weatherSpread: 0.8, // per-bird sensitivity spread
@@ -573,8 +589,23 @@ export const DISTANCE_WEIGHTING = {
    * dominates a regiovlucht (+4.3pp against +2.5pp) and conditie still owns the
    * fond (+4.8pp against +1.8pp). See LOST for the third leg of the tripod.
    */
-  short: { speed: 0.68, endurance: 0.32, orientation: 0 },
-  long: { speed: 0.26, endurance: 0.74, orientation: 0 },
+  /**
+   * ⚠️ SNELHEID WAS RAISED ON EVERY ANCHOR, and conditie lowered to pay for it —
+   * but conditie did NOT get weaker, it changed CHANNEL. See `SUSTAIN`.
+   *
+   * This table sets the pace a bird ASKS for. Until now it was conditie's only
+   * job too, which made conditie a second snelheid that happened to be weighted
+   * by distance — and left the rulebook's own description ("laat een duif haar
+   * snelheid AANHOUDEN") as something the code never implemented. Conditie now
+   * owns holding that pace, which is worth most from ~300 km up, so the static
+   * weight it used to need here could go to snelheid on every anchor.
+   *
+   * Net effect, measured: snelheid is worth more at every distance (the owner's
+   * request) while conditie gains at 300 km+ and loses a little on a sprint,
+   * where a bird barely has time to tire. See `attribute-balance.test.mts`.
+   */
+  short: { speed: 0.76, endurance: 0.24, orientation: 0 },
+  long: { speed: 0.46, endurance: 0.54, orientation: 0 },
   /**
    * A THIRD anchor, for the grote fond (`longKm` → `ultraKm`).
    *
@@ -598,7 +629,70 @@ export const DISTANCE_WEIGHTING = {
    * question and was not the intent.
    */
   ultraKm: 1200,
-  ultra: { speed: 0.15, endurance: 0.85, orientation: 0 },
+  ultra: { speed: 0.38, endurance: 0.62, orientation: 0 },
+} as const;
+
+/**
+ * CONDITIE = holding the pace, and recovering to go again.
+ *
+ * This is conditie's own mechanic, the way `LOST` is oriëntatie's. Before it,
+ * conditie was a second snelheid: it fed the same `basisscore` number and did
+ * nothing else, so a bird with conditie 40 and one with conditie 90 faded in
+ * exactly the same way — which is to say, neither faded at all. Meanwhile
+ * `spelregels.md` §1 had been promising "laat een duif haar snelheid aanhouden"
+ * the whole time.
+ *
+ * HOW IT WORKS. `DISTANCE_WEIGHTING` sets the pace a bird ASKS for per segment
+ * (that is her snelheid talking). This block decides how much of that ask she can
+ * actually hold:
+ *
+ *   sustain   = the share of her own asking pace she can hold indefinitely
+ *   excess    = how far a segment asks ABOVE that → fatigue builds
+ *   deficit   = how far a segment asks BELOW it   → fatigue drains (she recovers)
+ *   effective = ask × (1 − fatigue · penalty)
+ *
+ * So a strong-conditie bird can sit near her ceiling for the whole route, and
+ * after an easy stretch she is ready to surge again. A weak-conditie bird can
+ * produce the same top speed — snelheid is unchanged — but only in bursts, and
+ * every burst costs her later. That is exactly the owner's description: snelheid
+ * sets how fast, conditie sets how long.
+ *
+ * ⚠️ THIS LAYER DELIBERATELY CHANGES THE FINISH TIME, and it is the ONLY part of
+ * the pace profile that may. The random per-segment pacing above it stays
+ * normalised (Σ 1/m = N) precisely so that shuffling positions mid-race does not
+ * randomise the result. Keep the two separate: pacing is theatre, this is the
+ * attribute. Applied BEFORE the `LOST` detours so the two mechanics stay
+ * independent and oriëntatie's calibration is untouched.
+ *
+ * ⚠️ WHY IT SCALES WITH DISTANCE (`refSegKm`). Fatigue has to accumulate over
+ * ground, or conditie would matter as much on a 120 km sprint as on a 900 km
+ * fond — and the owner asked for the opposite ("vooral op middenlange, 300 km+").
+ * One segment is `distanceKm / segments` long, so load per segment runs 0.375 at
+ * 150 km, 0.75 at 300 km, 1.25 at 500 km and 2.25 at 900 km. Conditie is
+ * therefore a mild tiebreaker on a regiovlucht and decisive on the fond, with the
+ * turn right around the 300 km the owner named.
+ */
+export const SUSTAIN = {
+  /** A segment of this many km counts as one unit of load (≈ a 450 km route). */
+  refSegKm: 45,
+  /** Share of her own asking pace a bird can hold forever, at conditie 0 → 100. */
+  sustainFloor: 0.84,
+  sustainCeil: 1.05,
+  /** >1 would make the bottom of the range harsher; 1 keeps it a straight line. */
+  curve: 1,
+  /** How fast fatigue builds per unit of excess pace per unit of load. */
+  drain: 1.0,
+  /** How fast it drains back when she eases off — THIS is the "recovery" half,
+   *  and it is what separates a conditie-90 bird from a conditie-60 one over a
+   *  long race: both tire, only one comes back from it. */
+  recoverMin: 0.2,
+  recoverMax: 1.2,
+  /** What a completely spent bird loses off her asking pace.
+   *  ⚠️ This is the master volume of the whole attribute. At 0.26 (the first
+   *  cut) conditie was worth 13.6pp on 700 km against snelheid's 3.8 — it did not
+   *  become relevant, it took over. Raise it only with the payoff table in
+   *  `attribute-balance.test.mts` open. */
+  penalty: 0.18,
 } as const;
 
 /**
@@ -669,11 +763,19 @@ export const LOST = {
   // 733, ×3.0 at 1000 — it was ×1.16 / ×1.77 / ×3.24 / ×4.15). Measured after:
   // 66 km on average, the ceiling in 23.5%, and oriëntatie is worth the SAME over
   // a play week (2.1pp win chance, unchanged) — see attribute-balance.test.mts.
+  // ⚠️ TONED DOWN AGAIN (owner: "oriëntatie lijkt iets te grote impact te hebben,
+  // zelfs op korte vluchten — kans lijkt me te groot"). Two knobs, on purpose:
+  // `max` takes the overall chance down, and the distance ramp is made STEEPER
+  // (lower `distBase`, higher `distPerKm`) so the cut lands mostly on the short
+  // end. Net change in stray chance: ≈ −30% at 120 km, −21% at 300, −16% at 500,
+  // −12% at 700, −8% at 1000. Oriëntatie stays what it was meant to be — a
+  // mid-to-long distance attribute — and simply stops taxing the sprint, where
+  // the owner was seeing it decide races it should not.
   base: 0.02, // expected strays that remain even at orientation 100
-  max: 4.4, // added at orientation 0
+  max: 3.8, // added at orientation 0 (was 4.4)
   curve: 1.5, // >1 keeps a good navigator safe and makes a poor one genuinely risky
-  distBase: 1.0,
-  distPerKm: 0.002, // ×1.6 at 300 km, ×2.4 at 700 km, ×3.0 at 1000 km
+  distBase: 0.7,
+  distPerKm: 0.0025, // ×1.0 at 120 km, ×1.45 at 300, ×2.45 at 700, ×3.2 at 1000
   weatherK: 2.5, // rough weather (0..0.30) multiplies the chance by up to 1.75
   maxChance: 0.85, // legacy: only used by the pre-episode fallback path
   /** Never more than this many separate off-course episodes in one flight. */
