@@ -15,7 +15,9 @@ import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../api/client';
 import { Spinner, useToast } from '../components/ui';
-import type { StemBoard, StemComment, StemIdea, StemStatus, StemThread } from '../types';
+import type {
+  StemBoard, StemComment, StemIdea, StemStatus, StemThread, StemVoterReport,
+} from '../types';
 
 const STATUS_STYLE: Record<StemStatus, { bg: string; color: string }> = {
   open: { bg: 'var(--brand-soft)', color: 'var(--brand-ink)' },
@@ -125,6 +127,8 @@ export function StemPage() {
       </div>
 
       {adding && <IdeaForm limits={board.limits} busy={busy} onSubmit={addIdea} />}
+
+      {board.isAdmin && <VotersPanel />}
 
       {open.length === 0 && (
         <div className="card muted">
@@ -345,6 +349,98 @@ function CommentRow({ comment }: { comment: StemComment }) {
         <strong style={{ color: 'var(--text-soft)' }}>{comment.authorName}</strong> · {dayLabel(comment.createdAt)}
       </div>
       <div style={{ fontSize: '0.9rem', whiteSpace: 'pre-wrap' }}>{comment.body}</div>
+    </div>
+  );
+}
+
+/**
+ * Beheerdersweergave: wie stemde op wat.
+ *
+ * Staat achter een knop en niet standaard open — het is de enige plek die één
+ * rij per stem leest in plaats van één per idee, en de spelers zelf zien hier
+ * niets van (de server weigert de route voor iedereen behalve de beheerder).
+ *
+ * Twee kanten van dezelfde data, want de beheerder heeft ze allebei nodig: "wie
+ * steunt dit idee" (per idee) en "wie heeft er al iets gedaan" (per speler —
+ * inclusief wie nog niets stemde).
+ */
+function VotersPanel() {
+  const toast = useToast();
+  const [open, setOpen] = useState(false);
+  const [report, setReport] = useState<StemVoterReport | null>(null);
+  const [tab, setTab] = useState<'idee' | 'speler'>('idee');
+
+  async function toggle() {
+    const next = !open;
+    setOpen(next);
+    if (next && !report) {
+      try {
+        setReport(await api<StemVoterReport>('/admin/stem/voters'));
+      } catch (e) {
+        toast.show(e instanceof Error ? e.message : 'Laden mislukt', 'err');
+        setOpen(false);
+      }
+    }
+  }
+
+  return (
+    <div className="card" style={{ marginBottom: 16 }}>
+      <div className="row" style={{ justifyContent: 'space-between', gap: 8 }}>
+        <div>
+          <strong>🛠️ Wie stemde op wat</strong>
+          <div className="faint" style={{ fontSize: '0.78rem' }}>Enkel jij ziet dit blok.</div>
+        </div>
+        <button className="btn ghost sm" onClick={toggle}>{open ? 'Verbergen ▲' : 'Tonen ▼'}</button>
+      </div>
+
+      {open && !report && <Spinner />}
+      {open && report && (
+        <div style={{ marginTop: 12 }}>
+          <div className="row" style={{ justifyContent: 'space-between', gap: 8 }}>
+            <div className="pill-tabs">
+              <button className={tab === 'idee' ? 'active' : ''} onClick={() => setTab('idee')}>Per idee</button>
+              <button className={tab === 'speler' ? 'active' : ''} onClick={() => setTab('speler')}>Per speler</button>
+            </div>
+            <span className="faint" style={{ fontSize: '0.8rem' }}>
+              {report.voted} van de {report.players} spelers stemden
+            </span>
+          </div>
+
+          {tab === 'idee' && (
+            <div className="stack" style={{ gap: 10, marginTop: 12 }}>
+              {report.perIdea.map((row) => (
+                <div key={row.ideaId}>
+                  <div style={{ fontSize: '0.9rem', fontWeight: 700 }}>
+                    {row.title} <span className="faint">· {row.voters.length}</span>
+                  </div>
+                  <div className="faint" style={{ fontSize: '0.84rem' }}>
+                    {row.voters.length === 0
+                      ? 'nog niemand'
+                      : row.voters.map((v) => v.name).join(' · ')}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {tab === 'speler' && (
+            <div className="stack" style={{ gap: 10, marginTop: 12 }}>
+              {report.perPlayer.map((p) => (
+                <div key={p.userId}>
+                  <div style={{ fontSize: '0.9rem', fontWeight: 700 }}>
+                    {p.name} <span className="faint">· {p.ideas.length}</span>
+                  </div>
+                  <div className="faint" style={{ fontSize: '0.84rem' }}>
+                    {p.ideas.length === 0
+                      ? 'stemde nog niet'
+                      : p.ideas.map((i) => i.title).join(' · ')}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

@@ -24,6 +24,7 @@ import {
   loadStemBoard,
   loadStemIdea,
   loadStemThread,
+  loadStemVotes,
   setStemStatus,
   toggleStemVote,
 } from '../../core/d1.js';
@@ -105,6 +106,7 @@ import { betsView, placeBet, previewBet } from '../../core/game/betting.js';
 import { buyReaction, chatTargets, postReaction, reactionsFor } from '../../core/game/reactions.js';
 import {
   STEM_STATUS_LABELS,
+  buildVoterReport,
   cleanBody,
   cleanText,
   isStemStatus,
@@ -1385,6 +1387,31 @@ app.post('/admin/flights/:id/finish', async (c) => {
 });
 
 // --- Admin console: diagnostics ------------------------------------------
+
+/**
+ * Beheerder: wie stemde op wat.
+ *
+ * Bewust een APARTE route en geen veld op het bord: dit leest één rij per stem
+ * in plaats van één per idee, en dat hoeft alleen te gebeuren als de beheerder
+ * het overzicht effectief opent. De namen komen uit de hokken (die zitten al in
+ * de wereldload), dus het kost precies één extra query.
+ *
+ * Bots staan er niet in — die stemmen niet — maar élke echte speler wel, ook wie
+ * nog niets stemde: dat is net wat de beheerder wil zien.
+ */
+app.get('/admin/stem/voters', async (c) => {
+  const user = requireUser(c);
+  if (!user.isAdmin) return c.json({ error: 'Alleen de beheerder mag dit doen' }, 403);
+  const db = c.get('store').data;
+  const players = db.lofts
+    .filter((l) => !l.isBot)
+    .map((l) => ({
+      userId: l.userId,
+      name: l.name || db.users.find((u) => u.id === l.userId)?.username || l.userId,
+    }));
+  const [votes, ideas] = await Promise.all([loadStemVotes(c.env.DB), loadStemBoard(c.env.DB, user.id)]);
+  return c.json(buildVoterReport(votes, ideas, players));
+});
 
 /**
  * Beheerder: het label van een idee verzetten (in stemming → gepland →

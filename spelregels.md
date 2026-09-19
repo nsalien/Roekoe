@@ -1932,6 +1932,8 @@ feature bij**. Welke dat wordt, beslissen de spelers samen op de pagina
 - **Stemmen.** Klik op 👍 bij élk idee dat jij wil zien. Het is geen keuze tussen
   één van de vier: je mag zoveel ideeën steunen als je wil, en je stem altijd
   weer intrekken. **Eén stem per speler per idee** — de bots stemmen niet mee.
+  **Je stem is niet anoniem:** de beheerder kan zien wie op wat stemde (en wie
+  nog niet stemde). Andere spelers zien enkel het totaal per idee.
 - **Vragen stellen.** Onder elk idee staat een draad. Daar wordt een idee scherper
   vóór het gebouwd wordt: *"en wat als iemand niet kan afbetalen?"* is een betere
   bijdrage dan een stem. Reageert iemand op jouw idee, dan krijg je een melding.
