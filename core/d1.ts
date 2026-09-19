@@ -1117,6 +1117,24 @@ export async function loadStemThread(
   };
 }
 
+/**
+ * Alle stemrijen van het bord — enkel voor de beheerdersweergave "wie stemde op
+ * wat" (`buildVoterReport` in game/stem.ts).
+ *
+ * Eén query, en bewust NIET op het bord zelf: daar volstaat een `GROUP BY` met
+ * één rij per idee, terwijl dit één rij per stem leest (spelers × ideeën). Op
+ * tien spelers en het maximum van `STEM.ideaLoadLimit` ideeën is dat hooguit een
+ * paar honderd rijen, maar dan wel alleen wanneer de beheerder erom vraagt.
+ */
+export async function loadStemVotes(
+  db: D1Database,
+): Promise<{ ideaId: string; userId: string; at: string }[]> {
+  const rows = (await db
+    .prepare('SELECT idea_id, user_id, at FROM stem_votes ORDER BY at DESC')
+    .all()).results as any[];
+  return rows.map((r) => ({ ideaId: r.idea_id, userId: r.user_id, at: r.at }));
+}
+
 /** Hoeveel ideeën deze speler sinds `sinceIso` indiende (de dagrem). */
 export async function countStemIdeasSince(db: D1Database, userId: string, sinceIso: string): Promise<number> {
   const row = (await db

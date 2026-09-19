@@ -96,6 +96,89 @@ export function sortIdeas(ideas: StemIdeaView[]): StemIdeaView[] {
   });
 }
 
+// ---------------------------------------------------------------------------
+// Beheerdersweergave: wie stemde op wat
+// ---------------------------------------------------------------------------
+/**
+ * Eén stem, met de naam erbij. De naam wordt opgezocht bij het bouwen van het
+ * rapport en niet bij het stemmen zelf: zo leest een hernoemd hok meteen onder
+ * zijn nieuwe naam, in plaats van onder de naam die het droeg toen het stemde.
+ */
+export interface StemVoter {
+  userId: string;
+  name: string;
+  at: string;
+}
+
+export interface StemVoterReport {
+  /** Per idee wie erop stemde (nieuwste stem eerst). Alle ideeën, ook de nul-stemmers. */
+  perIdea: { ideaId: string; title: string; status: StemStatus; voters: StemVoter[] }[];
+  /** Per speler waarop hij stemde — ÓÓK de spelers die nog niets stemden. */
+  perPlayer: { userId: string; name: string; ideas: { ideaId: string; title: string; at: string }[] }[];
+  /** Hoeveel spelers al minstens één keer stemden, op hoeveel in totaal. */
+  voted: number;
+  players: number;
+}
+
+/**
+ * Het stemrapport voor de beheerder, uit de rauwe stemrijen.
+ *
+ * Twee keuzes die het rapport bruikbaar maken in plaats van alleen correct:
+ *  - **elk idee staat erin, ook met nul stemmen** — een idee waar niemand op
+ *    stemt is precies wat de beheerder wil zien;
+ *  - **elke speler staat erin, ook wie niets stemde**. Wie zwijgt is hier de
+ *    interessante informatie, en die valt weg zodra je alleen de stemmen groepeert.
+ *
+ * Een stem van een speler die intussen verdwenen is (hok gewist) houdt zijn
+ * userId als naam, zodat het aantal blijft kloppen met de teller op het bord.
+ */
+export function buildVoterReport(
+  votes: readonly { ideaId: string; userId: string; at: string }[],
+  ideas: readonly Pick<StemIdea, 'id' | 'title' | 'status'>[],
+  players: readonly { userId: string; name: string }[],
+): StemVoterReport {
+  const nameOf = new Map(players.map((p) => [p.userId, p.name]));
+  const known = new Set(ideas.map((i) => i.id));
+  const byIdea = new Map<string, StemVoter[]>(ideas.map((i) => [i.id, []]));
+  const byPlayer = new Map<string, { ideaId: string; title: string; at: string }[]>(
+    players.map((p) => [p.userId, []]),
+  );
+  const titleOf = new Map(ideas.map((i) => [i.id, i.title]));
+
+  for (const v of votes) {
+    // Een stem op een idee buiten het geladen bord (ouder dan `ideaLoadLimit`)
+    // hoort nergens thuis in dit overzicht — overslaan i.p.v. een lege rij tonen.
+    if (!known.has(v.ideaId)) continue;
+    byIdea.get(v.ideaId)!.push({ userId: v.userId, name: nameOf.get(v.userId) ?? v.userId, at: v.at });
+    const mine = byPlayer.get(v.userId);
+    const entry = { ideaId: v.ideaId, title: titleOf.get(v.ideaId)!, at: v.at };
+    if (mine) mine.push(entry);
+    else byPlayer.set(v.userId, [entry]); // stem van een hok dat er niet meer is
+  }
+
+  const perIdea = ideas.map((i) => ({
+    ideaId: i.id,
+    title: i.title,
+    status: i.status,
+    voters: byIdea.get(i.id)!.sort((a, b) => b.at.localeCompare(a.at)),
+  }));
+  const perPlayer = [...byPlayer.entries()]
+    .map(([userId, list]) => ({
+      userId,
+      name: nameOf.get(userId) ?? userId,
+      ideas: list.sort((a, b) => b.at.localeCompare(a.at)),
+    }))
+    // Meeste stemmen eerst, dan op naam — zo staan de stille spelers samen onderaan.
+    .sort((a, b) => (b.ideas.length - a.ideas.length) || a.name.localeCompare(b.name));
+
+  return {
+    perIdea,
+    perPlayer,
+    voted: perPlayer.filter((p) => p.ideas.length > 0).length,
+    players: perPlayer.length,
+  };
+}
+
 /**
  * De vier ideeën waarmee het bord opent.
  *

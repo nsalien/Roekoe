@@ -1222,7 +1222,8 @@ export function WikiPage() {
           <li>
             <strong>Stemmen.</strong> Klik op 👍 bij elk idee dat jij wil zien. Je mag er zoveel steunen als je
             wil — het is geen keuze tussen één van de vier — en je stem weer intrekken. Eén stem per speler per
-            idee, en bots stemmen niet mee.
+            idee, en bots stemmen niet mee. <strong>Je stem is niet anoniem</strong>: de beheerder ziet wie op
+            wat stemde. Andere spelers zien enkel het aantal.
           </li>
           <li>
             <strong>Vragen stellen.</strong> Onder elk idee staat een draad voor vragen en opmerkingen. Daar

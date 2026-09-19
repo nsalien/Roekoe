@@ -972,3 +972,18 @@ export interface StemThread {
   idea: StemIdea;
   comments: StemComment[];
 }
+
+/** Beheerdersweergave: wie stemde op welk idee (en wie nog niet stemde). */
+export interface StemVoter {
+  userId: string;
+  name: string;
+  at: string;
+}
+
+export interface StemVoterReport {
+  perIdea: { ideaId: string; title: string; status: StemStatus; voters: StemVoter[] }[];
+  perPlayer: { userId: string; name: string; ideas: { ideaId: string; title: string; at: string }[] }[];
+  /** Hoeveel spelers al stemden, op hoeveel echte spelers in totaal. */
+  voted: number;
+  players: number;
+}

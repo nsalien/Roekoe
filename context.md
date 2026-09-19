@@ -901,8 +901,13 @@ Entiteiten: `Pigeon`, `Loft`, `User`, `BreedingPair`, `PendingBrood`, `Flight` (
   Gepland / In het spel / Niet weerhouden). De **reactiedraad klapt open per idee en
   wordt pas dán opgehaald** (`GET /stem/ideas/:id`): reacties zijn de enige rijen hier
   die onbeperkt groeien. Beheerder ziet per kaart een statuskiezer
-  (`POST /admin/stem/ideas/:id/status`) — het énige wat de spelleiding op het bord mag;
-  ideeën worden nooit herschreven of gewist. Het bord **zaait zichzelf** met vier
+  (`POST /admin/stem/ideas/:id/status`) — het énige wat de spelleiding op het bord *wijzigt*;
+  ideeën worden nooit herschreven of gewist. Bovenaan staat voor de beheerder ook
+  **"🛠️ Wie stemde op wat"** (`VotersPanel`, dichtgeklapt, laadt pas bij openen via
+  `GET /admin/stem/voters`): twee tabs — **per idee** (wie het steunt, ook de nul-stemmers)
+  en **per speler** (waarop hij stemde, **inclusief wie nog niets stemde**), met een teller
+  "X van de Y spelers stemden". Stemmen is dus **niet anoniem tegenover de beheerder**;
+  dat staat zo in de wiki en in `spelregels.md` §11bis. Het bord **zaait zichzelf** met vier
   startideeën (lenen bij de bank · onderling broeden · doping + dopingcontrole · unieke
   eigenschappen per duif) zodra het leeg is. Backend: `core/game/stem.ts` (regels) +
   de `stem_*`-queries in `core/d1.ts`; §8 heeft het waarom.
@@ -4216,6 +4221,18 @@ schrijfactie is een losse append of een DELETE op een samengestelde sleutel:
 **De draad wordt lui geladen.** Het bord stuurt per idee enkel het *aantal* reacties
 (één `GROUP BY`, niet één rij per reactie); de reacties zelf komen pas bij het
 openklappen. Reacties zijn de enige rijen hier die onbeperkt groeien.
+
+**Wie stemde op wat (beheerder).** Het bord zelf leest de stemmen als één
+`GROUP BY` (één rij per idee). Het beheerdersoverzicht leest **één rij per stem**, en
+staat daarom achter een knop op een aparte route (`GET /admin/stem/voters`) in plaats
+van als veld op het bord — het draait alleen wanneer de beheerder het effectief opent.
+`buildVoterReport` (game/stem.ts, puur en getest) zet die rijen om in twee kanten:
+per idee wie het steunt, en per speler waarop hij stemde. **Beide lijsten zijn compleet**
+— een idee met nul stemmen en een speler die nog niets deed staan er óók in; dat is net
+de informatie die wegvalt als je alleen de stemmen groepeert. Namen worden bij het
+bouwen opgezocht (niet bij het stemmen bewaard), zodat een hernoemd hok meteen onder
+zijn nieuwe naam leest; een stem van een verdwenen hok houdt zijn userId als naam,
+zodat het aantal blijft kloppen met de teller op het bord.
 
 **Wat de spelleiding mag.** Enkel de **status** verzetten (In stemming → Gepland → In
 het spel, of Niet weerhouden). Ideeën van spelers worden niet herschreven en niet

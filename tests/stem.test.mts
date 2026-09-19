@@ -13,6 +13,7 @@
  *  - stemmen is een toggle en telt per speler, niet per klik;
  *  - de dagrem op nieuwe ideeën telt over 24 uur;
  *  - een reactie belt de indiener, maar niet zichzelf;
+ *  - het beheerdersrapport toont wie op wat stemde, inclusief wie zweeg;
  *  - de volgorde van het bord zet "in stemming" boven de rest.
  *
  * Run: npx tsx tests/stem.test.mts (vanuit de repo-root)
@@ -26,10 +27,18 @@ import {
   insertStemIdea,
   loadStemBoard,
   loadStemThread,
+  loadStemVotes,
   setStemStatus,
   toggleStemVote,
 } from '../core/d1.js';
-import { SEED_IDEAS, notifyIdeaAuthor, sortIdeas, validateComment, validateIdea } from '../core/game/stem.js';
+import {
+  SEED_IDEAS,
+  buildVoterReport,
+  notifyIdeaAuthor,
+  sortIdeas,
+  validateComment,
+  validateIdea,
+} from '../core/game/stem.js';
 import { STEM } from '../core/config/gameConfig.js';
 import { emptyDatabase } from '../core/schema.js';
 
@@ -173,6 +182,51 @@ console.log('\nReacties + de bel');
   const seedThread = (await loadStemThread(db, 'stem_lenen', 'u1'))!;
   notifyIdeaAuthor(world, seedThread.idea, { ...comment, id: 'cmt_3', ideaId: 'stem_lenen' });
   ok(world.notifications.length === 1, 'een startidee heeft geen indiener om te bellen');
+}
+
+console.log('\nBeheerder: wie stemde op wat');
+{
+  // Stand uit de vorige blokken: u1/u2/u3 stemden op doping, u1 bovendien op
+  // zijn eigen ideeën (die krijgen automatisch de stem van de indiener niet in
+  // deze test — die zit in de API-laag — dus we zetten er hier zelf een bij).
+  await toggleStemVote(db, 'stem_lenen', 'u1');
+
+  const votes = await loadStemVotes(db);
+  const ideas = await loadStemBoard(db, 'u1');
+  const players = [
+    { userId: 'u1', name: 'Hok Een' },
+    { userId: 'u2', name: 'Hok Twee' },
+    { userId: 'u3', name: 'Hok Drie' },
+    { userId: 'u4', name: 'Hok Vier' }, // stemde nog niet
+  ];
+  const report = buildVoterReport(votes, ideas, players);
+
+  const doping = report.perIdea.find((r) => r.ideaId === 'stem_doping')!;
+  ok(doping.voters.length === 3, 'per idee: doping telt drie stemmers');
+  ok(
+    ['Hok Een', 'Hok Twee', 'Hok Drie'].every((n) => doping.voters.some((v) => v.name === n)),
+    'per idee: de drie hokken staan er met naam bij',
+  );
+  ok(doping.voters.every((v, i, a) => i === 0 || a[i - 1].at >= v.at), 'per idee: nieuwste stem eerst');
+
+  const leeg = report.perIdea.find((r) => r.ideaId === 'stem_unieke_attributen')!;
+  ok(leeg.voters.length === 0, 'een idee zonder stemmen staat er ook in (met nul)');
+  ok(report.perIdea.length === ideas.length, 'élk idee van het bord staat in het rapport');
+
+  const u1 = report.perPlayer.find((p) => p.userId === 'u1')!;
+  ok(u1.ideas.length === 2, 'per speler: u1 stemde op twee ideeën');
+  ok(u1.ideas.every((i) => i.title.length > 0), 'per speler: de ideeën staan er met titel bij');
+  const u4 = report.perPlayer.find((p) => p.userId === 'u4')!;
+  ok(u4 !== undefined && u4.ideas.length === 0, 'een speler die niet stemde staat er óók in');
+  ok(report.perPlayer[report.perPlayer.length - 1].ideas.length === 0, 'de stille spelers staan onderaan');
+  ok(report.voted === 3 && report.players === 4, 'de teller zegt 3 van de 4 spelers');
+
+  // Een stem van een hok dat intussen gewist is mag het aantal niet stilletjes
+  // veranderen — anders klopt het rapport niet meer met de teller op het bord.
+  const weg = buildVoterReport(votes, ideas, players.filter((p) => p.userId !== 'u3'));
+  const dopingWeg = weg.perIdea.find((r) => r.ideaId === 'stem_doping')!;
+  ok(dopingWeg.voters.length === 3, 'een verdwenen speler telt nog mee in het aantal');
+  ok(dopingWeg.voters.some((v) => v.name === 'u3'), 'en valt op, want zijn id staat er als naam');
 }
 
 console.log('\nStatus & volgorde');
