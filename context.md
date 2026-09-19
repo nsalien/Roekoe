@@ -15,13 +15,13 @@
 
 | Rol | Branch | Doel |
 |-----|--------|------|
-| **Dev** | `claude/hallo-v71l3e` | Alle ontwikkeling/commits komen hier **eerst**. |
+| **Dev** | `claude/duif-vorm-functie-s5fsaw` | Alle ontwikkeling/commits komen hier **eerst**. |
 | **Prod** | `claude/roekoe-game-website-jwa0vo` | Elke commit wordt hierheen **gecherry-pickt**; deze branch triggert de **Cloudflare Pages**-deploy naar productie. |
 
 > Vorige dev-branches (niet meer gebruiken): `claude/hallo-nno7pb`, `claude/hallo-r1wgvn`, `claude/hallo-ca55co`, `claude/hallo-qz9tmx`, `claude/hallo-fsp9nx`, `claude/hallo-mzjn0e`, `claude/hallo-su75jy`, `claude/hallo-rkr49f`, `claude/hallo-pvwabx`,
 > `claude/context-spelregels-q2ywtx`, `claude/hallo-49m6hj`, `claude/hallo-xifh0c`,
 > `claude/hallo-w97s85`, `claude/hallo-hrtwtv`,
-> `claude/prosper-postuum-tinne-race-j515f6`. Ontwikkelt een sessie op een nieuwe
+> `claude/prosper-postuum-tinne-race-j515f6`, `claude/hallo-v71l3e`. Ontwikkelt een sessie op een nieuwe
 > `claude/…`-branch, gebruik die dan als dev-branch en **werk deze tabel meteen bij** —
 > de prod-branch hierboven verandert nooit.
 
@@ -91,6 +91,14 @@ De wereld is klein, dus **elk verzoek**:
   **eigen afgehandelde** van de viewer,
 - `trades` → enkel de **nieuwste `TRADE_LOAD_LIMIT` (40)** (`ORDER BY at DESC`).
 
+**Volledig buiten de wereldload** staan daarnaast de drie tabellen van **De Stem**
+(`stem_ideas`, `stem_votes`, `stem_comments`): enkel `/api/stem*` leest ze, met
+eigen queries (`loadStemBoard`/`loadStemThread` in `d1.ts`), en de tellingen komen
+als `GROUP BY` terug zodat duizend stemmen één rij per idee kosten. Ze staan
+daarom ook **niet** in `Database` en lopen **niet** door de per-rij-diff van
+`persist()` — elke schrijfactie is een losse append of een DELETE op een
+samengestelde sleutel, dus twee spelers raken elkaars rij nooit.
+
 Alles wat de engine globaal nodig heeft (users, lofts, pigeons, flights, auctions,
 offers, auction_bids) wordt nog steeds volledig geladen; die zijn begrensd door het
 aantal spelers en de 2-daagse vluchtretentie.
@@ -141,7 +149,7 @@ krijgen.**
 `core/game/schedule.ts` → `advanceRealtime(db, nowMs, weatherByFlight)` roept in
 volgorde:
 1. `runDataMigrations(db)` — eenmalige datafixes, **gated op `world.dataVersion`**
-   (staat nu op **50**; nieuwe migratie = nieuw `if ((db.world.dataVersion ?? 0) < N)`
+   (staat nu op **51**; nieuwe migratie = nieuw `if ((db.world.dataVersion ?? 0) < N)`
    blok + `db.world.dataVersion = N`). De oudere migraties hebben hun werk gedaan en
    zijn enkel nog van belang als **patroon** — zie §8, kop *Eenmalige migraties*.
 2. `ensureFlightsScheduled(db, nowMs)` — plant vluchten volgens `REAL_SCHEDULE`.
@@ -372,6 +380,7 @@ Roekoe/
 │       ├── events.ts            dilemma-kaarten
 │       ├── pedigree.ts          stamboom + verwantschap (kinship/ancestorIds/pedigreeOf)
 │       ├── pigeon.ts, weather.ts, util.ts (seededRng/hashString/clamp/pickWith)
+│       ├── stem.ts              De Stem: regels van het ideeënbord + de 4 startideeën (géén DB)
 │       ├── newcomer.ts          starterspakket nieuwe spelers (punten, gratis coach, 2x winst)
 │       ├── names.ts             naamgenerator — UNIEKE voornaam+bijnaam (namesInUse/nameKey)
 ├── functions/api/[[path]].ts    de HELE API (Hono) — dun laagje op de engine (+ /admin/auctions)
@@ -885,13 +894,25 @@ Entiteiten: `Pigeon`, `Loft`, `User`, `BreedingPair`, `PendingBrood`, `Flight` (
   met **dagen tot de volgende speelweek** (`nextPlayWeek`+`timeUntil`).
 - `AchievementsPage` (Prestaties) — tabs Badges · Trofeeën · **Seizoensprijzen**
   (Roekoes + Vleugels: tellingen goud/zilver/brons + erelijst uit `profile.awards`).
+- `StemPage` (`/stem`, nav 🗳️ **De Stem**) — het **ideeënbord**: spelers stemmen op
+  ideeën voor de volgende feature, stellen er vragen onder en dienen zelf ideeën in.
+  Eén kaart per idee met links de **stemknop** (👍/✅ + stand, optimistisch — de rondrit
+  duurt op gsm te lang om erop te wachten), rechts een **statusbadge** (In stemming /
+  Gepland / In het spel / Niet weerhouden). De **reactiedraad klapt open per idee en
+  wordt pas dán opgehaald** (`GET /stem/ideas/:id`): reacties zijn de enige rijen hier
+  die onbeperkt groeien. Beheerder ziet per kaart een statuskiezer
+  (`POST /admin/stem/ideas/:id/status`) — het énige wat de spelleiding op het bord mag;
+  ideeën worden nooit herschreven of gewist. Het bord **zaait zichzelf** met vier
+  startideeën (lenen bij de bank · onderling broeden · doping + dopingcontrole · unieke
+  eigenschappen per duif) zodra het leeg is. Backend: `core/game/stem.ts` (regels) +
+  de `stem_*`-queries in `core/d1.ts`; §8 heeft het waarom.
 - `WikiPage` (`/wiki`, nav 📖 **Wiki**) — **statische**, client-only uitlegpagina van
   de strategie-bepalende mechanismen + kansen. **Dé plek voor lange uitleg** (zie
   §Tekstbudget): elk scherm houdt het bij het minimum en linkt hierheen. Secties (`id`):
   `genen` · **`coach`** · `ervaring` · `energie` (energie/voer/honger/rustkuur) · `vlucht` ·
   `eigenschappen` · `verdwalen` · `vorm` · `lage-energie` · **`titan`** · `estafette` ·
   `broeden` (kweken/overerving) · `ziekte` · **`ziekenboeg`** · `sterfte` · `rassen` ·
-  `veilingen` · **`tribune`** · `hok` · `waarde` · `afscheid`. Bewust
+  `veilingen` · **`tribune`** · **`stem`** · `hok` · `waarde` · `afscheid`. Bewust
   **niet 100% transparant**: richtwaarden i.p.v. exacte formules, geluk blijft benoemd.
   Geen backend/kosten. Cijfers **handmatig** in sync houden met `core/config/gameConfig.ts`.
   `WikiPage` scrollt naar de hash bij mount, dus `/wiki#coach` landt op de juiste sectie.
@@ -946,12 +967,12 @@ en de prestige-seizoensprijzen. Eenmalig per speler (localStorage
 de profielknop herhaalt hem via `window.dispatchEvent(new Event('roekoe:start-tour'))`.
 
 **"Wat is nieuw"-melding:** dezelfde `Tour` maar met een **subset** stappen. Actueel
-= **`PEDIGREE_NEWS_STEPS`** (stamboom · niet kweken met familie · kweekleeftijd 8
-weken). Eigen localStorage-sleutel `roekoe.newsSeen.stamboom.<id>`;
+= **`STEM_NEWS_STEPS`** (De Stem bestaat · stemmen + vragen stellen · zelf een idee
+indienen). Eigen localStorage-sleutel `roekoe.newsSeen.stem.<id>`;
 toont pas als de hoofd-tour niet open is. `closeTour` zet ook de news-sleutel, zodat een
 nieuwe speler die de volledige tour afrondt niet nog eens de news krijgt. Bump de
 sleutel-suffix + wissel de `steps`-set (import in `Layout`) voor een volgende
-aankondiging. De vorige sets `PRIZE_NEWS_STEPS`, `AGE_CUP_NEWS_STEPS`, `FAREWELL_NEWS_STEPS`, `REST_CURE_NEWS_STEPS`,
+aankondiging. De vorige sets `PEDIGREE_NEWS_STEPS`, `PRIZE_NEWS_STEPS`, `AGE_CUP_NEWS_STEPS`, `FAREWELL_NEWS_STEPS`, `REST_CURE_NEWS_STEPS`,
 `RELAY_NEWS_STEPS`, `GENES_NEWS_STEPS`, `BREED_NEWS_STEPS`, `BID_NEWS_STEPS` en
 `SEASON_NEWS_STEPS` blijven in `Tour.tsx` als referentie. (De oude `FeatureTour` met gecentreerde kaarten
 is verwijderd — alles zit nu in `Tour`.)
@@ -1030,23 +1051,25 @@ npx tsx tests/food-resale.test.mts       # voer terugverkopen kost altijd geld (
 npx tsx tests/brood-choice.test.mts      # vol hok bij het uitkomen: de speler kiest
 npx tsx tests/reactions.test.mts         # tribune: de ontgrendelroutes en de chatbox
 npx tsx tests/reactions-persist.test.mts # tribune: de reacties overleven de databank
+npx tsx tests/stem.test.mts              # De Stem: zaaien, stemmen als toggle, dagrem, de bel
 ```
 Alles in één keer (bash, vanuit de root):
 ```bash
 for f in tests/*.test.mts; do printf '%-26s ' "$(basename "$f")"; npx tsx "$f" >/dev/null 2>&1 && echo OK || echo FAIL; done
 ```
 
-**Stand van de suite: 38 van de 41 groen.** Drie bekende rode — controleer of een rode test
-hierin staat vóór je gaat zoeken:
+**Stand van de suite: 41 van de 42 groen** (gemeten bij de Stem-commit; `cpu-budget`
+apart gedraaid). Bekende rode — controleer of een rode test hierin staat vóór je gaat
+zoeken:
 - `age-cup` — **echt rood**, één assertie ("de cyclus is verankerd op het einde van het
   lopende seizoen"); de overige 68 controles zijn groen. Nog te repareren.
-- `poll-budget` — **rood op zijn eigen fixture**: die flipt een gewone vlucht met ~184
-  inschrijvingen naar `relay = true`, wat geen echte estafette is (3 duiven per hok). De
-  assertie "de load blijft smal" ligt daardoor op de rand. **Repareer de fixture, zet de
-  assertie niet losser** — ze bewaakt het leesbudget.
 - `cpu-budget` — **rood op een belaste machine**: de koude odds-meting schiet over haar
   budget (gemeten 6,3–8,4 ms over 3 runs op de ongewijzigde boom). Draai hem apart, niet
-  naast een andere testrun.
+  naast een andere testrun; los gedraaid is hij groen (3,0 / 4,4 ms).
+- `poll-budget` — stond hier als rood op zijn eigen fixture (die flipt een gewone vlucht
+  met ~184 inschrijvingen naar `relay = true`, wat geen echte estafette is). Bij de laatste
+  volledige run is hij **groen**; blijft hij wisselen, **repareer dan de fixture en zet de
+  assertie niet losser** — ze bewaakt het leesbudget.
 - `brood-choice` — was flaky (~1 op 5) door de rauwe `Math.random()` in `breed()`; sinds de
   twee tel-trekkingen geseed zijn is dat opgelost, maar de per-duif-worpen zijn dat nog
   niet. Zie §8, *Openstaande ideeën*.
@@ -4161,6 +4184,49 @@ Hieronder enkel wat je nodig hebt om eraan te werken.)
   `/market`). Client: `Pigeon.revealed:boolean`, de 7 statvelden zijn `number|null`;
   `PigeonCard`/`PigeonPage` tonen bij `!revealed` enkel ★talent + een slot-melding.
   De **Markt-biedkiezer `BidCascade`** dwingt de flow speler→duif→bedrag af.
+
+### De Stem: een ideeënbord dat het leesbudget niet aanraakt
+
+**Wat het is.** Een pagina (`/stem`) waar spelers stemmen op ideeën voor de volgende
+feature, er vragen onder stellen en zelf ideeën indienen. Het bord opent met vier
+ideeën van de spelleiding (lenen bij de bank · onderling broeden · doping met
+dopingcontrole · unieke eigenschappen per duif).
+
+**⚠️ Waarom deze feature buiten `Database` staat.** Elke andere entiteit in het spel zit
+in de wereldload, en dat kost élk verzoek rijen — óók de verzoeken die er niets mee
+doen. De Stem is log-vormig (elke stem, elke reactie is een rij) en wordt door precies
+**één** pagina gelezen. Meeladen zou dus de hele game duurder maken voor data die 99 %
+van de verzoeken nooit aanraakt: exact de fout die de historiekblobs van de duiven ooit
+maakten (zie `PIGEON_SELECT` hierboven). Daarom drie eigen tabellen, gelezen door eigen
+queries in `d1.ts`, en `/api/stem*` staat in `readOnlyPath` zodat die route ook de
+**smalle** duivenload krijgt — ze noemt geen enkele duif.
+
+**Gevolg: de schrijfkant loopt niet door de per-rij-diff.** Dat mag hier, want elke
+schrijfactie is een losse append of een DELETE op een samengestelde sleutel:
+- **stemmen is een toggle op `(idea_id, user_id)`**, geen teller op de ideeënrij. Een
+  teller zou een gedeelde hot row zijn en twee gelijktijdige stemmen zouden elkaar
+  overschrijven (zie *lost update* in §2). Nu is dubbel klikken of een dubbel verwerkt
+  verzoek gewoon dezelfde rij;
+- **het zaaien is `INSERT OR IGNORE` met vaste id's** (`stem_lenen`, …), dus twee
+  gelijktijdige eerste bezoeken zetten samen precies vier rijen neer. Het draait alleen
+  zolang het bord leeg is;
+- **de bel bij een reactie loopt WEL via de wereld** (meldingen staan daar) en heeft
+  daarom een stabiele id `ntf:stem:<commentId>`.
+
+**De draad wordt lui geladen.** Het bord stuurt per idee enkel het *aantal* reacties
+(één `GROUP BY`, niet één rij per reactie); de reacties zelf komen pas bij het
+openklappen. Reacties zijn de enige rijen hier die onbeperkt groeien.
+
+**Wat de spelleiding mag.** Enkel de **status** verzetten (In stemming → Gepland → In
+het spel, of Niet weerhouden). Ideeën van spelers worden niet herschreven en niet
+gewist — ook een afgewezen idee blijft staan mét zijn stemmen en zijn draad, zodat
+later na te lezen valt waarom iets het niet werd. Een idee dat de beheerder afwijst
+komt daardoor ook niet terug via het zaaien: de rij bestaat nog.
+
+**De aankondiging ging via twee kanalen**, omdat geen van beide iedereen bereikt:
+datamigratie **51** (`schedule.ts`) zet één bel in de inbox van élke echte speler
+(stabiele id `ntf:stem:intro:<userId>`), en `STEM_NEWS_STEPS` (`Tour.tsx`, sleutel
+`roekoe.newsSeen.stem.<id>`) zet de nav-knop in de schijnwerper bij het volgende bezoek.
 
 ### Performance & stabiliteit (503-fix — belangrijk)
 **Symptoom:** spelers kregen vaak **503**, werden willekeurig uitgelogd, en soms een

@@ -18,6 +18,7 @@ import { SponsorsPage } from './pages/SponsorsPage';
 import { AchievementsPage } from './pages/AchievementsPage';
 import { ProfilePage } from './pages/ProfilePage';
 import { RankingPage } from './pages/RankingPage';
+import { StemPage } from './pages/StemPage';
 import { WikiPage } from './pages/WikiPage';
 import { AdminPage } from './pages/AdminPage';
 
@@ -49,6 +50,7 @@ export function App() {
         <Route path="/prestaties" element={<AchievementsPage />} />
         <Route path="/profiel" element={<ProfilePage />} />
         <Route path="/ranglijst" element={<RankingPage />} />
+        <Route path="/stem" element={<StemPage />} />
         <Route path="/wiki" element={<WikiPage />} />
         <Route path="/beheer" element={<AdminPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />

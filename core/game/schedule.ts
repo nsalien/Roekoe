@@ -2129,6 +2129,35 @@ function runDataMigrations(db: Database): void {
     }
     db.world.dataVersion = 50;
   }
+
+  if ((db.world.dataVersion ?? 0) < 51) {
+    // Aankondiging: DE STEM staat online (zie core/game/stem.ts + /stem).
+    //
+    // Eén bel voor élke echte speler, want dit is nieuws dat niemand vanzelf
+    // tegenkomt: er is geen gebeurtenis die naar de pagina wijst. De migratie is
+    // gated op `dataVersion`, dus ze vuurt precies één keer per wereld; de
+    // stabiele id per speler zorgt dat twee gelijktijdige verzoeken die allebei
+    // migreren samen één melding per inbox neerzetten in plaats van twee.
+    //
+    // ⚠️ Enkel `db.lofts` wordt hier gelezen, niet `db.notifications` van een
+    // ander: die inbox zit niet eens in de wereldload (zie §D1Store in
+    // context.md). Voor een andere speler valt de dedupe terug op INSERT OR
+    // REPLACE op dezelfde rij — precies wat we willen.
+    for (const loft of db.lofts) {
+      if (loft.isBot) continue;
+      pushNotification(
+        db, loft.userId, 'info',
+        '🗳️ Nieuw: De Stem',
+        'Vanaf nu kies je mee welke nieuwe feature er volgend seizoen bij komt. Op de pagina '
+          + '"De Stem" staan de eerste ideeën klaar — lenen bij de bank, kweken met de duif van '
+          + 'een andere speler, doping mét dopingcontrole, en unieke eigenschappen per duif. '
+          + 'Stem op wat jij wil zien, stel je vragen eronder, en zet er gerust je eigen idee bij.',
+        null,
+        `ntf:stem:intro:${loft.userId}`,
+      );
+    }
+    db.world.dataVersion = 51;
+  }
 }
 
 /**

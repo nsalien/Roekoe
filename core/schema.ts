@@ -823,6 +823,47 @@ export interface Notification {
   read: boolean;
 }
 
+/**
+ * DE STEM — één ingediend idee voor een nieuwe feature.
+ *
+ * ⚠️ Deze drie entiteiten (`StemIdea`, `StemVote`, `StemComment`) staan BEWUST
+ * niet in `Database`. Ze worden dus niet meegeladen door de wereldload: ze zijn
+ * log-vormig (ze groeien met elke stem en elke reactie) en enkel de stempagina
+ * leest ze. Zie `loadStemBoard`/`loadStemThread` in `core/d1.ts` — dezelfde
+ * aanpak als `pigeon_log_entries`, om dezelfde reden: gelezen rijen zijn het
+ * schaarse goed (zie §Performance in context.md).
+ */
+export interface StemIdea {
+  id: string;
+  title: string;
+  body: string;
+  /** Lege string = ingebracht door de spelleiding (de vier startideeën). */
+  authorId: string;
+  authorName: string;
+  status: StemStatus;
+  createdAt: string;
+}
+
+/** Waar een idee staat. Enkel de beheerder verzet dit. */
+export type StemStatus = 'open' | 'gepland' | 'uitgevoerd' | 'afgewezen';
+
+/** Eén stem. De sleutel is (idee, speler), dus stemmen is idempotent. */
+export interface StemVote {
+  ideaId: string;
+  userId: string;
+  at: string;
+}
+
+/** Een vraag of opmerking onder een idee. */
+export interface StemComment {
+  id: string;
+  ideaId: string;
+  authorId: string;
+  authorName: string;
+  body: string;
+  createdAt: string;
+}
+
 /** Global world state. */
 export interface World {
   currentWeek: number; // monotonic game-week counter (drives ages/flights/ailments)
