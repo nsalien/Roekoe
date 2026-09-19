@@ -22,6 +22,7 @@ const SECTIONS = [
   { id: 'een-per-dag', icon: '🗓️', label: 'Eén vlucht per dag' },
   { id: 'prijzengeld', icon: '💶', label: 'Prijzengeld' },
   { id: 'tribune', icon: '💬', label: 'De tribune' },
+  { id: 'stem', icon: '🗳️', label: 'De Stem' },
   { id: 'vorm', icon: '🎯', label: 'Vluchtvorm & blessures' },
   { id: 'lage-energie', icon: '🪫', label: 'Lage energie' },
   { id: 'sponsors', icon: '🤝', label: 'Sponsors' },
@@ -1208,6 +1209,48 @@ export function WikiPage() {
             staan; daarna wordt hij samen met de vlucht opgeruimd.
           </li>
         </ul>
+      </Section>
+
+      <Section id="stem" icon="🗳️" title="De Stem: jij kiest de volgende feature">
+        <p className="muted" style={{ marginTop: 0 }}>
+          Het spel blijft groeien, en <strong>elk seizoen komt er één nieuwe feature bij</strong>. Welke dat
+          wordt, beslissen de spelers samen op de pagina <strong>🗳️ De Stem</strong>.
+        </p>
+
+        <p><strong>Drie dingen doe je er:</strong></p>
+        <ul>
+          <li>
+            <strong>Stemmen.</strong> Klik op 👍 bij elk idee dat jij wil zien. Je mag er zoveel steunen als je
+            wil — het is geen keuze tussen één van de vier — en je stem weer intrekken. Eén stem per speler per
+            idee, en bots stemmen niet mee.
+          </li>
+          <li>
+            <strong>Vragen stellen.</strong> Onder elk idee staat een draad voor vragen en opmerkingen. Daar
+            wordt een idee scherper vóór het gebouwd wordt: “wat als iemand niet kan afbetalen?” is een betere
+            bijdrage dan een stem.
+          </li>
+          <li>
+            <strong>Zelf een idee indienen.</strong> Titel, korte uitleg, klaar. Maximaal drie per dag, en je
+            eigen idee draagt automatisch je stem.
+          </li>
+        </ul>
+
+        <p><strong>Wat het label bij een idee betekent:</strong></p>
+        <MiniTable
+          head={['Label', 'Wat het wil zeggen']}
+          rows={[
+            ['In stemming', 'kandidaat — hierop kan je stemmen'],
+            ['Gepland', 'weerhouden, wordt gebouwd'],
+            ['In het spel', 'zit er intussen in; stemmen kan niet meer'],
+            ['Niet weerhouden', 'gaat er niet komen, met de reden in de draad'],
+          ]}
+        />
+
+        <p className="muted" style={{ marginTop: 12 }}>
+          Enkel de beheerder verzet die labels. Een ingediend idee wordt nooit herschreven of gewist — ook een
+          afgewezen idee blijft staan, mét zijn stemmen en zijn draad, zodat je later kan zien waarom iets het
+          niet werd.
+        </p>
       </Section>
 
       <Section id="veilingen" icon="🔨" title="Veilingen: bieden, slotfase & anti-snipe">

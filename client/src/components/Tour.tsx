@@ -708,6 +708,53 @@ export const BREEDING_NEWS_STEPS: Step[] = [
 ];
 
 /**
+ * DE STEM — de aankondiging van het ideeënbord. Drie stappen: dat het er is,
+ * wat je er doet, en dat je er zelf iets op mag zetten.
+ *
+ * Deze run loopt naast de bel-melding uit datamigratie 51 (schedule.ts). Twee
+ * kanalen met opzet: de bel bereikt iedereen (ook wie elke rondleiding wegklikt),
+ * deze zet de knop letterlijk in de schijnwerper.
+ */
+export const STEM_NEWS_STEPS: Step[] = [
+  {
+    route: '/stem', selector: '[data-tour="stem"]',
+    title: '🗳️ Nieuw: De Stem',
+    body: (
+      <>
+        Elk seizoen komt er <strong>één nieuwe feature</strong> bij het spel — en jij kiest mee welke.
+        Op deze pagina staan de ideeën die kandidaat zijn.
+      </>
+    ),
+  },
+  {
+    route: '/stem', selector: '[data-tour="stem"]',
+    title: '👍 Stemmen en vragen stellen',
+    body: (
+      <>
+        Klik op <strong>👍</strong> bij elk idee dat jij wil zien — je mag er zoveel steunen als je wil, en je
+        stem weer intrekken. Onder elk idee kan je <strong>vragen of opmerkingen</strong> kwijt, zodat een idee
+        scherper wordt vóór het gebouwd wordt.
+      </>
+    ),
+  },
+  {
+    route: '/stem', selector: '[data-tour="stem"]',
+    title: '➕ En zet er je eigen idee bij',
+    body: (
+      <>
+        De vier startideeën zijn maar een begin: <strong>lenen bij de bank</strong>, <strong>kweken met de duif
+        van een andere speler</strong>, <strong>doping mét dopingcontrole</strong> en <strong>unieke
+        eigenschappen per duif</strong>. Heb je een beter idee? Zet het erbij.
+        <br />
+        <span className="faint" style={{ display: 'inline-block', marginTop: 4 }}>
+          Meer: 📖 Wiki → De Stem.
+        </span>
+      </>
+    ),
+  },
+];
+
+/**
  * The stamboom, inteelt and the breeding age. Three steps: what is new to look
  * at, what to avoid, and the one new rule.
  */

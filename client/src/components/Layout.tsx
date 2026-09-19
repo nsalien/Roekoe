@@ -8,7 +8,7 @@ import { MARKET_SEEN_EVENT, hasMarketNews, marketSeenAt } from '../game/marketSe
 import { api } from '../api/client';
 import { useToast } from './ui';
 import { NotificationsBell } from './NotificationsBell';
-import { Tour, PEDIGREE_NEWS_STEPS } from './Tour';
+import { Tour, STEM_NEWS_STEPS } from './Tour';
 import { PrizeCeremony } from './PrizeCeremony';
 
 interface NavItem { to: string; label: string; short: string; icon: string; end?: boolean }
@@ -52,6 +52,7 @@ const NAV: NavItem[] = [
   { to: '/sponsors', label: 'Sponsors', short: 'Sponsor', icon: '🤝' },
   { to: '/prestaties', label: 'Prestaties', short: 'Prestige', icon: '🎖️' },
   { to: '/ranglijst', label: 'Rang', short: 'Rang', icon: '🏆' },
+  { to: '/stem', label: 'De Stem', short: 'Stem', icon: '🗳️' },
   { to: '/wiki', label: 'Wiki', short: 'Wiki', icon: '📖' },
   { to: '/profiel', label: 'Profiel', short: 'Profiel', icon: '👤' },
 ];
@@ -89,15 +90,15 @@ export function Layout() {
     return () => window.removeEventListener('roekoe:start-tour', start);
   }, []);
   // One-time "what's new" announcement — reuses the tour's spotlight mechanism
-  // with just the new steps (currently: the leeftijdscriterium — four age brackets
-  // with a weekly race each, standings that run three seasons). Separate key so it
-  // also reaches players who already finished the main welcome tour or an earlier
-  // announcement. Bump the key suffix for a next announcement.
+  // with just the new steps (currently: DE STEM, the ideas board where the
+  // players vote on next season's feature). Separate key so it also reaches
+  // players who already finished the main welcome tour or an earlier
+  // announcement. Bump the key suffix + swap the steps for a next one.
   //
-  // `agecup2`, not `agecup`: the first run was too wordy to read (and its card
-  // could not be scrolled to the buttons), so the shortened version has to reach
-  // the players who already clicked the old one away.
-  const newsKey = user?.id ? `roekoe.newsSeen.stamboom.${user.id}` : null;
+  // This run is the SECOND half of the announcement: the bell notification
+  // (data migration 51, see schedule.ts) reaches everyone including the players
+  // who never open a tour, this one puts the nav button under their nose.
+  const newsKey = user?.id ? `roekoe.newsSeen.stem.${user.id}` : null;
   const [showNews, setShowNews] = useState(false);
 
   function closeTour() {
@@ -263,7 +264,7 @@ export function Layout() {
       {showCeremony && !showTour && ceremony && (
         <PrizeCeremony season={ceremony.season} awards={ceremony.awards} onClose={closeCeremony} />
       )}
-      {showNews && !showTour && !showCeremony && <Tour steps={PEDIGREE_NEWS_STEPS} onClose={closeNews} />}
+      {showNews && !showTour && !showCeremony && <Tour steps={STEM_NEWS_STEPS} onClose={closeNews} />}
       {state?.pendingEvent && !showTour && !showNews && !showCeremony && <EventModal />}
     </div>
   );

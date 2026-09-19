@@ -2457,6 +2457,32 @@ export const REST_CURE = {
 } as const;
 
 // ===========================================================================
+// DE STEM — de ideeënbus waar de spelers samen de volgende feature kiezen
+// ===========================================================================
+/**
+ * Grenzen van de stempagina. Alles hier is een REM, geen spelbalans: de pagina
+ * kost geld noch punten, dus het enige wat ze moet verhinderen is dat één
+ * speler de lijst volgooit of dat een tekstvak de databank vult.
+ *
+ * `ideaLoadLimit`/`commentLoadLimit` zijn óók een leesbudget-grens: deze tabellen
+ * staan buiten de wereldload, maar een bord met duizend ideeën zou alsnog
+ * duizend rijen per bezoek lezen (zie §Performance in context.md).
+ */
+export const STEM = {
+  ideaLoadLimit: 60, // ideeën op het bord (nieuwste eerst, dan pas gesorteerd)
+  commentLoadLimit: 120, // reacties in één draad
+  titleMin: 4,
+  titleMax: 80,
+  bodyMin: 20, // een idee van drie woorden kan niemand beoordelen
+  bodyMax: 900,
+  commentMin: 2,
+  commentMax: 500,
+  /** Nieuwe ideeën per speler per dag. Genoeg voor een avond brainstormen,
+   *  te weinig om het bord onleesbaar te maken. */
+  maxIdeasPerDay: 3,
+} as const;
+
+// ===========================================================================
 // Funny Dutch pigeon names
 // ===========================================================================
 // A name is "<voornaam> <bijnaam>". Doffers get male first names, duivinnen

@@ -1921,6 +1921,41 @@ De speler krijgt een melding bij: vluchtuitslag, verbetering van een duif,
 kwetsuur, ziekte, herstel, sterfte en geboorte van jongen. Ook grote nieuwe
 onderdelen van het spel worden er één keer via aangekondigd.
 
+## 11bis. De Stem: jij kiest de volgende feature
+
+Het spel is niet af, en dat is de bedoeling: **elk seizoen komt er één nieuwe
+feature bij**. Welke dat wordt, beslissen de spelers samen op de pagina
+**🗳️ De Stem**.
+
+**Drie dingen doe je er:**
+
+- **Stemmen.** Klik op 👍 bij élk idee dat jij wil zien. Het is geen keuze tussen
+  één van de vier: je mag zoveel ideeën steunen als je wil, en je stem altijd
+  weer intrekken. **Eén stem per speler per idee** — de bots stemmen niet mee.
+- **Vragen stellen.** Onder elk idee staat een draad. Daar wordt een idee scherper
+  vóór het gebouwd wordt: *"en wat als iemand niet kan afbetalen?"* is een betere
+  bijdrage dan een stem. Reageert iemand op jouw idee, dan krijg je een melding.
+- **Zelf een idee indienen.** Titel, korte uitleg, klaar. **Maximaal 3 per dag**,
+  en je eigen idee draagt automatisch je stem.
+
+**Het label bij een idee** zegt waar het staat:
+
+| Label | Wat het wil zeggen |
+|---|---|
+| **In stemming** | kandidaat — hierop kan je stemmen |
+| **Gepland** | weerhouden, wordt gebouwd |
+| **In het spel** | zit er intussen in; stemmen kan niet meer |
+| **Niet weerhouden** | gaat er niet komen, met de reden in de draad |
+
+Enkel de beheerder verzet die labels. **Een ingediend idee wordt nooit
+herschreven of gewist** — ook een afgewezen idee blijft staan, mét zijn stemmen
+en zijn draad, zodat je later kan nalezen waarom iets het niet werd.
+
+De vier ideeën waarmee het bord opent: **lenen bij de bank**, **kweken met de
+duif van een andere speler**, **doping mét dopingcontrole**, en **unieke
+eigenschappen per duif**. Alle vier staan in stemming — en alle vier mogen ze
+verliezen van iets beters dat jij bedenkt.
+
 ## 12. Dagopdrachten, gebeurtenissen, veilingen & sponsors
 
 - **Dagopdrachten.** Elke dag krijg je 3 kleine opdrachten (bv. een duif

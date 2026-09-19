@@ -923,3 +923,52 @@ export interface FamilyTree {
   partners: FamilyMember[];
   children: DescendantNode[];
 }
+
+// --- De Stem (ideeënbord) --------------------------------------------------
+export type StemStatus = 'open' | 'gepland' | 'uitgevoerd' | 'afgewezen';
+
+/** Eén idee op het bord, mét de tellingen en wat de kijker ermee deed. */
+export interface StemIdea {
+  id: string;
+  title: string;
+  body: string;
+  /** Leeg = ingebracht door de spelleiding. */
+  authorId: string;
+  authorName: string;
+  status: StemStatus;
+  createdAt: string;
+  votes: number;
+  comments: number;
+  voted: boolean;
+  mine: boolean;
+}
+
+export interface StemComment {
+  id: string;
+  ideaId: string;
+  authorId: string;
+  authorName: string;
+  body: string;
+  createdAt: string;
+}
+
+/** Wat `GET /stem` teruggeeft. De limieten komen mee zodat de tekstvakken
+ *  dezelfde grenzen tonen als de server afdwingt (één bron: gameConfig). */
+export interface StemBoard {
+  ideas: StemIdea[];
+  statusLabels: Record<StemStatus, string>;
+  isAdmin: boolean;
+  limits: {
+    titleMax: number;
+    bodyMin: number;
+    bodyMax: number;
+    commentMax: number;
+    maxIdeasPerDay: number;
+  };
+}
+
+/** Wat `GET /stem/ideas/:id` teruggeeft. */
+export interface StemThread {
+  idea: StemIdea;
+  comments: StemComment[];
+}

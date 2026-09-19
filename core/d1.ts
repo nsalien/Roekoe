@@ -55,12 +55,16 @@ import type {
   PendingBrood,
   PigeonOffer,
   SponsorState,
+  StemComment,
+  StemIdea,
+  StemStatus,
   Trade,
   User,
 } from './schema.js';
 import { emptyDatabase, emptyFoodStock, emptySponsorState, emptyStats } from './schema.js';
 import type { Store } from './store.js';
-import { ADVANCE_THROTTLE_SECONDS } from './config/gameConfig.js';
+import { ADVANCE_THROTTLE_SECONDS, STEM } from './config/gameConfig.js';
+import { SEED_IDEAS, sortIdeas, type StemIdeaView, type StemThreadView } from './game/stem.js';
 
 const b = (v: unknown) => (v ? 1 : 0);
 
@@ -961,6 +965,221 @@ export async function loadPigeonLogs(
   return out;
 }
 
+// ===========================================================================
+// DE STEM — het ideeënbord (buiten de wereldload)
+// ===========================================================================
+/**
+ * Waarom deze drie tabellen hun eigen queries hebben en niet in `Database`
+ * zitten: ze zijn log-vormig (elke stem en elke reactie is een rij) en ze worden
+ * door precies één pagina gelezen. Meeladen zou élk verzoek in het spel duurder
+ * maken voor data die de meeste verzoeken nooit aanraken — exact de fout die de
+ * historiekblobs van de duiven ooit maakten (zie PIGEON_SELECT).
+ *
+ * De schrijfkant loopt dus ook NIET via de per-rij-diff van `persist()`. Dat kan
+ * hier veilig, want elke schrijfactie is een losse append of een DELETE op een
+ * samengestelde sleutel: twee spelers die tegelijk stemmen of reageren raken
+ * elkaars rij niet, en dezelfde speler die tweemaal klikt levert dezelfde rij.
+ */
+function rowToIdea(r: any): StemIdea {
+  return {
+    id: r.id,
+    title: r.title,
+    body: r.body,
+    authorId: r.author_id ?? '',
+    authorName: r.author_name,
+    status: (r.status ?? 'open') as StemStatus,
+    createdAt: r.created_at,
+  };
+}
+
+function rowToComment(r: any): StemComment {
+  return {
+    id: r.id,
+    ideaId: r.idea_id,
+    authorId: r.author_id,
+    authorName: r.author_name,
+    body: r.body,
+    createdAt: r.created_at,
+  };
+}
+
+/**
+ * Zet de vier startideeën neer als het bord nog leeg is.
+ *
+ * `INSERT OR IGNORE` met een vaste id maakt dit idempotent: twee gelijktijdige
+ * eerste bezoeken zetten samen precies vier rijen neer. Het draait alleen zolang
+ * het bord leeg is, dus vanaf het tweede bezoek kost het niets — en een idee dat
+ * de beheerder later afwijst blijft als rij bestaan, zodat het niet terugkomt.
+ */
+async function seedIdeas(db: D1Database): Promise<StemIdea[]> {
+  const at = new Date().toISOString();
+  const seeded: StemIdea[] = SEED_IDEAS.map((i) => ({ ...i, createdAt: at }));
+  await db.batch(
+    seeded.map((i) =>
+      db
+        .prepare(
+          'INSERT OR IGNORE INTO stem_ideas (id, title, body, author_id, author_name, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
+        )
+        .bind(i.id, i.title, i.body, i.authorId, i.authorName, i.status, i.createdAt),
+    ),
+  );
+  // Terug uit de databank lezen in plaats van `seeded` teruggeven: bij een race
+  // met een ander eerste bezoek is dát de rij die er echt staat.
+  const rows = (await db
+    .prepare(`SELECT * FROM stem_ideas ORDER BY created_at DESC LIMIT ${STEM.ideaLoadLimit}`)
+    .all()).results as any[];
+  return rows.map(rowToIdea);
+}
+
+/**
+ * Het hele bord voor één kijker: de ideeën, hoeveel stemmen en reacties elk
+ * heeft, en waar deze speler zelf op stemde.
+ *
+ * Vier queries, elk door een index gedekt. De tellingen komen als GROUP BY terug
+ * in plaats van als rijen, zodat duizend stemmen één rij per idee kosten en niet
+ * duizend.
+ */
+export async function loadStemBoard(db: D1Database, viewerId: string | undefined): Promise<StemIdeaView[]> {
+  let ideas = ((await db
+    .prepare(`SELECT * FROM stem_ideas ORDER BY created_at DESC LIMIT ${STEM.ideaLoadLimit}`)
+    .all()).results as any[]).map(rowToIdea);
+  if (ideas.length === 0) ideas = await seedIdeas(db);
+  if (ideas.length === 0) return [];
+
+  const votes = new Map<string, number>();
+  for (const r of (await db.prepare('SELECT idea_id, COUNT(*) AS n FROM stem_votes GROUP BY idea_id').all())
+    .results as any[]) {
+    votes.set(r.idea_id, Number(r.n) || 0);
+  }
+  const comments = new Map<string, number>();
+  for (const r of (await db.prepare('SELECT idea_id, COUNT(*) AS n FROM stem_comments GROUP BY idea_id').all())
+    .results as any[]) {
+    comments.set(r.idea_id, Number(r.n) || 0);
+  }
+  const mine = new Set<string>();
+  if (viewerId) {
+    for (const r of (await db.prepare('SELECT idea_id FROM stem_votes WHERE user_id = ?').bind(viewerId).all())
+      .results as any[]) {
+      mine.add(r.idea_id);
+    }
+  }
+
+  return sortIdeas(
+    ideas.map((i) => ({
+      ...i,
+      votes: votes.get(i.id) ?? 0,
+      comments: comments.get(i.id) ?? 0,
+      voted: mine.has(i.id),
+      mine: !!viewerId && i.authorId === viewerId,
+    })),
+  );
+}
+
+/**
+ * Enkel de ideeënrij, zonder tellingen en zonder draad.
+ *
+ * Bestaat om `loadStemThread` NIET te misbruiken als bestaanscontrole: die leest
+ * tot `STEM.commentLoadLimit` reacties, en honderd rijen inlezen om te weten of
+ * een idee bestaat is precies het soort verspilling waar het leesbudget op
+ * stukloopt. Stemmen en reageren gebruiken deze.
+ */
+export async function loadStemIdea(db: D1Database, ideaId: string): Promise<StemIdea | null> {
+  const row = (await db.prepare('SELECT * FROM stem_ideas WHERE id = ?').bind(ideaId).first()) as any;
+  return row ? rowToIdea(row) : null;
+}
+
+/** Eén idee met zijn reacties (oudste eerst — het leest als een gesprek). */
+export async function loadStemThread(
+  db: D1Database,
+  ideaId: string,
+  viewerId: string | undefined,
+): Promise<StemThreadView | null> {
+  const row = (await db.prepare('SELECT * FROM stem_ideas WHERE id = ?').bind(ideaId).first()) as any;
+  if (!row) return null;
+  const idea = rowToIdea(row);
+  const votes = (await db.prepare('SELECT COUNT(*) AS n FROM stem_votes WHERE idea_id = ?').bind(ideaId).first()) as any;
+  const voted = viewerId
+    ? !!(await db.prepare('SELECT 1 AS v FROM stem_votes WHERE idea_id = ? AND user_id = ?').bind(ideaId, viewerId).first())
+    : false;
+  const comments = ((await db
+    .prepare(`SELECT * FROM stem_comments WHERE idea_id = ? ORDER BY created_at ASC, id ASC LIMIT ${STEM.commentLoadLimit}`)
+    .bind(ideaId)
+    .all()).results as any[]).map(rowToComment);
+  return {
+    idea: {
+      ...idea,
+      votes: Number(votes?.n) || 0,
+      comments: comments.length,
+      voted,
+      mine: !!viewerId && idea.authorId === viewerId,
+    },
+    comments,
+  };
+}
+
+/** Hoeveel ideeën deze speler sinds `sinceIso` indiende (de dagrem). */
+export async function countStemIdeasSince(db: D1Database, userId: string, sinceIso: string): Promise<number> {
+  const row = (await db
+    .prepare('SELECT COUNT(*) AS n FROM stem_ideas WHERE author_id = ? AND created_at >= ?')
+    .bind(userId, sinceIso)
+    .first()) as any;
+  return Number(row?.n) || 0;
+}
+
+export async function insertStemIdea(db: D1Database, idea: StemIdea): Promise<void> {
+  await db
+    .prepare(
+      'INSERT INTO stem_ideas (id, title, body, author_id, author_name, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
+    )
+    .bind(idea.id, idea.title, idea.body, idea.authorId, idea.authorName, idea.status, idea.createdAt)
+    .run();
+}
+
+/**
+ * Stem of trek je stem in. Geeft terug of de speler NA de klik gestemd heeft, en
+ * de nieuwe stand — zodat de knop niet op een tweede rondrit moet wachten.
+ *
+ * Bewust een toggle op de samengestelde sleutel in plaats van een teller op de
+ * ideeënrij: een teller is een gedeelde hot row en twee gelijktijdige stemmen
+ * zouden elkaar overschrijven (zie §Lost update in context.md).
+ */
+export async function toggleStemVote(
+  db: D1Database,
+  ideaId: string,
+  userId: string,
+): Promise<{ voted: boolean; votes: number }> {
+  const had = !!(await db.prepare('SELECT 1 AS v FROM stem_votes WHERE idea_id = ? AND user_id = ?').bind(ideaId, userId).first());
+  if (had) {
+    await db.prepare('DELETE FROM stem_votes WHERE idea_id = ? AND user_id = ?').bind(ideaId, userId).run();
+  } else {
+    await db
+      .prepare('INSERT OR IGNORE INTO stem_votes (idea_id, user_id, at) VALUES (?, ?, ?)')
+      .bind(ideaId, userId, new Date().toISOString())
+      .run();
+  }
+  const row = (await db.prepare('SELECT COUNT(*) AS n FROM stem_votes WHERE idea_id = ?').bind(ideaId).first()) as any;
+  return { voted: !had, votes: Number(row?.n) || 0 };
+}
+
+export async function insertStemComment(db: D1Database, comment: StemComment): Promise<void> {
+  await db
+    .prepare(
+      'INSERT INTO stem_comments (id, idea_id, author_id, author_name, body, created_at) VALUES (?, ?, ?, ?, ?, ?)',
+    )
+    .bind(comment.id, comment.ideaId, comment.authorId, comment.authorName, comment.body, comment.createdAt)
+    .run();
+}
+
+/** Beheerder: het label van een idee verzetten. Geeft terug of het idee bestond. */
+export async function setStemStatus(db: D1Database, ideaId: string, status: StemStatus): Promise<boolean> {
+  const res: any = await db.prepare('UPDATE stem_ideas SET status = ? WHERE id = ?').bind(status, ideaId).run();
+  // D1 meldt het aantal geraakte rijen; een lokale SQLite-stub soms niet. Bij
+  // twijfel navragen in plaats van een onterechte 404 teruggeven.
+  const changed = res?.meta?.changes;
+  if (typeof changed === 'number') return changed > 0;
+  return !!(await db.prepare('SELECT 1 AS v FROM stem_ideas WHERE id = ?').bind(ideaId).first());
+}
+
 /**
  * Keep the log-shaped tables from growing forever.
  *
@@ -1188,6 +1407,18 @@ const SCHEMA_STEPS: string[] = [
   // purchased template ids ride on the loft.
   "ALTER TABLE flights ADD COLUMN chat TEXT NOT NULL DEFAULT ''",
   "ALTER TABLE lofts ADD COLUMN unlocked_reactions TEXT NOT NULL DEFAULT ''",
+
+  // DE STEM (zie core/game/stem.ts): het ideeënbord met zijn stemmen en reacties.
+  // Drie eigen tabellen, BUITEN de wereldload — ze groeien log-vormig en enkel de
+  // stempagina leest ze (net als pigeon_log_entries, om dezelfde reden).
+  "CREATE TABLE IF NOT EXISTS stem_ideas (id TEXT PRIMARY KEY, title TEXT NOT NULL, body TEXT NOT NULL, author_id TEXT NOT NULL DEFAULT '', author_name TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'open', created_at TEXT NOT NULL)",
+  // De samengestelde sleutel maakt stemmen idempotent: tweemaal hetzelfde verzoek
+  // levert één rij, en intrekken is één DELETE op diezelfde sleutel.
+  'CREATE TABLE IF NOT EXISTS stem_votes (idea_id TEXT NOT NULL, user_id TEXT NOT NULL, at TEXT NOT NULL, PRIMARY KEY (idea_id, user_id))',
+  'CREATE TABLE IF NOT EXISTS stem_comments (id TEXT PRIMARY KEY, idea_id TEXT NOT NULL, author_id TEXT NOT NULL, author_name TEXT NOT NULL, body TEXT NOT NULL, created_at TEXT NOT NULL)',
+  'CREATE INDEX IF NOT EXISTS idx_stem_ideas_created ON stem_ideas (created_at DESC)',
+  'CREATE INDEX IF NOT EXISTS idx_stem_votes_user ON stem_votes (user_id)',
+  'CREATE INDEX IF NOT EXISTS idx_stem_comments_idea ON stem_comments (idea_id, created_at)',
 ];
 
 /**

@@ -11,7 +11,22 @@ import { cors } from 'hono/cors';
 import { handle } from 'hono/cloudflare-pages';
 import type { D1Database } from '@cloudflare/workers-types';
 
-import { D1Store, ensureSchema, findUserById, findUserByUsername, loadLiveFlight, loadPigeonLogs } from '../../core/d1.js';
+import {
+  D1Store,
+  countStemIdeasSince,
+  ensureSchema,
+  findUserById,
+  findUserByUsername,
+  insertStemComment,
+  insertStemIdea,
+  loadLiveFlight,
+  loadPigeonLogs,
+  loadStemBoard,
+  loadStemIdea,
+  loadStemThread,
+  setStemStatus,
+  toggleStemVote,
+} from '../../core/d1.js';
 import type { User } from '../../core/schema.js';
 import { hashPassword, verifyPassword, signToken, verifyToken } from '../../core/auth.js';
 import { newId } from '../../core/store.js';
@@ -36,6 +51,7 @@ import {
   TRAINING,
   DAILY_UPKEEP_BASE,
   DAILY_UPKEEP_PER_PIGEON,
+  STEM,
   UPKEEP_BANDS,
   type RacingAttr,
 } from '../../core/config/gameConfig.js';
@@ -87,6 +103,15 @@ import { fetchFlightWeather, fetchLegForecast, type WeatherResult } from '../../
 import { auctionKind, placeBid } from '../../core/game/auction.js';
 import { betsView, placeBet, previewBet } from '../../core/game/betting.js';
 import { buyReaction, chatTargets, postReaction, reactionsFor } from '../../core/game/reactions.js';
+import {
+  STEM_STATUS_LABELS,
+  cleanBody,
+  cleanText,
+  isStemStatus,
+  notifyIdeaAuthor,
+  validateComment,
+  validateIdea,
+} from '../../core/game/stem.js';
 import { makeOffer, withdrawOffer, respondOffer, offersFor } from '../../core/game/offers.js';
 import type { BetKind } from '../../core/schema.js';
 import { refreshDailyMissions } from '../../core/game/missions.js';
@@ -146,9 +171,15 @@ const READ_ONLY_POSTS = new Set(['/api/bets/preview']);
  */
 const NARROW_PATHS = new Set(['/api/state', '/api/flights', '/api/bets', '/api/notifications']);
 
-/** GET/HEAD only — a write never runs on a narrowed world. */
+/**
+ * GET/HEAD only — a write never runs on a narrowed world.
+ *
+ * De Stem is er met een prefix bij (het bord én één draad, `/api/stem/...`):
+ * die routes lezen hun eigen tabellen en raken geen enkele duif, dus de brede
+ * duivenload zou er puur weggegooid leeswerk zijn.
+ */
 function readOnlyPath(path: string): boolean {
-  return NARROW_PATHS.has(path);
+  return NARROW_PATHS.has(path) || path === '/api/stem' || path.startsWith('/api/stem/');
 }
 
 // flights, start/finish live races, bots auto-enter), and resolve the user.
@@ -212,7 +243,7 @@ app.use('*', async (c, next) => {
   // belongs here once it is checked to name no other player's bird. The load
   // narrows only if the engine is ALSO fresh, so a narrowed store never runs
   // the engine — see core/d1.ts.
-  const narrowable = readOnlyPath(path) && NARROW_PATHS.has(path);
+  const narrowable = readOnlyPath(path);
   let store = await D1Store.load(c.env.DB, payload?.sub, {
     narrowWhenIdle: narrowable && (c.req.method === 'GET' || c.req.method === 'HEAD'),
     nowMs,
@@ -1148,6 +1179,125 @@ app.post('/flights/:id/giveup', async (c) => {
   return err ? c.json({ error: err }, 400) : c.json({ ok: true });
 });
 
+// --- De Stem (ideeënbord) --------------------------------------------------
+/**
+ * De stempagina praat met haar EIGEN tabellen (zie loadStemBoard in core/d1.ts),
+ * niet met de wereld in het geheugen. Daarom staan deze handlers hier en niet in
+ * de engine: er valt niets aan de wereld te muteren behalve de bel die een
+ * reactie bij de indiener laat rinkelen.
+ *
+ * Bots doen niet mee — die loggen nooit in, dus elke stem en elke reactie komt
+ * per definitie van een echte speler.
+ */
+
+/** Hoe een speler op het bord ondertekent: zijn hoknaam, anders zijn login. */
+function stemAuthorName(c: any, user: User): string {
+  const loft = c.get('store').data.lofts.find((l: { userId: string }) => l.userId === user.id);
+  return loft?.name ?? user.username;
+}
+
+app.get('/stem', async (c) => {
+  const user = requireUser(c);
+  const ideas = await loadStemBoard(c.env.DB, user.id);
+  return c.json({
+    ideas,
+    statusLabels: STEM_STATUS_LABELS,
+    isAdmin: user.isAdmin,
+    limits: {
+      titleMax: STEM.titleMax,
+      bodyMin: STEM.bodyMin,
+      bodyMax: STEM.bodyMax,
+      commentMax: STEM.commentMax,
+      maxIdeasPerDay: STEM.maxIdeasPerDay,
+    },
+  });
+});
+
+app.get('/stem/ideas/:id', async (c) => {
+  const user = requireUser(c);
+  const thread = await loadStemThread(c.env.DB, c.req.param('id'), user.id);
+  if (!thread) return c.json({ error: 'Dat idee bestaat niet (meer)' }, 404);
+  return c.json(thread);
+});
+
+app.post('/stem/ideas', async (c) => {
+  const user = requireUser(c);
+  const body = await c.req.json().catch(() => ({}));
+  const title = cleanText(body.title);
+  const text = cleanBody(body.body);
+  const err = validateIdea(title, text);
+  if (err) return c.json({ error: err }, 400);
+
+  // Dagrem, geteld over de voorbije 24 uur in plaats van per kalenderdag: anders
+  // mag je er om 23.59 drie plaatsen en een minuut later nog eens drie.
+  const since = new Date(Date.now() - 86400000).toISOString();
+  const today = await countStemIdeasSince(c.env.DB, user.id, since);
+  if (today >= STEM.maxIdeasPerDay) {
+    return c.json(
+      { error: `Je mag ${STEM.maxIdeasPerDay} ideeën per dag indienen. Morgen mag je er weer een kwijt.` },
+      400,
+    );
+  }
+
+  const idea = {
+    id: newId('idea'),
+    title,
+    body: text,
+    authorId: user.id,
+    authorName: stemAuthorName(c, user),
+    status: 'open' as const,
+    createdAt: new Date().toISOString(),
+  };
+  await insertStemIdea(c.env.DB, idea);
+  // Je eigen idee draagt meteen je stem — anders staat het op nul terwijl de
+  // indiener er per definitie voor is, en moet iedereen eerst zijn eigen knop
+  // zoeken.
+  await toggleStemVote(c.env.DB, idea.id, user.id);
+  return c.json({ ok: true, ideas: await loadStemBoard(c.env.DB, user.id) });
+});
+
+app.post('/stem/ideas/:id/vote', async (c) => {
+  const user = requireUser(c);
+  const id = c.req.param('id');
+  // De lichte lezer, niet de draad: een stem hoeft geen honderd reacties te lezen.
+  const idea = await loadStemIdea(c.env.DB, id);
+  if (!idea) return c.json({ error: 'Dat idee bestaat niet (meer)' }, 404);
+  if (idea.status === 'afgewezen' || idea.status === 'uitgevoerd') {
+    return c.json({ error: 'Op dit idee kan niet meer gestemd worden' }, 400);
+  }
+  const res = await toggleStemVote(c.env.DB, id, user.id);
+  return c.json({ ok: true, ...res });
+});
+
+app.post('/stem/ideas/:id/comments', async (c) => {
+  const user = requireUser(c);
+  const body = await c.req.json().catch(() => ({}));
+  const text = cleanBody(body.body);
+  const err = validateComment(text);
+  if (err) return c.json({ error: err }, 400);
+  const id = c.req.param('id');
+  const idea = await loadStemIdea(c.env.DB, id);
+  if (!idea) return c.json({ error: 'Dat idee bestaat niet (meer)' }, 404);
+
+  const comment = {
+    id: newId('cmt'),
+    ideaId: id,
+    authorId: user.id,
+    authorName: stemAuthorName(c, user),
+    body: text,
+    createdAt: new Date().toISOString(),
+  };
+  await insertStemComment(c.env.DB, comment);
+  // De bel voor de indiener loopt WEL via de wereld (notifications staan daar),
+  // dus die ene rij gaat door de gewone persist.
+  const store = c.get('store');
+  store.mutate((db) => notifyIdeaAuthor(db, idea, comment));
+  await store.persist();
+  // De verse draad terug, zodat de reactie meteen op het scherm staat en niet
+  // pas na een tweede rondrit.
+  return c.json({ ok: true, ...(await loadStemThread(c.env.DB, id, user.id)) });
+});
+
 // --- Admin -----------------------------------------------------------------
 /**
  * Diagnostics for the spelleider: recent auctions with the FULL bid list (who
@@ -1235,6 +1385,22 @@ app.post('/admin/flights/:id/finish', async (c) => {
 });
 
 // --- Admin console: diagnostics ------------------------------------------
+
+/**
+ * Beheerder: het label van een idee verzetten (in stemming → gepland →
+ * in het spel, of niet weerhouden). Dat is het enige wat de spelleiding op het
+ * bord mag: ideeën van spelers worden niet herschreven of gewist.
+ */
+app.post('/admin/stem/ideas/:id/status', async (c) => {
+  const user = requireUser(c);
+  if (!user.isAdmin) return c.json({ error: 'Alleen de beheerder mag dit doen' }, 403);
+  const body = await c.req.json().catch(() => ({}));
+  const status = String(body.status ?? '');
+  if (!isStemStatus(status)) return c.json({ error: 'Onbekende status' }, 400);
+  const found = await setStemStatus(c.env.DB, c.req.param('id'), status);
+  if (!found) return c.json({ error: 'Dat idee bestaat niet (meer)' }, 404);
+  return c.json({ ok: true, ideas: await loadStemBoard(c.env.DB, user.id) });
+});
 
 /** Recent completed flights, for the admin flight-analysis picker. */
 app.get('/admin/flights', (c) => {
