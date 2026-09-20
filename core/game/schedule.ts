@@ -2158,6 +2158,97 @@ function runDataMigrations(db: Database): void {
     }
     db.world.dataVersion = 51;
   }
+
+  if ((db.world.dataVersion ?? 0) < 52) {
+    // One-off (owner request): remove the players "De Dikke Duif" and
+    // "Duiveplukker" from the game, with everything that hangs off them — hun
+    // duiven gaan mee, niet naar de markt of het opvangcentrum.
+    //
+    // Zelfde vorm als v24 (die "flapping pidgeons" verwijderde), met de lessen
+    // van v49/v50 erbij: matchen op **hoknaam OF gebruikersnaam**, witruimte
+    // COLLAPSED (beide namen zijn meerdelig, dus een dubbele spatie zou een
+    // plain trim() stil laten missen), en **élke** match wordt behandeld in
+    // plaats van de eerste — twee spelers kunnen dezelfde naam dragen als de één
+    // hem als hoknaam en de ander als login heeft.
+    //
+    // ⚠️ Bots worden nooit geraakt: die dragen deze namen niet (zie
+    // BOT_LOFT_NAMES), maar de check staat er zodat een toekomstige botnaam die
+    // toevallig matcht geen hok opblaast.
+    const norm = (s: string) => s.trim().toLowerCase().replace(/\s+/g, ' ');
+    const wanted = new Set(['de dikke duif', 'duiveplukker']);
+    const targets = db.lofts.filter((l) => {
+      if (l.isBot) return false;
+      const user = db.users.find((u) => u.id === l.userId);
+      return [l.name, user?.username ?? ''].some((n) => wanted.has(norm(n)));
+    });
+
+    for (const target of targets) {
+      const uid = target.userId;
+      const mine = new Set(db.pigeons.filter((p) => p.ownerId === uid).map((p) => p.id));
+
+      // Hun eigen records. De duiven verdwijnen; andermans duiven die van hen
+      // afstammen blijven leesbaar in de stamboom dankzij `sireName`/`damName`
+      // (zie Pigeon in schema.ts — dáár dienen die velden voor).
+      db.pigeons = db.pigeons.filter((p) => p.ownerId !== uid);
+      db.breedingPairs = db.breedingPairs.filter(
+        (bp) => bp.ownerId !== uid && !mine.has(bp.sireId) && !mine.has(bp.damId),
+      );
+      db.lofts = db.lofts.filter((l) => l.userId !== uid);
+      db.users = db.users.filter((u) => u.id !== uid);
+      // Enkel de inbox van de KIJKER zit in het geheugen; de rest gaat via
+      // `pendingPurge` hieronder naar SQL.
+      db.notifications = db.notifications.filter((n) => n.userId !== uid);
+      db.bets = db.bets.filter((b) => b.userId !== uid);
+
+      // Lopende biedingen van/aan hen, en biedingen op hun duiven.
+      db.offers = db.offers.filter(
+        (o) => o.fromUserId !== uid && o.toUserId !== uid && !mine.has(o.pigeonId),
+      );
+
+      // Hun biedingen uit de lopende veilingen; wie leider was, maakt plaats voor
+      // de volgende in rij (anders staat er een veiling met een onbestaande
+      // hoogste bieder, en die kan niemand meer overbieden of afhandelen).
+      for (const a of db.auctions) {
+        if (a.status !== 'open') continue;
+        a.bids = (a.bids ?? []).filter((bid) => bid.userId !== uid);
+        if (a.currentBidderId === uid) {
+          let top: { userId: string; name: string; amount: number } | null = null;
+          for (const bid of a.bids) if (!top || bid.amount > top.amount) top = bid;
+          a.currentBidderId = top?.userId ?? null;
+          a.currentBidderName = top?.name ?? null;
+          a.currentBid = top?.amount ?? a.minBid;
+        }
+      }
+
+      // Uit elke nog niet afgelopen vlucht. Een AFGEWERKTE vlucht blijft zoals
+      // hij was: de uitslag is geschiedenis van iedereen die meedeed, en namen
+      // staan daar bevroren in — die herschrijven zou de uitslagen van de andere
+      // spelers vervalsen.
+      for (const f of db.flights) {
+        if (f.status === 'completed') continue;
+        f.entries = f.entries.filter((e) => e.ownerId !== uid);
+        f.sim = f.sim.filter((s) => s.ownerId !== uid);
+        f.results = f.results.filter((r) => r.ownerId !== uid);
+        if (f.chat?.length) f.chat = f.chat.filter((c) => c.userId !== uid && c.targetId !== uid);
+      }
+
+      // Wat de engine niet kan zien (andermans inbox, afgehandelde weddenschappen,
+      // de historiekregels van hun duiven, het stembord) — zie Database.pendingPurge.
+      const purge = (db.pendingPurge ??= { userIds: [], pigeonIds: [] });
+      purge.userIds.push(uid);
+      purge.pigeonIds.push(...mine);
+    }
+
+    // Weddenschappen van ANDERE spelers op een duif die nu weg is, worden
+    // terugbetaald met een melding — niet stil op 'void' gezet. Hun inzet is
+    // echt afgeschreven bij het plaatsen, en niets aan het verdwijnen van die
+    // duif is hun schuld. (v24 zette de status om zonder terug te betalen; die
+    // fout herhalen we hier niet.) `voidOrphanedBets` kijkt naar de inschrijvingen,
+    // en die zijn hierboven al opgeruimd.
+    if (targets.length > 0) voidOrphanedBets(db);
+
+    db.world.dataVersion = 52;
+  }
 }
 
 /**
