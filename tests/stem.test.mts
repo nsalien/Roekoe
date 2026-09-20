@@ -12,6 +12,7 @@
  *  - het bord zaait zichzelf met de vier startideeën, en doet dat maar één keer;
  *  - stemmen is een toggle en telt per speler, niet per klik;
  *  - de dagrem op nieuwe ideeën telt over 24 uur;
+ *  - een nieuw idee belt iedereen behalve de indiener (en geen bots);
  *  - een reactie belt de indiener, maar niet zichzelf;
  *  - het beheerdersrapport toont wie op wat stemde, inclusief wie zweeg;
  *  - de volgorde van het bord zet "in stemming" boven de rest.
@@ -35,6 +36,7 @@ import {
   SEED_IDEAS,
   buildVoterReport,
   notifyIdeaAuthor,
+  notifyNewIdea,
   sortIdeas,
   validateComment,
   validateIdea,
@@ -182,6 +184,33 @@ console.log('\nReacties + de bel');
   const seedThread = (await loadStemThread(db, 'stem_lenen', 'u1'))!;
   notifyIdeaAuthor(world, seedThread.idea, { ...comment, id: 'cmt_3', ideaId: 'stem_lenen' });
   ok(world.notifications.length === 1, 'een startidee heeft geen indiener om te bellen');
+}
+
+console.log('\nEen nieuw idee belt iedereen');
+{
+  const world = emptyDatabase();
+  const loft = (userId: string, isBot = false) => ({ userId, name: userId, isBot } as any);
+  world.lofts.push(loft('u1'), loft('u2'), loft('u3'), loft('bot_1', true));
+  const idea = {
+    id: 'idea_nieuw', title: 'Duiven kunnen een naamplaatje krijgen',
+    body: 'Uitleg.', authorId: 'u1', authorName: 'Hok Een',
+    status: 'open' as const, createdAt: new Date().toISOString(),
+  };
+
+  notifyNewIdea(world, idea);
+  const geadresseerden = world.notifications.map((n) => n.userId).sort();
+  ok(geadresseerden.join(',') === 'u2,u3', 'elke andere speler krijgt een bel');
+  ok(!geadresseerden.includes('u1'), 'de indiener zelf niet — die weet het al');
+  ok(!geadresseerden.includes('bot_1'), 'en de bots niet: die lezen nooit een melding');
+  ok(world.notifications.every((n) => n.body.includes(idea.title)),
+    'de titel van het idee staat in de melding, anders moet je klikken om te weten waarover het gaat');
+
+  notifyNewIdea(world, idea);
+  ok(world.notifications.length === 2, 'tweemaal verwerken geeft geen dubbele bel (stabiele id per speler)');
+
+  const tweede = { ...idea, id: 'idea_nieuw2', title: 'Nog een idee' };
+  notifyNewIdea(world, tweede);
+  ok(world.notifications.length === 4, 'een tweede idee belt wél opnieuw');
 }
 
 console.log('\nBeheerder: wie stemde op wat');

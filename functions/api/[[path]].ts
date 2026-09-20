@@ -111,6 +111,7 @@ import {
   cleanText,
   isStemStatus,
   notifyIdeaAuthor,
+  notifyNewIdea,
   validateComment,
   validateIdea,
 } from '../../core/game/stem.js';
@@ -1255,6 +1256,11 @@ app.post('/stem/ideas', async (c) => {
   // indiener er per definitie voor is, en moet iedereen eerst zijn eigen knop
   // zoeken.
   await toggleStemVote(c.env.DB, idea.id, user.id);
+  // En iedereen krijgt een bel: een idee waar niemand van weet, krijgt geen
+  // stemmen. De meldingen staan in de wereld, dus die gaan via de gewone persist.
+  const store = c.get('store');
+  store.mutate((db) => notifyNewIdea(db, idea));
+  await store.persist();
   return c.json({ ok: true, ideas: await loadStemBoard(c.env.DB, user.id) });
 });
 

@@ -241,6 +241,41 @@ export const SEED_IDEAS: readonly Omit<StemIdea, 'createdAt'>[] = [
 ];
 
 /**
+ * Bel IEDEREEN zodra er een nieuw idee op het bord komt.
+ *
+ * Zonder dit is een vers idee alleen zichtbaar voor wie toevallig de pagina
+ * opent, en dan stemt er niemand op — wat het hele bord waardeloos maakt. De bel
+ * is dus geen extraatje maar de motor eronder.
+ *
+ * Wie hem NIET krijgt: de indiener zelf (die weet het), en de bots (die loggen
+ * nooit in, dus een melding voor hen is puur een rij die niemand ooit leest —
+ * en op tien echte spelers zou dat de helft van de schrijfkosten zijn).
+ *
+ * ⚠️ Geen inbox-trim hier, net als bij `notifyIdeaAuthor`: de wereldload draagt
+ * enkel de inbox van de KIJKER, dus de rijen van de anderen zitten niet eens in
+ * het geheugen om te snoeien. Dat doet `boundedCleanups` in SQL. De id is
+ * stabiel per (idee, speler), zodat een dubbel verwerkt verzoek één bel per
+ * speler geeft en geen twee.
+ */
+export function notifyNewIdea(db: Database, idea: StemIdea): void {
+  for (const loft of db.lofts) {
+    if (loft.isBot || loft.userId === idea.authorId) continue;
+    const id = `ntf:stem:idea:${idea.id}:${loft.userId}`;
+    if (db.notifications.some((n) => n.id === id)) continue;
+    db.notifications.push({
+      id,
+      userId: loft.userId,
+      kind: 'info',
+      title: '🗳️ Nieuw idee op De Stem',
+      body: `${idea.authorName} stelt voor: "${idea.title}". Ga kijken op De Stem — stem mee als je het ook wil zien, of stel je vragen eronder.`,
+      flightId: null,
+      createdAt: idea.createdAt,
+      read: false,
+    });
+  }
+}
+
+/**
  * Bel de indiener van een idee zodra iemand erop reageert.
  *
  * ⚠️ Geen inbox-trim hier, in tegenstelling tot `notify` in engine.ts. De

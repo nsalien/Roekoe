@@ -907,8 +907,10 @@ Entiteiten: `Pigeon`, `Loft`, `User`, `BreedingPair`, `PendingBrood`, `Flight` (
   `GET /admin/stem/voters`): twee tabs — **per idee** (wie het steunt, ook de nul-stemmers)
   en **per speler** (waarop hij stemde, **inclusief wie nog niets stemde**), met een teller
   "X van de Y spelers stemden". Stemmen is dus **niet anoniem tegenover de beheerder**;
-  dat staat zo in de wiki en in `spelregels.md` §11bis. Het bord **zaait zichzelf** met vier
-  startideeën (lenen bij de bank · onderling broeden · doping + dopingcontrole · unieke
+  dat staat zo in de wiki en in `spelregels.md` §11bis. Een **nieuw idee belt élke andere echte speler**
+  (`notifyNewIdea`, stabiele id `ntf:stem:idea:<ideaId>:<userId>`; niet de indiener, niet de
+  bots) — zonder die bel ziet alleen wie toevallig de pagina opent een vers idee, en dan
+  stemt er niemand op. Het bord **zaait zichzelf** met vier startideeën (lenen bij de bank · onderling broeden · doping + dopingcontrole · unieke
   eigenschappen per duif) zodra het leeg is. Backend: `core/game/stem.ts` (regels) +
   de `stem_*`-queries in `core/d1.ts`; §8 heeft het waarom.
 - `WikiPage` (`/wiki`, nav 📖 **Wiki**) — **statische**, client-only uitlegpagina van
@@ -4258,6 +4260,14 @@ schrijfactie is een losse append of een DELETE op een samengestelde sleutel:
   zolang het bord leeg is;
 - **de bel bij een reactie loopt WEL via de wereld** (meldingen staan daar) en heeft
   daarom een stabiele id `ntf:stem:<commentId>`.
+
+**Een nieuw idee belt iedereen.** `notifyNewIdea` (game/stem.ts) zet bij het indienen
+één melding in de inbox van élke andere echte speler. Dat is geen extraatje maar de
+motor onder het bord: een idee dat niemand ziet krijgt geen stemmen. Bots worden
+overgeslagen — die lezen nooit een melding, en op tien echte spelers zouden zij de
+helft van de schrijfkosten zijn. De id is stabiel per (idee, speler), dus een dubbel
+verwerkt verzoek geeft één bel. Trimmen gebeurt niet in het geheugen (de inbox van een
+ander zit niet in de wereldload) maar door `boundedCleanups` in SQL.
 
 **De draad wordt lui geladen.** Het bord stuurt per idee enkel het *aantal* reacties
 (één `GROUP BY`, niet één rij per reactie); de reacties zelf komen pas bij het
