@@ -890,6 +890,8 @@ export class D1Store implements Store {
       }
     }
 
+    purgeRemovedPlayers(db, stmts, w.pendingPurge);
+
     boundedCleanups(db, stmts, notifiedUsers, addedTrade, addedBet);
 
     if (stmts.length > 0) await db.batch(stmts);
@@ -1196,6 +1198,47 @@ export async function setStemStatus(db: D1Database, ideaId: string, status: Stem
   const changed = res?.meta?.changes;
   if (typeof changed === 'number') return changed > 0;
   return !!(await db.prepare('SELECT 1 AS v FROM stem_ideas WHERE id = ?').bind(ideaId).first());
+}
+
+/**
+ * Wis wat er van een verwijderde speler overblijft in de tabellen die de
+ * wereldload NIET (volledig) draagt.
+ *
+ * De per-rij-diff ruimt alles op wat wél in het geheugen zat: users, lofts,
+ * pigeons, breeding_pairs, offers, auction_bids, en de vlucht-JSON. Maar de
+ * inbox van een ánder dan de kijker, diens afgehandelde weddenschappen, de
+ * historiekregels van zijn duiven en het hele stembord staan er niet in — en
+ * een rij die niet geladen is, ziet de diff ook niet als verwijderd. Zonder
+ * deze stap blijven die dus staan, met een stem die blijft meetellen als
+ * pijnlijkste gevolg.
+ *
+ * Ideeën en reacties op het stembord worden GEANONIMISEERD in plaats van gewist:
+ * er kunnen stemmen en antwoorden van anderen aan hangen, en die context
+ * weggooien is een zwaardere ingreep dan de naam weghalen.
+ */
+function purgeRemovedPlayers(
+  db: D1Database,
+  stmts: D1PreparedStatement[],
+  purge: { userIds: string[]; pigeonIds: string[] } | undefined,
+): void {
+  const userIds = [...new Set(purge?.userIds ?? [])].filter(Boolean);
+  const pigeonIds = [...new Set(purge?.pigeonIds ?? [])].filter(Boolean);
+  if (userIds.length === 0 && pigeonIds.length === 0) return;
+
+  const chunked = (ids: string[], sql: (marks: string) => string) => {
+    for (let i = 0; i < ids.length; i += D1_MAX_BOUND_PARAMS) {
+      const chunk = ids.slice(i, i + D1_MAX_BOUND_PARAMS);
+      stmts.push(db.prepare(sql(chunk.map(() => '?').join(','))).bind(...chunk));
+    }
+  };
+
+  chunked(userIds, (m) => `DELETE FROM notifications WHERE user_id IN (${m})`);
+  chunked(userIds, (m) => `DELETE FROM bets WHERE user_id IN (${m})`);
+  chunked(userIds, (m) => `DELETE FROM auction_bids WHERE user_id IN (${m})`);
+  chunked(userIds, (m) => `DELETE FROM stem_votes WHERE user_id IN (${m})`);
+  chunked(userIds, (m) => `UPDATE stem_comments SET author_id = '', author_name = 'Oud-speler' WHERE author_id IN (${m})`);
+  chunked(userIds, (m) => `UPDATE stem_ideas SET author_id = '', author_name = 'Oud-speler' WHERE author_id IN (${m})`);
+  chunked(pigeonIds, (m) => `DELETE FROM pigeon_log_entries WHERE pigeon_id IN (${m})`);
 }
 
 /**

@@ -149,7 +149,7 @@ krijgen.**
 `core/game/schedule.ts` → `advanceRealtime(db, nowMs, weatherByFlight)` roept in
 volgorde:
 1. `runDataMigrations(db)` — eenmalige datafixes, **gated op `world.dataVersion`**
-   (staat nu op **51**; nieuwe migratie = nieuw `if ((db.world.dataVersion ?? 0) < N)`
+   (staat nu op **52**; nieuwe migratie = nieuw `if ((db.world.dataVersion ?? 0) < N)`
    blok + `db.world.dataVersion = N`). De oudere migraties hebben hun werk gedaan en
    zijn enkel nog van belang als **patroon** — zie §8, kop *Eenmalige migraties*.
 2. `ensureFlightsScheduled(db, nowMs)` — plant vluchten volgens `REAL_SCHEDULE`.
@@ -1057,13 +1057,14 @@ npx tsx tests/brood-choice.test.mts      # vol hok bij het uitkomen: de speler k
 npx tsx tests/reactions.test.mts         # tribune: de ontgrendelroutes en de chatbox
 npx tsx tests/reactions-persist.test.mts # tribune: de reacties overleven de databank
 npx tsx tests/stem.test.mts              # De Stem: zaaien, stemmen als toggle, dagrem, de bel
+npx tsx tests/player-removal.test.mts    # een speler verwijderen: alles weg, de rest ongemoeid
 ```
 Alles in één keer (bash, vanuit de root):
 ```bash
 for f in tests/*.test.mts; do printf '%-26s ' "$(basename "$f")"; npx tsx "$f" >/dev/null 2>&1 && echo OK || echo FAIL; done
 ```
 
-**Stand van de suite: 41 van de 42 groen** (gemeten bij de Stem-commit; `cpu-budget`
+**Stand van de suite: 42 van de 43 groen** (gemeten bij de Stem-commit; `cpu-budget`
 apart gedraaid). Bekende rode — controleer of een rode test hierin staat vóór je gaat
 zoeken:
 - `age-cup` — **echt rood**, één assertie ("de cyclus is verankerd op het einde van het
@@ -4189,6 +4190,46 @@ Hieronder enkel wat je nodig hebt om eraan te werken.)
   `/market`). Client: `Pigeon.revealed:boolean`, de 7 statvelden zijn `number|null`;
   `PigeonCard`/`PigeonPage` tonen bij `!revealed` enkel ★talent + een slot-melding.
   De **Markt-biedkiezer `BidCascade`** dwingt de flow speler→duif→bedrag af.
+
+### Een speler verwijderen (en waarom dat meer is dan een DELETE)
+
+Gebeurt op vraag van de eigenaar, als eenmalige **datamigratie** (v24 voor
+"flapping pidgeons", **v52** voor "De Dikke Duif" en "Duiveplukker"). Het patroon
+staat hier omdat het makkelijk half wordt gedaan:
+
+- **Matchen op hoknaam OF gebruikersnaam**, case-insensitief, witruimte
+  **collapsed**, en **élke** match — niet `find`. Een migratie die niemand vindt
+  ziet er identiek uit als een die goed liep, dus de match moet ruim genoeg staan
+  voor een dubbele spatie maar nooit ruim genoeg voor een naamvariant: een speler
+  te veel wissen is onomkeerbaar, een speler te weinig kost een nieuwe migratie.
+- **Bots nooit** (`l.isBot`), ook al dragen ze de naam niet.
+- **Afgewerkte vluchten blijven zoals ze zijn.** De uitslag is geschiedenis van
+  iederéén die meedeed en de namen staan er bevroren in; die herschrijven
+  vervalst de uitslagen van de spelers die blijven. Enkel niet-afgelopen vluchten
+  worden opgekuist (entries/sim/results/chat).
+- **Andermans open weddenschappen op een verdwenen duif worden TERUGBETAALD**
+  (`voidOrphanedBets`, ná het opkuisen van de inschrijvingen), niet stil op
+  `void` gezet. v24 deed dat laatste — dat is geld afnemen voor een vlucht die
+  door toedoen van de spelleiding niet doorgaat.
+- **De veiling valt terug op de volgende bieder** als de vertrekker leider was;
+  anders staat er een veiling met een hoogste bieder die niet bestaat.
+- **Hun duiven verdwijnen mee.** Andermans duiven die van hen afstammen blijven
+  leesbaar in de stamboom dankzij `sireName`/`damName` — precies waarvoor die twee
+  gedenormaliseerde velden bestaan.
+
+⚠️ **De valstrik: de helft van de rijen zit niet in de wereldload.** De inbox van
+een ánder dan de kijker, de afgehandelde weddenschappen, de duivenlogboeken en
+het hele stembord staan niet in `Database`, en een rij die niet geladen is ziet
+de per-rij-diff ook niet als verwijderd. Het filteren van de arrays alleen laat
+die dus staan — met een stem die blijft meetellen als pijnlijkste gevolg. Daarvoor
+is **`Database.pendingPurge`** er: de migratie zet de userIds/pigeonIds erin en
+`persist` (`purgeRemovedPlayers` in d1.ts) maakt er de DELETEs van. Voeg je later
+een tabel toe die buiten de wereldload valt, zet ze **daar** ook bij.
+
+Ideeën en reacties op het stembord worden **geanonimiseerd** (`Oud-speler`) in
+plaats van gewist: er hangen stemmen en antwoorden van anderen aan, en die
+context weggooien is een zwaardere ingreep dan de naam weghalen. `tests/player-removal.test.mts`
+bewaakt beide kanten: alles van de vertrekker weg, de blijver ongemoeid.
 
 ### De Stem: een ideeënbord dat het leesbudget niet aanraakt
 

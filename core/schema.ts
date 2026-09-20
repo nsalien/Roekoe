@@ -956,6 +956,18 @@ export interface Database {
   auctions: Auction[];
   bets: Bet[];
   offers: PigeonOffer[];
+  /**
+   * Ids whose rows in the tables OUTSIDE the world load must be deleted by
+   * `persist` (see D1Store.persist). Purely transient — never loaded, never
+   * written as a column, gone on the next load; same idea as `Pigeon.pendingLog`.
+   *
+   * ⚠️ Why this exists at all: removing a player is the one operation that has to
+   * reach rows the engine cannot see. The world carries only the VIEWER's inbox,
+   * only the open bets, and none of the stem tables — so filtering the in-memory
+   * arrays silently leaves another player's rows behind. Whoever removes a player
+   * fills this in; `persist` turns it into the DELETEs.
+   */
+  pendingPurge?: { userIds: string[]; pigeonIds: string[] };
 }
 
 export function emptyFoodStock(): FoodStock {
