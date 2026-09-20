@@ -1938,7 +1938,9 @@ feature bij**. Welke dat wordt, beslissen de spelers samen op de pagina
   vóór het gebouwd wordt: *"en wat als iemand niet kan afbetalen?"* is een betere
   bijdrage dan een stem. Reageert iemand op jouw idee, dan krijg je een melding.
 - **Zelf een idee indienen.** Titel, korte uitleg, klaar. **Maximaal 3 per dag**,
-  en je eigen idee draagt automatisch je stem.
+  en je eigen idee draagt automatisch je stem. **Alle andere spelers krijgen er
+  meteen een melding van** (belknop), zodat een goed idee niet ongezien blijft
+  omdat niemand toevallig op de pagina keek.
 
 **Het label bij een idee** zegt waar het staat:
 

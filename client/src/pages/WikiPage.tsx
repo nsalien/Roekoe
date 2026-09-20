@@ -1232,7 +1232,8 @@ export function WikiPage() {
           </li>
           <li>
             <strong>Zelf een idee indienen.</strong> Titel, korte uitleg, klaar. Maximaal drie per dag, en je
-            eigen idee draagt automatisch je stem.
+            eigen idee draagt automatisch je stem. <strong>Iedereen krijgt er een melding van</strong> zodra je
+            het op het bord zet.
           </li>
         </ul>
 
