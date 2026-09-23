@@ -8,6 +8,7 @@
  */
 
 import { BETTING, FLIGHT_RISK } from '../config/gameConfig.js';
+import { debtBlock } from './economy.js';
 import type { Bet, BetKind, Database, Flight, Pigeon } from '../schema.js';
 import { newId } from '../store.js';
 import { pigeonVelocity } from './flight.js';
@@ -280,6 +281,7 @@ export function placeBet(
   const bet = Math.round(stake);
   if (!(bet >= BETTING.minStake)) return `!Minimale inzet is €${BETTING.minStake}`;
   if (bet > BETTING.maxStake) return `!Maximale inzet is €${BETTING.maxStake}`;
+  { const debt = debtBlock(loft); if (debt) return '!' + debt; }
   if (loft.money < bet) return '!Je hebt niet genoeg geld voor deze inzet';
   const prob = betProbability(db, flight, kind, userId, pigeonId, rivalId);
   if (prob == null) return '!Ongeldige weddenschap';

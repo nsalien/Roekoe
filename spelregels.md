@@ -1245,9 +1245,10 @@ je kosten, je sponsorinkomsten en wat je netto per dag over- of tekortkomt.
 Voer wordt apart uit je voorraad verbruikt (§4). Ziekte/sterfte-rondes en de
 seizoenswissel lopen los daarvan (§5, §6, §15).
 
-Onkosten kunnen je kassa **onder €0** duwen. Sta je negatief, dan **kan je niet
-meer inschrijven** voor vluchten: eerst een duif verkopen om terug uit het rood
-te geraken.
+Onkosten kunnen je kassa **onder €0** duwen. Sta je negatief, dan **kan je niets
+meer kopen** — inschrijven voor een vlucht incluis — en worden je coaches
+ontslagen. Raak je er niet binnen tien dagen uit, dan gaat je slechtste duif
+verplicht onder de hamer. Het volledige traject staat in **§4.5**.
 
 ### 4.3 Rustkuur (energie én gezondheid kopen met tijd)
 Naast wachten en Herstelvoer kan je een duif een **betaalde rustkuur** geven op
@@ -1288,6 +1289,55 @@ Gezondheid komt vanzelf terug met voer, en **sneller naarmate ze verder gezakt
 is**. Herstelvoer is daarvoor het beste (§4). Grofweg: **één à twee wedstrijden
 per week** houdt een duif duurzaam op peil; wie er drie of meer vliegt, ziet haar
 gezondheid — en dus haar vluchtvorm — stelselmatig zakken.
+
+### 4.5 Rode cijfers: wat als je kassa onder nul zakt
+
+Je vaste onkosten (§4.2) worden **elke dag** afgerekend, of je nu inlogt of
+niet. Je kassa kan dus vanzelf negatief gaan — en dan komt er een traject op
+gang dat je zelf kan stoppen.
+
+| Wanneer | Wat er gebeurt |
+|---|---|
+| **Meteen** | Al je **privécoaches worden ontslagen** en je kan **niets meer kopen** |
+| **Na 10 dagen** | Je duif met het **laagste talent** gaat 24 u onder de hamer |
+| **Elke 10 dagen daarna** | De volgende duif volgt, tot je kassa weer klopt |
+
+**Waarom de coaches als eerste?** Dat is met €80 per dag per duif veruit de
+grootste terugkerende kost die je kan afwerpen, en dus de snelste weg terug naar
+groen. Je kan er ook geen nieuwe inhuren zolang je in het rood staat — een coach
+kost niets op het moment dat je hem aanneemt, dus anders was het gat meteen weer
+open.
+
+**Wat je niet meer kan** zolang je saldo onder nul staat: duiven of voer kopen,
+trainen, koppelen, een rustkuur, hernoemen, je hok of ziekenboeg uitbreiden,
+personeel bijnemen, wedden, bieden, en inschrijven voor een vlucht.
+
+**Wat je wél kan — en moet.** Verkopen is je uitweg, en die blijft volledig
+open: een duif te koop zetten (§9.1), voer terugverkopen aan 80 % (§4), een bod
+op je duif aanvaarden, en personeel ontslaan. Een duif vrijlaten of naar de
+bistro brengen (§9.2) mag ook.
+
+**De gedwongen veiling.** Je duif wordt **geveild**, niet zomaar verkocht: ze
+opent op haar **marktwaarde** (§9.0) en loopt 24 uur, en de club bepaalt wat ze
+opbrengt. De **volledige opbrengst gaat naar jouw kassa**. Op je eigen veiling
+kan je niet meebieden — je eigen duif terugkopen is geen verkoop.
+
+> **Komt er geen enkel bod?** Dan blijft je duif gewoon in je hok en gaat ze de
+> volgende ronde **25 % lager** onder de hamer, tot ze een koper vindt. Zo kan een
+> schuld niet eeuwig blijven hangen in een week waarin niemand zin heeft om te
+> kopen. Vindt ze wél een koper, dan begint de volgende duif (als je nog in het
+> rood staat) weer op haar volle marktwaarde.
+
+**Je laatste duif wordt nooit geveild.** Een leeg hok verdient niets meer en kan
+zich nooit terugvechten; dat zou een zwaardere straf zijn dan de schuld zelf.
+Duiven die **ingeschreven staan voor een vlucht**, aan het **koppelen** zijn of
+**de weg kwijt** zijn, blijven eveneens buiten schot — die kunnen het hok op dat
+moment niet verlaten.
+
+> **Computermelkers** (§17) hebben hun eigen kasvloer en vallen niet onder deze
+> regel.
+
+---
 
 ## 5. Ziekte, kwetsuur & ziekenboeg
 

@@ -120,6 +120,8 @@ function rowToLoft(r: any): Loft {
     awards: r.awards ? JSON.parse(r.awards) : [],
     newcomer: r.newcomer ? JSON.parse(r.newcomer) : undefined,
     unlockedReactions: r.unlocked_reactions ? JSON.parse(r.unlocked_reactions) : [],
+    debtDays: r.debt_days ?? 0,
+    debtMisses: r.debt_misses ?? 0,
   };
 }
 
@@ -417,7 +419,7 @@ const LOFT_COLUMNS = [
   'season_points', 'total_wins', 'is_bot', 'infirmary_capacity', 'medicated_food', 'doctors',
   'physios', 'xp', 'level', 'stats', 'badges', 'missions', 'missions_day', 'streak',
   'pending_event', 'sponsorship', 'last_rest_cure', 'awards', 'pending_broods', 'newcomer',
-  'season_wins', 'unlocked_reactions',
+  'season_wins', 'unlocked_reactions', 'debt_days', 'debt_misses',
 ];
 
 function loftRow(l: Loft): unknown[] {
@@ -440,6 +442,9 @@ function loftRow(l: Loft): unknown[] {
     // '' rather than '[]' for a loft that never bought one, so its
     // column-narrowed UPDATE keeps skipping this column.
     l.unlockedReactions?.length ? JSON.stringify(l.unlockedReactions) : '',
+    // 0 for every solvent loft, so its column-narrowed UPDATE keeps skipping both.
+    l.debtDays ?? 0,
+    l.debtMisses ?? 0,
   ];
 }
 
@@ -1480,6 +1485,13 @@ const SCHEMA_STEPS: string[] = [
   'CREATE INDEX IF NOT EXISTS idx_stem_ideas_created ON stem_ideas (created_at DESC)',
   'CREATE INDEX IF NOT EXISTS idx_stem_votes_user ON stem_votes (user_id)',
   'CREATE INDEX IF NOT EXISTS idx_stem_comments_idea ON stem_comments (idea_id, created_at)',
+
+  // SCHULD (zie DEBT in gameConfig): hoeveel dagen dit hok in het rood staat, en
+  // hoeveel gedwongen veilingen er op rij zonder bod sloten. Twee scalairen, geen
+  // eigen tabel — ze rijden mee op een rij die élk verzoek toch al laadt, en ze
+  // groeien niet. Default 0 = het gedrag van vóór deze regel, dus geen migratie.
+  'ALTER TABLE lofts ADD COLUMN debt_days INTEGER NOT NULL DEFAULT 0',
+  'ALTER TABLE lofts ADD COLUMN debt_misses INTEGER NOT NULL DEFAULT 0',
 ];
 
 /**

@@ -38,6 +38,7 @@ import type { Database, Loft, Pigeon, User } from '../schema.js';
 import { emptySponsorState, emptyStats } from '../schema.js';
 import { newId, type Store } from '../store.js';
 import { awardBadge, evaluateBadges } from './badges.js';
+import { debtBlock } from './economy.js';
 import { awardBroodBadges } from './breeding.js';
 import { botTakeWeeklyActions } from './bots.js';
 import { progressMissions } from './missions.js';
@@ -253,6 +254,7 @@ export function renameLoft(store: Store, userId: string, name: string): string |
   return store.mutate((db) => {
     const loft = db.lofts.find((l) => l.userId === userId);
     if (!loft) return 'Geen hok gevonden';
+    const debt = debtBlock(loft); if (debt) return debt;
     const trimmed = name.trim();
     if (trimmed.length < 2 || trimmed.length > 32) return 'Naam moet tussen 2 en 32 tekens zijn';
     if (trimmed === loft.name) return 'Dat is al de naam van je hok';
@@ -349,6 +351,7 @@ export function upgradeCapacity(store: Store, userId: string): string | null {
   return store.mutate((db) => {
     const loft = db.lofts.find((l) => l.userId === userId);
     if (!loft) return 'Geen hok gevonden';
+    const debt = debtBlock(loft); if (debt) return debt;
     const tier = nextCapacityTier(loft.capacity);
     if (!tier) return 'Je hok heeft al de maximale capaciteit';
     if (loft.money < tier.price) return 'Niet genoeg geld voor deze uitbreiding';
@@ -363,6 +366,7 @@ export function buyCompartment(store: Store, userId: string): string | null {
   return store.mutate((db) => {
     const loft = db.lofts.find((l) => l.userId === userId);
     if (!loft) return 'Geen hok gevonden';
+    const debt = debtBlock(loft); if (debt) return debt;
     if ((loft.compartments ?? 0) >= loft.capacity) return 'Je hebt al voor elke plaats een apart hok';
     const cost = compartmentCost(loft.compartments ?? 0);
     if (loft.money < cost) return 'Niet genoeg geld voor een apart hok';
@@ -382,6 +386,7 @@ export function upgradeInfirmary(store: Store, userId: string): string | null {
   return store.mutate((db) => {
     const loft = db.lofts.find((l) => l.userId === userId);
     if (!loft) return 'Geen hok gevonden';
+    const debt = debtBlock(loft); if (debt) return debt;
     const tier = nextInfirmaryTier(loft.infirmaryCapacity);
     if (!tier) return 'De ziekenboeg is al maximaal uitgebreid';
     if (loft.money < tier.price) return 'Niet genoeg geld voor deze uitbreiding';
@@ -401,6 +406,7 @@ export function setCoach(store: Store, userId: string, pigeonId: string, on: boo
       pigeon.coached = false;
       return null;
     }
+    const debt = debtBlock(loft); if (debt) return debt;
     if (pigeon.coached) return 'Deze duif heeft al een coach';
     // No upfront cost anymore — a coach is a purely daily recurring expense
     // (COACH.dailySalary), charged automatically in tickDailyCare.
@@ -415,6 +421,7 @@ export function renamePigeon(store: Store, userId: string, pigeonId: string, nam
     const loft = db.lofts.find((l) => l.userId === userId);
     const pigeon = db.pigeons.find((p) => p.id === pigeonId && p.ownerId === userId);
     if (!loft || !pigeon) return 'Duif niet gevonden';
+    const debt = debtBlock(loft); if (debt) return debt;
     const trimmed = name.trim();
     if (trimmed.length < 2 || trimmed.length > 28) return 'Naam moet tussen 2 en 28 tekens zijn';
     if (loft.money < RENAME_COST) return `Niet genoeg geld (hernoemen kost €${RENAME_COST})`;
@@ -469,6 +476,7 @@ export function startRestCure(store: Store, userId: string, pigeonId: string): s
     const loft = db.lofts.find((l) => l.userId === userId);
     const pigeon = db.pigeons.find((p) => p.id === pigeonId && p.ownerId === userId);
     if (!loft || !pigeon) return 'Duif niet gevonden';
+    const debt = debtBlock(loft); if (debt) return debt;
     if (pigeon.cureUntil && Date.parse(pigeon.cureUntil) > Date.now())
       return 'Deze duif is al op rustkuur';
     if (isAway(pigeon)) return `${AWAY_MSG}`;
@@ -504,6 +512,7 @@ export function buyFood(store: Store, userId: string, type: string, kg: number):
     if (!(type in FEED_RATIONS)) return 'Ongeldig voedingstype';
     if (kg <= 0) return 'Ongeldige hoeveelheid';
     const key = type as FeedRationKey;
+    const debt = debtBlock(loft); if (debt) return debt;
     const cost = Math.round(kg * FEED_RATIONS[key].pricePerKg);
     if (loft.money < cost) return 'Niet genoeg geld';
     loft.money -= cost;
@@ -569,7 +578,7 @@ export function enterFlight(
     if (pigeon.form < 1) return 'Deze duif is volledig uitgeput — laat ze eerst wat rusten';
     const breeding = db.breedingPairs.some((bp) => bp.sireId === pigeonId || bp.damId === pigeonId);
     if (breeding) return 'Deze duif koppelt — stop eerst het broeden voordat ze weer kan vliegen';
-    if (loft.money < 0) return 'Je kassa staat negatief — verkoop eerst een duif voor je inschrijft';
+    { const debt = debtBlock(loft); if (debt) return debt; }
     if (flight.entries.some((e) => e.pigeonId === pigeonId)) return 'Duif is al ingeschreven';
     // The titanenwedstrijd allows only one bird per loft.
     if (flight.titan && flight.entries.some((e) => e.ownerId === userId))
@@ -817,6 +826,7 @@ export function buyPigeon(store: Store, userId: string, pigeonId: string): strin
     const buyer = db.lofts.find((l) => l.userId === userId);
     const pigeon = db.pigeons.find((p) => p.id === pigeonId);
     if (!buyer || !pigeon) return 'Duif niet gevonden';
+    const debt = debtBlock(buyer); if (debt) return debt;
     if (!pigeon.forSale || pigeon.price == null) return 'Deze duif is niet te koop';
     if (pigeon.ownerId === userId) return 'Dit is al jouw duif';
     if (buyer.money < pigeon.price) return 'Niet genoeg geld';
@@ -917,6 +927,7 @@ export function trainPigeon(
     const loft = db.lofts.find((l) => l.userId === userId);
     const pigeon = db.pigeons.find((p) => p.id === pigeonId && p.ownerId === userId);
     if (!loft || !pigeon) return 'Duif niet gevonden';
+    const debt = debtBlock(loft); if (debt) return debt;
     if (pigeon.ailment || pigeon.inInfirmary) return 'Een zieke, gekwetste of herstellende duif kan niet trainen';
     if (onRestCure(pigeon)) return 'Deze duif is op rustkuur — ze kan pas weer trainen als de kuur voorbij is';
     if (isAway(pigeon)) return `${AWAY_MSG}`;
@@ -965,6 +976,7 @@ export function startBreeding(
     const sire = db.pigeons.find((p) => p.id === sireId && p.ownerId === userId);
     const dam = db.pigeons.find((p) => p.id === damId && p.ownerId === userId);
     if (!loft || !sire || !dam) return 'Duif niet gevonden';
+    const debt = debtBlock(loft); if (debt) return debt;
     if (sire.sex !== 'doffer') return 'De eerste ouder moet een doffer zijn';
     if (dam.sex !== 'duivin') return 'De tweede ouder moet een duivin zijn';
     if (sire.form < BREEDING.minParentForm || dam.form < BREEDING.minParentForm)
@@ -1142,6 +1154,7 @@ export function setMedicatedFood(store: Store, userId: string, on: boolean): str
   return store.mutate((db) => {
     const loft = db.lofts.find((l) => l.userId === userId);
     if (!loft) return 'Geen hok gevonden';
+    if (on) { const debt = debtBlock(loft); if (debt) return debt; }
     loft.medicatedFood = !!on;
     return null;
   });
@@ -1157,6 +1170,10 @@ export function setInfirmaryStaff(
   return store.mutate((db) => {
     const loft = db.lofts.find((l) => l.userId === userId);
     if (!loft) return 'Geen hok gevonden';
+    // Ontslaan mag altijd — dat is net de uitweg. Enkel bijnemen is een aankoop.
+    if (Math.round(clamp(doctors, 0, 20)) > loft.doctors || Math.round(clamp(physios, 0, 20)) > loft.physios) {
+      const debt = debtBlock(loft); if (debt) return debt;
+    }
     loft.doctors = Math.round(clamp(doctors, 0, 20));
     loft.physios = Math.round(clamp(physios, 0, 20));
     if (loft.doctors > 0 || loft.physios > 0) {

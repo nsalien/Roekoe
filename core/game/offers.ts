@@ -11,6 +11,7 @@
  */
 
 import type { Database, Loft, Pigeon, PigeonOffer } from '../schema.js';
+import { debtBlock } from './economy.js';
 import { newId } from '../store.js';
 import { awardBadge, evaluateBadges } from './badges.js';
 import { progressMissions } from './missions.js';
@@ -47,6 +48,7 @@ export function makeOffer(db: Database, fromUserId: string, pigeonId: string, am
   const owner = db.lofts.find((l) => l.userId === pigeon.ownerId);
   if (!owner) return 'Eigenaar niet gevonden';
   if (owner.isBot) return 'Je kan enkel op duiven van andere spelers bieden';
+  const debt = debtBlock(bidder); if (debt) return debt;
   const bid = Math.round(amount);
   if (!(bid > 0)) return 'Ongeldig bod';
   // A bird ON the market can only be bid on when its seller opened the door with

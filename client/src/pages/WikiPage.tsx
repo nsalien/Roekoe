@@ -37,6 +37,7 @@ const SECTIONS = [
   { id: 'rassen', icon: '🎨', label: 'Rassen' },
   { id: 'veilingen', icon: '🔨', label: 'Veilingen & bieden' },
   { id: 'hok', icon: '🏠', label: 'Hok & onderhoudskosten' },
+  { id: 'schuld', icon: '🔴', label: 'Rode cijfers & gedwongen veiling' },
   { id: 'waarde', icon: '💰', label: 'Wat is een duif waard?' },
   { id: 'afscheid', icon: '👋', label: 'Afscheid nemen' },
 ];
@@ -1296,6 +1297,45 @@ export function WikiPage() {
         <p className="faint" style={{ fontSize: '0.85rem' }}>
           Waarom deze regel? Zo eindigt een veiling in een handvol duidelijke stappen in plaats van tientallen
           kleine — dat is spannender én het houdt het spel snel voor iedereen.
+        </p>
+      </Section>
+
+      <Section id="schuld" icon="🔴" title="Rode cijfers & gedwongen veiling">
+        <p className="muted" style={{ marginTop: 0 }}>
+          Je vaste onkosten worden <strong>elke dag</strong> afgerekend, of je nu inlogt of niet.
+          Je kassa kan dus vanzelf onder nul zakken — en dan komt er een traject op gang dat
+          je zelf kan stoppen door te verkopen.
+        </p>
+        <MiniTable
+          head={['Wanneer', 'Wat er gebeurt']}
+          rows={[
+            ['Meteen', 'Al je privécoaches worden ontslagen en je kan niets meer kopen'],
+            ['Na 10 dagen', 'Je duif met het laagste talent gaat 24 u onder de hamer'],
+            ['Elke 10 dagen daarna', 'De volgende duif volgt, tot je kassa weer klopt'],
+          ]}
+        />
+        <p>
+          <strong>Wat je niet meer kan.</strong> Duiven of voer kopen, trainen, koppelen, een
+          rustkuur, hernoemen, uitbreiden, personeel bijnemen, een coach inhuren, wedden,
+          bieden en inschrijven voor een vlucht.
+        </p>
+        <p>
+          <strong>Wat je wél kan — en moet.</strong> Verkopen is je uitweg: een duif te koop
+          zetten, voer terugverkopen (aan 80 %), een bod op je duif aanvaarden, personeel
+          ontslaan. Dat blijft allemaal open.
+        </p>
+        <p>
+          <strong>De gedwongen veiling.</strong> Je duif wordt <em>geveild</em>, niet zomaar
+          verkocht: ze opent op haar marktwaarde en de club bepaalt wat ze opbrengt. De volledige
+          opbrengst gaat naar jouw kassa. Komt er geen enkel bod, dan blijft ze gewoon in je hok
+          en gaat ze de volgende ronde 25 % lager onder de hamer. Op je eigen veiling kan je niet
+          meebieden.
+        </p>
+        <p className="faint" style={{ fontSize: '0.85rem' }}>
+          <strong>Je laatste duif wordt nooit geveild.</strong> Een leeg hok verdient niets en
+          kan zich nooit terugvechten — dat zou een zwaardere straf zijn dan de schuld zelf.
+          Duiven die ingeschreven staan voor een vlucht, aan het koppelen zijn of de weg kwijt
+          zijn, blijven eveneens buiten schot.
         </p>
       </Section>
 

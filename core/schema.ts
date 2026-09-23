@@ -250,6 +250,19 @@ export interface Loft {
   userId: string;
   name: string;
   money: number;
+  /**
+   * Consecutive days this loft has been in the red, counted once per day by
+   * tickDailyCare (0 / absent = solvent). Drives the escalating debt rules in
+   * DEBT: coaches off immediately, then a forced auction every `graceDays`.
+   */
+  debtDays?: number;
+  /**
+   * Consecutive FORCED auctions that closed without a buyer. Each one reopens
+   * the next round `DEBT.markdownPerRound` lower; a round that sells resets it.
+   * Lives on the loft rather than the bird because the markdown follows the
+   * debt, not the pigeon — and it is one scalar instead of a column per bird.
+   */
+  debtMisses?: number;
   food: FoodStock; // kg in stock, per feed type
   feedRation: FeedRationKey; // default ration for new pigeons (not a global setter)
   capacity: number;
