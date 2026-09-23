@@ -68,6 +68,7 @@ import { awardBroodBadges, breed } from './breeding.js';
 import { kinship } from './pedigree.js';
 import { awardBadge, awardFlightBadges, evaluateBadges } from './badges.js';
 import { ensureAuctions, recomputeAuctionLeader } from './auction.js';
+import { tickLoftDebt } from './debt.js';
 import { botDailyActions, botEntryContext, botRaceCandidates } from './bots.js';
 import type { BotEntryContext } from './bots.js';
 import { settleFlightBets, voidBetsForWithdrawnPigeon, voidOrphanedBets, refundFlightBets } from './betting.js';
@@ -2695,8 +2696,15 @@ export function tickDailyCare(db: Database, nowMs: number): void {
 
   {
     const slice = remaining.slice(0, DAILY_CARE_LOFTS_PER_RUN);
+    // The local day number of the day being processed. It goes into every stable
+    // id below (idle staff, debt), so two concurrent requests closing the same
+    // day land on the same rows instead of writing a second one.
+    const dayNo = localDayNumber(TIMEZONE, dayMidnight);
     for (const loft of slice) {
       const owned = db.pigeons.filter((p) => p.ownerId === loft.userId);
+      // ⚠️ A loft with no birds at all is skipped entirely, debt handling
+      // included. That is harmless: it is billed nothing, and with DEBT.keepPigeons
+      // there is nothing left to auction either.
       if (owned.length === 0) continue;
       // A bot runs its loft here, once per day boundary: food, infirmary staff
       // and beds, rest cures, a coach, loft space and breeding. Deliberately on
@@ -2756,11 +2764,15 @@ export function tickDailyCare(db: Database, nowMs: number): void {
               `hun soort, en dat kost je €${idleCost} per dag. Zet ze in de ziekenboeg op 0 tot je ze nodig hebt — ` +
               `opnieuw aannemen kost niets.`,
               null,
-              `ntf:staff:idle:${loft.userId}:${Math.floor(localDayNumber(TIMEZONE, dayMidnight) / 7)}`,
+              `ntf:staff:idle:${loft.userId}:${Math.floor(dayNo / 7)}`,
             );
           }
         }
       }
+      // AFTER the day's billing, because that is what can push a till into the
+      // red in the first place: coaches off on day one, then a forced auction
+      // every DEBT.graceDays for as long as it lasts (see game/debt.ts).
+      tickLoftDebt(db, loft, nowMs, dayNo);
     }
     if (slice.length < remaining.length) {
       // More lofts still owed this day. Park the cursor on the last one handled

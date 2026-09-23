@@ -15,13 +15,14 @@
 
 | Rol | Branch | Doel |
 |-----|--------|------|
-| **Dev** | `claude/duif-vorm-functie-s5fsaw` | Alle ontwikkeling/commits komen hier **eerst**. |
+| **Dev** | `claude/context-spelregels-lsbm5a` | Alle ontwikkeling/commits komen hier **eerst**. |
 | **Prod** | `claude/roekoe-game-website-jwa0vo` | Elke commit wordt hierheen **gecherry-pickt**; deze branch triggert de **Cloudflare Pages**-deploy naar productie. |
 
 > Vorige dev-branches (niet meer gebruiken): `claude/hallo-nno7pb`, `claude/hallo-r1wgvn`, `claude/hallo-ca55co`, `claude/hallo-qz9tmx`, `claude/hallo-fsp9nx`, `claude/hallo-mzjn0e`, `claude/hallo-su75jy`, `claude/hallo-rkr49f`, `claude/hallo-pvwabx`,
 > `claude/context-spelregels-q2ywtx`, `claude/hallo-49m6hj`, `claude/hallo-xifh0c`,
 > `claude/hallo-w97s85`, `claude/hallo-hrtwtv`,
-> `claude/prosper-postuum-tinne-race-j515f6`, `claude/hallo-v71l3e`. Ontwikkelt een sessie op een nieuwe
+> `claude/prosper-postuum-tinne-race-j515f6`, `claude/hallo-v71l3e`,
+> `claude/duif-vorm-functie-s5fsaw`. Ontwikkelt een sessie op een nieuwe
 > `claude/…`-branch, gebruik die dan als dev-branch en **werk deze tabel meteen bij** —
 > de prod-branch hierboven verandert nooit.
 
@@ -443,6 +444,9 @@ Entiteiten: `Pigeon`, `Loft`, `User`, `BreedingPair`, `PendingBrood`, `Flight` (
   `training`/`coach`/`vlucht`/`veroudering`/`premiumvoer`/`gebeurtenis: …`. Geen fantoom-entry
   als de afgeronde (0,1) waarde niet beweegt. Zichtbaar in de admin-duifinspector. Startte bij
   uitrol (geen historiek van daarvoor).
+- `Loft.debtDays` / `Loft.debtMisses` — **schuld** (kolommen `debt_days`/`debt_misses`,
+  default 0 → geen migratie). Dagen op rij in het rood, en hoeveel gedwongen veilingen er
+  op rij zonder bod sloten (drijft de afslag). Zie §5-Schuld en §8.
 - `Pigeon.hungerDays` — opeenvolgende dagen zonder voer (drijft verhongeren).
 - `Pigeon.restDays` — opeenvolgende gevoede rustdagen zonder vlucht (rustbonus).
 - `Pigeon.lastBredAt?` — ISO-tijd waarop haar laatste nest **uitkwam** (kolom `last_bred_at
@@ -758,6 +762,13 @@ Entiteiten: `Pigeon`, `Loft`, `User`, `BreedingPair`, `PendingBrood`, `Flight` (
   **één fee per ploeg**. Bots schrijven 3 duiven in of doen niet mee.
 - **Migratie v31:** een reeds geplande **titan op een estafette-zaterdag** wordt verwijderd,
   inschrijfgeld terugbetaald + melding (en open weddenschappen erop terugbetaald). **dataVersion → 31.**
+- **Schuld (`DEBT` — kassa onder nul):** `graceDays 10` (dagen in het rood vóór de eerste
+  gedwongen veiling, en tussen elke volgende), `keepPigeons 1` (de laatste duif wordt nooit
+  geveild), `markdownPerRound 0.25` + `minOpeningFraction 0.25` (elke ronde die géén bod
+  kreeg opent zoveel lager, tot die bodem), `minOpeningBid 25`. Plus `AUCTION.forcedWindowHours
+  24`. Logica in **`core/game/debt.ts`** (`tickLoftDebt` draait uit `tickDailyCare`, ná de
+  dagafrekening) + `createForcedAuction` in `auction.ts`; de aankooppoort is `debtBlock(loft)`
+  in **`economy.ts`**. Zie §8.
 - **Bots (`BOT` — de "knoppen" van het botgedrag):** `DEFAULT_BOT_COUNT` **8**.
   `reserve 1500` (kasvloer), `raceHeadroom 1.15` + `minFormRegular 12` (inschrijven op
   routekost i.p.v. een vlakke 45), **`minFormRelay 0`** (geen drempel voor de estafette),
@@ -830,6 +841,8 @@ Entiteiten: `Pigeon`, `Loft`, `User`, `BreedingPair`, `PendingBrood`, `Flight` (
   `tickDailyCare`). De onderverdeling is een **flex-lijst (geen `table.data`)** — die heeft
   `white-space: nowrap` op cellen en liep op gsm horizontaal over; nu wrapt/​krimpt de
   labelkant (`min-width:0`) en blijft het bedrag rechts staan (`flex-shrink:0`). Dagopdrachten.
+  **Rode-kassa-waarschuwing** bovenaan zodra `loft.money < 0`: één regel met het aantal dagen
+  tot de volgende gedwongen veiling (`loft.debtAuctionInDays`) + link naar `/wiki#schuld`.
   Beheerder-kaart (admin): "Volgende week" + "Toon recente veilingen" (biedgeschiedenis).
 - `LoftPage` (Mijn hok) — duivenlijst met per duif: voerkeuze-select, apart/samen-knop
   (of "🏥 Ziekenboeg"-label als ze daar zit), verkoop, uitbreidingen. De statbalken
@@ -919,7 +932,7 @@ Entiteiten: `Pigeon`, `Loft`, `User`, `BreedingPair`, `PendingBrood`, `Flight` (
   `genen` · **`coach`** · `ervaring` · `energie` (energie/voer/honger/rustkuur) · `vlucht` ·
   `eigenschappen` · `verdwalen` · `vorm` · `lage-energie` · **`titan`** · `estafette` ·
   `broeden` (kweken/overerving) · `ziekte` · **`ziekenboeg`** · `sterfte` · `rassen` ·
-  `veilingen` · **`tribune`** · **`stem`** · `hok` · `waarde` · `afscheid`. Bewust
+  `veilingen` · **`tribune`** · **`stem`** · `hok` · **`schuld`** · `waarde` · `afscheid`. Bewust
   **niet 100% transparant**: richtwaarden i.p.v. exacte formules, geluk blijft benoemd.
   Geen backend/kosten. Cijfers **handmatig** in sync houden met `core/config/gameConfig.ts`.
   `WikiPage` scrollt naar de hash bij mount, dus `/wiki#coach` landt op de juiste sectie.
@@ -1060,6 +1073,7 @@ npx tsx tests/reactions.test.mts         # tribune: de ontgrendelroutes en de ch
 npx tsx tests/reactions-persist.test.mts # tribune: de reacties overleven de databank
 npx tsx tests/stem.test.mts              # De Stem: zaaien, stemmen als toggle, dagrem, de bel
 npx tsx tests/player-removal.test.mts    # een speler verwijderen: alles weg, de rest ongemoeid
+npx tsx tests/debt.test.mts               # schuld: de poort, de bodem, en de afslag per ronde
 ```
 Alles in één keer (bash, vanuit de root):
 ```bash
@@ -1129,7 +1143,82 @@ Alles hieronder staat **live** op de deploy-branch. Data-migraties liepen door t
 > getrapt is. Nieuwste bovenaan. Voor "hoe werkt het spel nu" hoef je §8 niet te lezen;
 > daarvoor volstaan §2 t/m §7.
 
-**Conditie kreeg een eigen mechaniek, en het toeval is teruggeschroefd (nieuwste)**
+**Kassa onder nul: niets meer kopen, en na 10 dagen de hamer (nieuwste)**
+- **Vraag van de eigenaar:** wie op 0 of minder staat kan niets meer aankopen, krijgt een
+  melding, verliest zijn coaches, en ziet na 10 dagen in het rood zijn slechtste duif
+  **geveild** (niet rechtstreeks verkocht) aan de marktwaarde — en elke 10 dagen de volgende.
+- **Nieuw:** configblok `DEBT` + `AUCTION.forcedWindowHours`, module **`core/game/debt.ts`**
+  (`tickLoftDebt` + `worstAuctionable`), `createForcedAuction` in `auction.ts`, twee scalairen
+  op de loft (`debtDays`/`debtMisses`, kolommen achteraan `SCHEMA_STEPS`, default 0 → **geen
+  migratie**, `dataVersion` blijft **52**).
+- ⚠️ **De aankooppoort is méér dan de bestaande `money < kost`-controles, en dat is de kern.**
+  Bij een negatief saldo faalde élke aankoop al vanzelf — maar niet allemaal: **een coach
+  inhuren kost €0 op het moment van klikken** (`COACH.hireCost` is 0) en wordt pas duur vanaf
+  de volgende dagafrekening. Zonder expliciete poort huurde de speler dus meteen de coach
+  terug die de dagtick net had ontslagen. Hetzelfde geldt voor medicatievoer en personeel
+  bijnemen. Daarom `debtBlock(loft)` op **14 acties** in `engine.ts` + `placeBid`, `placeBet`
+  en `makeOffer`.
+- ⚠️ **`debtBlock`/`inDebt` staan in `economy.ts`, niet in `debt.ts`.** `debt.ts` importeert
+  `auction.ts` (om de veiling te openen), dus als `auction.ts` de poort uit `debt.ts` haalde
+  was dat een importcyclus. `economy.ts` importeert geen van beide en is de module die al over
+  geld gaat.
+- ⚠️ **Wat NIET geblokkeerd wordt, is de helft die telt:** verkopen, voer terugverkopen, een
+  bod aanvaarden, personeel ontslaan, vrijlaten/bistro en uitschrijven. Dat zijn de uitwegen;
+  blokkeer je die mee, dan is de schuld een doodlopende straat. `sellFood` deelt zijn eerste
+  regels met `buyFood` — het anker voor de poort zit daarom bewust op de **koopregel**.
+- ⚠️ **`closeAuction` verwijderde de duif als er geen geldige bieder was.** Voor een
+  veilinghuis-vogel klopt dat (die bestond alleen voor die veiling); voor de duif van een
+  **speler** zou het betekenen dat een schuld haar gewoon laat verdwijnen. De `forced`-tak
+  laat haar staan en telt in plaats daarvan een **gemiste ronde**.
+- ⚠️ **BOTS BIEDEN NIET OP VEILINGEN** (enkel op markt-listings, `maybeBuyFromMarket`/
+  `maybeBidOnMarket`). Een gedwongen veiling hangt dus volledig af van de handvol echte
+  spelers, en één op volle marktwaarde kan zonder één bod sluiten. Vandaar
+  `markdownPerRound` (25 % lager per gemiste ronde, bodem `minOpeningFraction`) — zonder die
+  afslag hangt een schuld eeuwig in een week waarin niemand koopt. Een ronde die **wél**
+  verkoopt zet de afslag terug op 0. Wil je dit ooit anders oplossen, dan is *bots laten
+  meebieden op veilingen* de andere kant van dezelfde knop.
+- **`keepPigeons: 1`** — de laatste duif wordt nooit geveild. Een leeg hok verdient niets en
+  kan zich nooit terugvechten; dat is een zwaardere straf dan de schuld. Duiven die vliegen,
+  koppelen of de weg kwijt zijn vallen af via dezelfde afbakening als `pigeonBusy`.
+- **Je kan niet op je eigen gedwongen veiling bieden** (`placeBid`): je eigen duif terugkopen
+  is geen verkoop maar een rondje met je eigen geld, en het holt de regel volledig uit.
+- **Geld blijft kloppen.** Bewust een veiling en geen verkoop aan het spel: de opbrengst komt
+  van een andere speler, dus er wordt geen geld uit het niets gemaakt. De trade draagt de
+  **speler** als verkoper, en openstaande biedingen op die duif vervallen (zoals bij
+  `settlePigeonSale`).
+- **Stabiele ids overal**, met de lokale dagteller erin (`ntf:debt:start|auction|sold|unsold|
+  nobird|clear:<userId>:<dag>`, veiling `auc_forced_<userId>_<dag>`): `tickDailyCare` kan
+  dezelfde dag onder gelijktijdige verzoeken twee keer afsluiten, en dan landt alles op
+  dezelfde rijen in plaats van een tweede veiling te openen.
+- ⚠️ **Een hok met 0 duiven wordt door `tickDailyCare` overgeslagen** (`owned.length === 0
+  → continue`), schuldafhandeling incluis. Onschadelijk (er valt niets te veilen en er wordt
+  niets aangerekend), maar het verklaart waarom zo'n hok zijn teller niet ziet bewegen.
+- **Schrijfkost:** enkel op de dagovergang, en enkel voor een hok dat écht in het rood staat.
+  Een gewone poll schrijft nog steeds 0 rijen (`idle-writes` groen).
+- **Nieuwe blijvende test `debt.test.mts`** (48 controles, 12 runs op rij groen): de poort
+  (kopen dicht, verkopen open, én dat de coach ook écht niet toegekend wordt), coaches eruit
+  op dag 1, de veiling op dag 10 met de juiste duif en openingsprijs, geen bod → duif blijft +
+  volgende ronde 25 % lager, verkocht → volledige opbrengst naar de schuldenaar + afslag
+  terug op 0, de bodem van één duif, de reset bij een positieve kassa, en dat bots buiten
+  schot blijven.
+- ⚠️ **Twee valstrikken die die test blootlegde, voor wie hier nog een test schrijft:**
+  1. `placeBid` leest intern **`Date.now()`** voor zijn slotfase en anti-snipe. Ligt je
+     gesimuleerde klok vóór de echte, dan geldt élk bod als "laatste 5 minuten" en schuift
+     `endAt` naar de echte tijd — waarna de veiling in de simulatie nooit meer afloopt. De
+     test vertrekt daarom van **vandaag**, wat meteen de vaste-`T0`-tijdbom van `age-cup`
+     vermijdt.
+  2. Een veiling sluit in `ensureAuctions`, niet in `tickDailyCare`. Een testlus die alleen
+     de dagtick draait, meet niets.
+- ⚠️ **Verificatie was hier beperkt, en dat hoort er eerlijk bij staan:** `node_modules`
+  ontbreekt in deze omgeving en het npm-registry is onbereikbaar, dus **`npm run build` en de
+  client-typecheck konden niet draaien**. Wat wél gedraaid is: `tsc --noEmit` over `core/`
+  (schoon, met een stub voor de niet-installeerbare `@cloudflare/workers-types`) en de hele
+  testsuite via Node's eigen type-stripping. De clientwijziging is daarom bewust klein
+  gehouden: één blok in `DashboardPage`, één wiki-sectie, twee velden in `types.ts`.
+- Spelregels: nieuwe **§4.5** (het volledige traject) + §4.2 verwijst ernaar. Wiki: nieuwe
+  sectie 🔴 **Rode cijfers & gedwongen veiling** (`/wiki#schuld`).
+
+**Conditie kreeg een eigen mechaniek, en het toeval is teruggeschroefd**
 - **Vier vragen van de eigenaar in één ronde:** (1) er zit te veel toeval in — "HEEL goeie
   duiven lijken te vaak, meer wel dan niet, slecht te presteren"; (2) snelheid mag op élk
   vluchttype iets meer wegen; (3) oriëntatie heeft te veel impact, **zelfs op korte

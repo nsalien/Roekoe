@@ -119,6 +119,19 @@ export function DashboardPage() {
 
       <NewcomerPanel />
 
+      {/* Kassa in het rood. Eén regel, want het scherm hoort te zeggen wat de
+          beslissing van dit moment stuurt — de mechaniek staat in de wiki. */}
+      {loft.money < 0 && (
+        <div className="card" style={{ marginBottom: 18, borderColor: 'var(--bad)' }}>
+          <strong>🔴 Je kassa staat negatief.</strong>{' '}
+          Je kan niets kopen tot je saldo weer op nul staat, en je coaches zijn ontslagen.
+          {loft.debtAuctionInDays != null && (
+            <> Over <strong>{loft.debtAuctionInDays} {loft.debtAuctionInDays === 1 ? 'dag' : 'dagen'}</strong> gaat je duif met het laagste talent verplicht onder de hamer.</>
+          )}{' '}
+          Verkoop een duif of voer om er weer uit te raken. <Link to="/wiki#schuld">Meer over schulden →</Link>
+        </div>
+      )}
+
       {/* Stat tiles */}
       <div className="grid cols-3" style={{ marginBottom: 18 }}>
         <div className="tile">

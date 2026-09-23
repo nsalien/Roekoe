@@ -22,6 +22,30 @@ import { clamp, hashString, round1 } from './util.js';
 
 const RACING_ATTRS: RacingAttr[] = ['speed', 'endurance', 'orientation'];
 
+/** Staat deze kassa in het rood? */
+export function inDebt(loft: Loft): boolean {
+  return loft.money < 0;
+}
+
+/**
+ * De poort op élke aankoop. Geeft een foutmelding terug zolang de kassa
+ * negatief staat, en anders null.
+ *
+ * ⚠️ Dit is méér dan de bestaande `money < kost`-controles, en dat is precies
+ * het punt. Die vangen alleen wat geld kóst op het moment zelf — een coach
+ * inhuren is gratis bij de klik (COACH.hireCost is 0) en pas duur vanaf de
+ * volgende dagafrekening, dus zonder deze poort huurde een speler de coach
+ * terug die de dagtick net had ontslagen. Ook een nulbedrag hoort hier tegen
+ * de muur te lopen.
+ *
+ * Wat WEL mag blijven: verkopen, voer terugverkopen, een bod aanvaarden, een
+ * duif vrijlaten of naar de bistro brengen, uitschrijven. Dat zijn de uitwegen.
+ */
+export function debtBlock(loft: Loft): string | null {
+  if (!inDebt(loft)) return null;
+  return `Je kassa staat op -€${Math.abs(Math.round(loft.money))} — zolang je in het rood staat kan je niets kopen. Verkoop eerst een duif of voer.`;
+}
+
 /**
  * A private coach's daily gain for ONE racing attribute. The coach works at ANY
  * level, drilling the skill toward the bird's own gene `cap` with DIMINISHING

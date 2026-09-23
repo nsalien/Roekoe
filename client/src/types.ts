@@ -182,6 +182,10 @@ export interface Loft {
   sponsorCount: number;
   sponsorOfferCount: number;
   money: number;
+  /** Dagen op rij in het rood (0 = kassa is in orde) — zie DEBT in gameConfig. */
+  debtDays: number;
+  /** Dagen tot de volgende gedwongen veiling, of null zolang je niet in het rood staat. */
+  debtAuctionInDays: number | null;
   food: FoodStock;
   feedRation: FeedRation;
   capacity: number;

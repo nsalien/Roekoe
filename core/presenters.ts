@@ -6,7 +6,7 @@
 
 import type { Database, Flight, Loft, Notification, Pigeon, RaceLogEntry, Trade } from './schema.js';
 import type { PigeonLogs } from './d1.js';
-import { AGE_CUP, AUCTION, BREED_RARITY, CITY_COORDS, COACH, ageCategoryDef, ageCategoryFor, compartmentCost, quirkById, RELAY, REST_CURE, TRADE_HISTORY_DAYS, TRAINING } from './config/gameConfig.js';
+import { AGE_CUP, AUCTION, BREED_RARITY, CITY_COORDS, COACH, DEBT, ageCategoryDef, ageCategoryFor, compartmentCost, quirkById, RELAY, REST_CURE, TRADE_HISTORY_DAYS, TRAINING } from './config/gameConfig.js';
 import {
   ageInWeeks,
   breedInfo,
@@ -264,6 +264,13 @@ export function loftDTO(db: Database, loft: Loft) {
     sponsorCount: loft.sponsorship?.active.length ?? 0,
     sponsorOfferCount: loft.sponsorship?.offers.length ?? 0,
     money: Math.round(loft.money),
+    // Schuld (zie DEBT / game/debt.ts). `debtDays` telt de dagen in het rood,
+    // `debtAuctionInDays` hoeveel dagen er nog resten tot de volgende gedwongen
+    // veiling — allebei afgeleid, geen extra query, zodat het scherm de speler
+    // kan waarschuwen vóór er een duif onder de hamer gaat.
+    debtDays: loft.debtDays ?? 0,
+    debtAuctionInDays:
+      loft.money < 0 ? DEBT.graceDays - ((loft.debtDays ?? 0) % DEBT.graceDays) : null,
     food: loft.food,
     feedRation: loft.feedRation,
     capacity: loft.capacity,

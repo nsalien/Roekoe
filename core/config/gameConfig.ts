@@ -1450,6 +1450,48 @@ export const AUCTION = {
   shelterBetterChance: 0.22,
   shelterBetterQualityMin: 0.45,
   shelterBetterQualityMax: 0.68,
+  /** How long a FORCED (debt) auction stays open — see DEBT. */
+  forcedWindowHours: 24,
+} as const;
+
+/**
+ * DEBT — what happens when a loft's till goes below zero.
+ *
+ * Running costs are billed every day whether or not the player logs in, so a
+ * till CAN go negative on its own. Before this existed that was a dead end with
+ * no exit and no explanation: every purchase silently failed the `money < cost`
+ * check, the coach kept charging €80/day, and nothing ever forced a sale.
+ *
+ * Three escalating stages, all driven from the daily tick:
+ *  1. The moment the till goes negative: every coach is dismissed (the single
+ *     biggest recurring cost a player can shed) and nothing can be bought until
+ *     the balance is back at zero or above.
+ *  2. After `graceDays` days in the red, the worst bird in the loft goes under
+ *     the hammer — auctioned, never sold outright, so the club sets the price.
+ *  3. Every further `graceDays` days, another one follows.
+ *
+ * ⚠️ `markdownPerRound` exists because BOTS DO NOT BID ON AUCTIONS (they only
+ * buy and bid on market listings). A forced auction therefore depends entirely
+ * on the handful of human players, and one opening at full market value can —
+ * and will — close without a single bid. Each consecutive miss reopens the next
+ * round that much cheaper, down to `minOpeningFraction`, so a debt cannot hang
+ * forever in a club that happens to have no buyer that week. A round that SELLS
+ * resets the markdown to zero.
+ */
+export const DEBT = {
+  /** Days in the red before the first forced auction, and between the ones after. */
+  graceDays: 10,
+  /**
+   * Never auction a loft below this many birds. An empty loft earns nothing and
+   * can never climb back out — a heavier punishment than the debt itself.
+   */
+  keepPigeons: 1,
+  /** Each consecutive forced auction that drew no bid reopens this much lower. */
+  markdownPerRound: 0.25,
+  /** …but never below this fraction of the bird's market value. */
+  minOpeningFraction: 0.25,
+  /** Absolute floor for an opening bid, so a worthless bird still has a price. */
+  minOpeningBid: 25,
 } as const;
 
 /**

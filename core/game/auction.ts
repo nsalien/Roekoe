@@ -11,11 +11,12 @@
  * close the winner keeps the bird. Multiple auctions can run at once.
  */
 
-import type { Auction, Database, Loft } from '../schema.js';
+import type { Auction, Database, Loft, Pigeon } from '../schema.js';
 import { newId } from '../store.js';
-import { AUCTION } from '../config/gameConfig.js';
+import { AUCTION, DEBT } from '../config/gameConfig.js';
 import { awardBadge } from './badges.js';
 import { generatePigeon, talent } from './pigeon.js';
+import { debtBlock } from './economy.js';
 import { marketValue, noteMarketNews } from './market.js';
 import { namesInUse } from './names.js';
 import { randFloat } from './util.js';
@@ -26,11 +27,13 @@ const TZ = 'Europe/Brussels';
 const OPEN_HOUR = 11;
 const WINDOW_HOURS = 9; // 11:00 → 20:00
 
-export type AuctionKind = 'sunday' | 'shelter';
+export type AuctionKind = 'sunday' | 'shelter' | 'forced';
 
 /** Which flavour of auction this is, derived from the template key. */
 export function auctionKind(a: Auction): AuctionKind {
-  return a.templateKey.startsWith('shelter:') ? 'shelter' : 'sunday';
+  if (a.templateKey.startsWith('shelter:')) return 'shelter';
+  if (a.templateKey.startsWith('forced:')) return 'forced';
+  return 'sunday';
 }
 
 // --- Time-zone helpers (Brussels) ------------------------------------------
@@ -138,13 +141,80 @@ function createShelterAuction(db: Database, nowMs: number): void {
   noteMarketNews(db, '', nowMs);
 }
 
+/**
+ * Put a player's bird under the hammer because their till is in the red (see
+ * DEBT / game/debt.ts). Auctioned, never sold outright: the money comes from
+ * another player instead of being conjured up by the game.
+ *
+ * Everything carries an id derived from the loft and the day, so the usual rule
+ * applies — `tickDailyCare` can close the same day twice under concurrent
+ * requests, and both passes then land on the SAME auction row instead of
+ * opening two.
+ */
+export function createForcedAuction(
+  db: Database,
+  loft: Loft,
+  pigeon: Pigeon,
+  nowMs: number,
+  dayNumber: number,
+): void {
+  const key = `forced:${loft.userId}:${dayNumber}`;
+  if (db.auctions.some((a) => a.templateKey === key)) return;
+  const week = db.world.currentWeek;
+  // Opens at the bird's market value, as asked — but each consecutive round that
+  // drew no bid opens lower. ⚠️ Without that markdown a debt can hang forever:
+  // bots do not bid on auctions, so a forced lot depends on the handful of human
+  // players being both online and interested that day.
+  const misses = loft.debtMisses ?? 0;
+  const fraction = Math.max(
+    DEBT.minOpeningFraction,
+    1 - DEBT.markdownPerRound * misses,
+  );
+  const value = marketValue(db, pigeon, week);
+  const minBid = Math.max(DEBT.minOpeningBid, Math.round((value * fraction) / 10) * 10);
+  // A listed bird is pulled onto the hammer: otherwise parking every bird at a
+  // fantasy asking price would be a way to sit out the forced sale entirely.
+  pigeon.forSale = false;
+  pigeon.price = null;
+  pigeon.minBid = null;
+  pigeon.listedAt = null;
+  db.auctions.push({
+    id: `auc_forced_${loft.userId}_${dayNumber}`,
+    templateKey: key,
+    pigeonId: pigeon.id,
+    startAt: new Date(nowMs).toISOString(),
+    endAt: new Date(nowMs + AUCTION.forcedWindowHours * 3600000).toISOString(),
+    minBid,
+    minIncrement: Math.max(25, Math.round((minBid * 0.05) / 5) * 5),
+    currentBid: 0, currentBidderId: null, currentBidderName: null, bids: [], status: 'open',
+  });
+  const markdownLine = misses > 0
+    ? ` Omdat de vorige ronde geen bod kreeg, opent ze nu ${Math.round((1 - fraction) * 100)}% onder haar marktwaarde.`
+    : '';
+  notify(
+    db, loft, '⚖️ Gedwongen veiling',
+    `Je staat al ${DEBT.graceDays} dagen of langer in het rood, dus ${pigeon.name} — je duif met het laagste talent — gaat ${AUCTION.forcedWindowHours} uur onder de hamer, vanaf €${minBid}.${markdownLine} ` +
+      'De opbrengst gaat naar jouw kassa. Raak je voor die tijd uit het rood, dan loopt deze veiling nog gewoon af, maar volgt er geen volgende.',
+    `ntf:debt:auction:${loft.userId}:${dayNumber}`,
+  );
+  // Empty seller: everyone should see the dot, including the owner — the bird is
+  // on the market now and they may well want to watch what it fetches.
+  noteMarketNews(db, '', nowMs);
+}
+
 function closeAuction(db: Database, a: Auction): void {
   a.status = 'closed';
   const p = db.pigeons.find((x) => x.id === a.pigeonId);
   if (!p) return;
-  const shelter = auctionKind(a) === 'shelter';
-  const sellerId = shelter ? SHELTER_ID : AUCTION_HOUSE_ID;
-  const sellerName = shelter ? 'Opvangcentrum' : 'Veilinghuis';
+  const kind = auctionKind(a);
+  const shelter = kind === 'shelter';
+  const forced = kind === 'forced';
+  // A forced lot belongs to a PLAYER, so the seller is that player and the money
+  // goes to their till. The bird's owner is still the debtor at this point — it
+  // only changes hands below.
+  const debtor = forced ? db.lofts.find((l) => l.userId === p.ownerId) : undefined;
+  const sellerId = forced ? p.ownerId : shelter ? SHELTER_ID : AUCTION_HOUSE_ID;
+  const sellerName = forced ? (debtor?.name ?? 'Onbekend hok') : shelter ? 'Opvangcentrum' : 'Veilinghuis';
 
   // Cascade: highest bidder who can still pay AND has room wins, at their bid.
   // A bidder who outbid everyone but can't pay / has no room at closing time is
@@ -170,6 +240,32 @@ function closeAuction(db: Database, a: Auction): void {
 
   if (winner) {
     winner.money -= price;
+    // A forced lot pays its owner — that is the whole point of the sale. The
+    // markdown resets: this bird found a buyer, so the next round (if the till
+    // is still red) starts from full market value again.
+    if (debtor) {
+      debtor.money += price;
+      debtor.debtMisses = 0;
+      notify(
+        db, debtor, '⚖️ Je duif is geveild',
+        `${p.name} ging voor €${price} naar ${winner.name}. Dat bedrag staat op je kassa, die daarmee op ${debtor.money < 0 ? `-€${Math.abs(Math.round(debtor.money))}` : `€${Math.round(debtor.money)}`} komt.` +
+          (debtor.money < 0 ? ' Je staat nog steeds in het rood — raak je er niet uit, dan volgt de volgende duif.' : ' Je staat weer op groen.'),
+        `ntf:debt:sold:${a.id}`,
+      );
+      // Any pending offer on her lapses — she has moved. Same rule as a market
+      // sale (settlePigeonSale); without it a bidder keeps an open offer on a
+      // bird that is no longer the seller's.
+      for (const o of db.offers.filter((x) => x.pigeonId === p.id)) {
+        const bidder = db.lofts.find((l) => l.userId === o.fromUserId);
+        if (!bidder) continue;
+        notify(
+          db, bidder, '🚫 Bod vervallen',
+          `${p.name} is op een gedwongen veiling verkocht. Je bod van €${o.amount} is vervallen.`,
+          `ntf:debt:offer:${a.id}:${o.fromUserId}`,
+        );
+      }
+      db.offers = db.offers.filter((o) => o.pigeonId !== p.id);
+    }
     p.ownerId = winner.userId;
     p.forSale = false;
     // Stable trade id keyed on the auction: two concurrent requests that both
@@ -189,9 +285,23 @@ function closeAuction(db: Database, a: Auction): void {
     const title = shelter ? '🏠 Opvangduif geadopteerd!' : '🔨 Veiling gewonnen!';
     const body = shelter
       ? `${p.name} komt uit het opvangcentrum naar jouw hok, voor €${price}. Met wat training komt die er wel.`
-      : `${p.name} is voor jou, voor €${price}. Veel vliegplezier!`;
+      : forced
+        ? `${p.name} is voor jou, voor €${price}. Ze kwam van ${sellerName}, die haar noodgedwongen moest verkopen.`
+        : `${p.name} is voor jou, voor €${price}. Veel vliegplezier!`;
     notify(db, winner, title, body, `ntf:auc:win:${a.id}`);
     if (shelter) awardBadge(db, winner, 'opvang');
+  } else if (forced) {
+    // ⚠️ NIET verwijderen: dit is de duif van een speler, niet een vogel die het
+    // veilinghuis zelf uit het niets maakte. Geen koper = ze blijft gewoon in
+    // het hok, en de volgende ronde opent lager (zie createForcedAuction).
+    if (debtor) {
+      debtor.debtMisses = (debtor.debtMisses ?? 0) + 1;
+      notify(
+        db, debtor, '⚖️ Geen bod op je duif',
+        `Niemand bood op ${p.name}, dus ze blijft in je hok. Sta je over ${DEBT.graceDays} dagen nog in het rood, dan gaat ze opnieuw onder de hamer — dan ${Math.round(DEBT.markdownPerRound * 100)}% lager.`,
+        `ntf:debt:unsold:${a.id}`,
+      );
+    }
   } else {
     db.pigeons = db.pigeons.filter((x) => x.id !== a.pigeonId); // no payable bidder
   }
@@ -294,6 +404,11 @@ export function placeBid(db: Database, userId: string, auctionId: string, amount
   if (!a) return 'Deze veiling loopt niet (meer)';
   const loft = db.lofts.find((l) => l.userId === userId);
   if (!loft) return 'Geen hok gevonden';
+  // Je eigen duif terugkopen op je eigen gedwongen veiling is geen verkoop maar
+  // een rondje met je eigen geld — en het zou de schuldregel volledig uithollen.
+  const lot = db.pigeons.find((p) => p.id === a.pigeonId);
+  if (lot && lot.ownerId === userId) return 'Dit is je eigen duif — je kan niet op je eigen veiling bieden';
+  const debt = debtBlock(loft); if (debt) return debt;
   if (a.currentBidderId === userId) return 'Je bent al de hoogste bieder';
   const bid = Math.round(amount);
   const minNext = a.currentBid > 0 ? a.currentBid + a.minIncrement : a.minBid;
