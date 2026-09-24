@@ -21,6 +21,9 @@
 - **Controleer eerst het seizoensnummer.** Lees `world.seasonYear` uit (admin of
   een snelle query) en zet de poort op het seizoen dat na de uitrol begint. Heet
   dat seizoen niet 3, pas dan de naam van de poort aan en noteer het hier.
+- **Productie:** de speler zegt zelf wanneer seizoen 3 naar productie mag. Bouw en
+  commit op de dev-branch; cherry-pick naar prod **pas na zijn uitdrukkelijk
+  akkoord** (dit wijkt bewust af van de gewone "deploy meteen"-afspraak).
 - **Taal:** alles wat de speler ziet in het Nederlands/Vlaams, code en commentaar
   in het Engels (zie `context.md`).
 - **Tekstbudget (context.md §0.4):** schermen tonen enkel wat de beslissing
@@ -32,6 +35,7 @@
 | # | Onderdeel | Status |
 |---|---|---|
 | 1 | Kenmerken per duif | ⬜ uitgewerkt, nog niet gebouwd |
+| 2 | Sponsorlimiet (tier 4 −75 % per dag, max. 6 sponsors) | ⬜ uitgewerkt, nog niet gebouwd |
 
 ---
 
@@ -355,6 +359,148 @@ Zijn de balansdoelen niet haalbaar met +5 %, **vraag de speler** voor je
 - [ ] `tests/traits.test.mts` bestaat en alle tests uit §1.12 zijn groen.
 - [ ] `spelregels.md`, `context.md` en de wiki zijn bijgewerkt.
 - [ ] Gecommit op de dev-branch en gedeployed naar productie vóór de seizoenswissel.
+
+---
+
+## 2. Sponsorlimiet
+
+### 2.1 Het probleem
+Sommige spelers krijgen **meer dan €1.200 per dag** van sponsors. Er zijn 17
+sponsors in 13 categorieën (één per categorie), dus nu tot 13 contracten tegelijk:
+met de beste sponsor per categorie is dat ~€1.220/dag, en een heraanbod kan
+×0,7–1,5 van het basisbedrag zijn (`SPONSOR_REOFFER_MULT_*`), dus nog meer.
+
+### 2.2 De regels
+1. **Tier 4: het dagbedrag daalt met 75 %.** Enkel het **dagbedrag**
+   (`dailyStipend`). Het **tekengeld** en de **podiumpremie** blijven ongewijzigd.
+   | Sponsor | Nu | Nieuw |
+   |---|---|---|
+   | 📡 Telecom Vleugelnet | €165 | **€40** |
+   | 🎰 Nationale Loterij — De Gouden Ring | €150 | **€40** |
+   | 🏆 Formule Duif Racing | €200 | **€50** |
+   - Geldt voor **nieuwe aanbiedingen**, **heraanbiedingen** (ook na de ×0,7–1,5)
+     én **bestaande contracten** en **openstaande aanbiedingen** (eenmalig bij de
+     seizoenswissel, zie §2.4). Afronden op €5, zoals `round5` in `sponsors.ts`.
+   - "Tier 4 en hoger": er is nu enkel tier 4. Komt er ooit een tier 5, dan valt
+     die er automatisch onder (regel op `tier >= 4`, niet op de drie ids).
+2. **Maximaal 6 sponsors tegelijk** per speler (`active.length ≤ 6`).
+3. **Een zevende aanbod** mag gewoon binnenkomen, maar tekenen kan enkel als de
+   speler **in dezelfde handeling** een van zijn huidige sponsors opzegt.
+   - Opzeggen kost dan de **gewone verbrekingsvergoeding** (`breakPenalty`), want
+     het is een eigen keuze. ⚠️ *Nog te bevestigen door de speler* — zie §2.7.
+   - Komt het aanbod van een **concurrent in dezelfde categorie**, dan blijft het
+     gewone overstappen gelden (de oude sponsor vervalt, het aantal blijft gelijk);
+     er hoeft dan niets extra opgezegd te worden.
+   - Dit geldt ook voor het **startersaanbod** van nieuwe spelers (§18), al zal
+     een nieuwe speler zelden aan 6 zitten.
+4. **Meer dan 6 bij de seizoenswissel → verplicht afbouwen.**
+   - Wie bij de start van seizoen 3 meer dan 6 sponsors heeft, moet er zelf
+     zoveel **opzeggen** tot hij er 6 heeft. Die opzeggingen zijn **gratis**
+     (geen verbrekingsvergoeding).
+   - **Zolang hij niet gekozen heeft, betaalt geen enkele sponsor iets uit**:
+     geen dagbedrag én geen podiumpremie, van **alle** sponsors. Wat hij in die
+     periode misloopt, wordt **niet** nabetaald.
+   - Hij krijgt een melding (stabiele id `ntf:season3:sponsorcap:<userId>`) en op
+     de sponsorpagina een verplichte keuze; bovenaan het spel een rode balk tot het
+     opgelost is. De rest van het spel blijft speelbaar.
+   - Een sponsor die zo gratis opgezegd wordt, gaat in `declined` zoals een gewone
+     opzegging (mag later opnieuw aankloppen, zonder nieuw tekengeld), maar
+     **niet** als definitieve weigering.
+5. **"Nee is nee" en de hogere tier.** De regel dat een geweigerde concurrent die
+   per dag niet meer betaalt **nooit meer** terugkomt (`refusalIsFinal` in
+   `sponsors.ts`), geldt **niet** als het aanbod uit een **hogere tier** komt dan
+   de huidige sponsor in die categorie. Anders zou bv. Formule Duif Racing (tier 4,
+   nu €50/dag) voorgoed wegblijven bij wie Racing Team Snelle Vleugel (tier 3,
+   €135/dag) heeft. ⚠️ *Voorstel, nog te bevestigen door de speler* — zie §2.7.
+
+### 2.3 Technisch
+- **Config (`gameConfig.ts`):**
+  - `SPONSOR_MAX_ACTIVE = 6`;
+  - `SPONSOR_HIGH_TIER = 4` en `SPONSOR_HIGH_TIER_DAILY_MULT = 0.25`;
+  - pas de catalogus **niet** met de hand aan: de 75 % wordt toegepast via die
+    constante, zodat heraanbiedingen, `legacyDaily` en de weergave dezelfde regel
+    volgen. Eén helper `effectiveDailyStipend(def, raw)` in `sponsors.ts`, gebruikt
+    door `catalogTerms`, `scaledTerms` en `legacyDaily`.
+- **Aanvaarden (`applyAcceptSponsor`):** met 6 actieve contracten en geen
+  concurrent in dezelfde categorie → vereist een `dropSponsorId`; zonder →
+  foutmelding `!Je hebt al 6 sponsors. Kies eerst welke je opzegt.` Met → dat
+  contract opzeggen (vergoeding volgens §2.2 punt 3), dan tekenen. Nooit meer dan
+  6 na afloop (ook niet bij twee gelijktijdige verzoeken: controleer het aantal
+  opnieuw vlak voor het toevoegen).
+- **Endpoint** (`functions/api/[[path]].ts`): het accept-endpoint neemt een
+  optionele `dropSponsorId`. Nieuw endpoint voor de verplichte afbouw, bv.
+  `POST /api/sponsors/reduce` met de ids om gratis op te zeggen; weigert als het
+  resultaat nog boven 6 zit of als er geen afbouw openstaat.
+- **Afbouw-toestand:** een vlag op de sponsorstate, bv.
+  `SponsorState.mustReduce?: boolean` (rijdt mee in de bestaande `sponsorship`-
+  JSON van de loft, geen migratie van het schema). Gezet door de migratie (§2.4),
+  gewist zodra `active.length ≤ 6`.
+- **Uitbetalen blokkeren zolang `mustReduce`:**
+  - dagbedrag: `schedule.ts:~2743` (`stipend = activeContracts(...)`) → 0;
+  - podiumpremie: `schedule.ts:~996` (`sponsorPodiumBonus`) → overslaan;
+  - de **Dagbalans** (`economy.ts:~395`) toont de sponsors dan met €0 en de reden.
+- **"Nee is nee":** `refusalIsFinal` → `false` als `def.tier > rival.tier`.
+- **Bots:** hebben geen sponsors; niets te doen. Controleer het wel.
+- **Badges:** "Goed Omringd" (3 tegelijk) en "Sponsorimperium" (4 categorieën)
+  blijven haalbaar onder 6; niets te doen.
+
+### 2.4 Activering: migratie v54
+- Zelfde poort als v53: niets vóór de start van seizoen 3.
+- Zet voor elke loft:
+  - elk **actief tier-4-contract** en elk **openstaand tier-4-aanbod**:
+    `dailyStipend = round5(dailyStipend × 0,25)`;
+  - `mustReduce = true` als `active.length > 6`, en stuur de melding.
+- Idempotent via `dataVersion` (één keer), en de afronding mag nooit twee keer
+  toegepast worden.
+- Volgorde: v53 (kenmerken) en v54 (sponsors) mogen in hetzelfde verzoek lopen.
+
+### 2.5 Wat de speler ziet
+- **Sponsorpagina:**
+  - teller **"Sponsors: 5 / 6"**;
+  - bij 6/6 op een aanbod: de knop **"Tekenen"** opent een keuze *"Wie laat je
+    gaan?"* met per huidige sponsor zijn verbrekingsvergoeding;
+  - bij een verplichte afbouw: bovenaan een rood blok *"Je hebt X sponsors, het
+    maximum is 6. Kies er Y om op te zeggen — gratis. Tot dan betaalt geen enkele
+    sponsor uit."* met aanvinkvakjes en één bevestigknop.
+- **Overal in het spel:** zolang `mustReduce`, een rode balk met link naar de
+  sponsorpagina.
+- **Wiki:** de limiet van 6, de −75 % op tier 4 (met de nieuwe bedragen), en de
+  afbouwregel. Getallen enkel in de wiki.
+
+### 2.6 Tests
+Nieuw: **`tests/sponsor-cap.test.mts`**:
+- tier-4-dagbedragen worden ×0,25 bij nieuw aanbod, heraanbod (×0,7–1,5) en in de
+  migratie (bestaand contract + openstaand aanbod); tekengeld en podiumpremie niet;
+- v54 doet niets vóór de poort, loopt precies één keer;
+- een zevende tekenen zonder `dropSponsorId` faalt, met lukt en kost de
+  verbrekingsvergoeding; een concurrent in dezelfde categorie gaat zonder;
+- nooit meer dan 6 actief, ook niet na twee gelijktijdige accepts;
+- met `mustReduce`: dagbedrag én podiumpremie 0, geen nabetaling na het afbouwen;
+  afbouwen is gratis en wist de vlag; afbouwen tot boven 6 wordt geweigerd;
+- `refusalIsFinal` is `false` voor een aanbod uit een hogere tier.
+- **Blijft groen:** `sponsor-refusal.test.mts`, `newcomer.test.mts`,
+  `idle-writes`, `query-budget`, `daily-budget`.
+
+### 2.7 Open vragen (vóór het bouwen aan de speler stellen als nog open)
+- ⬜ Kost het opzeggen voor een **zevende** sponsor de gewone
+  verbrekingsvergoeding? (voorstel: ja)
+- ⬜ Mag een tier-4-sponsor terugkomen na een weigering, ook al betaalt hij per
+  dag minder dan de huidige sponsor in die categorie? (voorstel: ja, §2.2 punt 5)
+
+### 2.8 Documentatie
+- **`spelregels.md` §12 Sponsors:** de limiet van 6, de −75 % voor tier 4 (en de
+  nieuwe "orde van grootte": tier 4 €40–50/dag), de afbouwregel, en de
+  aangepaste "nee is nee"-regel.
+- **`context.md`:** `SPONSOR_MAX_ACTIVE`, `SPONSOR_HIGH_TIER_DAILY_MULT`,
+  `SponsorState.mustReduce`, migratie v54.
+
+### 2.9 Klaar als
+- [ ] Tier-4-dagbedragen zijn ×0,25 voor nieuw, heraanbod, bestaand en openstaand.
+- [ ] Nooit meer dan 6 actieve sponsors; een zevende tekenen vraagt een opzegging.
+- [ ] Verplichte, gratis afbouw bij de seizoenswissel; tot dan betaalt geen sponsor.
+- [ ] De twee open vragen van §2.7 zijn beantwoord en verwerkt.
+- [ ] `tests/sponsor-cap.test.mts` en de bestaande tests zijn groen.
+- [ ] Spelregels, wiki en `context.md` zijn bijgewerkt.
 
 ---
 
