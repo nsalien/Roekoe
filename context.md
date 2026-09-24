@@ -392,6 +392,7 @@ Roekoe/
 │   └── limits-report.mts        diagnose: queries/rijen gelezen+geschreven per verzoek
 ├── migrations/0001_init.sql     D1-schema voor verse installatie
 ├── spelregels.md                spelregels + formules (Nederlands, speler-gericht)
+├── seizoen3.md                  specificatie van wat er bij seizoen 3 in komt ("implementeer seizoen3.md")
 ├── README.md / DEPLOY.md        opzet + telefoon-only deploy-gids
 ├── wrangler.example.toml        template; ECHTE wrangler.toml staat in .gitignore
 └── context.md                   ← dit bestand
@@ -4726,6 +4727,9 @@ Wat nog echt open staat, staat hieronder.
    volstaan om te begrijpen hoe het spel nu werkt**; §8 is achtergrond die je erbij haalt
    wanneer je aan een onderdeel raakt (daar staan de valstrikken, met ⚠️).
 2. `core/config/gameConfig.ts` = alle balans-getallen ("de knoppen").
+   **`seizoen3.md`** = de uitgewerkte, nog niet (volledig) gebouwde plannen voor
+   seizoen 3 (o.a. kenmerken per duif). Zegt de speler "implementeer seizoen3.md",
+   bouw dan elk onderdeel daarin dat nog niet op ✅ staat.
 3. `core/schema.ts` = datamodel (let op `form`=energie, `endurance`=conditie).
 4. `advanceRealtime` in `core/game/schedule.ts` = wat er elk verzoek gebeurt (§2).
 5. Endpoints in `functions/api/[[path]].ts`; UI in `client/src/pages/`.
