@@ -387,7 +387,7 @@ met de beste sponsor per categorie is dat ~€1.220/dag, en een heraanbod kan
 3. **Een zevende aanbod** mag gewoon binnenkomen, maar tekenen kan enkel als de
    speler **in dezelfde handeling** een van zijn huidige sponsors opzegt.
    - Opzeggen kost dan de **gewone verbrekingsvergoeding** (`breakPenalty`), want
-     het is een eigen keuze. ⚠️ *Nog te bevestigen door de speler* — zie §2.7.
+     het is een eigen keuze. *(Bevestigd door de speler.)*
    - Komt het aanbod van een **concurrent in dezelfde categorie**, dan blijft het
      gewone overstappen gelden (de oude sponsor vervalt, het aantal blijft gelijk);
      er hoeft dan niets extra opgezegd te worden.
@@ -411,7 +411,7 @@ met de beste sponsor per categorie is dat ~€1.220/dag, en een heraanbod kan
    `sponsors.ts`), geldt **niet** als het aanbod uit een **hogere tier** komt dan
    de huidige sponsor in die categorie. Anders zou bv. Formule Duif Racing (tier 4,
    nu €50/dag) voorgoed wegblijven bij wie Racing Team Snelle Vleugel (tier 3,
-   €135/dag) heeft. ⚠️ *Voorstel, nog te bevestigen door de speler* — zie §2.7.
+   €135/dag) heeft. *(Bevestigd door de speler.)*
 
 ### 2.3 Technisch
 - **Config (`gameConfig.ts`):**
@@ -481,11 +481,11 @@ Nieuw: **`tests/sponsor-cap.test.mts`**:
 - **Blijft groen:** `sponsor-refusal.test.mts`, `newcomer.test.mts`,
   `idle-writes`, `query-budget`, `daily-budget`.
 
-### 2.7 Open vragen (vóór het bouwen aan de speler stellen als nog open)
-- ⬜ Kost het opzeggen voor een **zevende** sponsor de gewone
-  verbrekingsvergoeding? (voorstel: ja)
-- ⬜ Mag een tier-4-sponsor terugkomen na een weigering, ook al betaalt hij per
-  dag minder dan de huidige sponsor in die categorie? (voorstel: ja, §2.2 punt 5)
+### 2.7 Beslissingen van de speler
+- ✅ Opzeggen om een **zevende** sponsor te tekenen kost de gewone
+  verbrekingsvergoeding.
+- ✅ Een sponsor uit een **hogere tier** mag na een weigering terugkomen, ook als
+  hij per dag minder betaalt dan de huidige sponsor in die categorie.
 
 ### 2.8 Documentatie
 - **`spelregels.md` §12 Sponsors:** de limiet van 6, de −75 % voor tier 4 (en de
@@ -498,7 +498,6 @@ Nieuw: **`tests/sponsor-cap.test.mts`**:
 - [ ] Tier-4-dagbedragen zijn ×0,25 voor nieuw, heraanbod, bestaand en openstaand.
 - [ ] Nooit meer dan 6 actieve sponsors; een zevende tekenen vraagt een opzegging.
 - [ ] Verplichte, gratis afbouw bij de seizoenswissel; tot dan betaalt geen sponsor.
-- [ ] De twee open vragen van §2.7 zijn beantwoord en verwerkt.
 - [ ] `tests/sponsor-cap.test.mts` en de bestaande tests zijn groen.
 - [ ] Spelregels, wiki en `context.md` zijn bijgewerkt.
 
