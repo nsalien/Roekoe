@@ -606,23 +606,26 @@ Per deelnemende duif:
 
 | Effect | Formule | Wanneer |
 |---|---|---|
-| **Energie** (verbruik) | −((10 + afstand/30) · ervaringsfactor + willekeurig 0…10) | **geleidelijk tijdens de vlucht** (zie hieronder) |
+| **Energie** (verbruik) | −((10 + afstand/30) · ervaringsfactor + willekeurig 0…10) · 1,15 | **geleidelijk tijdens de vlucht** (zie hieronder) |
 | **Conditie** (opbouw) | +(0.3 + afstand/500 + willekeurig 0…0.4) | na afloop |
 | **Gezondheid** | −(0,5 + afstand/250) × (1 + leegte van de tank) — zie §4.4 | na afloop |
 | **Ervaring** | +(2 + afstand/100) × **leerfactor** (§3.7) | na afloop |
 
-**Ervaring bepaalt mee hoeveel energie een vlucht kost.** Een ervaren duif vliegt
-efficiënter en verbruikt **minder**; een onervaren duif verbruikt **meer**. De
-ervaringsfactor draait rond **ervaring 50** (factor ×1,0) en zwenkt **±25%** aan de
-uiteinden:
+**Ervaring bepaalt mee hoeveel energie een vlucht kost — maar beperkt.** Een
+ervaren duif vliegt iets efficiënter en verbruikt **wat minder**; een onervaren
+duif verbruikt **wat meer**. De ervaringsfactor draait rond **ervaring 50**
+(factor ×1,0) en zwenkt **±6,25%** aan de uiteinden:
 ```
-ervaringsfactor = 1 − (ervaring/100 − 0.5) · 0.5
-  ervaring 0   → ×1.25   (25% meer verbruik)
+ervaringsfactor = 1 − (ervaring/100 − 0.5) · 0.125
+  ervaring 0   → ×1.0625   (6,25% meer verbruik)
   ervaring 50  → ×1.00
-  ervaring 100 → ×0.75   (25% minder verbruik)
+  ervaring 100 → ×0.9375   (6,25% minder verbruik)
 ```
-Jonge, pas gekweekte duiven (ervaring 0) betalen dus een toeslag; doorwinterde
-vliegers besparen. De willekeurige spreiding (0…10) komt er los bovenop.
+De willekeurige spreiding (0…10) komt erbovenop, en het **geheel** gaat daarna
+nog eens **×1,15**: vliegen kost voor elke duif 15% meer energie dan de kale
+formule. (Vroeger zwenkte de ervaringsfactor ±25% en was er geen ×1,15 — een
+ervaren duif was toen een pak zuiniger. Nu weegt de afstand veel zwaarder dan de
+ervaring.)
 
 **Energie loopt gaandeweg leeg, niet in één klap achteraf.** Bij de start wordt
 de totale energiekost van de rit vastgeklikt en vervolgens **per 30 minuten**
@@ -634,28 +637,27 @@ enkel voor de afgelegde afstand tot dat punt — nooit voor het stuk dat ze niet
 meer vloog. Je kan de energiekost dus niet ontlopen door je duif net voor de
 finish uit de race te halen, en een vroege uitvaller verliest navenant minder.
 
-**Gemiddeld verbruik per afstand** (energie, inclusief de gemiddelde spreiding +5).
-Nu de vluchten veel verder kunnen reiken (§2.2), loont ervaring — en een goede
-energie­planning — nog meer op de lange fond:
+**Gemiddeld verbruik per afstand** (energie, inclusief de gemiddelde spreiding +5,
+en de ×1,15). Op de lange fond is een goede energie­planning het halve werk:
 
 | Afstand | Onervaren (erv. 0) | Gemiddeld (erv. 50) | Ervaren (erv. 100) |
 |---|---|---|---|
-| 100 km (regio) | ~21,7 | ~18,3 | ~15,0 |
-| 200 km (regio/nationaal) | ~25,8 | ~21,7 | ~17,5 |
-| 300 km (nationaal) | ~30,0 | ~25,0 | ~20,0 |
-| 500 km (nationaal/intl.) | ~38,3 | ~31,7 | ~25,0 |
-| 700 km (internationaal) | ~46,7 | ~38,3 | ~30,0 |
-| 1000 km (grote fond) | ~59,2 | ~48,3 | ~37,5 |
+| 100 km (regio) | ~22,0 | ~21,1 | ~20,1 |
+| 200 km (regio/nationaal) | ~26,1 | ~24,9 | ~23,7 |
+| 300 km (nationaal) | ~30,2 | ~28,7 | ~27,3 |
+| 500 km (nationaal/intl.) | ~38,3 | ~36,4 | ~34,5 |
+| 700 km (internationaal) | ~46,5 | ~44,1 | ~41,7 |
+| 1000 km (grote fond) | ~58,7 | ~55,6 | ~52,5 |
 
 > **Voorbeeld.** Een vlucht van **300 km** kost een gemiddelde duif ongeveer
-> **25 energie**. Op een rit van ~5 uur gaat er dus zowat **2,5 energie per 30
-> minuten** af. Een ervaren duif (ervaring 100) doet diezelfde vlucht met ~**20**
+> **29 energie**. Op een rit van ~5 uur gaat er dus zowat **3 energie per 30
+> minuten** af. Een ervaren duif (ervaring 100) doet diezelfde vlucht met ~**27**
 > energie, een groentje (ervaring 0) met ~**30**. Op een **grote-fondvlucht van
-> 1000 km** loopt dat op tot ~**48** energie gemiddeld — en tot ~**59** voor een
+> 1000 km** loopt dat op tot ~**56** energie gemiddeld — en tot ~**59** voor een
 > onervaren duif: zo'n rit legt een lege duif zowat helemaal plat. De duif wint na
 > afloop conditie en ervaring, maar heeft daarna duidelijk meer rust (of
-> Herstelvoer, §4) nodig voor ze weer inzetbaar is. Zet dus je meest ervaren,
-> best uitgeruste duiven op de verste vluchten.
+> Herstelvoer, §4) nodig voor ze weer inzetbaar is. Zet dus je best uitgeruste
+> duiven op de verste vluchten — een volle tank weegt daar zwaarder dan ervaring.
 >
 > **Let op:** een duif die **niet thuis raakt** (uitputting of een blessure
 > onderweg, §3.2) krijgt **geen extra energiestraf** — ze betaalt enkel voor het
