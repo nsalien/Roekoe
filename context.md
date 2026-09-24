@@ -15,14 +15,14 @@
 
 | Rol | Branch | Doel |
 |-----|--------|------|
-| **Dev** | `claude/context-spelregels-lsbm5a` | Alle ontwikkeling/commits komen hier **eerst**. |
+| **Dev** | `claude/exciting-newton-xgvl6l` | Alle ontwikkeling/commits komen hier **eerst**. |
 | **Prod** | `claude/roekoe-game-website-jwa0vo` | Elke commit wordt hierheen **gecherry-pickt**; deze branch triggert de **Cloudflare Pages**-deploy naar productie. |
 
 > Vorige dev-branches (niet meer gebruiken): `claude/hallo-nno7pb`, `claude/hallo-r1wgvn`, `claude/hallo-ca55co`, `claude/hallo-qz9tmx`, `claude/hallo-fsp9nx`, `claude/hallo-mzjn0e`, `claude/hallo-su75jy`, `claude/hallo-rkr49f`, `claude/hallo-pvwabx`,
 > `claude/context-spelregels-q2ywtx`, `claude/hallo-49m6hj`, `claude/hallo-xifh0c`,
 > `claude/hallo-w97s85`, `claude/hallo-hrtwtv`,
 > `claude/prosper-postuum-tinne-race-j515f6`, `claude/hallo-v71l3e`,
-> `claude/duif-vorm-functie-s5fsaw`. Ontwikkelt een sessie op een nieuwe
+> `claude/duif-vorm-functie-s5fsaw`, `claude/context-spelregels-lsbm5a`. Ontwikkelt een sessie op een nieuwe
 > `claude/…`-branch, gebruik die dan als dev-branch en **werk deze tabel meteen bij** —
 > de prod-branch hierboven verandert nooit.
 
@@ -581,16 +581,22 @@ Entiteiten: `Pigeon`, `Loft`, `User`, `BreedingPair`, `PendingBrood`, `Flight` (
   gezondheid 5·N, libido 4·N per honger-dag N); sterftekans vanaf dag 3, zeker vanaf
   dag 7. **Honger raakt géén trainbare skills meer** (conditie-daling geschrapt;
   `conditiePerDay` ongebruikt): trainbare skills dalen enkel via `runAgeDecline`.
-- **Vlucht-energiekost (`FLIGHT_FATIGUE`)** — volle-routekost = `(10 + afstand/30)·ervaringsfactor
-  + rand(0..10)`, bevroren bij start, **per 30 min** geleidelijk afgetrokken. Een duif betaalt
+- **Vlucht-energiekost (`FLIGHT_FATIGUE`)** — volle-routekost = `((10 + afstand/30)·ervaringsfactor
+  + rand(0..10))·costMultiplier` (**1.15**), berekend in één helper `routeEnergyCost` (flight.ts)
+  die de gewone vlucht, de estafette-etappe én `expectedFlightEnergyCost` (bots) delen;
+  bevroren bij start, **per 30 min** geleidelijk afgetrokken. Een duif betaalt
   **enkel voor het afgelegde deel**: de aftrek (in `tickFlightEnergy` én de finale-settlement)
   stopt op `dnfAtSeconds` voor een **DNF**-duif, dus die betaalt `formCost·(dnfAtSeconds/duur)`
   i.p.v. de volle route; een finisher betaalt de volle route; een `gaveUp`-duif enkel wat al
   geleidelijk werd afgetrokken. **Geen extra DNF-straf** (`exhaustionPenalty`+jitter verwijderd) —
   geen punten/prijs + de gezondheids-/blessureklap is straf genoeg. `stepMinutes: 30`. **Ervaringsfactor** = `1 − (ervaring/100 −
-  0.5)·experienceReliefSpread` (spread 0.5 → draaipunt ervaring 50 = ×1.0, ervaring 0 =
-  ×1.25 méér verbruik, ervaring 100 = ×0.75 minder). Onervaren duiven verbruiken dus
-  meer, ervaren minder. NB: dit staat los van de ervaring-**dosering** in het snelheids­
+  0.5)·experienceReliefSpread` (spread **0.125** → draaipunt ervaring 50 = ×1.0, ervaring 0 =
+  ×1.0625, ervaring 100 = ×0.9375). Tot sep. 2026 was de spread 0.5 (±25%) zonder
+  multiplier; op verzoek is het ervaringseffect **75% kleiner** gemaakt en alles ×1.15, zodat de
+  afstand (en dus een volle tank) de doorslag geeft. Netto: een groentje verbruikt ongeveer
+  evenveel als vroeger, een gemiddelde duif ~15% meer, een veteraan ~35–40% meer (300 km erv.
+  100: 20 → 27). De legacy-fallbacks in `finalizeFlight`/relay (vluchten zonder bevroren
+  `formCost`) gebruiken de oude formule nog — die bestaan niet meer na de 2-daagse retentie. NB: dit staat los van de ervaring-**dosering** in het snelheids­
   model (`ENERGIE_IMPACT`), die enkel de *prestatie* raakt, niet het verbruik.
 - **Ervaring groeit met afnemende opbrengst (`EXPERIENCE`):** élke rauwe
   ervaringswinst gaat door **`experienceGain(current, raw)`** (`pigeon.ts`) =

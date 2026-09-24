@@ -587,13 +587,12 @@ export function startLiveFlight(flight: Flight, entries: Entry[], week: number, 
     // costs almost nothing.
     // Ervaring makes flying more efficient: an experienced bird burns less
     // energie, an inexperienced one burns more (pivot at ervaring 50 = ×1.0).
-    const expRelief = 1 - (clamp(e.pigeon.experience, 0, 100) / 100 - 0.5) * FLIGHT_FATIGUE.experienceReliefSpread;
     // A detour is real extra kilometres, so it costs real extra energie — that is
     // why a bird that wandered off comes home emptier than the rest.
     const flownKm = flight.distanceKm + (prof.lost?.detourKm ?? 0);
     const formCost = flight.practice
       ? PRACTICE.energyCost
-      : round1((FLIGHT_FATIGUE.base + flownKm / FLIGHT_FATIGUE.perKmDivisor) * expRelief + randFloat(0, FLIGHT_FATIGUE.jitter));
+      : round1(routeEnergyCost(e.pigeon.experience, flownKm, randFloat(0, FLIGHT_FATIGUE.jitter)));
     return {
       pigeonId: e.pigeon.id,
       pigeonName: e.pigeon.name,
@@ -781,8 +780,7 @@ function startLiveRelay(flight: Flight, entries: Entry[], week: number): void {
       const weatherFactor = leg?.weatherFactor ?? 1;
       const prof = buildPaceProfile(flight.id, e.pigeon, legKm, week, weatherFactor, false, legFields.get(legIndex));
       // Each bird pays only for its own leg — a third of the route.
-      const expRelief = 1 - (clamp(e.pigeon.experience, 0, 100) / 100 - 0.5) * FLIGHT_FATIGUE.experienceReliefSpread;
-      const formCost = round1((FLIGHT_FATIGUE.base + legKm / FLIGHT_FATIGUE.perKmDivisor) * expRelief + randFloat(0, FLIGHT_FATIGUE.jitter));
+      const formCost = round1(routeEnergyCost(e.pigeon.experience, legKm, randFloat(0, FLIGHT_FATIGUE.jitter)));
       sim.push({
         pigeonId: e.pigeon.id,
         pigeonName: e.pigeon.name,
@@ -908,11 +906,17 @@ export function flightClaimingDay(
  * a bird can actually fly the distance. Never used for the flight itself.
  */
 export function expectedFlightEnergyCost(pigeon: Pigeon, distanceKm: number): number {
-  const expRelief = 1 - (clamp(pigeon.experience, 0, 100) / 100 - 0.5) * FLIGHT_FATIGUE.experienceReliefSpread;
-  return (
-    (FLIGHT_FATIGUE.base + distanceKm / FLIGHT_FATIGUE.perKmDivisor) * expRelief +
-    FLIGHT_FATIGUE.jitter / 2
-  );
+  return routeEnergyCost(pigeon.experience, distanceKm, FLIGHT_FATIGUE.jitter / 2);
+}
+
+/**
+ * The energie a route of `km` costs a bird with this ervaring, given the jitter
+ * roll (0..FLIGHT_FATIGUE.jitter). Ervaring lowers the drain around a pivot of 50;
+ * `costMultiplier` scales the whole thing. See FLIGHT_FATIGUE.
+ */
+function routeEnergyCost(experience: number, km: number, jitter: number): number {
+  const expRelief = 1 - (clamp(experience, 0, 100) / 100 - 0.5) * FLIGHT_FATIGUE.experienceReliefSpread;
+  return ((FLIGHT_FATIGUE.base + km / FLIGHT_FATIGUE.perKmDivisor) * expRelief + jitter) * FLIGHT_FATIGUE.costMultiplier;
 }
 
 /**

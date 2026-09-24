@@ -332,22 +332,22 @@ export function WikiPage() {
 
       <Section id="vlucht" icon="🏁" title="Energie per vlucht">
         <p className="muted" style={{ marginTop: 0 }}>
-          Hoe verder de vlucht, hoe meer energie ze kost. <strong>Ervaring verlaagt het verbruik</strong> —
-          een geroutineerde duif doet zuiniger, een groentje verbruikt meer.
+          Hoe verder de vlucht, hoe meer energie ze kost. <strong>Ervaring verlaagt het verbruik een beetje</strong> —
+          een geroutineerde duif doet iets zuiniger, een groentje verbruikt iets meer (±6%). De afstand weegt veel zwaarder.
         </p>
         <MiniTable
-          head={['Afstand', 'Verbruik (gemiddelde duif)', 'Onervaren']}
+          head={['Afstand', 'Verbruik (gemiddelde duif)', 'Onervaren', 'Ervaren']}
           rows={[
-            ['± 300 km', '≈ 25 energie', '≈ 30'],
-            ['± 500 km', '≈ 32 energie', '≈ 40'],
-            ['± 1000 km (grote fond)', '≈ 48 energie', '≈ 59'],
+            ['± 300 km', '≈ 29 energie', '≈ 30', '≈ 27'],
+            ['± 500 km', '≈ 36 energie', '≈ 38', '≈ 35'],
+            ['± 1000 km (grote fond)', '≈ 56 energie', '≈ 59', '≈ 53'],
           ]}
         />
         <ul style={{ marginTop: 12 }}>
           <li>Het verbruik wordt <strong>geleidelijk tijdens de vlucht</strong> afgetrokken; geeft een duif onderweg op, dan spaart ze de rest van haar energie.</li>
           <li>Een grote-fondvlucht kan een uitgeruste tank zowat helemaal leegtrekken — reken op enkele dagen herstel nadien.</li>
         </ul>
-        <p><strong>Strategie:</strong> zet je meest <em>ervaren én best uitgeruste</em> duiven op de verste vluchten. Een frisse groentje op 1000 km is vragen om problemen.</p>
+        <p><strong>Strategie:</strong> zet je <em>best uitgeruste</em> duiven op de verste vluchten — een volle tank weegt daar zwaarder dan ervaring. Een halflege duif op 1000 km is vragen om problemen.</p>
       </Section>
 
       <Section id="sponsors" icon="🤝" title="Sponsors: wat ze opbrengen">
