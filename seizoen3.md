@@ -801,7 +801,7 @@ volledige sectie eronder:
 | ❤️ **Gezondheid** | verlies na een vlucht ×1,15, met 3 voorbeelden (300 / 500 / 1000 km) |
 | ⚡ **Energie** *(al live sinds eind september)* | verbruik ×1,15; ervaring spaart nog maar ±6 % (was ±25 %); 2–3 voorbeelden |
 | 🏆 **Prijsuitreiking** | Roekoes nu €2.000 / €1.700 / €1.400; elke andere melker met punten krijgt seizoenspunten ÷ 3 in euro (voorbeeld: 1.200 punten → €400) |
-| 🔨 **Zondagveiling** | voortaan twee topduiven: één met score 60–70 (sluit 17:00) en één met score 70–80 (sluit 20:00) |
+| 🔨 **Zondagveiling** | voortaan twee topduiven: één met score 60–70 (10:00–20:00) en één met score 70–80 (11:00–21:00) |
 | 🗳️ **Van De Stem** | "Unieke eigenschappen per duif" staat op *In het spel*; stem mee op het volgende idee → link naar De Stem |
 
 ### 5.6 Kaart op het Overzicht
@@ -928,16 +928,15 @@ nu:
 
 | Veiling | Algemene score | Open | Sluit |
 |---|---|---|---|
-| 🔨 **Zondagveiling A** | **60 tot 70** | 11:00 | **17:00** |
-| 🔨 **Zondagveiling B** | **70 tot 80** | 11:00 | **20:00** |
+| 🔨 **Zondagveiling A** (duif 1) | **60 tot 70** | **10:00** | **20:00** |
+| 🔨 **Zondagveiling B** (duif 2) | **70 tot 80** | **11:00** | **21:00** |
 
 - **Algemene score** = `talent` (gemiddelde van snelheid, conditie en
   oriëntatie), dezelfde score als bij de coachprijs. Grenzen: A in [60, 70),
   B in [70, 80).
-- **Beide lopen tegelijk, maar sluiten op een ander uur** *(voorstel, nog te
-  bevestigen)*. Wie de eerste veiling om 17:00 verliest, kan zijn geld nog
-  op de tweede zetten. Sloten ze samen, dan moest je vooraf kiezen en bleef één
-  van de twee vaak liggen.
+- **Uren (beslist door de speler):** A loopt van 10:00 tot 20:00, B van 11:00 tot
+  21:00, allebei 10 uur. Ze overlappen van 11:00 tot 20:00. Wie A om 20:00
+  verliest, heeft nog een uur om op B te bieden.
 - Alle bestaande veilingregels blijven: openingsbod **30 % van de marktwaarde**
   (minstens €300), slotfase van 30 minuten met hoogstens 3 biedingen per speler,
   anti-snipe van 5 minuten, geld niet vastgehouden, verlies-meldingen.
@@ -953,7 +952,7 @@ nu:
     wordt geweigerd: *"Je hebt al het hoogste bod op {A}. Om ook op {B} te
     bieden heb je 2 vrije plaatsen nodig."* Wordt je op A overboden, dan kan je
     op B bieden.
-  - Is een veiling **gesloten**, dan telt ze niet meer mee. Won je A om 17:00, dan
+  - Is een veiling **gesloten**, dan telt ze niet meer mee. Won je A om 20:00, dan
     zit ze in je hok (één plaats minder) en heb je voor B gewoon 1 vrije plaats
     nodig.
   - De regel geldt enkel **tussen de twee zondagduiven**, niet voor
@@ -992,11 +991,16 @@ nu:
   `currentBidderId === userId`, dan is `capacity − owned ≥ 2` vereist, anders de
   foutmelding van §7.2. `owned` telt zoals nu (de duiven van de speler in
   `db.pigeons`). Bots volgen dezelfde regel (`bot-bidding`).
+- **Uren:** nu zijn `OPEN_HOUR` (11) en `WINDOW_HOURS` (9) vaste constanten in
+  `auction.ts`. Maak er per veiling een open- en sluituur van in de config
+  (A 10–20, B 11–21). `ensureAuctions` kijkt nu naar één venster per zondag; het
+  moet elke veiling openen zodra háár openingsuur voorbij is (B pas om 11:00), en
+  het opvangcentrum pauzeert van 10:00 tot 21:00.
 - **Config (`gameConfig.ts`, `AUCTION`):** de twee banden, de quality-bereiken, de
   sluituren (17 en 20) en het maximum aantal pogingen.
 - **Melding** (één per speler, stabiele id `ntf:auc:open:<datum>:<userId>`):
   *"🔨 Zondagveiling geopend! Twee topduiven gaan onder de hamer: {A} (score {x},
-  tot 17u) en {B} (score {y}, tot 20u). Bied mee op de markt!"*
+  tot 20u) en {B} (score {y}, vanaf 11u, tot 21u). Bied mee op de markt!"*
 
 ### 7.4 Wat de speler ziet
 - **Markt:** twee zondagkaarten, elk met de score, het aftellen en het sluituur.
@@ -1018,7 +1022,7 @@ Nieuw, bv. `tests/sunday-auction.test.mts`:
   na het sluiten van A telt A niet meer; een opvangcentrum-veiling valt er buiten;
 - op zondag binnen het venster: exact twee zondagveilingen, A met score in
   [60, 70) en B in [70, 80), over bv. 200 gesimuleerde zondagen;
-- A sluit om 17:00, B om 20:00 (Brusselse tijd, ook over de wissel naar
+- A opent om 10:00 en sluit om 20:00, B opent om 11:00 en sluit om 21:00 (Brusselse tijd, ook over de wissel naar
   wintertijd);
 - twee keer `ensureAuctions` na elkaar of "tegelijk" = nog steeds twee (stabiele
   id's), één melding per speler;
@@ -1028,14 +1032,14 @@ Nieuw, bv. `tests/sunday-auction.test.mts`:
 - **Blijft groen:** `bot-bidding`, `market-bidding`, `market-news`, `idle-writes`,
   `query-budget`.
 
-### 7.7 Open vraag
-- ⬜ Sluiten ze op een verschillend uur (A 17:00, B 20:00, het voorstel) of
-  allebei om 20:00?
+### 7.7 Beslissingen van de speler
+- ✅ A (score 60–70): 10:00–20:00. B (score 70–80): 11:00–21:00.
+- ✅ Hoogste bod op de ene → op de andere bieden enkel met 2 vrije plaatsen (§7.2).
 
 ### 7.8 Klaar als
 - [ ] Elke zondag twee topduiven: score 60–70 en 70–80, in plaats van één.
 - [ ] Hoogste bod op de ene → op de andere bieden enkel met 2 vrije plaatsen.
-- [ ] Sluituren volgens §7.2 (na beslissing §7.7), stabiele id's, geen derde veiling op de overgangszondag.
+- [ ] Sluituren volgens §7.2 (A 10:00–20:00, B 11:00–21:00), stabiele id's, geen derde veiling op de overgangszondag.
 - [ ] Opvangcentrum pauzeert zolang een van beide loopt.
 - [ ] Markt, Overzicht, melding, wiki en spelregels tonen beide.
 - [ ] Tests groen.
