@@ -240,6 +240,17 @@ export function runSeasonEnd(db: Database, endedSeason: number, atMs: number): v
     });
     if (i === 0) awardBadge(db, loft, 'season_champion');
   }
+  // 1b. Seizoenspremie: everyone else with points gets points ÷ 3 (rounded down),
+  //     so a season of flying pays even outside the podium of the standings.
+  for (let i = 3; i < standings.length; i++) {
+    const loft = standings[i];
+    const reward = Math.floor(loft.seasonPoints / SEASON_AWARDS.pointsPremiumDivisor);
+    if (reward <= 0) continue;
+    give(loft, {
+      kind: 'premie', rank: i + 1, season: endedSeason, at: atIso,
+      reward, value: loft.seasonPoints,
+    });
+  }
 
   // 2. Pigeon rankings → Vleugels (top-3 of each ranking, over every pigeon;
   //    bot-owned birds can win too). Ranked over the whole field, not just the
@@ -271,6 +282,7 @@ export function runSeasonEnd(db: Database, endedSeason: number, atMs: number): v
     const money = awards.reduce((s, a) => s + a.reward, 0);
     const lines = awards.map((a) => {
       if (a.kind === 'roekoe') return `🏆 ${ROEKOE_NAME[a.rank - 1]} (${a.value} punten)`;
+      if (a.kind === 'premie') return `💰 Seizoenspremie (${a.value} punten, ${a.rank}e plaats)`;
       if (a.kind === 'criterium') {
         const def = ageCategoryDef(a.ageCat ?? 'u1');
         return `${CUP_MEDAL[a.rank - 1]} ${CUP_METAL[a.rank - 1]} Criteriumduif ${def.short} met ${a.pigeonName} (${a.value} punten)`;
@@ -280,7 +292,7 @@ export function runSeasonEnd(db: Database, endedSeason: number, atMs: number): v
     seasonNotify(
       db, userId,
       `🎉 Prijsuitreiking seizoen ${endedSeason}!`,
-      `Proficiat! Je won: ${lines.join(' · ')}. Totaal prijzengeld: €${money}. Het nieuwe seizoen ${endedSeason + 1} is begonnen — de ranglijst staat weer op nul.` +
+      `${awards.some((a) => a.kind !== 'premie') ? 'Proficiat! Je won' : 'Bedankt om mee te vliegen! Je krijgt'}: ${lines.join(' · ')}. Totaal prijzengeld: €${money}. Het nieuwe seizoen ${endedSeason + 1} is begonnen — de ranglijst staat weer op nul.` +
         (cupClosed ? ' Ook het leeftijdscriterium is afgelopen: die stand begint aan een nieuwe cyclus van drie seizoenen.' : ''),
       `ntf:season:${endedSeason}:${userId}`,
     );
