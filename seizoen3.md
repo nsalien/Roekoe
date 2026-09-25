@@ -632,7 +632,7 @@ gezondheidskost = ((0,5 + afstand/250) × (1 + (100 − energie bij aankomst)/10
 - **Estafette:** dezelfde ×1,15 op de kost van haar eigen etappe.
 - Het **herstel** per dag (voer, apart hok, rebound) verandert **niet**.
 
-### 4,2 Voor en na (gewone vlucht, zonder uitval)
+### 4.2 Voor en na (gewone vlucht, zonder uitval)
 
 | Afstand | Aankomst met 100 energie | met 70 | met 40 | leeg (0) |
 |---|---|---|---|---|
