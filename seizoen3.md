@@ -38,6 +38,7 @@
 | 2 | Sponsorlimiet (tier 4 −75 % per dag, max. 6 sponsors) | ⬜ uitgewerkt, nog niet gebouwd |
 | 3 | Coach volgens de algemene score + trainen altijd +1 | ⬜ uitgewerkt, nog niet gebouwd |
 | 4 | Gezondheidsverbruik na een vlucht ×1,15 | ⬜ uitgewerkt, nog niet gebouwd |
+| 6 | Prijsuitreiking: nieuwe Roekoe-bedragen + seizoenspremie voor iedereen met punten | ⬜ uitgewerkt, nog niet gebouwd |
 | 5 | Communicatie naar alle spelers bij de start | ⬜ uitgewerkt, nog niet gebouwd — **bouw als laatste** |
 
 ---
@@ -701,7 +702,9 @@ Het spel heeft al twee bewezen patronen: een **belmelding via een migratie**
 een eigen localStorage-sleutel (`newsKey` in `Layout.tsx`, stappen in `Tour.tsx`,
 bv. `RELAY_NEWS_STEPS`). Gebruik die, niets nieuws uitvinden.
 
-1. **Prijsuitreiking** (bestaat al, `PrizeCeremony`): toont de prijzen van seizoen 2.
+1. **Prijsuitreiking** (bestaat al, `PrizeCeremony`): toont de prijzen van seizoen 2,
+   volgens de nieuwe regels van **onderdeel 6** — ook de seizoenspremie, dus nu
+   krijgt bijna iedereen een prijsuitreiking te zien.
    Die komt **eerst**; de rest wacht tot ze gesloten is.
 2. **Belmelding** (§5.3): bereikt iedereen, ook wie niet inlogt tot later.
 3. **Rondleiding "Nieuw in seizoen 3"** (§5.4): verschijnt één keer bij de eerste
@@ -796,6 +799,7 @@ volledige sectie eronder:
 | 🎓 **Coach & trainen** | de tabel van de zeven schijven; trainen = altijd +1 |
 | ❤️ **Gezondheid** | verlies na een vlucht ×1,15, met 3 voorbeelden (300 / 500 / 1000 km) |
 | ⚡ **Energie** *(al live sinds eind september)* | verbruik ×1,15; ervaring spaart nog maar ±6 % (was ±25 %); 2–3 voorbeelden |
+| 🏆 **Prijsuitreiking** | Roekoes nu €2.000 / €1.700 / €1.400; elke andere melker met punten krijgt seizoenspunten ÷ 3 in euro (voorbeeld: 1.200 punten → €400) |
 | 🗳️ **Van De Stem** | "Unieke eigenschappen per duif" staat op *In het spel*; stem mee op het volgende idee → link naar De Stem |
 
 ### 5.6 Kaart op het Overzicht
@@ -827,6 +831,82 @@ welke).
 - [ ] De kaart op het Overzicht staat er 7 dagen.
 - [ ] Het Stem-idee staat op "In het spel".
 - [ ] Niets hiervan is zichtbaar vóór de start van seizoen 3.
+
+---
+
+## 6. Prijsuitreiking: nieuwe Roekoe-bedragen en een seizoenspremie voor iedereen
+
+### 6.1 De regels
+Bij de prijsuitreiking op het einde van een seizoen (`runSeasonEnd` in
+`core/game/season.ts`), voor de **melkerranglijst** (seizoenspunten):
+
+| Plaats | Prijs | Geld |
+|---|---|---|
+| 1 | 🏆 Gouden Roekoe | **€2.000** (+ badge Seizoenskampioen) |
+| 2 | Zilveren Roekoe | **€1.700** (was €1.500) |
+| 3 | Bronzen Roekoe | **€1.400** (was €1.000) |
+| 4 en verder | 💰 **Seizoenspremie** | **seizoenspunten ÷ 3**, in euro |
+
+- **Seizoenspremie:** elke melker **buiten de top 3** met **minstens 1
+  seizoenspunt** krijgt `floor(seizoenspunten / 3)` euro. Voorbeelden: 1.200 punten
+  → €400; 300 → €100; 100 → €33; 2 → €0 (geen premie, geen kaart).
+- De **top 3 krijgt enkel de Roekoe**, geen premie erbovenop.
+- **Bots** krijgen de premie ook (zoals ze nu al Roekoes kunnen winnen; ze krijgen
+  geen melding).
+- **Nieuwe spelers:** hun seizoenspunten tellen in hun eerste seizoen dubbel
+  (starterspakket), dus hun premie volgt vanzelf. Niet apart afvangen.
+- De **Vleugels** en het **criterium** blijven ongewijzigd.
+- **Gelijke stand** rond plaats 3: de bestaande sortering (punten, dan zeges dit
+  seizoen) beslist, zoals nu.
+
+### 6.2 Technisch
+- **Config (`gameConfig.ts`, `SEASON_AWARDS`):** `roekoe: [2000, 1700, 1400]` en
+  een nieuwe knop `pointsPremiumDivisor: 3`.
+- **`runSeasonEnd`:** na de top 3 loopt het over `standings[3…]` en geeft elk hok
+  met `floor(seasonPoints / 3) > 0` een award van een nieuw soort, bv.
+  `kind: 'premie'` (`SeasonAward` in `schema.ts`), met `value = seizoenspunten` en
+  `reward = het bedrag`. Via `give()`, zodat geld, `loft.awards` en de melding
+  hetzelfde pad volgen.
+  - ⚠️ `loft.awards` groeit zo elk seizoen bij bijna elk hok. Kijk of de erelijst
+    (Prestaties → Seizoensprijzen) de premies apart of niet toont: **niet** als
+    beker tellen (het is geen Roekoe), eventueel als regel "Seizoenspremie".
+- **Melding** (bestaande prijsuitreiking-melding, `ntf:season:<seizoen>:<userId>`):
+  de regel *"💰 Seizoenspremie: {punten} punten → €{bedrag}"*. Die melding gaat nu
+  naar bijna iedereen, niet enkel de top 3.
+- **Scherm** (`PrizeCeremony.tsx`): een eigen kaart voor de premie (💰, de punten
+  en het bedrag). `Layout.tsx` toont de uitreiking nu enkel als er awards zijn;
+  dat blijft zo, en geldt nu ook voor de premie.
+- **Ranglijst** (optioneel, als het klein blijft): per hok buiten de top 3 de
+  premie die hij **nu** zou krijgen ("≈ €400"). Enkel weergave.
+
+### 6.3 Activering
+- **Vanaf de prijsuitreiking bij de wissel naar seizoen 3**, dus voor de stand
+  van **seizoen 2**. Dat is het eerste wat de spelers van seizoen 3 zien.
+  ⚠️ Daarvoor moet de code live staan **vóór** de wissel; de speler bepaalt dat
+  moment. Staat ze pas na de wissel live, dan geldt het vanaf het einde van
+  seizoen 3 — noteer dan hier wat er gebeurde.
+- Geen datamigratie nodig.
+
+### 6.4 Tests
+Uitbreiden: `tests/season-prizes.test.mts`:
+- de top 3 krijgt €2.000 / €1.700 / €1.400 en geen premie;
+- plaats 4+ krijgt `floor(punten/3)`; 1.200 → 400; 2 punten → niets; 0 punten →
+  niets;
+- bots krijgen de premie maar geen melding;
+- één melding per speler met alle prijzen samen (stabiele id, dubbele verwerking
+  = één rij);
+- `seasonWins`-reset en de rest van de bestaande asserties blijven groen.
+
+### 6.5 Documentatie
+- **`spelregels.md` §15.2:** de nieuwe bedragen en de seizoenspremie.
+- **`context.md`:** `SEASON_AWARDS` en het award-soort `premie`.
+- **Wiki:** de tabel van de Roekoe met de premie, en de rij in "Nieuw in seizoen 3" (§5.5).
+
+### 6.6 Klaar als
+- [ ] Roekoes betalen €2.000 / €1.700 / €1.400.
+- [ ] Elke andere melker met punten krijgt seizoenspunten ÷ 3 (afgerond naar beneden).
+- [ ] Melding, prijsuitreiking op het scherm en erelijst tonen de premie correct.
+- [ ] Tests groen; spelregels, wiki en `context.md` bijgewerkt.
 
 ---
 
