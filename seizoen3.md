@@ -39,6 +39,7 @@
 | 3 | Coach volgens de algemene score + trainen altijd +1 | ⬜ uitgewerkt, nog niet gebouwd |
 | 4 | Gezondheidsverbruik na een vlucht ×1,15 | ⬜ uitgewerkt, nog niet gebouwd |
 | 6 | Prijsuitreiking: nieuwe Roekoe-bedragen + seizoenspremie voor iedereen met punten | ✅ **gebouwd en live** (commit `3a5c957`, vóór de rest, op vraag van de speler) |
+| 7 | Zondag: twee topduiven onder de hamer (score 60–70 en 70–80) | ⬜ uitgewerkt, nog niet gebouwd |
 | 5 | Communicatie naar alle spelers bij de start | ⬜ uitgewerkt, nog niet gebouwd — **bouw als laatste** |
 
 ---
@@ -800,6 +801,7 @@ volledige sectie eronder:
 | ❤️ **Gezondheid** | verlies na een vlucht ×1,15, met 3 voorbeelden (300 / 500 / 1000 km) |
 | ⚡ **Energie** *(al live sinds eind september)* | verbruik ×1,15; ervaring spaart nog maar ±6 % (was ±25 %); 2–3 voorbeelden |
 | 🏆 **Prijsuitreiking** | Roekoes nu €2.000 / €1.700 / €1.400; elke andere melker met punten krijgt seizoenspunten ÷ 3 in euro (voorbeeld: 1.200 punten → €400) |
+| 🔨 **Zondagveiling** | voortaan twee topduiven: één met score 60–70 (sluit 17:00) en één met score 70–80 (sluit 20:00) |
 | 🗳️ **Van De Stem** | "Unieke eigenschappen per duif" staat op *In het spel*; stem mee op het volgende idee → link naar De Stem |
 
 ### 5.6 Kaart op het Overzicht
@@ -908,6 +910,105 @@ Uitbreiden: `tests/season-prizes.test.mts`:
 - [x] Elke andere melker met punten krijgt seizoenspunten ÷ 3 (afgerond naar beneden).
 - [x] Melding, prijsuitreiking op het scherm en erelijst tonen de premie.
 - [x] `season-prizes.test.mts` groen; spelregels, wiki (sectie `seizoensprijzen`) en `context.md` bijgewerkt.
+
+---
+
+## 7. Zondag: twee topduiven onder de hamer
+
+### 7.1 Hoe het nu is
+Elke zondag van **11:00 tot 20:00** (Brussel) gaat **één** topduif onder de hamer
+(`createSundayAuction` in `core/game/auction.ts`). Ze wordt gemaakt met
+`generatePigeon(quality 0,82–0,98)`, wat in de praktijk een algemene score geeft
+van ~49 tot ~85 (mediaan ~68, gemeten over 4.000 duiven). De score ligt dus niet
+vast. Zolang ze loopt, komt er geen opvangcentrum-veiling tussen.
+
+### 7.2 De regels
+Elke zondag gaan er **twee** topduiven onder de hamer, **in plaats van** de ene van
+nu:
+
+| Veiling | Algemene score | Open | Sluit |
+|---|---|---|---|
+| 🔨 **Zondagveiling A** | **60 tot 70** | 11:00 | **17:00** |
+| 🔨 **Zondagveiling B** | **70 tot 80** | 11:00 | **20:00** |
+
+- **Algemene score** = `talent` (gemiddelde van snelheid, conditie en
+  oriëntatie), dezelfde score als bij de coachprijs. Grenzen: A in [60, 70),
+  B in [70, 80).
+- **Beide lopen tegelijk, maar sluiten op een ander uur** *(voorstel, nog te
+  bevestigen)*. Wie de eerste veiling om 17:00 verliest, kan zijn geld nog
+  op de tweede zetten. Sloten ze samen, dan moest je vooraf kiezen en bleef één
+  van de twee vaak liggen.
+- Alle bestaande veilingregels blijven: openingsbod **30 % van de marktwaarde**
+  (minstens €300), slotfase van 30 minuten met hoogstens 3 biedingen per speler,
+  anti-snipe van 5 minuten, geld niet vastgehouden, verlies-meldingen.
+- Je mag **op allebei** bieden. Win je allebei, dan krijg je allebei, zolang je
+  het geld en de plaats hebt op het moment van sluiten (zoals nu).
+- **Opvangcentrum:** komt niet tussen zolang **een** van de twee zondagveilingen
+  loopt.
+- **Bots** bieden mee zoals nu (`bot-bidding`), binnen hun band rond de marktwaarde.
+
+### 7.3 Technisch
+- **Een duif met een score binnen de band maken.** `generatePigeon` geeft een
+  brede spreiding, dus:
+  - genereer met een quality die rond de band ligt (bv. A: 0,60–0,75,
+    B: 0,72–0,90; afstemmen met een meting) en **trek opnieuw** tot
+    `talent(p)` in de band ligt, hoogstens ~50 pogingen;
+  - lukt het niet binnen de pogingen, schaal dan snelheid/conditie/oriëntatie
+    evenredig bij tot het midden van de band, en respecteer de gen-caps (verhoog
+    een gen-cap als dat nodig is, nooit boven 95).
+  - Houd `namesInUse` bij voor de tweede duif (de eerste staat al in de lijst).
+- **Stabiele id's** (zie het commentaar bij `createSundayAuction`): nu is de
+  sleutel `auction:<datum>`. Maak er twee van: `auction:<datum>:a` en
+  `auction:<datum>:b`, met duif-id `pig_<slug>` en veiling-id `auc_<slug>` per
+  sleutel. Zo levert twee keer tegelijk openen nog steeds exact twee veilingen op.
+  - ⚠️ **Overgang:** een oude sleutel `auction:<datum>` (zonder `:a`/`:b`) van de
+    zondag waarop de uitrol valt, mag geen derde veiling veroorzaken. Controleer of
+    er voor die datum al een veiling bestaat met eender welke van de drie sleutels.
+- **`auctionKind`**: beide blijven `'sunday'` (de sleutel begint met `auction:`).
+  Controleer elke plek die aanneemt dat er **één** zondagveiling is (bv. de
+  opvangcentrum-pauze in `ensureAuctions`, de markt-UI, het aftellen, de
+  15-seconden-poll in de slotfase in `MarketPage`): die moet met twee werken.
+- **Config (`gameConfig.ts`, `AUCTION`):** de twee banden, de quality-bereiken, de
+  sluituren (17 en 20) en het maximum aantal pogingen.
+- **Melding** (één per speler, stabiele id `ntf:auc:open:<datum>:<userId>`):
+  *"🔨 Zondagveiling geopend! Twee topduiven gaan onder de hamer: {A} (score {x},
+  tot 17u) en {B} (score {y}, tot 20u). Bied mee op de markt!"*
+
+### 7.4 Wat de speler ziet
+- **Markt:** twee zondagkaarten, elk met de score, het aftellen en het sluituur.
+  Sorteer ze op sluituur, zodat de eerste sluitende bovenaan staat.
+- **Overzicht** (`DashboardPage`, waar nu de lopende veiling staat): beide tonen.
+- **Wiki** (`veilingen`) en **spelregels** §12 *Zondagveiling*: twee duiven, hun
+  scoreband, de twee sluituren.
+
+### 7.5 Activering
+- Vanaf de eerste **zondag na de start van seizoen 3** (zelfde seizoenspoort). Tot
+  dan blijft het één duif.
+
+### 7.6 Tests
+Nieuw, bv. `tests/sunday-auction.test.mts`:
+- op zondag binnen het venster: exact twee zondagveilingen, A met score in
+  [60, 70) en B in [70, 80), over bv. 200 gesimuleerde zondagen;
+- A sluit om 17:00, B om 20:00 (Brusselse tijd, ook over de wissel naar
+  wintertijd);
+- twee keer `ensureAuctions` na elkaar of "tegelijk" = nog steeds twee (stabiele
+  id's), één melding per speler;
+- de overgangszondag met een oude sleutel geeft geen derde veiling;
+- geen opvangcentrum-veiling zolang een van beide loopt;
+- vóór de seizoenspoort: nog de oude ene veiling.
+- **Blijft groen:** `bot-bidding`, `market-bidding`, `market-news`, `idle-writes`,
+  `query-budget`.
+
+### 7.7 Open vraag
+- ⬜ Sluiten ze op een verschillend uur (A 17:00, B 20:00, het voorstel) of
+  allebei om 20:00?
+
+### 7.8 Klaar als
+- [ ] Elke zondag twee topduiven: score 60–70 en 70–80, in plaats van één.
+- [ ] Sluituren volgens §7.2 (na beslissing §7.7), stabiele id's, geen derde veiling op de overgangszondag.
+- [ ] Opvangcentrum pauzeert zolang een van beide loopt.
+- [ ] Markt, Overzicht, melding, wiki en spelregels tonen beide.
+- [ ] Tests groen.
 
 ---
 
