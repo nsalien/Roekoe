@@ -38,7 +38,7 @@
 | 2 | Sponsorlimiet (tier 4 −75 % per dag, max. 6 sponsors) | ⬜ uitgewerkt, nog niet gebouwd |
 | 3 | Coach volgens de algemene score + trainen altijd +1 | ⬜ uitgewerkt, nog niet gebouwd |
 | 4 | Gezondheidsverbruik na een vlucht ×1,15 | ⬜ uitgewerkt, nog niet gebouwd |
-| 6 | Prijsuitreiking: nieuwe Roekoe-bedragen + seizoenspremie voor iedereen met punten | ⬜ uitgewerkt, nog niet gebouwd |
+| 6 | Prijsuitreiking: nieuwe Roekoe-bedragen + seizoenspremie voor iedereen met punten | ✅ **gebouwd en live** (commit `3a5c957`, vóór de rest, op vraag van de speler) |
 | 5 | Communicatie naar alle spelers bij de start | ⬜ uitgewerkt, nog niet gebouwd — **bouw als laatste** |
 
 ---
@@ -880,12 +880,13 @@ Bij de prijsuitreiking op het einde van een seizoen (`runSeasonEnd` in
   premie die hij **nu** zou krijgen ("≈ €400"). Enkel weergave.
 
 ### 6.3 Activering
-- **Vanaf de prijsuitreiking bij de wissel naar seizoen 3**, dus voor de stand
-  van **seizoen 2**. Dat is het eerste wat de spelers van seizoen 3 zien.
-  ⚠️ Daarvoor moet de code live staan **vóór** de wissel; de speler bepaalt dat
-  moment. Staat ze pas na de wissel live, dan geldt het vanaf het einde van
-  seizoen 3 — noteer dan hier wat er gebeurde.
+- ✅ **Live gezet vóór de wissel**, los van de rest van dit bestand, op
+  uitdrukkelijke vraag van de speler. Geen seizoenspoort: het geldt vanaf de
+  eerstvolgende prijsuitreiking (de stand van seizoen 2, bij de wissel naar
+  seizoen 3).
 - Geen datamigratie nodig.
+- **Bij "implementeer seizoen3.md": dit onderdeel niet opnieuw bouwen.** Enkel de
+  vermelding in de communicatie (§5.5) blijft te doen.
 
 ### 6.4 Tests
 Uitbreiden: `tests/season-prizes.test.mts`:
@@ -903,10 +904,10 @@ Uitbreiden: `tests/season-prizes.test.mts`:
 - **Wiki:** de tabel van de Roekoe met de premie, en de rij in "Nieuw in seizoen 3" (§5.5).
 
 ### 6.6 Klaar als
-- [ ] Roekoes betalen €2.000 / €1.700 / €1.400.
-- [ ] Elke andere melker met punten krijgt seizoenspunten ÷ 3 (afgerond naar beneden).
-- [ ] Melding, prijsuitreiking op het scherm en erelijst tonen de premie correct.
-- [ ] Tests groen; spelregels, wiki en `context.md` bijgewerkt.
+- [x] Roekoes betalen €2.000 / €1.700 / €1.400.
+- [x] Elke andere melker met punten krijgt seizoenspunten ÷ 3 (afgerond naar beneden).
+- [x] Melding, prijsuitreiking op het scherm en erelijst tonen de premie.
+- [x] `season-prizes.test.mts` groen; spelregels, wiki (sectie `seizoensprijzen`) en `context.md` bijgewerkt.
 
 ---
 
