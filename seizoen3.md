@@ -37,6 +37,7 @@
 | 1 | Kenmerken per duif | ⬜ uitgewerkt, nog niet gebouwd |
 | 2 | Sponsorlimiet (tier 4 −75 % per dag, max. 6 sponsors) | ⬜ uitgewerkt, nog niet gebouwd |
 | 3 | Coach volgens de algemene score + trainen altijd +1 | ⬜ uitgewerkt, nog niet gebouwd |
+| 4 | Gezondheidsverbruik na een vlucht ×1,15 | ⬜ uitgewerkt, nog niet gebouwd |
 
 ---
 
@@ -611,6 +612,71 @@ Nieuw of uitgebreid (bv. `tests/coach-salary.test.mts`):
 - [ ] Handmatig trainen geeft altijd +1.
 - [ ] Starterscoach, bots en schuld werken met de nieuwe tarieven.
 - [ ] Het gaat pas in bij seizoen 3, met één melding per speler met een coach.
+- [ ] Tests groen; spelregels, wiki en `context.md` bijgewerkt.
+
+---
+
+## 4. Gezondheidsverbruik na een vlucht ×1,15
+
+### 4.1 De regel
+Het gezondheidsverlies na een vlucht gaat **×1,15** (15 % meer), net zoals het
+energieverbruik eerder (dat is al live, niet in dit bestand).
+
+```
+gezondheidskost = ((0,5 + afstand/250) × (1 + (100 − energie bij aankomst)/100 × 0,8)
+                   + extra bij uitval (4…9)) × 1,15
+```
+- Geldt voor de **volledige** kost, ook de extra −4 tot −9 van een duif die
+  onderweg uitvalt (die wordt dus −4,6 tot −10,4).
+- **Blijft 0:** een duif die zelf opgeeft, en een oefenvlucht.
+- **Estafette:** dezelfde ×1,15 op de kost van haar eigen etappe.
+- Het **herstel** per dag (voer, apart hok, rebound) verandert **niet**.
+
+### 4,2 Voor en na (gewone vlucht, zonder uitval)
+
+| Afstand | Aankomst met 100 energie | met 70 | met 40 | leeg (0) |
+|---|---|---|---|---|
+| 100 km | 0,9 → **1,0** | 1,1 → **1,3** | 1,3 → **1,5** | 1,6 → **1,9** |
+| 200 km | 1,3 → **1,5** | 1,6 → **1,9** | 1,9 → **2,2** | 2,3 → **2,7** |
+| 300 km | 1,7 → **2,0** | 2,1 → **2,4** | 2,5 → **2,9** | 3,1 → **3,5** |
+| 500 km | 2,5 → **2,9** | 3,1 → **3,6** | 3,7 → **4,3** | 4,5 → **5,2** |
+| 700 km | 3,3 → **3,8** | 4,1 → **4,7** | 4,9 → **5,6** | 5,9 → **6,8** |
+| 1000 km | 4,5 → **5,2** | 5,6 → **6,4** | 6,7 → **7,7** | 8,1 → **9,3** |
+| 1200 km | 5,3 → **6,1** | 6,6 → **7,6** | 7,8 → **9,0** | 9,5 → **11,0** |
+
+### 4.3 Technisch
+- **Config (`gameConfig.ts`, `HEALTH`):** nieuwe knop `flightHealthMultiplier: 1.15`
+  naast `flightHealthBase`/`flightHealthPerKm`/`emptyTankFactor`, en werk het
+  commentaar met de formule (`gameConfig.ts:~2015`) bij.
+- **Toepassen** op de volledige `healthDelta` op beide plekken:
+  - gewone vlucht: `finalizeFlight`, `flight.ts:~1208`;
+  - estafette: `flight.ts:~1411`.
+  Het liefst via één kleine helper (zoals `routeEnergyCost` voor de energie), zodat
+  de twee niet uit elkaar kunnen lopen.
+- **Activering:** vanaf de start van seizoen 3, via dezelfde seizoenspoort als de
+  andere onderdelen (of de deploy op het moment van de wissel). Een vlucht die
+  vóór de wissel vertrok en erna eindigt: de kost wordt bij de afronding berekend,
+  dus die krijgt al ×1,15 — aanvaardbaar, niet speciaal afvangen.
+
+### 4.4 Tests
+- Een uitgevlogen duif verliest exact ×1,15 van de oude kost (gewone vlucht én
+  estafette-etappe), een uitgevallen duif ook op het extra deel.
+- Opgegeven en oefenvlucht: 0.
+- Vóór de seizoenspoort: nog de oude kost.
+- **Blijft groen:** `force-finish.test.mts` (natuurlijk uitvliegen == admin
+  beëindigen), `flight-eligibility`, `upset-balance`.
+
+### 4.5 Documentatie
+- **`spelregels.md` §3** (tabel "Effect van een vlucht": de gezondheidsregel) en
+  **§4.4** (formule ×1,15, en de tabel "leeg thuis" rechtzetten — die stond al te
+  laag: 200 km −2,3 → nu −2,7; 1000 km −8,1 → nu −9,3).
+- **`context.md` §5:** `HEALTH.flightHealthMultiplier`.
+- **Wiki:** als de gezondheidskost daar met getallen staat, mee aanpassen.
+
+### 4.6 Klaar als
+- [ ] De gezondheidskost na een vlucht is ×1,15 (inclusief uitval), gewone vlucht en estafette.
+- [ ] Opgeven en oefenvlucht blijven 0; herstel ongewijzigd.
+- [ ] Gaat pas in bij seizoen 3.
 - [ ] Tests groen; spelregels, wiki en `context.md` bijgewerkt.
 
 ---
