@@ -941,8 +941,26 @@ nu:
 - Alle bestaande veilingregels blijven: openingsbod **30 % van de marktwaarde**
   (minstens €300), slotfase van 30 minuten met hoogstens 3 biedingen per speler,
   anti-snipe van 5 minuten, geld niet vastgehouden, verlies-meldingen.
-- Je mag **op allebei** bieden. Win je allebei, dan krijg je allebei, zolang je
-  het geld en de plaats hebt op het moment van sluiten (zoals nu).
+- **Vrije plaatsen in je hok** (regel van de speler — om te vermijden dat de
+  sterkste spelers beide duiven tegelijk opkopen):
+  - Op **één** zondagduif bieden vraagt **1 vrije plaats** (zoals nu al voor elke
+    veiling).
+  - Heb je het **hoogste bod op de ene** zondagduif, dan kan je **niet** op de
+    **andere** bieden, **tenzij je 2 vrije plaatsen** hebt.
+  - Word je op de ene **overboden** (iemand anders heeft er nu het hoogste bod),
+    dan mag je weer op de andere bieden met 1 vrije plaats.
+  - Voorbeeld: je hebt 1 vrije plaats en het hoogste bod op duif A. Bieden op B
+    wordt geweigerd: *"Je hebt al het hoogste bod op {A}. Om ook op {B} te
+    bieden heb je 2 vrije plaatsen nodig."* Wordt je op A overboden, dan kan je
+    op B bieden.
+  - Is een veiling **gesloten**, dan telt ze niet meer mee. Won je A om 17:00, dan
+    zit ze in je hok (één plaats minder) en heb je voor B gewoon 1 vrije plaats
+    nodig.
+  - De regel geldt enkel **tussen de twee zondagduiven**, niet voor
+    opvangcentrum- of gedwongen veilingen.
+- Win je toch allebei (met 2 vrije plaatsen), dan krijg je allebei, zolang je het
+  geld en de plaats hebt op het moment van sluiten (zoals nu: anders gaat de duif
+  naar de volgende bieder).
 - **Opvangcentrum:** komt niet tussen zolang **een** van de twee zondagveilingen
   loopt.
 - **Bots** bieden mee zoals nu (`bot-bidding`), binnen hun band rond de marktwaarde.
@@ -968,6 +986,12 @@ nu:
   Controleer elke plek die aanneemt dat er **één** zondagveiling is (bv. de
   opvangcentrum-pauze in `ensureAuctions`, de markt-UI, het aftellen, de
   15-seconden-poll in de slotfase in `MarketPage`): die moet met twee werken.
+- **Biedregel (`placeBid` in `auction.ts`):** nu staat daar al `owned >=
+  loft.capacity → 'Je hok zit vol'`. Voeg eraan toe: is dit een zondagveiling
+  en is er een **andere open** zondagveiling (zelfde datum) waar
+  `currentBidderId === userId`, dan is `capacity − owned ≥ 2` vereist, anders de
+  foutmelding van §7.2. `owned` telt zoals nu (de duiven van de speler in
+  `db.pigeons`). Bots volgen dezelfde regel (`bot-bidding`).
 - **Config (`gameConfig.ts`, `AUCTION`):** de twee banden, de quality-bereiken, de
   sluituren (17 en 20) en het maximum aantal pogingen.
 - **Melding** (één per speler, stabiele id `ntf:auc:open:<datum>:<userId>`):
@@ -976,6 +1000,8 @@ nu:
 
 ### 7.4 Wat de speler ziet
 - **Markt:** twee zondagkaarten, elk met de score, het aftellen en het sluituur.
+  Heb je het hoogste bod op de ene en maar 1 vrije plaats, dan staat bij de andere
+  meteen waarom je niet kan bieden (i.p.v. pas een fout na het klikken).
   Sorteer ze op sluituur, zodat de eerste sluitende bovenaan staat.
 - **Overzicht** (`DashboardPage`, waar nu de lopende veiling staat): beide tonen.
 - **Wiki** (`veilingen`) en **spelregels** §12 *Zondagveiling*: twee duiven, hun
@@ -987,6 +1013,9 @@ nu:
 
 ### 7.6 Tests
 Nieuw, bv. `tests/sunday-auction.test.mts`:
+- **biedregel:** met 1 vrije plaats en het hoogste bod op A wordt een bod op B
+  geweigerd; met 2 vrije plaatsen mag het; na overboden worden op A mag het met 1;
+  na het sluiten van A telt A niet meer; een opvangcentrum-veiling valt er buiten;
 - op zondag binnen het venster: exact twee zondagveilingen, A met score in
   [60, 70) en B in [70, 80), over bv. 200 gesimuleerde zondagen;
 - A sluit om 17:00, B om 20:00 (Brusselse tijd, ook over de wissel naar
@@ -1005,6 +1034,7 @@ Nieuw, bv. `tests/sunday-auction.test.mts`:
 
 ### 7.8 Klaar als
 - [ ] Elke zondag twee topduiven: score 60–70 en 70–80, in plaats van één.
+- [ ] Hoogste bod op de ene → op de andere bieden enkel met 2 vrije plaatsen.
 - [ ] Sluituren volgens §7.2 (na beslissing §7.7), stabiele id's, geen derde veiling op de overgangszondag.
 - [ ] Opvangcentrum pauzeert zolang een van beide loopt.
 - [ ] Markt, Overzicht, melding, wiki en spelregels tonen beide.
