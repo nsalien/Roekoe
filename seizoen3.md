@@ -38,6 +38,7 @@
 | 2 | Sponsorlimiet (tier 4 −75 % per dag, max. 6 sponsors) | ⬜ uitgewerkt, nog niet gebouwd |
 | 3 | Coach volgens de algemene score + trainen altijd +1 | ⬜ uitgewerkt, nog niet gebouwd |
 | 4 | Gezondheidsverbruik na een vlucht ×1,15 | ⬜ uitgewerkt, nog niet gebouwd |
+| 5 | Communicatie naar alle spelers bij de start | ⬜ uitgewerkt, nog niet gebouwd — **bouw als laatste** |
 
 ---
 
@@ -277,9 +278,8 @@ Plus `traitById(id)` naast `quirkById`.
 - **Nieuwe duiven vóór de wissel:** krijgen nog **geen** kenmerk (anders lekt de
   feature vóór het seizoen). Laat `rollTrait` pas werken als de poort open is, of
   laat v53 ze gewoon meenemen — kies één aanpak en noteer ze hier.
-- Stuur elke **speler** (geen bots) één melding met **stabiele id**
-  `ntf:season3:traits:<userId>`: *"Seizoen 3 is gestart: X van je duiven hebben een
-  kenmerk gekregen. Bekijk ze in je hok."* met link naar de wiki.
+- **Geen aparte melding hier:** het aantal duiven met een kenmerk komt in de
+  gezamenlijke welkomstmelding van **§5**.
 - Kost: één keer ~alle duivenrijen schrijven — ruim binnen het dagbudget.
 
 ### 1.11 Wat de speler ziet (client)
@@ -585,9 +585,8 @@ de spelregels "~+1" zeggen.
   de vaste +1 pas gelden als de seizoenspoort open is (zelfde poort als v53/v54),
   of zorg dat de deploy op het moment van de wissel gebeurt — de speler zegt zelf
   wanneer het live mag.
-- Stuur elke speler met een coach bij de wissel één melding (stabiele id
-  `ntf:season3:coach:<userId>`): *"Vanaf seizoen 3 hangt de prijs van een coach af
-  van hoe goed je duif is. Je coaches kosten nu samen €X per dag."*
+- **Geen aparte melding hier:** de nieuwe coachkost komt in de gezamenlijke
+  welkomstmelding van **§5**.
 - Geen datamigratie nodig: het tarief wordt elke dag berekend.
 
 ### 3.6 Tests
@@ -678,6 +677,156 @@ gezondheidskost = ((0,5 + afstand/250) × (1 + (100 − energie bij aankomst)/10
 - [ ] Opgeven en oefenvlucht blijven 0; herstel ongewijzigd.
 - [ ] Gaat pas in bij seizoen 3.
 - [ ] Tests groen; spelregels, wiki en `context.md` bijgewerkt.
+
+---
+
+## 5. Communicatie: iedereen mee in seizoen 3
+
+**Bouw dit onderdeel als laatste**: het vat alle andere onderdelen samen. Komt er
+later nog een onderdeel bij, werk dan ook de teksten hieronder bij.
+
+### 5.1 Doel
+Op het moment dat seizoen 3 live gaat, weet **elke** speler wat er veranderd is,
+ook wie nooit de wiki opent, en ook de wijziging die al eerder live ging:
+- **al live sinds eind september:** vluchten kosten ×1,15 energie, en ervaring
+  spaart nog maar ±6 % energie uit (was ±25 %);
+- **nieuw bij seizoen 3:** onderdeel 1 t/m 4 van dit bestand.
+
+Het idee "Unieke eigenschappen per duif" kwam uit **De Stem**: de communicatie
+zegt dat ook ("jullie stemden, hier is het").
+
+### 5.2 Vier kanalen, in deze volgorde
+Het spel heeft al twee bewezen patronen: een **belmelding via een migratie**
+(zie v51 voor De Stem) en een eenmalige **"wat is er nieuw"-rondleiding** met
+een eigen localStorage-sleutel (`newsKey` in `Layout.tsx`, stappen in `Tour.tsx`,
+bv. `RELAY_NEWS_STEPS`). Gebruik die, niets nieuws uitvinden.
+
+1. **Prijsuitreiking** (bestaat al, `PrizeCeremony`): toont de prijzen van seizoen 2.
+   Die komt **eerst**; de rest wacht tot ze gesloten is.
+2. **Belmelding** (§5.3): bereikt iedereen, ook wie niet inlogt tot later.
+3. **Rondleiding "Nieuw in seizoen 3"** (§5.4): verschijnt één keer bij de eerste
+   pagina na de prijsuitreiking, met de spotlight op de plek waar het verandert.
+4. **Wiki-pagina "Nieuw in seizoen 3"** (§5.5): alles op een rij, met de getallen.
+   Alle andere kanalen linken hierheen (`/wiki#seizoen3`).
+
+Plus één **actiemelding** voor wie te veel sponsors heeft (§5.3), en een kleine
+**kaart op het Overzicht** (§5.6).
+
+**Timing:** alles hangt aan dezelfde seizoenspoort als v53/v54. Vóór de wissel is
+er niets van te zien, ook niet als de code al live staat. De rondleiding toont
+enkel als `world.seasonYear` ≥ het startnummer van seizoen 3. De sleutel is
+`roekoe.newsSeen.seizoen3.<userId>`. Een **nieuwe speler** die de volledige
+welkomstrondleiding krijgt, krijgt deze niet (zelfde regel als nu in `closeTour`).
+
+### 5.3 Belmeldingen
+
+**Welkomstmelding** — elke speler (geen bots), één keer, stabiele id
+`ntf:season3:welcome:<userId>`. Vervangt de losse meldingen die in onderdeel 1 en 3
+stonden. De regels met • verschijnen enkel als ze op deze speler van toepassing
+zijn.
+
+> **🎉 Seizoen 3 is begonnen!**
+> Jullie stemden in De Stem, en het winnende idee vliegt nu mee: **kenmerken**.
+> Voor jou betekent seizoen 3:
+> • ✨ **{n} van je duiven** kregen een kenmerk — kijk in je hok wanneer ze in hun element zijn.
+> • 🎓 Je coaches kosten nu samen **€{x} per dag** (de prijs hangt af van hoe goed de duif is).
+> • 🤝 Je hebt **{s} sponsors** — het maximum is nu 6.
+> • ⚡ Vliegen vraagt meer: meer energie en gezondheid per vlucht, dus rust wordt belangrijker.
+> Alles op een rij: **Wiki → Nieuw in seizoen 3**.
+
+- `{n} = 0` → die regel wordt: *"✨ Geen van je duiven kreeg een kenmerk — jongen
+  uit je kweek of een aankoop kunnen er wel een hebben."*
+- Geen coach → coachregel weg. Geen sponsors → sponsorregel weg. Meer dan 6
+  sponsors → sponsorregel weg (de actiemelding hieronder neemt het over).
+- De ⚡-regel staat er altijd.
+
+**Actiemelding** — enkel wie meer dan 6 sponsors heeft, stabiele id
+`ntf:season3:sponsorcap:<userId>` (zie onderdeel 2):
+
+> **⚠️ Kies je sponsors**
+> Je hebt **{s} sponsors**, het maximum is nu 6. Kies op de sponsorpagina welke
+> **{s−6}** je laat gaan — dat is **gratis**. Tot je gekozen hebt, betaalt geen
+> enkele sponsor uit.
+
+### 5.4 Rondleiding "Nieuw in seizoen 3"
+Zes korte stappen, in `Tour.tsx` als `SEASON3_NEWS_STEPS`. Teksten zoals ze in het
+spel komen (Vlaams, kort, zonder tabellen; getallen enkel waar het een harde grens
+is):
+
+1. **Overzicht** — *🎉 Welkom in seizoen 3*
+   > Jullie stemden, en het winnende idee zit in het spel. Daarnaast is er aan een
+   > paar knoppen gedraaid. De belangrijkste in vijf stappen — alles in detail
+   > staat in de wiki.
+2. **Mijn hok** (spotlight op een duifkaart met een kenmerk; heeft de speler er
+   geen, dan op de eerste duifkaart) — *✨ Kenmerken*
+   > Ongeveer één op de drie duiven heeft nu een kenmerk: ze vliegt sneller in één
+   > bepaalde situatie — bij rugwind, in de kou, in het donker, op een sprint…
+   > Klik op het label om te zien wanneer. Kenmerken zijn **erfelijk** en voor
+   > iedereen zichtbaar, ook op de markt.
+3. **Vluchten** (spotlight op de vluchtkalender) — *✨ Wie is vandaag in haar element?*
+   > Bij het inschrijven zie je welke duif haar kenmerk kan gebruiken. Sommige
+   > hangen af van het weer bij de lossing; andere — dag, nacht, in groep of
+   > alleen — slaan zelfs pas **tijdens** de vlucht aan. Volg het op het live bord.
+4. **Sponsors** (spotlight op de sponsorteller) — *🤝 Hoogstens 6 sponsors*
+   > Je kan nog **maximaal 6 sponsors** tegelijk hebben. De prestigesponsors
+   > betalen per dag minder; hun tekengeld en podiumpremie blijven. Wil je een
+   > zevende, dan zeg je er eerst een op.
+5. **Mijn hok** (spotlight op de coachknop van een duif) — *🎓 Een betere duif, een duurdere coach*
+   > De prijs van een privécoach hangt nu af van hoe goed je duif is: een gewone
+   > duif blijft goedkoop, een topduif kost meer. En zelf trainen geeft voortaan
+   > altijd precies **+1**.
+6. **Vluchten** — *⚡ Vliegen vraagt meer*
+   > Een vlucht kost je duiven meer **energie** en meer **gezondheid** dan vroeger,
+   > en ervaring spaart minder energie uit. Een volle tank en genoeg rust wegen dus
+   > zwaarder. Alles op een rij: **Wiki → Nieuw in seizoen 3**.
+   (knop "Naar de wiki" → `/wiki#seizoen3`)
+
+Bestaat een selector niet (bv. `data-tour`-attribuut op de coachknop of de
+sponsorteller), voeg hem toe; de rondleiding mag nooit op een lege plek wijzen.
+
+### 5.5 Wiki: "Nieuw in seizoen 3"
+Nieuwe sectie **bovenaan** `WikiPage.tsx`, id `seizoen3`, die na seizoen 3 gewoon
+blijft staan (als changelog). Inhoud, kort per blok, met een link naar de
+volledige sectie eronder:
+
+| Blok | Inhoud |
+|---|---|
+| ✨ **Kenmerken** | wat het is, de 15 kenmerken in één tabel (emoji, naam, wanneer, effect), 30 % kans, erfelijk, gewoon/zeldzaam → link naar `#kenmerken` |
+| 🤝 **Sponsors** | max. 6; prestigesponsors (tier 4) −75 % per dag met de nieuwe bedragen; een zevende = eerst opzeggen (met verbrekingsvergoeding); wie er te veel had: gratis afbouwen |
+| 🎓 **Coach & trainen** | de tabel van de zeven schijven; trainen = altijd +1 |
+| ❤️ **Gezondheid** | verlies na een vlucht ×1,15, met 3 voorbeelden (300 / 500 / 1000 km) |
+| ⚡ **Energie** *(al live sinds eind september)* | verbruik ×1,15; ervaring spaart nog maar ±6 % (was ±25 %); 2–3 voorbeelden |
+| 🗳️ **Van De Stem** | "Unieke eigenschappen per duif" staat op *In het spel*; stem mee op het volgende idee → link naar De Stem |
+
+### 5.6 Kaart op het Overzicht
+Een kleine, wegklikbare kaart bovenaan het Overzicht, **7 dagen** vanaf de start
+van seizoen 3: *"🎉 Seizoen 3: kenmerken, sponsorlimiet en meer — bekijk wat er
+nieuw is →"* (link naar `/wiki#seizoen3`). Wegklikken onthouden per browser
+(localStorage, in try/catch). Zo vindt ook wie de rondleiding wegklikte het later
+terug.
+
+### 5.7 De Stem
+Zet het idee "✨ Unieke eigenschappen per duif" op **`uitgevoerd`** ("In het spel")
+op het moment dat seizoen 3 start (via de migratie of met de admin-knop — noteer
+welke).
+
+### 5.8 Tests
+- De welkomstmelding: precies één per speler, geen voor bots, stabiele id (dubbele
+  verwerking = één rij); de regels met • verschijnen enkel wanneer van toepassing
+  ({n}=0, geen coach, geen sponsors, >6 sponsors).
+- De actiemelding enkel bij >6 sponsors.
+- Vóór de seizoenspoort: geen meldingen, en `/state` geeft niets waardoor de
+  rondleiding of de kaart zou tonen.
+- `idle-writes` blijft groen (de meldingen komen uit de eenmalige migratie, nooit
+  uit een tick die elke poll draait).
+
+### 5.9 Klaar als
+- [ ] Welkomstmelding en (waar nodig) actiemelding worden bij de start verstuurd.
+- [ ] De rondleiding verschijnt één keer, na de prijsuitreiking, met werkende spotlights.
+- [ ] De wiki heeft "Nieuw in seizoen 3" bovenaan, inclusief de energiewijziging die al live was.
+- [ ] De kaart op het Overzicht staat er 7 dagen.
+- [ ] Het Stem-idee staat op "In het spel".
+- [ ] Niets hiervan is zichtbaar vóór de start van seizoen 3.
 
 ---
 
