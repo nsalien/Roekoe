@@ -36,6 +36,7 @@
 |---|---|---|
 | 1 | Kenmerken per duif | ⬜ uitgewerkt, nog niet gebouwd |
 | 2 | Sponsorlimiet (tier 4 −75 % per dag, max. 6 sponsors) | ⬜ uitgewerkt, nog niet gebouwd |
+| 3 | Coach volgens de algemene score + trainen altijd +1 | ⬜ uitgewerkt, nog niet gebouwd |
 
 ---
 
@@ -500,6 +501,117 @@ Nieuw: **`tests/sponsor-cap.test.mts`**:
 - [ ] Verplichte, gratis afbouw bij de seizoenswissel; tot dan betaalt geen sponsor.
 - [ ] `tests/sponsor-cap.test.mts` en de bestaande tests zijn groen.
 - [ ] Spelregels, wiki en `context.md` zijn bijgewerkt.
+
+---
+
+## 3. Coachprijs volgens de algemene score, en trainen altijd +1
+
+### 3.1 Het probleem
+Een privécoach kost nu voor elke duif **€80 per dag**. Voor een zwakke of
+middelmatige duif is dat goed, maar een topduif haalt voor diezelfde €80 veel
+meer waarde (en hoe beter haar genen, hoe sneller ze groeit). Daarnaast geeft
+handmatig trainen nu een willekeurige **+0,84 tot +1,56** (gemiddeld +1,2), terwijl
+de spelregels "~+1" zeggen.
+
+### 3.2 De regels
+1. **Het dagsalaris van een coach hangt af van de algemene score** van de duif
+   (`talent` = gemiddelde van snelheid, conditie en oriëntatie, `pigeon.ts`):
+
+   | Algemene score | Coach per dag |
+   |---|---|
+   | lager dan 65 | **€80** |
+   | 65 tot 70 | **€100** |
+   | 70 tot 75 | **€140** |
+   | 75 tot 80 | **€180** |
+   | 80 tot 85 | **€220** |
+   | 85 tot 90 | **€300** |
+   | 90 en hoger | **€400** |
+
+   - Grenzen: de ondergrens hoort bij de hogere schijf (score 65,0 → €100; 64,9 →
+     €80). De score heeft één decimaal.
+   - **Elke dag opnieuw bepaald** bij de dagafrekening, op de score van dat moment.
+     Stijgt een duif over een grens, dan betaalt ze vanaf de volgende afrekening het
+     hogere tarief (en omgekeerd bij veroudering).
+   - Verder verandert er **niets** aan de coach: hij traint nog altijd alle drie de
+     vaardigheden richting de gen-cap, met dezelfde winst per dag
+     (`coachDailyGain`), en is nog altijd het enige wat boven 90 gaat.
+   - **Bewust niet gekozen** (niet opnieuw voorstellen): betalen per opgeleverd
+     punt, een percentage van de marktwaarde, of een coach die per punt bijna even
+     duur is als handmatig trainen. De speler koos deze vaste schijven, wetende dat
+     de coach per punt tot score 85 nog altijd 3 à 7× goedkoper is dan handmatig.
+2. **Handmatig trainen geeft altijd precies +1** aan de gekozen vaardigheid (geen
+   willekeur meer), nog steeds afgekapt op het handmatige plafond
+   (min(80, gen-cap)). Prijs, energiekost (15), ervaring (+4 × leerfactor) en de
+   limiet van 1× per week per vaardigheid blijven gelijk.
+   - Een punt kost dus exact de prijs van een trainingsbeurt: 60 → 61 €355,
+     65 → 66 €610, 70 → 71 €1.035, 75 → 76 €1.765, 79 → 80 ~€2.700.
+
+### 3.3 Technisch
+- **Config (`gameConfig.ts`):** vervang `COACH.dailySalary: 80` door een tabel,
+  bv. `COACH.salaryBands = [{ minTalent: 0, salary: 80 }, { minTalent: 65, salary:
+  100 }, … { minTalent: 90, salary: 400 }]`, plus een helper
+  `coachSalaryFor(talent)`. Houd `dailySalary` (80) enkel als het tarief van de
+  laagste schijf, voor oude clients (`functions/api/[[path]].ts:~478` stuurt
+  `coachSalary` mee — vervang door de schijven of een bedrag per duif).
+  `TRAINING.attributeGain` → **1** en verwijder de `randFloat(0.7, 1.3)`.
+- **Afrekening (`economy.ts:~386`):** `coaches = coachedCount × dailySalary` wordt
+  een **som per gecoachte duif**: `Σ coachSalaryFor(talent(p))`. De functie krijgt
+  dus de gecoachte duiven mee in plaats van enkel een aantal. Pas alle aanroepers
+  aan (dagafrekening in `schedule.ts`, de dagbalans/projectie, de schuld-poort).
+- **Starterspakket (`newcomer.ts`):** de gratis coach blijft **één gratis
+  gecoachte duif**. Nu de tarieven verschillen: de gratis coach dekt **de duurste**
+  gecoachte duif van dat hok (het gunstigste voor de nieuwe speler; zo komt er
+  geen verrassing als die duif stijgt). Pas `billableCoachedCount` daarop aan en de
+  afloopmelding (`newcomer.ts:~167`, die nu "€80/dag" noemt) naar het tarief van
+  zijn duiven.
+- **Bots (`bots.ts` `manageCoaches`):** betalen hetzelfde tarief. Controleer dat
+  `BOT.coachReserve` volstaat nu een coach op een topduif €300–400 kost, zodat bots
+  zich niet in het rood coachen (zie `bot-market.test.mts`).
+- **Trainen (`engine.ts:~953`, en de bot-training `bots.ts:~283`):** `gain = 1`.
+- **Schuld (`context.md` §5-Schuld):** in het rood worden coaches nog steeds meteen
+  ontslagen; niets te doen behalve dat het vrijgekomen bedrag nu per duif verschilt.
+
+### 3.4 Wat de speler ziet
+- **Duifpagina, bij de coachknop:** het tarief van **deze** duif (bv. "€220 per
+  dag"), en vanaf welke score het volgende tarief ingaat (bv. "vanaf 85: €300").
+- **Mijn hok / dagbalans:** de coachkost per duif in plaats van aantal × €80.
+- **Trainknop:** "+1" in plaats van "~+1".
+- **Wiki:** de tabel van de schijven, en dat trainen altijd +1 geeft. Getallen
+  enkel in de wiki.
+
+### 3.5 Activering
+- Pas **vanaf de start van seizoen 3**, zoals de rest. Laat de nieuwe tarieven en
+  de vaste +1 pas gelden als de seizoenspoort open is (zelfde poort als v53/v54),
+  of zorg dat de deploy op het moment van de wissel gebeurt — de speler zegt zelf
+  wanneer het live mag.
+- Stuur elke speler met een coach bij de wissel één melding (stabiele id
+  `ntf:season3:coach:<userId>`): *"Vanaf seizoen 3 hangt de prijs van een coach af
+  van hoe goed je duif is. Je coaches kosten nu samen €X per dag."*
+- Geen datamigratie nodig: het tarief wordt elke dag berekend.
+
+### 3.6 Tests
+Nieuw of uitgebreid (bv. `tests/coach-salary.test.mts`):
+- `coachSalaryFor` op de grenzen (64,9 / 65,0 / 69,9 / 70,0 / … / 90,0 / 95);
+- de dagafrekening telt per duif, ook met een mix van schijven;
+- de gratis starterscoach dekt de duurste gecoachte duif;
+- een duif die over een grens stijgt, betaalt vanaf de volgende afrekening meer;
+- trainen geeft exact +1 en blijft onder min(80, gen-cap);
+- vóór de seizoenspoort: nog €80 en de oude willekeur.
+- **Blijft groen:** `newcomer.test.mts`, `debt.test.mts`, `bot-market.test.mts`,
+  `idle-writes`, `daily-budget`.
+
+### 3.7 Documentatie
+- **`spelregels.md`:** §8 (trainen = altijd +1), §13 (privécoach: de schijven),
+  §4.2 (vaste onkosten: coach per duif), §18 (starterspakket: gratis coach dekt de
+  duurste).
+- **`context.md`:** §5 (`COACH.salaryBands`, `TRAINING.attributeGain = 1`).
+
+### 3.8 Klaar als
+- [ ] De coach kost per duif volgens de schijven van §3.2, elke dag herberekend.
+- [ ] Handmatig trainen geeft altijd +1.
+- [ ] Starterscoach, bots en schuld werken met de nieuwe tarieven.
+- [ ] Het gaat pas in bij seizoen 3, met één melding per speler met een coach.
+- [ ] Tests groen; spelregels, wiki en `context.md` bijgewerkt.
 
 ---
 
