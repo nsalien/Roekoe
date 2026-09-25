@@ -90,5 +90,55 @@ console.log('\n4. Een tweede seizoen laat de oude prijzen liggen');
      'de ceremonie is verouderd en wordt door de client niet meer getoond');
 }
 
+// ---------------------------------------------------------------------------
+console.log('\n5. Roekoes voor de top 3, een seizoenspremie voor de rest');
+{
+  const season = db.world.seasonYear;
+  for (const l of db.lofts) { l.seasonPoints = 0; l.seasonWins = 0; }
+  // Six player lofts, so places 4–6 exist. Points chosen so the ÷3 is exact
+  // (1200 → 400), rounds down (100 → 33) and rounds to nothing (2 → 0).
+  const extra = [];
+  for (let i = 0; i < 3; i++) {
+    const u: User = { id: newId('usr'), username: `p${i}`, passwordHash: 'x', isAdmin: false, isBot: false, createdAt: new Date().toISOString() };
+    store.mutate((d) => d.users.push(u));
+    extra.push(createLoftForUser(store, u, `Premiehok ${i}`));
+  }
+  const bot = db.lofts.find((l) => l.isBot)!;
+  const [a, b, c] = lofts;
+  a.seasonPoints = 3000; b.seasonPoints = 2500; c.seasonPoints = 2000;
+  extra[0].seasonPoints = 1200; extra[1].seasonPoints = 100; extra[2].seasonPoints = 2;
+  bot.seasonPoints = 600;
+  const before = new Map(db.lofts.map((l) => [l.userId, l.money]));
+  const paid = (l: typeof a) => l.money - before.get(l.userId)!;
+  const ofSeason = (l: typeof a) => (l.awards ?? []).filter((x) => x.season === season);
+
+  runSeasonEnd(db, season, Date.now());
+  db.world.seasonYear += 1;
+
+  ok(SEASON_AWARDS.roekoe.join('/') === '2000/1700/1400', 'de Roekoes betalen €2.000 / €1.700 / €1.400');
+  ok(ofSeason(a).some((x) => x.kind === 'roekoe' && x.rank === 1 && x.reward === 2000), '1e: de Gouden Roekoe, €2.000');
+  ok(ofSeason(b).some((x) => x.kind === 'roekoe' && x.rank === 2 && x.reward === 1700), '2e: de Zilveren Roekoe, €1.700');
+  ok(ofSeason(c).some((x) => x.kind === 'roekoe' && x.rank === 3 && x.reward === 1400), '3e: de Bronzen Roekoe, €1.400');
+  ok([a, b, c].every((l) => !ofSeason(l).some((x) => x.kind === 'premie')), 'de top 3 krijgt geen premie bovenop de Roekoe');
+
+  const p1200 = ofSeason(extra[0]).find((x) => x.kind === 'premie');
+  ok(!!p1200 && p1200.reward === 400 && paid(extra[0]) === 400, '1.200 punten → €400 premie, en dat bedrag staat op de rekening');
+  ok(!!p1200 && p1200.rank === 4 && p1200.value === 1200, 'de premie draagt de plaats (4e) en de punten');
+  const p100 = ofSeason(extra[1]).find((x) => x.kind === 'premie');
+  ok(!!p100 && p100.reward === 33, '100 punten → €33 (naar beneden afgerond)');
+  ok(ofSeason(extra[2]).length === 0 && paid(extra[2]) === 0, '2 punten → niets (geen premie van €0)');
+  const pBot = ofSeason(bot).find((x) => x.kind === 'premie');
+  ok(!!pBot && pBot.reward === 200, 'een bot krijgt ook zijn premie (600 → €200)');
+  ok(!db.notifications.some((n) => n.userId === bot.userId && n.id === `ntf:season:${season}:${bot.userId}`),
+     'maar een bot krijgt geen melding');
+
+  const note = db.notifications.find((n) => n.id === `ntf:season:${season}:${extra[0].userId}`);
+  ok(!!note && /Seizoenspremie/.test(note.body) && /€400/.test(note.body), 'de speler krijgt één melding met zijn premie');
+  const dto = loftDTO(db, extra[0]) as any;
+  ok(!!dto.ceremony && dto.ceremony.awards.some((x: any) => x.kind === 'premie'),
+     'en de premie verschijnt in de prijsuitreiking op het scherm');
+  ok(extra.every((l) => l.seasonPoints === 0), 'de seizoenspunten staan daarna op nul');
+}
+
 console.log(`\n${fail === 0 ? '✅' : '❌'} ${pass} geslaagd, ${fail} gefaald`);
 process.exit(fail === 0 ? 0 : 1);

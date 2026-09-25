@@ -41,6 +41,7 @@ function awardName(a: SeasonAward): string {
   const metal = METAL[a.rank - 1] ?? '';
   if (a.kind === 'roekoe') return `de ${metal} Roekoe`;
   if (a.kind === 'vleugel') return `de ${metal} Vleugel`;
+  if (a.kind === 'premie') return 'Seizoenspremie';
   return `${metal} Criteriumduif`;
 }
 
@@ -48,6 +49,7 @@ function awardName(a: SeasonAward): string {
 function awardFor(a: SeasonAward): string {
   if (a.kind === 'roekoe') return `${a.value ?? 0} seizoenspunten`;
   if (a.kind === 'vleugel') return `${WING_LABEL[a.category ?? ''] ?? 'duivenranglijst'} — ${a.pigeonName ?? 'je duif'}`;
+  if (a.kind === 'premie') return `${a.rank}e plaats · ${a.value ?? 0} seizoenspunten`;
   return `${AGE_LABEL[a.ageCat ?? ''] ?? 'leeftijdsklasse'} — ${a.pigeonName ?? 'je duif'}`;
 }
 
@@ -58,7 +60,8 @@ function awardFor(a: SeasonAward): string {
  * en het metaal is gewoon een verloop dat met de plaats meebeweegt.
  */
 function Trophy({ kind, rank }: { kind: SeasonAward['kind']; rank: number }) {
-  const c = FINISH[rank - 1] ?? FINISH[0];
+  // The seizoenspremie is paid for a place outside the podium: always gold coins.
+  const c = (kind === 'premie' ? FINISH[0] : FINISH[rank - 1]) ?? FINISH[0];
   const id = `${kind}-${rank}`;
   return (
     <svg viewBox="0 0 120 120" width="150" height="150" role="img" aria-hidden className="ceremony-trophy">
@@ -101,6 +104,20 @@ function Trophy({ kind, rank }: { kind: SeasonAward['kind']; rank: number }) {
           <path d="M35 77c11-16 27-31 47-41" fill="none" strokeWidth="1.1" opacity="0.35" />
           <path d="M38 92h44v8H38z" />
           <path d="M46 84h28v8H46z" />
+        </g>
+      )}
+      {kind === 'premie' && (
+        <g fill={`url(#metal-${id})`} stroke={c.dark} strokeWidth="1.5" strokeLinejoin="round">
+          {/* een stapel munten: geen beker, want het is geen podium */}
+          <ellipse cx="60" cy="92" rx="30" ry="8" />
+          <path d="M30 92v-8h60v8" />
+          <ellipse cx="60" cy="84" rx="30" ry="8" />
+          <path d="M30 84v-8h60v8" />
+          <ellipse cx="60" cy="76" rx="30" ry="8" />
+          <path d="M30 76v-8h60v8" />
+          <ellipse cx="60" cy="68" rx="30" ry="8" />
+          <circle cx="60" cy="38" r="20" />
+          <text x="60" y="45" textAnchor="middle" fontSize="20" fontWeight="700" fill={c.dark} stroke="none">€</text>
         </g>
       )}
       {kind === 'criterium' && (
@@ -151,7 +168,7 @@ export function PrizeCeremony({
 }) {
   // Mooiste volgorde: eerst de Roekoe, dan de Vleugels, dan het criterium — en
   // binnen elke soort de hoogste plaats eerst, zodat het opbouwt naar je beste.
-  const order = { roekoe: 0, vleugel: 1, criterium: 2 };
+  const order = { roekoe: 0, premie: 0, vleugel: 1, criterium: 2 };
   const list = [...awards].sort(
     (a, b) => (order[a.kind] ?? 9) - (order[b.kind] ?? 9) || a.rank - b.rank,
   );

@@ -28,8 +28,11 @@ export const SEASON = {
  *    (de Gouden/Zilveren/Bronzen Vleugel).
  */
 export const SEASON_AWARDS = {
-  roekoe: [2000, 1500, 1000], // 1e / 2e / 3e melker
+  roekoe: [2000, 1700, 1400], // 1e / 2e / 3e melker
   vleugel: [1000, 750, 500], // 1e / 2e / 3e per duivenrangschikking
+  // Seizoenspremie: every melker OUTSIDE the top 3 with points gets
+  // floor(seasonPoints / pointsPremiumDivisor) coins (1200 points → €400).
+  pointsPremiumDivisor: 3,
 } as const;
 
 /** A pigeon can be entered into flights once it reaches this age (in weeks). */

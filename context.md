@@ -723,9 +723,16 @@ Entiteiten: `Pigeon`, `Loft`, `User`, `BreedingPair`, `PendingBrood`, `Flight` (
   `deathThreshold 5`→sterfte (0.07). Opgegeven duiven zijn gevrijwaard; sterfte gaat
   vóór elke aandoening. Via `randomAilmentOfSeverity(kind, severity, week, rng)`.
 - **Seizoen (`SEASON`):** `weeks 4`, `weekDays 7` → 28 echte dagen/seizoen,
-  real-time (`tickSeason`). `SEASON_AWARDS`: roekoe `[2000,1500,1000]`,
-  vleugel `[1000,750,500]`. **Bots dingen mee en kunnen ook winnen** (geld erbij,
-  geen melding). `advanceWeek` doet **geen** seizoensrollover meer.
+  real-time (`tickSeason`). `SEASON_AWARDS`: roekoe `[2000,1700,1400]`,
+  vleugel `[1000,750,500]`, en **`pointsPremiumDivisor 3`**: elk hok **buiten de top 3**
+  met punten krijgt `floor(seasonPoints / 3)` als **seizoenspremie** (award-soort
+  `'premie'`, `rank` = zijn plaats 4+, `value` = zijn punten; 1.200 punten → €400).
+  De premie is **geen beker**: ze telt niet mee in de Roekoe-tellingen van het profiel
+  (`tally` kijkt enkel naar `roekoe`/`vleugel`), maar staat wel in de erelijst en in de
+  prijsuitreiking op het scherm (eigen muntstapel in `PrizeCeremony`). Omdat bijna elk
+  hok nu een award krijgt, ziet bijna iedereen een prijsuitreiking en krijgt bijna iedereen
+  de melding (`ntf:season:<seizoen>:<userId>`; enkel premie → "Bedankt om mee te
+  vliegen!"). **Bots dingen mee en kunnen ook winnen** (geld erbij, geen melding). `advanceWeek` doet **geen** seizoensrollover meer.
 - **Rustkuur (`REST_CURE`):** `cost 300`, `durationHours 48`, `energy 40`, `health 15`,
   `cooldownDays 7` — **per DUIF**, geteld vanaf de start van haar vorige kuur via
   `Pigeon.lastRestCureAt` (kolom `last_rest_cure_at`). Meerdere duiven tegelijk op kuur mag

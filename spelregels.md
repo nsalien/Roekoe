@@ -2265,10 +2265,18 @@ hokken**:
 | Plaats | Prijs | Prijzengeld |
 |---|---|---|
 | 1e | **de Gouden Roekoe** | €2.000 |
-| 2e | **de Zilveren Roekoe** | €1.500 |
-| 3e | **de Bronzen Roekoe** | €1.000 |
+| 2e | **de Zilveren Roekoe** | €1.700 |
+| 3e | **de Bronzen Roekoe** | €1.400 |
+| 4e en verder | 💰 **seizoenspremie** | je seizoenspunten ÷ 3 |
 
 De winnaar krijgt ook de badge **Seizoenskampioen**.
+
+**Iedereen die punten haalde, krijgt iets.** Elke melker **buiten de top 3** met
+seizoenspunten krijgt bij de prijsuitreiking een **seizoenspremie**: zijn punten
+gedeeld door drie, in euro en naar beneden afgerond. Heb je 1.200 punten, dan krijg
+je €400; met 300 punten €100. De top 3 krijgt de Roekoe en geen premie erbovenop. Je
+premie verschijnt in de prijsuitreiking op je scherm en in je erelijst, maar het is
+geen beker: ze telt niet mee bij je Roekoes.
 
 > De kolom **Winst** toont het aantal vluchten dat je **dit seizoen** won; ze gaat
 > bij de seizoenswissel mee op nul. Je **totale** aantal overwinningen blijft

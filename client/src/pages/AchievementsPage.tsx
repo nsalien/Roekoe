@@ -127,12 +127,16 @@ function SeasonPrizesView({ profile }: { profile: PlayerProfile }) {
               <tbody>
                 {awards.map((a: SeasonAward, i) => (
                   <tr key={a.kind + a.season + i}>
-                    <td style={{ fontSize: '1.1rem' }}>{medal(a.rank)}</td>
-                    <td>{a.kind === 'roekoe' ? roekoeName(a.rank) : wingName(a.rank)}</td>
+                    <td style={{ fontSize: '1.1rem' }}>{a.kind === 'premie' ? '💰' : medal(a.rank)}</td>
+                    <td>
+                      {a.kind === 'roekoe' ? roekoeName(a.rank) : a.kind === 'premie' ? 'Seizoenspremie' : wingName(a.rank)}
+                    </td>
                     <td className="faint">
                       {a.kind === 'roekoe'
                         ? `${a.value} seizoenspunten`
-                        : `${a.pigeonName} · ${WING_CAT_LABEL[a.category ?? 'speed']}`}
+                        : a.kind === 'premie'
+                          ? `${a.rank}e plaats · ${a.value} seizoenspunten`
+                          : `${a.pigeonName} · ${WING_CAT_LABEL[a.category ?? 'speed']}`}
                     </td>
                     <td className="num">{a.season}</td>
                     <td className="num">€{a.reward}</td>

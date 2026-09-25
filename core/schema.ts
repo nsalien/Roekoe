@@ -356,10 +356,13 @@ export interface PigeonTitle {
  * A prize won at a season's prijsuitreiking, kept in the owner's prestige.
  *  - `roekoe`: finished 1st/2nd/3rd in the melker standings (season points).
  *  - `vleugel`: owned a pigeon that finished top-3 in a pigeon ranking.
+ *  - `criterium`: top-3 bird of an age bracket at the end of a cup cycle.
+ *  - `premie`: seizoenspremie for a melker outside the top 3 (points ÷ 3). Not a
+ *    trophy — it never counts in the Roekoe tallies.
  */
 export interface SeasonAward {
-  kind: 'roekoe' | 'vleugel' | 'criterium';
-  rank: number; // 1, 2 or 3
+  kind: 'roekoe' | 'vleugel' | 'criterium' | 'premie';
+  rank: number; // 1, 2 or 3 — for 'premie' the melker's place in the standings (4+)
   season: number; // season number this was won in
   at: string; // ISO timestamp
   reward: number; // coins paid out

@@ -599,7 +599,7 @@ export interface Trophy {
 export type WingCategory = 'speed' | 'podium' | 'progress';
 
 export interface SeasonAward {
-  kind: 'roekoe' | 'vleugel' | 'criterium';
+  kind: 'roekoe' | 'vleugel' | 'criterium' | 'premie';
   rank: number;
   season: number;
   at: string;

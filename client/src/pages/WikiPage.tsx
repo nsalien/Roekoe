@@ -804,6 +804,36 @@ export function WikiPage() {
         </p>
       </Section>
 
+      <Section id="seizoensprijzen" icon="🏆" title="De prijsuitreiking op het einde van een seizoen">
+        <p className="muted" style={{ marginTop: 0 }}>
+          Een seizoen duurt 4 weken. Daarna volgt de <strong>prijsuitreiking</strong> en gaat de ranglijst terug op
+          nul. Ook bots dingen mee en kunnen winnen.
+        </p>
+        <h3 style={{ marginBottom: 4 }}>Melkerranglijst — de Roekoe (op seizoenspunten)</h3>
+        <MiniTable
+          head={['Plaats', 'Prijs']}
+          rows={[
+            ['🥇 1e', 'de Gouden Roekoe · €2.000 + badge Seizoenskampioen'],
+            ['🥈 2e', 'de Zilveren Roekoe · €1.700'],
+            ['🥉 3e', 'de Bronzen Roekoe · €1.400'],
+            ['💰 4e en verder', 'seizoenspremie: je seizoenspunten ÷ 3, in euro'],
+          ]}
+        />
+        <p className="faint" style={{ marginTop: 8 }}>
+          De seizoenspremie krijgt <strong>elke melker buiten de top 3</strong> die punten haalde, afgerond naar
+          beneden: 1.200 punten → €400, 300 punten → €100. Zo loont elke vlucht, ook als je niet om de beker meestrijdt.
+        </p>
+        <h3 style={{ marginBottom: 4, marginTop: 14 }}>Duivenranglijsten — de Vleugel</h3>
+        <MiniTable
+          head={['Plaats', 'Prijs (per ranglijst)']}
+          rows={[['🥇 1e', 'de Gouden Vleugel · €1.000'], ['🥈 2e', 'de Zilveren Vleugel · €750'], ['🥉 3e', 'de Bronzen Vleugel · €500']]}
+        />
+        <p className="faint" style={{ marginTop: 8 }}>
+          Drie ranglijsten: snelste duif, meeste podiums en meeste vooruitgang. Eén duif kan meerdere Vleugels winnen;
+          het geld gaat naar haar eigenaar. Het <strong>leeftijdscriterium</strong> heeft zijn eigen prijzen (zie hierboven).
+        </p>
+      </Section>
+
       <Section id="vorm" icon="🎯" title="Vluchtvorm: waarom duiven geblesseerd raken">
         <p className="muted" style={{ marginTop: 0 }}>
           Blessures en ziektes zijn geen loterij meer. Ze hangen af van één cijfer dat je
