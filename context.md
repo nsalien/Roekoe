@@ -841,8 +841,10 @@ Entiteiten: `Pigeon`, `Loft`, `User`, `BreedingPair`, `PendingBrood`, `Flight` (
 ## 6. Client-pagina's (`client/src/pages/`)
 
 - `DashboardPage` — home. **Seizoen-sectie** onder de stat-tegels: "Seizoen X · week
-  Y/4" + badge met **dagen tot de volgende speelweek** (`nextPlayWeek`+`timeUntil` in
-  `ui.tsx`; week 4 → "nieuw seizoen"). Voorraad per voertype met een **voerbalie die twee
+  Y/4" + badge met **dagen tot de volgende speelweek** (`nextPlayWeek`+`timeUntilOrClock`
+  in `ui.tsx`; week 4 → "nieuw seizoen"). Binnen de laatste 24 uur toont die badge het
+  **exacte moment** in Brusselse tijd ("vandaag om 15:00" / "morgen om 14:00") i.p.v.
+  "nog 5 uur"; verder weg blijft het `timeUntil` ("nog 3 dagen"). Voorraad per voertype met een **voerbalie die twee
   kanten op werkt** (Kopen/Verkopen-schakelaar; verkopen aan `FOOD_RESALE_RATE` = 80%, met
   een *Alles*-knop voor de hele voorraad van dat type), voer-effecten **per dag** in
   **tekst** (energie/gezondheid/conditie/libido). Tegel "**Ziek/gewond in je hok**"
@@ -918,7 +920,8 @@ Entiteiten: `Pigeon`, `Loft`, `User`, `BreedingPair`, `PendingBrood`, `Flight` (
   driejarige cyclus staat). Duiven = drie ranglijsten:
   hoogste gemiddelde vluchtsnelheid, meeste podiums, meeste vooruitgang — via `state.pigeonRankings`).
   Kop toont "Seizoen X · week Y/4 · nog Z dagen" (tot seizoenseinde) + een tweede regel
-  met **dagen tot de volgende speelweek** (`nextPlayWeek`+`timeUntil`).
+  met **dagen tot de volgende speelweek** (`nextPlayWeek`+`timeUntilOrClock`, zelfde
+  "vandaag/morgen om …" binnen 24 uur).
 - `AchievementsPage` (Prestaties) — tabs Badges · Trofeeën · **Seizoensprijzen**
   (Roekoes + Vleugels: tellingen goud/zilver/brons + erelijst uit `profile.awards`).
 - `StemPage` (`/stem`, nav 🗳️ **De Stem**) — het **ideeënbord**: spelers stemmen op

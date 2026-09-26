@@ -5,7 +5,7 @@ import { Link } from 'react-router-dom';
 import { useGame } from '../game/GameContext';
 import { useAuth } from '../auth/AuthContext';
 import { api } from '../api/client';
-import { Money, Spinner, countdownTo, formatFlightTime, nextPlayWeek, timeUntil, useToast } from '../components/ui';
+import { Money, Spinner, countdownTo, formatFlightTime, nextPlayWeek, timeUntilOrClock, useToast } from '../components/ui';
 import { PigeonCard } from '../components/PigeonCard';
 import { NewcomerPanel } from '../components/NewcomerPanel';
 import type { FeedRation } from '../types';
@@ -327,7 +327,7 @@ export function DashboardPage() {
                 style={{ background: 'var(--brand-soft)', color: 'var(--brand-ink)', whiteSpace: 'nowrap' }}
                 title={nw.isNewSeason ? 'Tot het nieuwe seizoen' : `Tot speelweek ${nw.weekNum}`}
               >
-                {nw.isNewSeason ? '🎉 Nieuw seizoen' : `⏭️ Week ${nw.weekNum}`} · {timeUntil(nw.at)}
+                {nw.isNewSeason ? '🎉 Nieuw seizoen' : `⏭️ Week ${nw.weekNum}`} · {timeUntilOrClock(nw.at)}
               </span>
             </div>
           </div>
