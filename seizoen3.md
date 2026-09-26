@@ -40,6 +40,7 @@
 | 4 | Gezondheidsverbruik na een vlucht ×1,15 | ⬜ uitgewerkt, nog niet gebouwd |
 | 6 | Prijsuitreiking: nieuwe Roekoe-bedragen + seizoenspremie voor iedereen met punten | ✅ **gebouwd en live** (commit `3a5c957`, vóór de rest, op vraag van de speler) |
 | 7 | Zondag: twee topduiven onder de hamer (score 60–70 en 70–80) | ⬜ uitgewerkt, nog niet gebouwd |
+| 8 | Erfenis van een oude melker: de spaarpot €600 → €2.000 | ⬜ uitgewerkt, nog niet gebouwd |
 | 5 | Communicatie naar alle spelers bij de start | ⬜ uitgewerkt, nog niet gebouwd — **bouw als laatste** |
 
 ---
@@ -802,6 +803,7 @@ volledige sectie eronder:
 | ⚡ **Energie** *(al live sinds eind september)* | verbruik ×1,15; ervaring spaart nog maar ±6 % (was ±25 %); 2–3 voorbeelden |
 | 🏆 **Prijsuitreiking** | Roekoes nu €2.000 / €1.700 / €1.400; elke andere melker met punten krijgt seizoenspunten ÷ 3 in euro (voorbeeld: 1.200 punten → €400) |
 | 🔨 **Zondagveiling** | voortaan twee topduiven: één met score 60–70 (10:00–20:00) en één met score 70–80 (11:00–21:00) |
+| 📜 **Erfenis** | kies je bij de erfenis van een oude melker de spaarpot, dan krijg je nu €2.000 (was €600) |
 | 🗳️ **Van De Stem** | "Unieke eigenschappen per duif" staat op *In het spel*; stem mee op het volgende idee → link naar De Stem |
 
 ### 5.6 Kaart op het Overzicht
@@ -1043,6 +1045,60 @@ Nieuw, bv. `tests/sunday-auction.test.mts`:
 - [ ] Opvangcentrum pauzeert zolang een van beide loopt.
 - [ ] Markt, Overzicht, melding, wiki en spelregels tonen beide.
 - [ ] Tests groen.
+
+---
+
+## 8. Erfenis van een oude melker: de spaarpot wordt €2.000
+
+### 8.1 De regel
+Het dilemma **📜 Erfenis van een oude melker** (`inheritanceCard` en de afhandeling
+`case 'inheritance'` in `core/game/events.ts`) laat de speler kiezen tussen:
+1. **De spaarpot** — nu **€600**, wordt **€2.000**;
+2. **De oude kampioen** — ongewijzigd;
+3. **De jonge belofte** — ongewijzigd.
+
+Enkel het bedrag van de spaarpot verandert. De kans op het dilemma blijft gelijk
+(zie §8.3).
+
+### 8.2 Technisch
+- Maak er een config-knop van, bv. `EVENTS.inheritanceCash = 2000` in
+  `gameConfig.ts`, en gebruik die op **alle drie** de plekken in `events.ts`, zodat
+  ze niet uit elkaar lopen:
+  - het label `'De spaarpot (€600)'` in `inheritanceCard()`;
+  - `loft.money += 600` bij `choice === 0`;
+  - de terugmelding `'Je koos de spaarpot: €600 rijker.'`
+- ⚠️ **Een kaart die al openstaat:** `inheritanceCard()` wordt als `pendingEvent`
+  op de loft bewaard, mét het label. Een speler die de erfenis vóór de wissel
+  kreeg en pas erna kiest, ziet nog "€600" op de knop maar krijgt €2.000 (de
+  afhandeling leest de config). Aanvaardbaar — in zijn voordeel. Niet apart
+  migreren.
+- **Activering:** vanaf de start van seizoen 3 (zelfde seizoenspoort), of gewoon
+  met de deploy op het moment van de wissel.
+
+### 8.3 Hoe vaak komt het voor (ter info, verandert niet)
+- Een dilemma kan enkel verschijnen bij de **eerste bezoek van de dag** (bij het
+  vernieuwen van de dagopdrachten, `refreshDailyMissions` in `missions.ts`), met
+  **34 %** kans, en enkel als er geen ander dilemma openstaat.
+- Dan wordt er **één** dilemma gekozen uit de mogelijke, allemaal even waarschijnlijk:
+  9 basisdilemma's, + 3 als je minstens één duif hebt, + 1 (de koopman) vanaf 4
+  duiven. Een gewoon hok (meer dan 3 duiven) heeft er **13**.
+- Kans op de erfenis: **0,34 × 1/13 ≈ 2,6 % per dag** dat je inlogt. Dat is
+  gemiddeld **één keer per ~38 speeldagen**, ~**17 %** per week en ~**52 %** per
+  seizoen van 28 dagen (bij elke dag inloggen).
+- Bots krijgen geen dilemma's.
+
+### 8.4 Tests
+- De spaarpot geeft €2.000 (voor de poort nog €600), het label toont €2.000.
+- De oude kampioen en de jonge belofte werken zoals voorheen (ook met een vol
+  hok: de duif wacht bij Kweek — `event-arrival.test.mts` blijft groen).
+
+### 8.5 Documentatie
+- **`spelregels.md` §12** (dilemma's): vermeld het bedrag van de spaarpot.
+- **Wiki:** als de erfenis er met een bedrag staat, aanpassen.
+
+### 8.6 Klaar als
+- [ ] De spaarpot van de erfenis geeft €2.000, overal uit één config-waarde.
+- [ ] Tests groen; spelregels en wiki bijgewerkt.
 
 ---
 
