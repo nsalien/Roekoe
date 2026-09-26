@@ -278,7 +278,7 @@ export function PigeonPage() {
             <div className="card">
               <h2>Training</h2>
               <p className="muted" style={{ marginBottom: 4 }}>
-                ~+1 per beurt · <strong>1× per week</strong> per eigenschap · tot <strong>80</strong>.
+                <strong>+1</strong> per beurt · <strong>1× per week</strong> per eigenschap · tot <strong>80</strong>.
               </p>
               <p className="faint" style={{ margin: 0, fontSize: '0.82rem' }}>
                 <Link to="/wiki#genen">Meer over training &amp; plafonds →</Link>
@@ -372,7 +372,14 @@ export function PigeonPage() {
                       per day and what THIS bird gains. The mechanics live in the wiki. */}
                   <div className="faint" style={{ fontSize: '0.85rem' }}>
                     Traint deze duif elke dag richting haar genetische plafond — de enige weg <strong>boven 90</strong>.
-                    {state?.economy && <> <Money value={state.economy.coachSalary} />/dag, geen instapkost.</>}
+                    {p.coachSalary != null ? (
+                      <>
+                        {' '}Voor {p.name}: <strong><Money value={p.coachSalary} />/dag</strong>, geen instapkost.
+                        {p.coachNextBand && (
+                          <> Vanaf score {p.coachNextBand.minTalent}: <Money value={p.coachNextBand.salary} />/dag.</>
+                        )}
+                      </>
+                    ) : state?.economy && <> <Money value={state.economy.coachSalary} />/dag, geen instapkost.</>}
                   </div>
                   {p.revealed && p.coachGain && (() => {
                     const cg = p.coachGain;

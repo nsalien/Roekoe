@@ -77,7 +77,9 @@ export function DashboardPage() {
   const costRows: CostRow[] = [
     { key: 'base', label: 'Vast onderhoud', detail: 'basiskost van je hok', amount: costs.upkeepBase },
     ...bandRows,
-    { key: 'coach', label: 'Privécoach', detail: `${loft.coachedCount} × `, unit: eco.coachSalary, amount: costs.coaches },
+    // The coach's salary depends on each bird's score, so there is no single unit
+    // price to multiply any more: the row shows the number of birds and the total.
+    { key: 'coach', label: 'Privécoach', detail: `${loft.coachedCount} ${loft.coachedCount === 1 ? 'duif' : 'duiven'} · volgens hun score`, amount: costs.coaches },
     { key: 'doctor', label: 'Duivendokter', detail: `${loft.doctors} × `, unit: inf.doctorSalary, amount: costs.doctors, note: idleNote(idleDoctors, 'dokter') },
     { key: 'physio', label: 'Kinesist', detail: `${loft.physios} × `, unit: inf.physioSalary, amount: costs.physios, note: idleNote(idlePhysios, 'kinesist') },
     { key: 'medfeed', label: 'Medicatievoer', detail: loft.medicatedFood ? `${loft.infirmaryCount} × ` : 'uit', unit: loft.medicatedFood ? inf.medicatedFoodPerBird : undefined, amount: costs.medicatedFeed },

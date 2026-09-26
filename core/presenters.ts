@@ -6,7 +6,7 @@
 
 import type { Database, Flight, Loft, Notification, Pigeon, RaceLogEntry, Trade } from './schema.js';
 import type { PigeonLogs } from './d1.js';
-import { AGE_CUP, AUCTION, BREED_RARITY, CITY_COORDS, COACH, DEBT, ageCategoryDef, ageCategoryFor, compartmentCost, quirkById, RELAY, REST_CURE, TRADE_HISTORY_DAYS, TRAINING } from './config/gameConfig.js';
+import { AGE_CUP, AUCTION, BREED_RARITY, CITY_COORDS, COACH, DEBT, coachSalaryFor, nextCoachBand, ageCategoryDef, ageCategoryFor, compartmentCost, quirkById, RELAY, REST_CURE, TRADE_HISTORY_DAYS, TRAINING } from './config/gameConfig.js';
 import {
   ageInWeeks,
   breedInfo,
@@ -32,7 +32,7 @@ import { bettingOpen } from './game/betting.js';
 import { nextCapacityTier, nextInfirmaryTier, ownerName } from './game/engine.js';
 import { coachDailyGain, dailyRunningCostBreakdown, projectDailyCare } from './game/economy.js';
 import {
-  billableCoachedCount,
+  coachBill,
   freeCoachCount,
   newcomerActive,
   newcomerDaysLeft,
@@ -133,6 +133,10 @@ export function pigeonDTO(db: Database, p: Pigeon, viewerId?: string, viewerIsAd
     treated: revealed ? infirmaryCovered : false,
     careAssigned: revealed ? !!p.careAssigned : false,
     coached: revealed ? (p.coached ?? false) : false,
+    // What a coach costs for THIS bird per day (its score band), and from which
+    // score the next, dearer band starts — own birds only.
+    coachSalary: revealed ? coachSalaryFor(talent(p)) : null,
+    coachNextBand: revealed ? nextCoachBand(talent(p)) : null,
     ration: revealed ? (p.ration ?? 'normal') : 'normal',
     // A bird in the infirmary keeps its compartment flag internally (to reclaim the
     // slot on the way out) but is shown as not-in-a-compartment while isolated.
@@ -300,7 +304,7 @@ export function loftDTO(db: Database, loft: Loft) {
     dailyCosts: dailyRunningCostBreakdown(
       loft,
       pigeons.length,
-      billableCoachedCount(loft, coachedCount, Date.now()),
+      coachBill(loft, pigeons.filter((p) => p.coached), Date.now()).total,
       infirmary.length,
       // Staff being paid with nothing of their kind to treat. The bill is
       // unchanged; the Dagbalans just says so out loud.

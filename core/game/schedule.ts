@@ -63,7 +63,7 @@ import type { CupStanding, Database, Flight, FlightResult, Loft, Pigeon, RaceLog
 import { emptySponsorState, emptyStats } from '../schema.js';
 import { newId } from '../store.js';
 import { applyDayOfCare, dailyRunningCost } from './economy.js';
-import { billableCoachedCount, newNewcomerPerks, tickNewcomerExpiry, winningsMultiplier } from './newcomer.js';
+import { coachBill, newNewcomerPerks, tickNewcomerExpiry, winningsMultiplier } from './newcomer.js';
 import { awardBroodBadges, breed } from './breeding.js';
 import { kinship } from './pedigree.js';
 import { awardBadge, awardFlightBadges, evaluateBadges } from './badges.js';
@@ -2758,11 +2758,11 @@ export function tickDailyCare(db: Database, nowMs: number): void {
       // No per-day notification — it would spam the inbox.
       const alive = db.pigeons.filter((p) => p.ownerId === loft.userId);
       if (alive.length > 0) {
-        const coachedCount = alive.filter((p) => p.coached).length;
         const infirmaryBirds = alive.filter((p) => p.inInfirmary).length;
-        // A newcomer's first coached bird is on the house for one season.
-        const billable = billableCoachedCount(loft, coachedCount, nowMs);
-        loft.money -= dailyRunningCost(loft, alive.length, billable, infirmaryBirds);
+        // Each coached bird pays the salary of its own score band; a newcomer's
+        // free coach covers the most expensive one (see coachBill).
+        const coaches = coachBill(loft, alive.filter((p) => p.coached), nowMs).total;
+        loft.money -= dailyRunningCost(loft, alive.length, coaches, infirmaryBirds);
         // Sponsors pay a DAILY stipend — same cadence as the running costs, so
         // the player's daily balance is a single honest number (no /7 rounding).
         const stipend = activeContracts(loft).reduce((s, c) => s + c.contract.dailyStipend, 0);

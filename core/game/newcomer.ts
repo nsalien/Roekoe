@@ -14,11 +14,11 @@
  * A coach silently starting to cost €80/day would be a nasty surprise.
  */
 
-import { COACH, NEWCOMER } from '../config/gameConfig.js';
+import { COACH, NEWCOMER, coachSalaryFor } from '../config/gameConfig.js';
 import type { RacingAttr } from '../config/gameConfig.js';
 import type { Database, Loft, NewcomerPerks, Pigeon } from '../schema.js';
 
-import { geneCap, noteAttrChange } from './pigeon.js';
+import { geneCap, noteAttrChange, talent } from './pigeon.js';
 import { clamp, round1 } from './util.js';
 
 const RACING_ATTRS: RacingAttr[] = ['speed', 'endurance', 'orientation'];
@@ -77,6 +77,25 @@ export function freeCoachCount(loft: Loft, nowMs: number): number {
 /** Coached birds the loft actually pays for, after the free one. */
 export function billableCoachedCount(loft: Loft, coachedCount: number, nowMs: number): number {
   return Math.max(0, coachedCount - freeCoachCount(loft, nowMs));
+}
+
+/**
+ * What a loft's coaches cost today. Every coached bird pays the salary of its
+ * own score band (COACH.salaryBands). A newcomer's free coach covers the MOST
+ * EXPENSIVE coached bird — the kindest reading of "your first coach is free",
+ * and it means a rising bird never springs a surprise on a new player.
+ */
+export function coachBill(
+  loft: Loft,
+  coached: Pigeon[],
+  nowMs: number,
+): { total: number; perPigeon: { pigeonId: string; salary: number; free: boolean }[] } {
+  const rows = coached
+    .map((p) => ({ pigeonId: p.id, salary: coachSalaryFor(talent(p)), free: false }))
+    .sort((a, b) => b.salary - a.salary);
+  const free = freeCoachCount(loft, nowMs);
+  for (let i = 0; i < Math.min(free, rows.length); i++) rows[i].free = true;
+  return { total: rows.reduce((s, r) => s + (r.free ? 0 : r.salary), 0), perPigeon: rows };
 }
 
 /**
@@ -164,7 +183,7 @@ export function tickNewcomerExpiry(
       loft.userId,
       '🎓 Je starterspakket is afgelopen',
       `Je eerste seizoen zit erop. Vanaf nu speel je op dezelfde voet als iedereen: ` +
-        `je privécoach kost weer €${COACH.dailySalary}/dag per duif, en je prijzengeld en ranglijstpunten ` +
+        `je privécoach kost weer het gewone tarief (vanaf €${COACH.dailySalary}/dag, volgens de score van je duif), en je prijzengeld en ranglijstpunten ` +
         `tellen weer enkelvoudig in plaats van dubbel.${tail}`,
       `ntf:newcomer:end:${loft.userId}`,
     );

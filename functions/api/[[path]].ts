@@ -475,7 +475,8 @@ app.get('/state', (c) => {
       renameCost: RENAME_COST,
       renameLoftCost: RENAME_LOFT_COST,
       coachHireCost: COACH.hireCost,
-      coachSalary: COACH.dailySalary,
+      coachSalary: COACH.dailySalary, // lowest band; per bird see pigeon.coachSalary
+      coachSalaryBands: COACH.salaryBands,
       coachExpDailyGain: COACH.experienceDailyGain,
       dailyUpkeepBase: DAILY_UPKEEP_BASE,
       dailyUpkeepPerPigeon: DAILY_UPKEEP_PER_PIGEON,

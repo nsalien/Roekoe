@@ -27,6 +27,12 @@ export const SEASON = {
  *  - `vleugel`: de top-3 duiven in elk van de drie duivenrangschikkingen
  *    (de Gouden/Zilveren/Bronzen Vleugel).
  */
+/** Dilemma cards (events.ts). */
+export const EVENTS = {
+  /** "Erfenis van een oude melker": what the spaarpot pays (was €600 before seizoen 3). */
+  inheritanceCash: 2000,
+} as const;
+
 export const SEASON_AWARDS = {
   roekoe: [2000, 1700, 1400], // 1e / 2e / 3e melker
   vleugel: [1000, 750, 500], // 1e / 2e / 3e per duivenrangschikking
@@ -105,10 +111,35 @@ export const COACH = {
   // independently: one already at its cap stops while the others keep rising.
   //   gain(attr, cap) = maxDailyGain · (cap − attr) / cap   (0 at/above the cap)
   hireCost: 0, // deprecated: coaching has no one-time cost anymore
-  dailySalary: 80, // per coached pigeon, charged automatically each day
+  // Seizoen 3: the daily salary depends on the bird's algemene score (talent):
+  // a better bird needs a better coach. See coachSalaryFor / salaryBands.
+  // `dailySalary` stays as the lowest band's rate, still sent to older clients.
+  dailySalary: 80,
+  salaryBands: [
+    { minTalent: 0, salary: 80 },
+    { minTalent: 65, salary: 100 },
+    { minTalent: 70, salary: 140 },
+    { minTalent: 75, salary: 180 },
+    { minTalent: 80, salary: 220 },
+    { minTalent: 85, salary: 300 },
+    { minTalent: 90, salary: 400 },
+  ],
   maxDailyGain: 1.1, // peak gain/day (at attr 0), scaled down by the room to the cap
   experienceDailyGain: 0.5, // flat ervaring/day while the coach still has an attribute to raise
 } as const;
+
+/** A coach's daily salary for a bird with this algemene score (talent). The lower
+ *  bound belongs to the higher band: 64.9 → €80, 65.0 → €100. */
+export function coachSalaryFor(talent: number): number {
+  let salary: number = COACH.salaryBands[0].salary;
+  for (const b of COACH.salaryBands) if (talent >= b.minTalent) salary = b.salary;
+  return salary;
+}
+
+/** The next salary band above this score (null in the top band), for the UI. */
+export function nextCoachBand(talent: number): { minTalent: number; salary: number } | null {
+  return COACH.salaryBands.find((b) => b.minTalent > talent) ?? null;
+}
 
 /**
  * Genetics: every pigeon has an individual, permanent CEILING per trainable racing
@@ -429,7 +460,7 @@ export function dailyPigeonUpkeep(pigeonCount: number): number {
 export const TRAINING = {
   cost: 120, // indicative base (real per-step cost scales with level — see trainingCost)
   formCost: 15,
-  attributeGain: 1.2, // average points added to the trained attribute
+  attributeGain: 1, // seizoen 3: a training session always adds exactly +1 (was 1.2 × random 0.7–1.3)
   experienceGain: 4,
   restWeeks: 0,
   cooldownDays: 7, // each attribute (snelheid/conditie/oriëntatie) once per week
@@ -2015,12 +2046,14 @@ export const HEALTH = {
   ailmentMortalityInfirmary: { licht: 0, matig: 0.005, ernstig: 0.025 } as Record<Severity, number>,
   /**
    * Health a race takes out of a bird:
-   *   (flightHealthBase + km · flightHealthPerKm) · (1 + (100 − energie bij aankomst)/100 · emptyTankFactor)
+   *   ((flightHealthBase + km · flightHealthPerKm) · (1 + (100 − energie bij aankomst)/100 · emptyTankFactor)
+   *    + extra bij uitval) · flightHealthMultiplier
    * Racing is real wear now — a fond race costs ~7 health — and running the tank dry
    * costs extra on top. That makes gezondheid a resource you manage over weeks
    * instead of a number pinned at 100, which is what gives INJURY/ILLNESS their bite.
    */
   flightHealthBase: 0.5,
+  flightHealthMultiplier: 1.15, // seizoen 3: racing wears 15% more (uitval-extra included)
   flightHealthPerKm: 1 / 250,
   emptyTankFactor: 0.8,
   /**

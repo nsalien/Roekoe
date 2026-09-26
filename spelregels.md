@@ -608,7 +608,7 @@ Per deelnemende duif:
 |---|---|---|
 | **Energie** (verbruik) | −((10 + afstand/30) · ervaringsfactor + willekeurig 0…10) · 1,15 | **geleidelijk tijdens de vlucht** (zie hieronder) |
 | **Conditie** (opbouw) | +(0.3 + afstand/500 + willekeurig 0…0.4) | na afloop |
-| **Gezondheid** | −(0,5 + afstand/250) × (1 + leegte van de tank) — zie §4.4 | na afloop |
+| **Gezondheid** | −(0,5 + afstand/250) × (1 + leegte van de tank) × 1,15 — zie §4.4 | na afloop |
 | **Ervaring** | +(2 + afstand/100) × **leerfactor** (§3.7) | na afloop |
 
 **Ervaring bepaalt mee hoeveel energie een vlucht kost — maar beperkt.** Een
@@ -1207,7 +1207,7 @@ wekelijks/handmatig):
 ```
 onkosten/dag = 22                                    (vast, ongeacht hokgrootte)
              + onderhoud per duif (in schijven, zie hieronder)
-             + 80 · aantal_gecoachte_duiven          (coach, §13)
+             + dagloon per gecoachte duif           (coach, volgens haar score — §13)
              + 57 · dokters + 50 · kinesisten        (ziekenboegstaf, §5)
              + 6  · duiven_in_boeg (met medicatievoer)
 ```
@@ -1277,15 +1277,20 @@ Vliegen slijt. Elke wedstrijd kost gezondheid, en **extra als je duif leeg
 thuiskomt**:
 
 ```
-gezondheidskost = (0,5 + afstand/250) × (1 + (100 − energie bij aankomst)/100 × 0,8)
+gezondheidskost = ((0,5 + afstand/250) × (1 + (100 − energie bij aankomst)/100 × 0,8)
+                   + extra bij uitval) × 1,15
 ```
 
-| Afstand | Kost (leeg thuis) |
-|---|---|
-| 200 km | ≈ −2 |
-| 300 km | ≈ −3 |
-| 500 km | ≈ −4 |
-| 1000 km | ≈ −7 |
+Valt je duif **onderweg uit** (uitputting of blessure), dan komt er nog eens
+4 tot 9 bij, vóór de ×1,15. **Opgeven** en een **oefenvlucht** kosten geen
+gezondheid.
+
+| Afstand | Thuis met 70 energie | Leeg thuis |
+|---|---|---|
+| 200 km | ≈ −1,9 | ≈ −2,7 |
+| 300 km | ≈ −2,4 | ≈ −3,5 |
+| 500 km | ≈ −3,6 | ≈ −5,2 |
+| 1000 km | ≈ −6,4 | ≈ −9,3 |
 
 Gezondheid komt vanzelf terug met voer, en **sneller naarmate ze verder gezakt
 is**. Herstelvoer is daarvoor het beste (§4). Grofweg: **één à twee wedstrijden
@@ -1304,7 +1309,7 @@ gang dat je zelf kan stoppen.
 | **Na 10 dagen** | Je duif met het **laagste talent** gaat 24 u onder de hamer |
 | **Elke 10 dagen daarna** | De volgende duif volgt, tot je kassa weer klopt |
 
-**Waarom de coaches als eerste?** Dat is met €80 per dag per duif veruit de
+**Waarom de coaches als eerste?** Dat is met €80 tot €400 per dag per duif veruit de
 grootste terugkerende kost die je kan afwerpen, en dus de snelste weg terug naar
 groen. Je kan er ook geen nieuwe inhuren zolang je in het rood staat — een coach
 kost niets op het moment dat je hem aanneemt, dus anders was het gat meteen weer
@@ -1762,7 +1767,7 @@ Een vaardigheid groeit in **drie trappen**:
 | **80 → 90** | **vluchten** of een **coach** |
 | **90 → gen-cap** | enkel een **privécoach** (§13) |
 
-**Handmatig trainen** verbruikt **15 energie**, geeft ~**+1** aan de gekozen
+**Handmatig trainen** verbruikt **15 energie**, geeft **altijd precies +1** aan de gekozen
 vaardigheid (+**4 ervaring**, ×de leerfactor van §3.7 — bij een routinier dus
 merkbaar minder) en kan **tot 80** (of de gen-cap als die lager is —
 79→80 is dus de hoogste handmatige stap). Je kan enkel trainen als de duif **thuis**
@@ -2037,7 +2042,7 @@ verliezen van iets beters dat jij bedenkt.
   een verdwaalde duif, een griepgolf, een gulle frituursponsor, een kwakzalver, een
   hittegolf, een dorpsfeest, een "kat in een zak", een **dubieuze sportarts** (een
   dikke boost voor je hele hok… of een boete en een zieke duif), een **erfenis**
-  waarbij je moet kiezen tussen geld, een oude kampioen of een jonge belofte, een
+  waarbij je moet kiezen tussen geld (de spaarpot: **€2.000**), een oude kampioen of een jonge belofte, een
   **talentenjager** die je pronkstuk een week op proef wil (sterker terug… of net
   op), een **sperwer** in de buurt (van niets doen tot een dode duif) of een
   **liefdadigheidsvlucht** met je ace. Elke keuze heeft gevolgen — soms winst,
@@ -2175,8 +2180,21 @@ Verdiend geld kan je investeren in je hok en je duiven (bij *Mijn hok*, de
   Naast Zuinig/Normaal/Royaal zijn er twee premiumopties: **Premium** (meer
   energie- en gezondheidsherstel én bouwt langzaam conditie op) en **Libido-mix**
   (verhoogt de voortplantingsdrang). Ze verbruiken meer voer.
-- **Privécoach.** Huur een coach voor één specifieke duif tegen een **dagsalaris
-  van €80** (geen instapkost, dagelijks afgerekend). Hij traint haar **elke dag** in
+- **Privécoach.** Huur een coach voor één specifieke duif tegen een **dagsalaris**
+  (geen instapkost, dagelijks afgerekend). **Een betere duif vraagt een betere
+  coach:** het dagloon hangt af van de algemene score van de duif en wordt elke
+  dag opnieuw bepaald.
+
+  | Algemene score | Coach per dag |
+  |---|---|
+  | lager dan 65 | €80 |
+  | 65 tot 70 | €100 |
+  | 70 tot 75 | €140 |
+  | 75 tot 80 | €180 |
+  | 80 tot 85 | €220 |
+  | 85 tot 90 | €300 |
+  | 90 en hoger | €400 |
+ Hij traint haar **elke dag** in
   snelheid, conditie én oriëntatie (plus ervaring) — puur om te racen, nooit libido.
   De coach werkt op **elk niveau** (of de duif nu 50 of 92 heeft) en duwt elke
   vaardigheid richting haar **gen-cap** (nooit hoger). De **dagwinst wordt kleiner
@@ -2511,7 +2529,7 @@ overige blijven in je tegoed staan voor een andere duif.
 
 | Voordeel | Wat het doet |
 |---|---|
-| 🎯 **Gratis privécoach** | je **eerste** gecoachte duif kost je niets. Een tweede coach betaal je gewoon (§13) |
+| 🎯 **Gratis privécoach** | één gecoachte duif kost je niets — altijd je **duurste**. Een tweede coach betaal je gewoon (§13) |
 | 💰 **Dubbele winst** | op **wedstrijdvluchten** krijg je **2×** prijzengeld én **2×** ranglijstpunten |
 | ⚡ **Volle duiven** | al je startduiven beginnen op **100 energie**, dus met een groene vluchtvorm (§3.2) |
 | 🤝 **Eerste sponsor** | er ligt meteen een aanbod van een kleine sponsor klaar |
@@ -2524,8 +2542,8 @@ Je **startgeld blijft €5.000**, net als bij iedereen.
 
 ### 18.3 En daarna?
 
-Na 28 dagen stoppen de voordelen uit §18.2 gewoon: je coach kost weer €80 per
-dag en je wint weer enkelvoudig. **Je krijgt daar een melding van** — het is
+Na 28 dagen stoppen de voordelen uit §18.2 gewoon: je coach kost weer het
+gewone dagloon (volgens de score van de duif, §13) en je wint weer enkelvoudig. **Je krijgt daar een melding van** — het is
 niet de bedoeling dat je er pas achter komt als je kassa sneller leegloopt dan
 je gewend was. Punten die je dan nog niet uitgaf, blijven gewoon van jou.
 

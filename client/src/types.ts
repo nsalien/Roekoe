@@ -115,6 +115,10 @@ export interface Pigeon {
   /** The owner pinned this bird to a staff slot (vs. the automatic choice). */
   careAssigned: boolean;
   coached: boolean;
+  /** Daily coach salary for this bird's score band (own birds; null otherwise). */
+  coachSalary?: number | null;
+  /** The next, dearer band: from which score and at what salary (null = top band). */
+  coachNextBand?: { minTalent: number; salary: number } | null;
   ration: FeedRation;
   compartment: boolean;
   cureUntil: string | null;
