@@ -1616,6 +1616,18 @@ export const SPONSOR_OFFER_SPACING_HOURS = 6;
 export const SPONSOR_MAX_PENDING_OFFERS = 2;
 
 /**
+ * Seizoen 3 sponsor limit. Some players collected more than €1.200/day from
+ * sponsors (13 categories, one each, plus re-offers up to ×1.5):
+ *  - a loft holds at most SPONSOR_MAX_ACTIVE contracts; a seventh can only be
+ *    signed by dropping one (normal break fee);
+ *  - tier SPONSOR_HIGH_TIER and up pay only SPONSOR_HIGH_TIER_DAILY_MULT of their
+ *    daily stipend (signing bonus and podium premium unchanged).
+ */
+export const SPONSOR_MAX_ACTIVE = 6;
+export const SPONSOR_HIGH_TIER = 4;
+export const SPONSOR_HIGH_TIER_DAILY_MULT = 0.25;
+
+/**
  * Season review of active sponsor contracts. At each season rollover a sponsor
  * compares the loft's just-ended season points to the previous season's. If they
  * dropped below `keepRatio` of that reference, the sponsor ends the contract

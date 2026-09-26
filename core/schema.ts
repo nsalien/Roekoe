@@ -417,6 +417,9 @@ export interface SponsorState {
   declined: DeclinedSponsor[]; // refused/cancelled; may re-offer after a cooldown
   signed: string[]; // sponsor ids ever accepted (one-time signing-bonus guard)
   lastOfferAt?: string; // ISO of the last time a new offer was made (offer spacing)
+  /** More than SPONSOR_MAX_ACTIVE contracts (set once by migration v54): the
+   *  player must drop some — for free — and until then NO sponsor pays out. */
+  mustReduce?: boolean;
 }
 
 /** A small daily task that rewards money + XP when completed. */

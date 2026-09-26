@@ -185,6 +185,7 @@ export interface Loft {
   name: string;
   sponsorCount: number;
   sponsorOfferCount: number;
+  sponsorsMustReduce?: boolean;
   money: number;
   /** Dagen op rij in het rood (0 = kassa is in orde) — zie DEBT in gameConfig. */
   debtDays: number;
@@ -252,6 +253,8 @@ export interface DailyCostBreakdown {
   sponsorTotal: number;
   /** Income − costs: what the loft nets per day. */
   net: number;
+  /** Seizoen 3: the loft must drop sponsors first — until then none pays. */
+  sponsorsPaused?: boolean;
 }
 
 export interface EconomyCosts {
@@ -817,6 +820,10 @@ export interface SponsorView {
   bestTalent: number;
   active: Sponsor[];
   offers: Sponsor[];
+  /** Seizoen 3: how many contracts a loft may hold. */
+  maxActive?: number;
+  /** Above the limit: the player must drop some (free); until then none pays. */
+  mustReduce?: boolean;
 }
 
 export type NotificationKind = 'result' | 'improve' | 'info' | 'health' | 'badge' | 'taunt';

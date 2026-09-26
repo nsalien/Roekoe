@@ -47,6 +47,7 @@ import {
   RELAY,
   isRelayWeek,
   SCHEDULE_HORIZON_DAYS,
+  SPONSOR_MAX_ACTIVE,
   SPONSOR_OFFER_ON_PERFORMANCE,
   SPONSORS,
   sponsorPodiumBonus,
@@ -86,7 +87,7 @@ import {
 import { inheritanceCard } from './events.js';
 import { tickSeason } from './season.js';
 import { progressMissions } from './missions.js';
-import { activeContracts, evaluateSponsorOffers, offerStarterSponsor, restoreSeasonReviewDrops } from './sponsors.js';
+import { activeContracts, applySponsorLimitMigration, evaluateSponsorOffers, offerStarterSponsor, restoreSeasonReviewDrops, sponsorsPaused } from './sponsors.js';
 import {
   applyFlightEffects,
   computeFinishPayouts,
@@ -985,7 +986,8 @@ export function tickFlights(
           // and by the placing. Only the three competition tiers pay — the titan
           // and the estafette already returned above, and a practice flight never
           // gets here.
-          const contracts = activeContracts(loft);
+          // While the loft still has to drop sponsors (seizoen 3 limit), none pays.
+          const contracts = sponsorsPaused(loft) ? [] : activeContracts(loft);
           if (contracts.length > 0) {
             const tier = flight.type as FlightTier;
             const perSponsor = new Map<string, number>();
@@ -2275,6 +2277,24 @@ export function runDataMigrations(db: Database): void {
     }
     db.world.dataVersion = 53;
   }
+
+  if ((db.world.dataVersion ?? 0) < 54) {
+    // Seizoen 3 sponsor limit (seizoen3.md §2): tier 4+ pays a quarter of its
+    // daily stipend, and a loft with more than SPONSOR_MAX_ACTIVE contracts must
+    // drop some — for free — before any sponsor pays again.
+    for (const loft of db.lofts) {
+      const over = applySponsorLimitMigration(loft);
+      if (over > 0) {
+        const n = loft.sponsorship.active.length;
+        pushNotification(
+          db, loft.userId, 'info', '⚠️ Kies je sponsors',
+          `Je hebt ${n} sponsors, het maximum is nu ${SPONSOR_MAX_ACTIVE}. Kies op de sponsorpagina welke ${over} je laat gaan — dat is gratis. Tot je gekozen hebt, betaalt geen enkele sponsor uit.`,
+          null, `ntf:season3:sponsorcap:${loft.userId}`,
+        );
+      }
+    }
+    db.world.dataVersion = 54;
+  }
 }
 
 /**
@@ -2765,7 +2785,7 @@ export function tickDailyCare(db: Database, nowMs: number): void {
         loft.money -= dailyRunningCost(loft, alive.length, coaches, infirmaryBirds);
         // Sponsors pay a DAILY stipend — same cadence as the running costs, so
         // the player's daily balance is a single honest number (no /7 rounding).
-        const stipend = activeContracts(loft).reduce((s, c) => s + c.contract.dailyStipend, 0);
+        const stipend = sponsorsPaused(loft) ? 0 : activeContracts(loft).reduce((s, c) => s + c.contract.dailyStipend, 0);
         if (stipend > 0) loft.money += stipend;
 
         // A doctor/physio on the payroll is paid every day, ill birds or not —

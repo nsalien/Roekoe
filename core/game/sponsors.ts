@@ -16,6 +16,9 @@
 import {
   NEWCOMER,
   SPONSORS,
+  SPONSOR_HIGH_TIER,
+  SPONSOR_HIGH_TIER_DAILY_MULT,
+  SPONSOR_MAX_ACTIVE,
   SPONSOR_MAX_PENDING_OFFERS,
   SPONSOR_OFFER_SPACING_HOURS,
   SPONSOR_REOFFER_COOLDOWN_HOURS,
@@ -45,8 +48,18 @@ export function sponsorById(id: string | null | undefined): SponsorDef | undefin
   return id ? BY_ID.get(id) : undefined;
 }
 
+/** Tier 4+ pays only a quarter of its catalogue daily stipend (seizoen 3). */
+function tierDailyMult(def: SponsorDef): number {
+  return def.tier >= SPONSOR_HIGH_TIER ? SPONSOR_HIGH_TIER_DAILY_MULT : 1;
+}
+
+/** The catalogue daily stipend as it is paid now (tier 4+ cut applied). */
+export function catalogDaily(def: SponsorDef): number {
+  return tierDailyMult(def) === 1 ? def.dailyStipend : round5(def.dailyStipend * tierDailyMult(def));
+}
+
 function baseTerms(def: SponsorDef): OfferTerms {
-  return { signingBonus: def.signingBonus, dailyStipend: def.dailyStipend, podiumBase: def.podiumBase };
+  return { signingBonus: def.signingBonus, dailyStipend: catalogDaily(def), podiumBase: def.podiumBase };
 }
 
 /** Read a stored term, falling back to the pre-daily shape (weekly stipend /
@@ -55,7 +68,7 @@ function baseTerms(def: SponsorDef): OfferTerms {
 function legacyDaily(a: any, def: SponsorDef): number {
   if (typeof a?.dailyStipend === 'number' && a.dailyStipend > 0) return a.dailyStipend;
   if (typeof a?.weeklyStipend === 'number' && a.weeklyStipend > 0) return Math.max(1, Math.round(a.weeklyStipend / 7));
-  return def.dailyStipend; // no usable terms stored → the catalogue's own value
+  return catalogDaily(def); // no usable terms stored → the catalogue's own value
 }
 function legacyPodium(a: any, def: SponsorDef): number {
   if (typeof a?.podiumBase === 'number' && a.podiumBase > 0) return a.podiumBase;
@@ -116,7 +129,9 @@ function state(loft: Loft): SponsorState {
     offers.length = SPONSOR_MAX_PENDING_OFFERS;
   }
 
-  const st: SponsorState = { active, offers, declined, signed, lastOfferAt };
+  // The forced reduction ends by itself once the loft is back at the limit.
+  const mustReduce = raw.mustReduce === true && active.length > SPONSOR_MAX_ACTIVE;
+  const st: SponsorState = { active, offers, declined, signed, lastOfferAt, ...(mustReduce ? { mustReduce } : {}) };
   loft.sponsorship = st;
   return st;
 }
@@ -197,7 +212,7 @@ function podiumSummary(podiumBase: number): string {
 function scaledTerms(def: SponsorDef, mult: number): OfferTerms {
   return {
     signingBonus: round5(def.signingBonus * mult),
-    dailyStipend: round5(def.dailyStipend * mult),
+    dailyStipend: round5(def.dailyStipend * mult * tierDailyMult(def)),
     podiumBase: round5(def.podiumBase * mult),
   };
 }
@@ -257,7 +272,7 @@ export function evaluateSponsorOffers(db: Database, loft: Loft, nowMs: number): 
       const terms = scaledTerms(def, mult);
       st.offers.push({ id: def.id, at: new Date(nowMs).toISOString(), ...terms });
       st.declined.splice(declinedIdx, 1);
-      const richer = terms.dailyStipend >= def.dailyStipend;
+      const richer = terms.dailyStipend >= catalogDaily(def);
       notify(db, loft, `${def.icon} ${def.name} klopt opnieuw aan`,
         `${richer ? 'Je duiven presteerden goed — het aanbod is er beter op geworden.' : 'Een nieuw, wat bescheidener aanbod.'} Bekijk het op de sponsorpagina.`);
     } else {
@@ -331,6 +346,10 @@ function rivalContract(st: SponsorState, def: SponsorDef): ActiveSponsorship | u
 function refusalIsFinal(st: SponsorState, def: SponsorDef, offer: SponsorOffer): boolean {
   const rival = rivalContract(st, def);
   if (!rival) return false; // no conflict, no break fee — a normal "not now"
+  // A sponsor from a HIGHER tier may always come back: since seizoen 3 a tier-4
+  // pays less per day than some tier-3 rivals, but it is still the bigger name
+  // (signing bonus, podium premium) — refusing it now must not lock it out.
+  if (def.tier > (BY_ID.get(rival.id)?.tier ?? 0)) return false;
   if (offer.dailyStipend !== rival.dailyStipend) return offer.dailyStipend < rival.dailyStipend;
   return offer.podiumBase <= rival.podiumBase;
 }
@@ -341,14 +360,43 @@ function refusalIsFinal(st: SponsorState, def: SponsorDef, offer: SponsorOffer):
  * the signing bonus the first time this sponsor is ever accepted. Returns a
  * result message or an error string prefixed with '!'.
  */
-export function applyAcceptSponsor(db: Database, loft: Loft, sponsorId: string, replace: boolean): string {
+export function applyAcceptSponsor(
+  db: Database,
+  loft: Loft,
+  sponsorId: string,
+  replace: boolean,
+  /** At the limit (SPONSOR_MAX_ACTIVE): the contract to end to make room. It
+   *  costs its normal break fee — a seventh sponsor is the player's own choice. */
+  dropSponsorId?: string,
+): string {
   const def = BY_ID.get(sponsorId);
   if (!def) return '!Onbekende sponsor';
   const st = state(loft);
   const offer = st.offers.find((o) => o.id === sponsorId);
   if (!offer) return '!Deze sponsor heeft momenteel geen aanbod openstaan';
+  if (st.mustReduce) return `!Je hebt meer dan ${SPONSOR_MAX_ACTIVE} sponsors. Kies eerst welke je laat gaan.`;
 
   const rival = rivalFor(st, def);
+  // Room check. Switching to a competitor keeps the count the same; anything else
+  // needs a free place, or a contract to drop (checked before any money moves).
+  let drop: SponsorDef | undefined;
+  if (!rival && st.active.length >= SPONSOR_MAX_ACTIVE) {
+    drop = dropSponsorId ? BY_ID.get(dropSponsorId) : undefined;
+    if (!drop || !st.active.some((a) => a.id === drop!.id)) {
+      return `!Je hebt al ${SPONSOR_MAX_ACTIVE} sponsors. Kies eerst welke je laat gaan.`;
+    }
+    if (loft.money < drop.breakPenalty) {
+      return `!Je hebt €${drop.breakPenalty} nodig om het contract met ${drop.name} te verbreken`;
+    }
+  }
+  if (drop) {
+    loft.money -= drop.breakPenalty;
+    st.active = st.active.filter((a) => a.id !== drop!.id);
+    st.declined = st.declined.filter((d) => d.id !== drop!.id);
+    st.declined.push({ id: drop.id, at: new Date().toISOString(), perf: perfScore(loft, ownedBestTalent(db, loft.userId)) });
+    notify(db, loft, `🤝 Contract met ${drop.name} beëindigd`,
+      `Je zegde ${drop.name} op (verbrekingsvergoeding €${drop.breakPenalty}) om plaats te maken voor ${def.name}.`);
+  }
   if (rival) {
     if (!replace) {
       return `!Je hebt al ${rival.name} in de categorie ${def.categoryLabel}. Bevestig de overstap (verbrekingsvergoeding €${rival.breakPenalty}).`;
@@ -401,6 +449,59 @@ export function applyRefuseSponsor(db: Database, loft: Loft, sponsorId: string):
   return final
     ? `Aanbod van ${name} geweigerd. Ze boden minder dan je huidige sponsor in dezelfde sector — ze komen niet meer terug.`
     : `Aanbod van ${name} geweigerd. Misschien komen ze later met een nieuw voorstel.`;
+}
+
+/**
+ * Migration v54 (seizoen 3), per loft: tier 4+ contracts and pending offers pay a
+ * quarter of their daily stipend from now on, and a loft above the limit is put
+ * in the forced reduction. Returns the number of contracts above the limit (0 =
+ * nothing to do) so the caller can send the action notification.
+ */
+export function applySponsorLimitMigration(loft: Loft): number {
+  if (loft.isBot) return 0;
+  const st = state(loft);
+  const cut = (id: string, daily: number) => {
+    const def = BY_ID.get(id);
+    return def && tierDailyMult(def) !== 1 ? round5(daily * tierDailyMult(def)) : daily;
+  };
+  for (const c of st.active) c.dailyStipend = cut(c.id, c.dailyStipend);
+  for (const o of st.offers) o.dailyStipend = cut(o.id, o.dailyStipend);
+  const over = st.active.length - SPONSOR_MAX_ACTIVE;
+  if (over > 0) st.mustReduce = true;
+  return Math.max(0, over);
+}
+
+/** True while the loft must drop sponsors: then NO sponsor pays anything. */
+export function sponsorsPaused(loft: Loft): boolean {
+  return state(loft).mustReduce === true;
+}
+
+/**
+ * The forced reduction (seizoen 3): a loft with more than SPONSOR_MAX_ACTIVE
+ * contracts drops the given ones — FREE of break fees — and must end at or
+ * below the limit in one go. Until then no sponsor pays (see sponsorsPaused).
+ */
+export function applyReduceSponsors(db: Database, loft: Loft, sponsorIds: string[]): string {
+  const st = state(loft);
+  if (!st.mustReduce) return '!Je hoeft geen sponsors op te zeggen';
+  const ids = [...new Set(sponsorIds)].filter((id) => st.active.some((a) => a.id === id));
+  const left = st.active.length - ids.length;
+  if (left > SPONSOR_MAX_ACTIVE) {
+    return `!Kies er nog ${left - SPONSOR_MAX_ACTIVE} meer: je mag hoogstens ${SPONSOR_MAX_ACTIVE} sponsors houden`;
+  }
+  if (ids.length === 0) return '!Kies welke sponsors je laat gaan';
+  const perf = perfScore(loft, ownedBestTalent(db, loft.userId));
+  const at = new Date().toISOString();
+  for (const id of ids) {
+    st.active = st.active.filter((a) => a.id !== id);
+    st.declined = st.declined.filter((d) => d.id !== id);
+    st.declined.push({ id, at, perf }); // may come back later, like any cancellation
+  }
+  delete st.mustReduce;
+  const names = ids.map((id) => BY_ID.get(id)?.name ?? id);
+  notify(db, loft, '🤝 Je sponsors zijn weer in orde',
+    `Je liet ${names.join(', ')} gaan, zonder verbrekingsvergoeding. Je andere sponsors betalen vanaf nu weer uit.`);
+  return `Klaar: ${names.length} sponsor${names.length === 1 ? '' : 's'} opgezegd, je andere sponsors betalen weer uit.`;
 }
 
 /** Terminate an active contract, paying its break penalty. */
@@ -581,5 +682,11 @@ export function sponsorView(db: Database, loft: Loft) {
     .filter((x): x is NonNullable<typeof x> => x != null)
     .sort(byTier);
 
-  return { bestTalent: best, active, offers };
+  return {
+    bestTalent: best, active, offers,
+    // Seizoen 3 limit: how many contracts a loft may hold, and whether it must
+    // drop some first (then no sponsor pays until it has).
+    maxActive: SPONSOR_MAX_ACTIVE,
+    mustReduce: st.mustReduce === true,
+  };
 }

@@ -63,6 +63,7 @@ import {
   buyFood,
   buyPigeon,
   cancelSponsor,
+  reduceSponsors,
   createLoftForUser,
   chooseEvent,
   enterFlight,
@@ -559,7 +560,8 @@ app.post('/sponsors/accept', async (c) => {
   const user = requireUser(c);
   const body = await c.req.json().catch(() => ({}));
   const store = c.get('store');
-  const result = acceptSponsor(store, user.id, String(body.sponsorId ?? ''), body.replace === true);
+  const drop = typeof body.dropSponsorId === 'string' && body.dropSponsorId ? body.dropSponsorId : undefined;
+  const result = acceptSponsor(store, user.id, String(body.sponsorId ?? ''), body.replace === true, drop);
   await store.persist();
   if (result.startsWith('!')) return c.json({ error: result.slice(1) }, 400);
   return c.json({ ok: true, result });
@@ -570,6 +572,18 @@ app.post('/sponsors/refuse', async (c) => {
   const body = await c.req.json().catch(() => ({}));
   const store = c.get('store');
   const result = refuseSponsor(store, user.id, String(body.sponsorId ?? ''));
+  await store.persist();
+  if (result.startsWith('!')) return c.json({ error: result.slice(1) }, 400);
+  return c.json({ ok: true, result });
+});
+
+// Seizoen 3: drop sponsors for free to get back under the limit.
+app.post('/sponsors/reduce', async (c) => {
+  const user = requireUser(c);
+  const body = await c.req.json().catch(() => ({}));
+  const ids = Array.isArray(body.sponsorIds) ? body.sponsorIds.map((x: unknown) => String(x)) : [];
+  const store = c.get('store');
+  const result = reduceSponsors(store, user.id, ids);
   await store.persist();
   if (result.startsWith('!')) return c.json({ error: result.slice(1) }, 400);
   return c.json({ ok: true, result });

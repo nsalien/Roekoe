@@ -43,7 +43,7 @@ import { awardBroodBadges } from './breeding.js';
 import { botTakeWeeklyActions } from './bots.js';
 import { progressMissions } from './missions.js';
 import { resolveEvent as resolveEventCard } from './events.js';
-import { applyAcceptSponsor, applyCancelSponsor, applyRefuseSponsor, offerStarterSponsor } from './sponsors.js';
+import { applyAcceptSponsor, applyCancelSponsor, applyReduceSponsors, applyRefuseSponsor, offerStarterSponsor } from './sponsors.js';
 import { newNewcomerPerks } from './newcomer.js';
 import { careSlots, runHealthWeek } from './health.js';
 import { nameKey, namesInUse } from './names.js';
@@ -1086,11 +1086,11 @@ export function chooseEvent(store: Store, userId: string, choice: number): strin
 }
 
 /** Accept a sponsor's offer. `replace` confirms dropping a same-category rival. */
-export function acceptSponsor(store: Store, userId: string, sponsorId: string, replace: boolean): string {
+export function acceptSponsor(store: Store, userId: string, sponsorId: string, replace: boolean, dropSponsorId?: string): string {
   return store.mutate((db) => {
     const loft = db.lofts.find((l) => l.userId === userId);
     if (!loft) return '!Geen hok gevonden';
-    const result = applyAcceptSponsor(db, loft, sponsorId, replace);
+    const result = applyAcceptSponsor(db, loft, sponsorId, replace, dropSponsorId);
     if (!result.startsWith('!')) evaluateBadges(db, loft);
     return result;
   });
@@ -1102,6 +1102,15 @@ export function refuseSponsor(store: Store, userId: string, sponsorId: string): 
     const loft = db.lofts.find((l) => l.userId === userId);
     if (!loft) return '!Geen hok gevonden';
     return applyRefuseSponsor(db, loft, sponsorId);
+  });
+}
+
+/** Seizoen 3: drop sponsors (free) to get back under the limit. */
+export function reduceSponsors(store: Store, userId: string, sponsorIds: string[]): string {
+  return store.mutate((db) => {
+    const loft = db.lofts.find((l) => l.userId === userId);
+    if (!loft) return '!Geen hok gevonden';
+    return applyReduceSponsors(db, loft, sponsorIds);
   });
 }
 
