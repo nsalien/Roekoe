@@ -150,7 +150,7 @@ krijgen.**
 `core/game/schedule.ts` → `advanceRealtime(db, nowMs, weatherByFlight)` roept in
 volgorde:
 1. `runDataMigrations(db)` — eenmalige datafixes, **gated op `world.dataVersion`**
-   (staat nu op **54**; nieuwe migratie = nieuw `if ((db.world.dataVersion ?? 0) < N)`
+   (staat nu op **55**; nieuwe migratie = nieuw `if ((db.world.dataVersion ?? 0) < N)`
    blok + `db.world.dataVersion = N`). De oudere migraties hebben hun werk gedaan en
    zijn enkel nog van belang als **patroon** — zie §8, kop *Eenmalige migraties*.
 2. `ensureFlightsScheduled(db, nowMs)` — plant vluchten volgens `REAL_SCHEDULE`.
@@ -4285,6 +4285,27 @@ Hieronder enkel wat je nodig hebt om eraan te werken.)
   de dagbalans toont €0 + `sponsorsPaused`). Gratis afbouwen: `applyReduceSponsors` /
   `POST /api/sponsors/reduce`. `refusalIsFinal` is nooit waar voor een aanbod uit een
   **hogere tier** dan de huidige sponsor in die categorie. Test: `tests/sponsor-cap.test.mts`.
+- **Kenmerken (seizoen 3, migratie v55)** — één per duif voor het leven, publiek
+  (`traitDTO` in `pigeonDTO`, `broodYoungDTO`, `FamilyMember.trait`). Config
+  `PIGEON_TRAITS` (15: static/dynamic/passive) + `TRAITS` (kans .3, zeldzaam .2,
+  overerving .35/.6, `speedBonus` 1.05, drempels, zon −0,833°, 4 zonstalen per stuk,
+  buren 10 km / min. 2 / elke 5 min, passief ×0,75 verdwalen / ×0,92 energie / ×0,7
+  ziekte, waarde +5/+12 %). Module **`core/game/traits.ts`** (rollen, erven,
+  `staticTraitActive`, `sunAltitudeDeg`/`sunTimes`, `applyTraitBonus`, `traitWindows`,
+  `expectedTraitFactor` voor de odds). Kolommen: `pigeons.trait`, `flights.weather_along`/
+  `weather_rain`/`temp_c` (achteraan `SCHEMA_STEPS`); per etappe in `RelayLeg`. Sim:
+  `SimEntry.trait`/`traitWindows`/`traitShare`; resultaat `FlightResult.trait`/`traitShare`;
+  live `LiveBird.trait`/`traitActive`; `flightDTO.sun` (zonsopgang/-ondergang thuis).
+  ⚠️ **De bonus trekt niets uit de rng** van het profiel: een duif zonder kenmerk krijgt
+  exact het profiel van vóór seizoen 3 (getest). ⚠️ **Buren tellen vóór de bonus:**
+  `groupConditionKm` meet op de profielen zonder bonus en enkel de Sociale duiven/
+  Eenzaten worden herbouwd (solo) — bij een estafette wordt het hele plan opnieuw
+  gemaakt (`planTeams(groupKm)`). De scan loopt met een segmentcursor per duif i.p.v.
+  `raceProgress` (dat was 3× te duur bij 140 duiven/1200 km). ⚠️ **Geen seizoenspoort:**
+  seizoen 3 was al begonnen, v55 loot bij de deploy (geseed op `trait:<id>`, idempotent).
+  Verslag: `COMMENTARY.trait` per kenmerk, gedempt tot `COMMENTARY_LIMITS.traitLines` (4)
+  best geplaatste duiven, eigen rng-stroom `:trait`. Test: `tests/traits.test.mts`
+  (tweeling-duel gemeten ~65–70 % in haar situatie, ~50 % erbuiten).
 - **Migratie v53 — de sponsors van de wissel naar seizoen 3 terug** (owner: "iets te
   streng"). `restoreSeasonReviewDrops` (sponsors.ts) herkent de vertrekkers aan
   `declined.at === world.seasonStartedAt` (de review krijgt `atMs = start + SEASON_MS`,

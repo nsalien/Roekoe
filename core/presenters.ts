@@ -26,6 +26,7 @@ import {
 /** Vluchtvorm bands for the risk badge: 🟢 fris / 🟡 matig / 🔴 risico. */
 const FORM_GOOD = 70;
 const FORM_FAIR = 45;
+import { sunTimes, traitDTO } from './game/traits.js';
 import { auctionKind, sundayBandLabel, sundayBidBlock } from './game/auction.js';
 import { ageCupRankings, pigeonSeasonRankings } from './game/season.js';
 import { bettingOpen } from './game/betting.js';
@@ -162,6 +163,9 @@ export function pigeonDTO(db: Database, p: Pigeon, viewerId?: string, viewerIsAd
       const q = quirkById(p.quirk);
       return q ? { id: q.id, name: q.name, emoji: q.emoji, description: q.description } : null;
     })(),
+    // Kenmerk (seizoen 3). PUBLIC like the breed and the quirk: a buyer sees it
+    // on the market, a rival sees it on the entry list.
+    trait: traitDTO(p.trait),
     // Rest between clutches, per bird (BREEDING.cooldownDays); null = may breed now.
     breedAvailableAt: (() => {
       if (!revealed) return null;
@@ -255,6 +259,7 @@ export function broodYoungDTO(p: Pigeon) {
     breed: { id: b.id, name: b.name, rarity: b.rarity, rarityLabel: BREED_RARITY[b.rarity].label, image: b.image },
     genes: p.genes ?? null,
     declineRate: p.declineRate ?? 1,
+    trait: traitDTO(p.trait),
   };
 }
 
@@ -403,6 +408,11 @@ export function flightDTO(db: Database, f: Flight) {
         }))
       : undefined,
     weather: f.weather,
+    // Seizoen 3: sunrise/sunset at home on the day of the release (Brussels
+    // calendar), for the Nachtvlieger/Dagvlieger. Not needed once it is flown.
+    sun: f.status !== 'completed' && CITY_COORDS[f.toCity]
+      ? sunTimes(CITY_COORDS[f.toCity].lat, CITY_COORDS[f.toCity].lon, Date.parse(f.startAt))
+      : undefined,
     entryCount: f.entries.length,
     entries: f.entries,
     bettingOpen: bettingOpen(f, Date.now()),

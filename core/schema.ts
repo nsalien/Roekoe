@@ -88,6 +88,8 @@ export interface Pigeon {
    * which are already baked into `genes` at birth.
    */
   quirk?: string | null;
+  /** Kenmerk (seizoen 3): one trait for life, or null — see PIGEON_TRAITS. */
+  trait?: string | null;
   // Market: if listed for sale, price is set. ownerId may be the NPC market.
   forSale: boolean;
   price: number | null;
@@ -552,6 +554,10 @@ export interface FlightResult {
    * flights finalized before this shipped — read it as `rewarded !== false`.
    */
   rewarded?: boolean;
+  /** Seizoen 3: her kenmerk (speed traits only) and the share of her flight
+   *  time it counted for (0–1). Absent = no speed trait or it never counted. */
+  trait?: string;
+  traitShare?: number;
 }
 
 export interface FlightEntry {
@@ -580,6 +586,10 @@ export interface RelayLeg {
   distanceKm: number; // identical for every leg of the flight
   weather: string;
   weatherFactor: number;
+  /** Seizoen 3 (kenmerken): wind along the leg (km/h, + = tailwind), rain, °C. */
+  weatherAlong?: number;
+  weatherRain?: boolean;
+  tempC?: number;
   forecastAt?: string; // ISO time the forecast was last refreshed
 }
 
@@ -626,6 +636,13 @@ export interface SimEntry {
   // all want the total, and keeping the shape means every existing reader stays
   // correct. The individual episodes live in `strays` below.
   lost?: { atSeconds: number; detourKm: number } | null;
+  /** Kenmerk at the release (seizoen 3) and WHEN its speed bonus counted
+   *  (leg-local seconds, like durationSeconds). `traitShare` = the share of her
+   *  own flight time it counted for (0–1). Frozen: live, commentary and result
+   *  read these, never recompute them. */
+  trait?: string | null;
+  traitWindows?: [number, number][];
+  traitShare?: number;
   /**
    * Every separate off-course episode, in order, so the live report can call each
    * one at the moment it happens instead of lumping them into one line. Absent on
@@ -720,6 +737,11 @@ export interface Flight {
   sim: SimEntry[]; // frozen when the flight goes live
   weather: string;
   weatherFactor: number;
+  /** Seizoen 3 (kenmerken): the release weather in detail — wind along the route
+   *  (km/h, + = tailwind), rain, and the temperature at the release point. */
+  weatherAlong?: number;
+  weatherRain?: boolean;
+  tempC?: number;
   results: FlightResult[]; // empty until completed
   recap: string; // sports-reporter summary, written at finish
   /**

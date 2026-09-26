@@ -6,7 +6,7 @@ import { api } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
 import { useGame } from '../game/GameContext';
 import { useVisiblePoll } from '../game/useVisiblePoll';
-import { Money, Spinner, countdownTo, formatDuration, formatFlightDay, formatFlightDayShort, formatFlightTime, tierLabel, useToast } from '../components/ui';
+import { Money, Spinner, countdownTo, formatDuration, formatFlightDay, formatFlightDayShort, formatFlightTime, tierLabel, traitEntryHint, TraitResultMark, useToast } from '../components/ui';
 import type { BetKind, BetPreview, BetView, Flight, FlightEntrant } from '../types';
 
 /** A ticking clock so countdowns update every second. */
@@ -310,6 +310,11 @@ export function FlightsPage() {
                             {' · '}
                             {f.practice ? 'gratis' : <>inschrijfgeld <Money value={f.entryFee} /></>}
                           </div>
+                          {f.sun && (f.sun.rise || f.sun.set) && (
+                            <div className="faint" style={{ marginTop: 2, fontSize: '0.85rem' }} title={`Zon in ${f.toCity}, die dag`}>
+                              🌅 {f.sun.rise ? clockBrussels(f.sun.rise) : '—'} · 🌇 {f.sun.set ? clockBrussels(f.sun.set) : '—'}
+                            </div>
+                          )}
                         </div>
                         <div style={{ textAlign: 'right' }}>
                           <div style={{ fontWeight: 800 }}>{formatFlightTime(f.startAt)}</div>
@@ -324,6 +329,9 @@ export function FlightsPage() {
                             return (
                               <span key={e.pigeonId} className="badge" style={{ background: 'var(--surface-2)' }}>
                                 🕊️ {p?.name ?? 'duif'}
+                                {p && traitEntryHint(p.trait, f.distanceKm) && (
+                                  <span className="faint" title={p.trait ? `${p.trait.emoji} ${p.trait.name}` : undefined}> {traitEntryHint(p.trait, f.distanceKm)}</span>
+                                )}
                                 <button
                                   className="btn ghost sm"
                                   style={{ padding: '0 6px', marginLeft: 4 }}
@@ -373,7 +381,8 @@ export function FlightsPage() {
                               // still had to come off.
                               label:
                                 `${p.formLabel === 'fris' ? '🟢' : p.formLabel === 'matig' ? '🟡' : '🔴'} ${p.name} ` +
-                                `(★${p.talent} · energie ${Math.round(p.form ?? 0)} · vorm ${p.flightForm ?? '?'})`,
+                                `(★${p.talent} · energie ${Math.round(p.form ?? 0)} · vorm ${p.flightForm ?? '?'})` +
+                                (traitEntryHint(p.trait, f.distanceKm) ? ` ${traitEntryHint(p.trait, f.distanceKm)}` : ''),
                             }))}
                             onEnter={(pigeonId) => act(() => api(`/flights/${f.id}/enter`, { method: 'POST', body: { pigeonId } }), 'Ingeschreven!')}
                           />
@@ -816,7 +825,7 @@ function FlightResultCard({ flight, meId }: { flight: Flight; meId?: string }) {
               <div key={r.pigeonId} className="stat" style={mine ? { background: 'var(--brand-soft)', borderRadius: 8, padding: '4px 8px' } : undefined}>
                 <div className="stat-top">
                   <span className="stat-label">
-                    {r.finished ? `${r.rank}.` : '—'} <strong>{r.pigeonName}</strong> <span className="faint">· {r.ownerName}</span>
+                    {r.finished ? `${r.rank}.` : '—'} <strong>{r.pigeonName}</strong><TraitResultMark trait={r.trait} share={r.traitShare} /> <span className="faint">· {r.ownerName}</span>
                     {mine && <span className="badge club" style={{ marginLeft: 6 }}>jij</span>}
                   </span>
                   <span className="stat-val">{r.finished ? `${r.velocity} m/min` : '❌ niet thuis'}</span>
@@ -838,7 +847,7 @@ function FlightResultCard({ flight, meId }: { flight: Flight; meId?: string }) {
                 <tbody>
                   {flight.results.map((r) => (
                     <tr key={r.pigeonId} className={r.ownerId === meId ? 'me' : r.finished && r.rank === 1 ? 'podium-1' : ''}>
-                      <td>{r.finished ? r.rank : '—'}</td><td>{r.pigeonName}</td><td>{r.ownerName}</td>
+                      <td>{r.finished ? r.rank : '—'}</td><td>{r.pigeonName}<TraitResultMark trait={r.trait} share={r.traitShare} /></td><td>{r.ownerName}</td>
                       <td className="num">{r.finished ? r.velocity : '—'}</td><td className="num">{r.finished ? formatDuration(r.timeSeconds) : '❌ DNF'}</td>
                       <td className="num">{r.prize > 0 ? <Money value={r.prize} /> : r.finished && r.rewarded === false ? <span className="faint" title="Buiten de 3 beloonde duiven van dit hok">buiten de 3</span> : '—'}</td><td className="num">{r.points}</td>
                     </tr>
@@ -854,4 +863,9 @@ function FlightResultCard({ flight, meId }: { flight: Flight; meId?: string }) {
       )}
     </div>
   );
+}
+
+/** HH:MM in Brussels time — sunrise/sunset on the flight card. */
+function clockBrussels(iso: string): string {
+  return new Date(iso).toLocaleTimeString('nl-BE', { timeZone: 'Europe/Brussels', hour: '2-digit', minute: '2-digit' });
 }

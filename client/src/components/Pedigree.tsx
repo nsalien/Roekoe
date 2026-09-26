@@ -235,6 +235,7 @@ function Box({ cell, mineId }: { cell: Cell; mineId?: string }) {
           {node.alive || pic > 0 ? '' : '† '}
           {node.name}
           {node.quirk && <span title="Bijzonderheid"> ✨</span>}
+          {node.trait && <span title={`Kenmerk: ${node.trait.name}`}> {node.trait.emoji}</span>}
         </div>
         {sub && <div className="ped-sub">{sub}</div>}
       </div>

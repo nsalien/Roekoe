@@ -12,6 +12,7 @@ import { debtBlock } from './economy.js';
 import type { Bet, BetKind, Database, Flight, Pigeon } from '../schema.js';
 import { newId } from '../store.js';
 import { pigeonVelocity } from './flight.js';
+import { expectedTraitFactor } from './traits.js';
 import { progressMissions } from './missions.js';
 import { evaluateBadges } from './badges.js';
 import { clamp, hashString, seededRng } from './util.js';
@@ -74,6 +75,7 @@ function simSignature(db: Database, flight: Flight, birds: Pigeon[]): number {
     h = (Math.imul(h, 31) + Math.round((p.speed + p.endurance + p.orientation) * 10)) >>> 0;
     h = (Math.imul(h, 31) + Math.round((p.form + p.health + p.experience) * 10)) >>> 0;
     h = (Math.imul(h, 31) + p.birthWeek) >>> 0;
+    h = (Math.imul(h, 31) + (p.trait ? hashString(p.trait) : 0)) >>> 0;
   }
   return h;
 }
@@ -103,7 +105,9 @@ function simulate(db: Database, flight: Flight): SimResult {
   const vel = new Float64Array(n);
   const dnfChance = new Float64Array(n);
   for (let i = 0; i < n; i++) {
-    vel[i] = pigeonVelocity(base[i], flight.distanceKm, flight.week, 1, 1);
+    // A kenmerk counts at its EXPECTED share: the weather and the field are not
+    // known before the release (seizoen 3, see expectedTraitFactor).
+    vel[i] = pigeonVelocity(base[i], flight.distanceKm, flight.week, 1, 1) * expectedTraitFactor(base[i], flight.distanceKm);
     dnfChance[i] = clamp(
       (FLIGHT_RISK.dnfFormThreshold - base[i].form) / FLIGHT_RISK.dnfFormThreshold,
       0,

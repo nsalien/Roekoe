@@ -108,6 +108,7 @@ import { generatePigeonName, isLegacyName, isWrongGenderName, nameKey, namesInUs
 import { breedingCooldownDaysLeft, breedingCooldownUntil, canRace, conditionScore, generatePigeon, isAway, noteAttrChange, rollBreed, rollGenes, talent } from './pigeon.js';
 import { NPC_OWNER_ID, ownerName } from './engine.js';
 import { pickRelayRoute, relayEntryTeams, relayLegKm, relayTeamComplete } from './relay.js';
+import { rollTrait } from './traits.js';
 import { bell, clamp, hashString, haversineKm, pick, randFloat, round1, seededRng } from './util.js';
 
 // --- Time-zone helpers -----------------------------------------------------
@@ -2295,6 +2296,18 @@ export function runDataMigrations(db: Database): void {
     }
     db.world.dataVersion = 54;
   }
+
+  if ((db.world.dataVersion ?? 0) < 55) {
+    // KENMERKEN (seizoen 3): every existing bird without a trait gets ONE roll,
+    // with the same odds as a new bird — players and bots alike. Seeded on the
+    // bird's id, so two requests racing through this block land on the same
+    // traits. Birds created from now on roll their own (generatePigeon, breed).
+    for (const p of db.pigeons) {
+      if (p.trait) continue;
+      p.trait = rollTrait(seededRng(hashString(`trait:${p.id}`)));
+    }
+    db.world.dataVersion = 55;
+  }
 }
 
 /**
@@ -2651,6 +2664,10 @@ export function applyRelayForecasts(db: Database, forecasts: Map<string, Weather
       if (!w) continue;
       leg.weather = w.label;
       leg.weatherFactor = w.factor;
+      // Seizoen 3 (kenmerken): the detail the static traits read, per leg.
+      leg.weatherAlong = w.along;
+      leg.weatherRain = w.rain;
+      leg.tempC = w.tempC;
       leg.forecastAt = at;
     }
   }

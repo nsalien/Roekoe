@@ -25,6 +25,7 @@ import {
   chooseEvent, createLoftForUser, releasePigeon, resolveBrood, sellToRestaurant, startBreeding,
 } from '../core/game/engine.js';
 import type { EventCard, User } from '../core/schema.js';
+import { EVENTS } from '../core/config/gameConfig.js';
 
 let failures = 0;
 function assert(cond: boolean, msg: string) {
@@ -221,7 +222,7 @@ console.log('\n💰 De spaarpot blijft gewoon geld, ook met een vol hok');
   const store = await setup(db, INHERITANCE);
   const before = loftOf(store).money;
   chooseEvent(store, USER.id, 0);
-  assert(loftOf(store).money === before + 600, 'de spaarpot betaalt €600 uit');
+  assert(loftOf(store).money === before + EVENTS.inheritanceCash, `de spaarpot betaalt €${EVENTS.inheritanceCash} uit`);
   assert((loftOf(store).pendingBroods ?? []).length === 0, 'en zet niets in de wachtrij');
 }
 

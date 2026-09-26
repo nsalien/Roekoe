@@ -1,6 +1,7 @@
 /** Small shared presentational helpers. */
 
 import { createContext, useCallback, useContext, useState, type ReactNode } from 'react';
+import { Link } from 'react-router-dom';
 import type { Pigeon, Sex } from '../types';
 
 export function Money({ value }: { value: number }) {
@@ -160,6 +161,96 @@ export function BreedBadge({ breed }: { breed: Pigeon['breed'] }) {
       🕊️ {breed.name} · {breed.rarityLabel}
     </span>
   );
+}
+
+/**
+ * Kenmerk-label (seizoen 3). Zeldzaam krijgt een accentkleur. `expandable` =
+ * klik toont één zin uitleg + een link naar de wiki (duifpagina); anders enkel
+ * een tooltip, want op een kaart zit het label vaak binnen een link.
+ */
+export function TraitBadge({ trait, expandable }: { trait: Pigeon['trait']; expandable?: boolean }) {
+  const [open, setOpen] = useState(false);
+  if (!trait) return null;
+  const rare = trait.rarity === 'zeldzaam';
+  const style = rare
+    ? { background: 'var(--gold-soft)', color: 'var(--gold)' }
+    : { background: 'var(--brand-soft)', color: 'var(--brand-ink)' };
+  const tip = `Kenmerk: ${trait.name} (${trait.rarity}) — ${trait.when === 'altijd' ? trait.description : `sneller ${trait.when}`}`;
+  if (!expandable) {
+    return <span className="badge" style={style} title={tip}>{trait.emoji} {trait.name}</span>;
+  }
+  return (
+    <>
+      <button
+        type="button"
+        className="badge"
+        style={{ ...style, border: 'none', cursor: 'pointer', font: 'inherit' }}
+        title={tip}
+        onClick={() => setOpen((o) => !o)}
+        aria-expanded={open}
+      >
+        {trait.emoji} {trait.name}{rare ? ' · zeldzaam' : ''}
+      </button>
+      {open && (
+        <div className="faint" style={{ flexBasis: '100%', fontSize: '0.88rem', lineHeight: 1.4 }}>
+          {trait.description} {trait.when === 'altijd' ? '' : `Telt ${trait.when}.`}{' '}
+          <Link to="/wiki#kenmerken">Meer info over kenmerken →</Link>
+        </div>
+      )}
+    </>
+  );
+}
+
+/** Emoji + name per kenmerk id, for the live board and the result — those only
+ *  carry the id. Keep in step with PIGEON_TRAITS on the server. */
+export const TRAIT_LABELS: Record<string, { emoji: string; name: string; dynamic?: boolean }> = {
+  tailwind: { emoji: '🌬️', name: 'Snelle flapper' },
+  headwind: { emoji: '🪨', name: 'Stormbreker' },
+  rain: { emoji: '🌧️', name: 'Regenvogel' },
+  fair: { emoji: '☀️', name: 'Mooiweervlieger' },
+  night: { emoji: '🌙', name: 'Nachtvlieger', dynamic: true },
+  sprint: { emoji: '⚡', name: 'Sprinter' },
+  fond: { emoji: '🏔️', name: 'Fondvogel' },
+  social: { emoji: '🐦', name: 'Sociale duif', dynamic: true },
+  loner: { emoji: '🦅', name: 'Eenzaat', dynamic: true },
+  cold: { emoji: '❄️', name: 'Koudevlieger' },
+  warm: { emoji: '🔥', name: 'Zomervogel' },
+  day: { emoji: '🌞', name: 'Dagvlieger', dynamic: true },
+};
+
+/** "✨" (static) or "✨ 🌙 38 %" (dynamic) behind a result row whose kenmerk counted. */
+export function TraitResultMark({ trait, share }: { trait?: string; share?: number }) {
+  if (!trait || !share) return null;
+  const t = TRAIT_LABELS[trait];
+  if (!t) return null;
+  const pct = Math.round(share * 100);
+  return (
+    <span className="faint" title={`Kenmerk ${t.name} telde mee (${pct} % van haar vlucht)`}>
+      {' '}✨{t.dynamic ? ` ${t.emoji} ${pct} %` : ''}
+    </span>
+  );
+}
+
+/** The short "✨ …" hint shown when entering a bird with a trait for a flight.
+ *  Null = her trait cannot count on this flight (a distance trait on the wrong
+ *  distance) or she has none / a passive one. */
+export function traitEntryHint(trait: Pigeon['trait'], distanceKm: number): string | null {
+  if (!trait || trait.kind === 'passive') return null;
+  if (trait.id === 'sprint') return distanceKm <= 200 ? '✨ in haar element' : null;
+  if (trait.id === 'fond') return distanceKm >= 600 ? '✨ in haar element' : null;
+  const hint: Record<string, string> = {
+    tailwind: 'als de wind meezit',
+    headwind: 'bij tegenwind',
+    rain: 'bij regen',
+    fair: 'bij kalm, droog weer',
+    cold: 'onder 10 °C',
+    warm: 'vanaf 10 °C',
+    night: 'in het donker',
+    day: 'bij daglicht',
+    social: 'in een groep',
+    loner: 'als ze alleen vliegt',
+  };
+  return `✨ ${hint[trait.id] ?? trait.when}`;
 }
 
 /** Dutch label for a flight tier (tolerates legacy 'club'/'national' values). */
