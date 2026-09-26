@@ -150,7 +150,7 @@ krijgen.**
 `core/game/schedule.ts` → `advanceRealtime(db, nowMs, weatherByFlight)` roept in
 volgorde:
 1. `runDataMigrations(db)` — eenmalige datafixes, **gated op `world.dataVersion`**
-   (staat nu op **52**; nieuwe migratie = nieuw `if ((db.world.dataVersion ?? 0) < N)`
+   (staat nu op **53**; nieuwe migratie = nieuw `if ((db.world.dataVersion ?? 0) < N)`
    blok + `db.world.dataVersion = N`). De oudere migraties hebben hun werk gedaan en
    zijn enkel nog van belang als **patroon** — zie §8, kop *Eenmalige migraties*.
 2. `ensureFlightsScheduled(db, nowMs)` — plant vluchten volgens `REAL_SCHEDULE`.
@@ -1095,6 +1095,7 @@ npx tsx tests/reactions-persist.test.mts # tribune: de reacties overleven de dat
 npx tsx tests/stem.test.mts              # De Stem: zaaien, stemmen als toggle, dagrem, de bel
 npx tsx tests/player-removal.test.mts    # een speler verwijderen: alles weg, de rest ongemoeid
 npx tsx tests/debt.test.mts               # schuld: de poort, de bodem, en de afslag per ronde
+npx tsx tests/sponsor-restore.test.mts    # v53: de sponsors van de wissel naar seizoen 3 terug
 ```
 Alles in één keer (bash, vanuit de root):
 ```bash
@@ -4248,6 +4249,20 @@ Hieronder enkel wat je nodig hebt om eraan te werken.)
   rijdt mee in de `sponsorship`-JSON — geen nieuwe kolom). Onder `SPONSOR_REVIEW.keepRatio`
   (0.6) → contract eindigt zonder boete, sponsor naar `declined` (kan later heraanbieden).
   Eerste seizoen na tekenen = enkel ijkpunt; `minReviewPoints` (20) dempt ruis.
+  ⚠️ Bij zo'n vertrek worden de **voorwaarden van het contract niet bewaard** (enkel
+  `{id, at, perf}` in `declined`), dus een exact herstel is achteraf onmogelijk.
+- **Migratie v53 — de sponsors van de wissel naar seizoen 3 terug** (owner: "iets te
+  streng"). `restoreSeasonReviewDrops` (sponsors.ts) herkent de vertrekkers aan
+  `declined.at === world.seasonStartedAt` (de review krijgt `atMs = start + SEASON_MS`,
+  exact het nieuwe seizoensbegin; een eigen weigering valt nooit op die milliseconde).
+  Ze komen terug op hun **catalogusvoorwaarden** (identiek voor een eerste aanbod of de
+  startsponsor; een contract van een heraanbod ×0,7–1,5 krijgt de catalogus­waarde),
+  zonder nieuw tekengeld, met de **gemiste dagbedragen bijbetaald** (middernachten
+  tussen vertrek en `lastDailyTick`; gemiste podiumpremies niet), en met **lege
+  `refPoints`** zodat ze op het einde van seizoen 3 niet opnieuw kunnen opstappen.
+  Overgeslagen als de speler intussen een concurrent in dezelfde categorie tekende.
+  Eén melding per speler (`ntf:sponsorrestore:<userId>`). Test:
+  `tests/sponsor-restore.test.mts`. `runDataMigrations` is daarvoor geëxporteerd.
 - **Migratie v17**: de duivenranglijsten worden **geseed uit vlucht­historie**
   (beste ooit-snelheid → `seasonPeakSpeed`; elke top-3-finish → `seasonPodiums`;
   oefenvluchten tellen niet). Vooruitgang kan niet gereconstrueerd worden en start
