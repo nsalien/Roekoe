@@ -2047,10 +2047,18 @@ verliezen van iets beters dat jij bedenkt.
   op), een **sperwer** in de buurt (van niets doen tot een dode duif) of een
   **liefdadigheidsvlucht** met je ace. Elke keuze heeft gevolgen — soms winst,
   soms flink risico.
-- **Zondagveiling.** Elke **zondag van 11:00 tot 20:00** (Brussel) gaat **één**
-  topduif onder de hamer op de markt — nooit meerdere tegelijk, zodat alle melkers
-  om dezelfde duif strijden. Zolang die veiling loopt, komt er ook **geen**
-  opvangcentrum-duif tussen. Je moet het geld dat je biedt op dat moment
+- **Zondagveiling.** Elke **zondag** gaan er **twee** topduiven onder de hamer op
+  de markt, elk met een gegarandeerde algemene score:
+
+  | Zondagduif | Algemene score | Loopt van | tot (Brussel) |
+  |---|---|---|---|
+  | Duif 1 | 60 – 70 | 10:00 | 20:00 |
+  | Duif 2 | 70 – 80 | 11:00 | 21:00 |
+
+  Wie duif 1 om 20:00 verliest, heeft nog een uur voor duif 2. **Heb je het hoogste
+  bod op de ene, dan kan je pas op de andere bieden met 2 vrije plaatsen in je hok**
+  (word je overboden, dan volstaat weer 1). Zolang een van beide veilingen loopt,
+  komt er **geen** opvangcentrum-duif tussen. Je moet het geld dat je biedt op dat moment
   ook echt hebben, maar het wordt **niet vastgehouden** — je kan het intussen nog
   gewoon gebruiken. Bij sluiting wint de hoogste bieder, **op voorwaarde dat hij
   het bedrag nog kan betalen** (en plaats heeft). Kan hij niet, dan gaat de duif

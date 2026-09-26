@@ -497,7 +497,10 @@ function AuctionCard({
           <span className="badge" style={{ background: accent, color: '#fff' }}>
             {shelter ? '🏠 OPVANGCENTRUM' : '🔨 ZONDAGVEILING'}
           </span>
-          <strong>{shelter ? 'Duif zoekt een baasje' : 'Topduif onder de hamer'}</strong>
+          <strong>
+            {shelter ? 'Duif zoekt een baasje' : 'Topduif onder de hamer'}
+            {auction.scoreBand && <span className="faint"> · score {auction.scoreBand}</span>}
+          </strong>
         </div>
         <span className="faint" style={closingSoon ? { color: 'var(--accent)', fontWeight: 700, fontVariantNumeric: 'tabular-nums' } : undefined}>
           {remainingMs <= 0 ? '🔨 sluit nu…' : <>{closingSoon ? '⏳ ' : ''}sluit {countdownTo(auction.endAt, nowMs)}</>}
@@ -572,13 +575,18 @@ function AuctionCard({
         />
         <button
           className="btn accent"
-          disabled={busy || outOfBids || amount < auction.minNextBid || amount > money}
+          disabled={busy || outOfBids || !!auction.bidBlockedReason || amount < auction.minNextBid || amount > money}
           onClick={() => onBid(auction.id, amount)}
         >
           Bied <Money value={amount} />
         </button>
         <span className="faint" style={{ alignSelf: 'center' }}>min. {auction.minNextBid}</span>
       </div>
+      {auction.bidBlockedReason && (
+        <p className="faint" style={{ margin: '8px 0 0', fontSize: '0.82rem', color: 'var(--bad)' }}>
+          {auction.bidBlockedReason}
+        </p>
+      )}
       {closingSoon && !outOfBids && (
         <p className="faint" style={{ margin: '8px 0 0', fontSize: '0.78rem' }}>
           Een bod nu zet de klok terug op {auction.antiSnipeMinutes} min — winnen op de valreep lukt niet.

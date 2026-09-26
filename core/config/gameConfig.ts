@@ -1476,6 +1476,18 @@ export const AUCTION = {
    * that many minutes, so nobody wins by bidding at the buzzer — but the cap keeps
    * counting, so an extension cannot be farmed forever.
    */
+  /**
+   * Seizoen 3: every Sunday TWO top birds go under the hammer, each with a
+   * guaranteed algemene score (talent) band and its own window (Brussels hours).
+   * Birds are drawn at `quality` and re-drawn until the score lands in the band
+   * (≤ sundayMaxAttempts; the fallback scales the skills into the band).
+   * While you hold the top bid on one, bidding on the other needs TWO free places.
+   */
+  sunday: [
+    { key: 'a', minTalent: 60, maxTalent: 70, openHour: 10, closeHour: 20, qualityMin: 0.68, qualityMax: 0.88 },
+    { key: 'b', minTalent: 70, maxTalent: 80, openHour: 11, closeHour: 21, qualityMin: 0.88, qualityMax: 1.0 },
+  ],
+  sundayMaxAttempts: 60,
   /** A Sunday/shelter auction opens at this fraction of the bird's market value. */
   openingBidFraction: 0.3,
   finalPhaseMinutes: 30,

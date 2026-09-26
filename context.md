@@ -1107,6 +1107,7 @@ npx tsx tests/debt.test.mts               # schuld: de poort, de bodem, en de af
 npx tsx tests/sponsor-restore.test.mts    # v53: de sponsors van de wissel naar seizoen 3 terug
 npx tsx tests/coach-salary.test.mts       # coach per score, gratis starterscoach = duurste, trainen +1
 npx tsx tests/sponsor-cap.test.mts        # max 6 sponsors, tier 4 ×0,25/dag, verplichte gratis afbouw
+npx tsx tests/sunday-auction.test.mts     # twee zondagduiven, vensters, scoreband, 2-vrije-plaatsen-regel
 ```
 Alles in één keer (bash, vanuit de root):
 ```bash
@@ -3816,7 +3817,14 @@ Hieronder enkel wat je nodig hebt om eraan te werken.)
   `antiSnipeMinutes`, `maxBids`, `bidsUsed`, `bidsLeft`. UI: `AuctionCard` toont vóór de
   slotfase de spelregel, erna een gekleurde balk "nog X van je 3 biedingen" en blokkeert
   invoer+knop als het budget op is.
-- **Zondag = precies één duif.** `ensureAuctions` draait bij élk verzoek, dus twee
+- **Seizoen 3: twee zondagduiven** (`AUCTION.sunday`): A score [60,70) 10:00–20:00, B
+  [70,80) 11:00–21:00 (Brussel). Sleutel `auction:<datum>:<band>` → `auc_…`/`pig_…` blijven
+  stabiel per duif; een oude kale `auction:<datum>` op dezelfde dag = geen nieuwe (de
+  overgangszondag). `sundayBird` trekt opnieuw tot de score in de band valt (≤ 60 pogingen,
+  daarna bijschalen). Eén melding per duif (A meldt dat B om 11u volgt). **Biedregel**
+  `sundayBidBlock`: hoogste bod op de andere open zondagduif → 2 vrije plaatsen nodig; de
+  markt-DTO geeft `scoreBand` en `bidBlockedReason`. Test: `tests/sunday-auction.test.mts`.
+- **Zondag = precies één duif (vóór seizoen 3).** `ensureAuctions` draait bij élk verzoek, dus twee
   gelijktijdige verzoeken konden **allebei** een zondagveiling openen (random id's) →
   meerdere topduiven op één zondag. Nu **stabiele id's** afgeleid van de dagsleutel
   (`auc_<slug>` / `pig_<slug>` + melding-id per speler): INSERT OR REPLACE houdt er

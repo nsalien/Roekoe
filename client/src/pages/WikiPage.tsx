@@ -1309,9 +1309,19 @@ export function WikiPage() {
 
       <Section id="veilingen" icon="🔨" title="Veilingen: bieden, slotfase & anti-snipe">
         <p className="muted" style={{ marginTop: 0 }}>
-          Elke <strong>zondag van 11u tot 20u</strong> gaat er <strong>één</strong> topduif onder de hamer —
-          nooit meerdere tegelijk, zodat iedereen om dezelfde duif vecht. Daarnaast duikt er af en toe een
-          duif uit het <strong>opvangcentrum</strong> op (maar niet terwijl de zondagveiling loopt).
+          Elke <strong>zondag</strong> gaan er <strong>twee</strong> topduiven onder de hamer, elk met een gegarandeerde
+          algemene score. Daarnaast duikt er af en toe een duif uit het <strong>opvangcentrum</strong> op (maar niet
+          terwijl een zondagveiling loopt).
+        </p>
+        <MiniTable
+          head={['Zondagduif', 'Algemene score', 'Loopt van', 'tot']}
+          rows={[['Duif 1', '60 – 70', '10:00', '20:00'], ['Duif 2', '70 – 80', '11:00', '21:00']]}
+        />
+        <p className="notice" style={{ marginTop: 10 }}>
+          ⚠️ <strong>Op beide bieden vraagt 2 vrije plaatsen.</strong> Heb je het hoogste bod op de ene zondagduif, dan
+          kan je pas op de andere bieden als je <strong>2 vrije plaatsen</strong> in je hok hebt. Word je op de eerste
+          overboden, dan volstaat weer 1 vrije plaats. Zo kunnen de sterkste hokken niet zomaar allebei de topduiven
+          wegkapen.
         </p>
 
         <p><strong>Bieden gebeurt in twee fases:</strong></p>

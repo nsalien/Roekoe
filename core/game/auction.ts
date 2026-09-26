@@ -13,19 +13,19 @@
 
 import type { Auction, Database, Loft, Pigeon } from '../schema.js';
 import { newId } from '../store.js';
-import { AUCTION, DEBT } from '../config/gameConfig.js';
+import { AUCTION, DEBT, GENE } from '../config/gameConfig.js';
 import { awardBadge } from './badges.js';
 import { generatePigeon, talent } from './pigeon.js';
 import { debtBlock } from './economy.js';
 import { marketValue, noteMarketNews } from './market.js';
 import { namesInUse } from './names.js';
-import { randFloat } from './util.js';
+import { clamp, randFloat, round1 } from './util.js';
 
 export const AUCTION_HOUSE_ID = 'auction_house';
 export const SHELTER_ID = 'shelter_center';
 const TZ = 'Europe/Brussels';
-const OPEN_HOUR = 11;
-const WINDOW_HOURS = 9; // 11:00 → 20:00
+// Seizoen 3: two Sunday auctions, each with its own window — see AUCTION.sunday.
+type SundayBand = (typeof AUCTION.sunday)[number];
 
 export type AuctionKind = 'sunday' | 'shelter' | 'forced';
 
@@ -88,12 +88,37 @@ function notify(db: Database, loft: Loft, title: string, body: string, id?: stri
  * (INSERT OR REPLACE), so exactly one auction, one bird and one notification per
  * player survive however many requests race.
  */
-function createSundayAuction(db: Database, key: string, startMs: number, endMs: number): void {
+/**
+ * A top bird whose algemene score lands in [band.minTalent, band.maxTalent).
+ * `generatePigeon` spreads widely, so draw at the band's quality and re-draw;
+ * after `sundayMaxAttempts` misses, scale the three racing skills into the band
+ * (raising a gene cap where needed, never above GENE.ceil).
+ */
+function sundayBird(db: Database, band: SundayBand, week: number): Pigeon {
+  const taken = namesInUse(db.pigeons);
+  let p = generatePigeon({ ownerId: AUCTION_HOUSE_ID, currentWeek: week, quality: randFloat(band.qualityMin, band.qualityMax), taken });
+  for (let i = 1; i < AUCTION.sundayMaxAttempts; i++) {
+    const t = talent(p);
+    if (t >= band.minTalent && t < band.maxTalent) return p;
+    p = generatePigeon({ ownerId: AUCTION_HOUSE_ID, currentWeek: week, quality: randFloat(band.qualityMin, band.qualityMax), taken });
+  }
+  const t = talent(p);
+  if (t >= band.minTalent && t < band.maxTalent) return p;
+  const target = (band.minTalent + band.maxTalent) / 2;
+  const f = target / Math.max(1, t);
+  for (const attr of ['speed', 'endurance', 'orientation'] as const) {
+    p[attr] = round1(clamp(p[attr] * f, 1, GENE.ceil));
+    if (p.genes && p.genes[attr] < p[attr]) p.genes = { ...p.genes, [attr]: Math.min(GENE.ceil, Math.ceil(p[attr])) };
+  }
+  return p;
+}
+
+function createSundayAuction(db: Database, key: string, startMs: number, endMs: number, band: SundayBand): void {
   const week = db.world.currentWeek;
   const slug = key.replace(/[^a-z0-9-]/gi, '_');
   const pigeonId = `pig_${slug}`;
   if (db.pigeons.some((x) => x.id === pigeonId)) return; // already opened this Sunday
-  const p = generatePigeon({ ownerId: AUCTION_HOUSE_ID, currentWeek: week, quality: randFloat(0.82, 0.98), taken: namesInUse(db.pigeons) });
+  const p = sundayBird(db, band, week);
   p.id = pigeonId;
   p.forSale = false;
   db.pigeons.push(p);
@@ -111,8 +136,13 @@ function createSundayAuction(db: Database, key: string, startMs: number, endMs: 
   noteMarketNews(db, '', startMs);
   for (const loft of db.lofts) {
     if (!loft.isBot) {
+      const closes = `${band.closeHour}u`;
+      const other = AUCTION.sunday.find((b) => b.key !== band.key);
+      const tail = band.key === AUCTION.sunday[0].key && other
+        ? ` Om ${other.openHour}u volgt een tweede topduif (score ${other.minTalent}–${other.maxTalent}).`
+        : '';
       notify(db, loft, '🔨 Zondagveiling geopend!',
-        `Topduif ${p.name} (talent ${talent(p)}) gaat onder de hamer tot 20u. Bied mee op de markt!`,
+        `Topduif ${p.name} (score ${talent(p)}) gaat onder de hamer tot ${closes}.${tail} Bied mee op de markt!`,
         `ntf:auc:open:${slug}:${loft.userId}`);
     }
   }
@@ -333,17 +363,23 @@ export function ensureAuctions(db: Database, nowMs: number): void {
     if (a.status === 'open' && nowMs >= Date.parse(a.endAt)) closeAuction(db, a);
   }
 
-  // Sunday auction: one per Sunday, live during its 11:00–20:00 window.
-  for (let back = 0; back <= 7; back++) {
-    const dayMs = nowMs - back * 86400000;
-    if (brusselsWeekday(dayMs) !== 0) continue; // Sunday only
-    const p = tzParts(dayMs);
-    const startMs = wallToUtcMs(p.y, p.m, p.d, OPEN_HOUR);
-    const endMs = startMs + WINDOW_HOURS * 3600000;
-    if (nowMs < startMs || nowMs >= endMs) break; // not inside this Sunday's window
-    const key = `auction:${p.y}-${p.m}-${p.d}`;
-    if (!db.auctions.some((a) => a.templateKey === key)) createSundayAuction(db, key, startMs, endMs);
-    break;
+  // Sunday auctions (seizoen 3): two per Sunday, each live in its own window
+  // (AUCTION.sunday). Keys `auction:<date>:<band>` keep them idempotent.
+  if (brusselsWeekday(nowMs) === 0) {
+    const p = tzParts(nowMs);
+    const day = `auction:${p.y}-${p.m}-${p.d}`;
+    // The Sunday this shipped may already carry the old single auction under the
+    // bare date key: then that day stays as it is — no third lot.
+    const legacyToday = db.auctions.some((a) => a.templateKey === day);
+    if (!legacyToday) {
+      for (const band of AUCTION.sunday) {
+        const startMs = wallToUtcMs(p.y, p.m, p.d, band.openHour);
+        const endMs = wallToUtcMs(p.y, p.m, p.d, band.closeHour);
+        if (nowMs < startMs || nowMs >= endMs) continue; // not inside this band's window
+        const key = `${day}:${band.key}`;
+        if (!db.auctions.some((a) => a.templateKey === key)) createSundayAuction(db, key, startMs, endMs, band);
+      }
+    }
   }
 
   // Rescue-centre auctions: memoryless spawn based on elapsed real time, so the
@@ -399,6 +435,33 @@ export function recomputeAuctionLeader(a: Auction): void {
   a.currentBidderName = top?.name ?? null;
 }
 
+/**
+ * Seizoen 3: while you hold the top bid on the OTHER open Sunday bird, bidding on
+ * this one needs TWO free places — so the strongest lofts can't simply take both.
+ * Outbid on the other one, one free place is enough again. Only between the two
+ * Sunday lots; shelter and forced auctions are not affected. Returns the reason
+ * or null. Also used by the market DTO, so the card says it before you click.
+ */
+export function sundayBidBlock(db: Database, a: Auction, loft: Loft): string | null {
+  if (auctionKind(a) !== 'sunday') return null;
+  const leading = db.auctions.find(
+    (x) => x.id !== a.id && x.status === 'open' && auctionKind(x) === 'sunday' && x.currentBidderId === loft.userId,
+  );
+  if (!leading) return null;
+  const owned = db.pigeons.filter((p) => p.ownerId === loft.userId).length;
+  if (loft.capacity - owned >= 2) return null;
+  const leadName = db.pigeons.find((p) => p.id === leading.pigeonId)?.name ?? 'de andere zondagduif';
+  const thisName = db.pigeons.find((p) => p.id === a.pigeonId)?.name ?? 'deze duif';
+  return `Je hebt al het hoogste bod op ${leadName}. Om ook op ${thisName} te bieden heb je 2 vrije plaatsen nodig.`;
+}
+
+/** The score band of a Sunday lot ("60–70"), from its key; null for other lots. */
+export function sundayBandLabel(a: Auction): string | null {
+  const key = a.templateKey.split(':')[2];
+  const band = AUCTION.sunday.find((b) => b.key === key);
+  return band ? `${band.minTalent}–${band.maxTalent}` : null;
+}
+
 export function placeBid(db: Database, userId: string, auctionId: string, amount: number): string | null {
   const a = db.auctions.find((x) => x.id === auctionId && x.status === 'open');
   if (!a) return 'Deze veiling loopt niet (meer)';
@@ -416,6 +479,8 @@ export function placeBid(db: Database, userId: string, auctionId: string, amount
   if (loft.money < bid) return 'Je moet het geld dat je biedt ook echt hebben';
   const owned = db.pigeons.filter((p) => p.ownerId === userId).length;
   if (owned >= loft.capacity) return 'Je hok zit vol';
+  const twoSlots = sundayBidBlock(db, a, loft);
+  if (twoSlots) return twoSlots;
 
   // In the final phase a player only gets AUCTION.finalPhaseMaxBids bids on this
   // bird, so the endgame is a few decisive jumps instead of a long drip of
