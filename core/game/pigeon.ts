@@ -13,12 +13,15 @@ import {
   PIGEON_BREEDS,
   RACE_AGE_WEEKS,
   TRAINING,
+  TRAITS,
+  traitById,
   type BreedDef,
   type RacingAttr,
 } from '../config/gameConfig.js';
 import type { AttrChange, Pigeon, PigeonGenes, Sex } from '../schema.js';
 import { newId } from '../store.js';
 import { generatePigeonName } from './names.js';
+import { rollTrait } from './traits.js';
 import { bell, clamp, interpolate, randInt, round1 } from './util.js';
 
 // ---------------------------------------------------------------------------
@@ -265,6 +268,8 @@ export interface GenerateOptions {
   birthWeek?: number;
   /** Force a specific breed; otherwise one is rolled by weight. */
   breed?: string;
+  /** Force a kenmerk (null = none); otherwise one is rolled (TRAITS.chance). */
+  trait?: string | null;
   /**
    * Names already in use (see names.namesInUse). Pass it and the new bird is
    * guaranteed a first-name + epithet combination nobody else has. Generating
@@ -313,6 +318,7 @@ export function generatePigeon(opts: GenerateOptions): Pigeon {
     races: 0,
     everAiled: false,
     breed: opts.breed ?? rollBreed(),
+    trait: opts.trait !== undefined ? opts.trait : rollTrait(),
     coached: false,
     ration: 'normal',
     compartment: false,
@@ -352,8 +358,11 @@ export function estimateValue(pigeon: Pigeon, currentWeek: number): number {
   // still commands a premium. Neutral at the ~82 average; ~×0.6 for weak genes,
   // ~×1.6 for a 95-capped topper.
   const potentialFactor = clamp(Math.pow(avgGeneCap(pigeon) / 82, 3), 0.6, 1.7);
+  // A kenmerk (seizoen 3) is worth something: +5% gewoon, +12% zeldzaam.
+  const trait = traitById(pigeon.trait);
+  const traitFactor = trait ? TRAITS.valueMult[trait.rarity] ?? 1 : 1;
   return Math.max(
     50,
-    Math.round((base * (0.6 + 0.4 * ageFactor) * expFactor * breedFactor * potentialFactor) / 10) * 10,
+    Math.round((base * (0.6 + 0.4 * ageFactor) * expFactor * breedFactor * potentialFactor * traitFactor) / 10) * 10,
   );
 }

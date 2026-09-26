@@ -350,6 +350,13 @@ weerfactor = clamp(1 + along/120 − min(neerslag, 4)·0.04, 0.70, 1.20)
 ```
 Rugwind versnelt, tegenwind + regen vertragen. Zonder netwerk: willekeurig weer.
 
+**Seizoen 3:** het weerbericht vermeldt ook de **temperatuur** (°C), en de vlucht
+bewaart `along` (km/u langs de route), of het regent en de temperatuur — per
+etappe bij een estafette. Die lezen de **kenmerken** (§7ter): rugwind/tegenwind
+vanaf **6 km/u**, "kalm, droog" = geen regen en |along| ≤ 6, koud = onder 10 °C.
+Zonder netwerk krijgt het terugvalweer een temperatuur uit het Belgische
+maandgemiddelde.
+
 > **Voorbeeld.** 20 km/u wind recht op de rug → factor 1 + 20/120 ≈ **1.17**
 > (17% sneller). Diezelfde 20 km/u recht tegen → **0.83** (17% trager). Giet het
 > ook nog eens (3 mm regen), dan gaat er nog eens ~0.12 af.
@@ -621,6 +628,8 @@ ervaringsfactor = 1 − (ervaring/100 − 0.5) · 0.125
   ervaring 50  → ×1.00
   ervaring 100 → ×0.9375   (6,25% minder verbruik)
 ```
+**Zuinige vlieger** (kenmerk, §7ter): haar hele energieverbruik ×0,92.
+
 De willekeurige spreiding (0…10) komt erbovenop, en het **geheel** gaat daarna
 nog eens **×1,15**: vliegen kost voor elke duif 15% meer energie dan de kale
 formule. (Vroeger zwenkte de ervaringsfactor ±25% en was er geen ×1,15 — een
@@ -799,6 +808,9 @@ leeg te laten lopen.
 Oriëntatie is je **navigatie-eigenschap** en doet niets met je snelheid. Ze bepaalt
 of je duif de lijn naar huis houdt — of kilometers omvliegt en soms de weg helemaal
 kwijtraakt. Op een lange vlucht is ze **even veel waard als conditie** (§2.3).
+
+Een duif met het kenmerk **Thuisvinder** (§7ter) verdwaalt **25 % minder** vaak:
+het verwachte aantal verdwaalmomenten gaat ×0,75.
 
 **🕊️ Eerst: duiven vliegen als een zwerm.** Bij de lossing gaan alle korven
 tegelijk open en vertrekt het hele veld als één wolk. Zolang je duif in die groep
@@ -1368,6 +1380,7 @@ je laat aanmodderen wordt dus steeds zwakker; snel behandelen beperkt de schade.
 ### 5.2 Kans op ziekte (elke dag, in echte tijd)
 Duiven worden **effectief ziek tijdens het spelen**: elke dagovergang (00:00)
 krijgt elke gezonde, niet-geïsoleerde duif een kans om ziek te worden.
+Een duif met het kenmerk **IJzeren gestel** (§7ter) heeft **30 % minder** kans.
 
 **Ziek worden werkt op dezelfde vluchtvorm als een blessure** (§3.2): de
 combinatie van **energie en gezondheid**, met de laagste van de twee dubbel
@@ -1754,6 +1767,75 @@ zijn haar huidige stats nog laag: een jong met topgenen is goud waard.
 > **Bestaande duiven** die vóór deze update al hoger stonden dan hun (nieuw
 > gelote) gen-cap **behouden** die waarde — ze groeien enkel niet verder. Enkel
 > nieuwe groei kan nooit boven de cap.
+
+---
+
+## 7ter. Kenmerken (seizoen 3)
+
+Eén kenmerk per duif, **voor het leven**, publiek zichtbaar (duifkaart, markt,
+veiling, stamboom, inschrijven). Altijd een **voordeel**, nooit een nadeel.
+
+**Kans.** Elke nieuwe duif (gekocht, geveild, opgevangen, gekweekt, bots
+inbegrepen): **30 %** kans op een kenmerk; daarvan **80 % gewoon / 20 % zeldzaam**,
+en binnen elke groep uniform. Bestaande duiven kregen er één bij de update
+(migratie v55, geseed per duif).
+
+| Kenmerk | Zeldzaamheid | Soort | Wanneer | Effect |
+|---|---|---|---|---|
+| 🌬️ Snelle flapper | gewoon | statisch | rugwind (along > 6 km/u) | +5 % snelheid |
+| 🪨 Stormbreker | gewoon | statisch | tegenwind (along < −6 km/u) | +5 % |
+| 🌧️ Regenvogel | gewoon | statisch | regen | +5 % |
+| ☀️ Mooiweervlieger | gewoon | statisch | droog en \|along\| ≤ 6 | +5 % |
+| 🌙 Nachtvlieger | gewoon | dynamisch | zolang het donker is | +5 % |
+| ⚡ Sprinter | gewoon | statisch | vlucht ≤ 200 km | +5 % |
+| 🏔️ Fondvogel | gewoon | statisch | vlucht ≥ 600 km | +5 % |
+| 🐦 Sociale duif | gewoon | dynamisch | ≥ 2 andere duiven binnen 10 km | +5 % |
+| 🦅 Eenzaat | gewoon | dynamisch | geen enkele duif binnen 10 km | +5 % |
+| ❄️ Koudevlieger | zeldzaam | statisch | onder 10 °C | +5 % |
+| 🔥 Zomervogel | zeldzaam | statisch | vanaf 10 °C | +5 % |
+| 🌞 Dagvlieger | zeldzaam | dynamisch | zolang het licht is | +5 % |
+| 🧭 Thuisvinder | zeldzaam | passief | altijd | verdwaalkans ×0,75 (§3.5) |
+| 🔋 Zuinige vlieger | zeldzaam | passief | altijd | energieverbruik ×0,92 (§3) |
+| 🛡️ IJzeren gestel | zeldzaam | passief | altijd | ziektekans ×0,7 (§5.2) |
+
+**Hoe de bonus werkt.** Het tempo-profiel van een duif bestaat uit 10 stukken
+(§2.3). Een statisch kenmerk dat geldt, versnelt **alle** stukken met 5 %; een
+dynamisch kenmerk enkel het **deel** van elk stuk waar het geldt. Het gebeurt ná
+het normaliseren van het tempo en vóór het verdwalen, dus het verandert echt de
+aankomsttijd. Alles wordt bij de lossing **bevroren** in de simulatie: live bord
+en eindstand zijn identiek.
+
+**Licht en donker.** De zonshoogte wordt zelf berekend (standaardformule,
+zonsopgang/-ondergang = middelpunt van de zon op −0,833°) op **4 momenten per
+stuk**, op de plek waar de duif dan vliegt. Een Nachtvlieger die vóór
+zonsondergang vertrekt, krijgt de bonus enkel op het donkere deel. De vluchtkaart
+toont zonsopgang 🌅 en zonsondergang 🌇 thuis op de dag van de lossing.
+
+**Gezelschap.** Elke **5 minuten** worden alle vliegende duiven op de route
+geteld binnen **10 km** (eigen duiven tellen mee; duiven die thuis of uitgevallen
+zijn niet; bij een estafette ook duiven van andere etappes op hetzelfde stuk).
+Dat wordt gemeten op de profielen **zonder** de bonus; daarna krijgen enkel de
+Sociale duiven en Eenzaten hun bonus op de stukken waar de voorwaarde gold.
+
+**Overerving.** Elke ouder met een kenmerk geeft het door met **35 %** (eerst de
+vader, dan de moeder); hebben beide ouders **hetzelfde** kenmerk: **60 %**.
+Niets doorgegeven → de gewone loting (30 %).
+
+**Waarde.** Gewoon **+5 %**, zeldzaam **+12 %** op de modelwaarde (§9.0).
+
+**Weddenschappen.** De odds rekenen een kenmerk mee aan zijn **verwachte**
+waarde (afstandskenmerken zeker, de rest volgens een vaste kans), want het weer
+en het veld zijn bij het openen van de weddenschappen nog niet gekend.
+
+**Wat je ziet.** Bij het inschrijven een hint (✨ in haar element / ✨ als de wind
+meezit / ✨ in het donker …), op het live bord een ✨ zolang de bonus werkt, een
+regel in het live verslag (hoogstens 4 per vlucht, voor de best geplaatste
+duiven), en in de uitslag een ✨ met — bij een dynamisch kenmerk — het aandeel
+van de vlucht (bv. "🌙 38 %").
+
+**Balans (gemeten, `tests/traits.test.mts`).** In haar eigen situatie wint een
+duif met kenmerk **~65–70 %** van de duels tegen een identieke duif zonder;
+erbuiten ~50 %.
 
 ---
 

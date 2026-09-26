@@ -183,6 +183,7 @@ function rowToPigeon(r: any): Pigeon {
     sireName: r.sire_name ?? null,
     damName: r.dam_name ?? null,
     quirk: r.quirk ?? null,
+    trait: r.trait ?? null,
     awayUntil: r.away_until ?? null,
     lastRaceWasPractice: !!r.last_race_practice,
     seasonPeakSpeed: r.season_peak_speed ?? 0,
@@ -229,6 +230,9 @@ function rowToFlight(r: any): Flight {
     sim: JSON.parse(r.sim || '[]'),
     weather: r.weather,
     weatherFactor: r.weather_factor,
+    weatherAlong: r.weather_along ?? undefined,
+    weatherRain: r.weather_rain == null ? undefined : !!r.weather_rain,
+    tempC: r.temp_c ?? undefined,
     results: JSON.parse(r.results || '[]'),
     recap: r.recap ?? '',
     chat: r.chat ? JSON.parse(r.chat) : [],
@@ -370,6 +374,7 @@ const PIGEON_COLUMNS = [
   'season_start_score', 'season_practice_gain', 'trained_at', 'genes', 'decline_rate',
   'care_assigned', 'last_race_at', 'last_race_practice', 'last_rest_cure_at', 'away_until',
   'cup', 'titles', 'listed_at', 'min_bid', 'last_bred_at', 'sire_name', 'dam_name', 'quirk',
+  'trait',
 ];
 
 /**
@@ -411,6 +416,7 @@ function pigeonRow(p: Pigeon): unknown[] {
     p.sireName ?? null,
     p.damName ?? null,
     p.quirk ?? null,
+    p.trait ?? null,
   ];
 }
 
@@ -759,7 +765,7 @@ export class D1Store implements Store {
         'id', 'week', 'template_key', 'name', 'type', 'distance_km', 'entry_fee', 'from_city',
         'to_city', 'start_at', 'status', 'entries', 'sim', 'weather', 'weather_factor', 'results',
         'recap', 'created_at', 'practice', 'titan', 'relay', 'legs', 'age_cat', 'cup_sprint',
-        'chat',
+        'chat', 'weather_along', 'weather_rain', 'temp_c',
       ],
       keyColumn: 'id',
       row: (f) => [
@@ -771,6 +777,7 @@ export class D1Store implements Store {
         // '' for the many flights nobody shouted at, so their narrowed UPDATE
         // keeps skipping the column.
         f.chat?.length ? JSON.stringify(f.chat) : '',
+        f.weatherAlong ?? null, f.weatherRain == null ? null : b(f.weatherRain), f.tempC ?? null,
       ],
       stmts,
     });
@@ -1492,6 +1499,14 @@ const SCHEMA_STEPS: string[] = [
   // groeien niet. Default 0 = het gedrag van vóór deze regel, dus geen migratie.
   'ALTER TABLE lofts ADD COLUMN debt_days INTEGER NOT NULL DEFAULT 0',
   'ALTER TABLE lofts ADD COLUMN debt_misses INTEGER NOT NULL DEFAULT 0',
+
+  // KENMERKEN (seizoen 3): one trait per bird for life, and the release weather
+  // in the detail the traits need (wind along the route, rain, temperature).
+  // NULL = no trait / not recorded (flights from before this shipped).
+  'ALTER TABLE pigeons ADD COLUMN trait TEXT',
+  'ALTER TABLE flights ADD COLUMN weather_along REAL',
+  'ALTER TABLE flights ADD COLUMN weather_rain INTEGER',
+  'ALTER TABLE flights ADD COLUMN temp_c REAL',
 ];
 
 /**

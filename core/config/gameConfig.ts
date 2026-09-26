@@ -1069,6 +1069,82 @@ export const PIGEON_QUIRKS = [
 
 export type PigeonQuirkId = (typeof PIGEON_QUIRKS)[number]['id'];
 
+/**
+ * KENMERKEN (seizoen 3, from De Stem). About one bird in three carries ONE trait
+ * for life: a small edge (+5% speed) that only counts in its own situation, so
+ * the choice of who flies today gets a layer. Only upsides, never a downside.
+ *
+ * kind:
+ *  - 'static'  — decided at the release (wind, rain, temperature, distance);
+ *  - 'dynamic' — changes DURING the flight (sun, neighbours), per route segment;
+ *  - 'passive' — not a speed bonus (less straying, less energie, less illness).
+ * `oddsShare` = the share of a typical race the bonus is expected to count for,
+ * used by the betting odds before the weather is known.
+ * ⚠️ The ids are stored in the database: never rename one.
+ */
+export const PIGEON_TRAITS = [
+  { id: 'tailwind', name: 'Snelle flapper', emoji: '🌬️', rarity: 'gewoon', kind: 'static', oddsShare: 0.3,
+    when: 'bij rugwind', description: 'Zet elke zucht rugwind om in meters.' },
+  { id: 'headwind', name: 'Stormbreker', emoji: '🪨', rarity: 'gewoon', kind: 'static', oddsShare: 0.3,
+    when: 'bij tegenwind', description: 'Hoe harder het tegen waait, hoe koppiger ze doorvliegt.' },
+  { id: 'rain', name: 'Regenvogel', emoji: '🌧️', rarity: 'gewoon', kind: 'static', oddsShare: 0.25,
+    when: 'bij regen', description: 'Waar anderen schuilen, vliegt zij pas echt.' },
+  { id: 'fair', name: 'Mooiweervlieger', emoji: '☀️', rarity: 'gewoon', kind: 'static', oddsShare: 0.35,
+    when: 'bij kalm, droog weer', description: 'Blauwe lucht, geen wind: haar favoriete weer.' },
+  { id: 'night', name: 'Nachtvlieger', emoji: '🌙', rarity: 'gewoon', kind: 'dynamic', oddsShare: 0.15,
+    when: 'zolang het donker is', description: 'Vindt de weg op de sterren — en vliegt dan sneller.' },
+  { id: 'sprint', name: 'Sprinter', emoji: '⚡', rarity: 'gewoon', kind: 'static', oddsShare: 0,
+    when: 'op vluchten tot 200 km', description: 'Kort en fel: de eerste kilometers zijn van haar.' },
+  { id: 'fond', name: 'Fondvogel', emoji: '🏔️', rarity: 'gewoon', kind: 'static', oddsShare: 0,
+    when: 'op vluchten vanaf 600 km', description: 'Hoe verder de lossing, hoe beter ze wordt.' },
+  { id: 'social', name: 'Sociale duif', emoji: '🐦', rarity: 'gewoon', kind: 'dynamic', oddsShare: 0.5,
+    when: 'met minstens 2 duiven binnen 10 km', description: 'Vliegt het best in goed gezelschap.' },
+  { id: 'loner', name: 'Eenzaat', emoji: '🦅', rarity: 'gewoon', kind: 'dynamic', oddsShare: 0.3,
+    when: 'zonder enige duif binnen 10 km', description: 'Pas als ze alleen is, laat ze zich echt gaan.' },
+  { id: 'cold', name: 'Koudevlieger', emoji: '❄️', rarity: 'zeldzaam', kind: 'static', oddsShare: 0.45,
+    when: 'onder 10 °C', description: 'Frisse lucht maakt haar vleugels licht.' },
+  { id: 'warm', name: 'Zomervogel', emoji: '🔥', rarity: 'zeldzaam', kind: 'static', oddsShare: 0.55,
+    when: 'vanaf 10 °C', description: 'Een warme dag en ze is niet te houden.' },
+  { id: 'day', name: 'Dagvlieger', emoji: '🌞', rarity: 'zeldzaam', kind: 'dynamic', oddsShare: 0.85,
+    when: 'zolang het licht is', description: 'Een kind van de zon: bij daglicht op haar best.' },
+  { id: 'homing', name: 'Thuisvinder', emoji: '🧭', rarity: 'zeldzaam', kind: 'passive', oddsShare: 0,
+    when: 'altijd', description: 'Verdwaalt minder dan de rest.' },
+  { id: 'frugal', name: 'Zuinige vlieger', emoji: '🔋', rarity: 'zeldzaam', kind: 'passive', oddsShare: 0,
+    when: 'altijd', description: 'Verbruikt minder energie per vlucht.' },
+  { id: 'sturdy', name: 'IJzeren gestel', emoji: '🛡️', rarity: 'zeldzaam', kind: 'passive', oddsShare: 0,
+    when: 'altijd', description: 'Wordt minder vaak ziek.' },
+] as const;
+
+export type PigeonTraitId = (typeof PIGEON_TRAITS)[number]['id'];
+export type PigeonTraitDef = (typeof PIGEON_TRAITS)[number];
+
+/** Look up a trait by id (undefined for a bird without one, or an unknown id). */
+export function traitById(id?: string | null): PigeonTraitDef | undefined {
+  return id ? PIGEON_TRAITS.find((t) => t.id === id) : undefined;
+}
+
+export const TRAITS = {
+  chance: 0.3, // share of new birds that get a trait
+  rareShare: 0.2, // within those, how many get a 'zeldzaam' one
+  inheritChance: 0.35, // per parent carrying a trait
+  inheritBothSame: 0.6, // both parents carry the same trait
+  speedBonus: 1.05, // the situational bonus (a deliberate choice of the owner: +5%)
+  windThreshold: 6, // km/h along the route — same thresholds as the weather label
+  rainThresholdMm: 0.2,
+  coldBelowC: 10,
+  sprintMaxKm: 200,
+  fondMinKm: 600,
+  sunAltitudeDeg: -0.833, // sunrise/sunset: centre of the sun at this altitude
+  sunSamplesPerSegment: 4,
+  neighbourKm: 10,
+  socialMinNeighbours: 2,
+  proximityStepMinutes: 5,
+  homingLostMult: 0.75,
+  frugalEnergyMult: 0.92,
+  sturdyIllnessMult: 0.7,
+  valueMult: { gewoon: 1.05, zeldzaam: 1.12 } as Record<string, number>,
+} as const;
+
 /** Look up a quirk by id (undefined for a bird without one, or an unknown id). */
 export function quirkById(id?: string | null) {
   return id ? PIGEON_QUIRKS.find((q) => q.id === id) : undefined;
@@ -1328,6 +1404,7 @@ export const COMMENTARY_INTERVAL_SECONDS = 600;
 export const COMMENTARY_LIMITS = {
   maxSamples: 60, // at most this many field samples per race
   field: 15, // only passes inside the leading N positions are reported
+  traitLines: 4, // at most this many "kenmerk slaat aan" lines per race (best-placed birds)
 } as const;
 
 /** How many days of flights are kept on the calendar ahead of "now". */
@@ -2726,6 +2803,22 @@ export const COMMENTARY = {
   start: [
     'De duiven zijn gelost.',
   ],
+  // Seizoen 3: a kenmerk kicks in. One pool per trait id; {name} = the bird.
+  // Only speed traits (see PIGEON_TRAITS kind static/dynamic) ever get a line.
+  trait: {
+    tailwind: ['Snelle flapper {name} zet de rugwind om in meters.'],
+    headwind: ['De wind staat pal tegen, maar Stormbreker {name} buigt het hoofd en vliegt door.'],
+    rain: ['Het regent — en Regenvogel {name} vliegt pas nu echt.'],
+    fair: ['Blauwe lucht, geen wind: Mooiweervlieger {name} is in haar element.'],
+    night: ['De zon is onder — Nachtvlieger {name} zet aan.'],
+    day: ['Het wordt licht: Dagvlieger {name} vindt haar ritme.'],
+    sprint: ['Sprinter {name} vertrekt als een pijl uit de boog.'],
+    fond: ['Hoe verder het wordt, hoe beter Fondvogel {name} vliegt.'],
+    social: ['{name} vliegt mee in een groepje — de Sociale duif leeft ervan op.'],
+    loner: ['{name} laat de anderen achter zich; de Eenzaat vliegt nu op haar best.'],
+    cold: ['Frisse lucht: Koudevlieger {name} heeft er zin in.'],
+    warm: ['Het is warm, en Zomervogel {name} is niet te houden.'],
+  } as Record<string, readonly string[]>,
   // A clean pass, no obvious cause.
   overtake: [
     '{name} steekt {name2} voorbij.',

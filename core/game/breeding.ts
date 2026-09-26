@@ -13,6 +13,7 @@ import type { Database, Loft, Pigeon, PigeonGenes } from '../schema.js';
 import { newId } from '../store.js';
 import { awardBadge, evaluateBadges } from './badges.js';
 import { geneCap, talent } from './pigeon.js';
+import { inheritTrait } from './traits.js';
 import { generatePigeonName, nameKey } from './names.js';
 import { clamp, hashString, randFloat, round1, seededRng } from './util.js';
 
@@ -157,6 +158,9 @@ export function breed(
       sireName: sire.name,
       damName: dam.name,
       quirk,
+      // Kenmerk (seizoen 3): passed on by a parent, else the normal roll. Uses
+      // Math.random like the other per-youngster draws (see the note above).
+      trait: inheritTrait(sire, dam),
       forSale: false,
       price: null,
       createdAtWeek: hatchWeek,

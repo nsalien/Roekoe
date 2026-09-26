@@ -35,7 +35,8 @@ import {
   TITAN,
   TOURNEY_RISK,
 } from '../config/gameConfig.js';
-import { AGE_CUP, RELAY, quirkById } from '../config/gameConfig.js';
+import { AGE_CUP, CITY_COORDS, RELAY, TRAITS, quirkById } from '../config/gameConfig.js';
+import { applyTraitBonus, traitActiveAt, traitWindows, type TraitRun } from './traits.js';
 import type { Ailment, Database, Flight, FlightResult, Loft, Pigeon, SimEntry } from '../schema.js';
 import { relayEntryTeams, relayLegKm, relaySimTeams } from './relay.js';
 import { ageMultiplier, conditionScore, experienceGain, flightForm, noteAttrChange, raceCeil } from './pigeon.js';
@@ -248,7 +249,15 @@ function buildPaceProfile(
    *  navigates; a bird can only really lose the line once the field has strung
    *  out. Omitted (solo, or a legacy call) = no flock, i.e. the old behaviour. */
   field?: { birds: number; spread: number },
-): { velocity: number; segMult: number[]; durationSeconds: number; dnfAtSeconds: number | null; dnfKind: SimEntry['dnfKind']; lost: SimEntry['lost']; strays: SimEntry['strays']; strayDays?: number } {
+  /** Seizoen 3: what her trait needs (release moment, route, weather, and — for
+   *  social/loner on the second pass — where the neighbour condition held).
+   *  Omitted = no trait effect at all (legacy callers). */
+  traits?: TraitRun,
+): {
+  velocity: number; segMult: number[]; durationSeconds: number; dnfAtSeconds: number | null; dnfKind: SimEntry['dnfKind'];
+  lost: SimEntry['lost']; strays: SimEntry['strays']; strayDays?: number;
+  trait: string | null; traitWindows: [number, number][]; traitShare: number;
+} {
   const FD = FLIGHT_DYNAMICS;
   // Seed on the flight id + bird so every flight is a different race, yet the same
   // flight always rebuilds the identical profile (deterministic: live == final,
@@ -317,6 +326,11 @@ function buildPaceProfile(
     }
   }
 
+  // KENMERK (seizoen 3) — a speed trait rescales the segments where it counts.
+  // After the normalisation (it may change the finish time, like conditie) and
+  // before the detours, so the two stay independent. Draws nothing from `rng`.
+  const traitFrac = traits ? applyTraitBonus(pigeon.trait, traits, distanceKm, velocity, segMult) : null;
+
   // ORIËNTATIE — the whole of what the attribute does (see LOST in gameConfig).
   //
   // Not one coin flip but an EXPECTED NUMBER of times she loses the line, drawn
@@ -334,7 +348,10 @@ function buildPaceProfile(
     const expected =
       (LOST.base + LOST.max * Math.pow(room, LOST.curve)) *
       (LOST.distBase + distanceKm * LOST.distPerKm) *
-      (1 + rough * LOST.weatherK);
+      (1 + rough * LOST.weatherK) *
+      // Thuisvinder (seizoen 3): drifts off less often. Only with a trait run, so a
+      // legacy call keeps its exact old profile.
+      (traits && pigeon.trait === 'homing' ? TRAITS.homingLostMult : 1);
     // Poisson draw (Knuth) on that expectation, capped so one unlucky bird can
     // never spiral: `maxEpisodes` bounds the loop and `detourBudget` bounds the
     // total ground lost regardless of how the episodes fall.
@@ -462,7 +479,11 @@ function buildPaceProfile(
     }
   }
 
-  return { velocity, segMult, durationSeconds, dnfAtSeconds, dnfKind, lost, strays, strayDays };
+  const tw = traitWindows(traitFrac, distanceKm, velocity, segMult, durationSeconds);
+  return {
+    velocity, segMult, durationSeconds, dnfAtSeconds, dnfKind, lost, strays, strayDays,
+    trait: traits ? pigeon.trait ?? null : null, traitWindows: tw.windows, traitShare: tw.share,
+  };
 }
 
 /**
@@ -574,13 +595,37 @@ export function startLiveFlight(flight: Flight, entries: Entry[], week: number, 
   const w = weather ?? randomWeather();
   flight.weather = w.label;
   flight.weatherFactor = w.factor;
+  // Seizoen 3: the release weather in the detail the traits read, kept on the
+  // flight so the result and the commentary can still say why a trait counted.
+  flight.weatherAlong = w.along;
+  flight.weatherRain = w.rain;
+  flight.tempC = w.tempC;
   // Reference moment for the rest deduction: when THIS race starts (see RECOVERY).
   const startMs = Date.parse(flight.startAt) || Date.now();
   // Everybody is released at once, so how quickly the bunch breaks up is a
   // property of the FIELD, not of one bird. Computed once, here.
   const field = fieldContext(entries, flight.distanceKm, week);
-  flight.sim = entries.map((e) => {
-    const prof = buildPaceProfile(flight.id, e.pigeon, flight.distanceKm, week, w.factor, !!flight.practice, field);
+  const run: TraitRun = {
+    startMs,
+    from: CITY_COORDS[flight.fromCity],
+    to: CITY_COORDS[flight.toCity],
+    weather: { along: w.along, rain: w.rain, tempC: w.tempC },
+  };
+  const build = (e: Entry, groupKm?: [number, number][]) =>
+    buildPaceProfile(flight.id, e.pigeon, flight.distanceKm, week, w.factor, !!flight.practice, field, { ...run, groupKm });
+  let profs = entries.map((e) => build(e));
+  // Sociale duif / Eenzaat: where did she have company, measured on the field's
+  // profiles WITHOUT this bonus — then rebuild only those birds with it. Same
+  // seed, and the trait draws nothing, so the rebuild is the same race plus the
+  // bonus. Skipped entirely when nobody in the field has either trait.
+  if (entries.some((e) => isGroupTrait(e.pigeon.trait))) {
+    const groupKm = groupConditionKm(
+      entries.map((e, i) => ({ id: e.pigeon.id, trait: e.pigeon.trait, prof: profs[i], offsetSeconds: 0, routeOffsetKm: 0, distanceKm: flight.distanceKm })),
+    );
+    profs = entries.map((e, i) => (isGroupTrait(e.pigeon.trait) ? build(e, groupKm.get(e.pigeon.id) ?? []) : profs[i]));
+  }
+  flight.sim = entries.map((e, i) => {
+    const prof = profs[i];
     // Freeze the total energie this bird spends flying the full route. It is
     // drained gradually during the race (tickFlightEnergy), so a bird pulled
     // out mid-flight has already paid for the distance it covered. An oefenvlucht
@@ -592,7 +637,7 @@ export function startLiveFlight(flight: Flight, entries: Entry[], week: number, 
     const flownKm = flight.distanceKm + (prof.lost?.detourKm ?? 0);
     const formCost = flight.practice
       ? PRACTICE.energyCost
-      : round1(routeEnergyCost(e.pigeon.experience, flownKm, randFloat(0, FLIGHT_FATIGUE.jitter)));
+      : round1(routeEnergyCost(e.pigeon.experience, flownKm, randFloat(0, FLIGHT_FATIGUE.jitter), e.pigeon.trait === 'frugal'));
     return {
       pigeonId: e.pigeon.id,
       pigeonName: e.pigeon.name,
@@ -610,9 +655,133 @@ export function startLiveFlight(flight: Flight, entries: Entry[], week: number, 
       startVorm: flightForm(e.pigeon, startMs),
       formCost,
       formDrained: 0,
+      ...traitSimFields(prof),
     };
   });
   flight.status = 'live';
+}
+
+/** Trait fields for the live board: only a speed trait that counts somewhere in
+ *  this race is shown, and it sparkles while she is flying inside a window. */
+function liveTraitFields(s: SimEntry, flying: boolean, localSeconds: number) {
+  if (!s.trait || !s.traitWindows?.length) return {};
+  return { trait: s.trait, traitActive: flying && traitActiveAt(s.traitWindows, localSeconds) };
+}
+
+/** Trait fields for a result row (see FlightResult.trait). */
+function resultTraitFields(s: SimEntry) {
+  if (!s.trait || !s.traitShare) return {};
+  return { trait: s.trait, traitShare: s.traitShare };
+}
+
+/** The trait fields a sim entry carries (only when she has a trait). */
+function traitSimFields(prof: { trait: string | null; traitWindows: [number, number][]; traitShare: number }) {
+  return prof.trait ? { trait: prof.trait, traitWindows: prof.traitWindows, traitShare: prof.traitShare } : {};
+}
+
+const isGroupTrait = (id: string | null | undefined) => id === 'social' || id === 'loner';
+
+/**
+ * Where along her route did the neighbour condition hold, for every bird with
+ * the Sociale-duif or Eenzaat trait? (seizoen 3, see TRAITS.neighbourKm.)
+ *
+ * Walks the race in steps of TRAITS.proximityStepMinutes on the profiles as they
+ * are WITHOUT these two bonuses (so birds don't feed back into each other), puts
+ * every bird that is flying at that moment on the route (a relay leg sits at its
+ * own offset along the whole route, so birds of different legs can meet), and
+ * counts the others within the radius. Own birds count; birds that are home,
+ * pulled or out do not. Returns leg-local km ranges per trait bird.
+ *
+ * COST: once per flight at the release, and only if the field has such a bird.
+ * Positions are sorted once per step and neighbours found with two binary
+ * searches, so a field of ~180 birds on 1200 km stays far inside the budget.
+ */
+function groupConditionKm(
+  runners: {
+    id: string; trait: string | null | undefined;
+    prof: { velocity: number; segMult: number[]; durationSeconds: number; dnfAtSeconds: number | null };
+    offsetSeconds: number; routeOffsetKm: number; distanceKm: number;
+  }[],
+): Map<string, [number, number][]> {
+  const out = new Map<string, [number, number][]>();
+  const watched = runners.filter((r) => isGroupTrait(r.trait));
+  if (watched.length === 0) return out;
+  // Per runner: the clock time at each segment border, walked with a cursor that
+  // only moves forward (the clock only moves forward). Same geometry as
+  // raceProgress, without re-walking ten segments per bird per step — that
+  // re-walk was most of the cost of this scan on a long flight.
+  const N = runners.length;
+  const borders = runners.map((r) => {
+    const seg = r.prof.segMult;
+    const segDistM = (r.distanceKm * 1000) / seg.length;
+    const t = new Float64Array(seg.length + 1);
+    for (let i = 0; i < seg.length; i++) {
+      t[i + 1] = t[i] + (segDistM / Math.max(FLIGHT_DYNAMICS.minSegSpeed, r.prof.velocity * seg[i])) * 60;
+    }
+    return t;
+  });
+  const cursor = new Int32Array(N);
+  const stopAt = runners.map((r) => r.prof.dnfAtSeconds ?? Infinity);
+  const end = Math.max(...runners.map((r) => r.offsetSeconds + r.prof.durationSeconds));
+  const step = TRAITS.proximityStepMinutes * 60;
+  const radius = TRAITS.neighbourKm;
+  // Per watched bird: the leg-local km at each step, and whether the condition held.
+  const trail = new Map<string, { km: number; ok: boolean }[]>();
+  for (const r of watched) { trail.set(r.id, []); out.set(r.id, []); }
+
+  const lowerBound = (arr: Float64Array, len: number, x: number) => {
+    let lo = 0, hi = len;
+    while (lo < hi) { const m = (lo + hi) >> 1; if (arr[m] < x) lo = m + 1; else hi = m; }
+    return lo;
+  };
+  const pos = new Float64Array(N);
+  const flying = new Uint8Array(N);
+  const buf = new Float64Array(N);
+  const watchedIdx = runners.map((r, i) => (isGroupTrait(r.trait) ? i : -1)).filter((i) => i >= 0);
+  for (let t = 0; t <= end + step; t += step) {
+    let len = 0;
+    for (let i = 0; i < N; i++) {
+      const r = runners[i];
+      const local = t - r.offsetSeconds;
+      // Not released yet (a later relay leg), home, or out of the race: not a neighbour.
+      if (local < 0 || local >= r.prof.durationSeconds || local >= stopAt[i]) { flying[i] = 0; continue; }
+      const b = borders[i];
+      const segs = b.length - 1;
+      let c = cursor[i];
+      while (c < segs - 1 && local >= b[c + 1]) c++;
+      cursor[i] = c;
+      const frac = Math.min(1, Math.max(0, (local - b[c]) / (b[c + 1] - b[c])));
+      const km = Math.min(r.distanceKm, ((c + frac) * r.distanceKm) / segs);
+      pos[i] = r.routeOffsetKm + km;
+      flying[i] = 1;
+      buf[len++] = pos[i];
+    }
+    const sorted = buf.subarray(0, len).sort();
+    for (const i of watchedIdx) {
+      if (!flying[i]) continue;
+      const r = runners[i];
+      const km = pos[i];
+      const others = lowerBound(sorted, len, km + radius + 1e-9) - lowerBound(sorted, len, km - radius) - 1;
+      const ok = r.trait === 'social' ? others >= TRAITS.socialMinNeighbours : others === 0;
+      trail.get(r.id)!.push({ km: km - r.routeOffsetKm, ok });
+    }
+  }
+  // Between two consecutive samples the bird covers [km_s, km_s+1]: that stretch
+  // counts when the condition held at the start of it.
+  for (const r of watched) {
+    const pts = trail.get(r.id)!;
+    const ranges = out.get(r.id)!;
+    for (let k = 0; k < pts.length; k++) {
+      if (!pts[k].ok) continue;
+      const a = pts[k].km;
+      const b = k + 1 < pts.length ? pts[k + 1].km : r.distanceKm;
+      if (b <= a) continue;
+      const last = ranges[ranges.length - 1];
+      if (last && Math.abs(last[1] - a) < 1e-6) last[1] = b;
+      else ranges.push([a, b]);
+    }
+  }
+  return out;
 }
 
 /**
@@ -768,19 +937,56 @@ function startLiveRelay(flight: Flight, entries: Entry[], week: number): void {
     }
     for (const [legIndex, list] of byLeg) legFields.set(legIndex, fieldContext(list, legKm, week));
   }
+  // Seizoen 3: each leg has its own route, weather and release moment, and her
+  // trait reads THOSE (a Nachtvlieger on the last leg may land in the dark).
+  const legRun = (legIndex: number, offsetSeconds: number, groupKm?: [number, number][]): TraitRun => {
+    const leg = flight.legs?.[legIndex - 1];
+    return {
+      startMs: startMs + offsetSeconds * 1000,
+      from: leg ? { lat: leg.fromLat, lon: leg.fromLon } : undefined,
+      to: leg ? { lat: leg.toLat, lon: leg.toLon } : undefined,
+      weather: { along: leg?.weatherAlong, rain: leg?.weatherRain, tempC: leg?.tempC },
+      groupKm,
+    };
+  };
+  const teams = [...relayEntryTeams(flight)].map(([, teamEntries]) =>
+    teamEntries
+      .map((fe, i) => ({ e: byId.get(fe.pigeonId), legIndex: fe.leg ?? i + 1 }))
+      .filter((x): x is { e: Entry; legIndex: number } => !!x.e),
+  );
+  // One pass over every team: profiles in running order, each released when the
+  // one before it lands. `groupKm` feeds the social/loner bonus (second pass).
+  const planTeams = (groupKm?: Map<string, [number, number][]>) =>
+    teams.map((team) => {
+      let offset = 0;
+      return team.map(({ e, legIndex }) => {
+        const leg = flight.legs?.[legIndex - 1];
+        const prof = buildPaceProfile(
+          flight.id, e.pigeon, legKm, week, leg?.weatherFactor ?? 1, false, legFields.get(legIndex),
+          legRun(legIndex, offset, groupKm?.get(e.pigeon.id)),
+        );
+        const planned = { e, legIndex, prof, offset };
+        offset += prof.durationSeconds;
+        return planned;
+      });
+    });
+  let plan = planTeams();
+  if (teams.some((t) => t.some(({ e }) => isGroupTrait(e.pigeon.trait)))) {
+    const groupKm = groupConditionKm(
+      plan.flat().map((x) => ({
+        id: x.e.pigeon.id, trait: x.e.pigeon.trait, prof: x.prof, offsetSeconds: x.offset,
+        routeOffsetKm: (x.legIndex - 1) * legKm, distanceKm: legKm,
+      })),
+    );
+    // Rebuild every team: a bonus changes a leg time, which moves the release of
+    // the birds behind it (and so their sun).
+    plan = planTeams(groupKm);
+  }
   const sim: SimEntry[] = [];
-  for (const [, teamEntries] of relayEntryTeams(flight)) {
-    let offset = 0;
-    for (let i = 0; i < teamEntries.length; i++) {
-      const fe = teamEntries[i];
-      const e = byId.get(fe.pigeonId);
-      if (!e) continue;
-      const legIndex = fe.leg ?? i + 1;
-      const leg = flight.legs?.[legIndex - 1];
-      const weatherFactor = leg?.weatherFactor ?? 1;
-      const prof = buildPaceProfile(flight.id, e.pigeon, legKm, week, weatherFactor, false, legFields.get(legIndex));
+  for (const team of plan) {
+    for (const { e, legIndex, prof, offset } of team) {
       // Each bird pays only for its own leg — a third of the route.
-      const formCost = round1(routeEnergyCost(e.pigeon.experience, legKm, randFloat(0, FLIGHT_FATIGUE.jitter)));
+      const formCost = round1(routeEnergyCost(e.pigeon.experience, legKm, randFloat(0, FLIGHT_FATIGUE.jitter), e.pigeon.trait === 'frugal'));
       sim.push({
         pigeonId: e.pigeon.id,
         pigeonName: e.pigeon.name,
@@ -799,8 +1005,8 @@ function startLiveRelay(flight: Flight, entries: Entry[], week: number): void {
         formDrained: 0,
         leg: legIndex,
         legStartSeconds: offset,
+        ...traitSimFields(prof),
       });
-      offset += prof.durationSeconds;
     }
   }
   flight.sim = sim;
@@ -906,7 +1112,7 @@ export function flightClaimingDay(
  * a bird can actually fly the distance. Never used for the flight itself.
  */
 export function expectedFlightEnergyCost(pigeon: Pigeon, distanceKm: number): number {
-  return routeEnergyCost(pigeon.experience, distanceKm, FLIGHT_FATIGUE.jitter / 2);
+  return routeEnergyCost(pigeon.experience, distanceKm, FLIGHT_FATIGUE.jitter / 2, pigeon.trait === 'frugal');
 }
 
 /**
@@ -928,9 +1134,13 @@ function flightHealthCost(km: number, endEnergie: number, dnfExtra: number): num
  * roll (0..FLIGHT_FATIGUE.jitter). Ervaring lowers the drain around a pivot of 50;
  * `costMultiplier` scales the whole thing. See FLIGHT_FATIGUE.
  */
-function routeEnergyCost(experience: number, km: number, jitter: number): number {
+function routeEnergyCost(experience: number, km: number, jitter: number, frugal = false): number {
   const expRelief = 1 - (clamp(experience, 0, 100) / 100 - 0.5) * FLIGHT_FATIGUE.experienceReliefSpread;
-  return ((FLIGHT_FATIGUE.base + km / FLIGHT_FATIGUE.perKmDivisor) * expRelief + jitter) * FLIGHT_FATIGUE.costMultiplier;
+  return (
+    ((FLIGHT_FATIGUE.base + km / FLIGHT_FATIGUE.perKmDivisor) * expRelief + jitter) *
+    FLIGHT_FATIGUE.costMultiplier *
+    (frugal ? TRAITS.frugalEnergyMult : 1) // Zuinige vlieger (seizoen 3)
+  );
 }
 
 /**
@@ -1176,6 +1386,7 @@ export function finalizeFlight(flight: Flight, pigeons: Pigeon[]): SimulatedFlig
       points,
       prize,
       finished: !isDnf,
+      ...resultTraitFields(s),
     });
     const acc = payoutMap.get(s.ownerId) ?? { prize: 0, points: 0, wins: 0 };
     // Prize money may already have been paid the instant this bird finished
@@ -1397,6 +1608,7 @@ function finalizeRelayFlight(flight: Flight, pigeons: Pigeon[]): SimulatedFlight
         // the result rows adds up to exactly what the loft was paid.
         prize: leg === RELAY.teamSize ? prize : 0,
         finished: completed,
+        ...(flew ? resultTraitFields(s) : {}),
       });
 
       if (!flew) continue; // never left the handover: no cost, no risk, no gain
@@ -1519,6 +1731,7 @@ function finalizePracticeFlight(flight: Flight, pigeons: Pigeon[]): SimulatedFli
       points: 0,
       prize: 0,
       finished: true,
+      ...resultTraitFields(s),
     });
 
     // Energie: only a little is spent, mostly already drained during the flight.
@@ -1572,6 +1785,10 @@ export interface LiveBird {
    *  actually wandering (see offCourseKm). The map places her with it; the board
    *  ignores it, because the standings are measured along the route. */
   offCourseKm: number;
+  /** Her kenmerk (id) when she has a speed trait that counts somewhere in this
+   *  race, and whether it is working right now (the ✨ on the board). */
+  trait?: string;
+  traitActive?: boolean;
 }
 
 /** One bird's slot in a relay team's running order. */
@@ -1585,6 +1802,9 @@ export interface LiveRelayLeg {
   status: 'wachtend' | 'onderweg' | 'binnen' | 'gestopt';
   /** Signed km beside this leg's straight line (see offCourseKm). */
   offCourseKm: number;
+  /** See LiveBird.trait / traitActive. */
+  trait?: string;
+  traitActive?: boolean;
 }
 
 /** A relay team on the live board: one row, three birds, one baton. */
@@ -1688,6 +1908,7 @@ export function liveSnapshot(flight: Flight, nowMs: number): LiveSnapshot {
       // Only a bird still in the air can be off course: once she is home or out
       // of the race her position is a fact, not a wander.
       offCourseKm: moving ? offCourseKm(s, kmDone) : 0,
+      ...liveTraitFields(s, moving, view),
     };
     return { bird, finishTime: s.durationSeconds, out: gaveUp || stopped };
   });
@@ -1770,6 +1991,7 @@ function relaySnapshot(flight: Flight, nowMs: number): LiveSnapshot {
         leg: legNo, pigeonId: s.pigeonId, pigeonName: s.pigeonName,
         kmDone: legKmDone, kmTotal: legKm, speedKmh: legSpeed, status,
         offCourseKm: legOff,
+        ...liveTraitFields(s, status === 'onderweg', local),
       });
       birds.push({
         pigeonId: s.pigeonId,
@@ -1786,6 +2008,7 @@ function relaySnapshot(flight: Flight, nowMs: number): LiveSnapshot {
         etaSeconds: status === 'onderweg' ? Math.round(Math.max(0, (s.legStartSeconds ?? 0) + s.durationSeconds - elapsed)) : 0,
         liveRank: 0,
         offCourseKm: legOff,
+        ...liveTraitFields(s, status === 'onderweg', local),
       });
       if (status === 'gestopt') break;
       if (status === 'wachtend') break;
@@ -1939,6 +2162,28 @@ const fillLine = (tpl: string, a: string, b?: string, km?: number | string) =>
   tpl.replace('{name}', a).replace('{name2}', b ?? '').replace('{km}', String(km ?? ''));
 
 /**
+ * "Kenmerk slaat aan" lines (seizoen 3). One line per bird, at the start of her
+ * first trait window (a static trait counts from the release, so its line comes
+ * a little into her flight rather than on top of the lossing). Damped to the
+ * COMMENTARY_LIMITS.traitLines best-placed birds, so a field with thirty traits
+ * does not bury the feed. All frozen facts + its own rng stream: deterministic.
+ */
+function traitCommentary(flightId: string, birds: { s: SimEntry; offset: number }[]): CommentLine[] {
+  const rng = seededRng(hashString(flightId + ':trait'));
+  const finish = (b: { s: SimEntry; offset: number }) =>
+    b.s.gaveUp || b.s.dnfAtSeconds != null ? Infinity : b.offset + b.s.durationSeconds;
+  const picked = birds
+    .filter((b) => b.s.trait && b.s.traitWindows?.length && COMMENTARY.trait[b.s.trait])
+    .sort((a, b) => finish(a) - finish(b) || a.s.pigeonId.localeCompare(b.s.pigeonId))
+    .slice(0, COMMENTARY_LIMITS.traitLines);
+  return picked.map((b) => {
+    const w0 = b.s.traitWindows![0][0];
+    const at = w0 > 0 ? w0 : Math.round(b.s.durationSeconds * 0.05);
+    return { atSeconds: b.offset + at, text: fillLine(pickWith(rng, COMMENTARY.trait[b.s.trait!]), b.s.pigeonName) };
+  });
+}
+
+/**
  * How often the report samples the field for THIS race.
  *
  * A fixed 10-minute step means a 50-hour fondvlucht is sampled 300 times, and
@@ -2044,6 +2289,7 @@ export function flightCommentary(flight: Flight, nowMs: number): CommentLine[] {
     if (s.gaveUp || s.dnfAtSeconds != null || s.durationSeconds > total + 0.5) continue;
     lines.push({ atSeconds: s.durationSeconds, text: fillLine(pickWith(finRng, COMMENTARY.finish), s.pigeonName) });
   }
+  lines.push(...traitCommentary(flight.id, flight.sim.map((s) => ({ s, offset: 0 }))));
 
   return lines
     .filter((l) => l.atSeconds <= elapsed + 0.5)
@@ -2304,6 +2550,13 @@ function relayCommentary(flight: Flight, nowMs: number): CommentLine[] {
       }
     }
   }
+  // Only birds that actually got to fly their leg can have a trait kick in.
+  lines.push(...traitCommentary(flight.id, teams.flatMap((team) => {
+    const outAt = team.outAtLeg ?? Infinity;
+    return team.legs
+      .filter((s, i) => (s.leg ?? i + 1) <= outAt)
+      .map((s) => ({ s, offset: s.legStartSeconds ?? 0 }));
+  })));
 
   return lines
     .filter((l) => l.atSeconds <= elapsed + 0.5)

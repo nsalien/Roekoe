@@ -23,6 +23,17 @@ export interface PigeonQuirk {
   emoji: string;
   description: string;
 }
+/** Kenmerk (seizoen 3): één per duif voor het leven, publiek zichtbaar. */
+export interface PigeonTrait {
+  id: string;
+  name: string;
+  emoji: string;
+  rarity: 'gewoon' | 'zeldzaam';
+  kind: 'static' | 'dynamic' | 'passive';
+  /** Wanneer het meetelt, bv. "bij rugwind", "zolang het donker is". */
+  when: string;
+  description: string;
+}
 export interface PigeonBreed {
   id: string;
   name: string;
@@ -156,6 +167,8 @@ export interface Pigeon {
   titles?: PigeonTitle[];
   /** A visible oddity from an inbred pairing (see PIGEON_QUIRKS on the server). */
   quirk?: PigeonQuirk | null;
+  /** Kenmerk (seizoen 3) — null = geen. */
+  trait?: PigeonTrait | null;
 }
 
 export interface Trade {
@@ -353,6 +366,9 @@ export interface FlightResult {
    *  staat in de uitslag, maar kreeg geen geld en geen punten. Ontbreekt op oude
    *  uitslagen — lees als `rewarded !== false`. */
   rewarded?: boolean;
+  /** Kenmerk dat meetelde in deze vlucht + het aandeel van haar vliegtijd (0–1). */
+  trait?: string;
+  traitShare?: number;
 }
 
 export interface Flight {
@@ -385,6 +401,8 @@ export interface Flight {
   cupSprint?: boolean;
   cupPrizes?: PrizeTable;
   weather: string;
+  /** Zonsopgang/-ondergang thuis op de dag van de lossing (niet bij afgelopen vluchten). */
+  sun?: { rise: string | null; set: string | null };
   entryCount: number;
   entries: FlightEntry[];
   bettingOpen: boolean;
@@ -422,6 +440,9 @@ export interface LiveRelayLeg {
   status: 'wachtend' | 'onderweg' | 'binnen' | 'gestopt';
   /** Signed km beside this leg's straight line (see LiveBird.offCourseKm). */
   offCourseKm?: number;
+  /** Kenmerk dat ergens in deze vlucht meetelt, en of het NU werkt (✨). */
+  trait?: string;
+  traitActive?: boolean;
 }
 
 export interface LiveRelayTeam {
@@ -458,6 +479,9 @@ export interface LiveBird {
    *  genuinely wandering off course. Drives the live map; the board ignores it.
    *  Optional: a flight frozen before the map shipped does not carry it. */
   offCourseKm?: number;
+  /** Kenmerk dat ergens in deze vlucht meetelt, en of het NU werkt (✨). */
+  trait?: string;
+  traitActive?: boolean;
 }
 
 export interface LiveSnapshot {
@@ -869,6 +893,7 @@ export interface BroodYoung {
   breed: Pigeon['breed'];
   genes: { speed: number; endurance: number; orientation: number } | null;
   declineRate: number;
+  trait?: PigeonTrait | null;
 }
 
 /** Where a waiting bird came from — see `BroodOrigin` in core/schema.ts. */
@@ -915,6 +940,7 @@ export interface FamilyMember {
    *  juiste foto te kiezen (een duif met een afwijking krijgt de getekende duif). */
   breed: PigeonBreed | null;
   quirk: PigeonQuirk | null;
+  trait?: PigeonTrait | null;
 }
 
 /** Eén vakje in de voorouderboom. */

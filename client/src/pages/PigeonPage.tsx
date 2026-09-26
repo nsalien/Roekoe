@@ -5,7 +5,7 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import { api } from '../api/client';
 import { useGame } from '../game/GameContext';
 import { PigeonAvatar } from '../components/PigeonAvatar';
-import { BreedBadge, Money, PigeonStats, SexBadge, Spinner, formatFlightTime, useToast } from '../components/ui';
+import { BreedBadge, Money, PigeonStats, SexBadge, Spinner, TraitBadge, formatFlightTime, useToast } from '../components/ui';
 import type { AncestorNode, FamilyTree, Pigeon, RaceHistoryRow } from '../types';
 import { Pedigree } from '../components/Pedigree';
 
@@ -145,6 +145,7 @@ export function PigeonPage() {
                     {p.quirk.emoji} {p.quirk.name}
                   </span>
                 )}
+                <TraitBadge trait={p.trait} expandable />
                 {p.forSale && <span className="badge sale">te koop · <Money value={p.price ?? 0} /></span>}
                 {p.forSale && p.minBid != null && (
                   <span className="badge" title="Kopers mogen vanaf dit bedrag een bod doen dat jij aanvaardt of weigert">

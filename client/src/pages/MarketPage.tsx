@@ -7,7 +7,7 @@ import { useAuth } from '../auth/AuthContext';
 import { useGame } from '../game/GameContext';
 import { markMarketSeen } from '../game/marketSeen';
 import { useVisiblePoll } from '../game/useVisiblePoll';
-import { BreedBadge, Money, PigeonStats, Spinner, countdownTo, useToast } from '../components/ui';
+import { BreedBadge, Money, PigeonStats, Spinner, TraitBadge, countdownTo, useToast } from '../components/ui';
 import { PigeonCard } from '../components/PigeonCard';
 import { PigeonAvatar } from '../components/PigeonAvatar';
 import type { AuctionInfo, OfferView, Pigeon, Trade } from '../types';
@@ -529,7 +529,7 @@ function AuctionCard({
       </div>
 
       {/* Full width, so a long breed name never wraps in the narrow column. */}
-      <div style={{ marginTop: 8 }}><BreedBadge breed={p.breed} /></div>
+      <div className="row" style={{ marginTop: 8, gap: 6, flexWrap: 'wrap' }}><BreedBadge breed={p.breed} /><TraitBadge trait={p.trait} /></div>
 
       {/* You must be able to see what you are bidding on: an auction bird shows
           its full attributes, just like a bird listed on the market. */}

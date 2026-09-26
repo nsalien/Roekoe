@@ -23,6 +23,7 @@ import {
   INFIRMARY,
   INJURIES,
   type AilmentTemplate,
+  TRAITS,
 } from '../config/gameConfig.js';
 import type { Ailment, Database, Loft, Pigeon } from '../schema.js';
 import { newId } from '../store.js';
@@ -306,7 +307,9 @@ export function runHealthDay(db: Database, week: number): void {
       const perSource = weeklyToDaily(HEALTH.contagionPerSource) * susceptibility;
       const fromOthers = sources > 0 ? 1 - Math.pow(1 - perSource, sources) : 0;
       const compartmentGuard = p.compartment ? 1 - COMPARTMENT.diseaseReduction : 1;
-      const chance = clamp(1 - (1 - fromOthers) * (1 - spontaneous), 0, 0.85) * compartmentGuard;
+      // IJzeren gestel (seizoen 3): falls ill less often — contagion and spontaneous.
+      const sturdy = p.trait === 'sturdy' ? TRAITS.sturdyIllnessMult : 1;
+      const chance = clamp(1 - (1 - fromOthers) * (1 - spontaneous), 0, 0.85) * compartmentGuard * sturdy;
       if (Math.random() < chance) {
         const disease = randomDisease(week, condition);
         applyAilment(p, disease);
@@ -501,7 +504,9 @@ export function runHealthWeek(db: Database, week: number): HealthEvent[] {
       const spontaneous = HEALTH.spontaneousIllness * frailty * energyRisk;
       // A private compartment keeps this bird apart, cutting its onset chance.
       const compartmentGuard = p.compartment ? 1 - COMPARTMENT.diseaseReduction : 1;
-      const chance = clamp(1 - (1 - fromOthers) * (1 - spontaneous), 0, 0.85) * compartmentGuard;
+      // IJzeren gestel (seizoen 3): falls ill less often — contagion and spontaneous.
+      const sturdy = p.trait === 'sturdy' ? TRAITS.sturdyIllnessMult : 1;
+      const chance = clamp(1 - (1 - fromOthers) * (1 - spontaneous), 0, 0.85) * compartmentGuard * sturdy;
       if (Math.random() < chance) {
         const disease = randomDisease(week, p.health);
         applyAilment(p, disease);

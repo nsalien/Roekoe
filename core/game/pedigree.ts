@@ -23,6 +23,7 @@ import { INBREEDING, type KinshipDegree } from '../config/gameConfig.js';
 import type { Database, Pigeon } from '../schema.js';
 import { breedInfo, talent } from './pigeon.js';
 import { BREED_RARITY, quirkById } from '../config/gameConfig.js';
+import { traitDTO } from './traits.js';
 
 /** What every box in the family view shows — public facts only. */
 export interface FamilyMember {
@@ -45,6 +46,8 @@ export interface FamilyMember {
    */
   breed: { id: string; name: string; rarity: string; rarityLabel: string; image: string } | null;
   quirk: { id: string; name: string; emoji: string; description: string } | null;
+  /** Kenmerk (seizoen 3) — public, shown as a small badge. Absent = none/unknown. */
+  trait?: ReturnType<typeof traitDTO>;
 }
 
 /** The breed exactly as `pigeonDTO` sends it, so one avatar component serves both. */
@@ -227,6 +230,7 @@ export function familyOf(db: Database, pigeon: Pigeon, generations: number): Fam
     talent: talent(b),
     breed: breedPayload(b.breed),
     quirk: quirkPayload(b.quirk),
+    trait: traitDTO(b.trait),
   });
 
   // Parent id → its young. Both parents are indexed, so one map serves children

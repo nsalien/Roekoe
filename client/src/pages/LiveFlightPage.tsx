@@ -6,7 +6,7 @@ import { api } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
 import { useGame } from '../game/GameContext';
 import { useVisiblePoll } from '../game/useVisiblePoll';
-import { Money, Spinner, countdownTo, formatFlightTime, useToast } from '../components/ui';
+import { Money, Spinner, TRAIT_LABELS, TraitResultMark, countdownTo, formatFlightTime, useToast } from '../components/ui';
 import { MapErrorBoundary } from '../components/MapErrorBoundary';
 import { ReactionPicker } from '../components/ReactionPicker';
 import type { ChatLine, LiveFlight, LiveResponse } from '../types';
@@ -314,6 +314,7 @@ export function LiveFlightPage() {
                         <div key={l.pigeonId} className="row" style={{ justifyContent: 'space-between', gap: 8, fontSize: '0.82rem', opacity: l.status === 'wachtend' ? 0.55 : 1 }}>
                           <span style={{ minWidth: 0, overflowWrap: 'anywhere' }}>
                             {l.status === 'binnen' ? '✅' : flying ? '🔴' : l.status === 'gestopt' ? '💥' : '⏳'} etappe {l.leg} · {l.pigeonName}
+                            {l.traitActive && l.trait && <span title={`${TRAIT_LABELS[l.trait]?.name ?? 'Kenmerk'} vliegt nu op haar best`}> ✨{TRAIT_LABELS[l.trait]?.emoji ?? ''}</span>}
                           </span>
                           <span className="row" style={{ gap: 6, flexShrink: 0 }}>
                             <span className="faint">{l.kmDone} / {l.kmTotal} km</span>
@@ -359,6 +360,9 @@ export function LiveFlightPage() {
                   <div className="row" style={{ justifyContent: 'space-between', fontSize: '0.9rem' }}>
                     <span className="stat-label">
                       <strong>{b.gaveUp ? '—' : `${b.liveRank}.`}</strong> {mine ? <strong>{b.pigeonName}</strong> : b.pigeonName}
+                      {b.traitActive && b.trait && (
+                        <span title={`${TRAIT_LABELS[b.trait]?.name ?? 'Kenmerk'} vliegt nu op haar best`}> ✨{TRAIT_LABELS[b.trait]?.emoji ?? ''}</span>
+                      )}
                       {mine && <span className="badge club" style={{ marginLeft: 6 }}>jij</span>}
                       <span className="faint"> · {b.ownerName}</span>
                     </span>
@@ -459,6 +463,7 @@ export function LiveFlightPage() {
                     <td>{r.rank === 1 ? '🥇' : r.rank === 2 ? '🥈' : r.rank === 3 ? '🥉' : r.rank}</td>
                     <td>
                       {r.pigeonName}
+                      <TraitResultMark trait={r.trait} share={r.traitShare} />
                       {flight.relay && <span className="faint"> · etappe {legOf(flight, r.pigeonId) ?? '?'}</span>}
                     </td>
                     <td>{r.ownerName}</td>

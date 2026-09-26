@@ -34,6 +34,7 @@ const SECTIONS = [
   { id: 'ziekte', icon: '🤒', label: 'Ziekte' },
   { id: 'ziekenboeg', icon: '🏥', label: 'De ziekenboeg' },
   { id: 'sterfte', icon: '🕯️', label: 'Sterfte' },
+  { id: 'kenmerken', icon: '✨', label: 'Kenmerken' },
   { id: 'rassen', icon: '🎨', label: 'Rassen' },
   { id: 'veilingen', icon: '🔨', label: 'Veilingen & bieden' },
   { id: 'hok', icon: '🏠', label: 'Hok & onderhoudskosten' },
@@ -1191,6 +1192,61 @@ export function WikiPage() {
           <li><strong>Vlucht:</strong> enkel een zo goed als lege duif (onder ± 5 energie) riskeert de dood tijdens een race.</li>
         </ul>
         <p><strong>Strategie:</strong> verzorg aandoeningen op tijd in de ziekenboeg, race geen uitgeputte duiven, en kweek tijdig opvolging voor je oudere kampioenen.</p>
+      </Section>
+
+      <Section id="kenmerken" icon="✨" title="Kenmerken">
+        <p className="muted" style={{ marginTop: 0 }}>
+          Sinds seizoen 3 heeft ongeveer <strong>één duif op drie</strong> een <strong>kenmerk</strong>: een eigenschap
+          voor het leven, zichtbaar voor iedereen (op de duifkaart, de markt, de veiling en de stamboom). Een kenmerk is
+          <strong> altijd een voordeel</strong> — nooit een nadeel.
+        </p>
+        <ul>
+          <li><strong>Snelheidskenmerken</strong> geven <strong>+5 % snelheid</strong>, maar enkel in hun eigen situatie
+            (weer, temperatuur, afstand, licht/donker of gezelschap).</li>
+          <li><strong>Passieve kenmerken</strong> werken altijd: minder verdwalen, minder energie of minder ziek.</li>
+          <li>Van alle duiven met een kenmerk heeft ≈ 80 % een <strong>gewoon</strong> en ≈ 20 % een
+            <strong> zeldzaam</strong> kenmerk. Een kenmerk maakt een duif ook wat meer waard (gewoon +5 %, zeldzaam +12 %).</li>
+        </ul>
+        <MiniTable
+          head={['Kenmerk', 'Zeldzaamheid', 'Wanneer', 'Effect']}
+          rows={[
+            ['🌬️ Snelle flapper', 'gewoon', 'bij rugwind', '+5 % snelheid'],
+            ['🪨 Stormbreker', 'gewoon', 'bij tegenwind', '+5 % snelheid'],
+            ['🌧️ Regenvogel', 'gewoon', 'bij regen', '+5 % snelheid'],
+            ['☀️ Mooiweervlieger', 'gewoon', 'bij kalm, droog weer', '+5 % snelheid'],
+            ['🌙 Nachtvlieger', 'gewoon', 'zolang het donker is', '+5 % snelheid'],
+            ['⚡ Sprinter', 'gewoon', 'vluchten tot 200 km', '+5 % snelheid'],
+            ['🏔️ Fondvogel', 'gewoon', 'vluchten vanaf 600 km', '+5 % snelheid'],
+            ['🐦 Sociale duif', 'gewoon', 'min. 2 andere duiven binnen 10 km', '+5 % snelheid'],
+            ['🦅 Eenzaat', 'gewoon', 'geen enkele duif binnen 10 km', '+5 % snelheid'],
+            ['❄️ Koudevlieger', 'zeldzaam', 'onder 10 °C', '+5 % snelheid'],
+            ['🔥 Zomervogel', 'zeldzaam', 'vanaf 10 °C', '+5 % snelheid'],
+            ['🌞 Dagvlieger', 'zeldzaam', 'zolang het licht is', '+5 % snelheid'],
+            ['🧭 Thuisvinder', 'zeldzaam', 'altijd', '25 % minder kans om te verdwalen'],
+            ['🔋 Zuinige vlieger', 'zeldzaam', 'altijd', '8 % minder energie per vlucht'],
+            ['🛡️ IJzeren gestel', 'zeldzaam', 'altijd', '30 % minder kans om ziek te worden'],
+          ]}
+        />
+        <p style={{ marginTop: 12 }}><strong>Weer en temperatuur.</strong> Het weerbericht van een vlucht vermeldt nu ook
+          de temperatuur. Rugwind of tegenwind telt vanaf ongeveer 6 km/u langs de route; “kalm, droog” betekent geen
+          regen en minder wind dan dat. Die kenmerken gelden dan voor de <strong>hele vlucht</strong>.</p>
+        <p><strong>Licht en donker.</strong> Nachtvlieger en Dagvlieger kijken naar de échte zon: zonsopgang en
+          -ondergang op de plek waar de duif op dat moment vliegt. Vertrekt een vlucht bij daglicht en valt de avond
+          halverwege, dan krijgt een Nachtvlieger haar bonus <strong>enkel op het donkere stuk</strong>. Op de
+          vluchtkaart staan zonsopgang 🌅 en zonsondergang 🌇 van die dag, zodat je kan inschatten wie in het donker
+          thuiskomt.</p>
+        <p><strong>Gezelschap.</strong> Sociale duif en Eenzaat kijken om de paar minuten hoeveel duiven er binnen
+          10 km vliegen — je eigen duiven tellen mee, duiven die al thuis zijn niet. De bonus telt enkel voor de stukken
+          waar dat klopt.</p>
+        <p><strong>Tijdens de vlucht</strong> zie je op het live bord een ✨ bij de duif zolang haar kenmerk werkt, en in
+          de uitslag staat een ✨ achter de duiven bij wie het meetelde (bij licht/donker en gezelschap met het deel
+          van de vlucht, bv. “🌙 38 %”).</p>
+        <p><strong>Overerving.</strong> Een jong erft het kenmerk van elke ouder met ≈ 35 % kans (eerst van de vader,
+          dan van de moeder). Hebben <strong>beide ouders hetzelfde kenmerk</strong>, dan is dat ≈ 60 %. Erft het jong
+          niets, dan krijgt het de gewone kans op een eigen kenmerk. Zo kan je een lijn op een kenmerk kweken.</p>
+        <p><strong>Strategie:</strong> +5 % is een klein maar echt voordeel — in haar eigen situatie wint een duif met
+          kenmerk zo’n drie duels op vier van een identieke duif zonder. Kijk bij het inschrijven naar het weer en de
+          afstand: een Sprinter op een korte vlucht is “in haar element”.</p>
       </Section>
 
       <Section id="rassen" icon="🎨" title="Rassen (breeds)">
