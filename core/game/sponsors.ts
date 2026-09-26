@@ -464,6 +464,66 @@ export function reviewSponsorContracts(db: Database, loft: Loft, endedSeason: nu
   st.active = keep;
 }
 
+/** A contract `restoreSeasonReviewDrops` put back, with the stipend it made good. */
+export interface RestoredSponsor {
+  def: SponsorDef;
+  dailyStipend: number;
+  backPay: number; // daily stipends missed between the walk-out and now
+}
+
+/**
+ * Undo the season review's walk-outs at the rollover that STARTED the current
+ * season (owner request: the review of seizoen 2 was too strict).
+ *
+ * A walk-out leaves only a `declined` row stamped with the exact rollover moment
+ * (`reviewSponsorContracts` is called with `atMs = start + SEASON_MS`, which is
+ * also the new `world.seasonStartedAt`), so that stamp identifies them — a
+ * player's own refusal can't land on that same millisecond.
+ *
+ * ⚠️ The dropped contract's own terms were NOT kept, so the sponsor comes back on
+ * its catalogue terms. That is identical for every contract signed on a first
+ * offer or as the starter sponsor; a contract signed on a re-offer (×0.7–1.5)
+ * gets the catalogue value instead of its scaled one.
+ *
+ * - `refPoints` is left empty, so the next rollover only records a baseline: the
+ *   restored sponsor cannot walk out again at the end of this season.
+ * - Daily stipends missed since the walk-out (midnights up to `lastDailyTick`)
+ *   are paid out once. Podium premiums of races in between are not.
+ * - Skipped when another sponsor of the same category is active now (the player
+ *   signed a rival in the meantime — one per category).
+ * - No signing bonus: the sponsor was already signed.
+ */
+export function restoreSeasonReviewDrops(
+  loft: Loft,
+  seasonStartedAt: string,
+  lastDailyTick: string | undefined,
+): RestoredSponsor[] {
+  if (loft.isBot) return [];
+  const st = state(loft);
+  const dropAt = Date.parse(seasonStartedAt);
+  if (Number.isNaN(dropAt)) return [];
+  const drops = st.declined.filter((d) => Date.parse(d.at) === dropAt && !d.permanent);
+  if (drops.length === 0) return [];
+
+  const last = lastDailyTick ? Date.parse(lastDailyTick) : NaN;
+  const missedDays = !Number.isNaN(last) && last > dropAt ? Math.floor((last - dropAt) / 86400000) + 1 : 0;
+
+  const restored: RestoredSponsor[] = [];
+  for (const d of drops) {
+    const def = BY_ID.get(d.id);
+    if (!def) continue;
+    if (st.active.some((c) => c.id === d.id)) continue; // already back (signed again)
+    if (st.active.some((c) => BY_ID.get(c.id)?.category === def.category)) continue; // rival signed since
+    st.active.push({ id: d.id, since: seasonStartedAt, dailyStipend: def.dailyStipend, podiumBase: def.podiumBase });
+    st.declined = st.declined.filter((x) => x.id !== d.id);
+    st.offers = st.offers.filter((o) => o.id !== d.id);
+    const backPay = def.dailyStipend * missedDays;
+    loft.money += backPay;
+    restored.push({ def, dailyStipend: def.dailyStipend, backPay });
+  }
+  return restored;
+}
+
 function sponsorDTO(def: SponsorDef, terms: OfferTerms, signed: boolean) {
   return {
     id: def.id,

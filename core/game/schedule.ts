@@ -86,7 +86,7 @@ import {
 import { inheritanceCard } from './events.js';
 import { tickSeason } from './season.js';
 import { progressMissions } from './missions.js';
-import { activeContracts, evaluateSponsorOffers, offerStarterSponsor } from './sponsors.js';
+import { activeContracts, evaluateSponsorOffers, offerStarterSponsor, restoreSeasonReviewDrops } from './sponsors.js';
 import {
   applyFlightEffects,
   computeFinishPayouts,
@@ -1035,7 +1035,7 @@ export function tickFlights(
 }
 
 /** One-time data fixes (guarded by world.dataVersion). */
-function runDataMigrations(db: Database): void {
+export function runDataMigrations(db: Database): void {
   if ((db.world.dataVersion ?? 0) < 1) {
     // Give every existing bird a funny name.
     for (const p of db.pigeons) {
@@ -2249,6 +2249,31 @@ function runDataMigrations(db: Database): void {
     if (targets.length > 0) voidOrphanedBets(db);
 
     db.world.dataVersion = 52;
+  }
+
+  if ((db.world.dataVersion ?? 0) < 53) {
+    // One-off (owner request): the season review at the start of seizoen 3 was
+    // too strict — give back every sponsor that walked out at that rollover, on
+    // the same terms, with the daily stipends missed since. See
+    // restoreSeasonReviewDrops for exactly what "the same" can and cannot mean.
+    const startedAt = db.world.seasonStartedAt;
+    if (startedAt) {
+      for (const loft of db.lofts) {
+        const back = restoreSeasonReviewDrops(loft, startedAt, db.world.lastDailyTick);
+        if (back.length === 0) continue;
+        const lines = back.map((r) => `${r.def.icon} ${r.def.name} (€${r.dailyStipend} per dag)`);
+        const backPay = back.reduce((s, r) => s + r.backPay, 0);
+        pushNotification(
+          db, loft.userId, 'info',
+          back.length === 1 ? `🤝 ${back[0].def.name} is terug` : `🤝 Je sponsors zijn terug`,
+          `De beoordeling bij de start van dit seizoen was te streng. Deze sponsor${back.length === 1 ? ' staat' : 's staan'} weer bij je onder contract, zoals voorheen: ${lines.join(' · ')}.` +
+            (backPay > 0 ? ` Wat je sindsdien misliep, is bijbetaald: €${backPay}.` : '') +
+            ' Ze beoordelen je pas opnieuw op het einde van het volgende seizoen.',
+          null, `ntf:sponsorrestore:${loft.userId}`,
+        );
+      }
+    }
+    db.world.dataVersion = 53;
   }
 }
 
