@@ -150,7 +150,7 @@ krijgen.**
 `core/game/schedule.ts` → `advanceRealtime(db, nowMs, weatherByFlight)` roept in
 volgorde:
 1. `runDataMigrations(db)` — eenmalige datafixes, **gated op `world.dataVersion`**
-   (staat nu op **53**; nieuwe migratie = nieuw `if ((db.world.dataVersion ?? 0) < N)`
+   (staat nu op **54**; nieuwe migratie = nieuw `if ((db.world.dataVersion ?? 0) < N)`
    blok + `db.world.dataVersion = N`). De oudere migraties hebben hun werk gedaan en
    zijn enkel nog van belang als **patroon** — zie §8, kop *Eenmalige migraties*.
 2. `ensureFlightsScheduled(db, nowMs)` — plant vluchten volgens `REAL_SCHEDULE`.
@@ -1106,6 +1106,7 @@ npx tsx tests/player-removal.test.mts    # een speler verwijderen: alles weg, de
 npx tsx tests/debt.test.mts               # schuld: de poort, de bodem, en de afslag per ronde
 npx tsx tests/sponsor-restore.test.mts    # v53: de sponsors van de wissel naar seizoen 3 terug
 npx tsx tests/coach-salary.test.mts       # coach per score, gratis starterscoach = duurste, trainen +1
+npx tsx tests/sponsor-cap.test.mts        # max 6 sponsors, tier 4 ×0,25/dag, verplichte gratis afbouw
 ```
 Alles in één keer (bash, vanuit de root):
 ```bash
@@ -4262,6 +4263,20 @@ Hieronder enkel wat je nodig hebt om eraan te werken.)
   Eerste seizoen na tekenen = enkel ijkpunt; `minReviewPoints` (20) dempt ruis.
   ⚠️ Bij zo'n vertrek worden de **voorwaarden van het contract niet bewaard** (enkel
   `{id, at, perf}` in `declined`), dus een exact herstel is achteraf onmogelijk.
+- **Sponsorlimiet (seizoen 3, migratie v54):** `SPONSOR_MAX_ACTIVE 6`; tier ≥
+  `SPONSOR_HIGH_TIER` (4) betaalt `SPONSOR_HIGH_TIER_DAILY_MULT` (0.25) van het dagbedrag
+  via `tierDailyMult`/`catalogDaily` (sponsors.ts) in `baseTerms`, `scaledTerms` en de
+  `legacyDaily`-terugval — **nooit** op opgeslagen voorwaarden bij het lezen (dat zou
+  dubbel tellen); bestaande contracten en open aanbiedingen zijn één keer verlaagd door
+  v54 (`applySponsorLimitMigration`). Een zevende tekenen: `applyAcceptSponsor(…,
+  dropSponsorId)` zegt eerst die op, tegen de gewone `breakPenalty`; een overstap binnen
+  een categorie telt niet. Te veel bij v54 → `SponsorState.mustReduce` (in de
+  `sponsorship`-JSON; `state()` wist hem vanzelf zodra het ≤ 6 is) + actiemelding
+  `ntf:season3:sponsorcap:<userId>`; zolang hij staat is `sponsorsPaused(loft)` waar en
+  betaalt **geen** sponsor (dagbedrag in `tickDailyCare`, podiumpremie in `tickFlights`;
+  de dagbalans toont €0 + `sponsorsPaused`). Gratis afbouwen: `applyReduceSponsors` /
+  `POST /api/sponsors/reduce`. `refusalIsFinal` is nooit waar voor een aanbod uit een
+  **hogere tier** dan de huidige sponsor in die categorie. Test: `tests/sponsor-cap.test.mts`.
 - **Migratie v53 — de sponsors van de wissel naar seizoen 3 terug** (owner: "iets te
   streng"). `restoreSeasonReviewDrops` (sponsors.ts) herkent de vertrekkers aan
   `declined.at === world.seasonStartedAt` (de review krijgt `atMs = start + SEASON_MS`,

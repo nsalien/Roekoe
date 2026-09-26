@@ -252,6 +252,14 @@ export function Layout() {
       </div>
 
       <main className="container page">
+        {/* Seizoen 3 sponsor limit: too many contracts → none pays until the player
+            has chosen. Shown on every page until it is resolved. */}
+        {state?.loft?.sponsorsMustReduce && (
+          <div className="card" style={{ borderColor: 'var(--bad)', background: 'var(--bad-soft)', marginBottom: 14 }}>
+            ⚠️ <strong>Je hebt te veel sponsors.</strong> Tot je er een paar (gratis) laat gaan, betaalt geen enkele
+            sponsor uit. <Link to="/sponsors">Kies je sponsors →</Link>
+          </div>
+        )}
         <Outlet />
       </main>
 

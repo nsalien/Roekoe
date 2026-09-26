@@ -376,9 +376,16 @@ export function WikiPage() {
             ['1 — buurtsponsor', '€25 – €40', '€50 – €70'],
             ['2 — lokale zaak', '€45 – €70', '€85 – €120'],
             ['3 — grote speler', '€90 – €135', '€145 – €215'],
-            ['4 — prestige', '€150 – €200', '€235 – €310'],
+            ['4 — prestige', '€40 – €50', '€235 – €310'],
           ]}
         />
+        <p className="notice" style={{ marginTop: 10 }}>
+          ⚠️ <strong>Hoogstens 6 sponsors tegelijk.</strong> Wil je een zevende, dan zeg je er eerst een op — dat kost
+          de gewone verbrekingsvergoeding. Overstappen naar een concurrent in dezelfde categorie blijft gewoon kunnen.
+          De prestigesponsors (tier 4) betalen sinds seizoen 3 per dag een kwart van vroeger; hun tekengeld en
+          podiumpremie bleven. Weiger je een sponsor uit een <strong>hogere tier</strong> dan je huidige in die
+          categorie, dan mag hij later gewoon terugkomen.
+        </p>
         <p style={{ marginTop: 12 }}>
           <strong>De premie hangt af van de vlucht én van je plaats.</strong> Een sponsor heeft er meer aan dat zijn
           logo bij een internationale zege hangt dan bij een regiovlucht, dus hij betaalt in verhouding tot het

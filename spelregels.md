@@ -2105,8 +2105,15 @@ verliezen van iets beters dat jij bedenkt.
     alle drie de premies. Na elke wedstrijd waarin je scoort, krijg je een
     melding met wat elke sponsor precies betaalde.
   - **Orde van grootte.** Een buurtsponsor (tier 1) geeft €25–40 per dag en
-    €50–70 voor een nationale zege; een prestigesponsor (tier 4) €150–200 per
-    dag en €235–310. Drie buurtsponsors samen dekken dus ruwweg een derde van de
+    €50–70 voor een nationale zege; een prestigesponsor (tier 4) €40–50 per
+    dag en €235–310. (Tier 4 betaalde tot seizoen 3 €150–200 per dag; sindsdien
+    een kwart daarvan. Tekengeld en podiumpremie bleven.)
+  - **Hoogstens 6 sponsors tegelijk.** Wil je een zevende tekenen, dan zeg je in
+    dezelfde handeling een van je sponsors op — tegen de gewone
+    **verbrekingsvergoeding**. Overstappen naar een concurrent in dezelfde
+    categorie telt niet als een zevende. Had je er bij de start van seizoen 3 meer
+    dan 6, dan moest je er zelf een paar laten gaan — gratis — en tot dan betaalde
+    **geen enkele** sponsor uit (niets nabetaald). Drie buurtsponsors samen dekken dus ruwweg een derde van de
     dagelijkse kosten van een gemiddeld hok.
   - Je kan **meerdere sponsors tegelijk** hebben, maar **per categorie** (café,
     frituur, bakkerij, …) telkens maar **één** — concurrenten vechten om jou. Wil
@@ -2126,7 +2133,9 @@ verliezen van iets beters dat jij bedenkt.
     dan hoef je er niet elke paar dagen opnieuw nee tegen te zeggen. De
     sponsorpagina waarschuwt je vooraf en vraagt een bevestiging.
     Een concurrent die **méér** biedt blijft wél terugkomen: die weiger je
-    misschien alleen omdat de boete er nú niet in zit.
+    misschien alleen omdat de boete er nú niet in zit. Een sponsor uit een
+    **hogere tier** dan je huidige komt ook altijd terug, ook als hij per dag
+    minder betaalt.
   - **Een sponsor kan zélf opstappen na een seizoen.** Bij de seizoenswissel (§15)
     vergelijkt elke sponsor je seizoenspunten met die van het **vorige** seizoen.
     Zakken ze tot **onder 60%** daarvan, dan vindt de sponsor dat je niet meer zo

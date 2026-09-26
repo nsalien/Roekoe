@@ -14,6 +14,10 @@ export function SponsorsPage() {
   const toast = useToast();
   const [view, setView] = useState<SponsorView | null>(null);
   const [busy, setBusy] = useState(false);
+  // An offer waiting for the player to pick which contract to drop (at the limit).
+  const [pending, setPending] = useState<Sponsor | null>(null);
+  // Contracts ticked for the forced (free) reduction.
+  const [dropIds, setDropIds] = useState<string[]>([]);
 
   const load = useCallback(async () => {
     setView(await api<SponsorView>('/sponsors'));
@@ -37,6 +41,11 @@ export function SponsorsPage() {
   }
 
   function accept(s: Sponsor) {
+    // At the limit (and not a switch within a category): first choose who goes.
+    if (!s.conflictWith && view && view.active.length >= (view.maxActive ?? Infinity)) {
+      setPending(s);
+      return;
+    }
     if (s.conflictWith) {
       const ok = window.confirm(
         `Je hebt al ${s.conflictWith} in de categorie ${s.categoryLabel}. Overstappen naar ${s.name} kost een verbrekingsvergoeding van €${s.conflictPenalty}. Doorgaan?`,
@@ -45,6 +54,17 @@ export function SponsorsPage() {
       return run(() => api('/sponsors/accept', { method: 'POST', body: { sponsorId: s.id, replace: true } }));
     }
     return run(() => api('/sponsors/accept', { method: 'POST', body: { sponsorId: s.id } }));
+  }
+
+  function acceptDropping(s: Sponsor, drop: Sponsor) {
+    if (!window.confirm(`${drop.name} opzeggen (verbrekingsvergoeding €${drop.breakPenalty}) om ${s.name} te tekenen?`)) return;
+    setPending(null);
+    return run(() => api('/sponsors/accept', { method: 'POST', body: { sponsorId: s.id, dropSponsorId: drop.id } }));
+  }
+
+  function reduce() {
+    setDropIds([]);
+    return run(() => api('/sponsors/reduce', { method: 'POST', body: { sponsorIds: dropIds } }));
   }
 
   function refuse(s: Sponsor) {
@@ -58,6 +78,8 @@ export function SponsorsPage() {
 
   if (!view) return <Spinner />;
   const nothing = view.active.length === 0 && view.offers.length === 0;
+  const max = view.maxActive ?? null;
+  const mustDrop = max != null ? Math.max(0, view.active.length - max) : 0;
 
   return (
     <div>
@@ -66,12 +88,63 @@ export function SponsorsPage() {
           <h1>Sponsors</h1>
           <p className="muted" style={{ marginBottom: 4 }}>
             Sponsors kloppen pas aan ná een podium. Eén per categorie. Je beste duif heeft talent {view.bestTalent}.
+            {max != null && <> <strong>Sponsors: {view.active.length} / {max}</strong>.</>}
           </p>
           <p className="faint" style={{ margin: 0, fontSize: '0.82rem' }}>
             <Link to="/wiki#sponsors">Meer over sponsors &amp; podiumpremies →</Link>
           </p>
         </div>
       </div>
+
+      {view.mustReduce && (
+        <div className="card" style={{ borderColor: 'var(--bad)', marginBottom: 16 }}>
+          <strong style={{ color: 'var(--bad)' }}>⚠️ Kies je sponsors</strong>
+          <p className="muted" style={{ margin: '6px 0 10px' }}>
+            Je hebt {view.active.length} sponsors, het maximum is {max}. Kies er <strong>{mustDrop}</strong> om op te
+            zeggen — <strong>gratis</strong>. Tot dan betaalt geen enkele sponsor uit.
+          </p>
+          <div className="stack" style={{ gap: 6 }}>
+            {view.active.map((s) => (
+              <label key={s.id} className="row" style={{ gap: 8, cursor: 'pointer' }}>
+                <input
+                  type="checkbox"
+                  checked={dropIds.includes(s.id)}
+                  onChange={(e) => setDropIds((ids) => (e.target.checked ? [...ids, s.id] : ids.filter((x) => x !== s.id)))}
+                />
+                <span>{s.icon} {s.name} · <Money value={s.dailyStipend} />/dag</span>
+              </label>
+            ))}
+          </div>
+          <button
+            className="btn accent block"
+            style={{ marginTop: 10 }}
+            disabled={busy || view.active.length - dropIds.length > (max ?? 0) || dropIds.length === 0}
+            onClick={reduce}
+          >
+            {view.active.length - dropIds.length > (max ?? 0)
+              ? `Kies er nog ${view.active.length - dropIds.length - (max ?? 0)}`
+              : `Deze ${dropIds.length} gratis opzeggen`}
+          </button>
+        </div>
+      )}
+
+      {pending && (
+        <div className="card" style={{ borderColor: 'var(--accent)', marginBottom: 16 }}>
+          <strong>Wie laat je gaan voor {pending.name}?</strong>
+          <p className="muted" style={{ margin: '6px 0 10px' }}>
+            Je hebt al {view.active.length} sponsors, het maximum. Kies er een om op te zeggen; dat kost de gewone
+            verbrekingsvergoeding.
+          </p>
+          <div className="stack" style={{ gap: 6 }}>
+            {view.active.map((a) => (
+              <button key={a.id} className="btn secondary block" disabled={busy} onClick={() => acceptDropping(pending, a)}>
+                {a.icon} {a.name} · <Money value={a.dailyStipend} />/dag · boete <Money value={a.breakPenalty} />
+              </button>
+            ))}
+          </div>
+          <button className="btn ghost sm" style={{ marginTop: 8 }} onClick={() => setPending(null)}>Annuleren</button>
+        </div>
+      )}
 
       {nothing && (
         <div className="card muted">

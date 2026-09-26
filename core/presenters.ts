@@ -267,6 +267,9 @@ export function loftDTO(db: Database, loft: Loft) {
     name: loft.name,
     sponsorCount: loft.sponsorship?.active.length ?? 0,
     sponsorOfferCount: loft.sponsorship?.offers.length ?? 0,
+    // Seizoen 3 limit: the loft must drop sponsors first — no sponsor pays until
+    // then. Drives the red bar in the layout.
+    sponsorsMustReduce: loft.sponsorship?.mustReduce === true,
     money: Math.round(loft.money),
     // Schuld (zie DEBT / game/debt.ts). `debtDays` telt de dagen in het rood,
     // `debtAuctionInDays` hoeveel dagen er nog resten tot de volgende gedwongen

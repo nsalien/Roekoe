@@ -281,6 +281,11 @@ export function DashboardPage() {
                   Nog geen sponsors. Een goede uitslag trekt er vanzelf een aan.
                 </div>
               )}
+              {costs.sponsorsPaused && (
+                <div className="faint" style={{ padding: '8px 0', fontSize: '0.85rem', color: 'var(--bad)' }}>
+                  ⚠️ Je sponsors betalen niets uit tot je er een paar laat gaan. <Link to="/sponsors">Kies je sponsors →</Link>
+                </div>
+              )}
               {costs.sponsors.map((s) => (
                 <div key={s.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 12, padding: '8px 0', borderBottom: '1px solid var(--border)' }}>
                   <div style={{ minWidth: 0 }}>{s.icon} {s.name}</div>

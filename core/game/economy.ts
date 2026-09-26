@@ -17,7 +17,7 @@ import {
 } from '../config/gameConfig.js';
 import type { Loft, Pigeon } from '../schema.js';
 import { experienceGain, geneCap, isAway, noteAttrChange } from './pigeon.js';
-import { activeContracts } from './sponsors.js';
+import { activeContracts, sponsorsPaused } from './sponsors.js';
 import { clamp, hashString, round1 } from './util.js';
 
 const RACING_ATTRS: RacingAttr[] = ['speed', 'endurance', 'orientation'];
@@ -362,6 +362,8 @@ export interface DailyCostBreakdown {
   sponsorTotal: number;
   /** What the loft actually gains or loses per day (income − costs). */
   net: number;
+  /** Seizoen 3: the loft must drop sponsors first — until then none pays. */
+  sponsorsPaused?: boolean;
 }
 
 /**
@@ -393,14 +395,17 @@ export function dailyRunningCostBreakdown(
   const idlePhysios = Math.min(loft.physios, Math.max(0, idle.physios));
   const idleStaffCost = idleDoctors * INFIRMARY.doctorSalary + idlePhysios * INFIRMARY.physioSalary;
   const total = upkeepBase + upkeepPerPigeon + coaches + doctors + physios + medicatedFeed;
+  // While the loft must still drop sponsors (seizoen 3 limit), none pays: the
+  // balance lists them at €0 so the player sees what he is missing.
+  const paused = sponsorsPaused(loft);
   const sponsors = activeContracts(loft).map((c) => ({
-    id: c.def.id, name: c.def.name, icon: c.def.icon, amount: c.contract.dailyStipend,
+    id: c.def.id, name: c.def.name, icon: c.def.icon, amount: paused ? 0 : c.contract.dailyStipend,
   }));
   const sponsorTotal = sponsors.reduce((s, x) => s + x.amount, 0);
   return {
     upkeepBase, upkeepPerPigeon, upkeepBands, coaches, doctors, physios, medicatedFeed,
     idleDoctors, idlePhysios, idleStaffCost, total,
-    sponsors, sponsorTotal, net: sponsorTotal - total,
+    sponsors, sponsorTotal, net: sponsorTotal - total, sponsorsPaused: paused,
   };
 }
 
