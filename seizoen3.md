@@ -268,9 +268,9 @@ TRAITS = {
 ```
 Plus `traitById(id)` naast `quirkById`.
 
-### 1.10 Activering: migratie v53
-- `runDataMigrations` in `schedule.ts`: `dataVersion` staat op **52** → nieuw
-  blok **v53**.
+### 1.10 Activering: migratie v54
+- `runDataMigrations` in `schedule.ts`: `dataVersion` staat op **53** (v53 = het terugzetten
+  van de sponsors, al live) → nieuw blok **v54**.
 - **Wacht op het nieuwe seizoen:** het blok doet niets zolang
   `world.seasonYear` < het startnummer van seizoen 3 (zie *Algemeen*). Pas bij de
   eerste request na de prijsuitreiking loopt het, en dan zet het
@@ -280,7 +280,7 @@ Plus `traitById(id)` naast `quirkById`.
   uitkomst, `context.md` §2).
 - **Nieuwe duiven vóór de wissel:** krijgen nog **geen** kenmerk (anders lekt de
   feature vóór het seizoen). Laat `rollTrait` pas werken als de poort open is, of
-  laat v53 ze gewoon meenemen — kies één aanpak en noteer ze hier.
+  laat v54 ze gewoon meenemen — kies één aanpak en noteer ze hier.
 - **Geen aparte melding hier:** het aantal duiven met een kenmerk komt in de
   gezamenlijke welkomstmelding van **§5**.
 - Kost: één keer ~alle duivenrijen schrijven — ruim binnen het dagbudget.
@@ -321,7 +321,7 @@ Plus `traitById(id)` naast `quirkById`.
 Nieuw: **`tests/traits.test.mts`** (draai vanuit de repo-root, zie `context.md` §7):
 - **Verdeling:** over 10.000 worpen ~30 % met kenmerk, ~80/20 gewoon/zeldzaam.
 - **Overerving:** 35 % / 60 % kloppen binnen een marge.
-- **Migratie v53:** doet niets vóór de poort, loot daarna geseed (twee runs =
+- **Migratie v54:** doet niets vóór de poort, loot daarna geseed (twee runs =
   identiek), raakt duiven met een kenmerk niet, stuurt precies één melding per
   speler.
 - **Statische bonus:** enkel actief als de voorwaarde geldt (bv. Sprinter op
@@ -349,15 +349,15 @@ Zijn de balansdoelen niet haalbaar met +5 %, **vraag de speler** voor je
   overerving, dynamische werking, zonsopgang/-ondergang), en een verwijzing in
   §2.5 (weer: temperatuur erbij), §3 (Zuinige vlieger), §5.2 (IJzeren gestel).
 - **`context.md`:** datamodel (§4: `Pigeon.trait`, `Flight.tempC`/`weatherAlong`/
-  `weatherRain`, `SimEntry.trait`/`traitWindows`), config (§5: `TRAITS`), de v53-
-  migratie (§2 `dataVersion` → 53), en de valstrikken (bevriezen in de sim,
+  `weatherRain`, `SimEntry.trait`/`traitWindows`), config (§5: `TRAITS`), de v54-
+  migratie (§2 `dataVersion` → 55), en de valstrikken (bevriezen in de sim,
   buren tellen vóór de bonus, geen kenmerk vóór de poort).
 - **De Stem:** het idee op **`uitgevoerd`** zetten.
 
 ### 1.14 Klaar als
 - [ ] Alle 15 kenmerken werken volgens §1.3 en zijn geconfigureerd in `gameConfig.ts`.
 - [ ] Nieuwe duiven, kweek en bots krijgen kenmerken volgens §1.4.
-- [ ] v53 loopt pas bij seizoen 3 en is geseed.
+- [ ] v54 loopt pas bij seizoen 3 en is geseed.
 - [ ] Het weer bevat `along`/`rain`/`tempC`, ook in het terugvalweer en per etappe.
 - [ ] Zon en buren zijn dynamisch, bevroren in de sim, en zichtbaar op het live bord en in het verslag.
 - [ ] Duifkaart, markt, inschrijven, live bord, uitslag, stamboom en wiki tonen het kenmerk.
@@ -449,15 +449,15 @@ met de beste sponsor per categorie is dat ~€1.220/dag, en een heraanbod kan
 - **Badges:** "Goed Omringd" (3 tegelijk) en "Sponsorimperium" (4 categorieën)
   blijven haalbaar onder 6; niets te doen.
 
-### 2.4 Activering: migratie v54
-- Zelfde poort als v53: niets vóór de start van seizoen 3.
+### 2.4 Activering: migratie v55
+- Zelfde poort als v54: niets vóór de start van seizoen 3.
 - Zet voor elke loft:
   - elk **actief tier-4-contract** en elk **openstaand tier-4-aanbod**:
     `dailyStipend = round5(dailyStipend × 0,25)`;
   - `mustReduce = true` als `active.length > 6`, en stuur de melding.
 - Idempotent via `dataVersion` (één keer), en de afronding mag nooit twee keer
   toegepast worden.
-- Volgorde: v53 (kenmerken) en v54 (sponsors) mogen in hetzelfde verzoek lopen.
+- Volgorde: v54 (kenmerken) en v55 (sponsors) mogen in hetzelfde verzoek lopen.
 
 ### 2.5 Wat de speler ziet
 - **Sponsorpagina:**
@@ -476,7 +476,7 @@ met de beste sponsor per categorie is dat ~€1.220/dag, en een heraanbod kan
 Nieuw: **`tests/sponsor-cap.test.mts`**:
 - tier-4-dagbedragen worden ×0,25 bij nieuw aanbod, heraanbod (×0,7–1,5) en in de
   migratie (bestaand contract + openstaand aanbod); tekengeld en podiumpremie niet;
-- v54 doet niets vóór de poort, loopt precies één keer;
+- v55 doet niets vóór de poort, loopt precies één keer;
 - een zevende tekenen zonder `dropSponsorId` faalt, met lukt en kost de
   verbrekingsvergoeding; een concurrent in dezelfde categorie gaat zonder;
 - nooit meer dan 6 actief, ook niet na twee gelijktijdige accepts;
@@ -497,7 +497,7 @@ Nieuw: **`tests/sponsor-cap.test.mts`**:
   nieuwe "orde van grootte": tier 4 €40–50/dag), de afbouwregel, en de
   aangepaste "nee is nee"-regel.
 - **`context.md`:** `SPONSOR_MAX_ACTIVE`, `SPONSOR_HIGH_TIER_DAILY_MULT`,
-  `SponsorState.mustReduce`, migratie v54.
+  `SponsorState.mustReduce`, migratie v55.
 
 ### 2.9 Klaar als
 - [ ] Tier-4-dagbedragen zijn ×0,25 voor nieuw, heraanbod, bestaand en openstaand.
@@ -585,7 +585,7 @@ de spelregels "~+1" zeggen.
 
 ### 3.5 Activering
 - Pas **vanaf de start van seizoen 3**, zoals de rest. Laat de nieuwe tarieven en
-  de vaste +1 pas gelden als de seizoenspoort open is (zelfde poort als v53/v54),
+  de vaste +1 pas gelden als de seizoenspoort open is (zelfde poort als v54/v55),
   of zorg dat de deploy op het moment van de wissel gebeurt — de speler zegt zelf
   wanneer het live mag.
 - **Melding:** de nieuwe coachkost per duif (met de oude prijs ernaast) komt in de
@@ -717,7 +717,7 @@ bv. `RELAY_NEWS_STEPS`). Gebruik die, niets nieuws uitvinden.
 Plus één **actiemelding** voor wie te veel sponsors heeft (§5.3), en een kleine
 **kaart op het Overzicht** (§5.6).
 
-**Timing:** alles hangt aan dezelfde seizoenspoort als v53/v54. Vóór de wissel is
+**Timing:** alles hangt aan dezelfde seizoenspoort als v54/v55. Vóór de wissel is
 er niets van te zien, ook niet als de code al live staat. De rondleiding toont
 enkel als `world.seasonYear` ≥ het startnummer van seizoen 3. De sleutel is
 `roekoe.newsSeen.seizoen3.<userId>`. Een **nieuwe speler** die de volledige
