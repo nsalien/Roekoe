@@ -5,7 +5,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useGame } from '../game/GameContext';
 import { useAuth } from '../auth/AuthContext';
-import { Spinner, nextPlayWeek, timeUntil } from '../components/ui';
+import { Spinner, nextPlayWeek, timeUntilOrClock } from '../components/ui';
 import type { AgeCategoryInfo, PigeonRankRow } from '../types';
 
 /** Days/hours remaining until an ISO instant, as a short Dutch string. */
@@ -41,8 +41,8 @@ export function RankingPage() {
           {nw && (
             <p className="faint" style={{ margin: '2px 0 0', fontSize: '0.85rem' }}>
               📅 {nw.isNewSeason
-                ? <>Nieuw seizoen (week 1) {timeUntil(nw.at)}</>
-                : <>Volgende speelweek (week {nw.weekNum}) {timeUntil(nw.at)}</>}
+                ? <>Nieuw seizoen (week 1) {timeUntilOrClock(nw.at)}</>
+                : <>Volgende speelweek (week {nw.weekNum}) {timeUntilOrClock(nw.at)}</>}
             </p>
           )}
         </div>

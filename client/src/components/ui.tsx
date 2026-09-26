@@ -257,6 +257,23 @@ export function timeUntil(iso: string): string {
 }
 
 /**
+ * Like `timeUntil`, but within the last 24 hours it names the exact moment
+ * instead of a rough count: "vandaag om 15:00" / "morgen om 14:00" (Brussels
+ * time, like the rest of the game's clock). Further away it falls back to
+ * `timeUntil` ("nog 3 dagen").
+ */
+export function timeUntilOrClock(iso: string): string {
+  const at = Date.parse(iso);
+  const ms = at - Date.now();
+  if (!Number.isFinite(ms) || ms <= 0) return 'binnenkort';
+  if (ms >= 86400000) return timeUntil(iso);
+  const tz = 'Europe/Brussels';
+  const day = (t: number) => new Date(t).toLocaleDateString('nl-BE', { timeZone: tz });
+  const clock = new Date(at).toLocaleTimeString('nl-BE', { timeZone: tz, hour: '2-digit', minute: '2-digit' });
+  return `${day(at) === day(Date.now()) ? 'vandaag' : 'morgen'} om ${clock}`;
+}
+
+/**
  * The next play-week boundary. A season is 4 play-weeks of 7 real days each; the
  * current week runs from `seasonStartedAt + (seasonWeek-1)·7d` to `+ seasonWeek·7d`
  * (mirrors season.ts: `seasonWeek = floor((now-start)/WEEK_MS)+1`). At week 4 the
