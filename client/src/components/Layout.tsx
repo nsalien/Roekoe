@@ -8,7 +8,7 @@ import { MARKET_SEEN_EVENT, hasMarketNews, marketSeenAt } from '../game/marketSe
 import { api } from '../api/client';
 import { useToast } from './ui';
 import { NotificationsBell } from './NotificationsBell';
-import { Tour, STEM_NEWS_STEPS } from './Tour';
+import { Tour, season3NewsSteps } from './Tour';
 import { PrizeCeremony } from './PrizeCeremony';
 
 interface NavItem { to: string; label: string; short: string; icon: string; end?: boolean }
@@ -90,15 +90,15 @@ export function Layout() {
     return () => window.removeEventListener('roekoe:start-tour', start);
   }, []);
   // One-time "what's new" announcement — reuses the tour's spotlight mechanism
-  // with just the new steps (currently: DE STEM, the ideas board where the
-  // players vote on next season's feature). Separate key so it also reaches
-  // players who already finished the main welcome tour or an earlier
-  // announcement. Bump the key suffix + swap the steps for a next one.
+  // with just the new steps (currently: SEIZOEN 3 — kenmerken, sponsorlimiet,
+  // coachtarieven, zwaardere vluchten). Separate key so it also reaches players
+  // who already finished the main welcome tour or an earlier announcement. Bump
+  // the key suffix + swap the steps for a next one.
   //
-  // This run is the SECOND half of the announcement: the bell notification
-  // (data migration 51, see schedule.ts) reaches everyone including the players
-  // who never open a tour, this one puts the nav button under their nose.
-  const newsKey = user?.id ? `roekoe.newsSeen.stem.${user.id}` : null;
+  // This run is the SECOND half of the announcement: the bell notifications
+  // (data migration 56, see schedule.ts) reach everyone including the players
+  // who never open a tour. Only shown once v56 has run (`world.newsAt`).
+  const newsKey = user?.id ? `roekoe.newsSeen.seizoen3.${user.id}` : null;
   const [showNews, setShowNews] = useState(false);
 
   function closeTour() {
@@ -110,10 +110,27 @@ export function Layout() {
   }
 
   useEffect(() => {
-    if (newsKey && state?.loft && !showTour && !localStorage.getItem(newsKey)) {
+    let seen = true;
+    try { seen = !!newsKey && !!localStorage.getItem(newsKey); } catch { /* private mode: treat as seen */ }
+    if (newsKey && state?.loft && state.world?.newsAt && !showTour && !seen) {
       setShowNews(true);
     }
-  }, [newsKey, state?.loft, showTour]);
+  }, [newsKey, state?.loft, state?.world?.newsAt, showTour]);
+
+  // The coach step names what THIS player's coaches cost now (same rule as the
+  // daily bill: every coached bird its own band, the free starter coach on the
+  // dearest) next to the old flat rate.
+  const newsSteps = (() => {
+    const mine = state?.pigeons ?? [];
+    const coached = mine.filter((p) => p.coached && p.coachSalary != null)
+      .map((p) => p.coachSalary as number).sort((a, b) => b - a);
+    const nc = state?.loft?.newcomer;
+    const free = nc?.active ? nc.freeCoaches : 0;
+    const now = coached.slice(free).reduce((a, b) => a + b, 0);
+    const was = Math.max(0, coached.length - free) * (state?.economy?.coachSalary ?? 80);
+    const target = mine.find((p) => p.coached) ?? mine[0] ?? null;
+    return season3NewsSteps({ coach: coached.length ? { now, was } : null, coachPigeonId: target?.id ?? null });
+  })();
   function closeNews() {
     if (newsKey) { try { localStorage.setItem(newsKey, '1'); } catch { /* private mode */ } }
     setShowNews(false);
@@ -272,7 +289,7 @@ export function Layout() {
       {showCeremony && !showTour && ceremony && (
         <PrizeCeremony season={ceremony.season} awards={ceremony.awards} onClose={closeCeremony} />
       )}
-      {showNews && !showTour && !showCeremony && <Tour steps={STEM_NEWS_STEPS} onClose={closeNews} />}
+      {showNews && !showTour && !showCeremony && <Tour steps={newsSteps} onClose={closeNews} />}
       {state?.pendingEvent && !showTour && !showNews && !showCeremony && <EventModal />}
     </div>
   );

@@ -9,8 +9,10 @@
  */
 
 import { useEffect } from 'react';
+import { Link } from 'react-router-dom';
 
 const SECTIONS = [
+  { id: 'seizoen3', icon: '🎉', label: 'Nieuw in seizoen 3' },
   { id: 'starterspakket', icon: '🎁', label: 'Starterspakket' },
   { id: 'genen', icon: '🧬', label: 'Genen & training' },
   { id: 'coach', icon: '🎯', label: 'Privécoach' },
@@ -104,6 +106,107 @@ export function WikiPage() {
           ))}
         </div>
       </div>
+
+      <Section id="seizoen3" icon="🎉" title="Nieuw in seizoen 3">
+        <p className="muted" style={{ marginTop: 0 }}>
+          Alles wat er bij de start van seizoen 3 veranderde, op één plek. Deze pagina blijft staan als logboek.
+        </p>
+
+        <h3>✨ Kenmerken <span className="faint" style={{ fontWeight: 400 }}>— het winnende idee uit De Stem</span></h3>
+        <p>
+          Ongeveer <strong>één duif op drie</strong> heeft nu een kenmerk: +5 % snelheid in haar eigen situatie (weer,
+          temperatuur, afstand, licht of donker, gezelschap), of een passief voordeel (minder verdwalen, minder energie,
+          minder ziek). Van de duiven met een kenmerk heeft ≈ 80 % een gewoon en ≈ 20 % een zeldzaam kenmerk.
+          Kenmerken zijn <strong>erfelijk</strong> en voor iedereen zichtbaar. <a href="#kenmerken">Alle 15 kenmerken →</a>
+        </p>
+
+        <h3>🤝 Sponsors</h3>
+        <ul>
+          <li>Je kan hoogstens <strong>6 sponsors</strong> tegelijk hebben. Een zevende tekenen = eerst een andere
+            opzeggen (met de gewone verbrekingsvergoeding).</li>
+          <li>De prestigesponsors (tier 4) betalen <strong>75 % minder per dag</strong>; tekengeld en podiumpremie
+            blijven gelijk.</li>
+          <li>Had je er bij de update meer dan 6? Dan kies je gratis welke je laat gaan — tot dan betaalt geen enkele
+            sponsor uit.</li>
+        </ul>
+        <MiniTable
+          head={['Prestigesponsor', 'Per dag (was)', 'Per dag (nu)']}
+          rows={[
+            ['📡 Telecom Vleugelnet', '€165', '€40'],
+            ['🎰 De Gouden Ring', '€150', '€40'],
+            ['🏆 Formule Duif Racing', '€200', '€50'],
+          ]}
+        />
+        <p><a href="#sponsors">Meer over sponsors →</a></p>
+
+        <h3>🎓 Coach &amp; trainen</h3>
+        <p>
+          Een privécoach kost nu per dag volgens de <strong>algemene score</strong> van de duif (was: altijd €80). De
+          gratis starterscoach dekt je duurste duif. Zelf trainen geeft voortaan altijd precies <strong>+1</strong>.
+        </p>
+        <MiniTable
+          head={['Score', 'Coach per dag']}
+          rows={[
+            ['onder 65', '€80'],
+            ['65 – 70', '€100'],
+            ['70 – 75', '€140'],
+            ['75 – 80', '€180'],
+            ['80 – 85', '€220'],
+            ['85 – 90', '€300'],
+            ['90 en meer', '€400'],
+          ]}
+        />
+        <p><a href="#coach">Meer over de privécoach →</a></p>
+
+        <h3>❤️ Gezondheid</h3>
+        <p>Een vlucht kost <strong>15 % meer gezondheid</strong> dan vroeger. Met een volle tank:</p>
+        <MiniTable
+          head={['Vlucht', 'Was', 'Nu']}
+          rows={[
+            ['300 km', '−1,7', '−2,0'],
+            ['500 km', '−2,5', '−2,9'],
+            ['1000 km', '−4,5', '−5,2'],
+          ]}
+        />
+        <p className="faint">Met een lege tank wordt het tot dubbel zoveel — rust loont dus meer.</p>
+
+        <h3>⚡ Energie <span className="faint" style={{ fontWeight: 400 }}>— al live sinds eind september</span></h3>
+        <p>
+          Vliegen kost <strong>15 % meer energie</strong>, en ervaring spaart nog maar <strong>±6 %</strong> energie
+          uit (was ±25 %). Gemiddeld verbruik op een vlucht van 500 km:
+        </p>
+        <MiniTable
+          head={['Ervaring', 'Was', 'Nu']}
+          rows={[
+            ['0', '≈ 38', '≈ 38'],
+            ['50', '≈ 32', '≈ 36'],
+            ['100', '≈ 25', '≈ 35'],
+          ]}
+        />
+        <p><a href="#vlucht">Meer over energie per vlucht →</a></p>
+
+        <h3>🏆 Prijsuitreiking</h3>
+        <p>
+          De Roekoes zijn nu <strong>€2.000 / €1.700 / €1.400</strong>. Elke andere melker met seizoenspunten krijgt een
+          <strong> seizoenspremie</strong> van zijn punten ÷ 3 in euro (1.200 punten → €400).
+        </p>
+
+        <h3>🔨 Zondagveiling</h3>
+        <p>
+          Voortaan <strong>twee topduiven</strong> op zondag: één met score 60–70 (10:00–20:00) en één met score 70–80
+          (11:00–21:00). Om op beide te bieden heb je twee vrije plaatsen in je hok nodig.{' '}
+          <a href="#veilingen">Meer over veilingen →</a>
+        </p>
+
+        <h3>📜 Erfenis</h3>
+        <p>Kies je bij de erfenis van een oude melker de spaarpot, dan krijg je nu <strong>€2.000</strong> (was €600).</p>
+
+        <h3>🗳️ Van De Stem</h3>
+        <p>
+          “Unieke eigenschappen per duif” staat op <em>In het spel</em>. Stem mee op het volgende idee:{' '}
+          <Link to="/stem">naar De Stem →</Link>
+        </p>
+      </Section>
 
       <Section id="starterspakket" icon="🎁" title="Starterspakket voor nieuwe spelers">
         <p className="muted" style={{ marginTop: 0 }}>

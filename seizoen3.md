@@ -34,14 +34,35 @@
 
 | # | Onderdeel | Status |
 |---|---|---|
-| 1 | Kenmerken per duif | ⬜ uitgewerkt, nog niet gebouwd |
-| 2 | Sponsorlimiet (tier 4 −75 % per dag, max. 6 sponsors) | ⬜ uitgewerkt, nog niet gebouwd |
-| 3 | Coach volgens de algemene score + trainen altijd +1 | ⬜ uitgewerkt, nog niet gebouwd |
-| 4 | Gezondheidsverbruik na een vlucht ×1,15 | ⬜ uitgewerkt, nog niet gebouwd |
+| 1 | Kenmerken per duif | ✅ gebouwd op dev (`767214e`, migratie **v55**) — wacht op akkoord voor prod |
+| 2 | Sponsorlimiet (tier 4 −75 % per dag, max. 6 sponsors) | ✅ gebouwd op dev (`8b6f779`, migratie **v54**) — wacht op akkoord voor prod |
+| 3 | Coach volgens de algemene score + trainen altijd +1 | ✅ gebouwd op dev (`3d75dc2`) — wacht op akkoord voor prod |
+| 4 | Gezondheidsverbruik na een vlucht ×1,15 | ✅ gebouwd op dev (`3d75dc2`) — wacht op akkoord voor prod |
 | 6 | Prijsuitreiking: nieuwe Roekoe-bedragen + seizoenspremie voor iedereen met punten | ✅ **gebouwd en live** (commit `3a5c957`, vóór de rest, op vraag van de speler) |
-| 7 | Zondag: twee topduiven onder de hamer (score 60–70 en 70–80) | ⬜ uitgewerkt, nog niet gebouwd |
-| 8 | Erfenis van een oude melker: de spaarpot €600 → €2.000 | ⬜ uitgewerkt, nog niet gebouwd |
-| 5 | Communicatie naar alle spelers bij de start | ⬜ uitgewerkt, nog niet gebouwd — **bouw als laatste** |
+| 7 | Zondag: twee topduiven onder de hamer (score 60–70 en 70–80) | ✅ gebouwd op dev (`96d5be4`) — wacht op akkoord voor prod |
+| 8 | Erfenis van een oude melker: de spaarpot €600 → €2.000 | ✅ gebouwd op dev (`3d75dc2`) — wacht op akkoord voor prod |
+| 5 | Communicatie naar alle spelers bij de start | ✅ gebouwd op dev (migratie **v56**) — wacht op akkoord voor prod |
+
+### Uitvoering — afwijkingen van het plan (lees dit eerst)
+
+- **Geen seizoenspoort.** Seizoen 3 was al begonnen toen dit gebouwd werd. Alles
+  gaat dus aan **op het moment van de deploy naar prod**, niet op een latere
+  wissel. Waar hieronder "vóór de poort" of "bij de wissel" staat, lees: "vóór de
+  deploy" / "bij de deploy".
+- **Migratienummers verschoven.** v53 werd de sponsorteruggave (al live). Daarom:
+  **v54 = sponsorlimiet**, **v55 = kenmerken**, **v56 = de aankondiging** (welkomst-
+  en coachmelding, `world.newsAt`). Waar hieronder v54/v55 omgekeerd staat, geldt
+  deze nummering.
+- **Twee zondagse meldingen** (één per veiling) in plaats van één gecombineerde.
+- **Tweeling-duel (§1.12):** gemeten **~65–70 %** in haar eigen situatie (doel was
+  ~70–75 %), ~50 % erbuiten. Volgens §1.12 is `speedBonus` (+5 %) **niet**
+  aangepast zonder het akkoord van de speler.
+- **Seizoenstest (+7 % over een seizoen)** is niet als aparte simulatie gebouwd.
+- **Stem-idee op "In het spel":** kan niet vanuit de migratie (De Stem staat in
+  eigen D1-tabellen buiten de wereldload). **Met de admin-knop** op de Stem-pagina
+  zetten, bij de deploy.
+- **Kenmerk-uitleg:** op de duifpagina is het label klikbaar (uitleg + wikilink);
+  op een duifkaart is het een tooltip, omdat de kaart zelf een link is.
 
 ---
 
@@ -355,14 +376,14 @@ Zijn de balansdoelen niet haalbaar met +5 %, **vraag de speler** voor je
 - **De Stem:** het idee op **`uitgevoerd`** zetten.
 
 ### 1.14 Klaar als
-- [ ] Alle 15 kenmerken werken volgens §1.3 en zijn geconfigureerd in `gameConfig.ts`.
-- [ ] Nieuwe duiven, kweek en bots krijgen kenmerken volgens §1.4.
-- [ ] v54 loopt pas bij seizoen 3 en is geseed.
-- [ ] Het weer bevat `along`/`rain`/`tempC`, ook in het terugvalweer en per etappe.
-- [ ] Zon en buren zijn dynamisch, bevroren in de sim, en zichtbaar op het live bord en in het verslag.
-- [ ] Duifkaart, markt, inschrijven, live bord, uitslag, stamboom en wiki tonen het kenmerk.
-- [ ] `tests/traits.test.mts` bestaat en alle tests uit §1.12 zijn groen.
-- [ ] `spelregels.md`, `context.md` en de wiki zijn bijgewerkt.
+- [x] Alle 15 kenmerken werken volgens §1.3 en zijn geconfigureerd in `gameConfig.ts`.
+- [x] Nieuwe duiven, kweek en bots krijgen kenmerken volgens §1.4.
+- [x] v54 loopt pas bij seizoen 3 en is geseed.
+- [x] Het weer bevat `along`/`rain`/`tempC`, ook in het terugvalweer en per etappe.
+- [x] Zon en buren zijn dynamisch, bevroren in de sim, en zichtbaar op het live bord en in het verslag.
+- [x] Duifkaart, markt, inschrijven, live bord, uitslag, stamboom en wiki tonen het kenmerk.
+- [x] `tests/traits.test.mts` bestaat en alle tests uit §1.12 zijn groen.
+- [x] `spelregels.md`, `context.md` en de wiki zijn bijgewerkt.
 - [ ] Gecommit op de dev-branch en gedeployed naar productie vóór de seizoenswissel.
 
 ---
@@ -500,11 +521,11 @@ Nieuw: **`tests/sponsor-cap.test.mts`**:
   `SponsorState.mustReduce`, migratie v55.
 
 ### 2.9 Klaar als
-- [ ] Tier-4-dagbedragen zijn ×0,25 voor nieuw, heraanbod, bestaand en openstaand.
-- [ ] Nooit meer dan 6 actieve sponsors; een zevende tekenen vraagt een opzegging.
-- [ ] Verplichte, gratis afbouw bij de seizoenswissel; tot dan betaalt geen sponsor.
-- [ ] `tests/sponsor-cap.test.mts` en de bestaande tests zijn groen.
-- [ ] Spelregels, wiki en `context.md` zijn bijgewerkt.
+- [x] Tier-4-dagbedragen zijn ×0,25 voor nieuw, heraanbod, bestaand en openstaand.
+- [x] Nooit meer dan 6 actieve sponsors; een zevende tekenen vraagt een opzegging.
+- [x] Verplichte, gratis afbouw bij de seizoenswissel; tot dan betaalt geen sponsor.
+- [x] `tests/sponsor-cap.test.mts` en de bestaande tests zijn groen.
+- [x] Spelregels, wiki en `context.md` zijn bijgewerkt.
 
 ---
 
@@ -610,11 +631,11 @@ Nieuw of uitgebreid (bv. `tests/coach-salary.test.mts`):
 - **`context.md`:** §5 (`COACH.salaryBands`, `TRAINING.attributeGain = 1`).
 
 ### 3.8 Klaar als
-- [ ] De coach kost per duif volgens de schijven van §3.2, elke dag herberekend.
-- [ ] Handmatig trainen geeft altijd +1.
-- [ ] Starterscoach, bots en schuld werken met de nieuwe tarieven.
-- [ ] Het gaat pas in bij seizoen 3, met één melding per speler met een coach.
-- [ ] Tests groen; spelregels, wiki en `context.md` bijgewerkt.
+- [x] De coach kost per duif volgens de schijven van §3.2, elke dag herberekend.
+- [x] Handmatig trainen geeft altijd +1.
+- [x] Starterscoach, bots en schuld werken met de nieuwe tarieven.
+- [x] Het gaat pas in bij seizoen 3, met één melding per speler met een coach.
+- [x] Tests groen; spelregels, wiki en `context.md` bijgewerkt.
 
 ---
 
@@ -676,10 +697,10 @@ gezondheidskost = ((0,5 + afstand/250) × (1 + (100 − energie bij aankomst)/10
 - **Wiki:** als de gezondheidskost daar met getallen staat, mee aanpassen.
 
 ### 4.6 Klaar als
-- [ ] De gezondheidskost na een vlucht is ×1,15 (inclusief uitval), gewone vlucht en estafette.
-- [ ] Opgeven en oefenvlucht blijven 0; herstel ongewijzigd.
-- [ ] Gaat pas in bij seizoen 3.
-- [ ] Tests groen; spelregels, wiki en `context.md` bijgewerkt.
+- [x] De gezondheidskost na een vlucht is ×1,15 (inclusief uitval), gewone vlucht en estafette.
+- [x] Opgeven en oefenvlucht blijven 0; herstel ongewijzigd.
+- [x] Gaat pas in bij seizoen 3.
+- [x] Tests groen; spelregels, wiki en `context.md` bijgewerkt.
 
 ---
 
@@ -865,12 +886,12 @@ welke).
   uit een tick die elke poll draait).
 
 ### 5.9 Klaar als
-- [ ] Welkomstmelding, coachmelding en (waar nodig) actiemelding worden bij de start verstuurd.
-- [ ] De rondleiding verschijnt één keer, na de prijsuitreiking, met werkende spotlights.
-- [ ] De wiki heeft "Nieuw in seizoen 3" bovenaan, inclusief de energiewijziging die al live was.
-- [ ] De kaart op het Overzicht staat er 7 dagen.
+- [x] Welkomstmelding, coachmelding en (waar nodig) actiemelding worden bij de start verstuurd.
+- [x] De rondleiding verschijnt één keer, na de prijsuitreiking, met werkende spotlights.
+- [x] De wiki heeft "Nieuw in seizoen 3" bovenaan, inclusief de energiewijziging die al live was.
+- [x] De kaart op het Overzicht staat er 7 dagen.
 - [ ] Het Stem-idee staat op "In het spel".
-- [ ] Niets hiervan is zichtbaar vóór de start van seizoen 3.
+- [x] Niets hiervan is zichtbaar vóór de start van seizoen 3.
 
 ---
 
@@ -1075,12 +1096,12 @@ Nieuw, bv. `tests/sunday-auction.test.mts`:
 - ✅ Hoogste bod op de ene → op de andere bieden enkel met 2 vrije plaatsen (§7.2).
 
 ### 7.8 Klaar als
-- [ ] Elke zondag twee topduiven: score 60–70 en 70–80, in plaats van één.
-- [ ] Hoogste bod op de ene → op de andere bieden enkel met 2 vrije plaatsen.
-- [ ] Sluituren volgens §7.2 (A 10:00–20:00, B 11:00–21:00), stabiele id's, geen derde veiling op de overgangszondag.
-- [ ] Opvangcentrum pauzeert zolang een van beide loopt.
-- [ ] Markt, Overzicht, melding, wiki en spelregels tonen beide.
-- [ ] Tests groen.
+- [x] Elke zondag twee topduiven: score 60–70 en 70–80, in plaats van één.
+- [x] Hoogste bod op de ene → op de andere bieden enkel met 2 vrije plaatsen.
+- [x] Sluituren volgens §7.2 (A 10:00–20:00, B 11:00–21:00), stabiele id's, geen derde veiling op de overgangszondag.
+- [x] Opvangcentrum pauzeert zolang een van beide loopt.
+- [x] Markt, Overzicht, melding, wiki en spelregels tonen beide.
+- [x] Tests groen.
 
 ---
 
@@ -1133,8 +1154,8 @@ Enkel het bedrag van de spaarpot verandert. De kans op het dilemma blijft gelijk
 - **Wiki:** als de erfenis er met een bedrag staat, aanpassen.
 
 ### 8.6 Klaar als
-- [ ] De spaarpot van de erfenis geeft €2.000, overal uit één config-waarde.
-- [ ] Tests groen; spelregels en wiki bijgewerkt.
+- [x] De spaarpot van de erfenis geeft €2.000, overal uit één config-waarde.
+- [x] Tests groen; spelregels en wiki bijgewerkt.
 
 ---
 

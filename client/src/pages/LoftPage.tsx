@@ -22,6 +22,7 @@ export function LoftPage() {
 
   if (loading || !state) return <Spinner />;
   const pigeons = [...state.pigeons].sort((a, b) => (b[sort] ?? 0) - (a[sort] ?? 0));
+  const traitIdx = pigeons.findIndex((p) => p.trait);
 
   async function act(fn: () => Promise<unknown>, ok?: string) {
     setBusy(true);
@@ -67,7 +68,14 @@ export function LoftPage() {
 
       <div className="grid pigeons">
         {pigeons.map((p, idx) => (
-          <PigeonCard key={p.id} pigeon={p} to={`/duif/${p.id}`} tourId={idx === 0 ? 'pigeon' : undefined}>
+          <PigeonCard
+            key={p.id}
+            pigeon={p}
+            to={`/duif/${p.id}`}
+            // "pigeon" = the first card (main tour); "trait" = the first bird with a
+            // kenmerk, or the first card when there is none (seizoen 3 news run).
+            tourId={[idx === 0 ? 'pigeon' : '', idx === Math.max(0, traitIdx) ? 'trait' : ''].filter(Boolean).join(' ') || undefined}
+          >
             {/* Per-pigeon feeding + private compartment */}
             <div className="row" style={{ gap: 6, marginBottom: 6, flexWrap: 'wrap' }}>
               <select

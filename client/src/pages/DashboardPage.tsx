@@ -15,6 +15,32 @@ function perDay(weekly: number): number {
   return Math.round((weekly / 7) * 10) / 10;
 }
 
+/**
+ * Seizoen 3: a small news card for 7 days after the announcement (v56 sets
+ * `world.newsAt`), so a player who clicked the tour away still finds it.
+ * Dismissal is remembered per browser; storage failing just means it shows.
+ */
+const SEASON3_CARD_KEY = 'roekoe.season3Card.dismissed';
+function Season3NewsCard({ newsAt }: { newsAt?: string }) {
+  const [hidden, setHidden] = useState(() => {
+    try { return localStorage.getItem(SEASON3_CARD_KEY) === '1'; } catch { return false; }
+  });
+  const at = newsAt ? Date.parse(newsAt) : NaN;
+  if (hidden || Number.isNaN(at) || Date.now() > at + 7 * 86400000) return null;
+  return (
+    <div className="card row" style={{ marginBottom: 14, justifyContent: 'space-between', gap: 8, borderColor: 'var(--accent)' }}>
+      <span>🎉 <strong>Seizoen 3:</strong> kenmerken, sponsorlimiet en meer — <Link to="/wiki#seizoen3">bekijk wat er nieuw is →</Link></span>
+      <button
+        className="btn ghost sm"
+        aria-label="Verbergen"
+        onClick={() => { try { localStorage.setItem(SEASON3_CARD_KEY, '1'); } catch { /* private mode */ } setHidden(true); }}
+      >
+        ✕
+      </button>
+    </div>
+  );
+}
+
 export function DashboardPage() {
   const { state, loading, refresh } = useGame();
   const { user } = useAuth();
@@ -118,6 +144,8 @@ export function DashboardPage() {
           <p className="muted">Welkom terug, {user?.username}! Hier is de stand van zaken.</p>
         </div>
       </div>
+
+      <Season3NewsCard newsAt={state?.world?.newsAt} />
 
       <NewcomerPanel />
 

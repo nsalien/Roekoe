@@ -109,6 +109,7 @@ import { breedingCooldownDaysLeft, breedingCooldownUntil, canRace, conditionScor
 import { NPC_OWNER_ID, ownerName } from './engine.js';
 import { pickRelayRoute, relayEntryTeams, relayLegKm, relayTeamComplete } from './relay.js';
 import { rollTrait } from './traits.js';
+import { season3CoachNote, season3Welcome } from './season3.js';
 import { bell, clamp, hashString, haversineKm, pick, randFloat, round1, seededRng } from './util.js';
 
 // --- Time-zone helpers -----------------------------------------------------
@@ -2307,6 +2308,24 @@ export function runDataMigrations(db: Database): void {
       p.trait = rollTrait(seededRng(hashString(`trait:${p.id}`)));
     }
     db.world.dataVersion = 55;
+  }
+
+  if ((db.world.dataVersion ?? 0) < 56) {
+    // SEIZOEN 3 — de aankondiging (seizoen3.md §5): a welcome and a coach note
+    // per real player, AFTER v54 (sponsors) and v55 (traits) so both read the
+    // new state. Stable ids, so two racing requests write one row each. The
+    // too-many-sponsors action note already came from v54. `newsAt` starts the
+    // 7-day news card on the Overzicht.
+    const nowMs = Date.now();
+    for (const loft of db.lofts) {
+      if (loft.isBot) continue;
+      const w = season3Welcome(db, loft, nowMs);
+      pushNotification(db, loft.userId, 'info', w.title, w.body, null, `ntf:season3:welcome:${loft.userId}`);
+      const c = season3CoachNote(db, loft, nowMs);
+      pushNotification(db, loft.userId, 'info', c.title, c.body, null, `ntf:season3:coach:${loft.userId}`);
+    }
+    db.world.newsAt = new Date(nowMs).toISOString();
+    db.world.dataVersion = 56;
   }
 }
 

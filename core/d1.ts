@@ -543,6 +543,7 @@ export class D1Store implements Store {
         ageCupSeasonsDone: worldRow.age_cup_seasons_done ?? 0,
         marketNewsAt: worldRow.market_news_at ?? '',
         marketNewsBy: worldRow.market_news_by ?? '',
+        newsAt: worldRow.news_at ?? '',
       };
     }
 
@@ -704,16 +705,16 @@ export class D1Store implements Store {
     const wd = w.world;
     if (!this.worldExisted) {
       stmts.push(
-        db.prepare('INSERT INTO world (id, current_week, season_year, seeded, data_version, last_daily_tick, last_shelter_spawn, season_started_at, season_ends_at, season_week, last_advance, daily_care_cursor, leaderboard, age_cup_started_at, age_cup_seasons_done, market_news_at, market_news_by, version) VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)')
-          .bind(wd.currentWeek, wd.seasonYear, b(wd.seeded), wd.dataVersion ?? 0, wd.lastDailyTick ?? '', wd.lastShelterSpawn ?? '', wd.seasonStartedAt ?? '', wd.seasonEndsAt ?? '', wd.seasonWeek ?? 1, wd.lastAdvance ?? '', wd.dailyCareCursor ?? '', wd.leaderboard ?? '', wd.ageCupStartedAt ?? '', wd.ageCupSeasonsDone ?? 0, wd.marketNewsAt ?? '', wd.marketNewsBy ?? ''),
+        db.prepare('INSERT INTO world (id, current_week, season_year, seeded, data_version, last_daily_tick, last_shelter_spawn, season_started_at, season_ends_at, season_week, last_advance, daily_care_cursor, leaderboard, age_cup_started_at, age_cup_seasons_done, market_news_at, market_news_by, news_at, version) VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)')
+          .bind(wd.currentWeek, wd.seasonYear, b(wd.seeded), wd.dataVersion ?? 0, wd.lastDailyTick ?? '', wd.lastShelterSpawn ?? '', wd.seasonStartedAt ?? '', wd.seasonEndsAt ?? '', wd.seasonWeek ?? 1, wd.lastAdvance ?? '', wd.dailyCareCursor ?? '', wd.leaderboard ?? '', wd.ageCupStartedAt ?? '', wd.ageCupSeasonsDone ?? 0, wd.marketNewsAt ?? '', wd.marketNewsBy ?? '', wd.newsAt ?? ''),
       );
     } else if (JSON.stringify(wd) !== this.worldSnapshot) {
       // Only write the world row when something in it actually changed. Previously
       // this ran on EVERY request (even read-only polls), burning the write quota
       // and making `world` (id=1) a hot row that concurrent requests locked on.
       stmts.push(
-        db.prepare('UPDATE world SET current_week = ?, season_year = ?, seeded = ?, data_version = ?, last_daily_tick = ?, last_shelter_spawn = ?, season_started_at = ?, season_ends_at = ?, season_week = ?, last_advance = ?, daily_care_cursor = ?, leaderboard = ?, age_cup_started_at = ?, age_cup_seasons_done = ?, market_news_at = ?, market_news_by = ?, version = version + 1 WHERE id = 1')
-          .bind(wd.currentWeek, wd.seasonYear, b(wd.seeded), wd.dataVersion ?? 0, wd.lastDailyTick ?? '', wd.lastShelterSpawn ?? '', wd.seasonStartedAt ?? '', wd.seasonEndsAt ?? '', wd.seasonWeek ?? 1, wd.lastAdvance ?? '', wd.dailyCareCursor ?? '', wd.leaderboard ?? '', wd.ageCupStartedAt ?? '', wd.ageCupSeasonsDone ?? 0, wd.marketNewsAt ?? '', wd.marketNewsBy ?? ''),
+        db.prepare('UPDATE world SET current_week = ?, season_year = ?, seeded = ?, data_version = ?, last_daily_tick = ?, last_shelter_spawn = ?, season_started_at = ?, season_ends_at = ?, season_week = ?, last_advance = ?, daily_care_cursor = ?, leaderboard = ?, age_cup_started_at = ?, age_cup_seasons_done = ?, market_news_at = ?, market_news_by = ?, news_at = ?, version = version + 1 WHERE id = 1')
+          .bind(wd.currentWeek, wd.seasonYear, b(wd.seeded), wd.dataVersion ?? 0, wd.lastDailyTick ?? '', wd.lastShelterSpawn ?? '', wd.seasonStartedAt ?? '', wd.seasonEndsAt ?? '', wd.seasonWeek ?? 1, wd.lastAdvance ?? '', wd.dailyCareCursor ?? '', wd.leaderboard ?? '', wd.ageCupStartedAt ?? '', wd.ageCupSeasonsDone ?? 0, wd.marketNewsAt ?? '', wd.marketNewsBy ?? '', wd.newsAt ?? ''),
       );
     }
 
@@ -1507,6 +1508,7 @@ const SCHEMA_STEPS: string[] = [
   'ALTER TABLE flights ADD COLUMN weather_along REAL',
   'ALTER TABLE flights ADD COLUMN weather_rain INTEGER',
   'ALTER TABLE flights ADD COLUMN temp_c REAL',
+  "ALTER TABLE world ADD COLUMN news_at TEXT NOT NULL DEFAULT ''",
 ];
 
 /**

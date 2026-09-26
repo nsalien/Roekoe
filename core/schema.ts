@@ -982,6 +982,12 @@ export interface World {
    */
   marketNewsAt?: string;
   marketNewsBy?: string;
+  /**
+   * ISO timestamp of the last big "wat is er nieuw" announcement (seizoen 3:
+   * migration v56). The Overzicht shows its news card for 7 days from here.
+   * Empty = none.
+   */
+  newsAt?: string;
 }
 
 /** The full database document persisted to disk. */
