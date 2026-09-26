@@ -950,7 +950,7 @@ export function trainPigeon(
       return `${label.charAt(0).toUpperCase() + label.slice(1)} is deze week al getraind — opnieuw vanaf ${nextDate}`;
     }
     loft.money -= cost;
-    const gain = TRAINING.attributeGain * randFloat(0.7, 1.3);
+    const gain = TRAINING.attributeGain; // seizoen 3: always exactly +1
     const before = pigeon[attr];
     pigeon[attr] = round1(clamp(pigeon[attr] + gain, 0, cap));
     noteAttrChange(pigeon, attr, before, 'training');

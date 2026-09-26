@@ -176,9 +176,23 @@ export function WikiPage() {
         <p className="muted" style={{ marginTop: 0 }}>
           Een privécoach werkt voor <strong>één duif</strong>. Hij traint haar <strong>elke dag</strong> in snelheid,
           conditie én oriëntatie (plus wat ervaring) — puur om te racen, nooit libido. Er is <strong>geen
-          instapkost</strong>: je betaalt enkel <strong>€80 per dag</strong> zolang hij in dienst is, automatisch van
+          instapkost</strong>: je betaalt enkel een <strong>dagloon</strong> zolang hij in dienst is, automatisch van
           je kassa. Ontslaan kan op elk moment.
         </p>
+        <p><strong>Een betere duif vraagt een betere coach.</strong> Het dagloon hangt af van de algemene score van de
+          duif, en wordt elke dag opnieuw bepaald: stijgt ze over een grens, dan betaal je vanaf de volgende dag meer.</p>
+        <MiniTable
+          head={['Algemene score', 'Coach per dag']}
+          rows={[
+            ['lager dan 65', '€80'],
+            ['65 tot 70', '€100'],
+            ['70 tot 75', '€140'],
+            ['75 tot 80', '€180'],
+            ['80 tot 85', '€220'],
+            ['85 tot 90', '€300'],
+            ['90 en hoger', '€400'],
+          ]}
+        />
         <p><strong>Hij duwt richting de gen-cap, en dooft daar uit.</strong> De dagwinst is het grootst bij een lage
           waarde en wordt kleiner naarmate een eigenschap haar plafond nadert; op de cap stopt ze helemaal. Elke
           eigenschap telt apart — een duif die op snelheid al capt, kan op oriëntatie nog vlot bijleren.</p>
@@ -201,7 +215,7 @@ export function WikiPage() {
           <li><strong>Op de duifpagina staat het exacte cijfer</strong> voor déze duif, per eigenschap per dag — zit
             alles al op de cap, dan zegt de pagina dat een coach niets meer toevoegt.</li>
         </ul>
-        <p><strong>Strategie:</strong> €80/dag is ± €560 per week — dat is echt geld. Zet een coach op duiven die
+        <p><strong>Strategie:</strong> een coach op een topduif kost ± €2.000–2.800 per week — dat is echt geld. Zet een coach op duiven die
           genetisch nog ruimte hebben (zeker boven 90, waar niets anders werkt) en ontsla hem zodra de winst tot
           bijna niets herleid is. Op een duif die al op haar cap zit, verbrand je puur budget.</p>
       </Section>

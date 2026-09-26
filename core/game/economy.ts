@@ -372,7 +372,9 @@ export interface DailyCostBreakdown {
 export function dailyRunningCostBreakdown(
   loft: Loft,
   pigeonCount: number,
-  coachedCount: number,
+  /** What the coaches cost today, already per bird and after a free starter
+   *  coach — see newcomer.coachBill. */
+  coachCost: number,
   infirmaryBirds: number,
   /** Staff with no patient of their kind today (health.idleCareStaff). Purely
    *  informational: it never changes `total`, so the biller can leave it out. */
@@ -383,7 +385,7 @@ export function dailyRunningCostBreakdown(
   // than bird 16. A loft at the starting capacity (8) pays the old flat rate.
   const upkeepBands = pigeonUpkeepBands(pigeonCount);
   const upkeepPerPigeon = upkeepBands.reduce((sum, b) => sum + b.amount, 0);
-  const coaches = coachedCount * COACH.dailySalary;
+  const coaches = coachCost;
   const doctors = loft.doctors * INFIRMARY.doctorSalary;
   const physios = loft.physios * INFIRMARY.physioSalary;
   const medicatedFeed = loft.medicatedFood ? infirmaryBirds * INFIRMARY.medicatedFoodPerBird : 0;
@@ -403,6 +405,6 @@ export function dailyRunningCostBreakdown(
 }
 
 /** The total recurring cost charged to a loft for one day (see the breakdown). */
-export function dailyRunningCost(loft: Loft, pigeonCount: number, coachedCount: number, infirmaryBirds: number): number {
-  return dailyRunningCostBreakdown(loft, pigeonCount, coachedCount, infirmaryBirds).total;
+export function dailyRunningCost(loft: Loft, pigeonCount: number, coachCost: number, infirmaryBirds: number): number {
+  return dailyRunningCostBreakdown(loft, pigeonCount, coachCost, infirmaryBirds).total;
 }

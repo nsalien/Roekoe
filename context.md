@@ -543,7 +543,16 @@ Entiteiten: `Pigeon`, `Loft`, `User`, `BreedingPair`, `PendingBrood`, `Flight` (
   groter aandeel in de prijzenpot), dus dat moet een investering van lange adem zijn.
   `nextCapacityTier`/`upgradeCapacity` zijn ongewijzigd (ze lezen de tabel).
 - **Privécoach = dagelijkse groei richting de gen-cap** (`COACH`): geen instapdrempel
-  (`hireCost 0`), enkel **€80/dag per gecoachte duif** (`dailySalary`). `coachDailyGain(attr,
+  (`hireCost 0`), enkel een **dagloon per gecoachte duif**. **Seizoen 3:** dat dagloon hangt
+  af van de algemene score (`talent`) via `COACH.salaryBands` / `coachSalaryFor(talent)`
+  (gameConfig): <65 €80 · 65 €100 · 70 €140 · 75 €180 · 80 €220 · 85 €300 · ≥90 €400; de
+  ondergrens hoort bij de hogere schijf. Elke dag opnieuw bepaald. `newcomer.coachBill(loft,
+  coached, nowMs)` rekent per duif en laat de **gratis starterscoach de duurste** dekken;
+  `dailyRunningCostBreakdown`/`dailyRunningCost` krijgen nu een **bedrag** (`coachCost`) i.p.v.
+  een aantal. `pigeonDTO` stuurt `coachSalary` + `coachNextBand` (eigen duiven);
+  `COACH.dailySalary` (80) blijft enkel als laagste schijf voor oude clients.
+  **Trainen geeft altijd exact +1** (`TRAINING.attributeGain 1`, geen willekeur meer).
+  Test: `tests/coach-salary.test.mts`. `coachDailyGain(attr,
   cap) = COACH.maxDailyGain (1.1) · (cap − attr)/cap` — werkt op **elk niveau**, afnemend
   richting de cap, **0 op/boven de cap** (per eigenschap onafhankelijk). Enkel de coach
   passeert 90 (trainen ≤80, vluchten ≤90). `applyDayOfCare` drilt per attribuut en geeft
@@ -1096,6 +1105,7 @@ npx tsx tests/stem.test.mts              # De Stem: zaaien, stemmen als toggle, 
 npx tsx tests/player-removal.test.mts    # een speler verwijderen: alles weg, de rest ongemoeid
 npx tsx tests/debt.test.mts               # schuld: de poort, de bodem, en de afslag per ronde
 npx tsx tests/sponsor-restore.test.mts    # v53: de sponsors van de wissel naar seizoen 3 terug
+npx tsx tests/coach-salary.test.mts       # coach per score, gratis starterscoach = duurste, trainen +1
 ```
 Alles in één keer (bash, vanuit de root):
 ```bash
@@ -3637,7 +3647,8 @@ Hieronder enkel wat je nodig hebt om eraan te werken.)
   ~24 %/week. `randomDisease` neemt de **conditie-score** i.p.v. enkel gezondheid.
 - **Gezondheid is een echte resource:** `HEALTH.flightHealthBase` / `flightHealthPerKm` /
   `emptyTankFactor` — een vlucht kost 2 (regio) tot 7 (fond) gezondheid, méér als de duif leeg
-  thuiskomt. Tegengewicht: **rebound** (herstel × `(1 + (100−gezondheid)/100)`) en Herstelvoer
+  thuiskomt. **Seizoen 3:** alles × `flightHealthMultiplier` (1.15), ook de extra 4–9 bij
+  uitval; één helper `flightHealthCost` (flight.ts) voor de gewone vlucht én de estafette. Tegengewicht: **rebound** (herstel × `(1 + (100−gezondheid)/100)`) en Herstelvoer
   (`healthRecovery` 3 → 12; dat gaf voordien het mínste gezondheid van alle voeders).
 - ⚠️ **Rustaftrek (`RECOVERY`) is de enige straf die je NIET kan wegkopen.** Gisteren gevlogen
   −15 vorm, eergisteren −7, oefenvlucht ×⅓ — gemeten ×2,2 op de blessurekans, en zelfschalend

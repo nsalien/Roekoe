@@ -6,6 +6,7 @@
 
 import type { BroodOrigin, Database, EventCard, Loft, Pigeon } from '../schema.js';
 import { newId } from '../store.js';
+import { EVENTS } from '../config/gameConfig.js';
 import { estimateValue, experienceGain, generatePigeon, noteAttrChange } from './pigeon.js';
 import { marketValue } from './market.js';
 import { namesInUse } from './names.js';
@@ -27,7 +28,7 @@ export function inheritanceCard(): EventCard {
   return {
     key: 'inheritance', icon: '📜', title: 'Erfenis van een oude melker',
     text: 'Een overleden dorpsgenoot liet jou iets na — maar je mag maar één ding kiezen: zijn spaarpot, zijn laatste kampioen (sterke genen, maar op leeftijd), of zijn jonge belofte (goedkoop gehouden, niemand weet wat erin zit). Kiezen is verliezen.',
-    options: [{ label: 'De spaarpot (€600)' }, { label: 'De oude kampioen' }, { label: 'De jonge belofte' }],
+    options: [{ label: `De spaarpot (€${EVENTS.inheritanceCash.toLocaleString('nl-BE')})` }, { label: 'De oude kampioen' }, { label: 'De jonge belofte' }],
   };
 }
 
@@ -317,8 +318,8 @@ export function resolveEvent(db: Database, loft: Loft, choice: number, week: num
     }
     case 'inheritance': {
       if (choice === 0) {
-        loft.money += 600;
-        return 'Je koos de spaarpot: €600 rijker.';
+        loft.money += EVENTS.inheritanceCash;
+        return `Je koos de spaarpot: €${EVENTS.inheritanceCash.toLocaleString('nl-BE')} rijker.`;
       }
       if (choice === 1) {
         // Old champion: strong genes but old (frail, low value, higher mortality).
