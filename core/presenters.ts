@@ -26,7 +26,7 @@ import {
 /** Vluchtvorm bands for the risk badge: 🟢 fris / 🟡 matig / 🔴 risico. */
 const FORM_GOOD = 70;
 const FORM_FAIR = 45;
-import { auctionKind } from './game/auction.js';
+import { auctionKind, sundayBandLabel, sundayBidBlock } from './game/auction.js';
 import { ageCupRankings, pigeonSeasonRankings } from './game/season.js';
 import { bettingOpen } from './game/betting.js';
 import { nextCapacityTier, nextInfirmaryTier, ownerName } from './game/engine.js';
@@ -610,6 +610,13 @@ export function auctionsDTO(db: Database, viewerId?: string) {
         maxBids: AUCTION.finalPhaseMaxBids,
         bidsUsed,
         bidsLeft: Math.max(0, AUCTION.finalPhaseMaxBids - bidsUsed),
+        // Seizoen 3: the Sunday lot's guaranteed score band, and — for this
+        // viewer — why he can't bid on it right now (two-free-places rule).
+        scoreBand: sundayBandLabel(a),
+        bidBlockedReason: (() => {
+          const viewerLoft = viewerId ? db.lofts.find((l) => l.userId === viewerId) : undefined;
+          return viewerLoft && a.currentBidderId !== viewerId ? sundayBidBlock(db, a, viewerLoft) : null;
+        })(),
       };
     })
     .sort((a, b) => {

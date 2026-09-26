@@ -786,6 +786,10 @@ export interface AuctionInfo {
   /** Bids this viewer already spent in the final phase, and what is left. */
   bidsUsed: number;
   bidsLeft: number;
+  /** Seizoen 3: the Sunday lot's guaranteed score band ("60–70"). */
+  scoreBand?: string | null;
+  /** Why this viewer can't bid right now (two-free-places rule), else null. */
+  bidBlockedReason?: string | null;
 }
 
 export interface Sponsor {
