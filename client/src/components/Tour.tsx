@@ -10,7 +10,7 @@
  */
 
 import { useEffect, useState, type CSSProperties, type ReactNode } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 
 interface Step {
   route?: string; // navigate here first
@@ -62,7 +62,7 @@ const PRIZES_STEP: Step = {
 };
 // Breed (ras) intro — shared by the full tour and the one-time news run below.
 const BREED_STEP: Step = {
-  route: '/hok', selector: '[data-tour="pigeon"]',
+  route: '/hok', selector: '[data-tour~="pigeon"]',
   title: '🕊️ Rassen',
   body: (
     <>
@@ -82,7 +82,7 @@ const BREED_STEP: Step = {
 
 // Genetics (genen) intro — shared by the full tour and the one-time news run.
 const GENE_STEP: Step = {
-  route: '/hok', selector: '[data-tour="pigeon"]',
+  route: '/hok', selector: '[data-tour~="pigeon"]',
   title: '🧬 Genen: elke duif heeft haar eigen plafond',
   body: (
     <>
@@ -108,7 +108,7 @@ const STEPS: Step[] = [
     body: 'Ik neem je in een dik minuutje mee langs de belangrijkste schermen en toon telkens waar je iets doet. Tik op Volgende — sluiten mag altijd.',
   },
   {
-    route: '/hok', selector: '[data-tour="pigeon"]',
+    route: '/hok', selector: '[data-tour~="pigeon"]',
     title: '📊 Je duiven & hun eigenschappen',
     body: (
       <>
@@ -292,7 +292,7 @@ export const BREED_NEWS_STEPS: Step[] = [
   },
   BREED_STEP,
   {
-    route: '/hok', selector: '[data-tour="pigeon"]',
+    route: '/hok', selector: '[data-tour~="pigeon"]',
     title: '⭐ Zeldzaamheid & waarde',
     body: (
       <>
@@ -319,7 +319,7 @@ export const FAREWELL_NEWS_STEPS: Step[] = [
     body: 'Je kan een duif waar je van af wil nu vrijlaten, óf verkopen aan het lokale duivenrestaurant. Even kort wat dat betekent. Je kan deze rondleiding later altijd opnieuw starten via je profiel.',
   },
   {
-    route: '/hok', selector: '[data-tour="pigeon"]',
+    route: '/hok', selector: '[data-tour~="pigeon"]',
     title: '👋 Twee manieren om afscheid te nemen',
     body: (
       <>
@@ -333,7 +333,7 @@ export const FAREWELL_NEWS_STEPS: Step[] = [
     ),
   },
   {
-    route: '/hok', selector: '[data-tour="pigeon"]',
+    route: '/hok', selector: '[data-tour~="pigeon"]',
     title: '💔 De soep drukt de moraal',
     body: (
       <>
@@ -358,7 +358,7 @@ export const GENES_NEWS_STEPS: Step[] = [
   },
   GENE_STEP,
   {
-    route: '/hok', selector: '[data-tour="pigeon"]',
+    route: '/hok', selector: '[data-tour~="pigeon"]',
     title: '💰 Trainen wordt duurder op hoog niveau',
     body: (
       <>
@@ -371,7 +371,7 @@ export const GENES_NEWS_STEPS: Step[] = [
     ),
   },
   {
-    route: '/hok', selector: '[data-tour="pigeon"]',
+    route: '/hok', selector: '[data-tour~="pigeon"]',
     title: '📉 Duiven verouderen',
     body: (
       <>
@@ -589,7 +589,7 @@ export const REST_CURE_NEWS_STEPS: Step[] = [
     body: 'De rustkuur was vroeger beperkt tot één duif per hok per week. Dat is voorbij — en ze levert nu ook gezondheid op. Even kort wat er verandert. Je kan deze rondleiding later altijd opnieuw starten via je profiel.',
   },
   {
-    route: '/hok', selector: '[data-tour="pigeon"]',
+    route: '/hok', selector: '[data-tour~="pigeon"]',
     title: '🛌 Elke duif mag op kuur',
     body: (
       <>
@@ -605,7 +605,7 @@ export const REST_CURE_NEWS_STEPS: Step[] = [
     ),
   },
   {
-    route: '/hok', selector: '[data-tour="pigeon"]',
+    route: '/hok', selector: '[data-tour~="pigeon"]',
     title: '💚 Waarom gezondheid er nu toe doet',
     body: (
       <>
@@ -715,6 +715,95 @@ export const BREEDING_NEWS_STEPS: Step[] = [
  * kanalen met opzet: de bel bereikt iedereen (ook wie elke rondleiding wegklikt),
  * deze zet de knop letterlijk in de schijnwerper.
  */
+/**
+ * Seizoen 3 — "wat is er nieuw" (seizoen3.md §5.4). A function, not a constant:
+ * the coach step names what THIS player's coaches cost now, and points at one of
+ * their own birds. `coach` null = no coached birds.
+ */
+export function season3NewsSteps(opts: {
+  coach: { now: number; was: number } | null;
+  /** A bird of theirs to open for the coach step (coached, else the best). */
+  coachPigeonId: string | null;
+}): Step[] {
+  const eur = (n: number) => `€${n.toLocaleString('nl-BE')}`;
+  return [
+    {
+      route: '/',
+      title: '🎉 Welkom in seizoen 3',
+      body: (
+        <>
+          Jullie stemden, en het winnende idee zit in het spel. Daarnaast is er aan een paar knoppen gedraaid. De
+          belangrijkste in vijf stappen — alles in detail staat in de wiki.
+        </>
+      ),
+    },
+    {
+      route: '/hok', selector: '[data-tour~="trait"]',
+      title: '✨ Kenmerken',
+      body: (
+        <>
+          Ongeveer één op de drie duiven heeft nu een kenmerk: ze vliegt sneller in één bepaalde situatie — bij
+          rugwind, in de kou, in het donker, op een sprint… Klik op het label (op de duifpagina) om te zien wanneer.
+          Kenmerken zijn <strong>erfelijk</strong> en voor iedereen zichtbaar, ook op de markt.
+        </>
+      ),
+    },
+    {
+      route: '/vluchten', selector: '[data-tour="flights"]',
+      title: '✨ Wie is vandaag in haar element?',
+      body: (
+        <>
+          Bij het inschrijven zie je welke duif haar kenmerk kan gebruiken. Sommige hangen af van het weer bij de
+          lossing; andere — dag, nacht, in groep of alleen — slaan zelfs pas <strong>tijdens</strong> de vlucht aan.
+          Volg het op het live bord.
+        </>
+      ),
+    },
+    {
+      route: '/sponsors', selector: '[data-tour="sponsor-count"]',
+      title: '🤝 Hoogstens 6 sponsors',
+      body: (
+        <>
+          Je kan nog <strong>maximaal 6 sponsors</strong> tegelijk hebben. De prestigesponsors betalen per dag minder;
+          hun tekengeld en podiumpremie blijven. Wil je een zevende, dan zeg je er eerst een op.
+        </>
+      ),
+    },
+    {
+      route: opts.coachPigeonId ? `/duif/${opts.coachPigeonId}` : '/hok',
+      selector: opts.coachPigeonId ? '[data-tour="coach"]' : undefined,
+      title: '🎓 Een betere duif, een duurdere coach',
+      body: (
+        <>
+          De prijs van een privécoach hangt nu af van hoe goed je duif is: een gewone duif blijft goedkoop, een
+          topduif kost meer.{' '}
+          {opts.coach ? (
+            <>
+              <strong>Jouw coaches kosten nu samen {eur(opts.coach.now)} per dag</strong> (was {eur(opts.coach.was)}) —
+              per duif zie je het bij de coachknop.
+            </>
+          ) : (
+            <>Bij elke duif zie je aan de coachknop wat een coach voor háár kost.</>
+          )}{' '}
+          En zelf trainen geeft voortaan altijd precies <strong>+1</strong>.
+        </>
+      ),
+    },
+    {
+      route: '/vluchten',
+      title: '⚡ Vliegen vraagt meer',
+      body: (
+        <>
+          Een vlucht kost je duiven meer <strong>energie</strong> en meer <strong>gezondheid</strong> dan vroeger, en
+          ervaring spaart minder energie uit. Een volle tank en genoeg rust wegen dus zwaarder.
+          <br />
+          <Link to="/wiki#seizoen3">Alles op een rij: Wiki → Nieuw in seizoen 3 →</Link>
+        </>
+      ),
+    },
+  ];
+}
+
 export const STEM_NEWS_STEPS: Step[] = [
   {
     route: '/stem', selector: '[data-tour="stem"]',
@@ -760,7 +849,7 @@ export const STEM_NEWS_STEPS: Step[] = [
  */
 export const PEDIGREE_NEWS_STEPS: Step[] = [
   {
-    route: '/hok', selector: '[data-tour="pigeon"]',
+    route: '/hok', selector: '[data-tour~="pigeon"]',
     title: '🌳 Je duiven hebben nu een stamboom',
     body: (
       <>

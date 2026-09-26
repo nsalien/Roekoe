@@ -150,7 +150,7 @@ krijgen.**
 `core/game/schedule.ts` → `advanceRealtime(db, nowMs, weatherByFlight)` roept in
 volgorde:
 1. `runDataMigrations(db)` — eenmalige datafixes, **gated op `world.dataVersion`**
-   (staat nu op **55**; nieuwe migratie = nieuw `if ((db.world.dataVersion ?? 0) < N)`
+   (staat nu op **56**; nieuwe migratie = nieuw `if ((db.world.dataVersion ?? 0) < N)`
    blok + `db.world.dataVersion = N`). De oudere migraties hebben hun werk gedaan en
    zijn enkel nog van belang als **patroon** — zie §8, kop *Eenmalige migraties*.
 2. `ensureFlightsScheduled(db, nowMs)` — plant vluchten volgens `REAL_SCHEDULE`.
@@ -4285,6 +4285,21 @@ Hieronder enkel wat je nodig hebt om eraan te werken.)
   de dagbalans toont €0 + `sponsorsPaused`). Gratis afbouwen: `applyReduceSponsors` /
   `POST /api/sponsors/reduce`. `refusalIsFinal` is nooit waar voor een aanbod uit een
   **hogere tier** dan de huidige sponsor in die categorie. Test: `tests/sponsor-cap.test.mts`.
+- **De aankondiging van seizoen 3 (migratie v56)** — `core/game/season3.ts` bouwt per
+  echte speler de welkomstmelding (`ntf:season3:welcome:<userId>`: aantal kenmerken,
+  coachkost nu/was, sponsors — elke •-regel enkel als ze van toepassing is) en de
+  coachmelding (`ntf:season3:coach:<userId>`: per duif het tarief via `coachBill`, "was"
+  = gecoachte × `COACH.dailySalary` min de gratis coach). Loopt ná v54/v55, zodat ze de
+  nieuwe sponsor- en kenmerkstand lezen. Zet `world.newsAt` (kolom `news_at`, achteraan
+  `SCHEMA_STEPS`) — rijdt mee in `/state.world`. Client: "wat is nieuw"-run
+  `season3NewsSteps(...)` in `Tour.tsx` (sleutel `roekoe.newsSeen.seizoen3.<userId>`,
+  enkel als `world.newsAt` staat, na de prijsuitreiking; vervangt de Stem-run),
+  `Season3NewsCard` op het Overzicht (7 dagen vanaf `newsAt`, wegklikbaar), wiki-sectie
+  `seizoen3` bovenaan. Tour-ankers: `data-tour~="trait"` (hok; `~=` omdat de eerste
+  kaart soms ook "pigeon" is — daarom staan de pigeon-selectors ook op `~=`),
+  `sponsor-count`, `coach` (duifpagina). `.bell-item-body` heeft `white-space: pre-line`
+  (meldingen met •-regels). Het Stem-idee op "In het spel" zetten gaat **met de
+  admin-knop** (De Stem zit niet in de wereldload). Test: `tests/season3-news.test.mts`.
 - **Kenmerken (seizoen 3, migratie v55)** — één per duif voor het leven, publiek
   (`traitDTO` in `pigeonDTO`, `broodYoungDTO`, `FamilyMember.trait`). Config
   `PIGEON_TRAITS` (15: static/dynamic/passive) + `TRAITS` (kans .3, zeldzaam .2,

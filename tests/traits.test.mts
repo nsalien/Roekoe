@@ -9,8 +9,9 @@
  *    die vóór zonsondergang vertrekt krijgt haar bonus ENKEL op het donkere stuk;
  *  - buren: een Sociale duif in een dicht peloton heeft gezelschap, een Eenzaat
  *    die het peloton ver achter zich laat vliegt alleen;
- *  - tweeling-duel: in haar eigen situatie wint een duif met kenmerk ~70–75 % van
- *    de duels tegen een identieke duif zonder; erbuiten ~50 %;
+ *  - tweeling-duel: in haar eigen situatie wint een duif met kenmerk de meeste
+ *    duels tegen een identieke duif zonder (gemeten ~65–70 %; het doel uit
+ *    seizoen3.md was ~70–75 %, +5 % blijft een bewuste keuze); erbuiten ~50 %;
  *  - een duif zonder kenmerk krijgt exact hetzelfde profiel als vóór seizoen 3.
  *
  * Run: npx tsx tests/traits.test.mts

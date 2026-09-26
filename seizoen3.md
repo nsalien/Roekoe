@@ -21,6 +21,9 @@
 - **Controleer eerst het seizoensnummer.** Lees `world.seasonYear` uit (admin of
   een snelle query) en zet de poort op het seizoen dat na de uitrol begint. Heet
   dat seizoen niet 3, pas dan de naam van de poort aan en noteer het hier.
+- **Productie:** de speler zegt zelf wanneer seizoen 3 naar productie mag. Bouw en
+  commit op de dev-branch; cherry-pick naar prod **pas na zijn uitdrukkelijk
+  akkoord** (dit wijkt bewust af van de gewone "deploy meteen"-afspraak).
 - **Taal:** alles wat de speler ziet in het Nederlands/Vlaams, code en commentaar
   in het Engels (zie `context.md`).
 - **Tekstbudget (context.md §0.4):** schermen tonen enkel wat de beslissing
@@ -31,7 +34,35 @@
 
 | # | Onderdeel | Status |
 |---|---|---|
-| 1 | Kenmerken per duif | ⬜ uitgewerkt, nog niet gebouwd |
+| 1 | Kenmerken per duif | ✅ gebouwd op dev (`767214e`, migratie **v55**) — wacht op akkoord voor prod |
+| 2 | Sponsorlimiet (tier 4 −75 % per dag, max. 6 sponsors) | ✅ gebouwd op dev (`8b6f779`, migratie **v54**) — wacht op akkoord voor prod |
+| 3 | Coach volgens de algemene score + trainen altijd +1 | ✅ gebouwd op dev (`3d75dc2`) — wacht op akkoord voor prod |
+| 4 | Gezondheidsverbruik na een vlucht ×1,15 | ✅ gebouwd op dev (`3d75dc2`) — wacht op akkoord voor prod |
+| 6 | Prijsuitreiking: nieuwe Roekoe-bedragen + seizoenspremie voor iedereen met punten | ✅ **gebouwd en live** (commit `3a5c957`, vóór de rest, op vraag van de speler) |
+| 7 | Zondag: twee topduiven onder de hamer (score 60–70 en 70–80) | ✅ gebouwd op dev (`96d5be4`) — wacht op akkoord voor prod |
+| 8 | Erfenis van een oude melker: de spaarpot €600 → €2.000 | ✅ gebouwd op dev (`3d75dc2`) — wacht op akkoord voor prod |
+| 5 | Communicatie naar alle spelers bij de start | ✅ gebouwd op dev (migratie **v56**) — wacht op akkoord voor prod |
+
+### Uitvoering — afwijkingen van het plan (lees dit eerst)
+
+- **Geen seizoenspoort.** Seizoen 3 was al begonnen toen dit gebouwd werd. Alles
+  gaat dus aan **op het moment van de deploy naar prod**, niet op een latere
+  wissel. Waar hieronder "vóór de poort" of "bij de wissel" staat, lees: "vóór de
+  deploy" / "bij de deploy".
+- **Migratienummers verschoven.** v53 werd de sponsorteruggave (al live). Daarom:
+  **v54 = sponsorlimiet**, **v55 = kenmerken**, **v56 = de aankondiging** (welkomst-
+  en coachmelding, `world.newsAt`). Waar hieronder v54/v55 omgekeerd staat, geldt
+  deze nummering.
+- **Twee zondagse meldingen** (één per veiling) in plaats van één gecombineerde.
+- **Tweeling-duel (§1.12):** gemeten **~65–70 %** in haar eigen situatie (doel was
+  ~70–75 %), ~50 % erbuiten. Volgens §1.12 is `speedBonus` (+5 %) **niet**
+  aangepast zonder het akkoord van de speler.
+- **Seizoenstest (+7 % over een seizoen)** is niet als aparte simulatie gebouwd.
+- **Stem-idee op "In het spel":** kan niet vanuit de migratie (De Stem staat in
+  eigen D1-tabellen buiten de wereldload). **Met de admin-knop** op de Stem-pagina
+  zetten, bij de deploy.
+- **Kenmerk-uitleg:** op de duifpagina is het label klikbaar (uitleg + wikilink);
+  op een duifkaart is het een tooltip, omdat de kaart zelf een link is.
 
 ---
 
@@ -258,9 +289,9 @@ TRAITS = {
 ```
 Plus `traitById(id)` naast `quirkById`.
 
-### 1.10 Activering: migratie v53
-- `runDataMigrations` in `schedule.ts`: `dataVersion` staat op **52** → nieuw
-  blok **v53**.
+### 1.10 Activering: migratie v54
+- `runDataMigrations` in `schedule.ts`: `dataVersion` staat op **53** (v53 = het terugzetten
+  van de sponsors, al live) → nieuw blok **v54**.
 - **Wacht op het nieuwe seizoen:** het blok doet niets zolang
   `world.seasonYear` < het startnummer van seizoen 3 (zie *Algemeen*). Pas bij de
   eerste request na de prijsuitreiking loopt het, en dan zet het
@@ -270,10 +301,9 @@ Plus `traitById(id)` naast `quirkById`.
   uitkomst, `context.md` §2).
 - **Nieuwe duiven vóór de wissel:** krijgen nog **geen** kenmerk (anders lekt de
   feature vóór het seizoen). Laat `rollTrait` pas werken als de poort open is, of
-  laat v53 ze gewoon meenemen — kies één aanpak en noteer ze hier.
-- Stuur elke **speler** (geen bots) één melding met **stabiele id**
-  `ntf:season3:traits:<userId>`: *"Seizoen 3 is gestart: X van je duiven hebben een
-  kenmerk gekregen. Bekijk ze in je hok."* met link naar de wiki.
+  laat v54 ze gewoon meenemen — kies één aanpak en noteer ze hier.
+- **Geen aparte melding hier:** het aantal duiven met een kenmerk komt in de
+  gezamenlijke welkomstmelding van **§5**.
 - Kost: één keer ~alle duivenrijen schrijven — ruim binnen het dagbudget.
 
 ### 1.11 Wat de speler ziet (client)
@@ -312,7 +342,7 @@ Plus `traitById(id)` naast `quirkById`.
 Nieuw: **`tests/traits.test.mts`** (draai vanuit de repo-root, zie `context.md` §7):
 - **Verdeling:** over 10.000 worpen ~30 % met kenmerk, ~80/20 gewoon/zeldzaam.
 - **Overerving:** 35 % / 60 % kloppen binnen een marge.
-- **Migratie v53:** doet niets vóór de poort, loot daarna geseed (twee runs =
+- **Migratie v54:** doet niets vóór de poort, loot daarna geseed (twee runs =
   identiek), raakt duiven met een kenmerk niet, stuurt precies één melding per
   speler.
 - **Statische bonus:** enkel actief als de voorwaarde geldt (bv. Sprinter op
@@ -340,21 +370,792 @@ Zijn de balansdoelen niet haalbaar met +5 %, **vraag de speler** voor je
   overerving, dynamische werking, zonsopgang/-ondergang), en een verwijzing in
   §2.5 (weer: temperatuur erbij), §3 (Zuinige vlieger), §5.2 (IJzeren gestel).
 - **`context.md`:** datamodel (§4: `Pigeon.trait`, `Flight.tempC`/`weatherAlong`/
-  `weatherRain`, `SimEntry.trait`/`traitWindows`), config (§5: `TRAITS`), de v53-
-  migratie (§2 `dataVersion` → 53), en de valstrikken (bevriezen in de sim,
+  `weatherRain`, `SimEntry.trait`/`traitWindows`), config (§5: `TRAITS`), de v54-
+  migratie (§2 `dataVersion` → 55), en de valstrikken (bevriezen in de sim,
   buren tellen vóór de bonus, geen kenmerk vóór de poort).
 - **De Stem:** het idee op **`uitgevoerd`** zetten.
 
 ### 1.14 Klaar als
-- [ ] Alle 15 kenmerken werken volgens §1.3 en zijn geconfigureerd in `gameConfig.ts`.
-- [ ] Nieuwe duiven, kweek en bots krijgen kenmerken volgens §1.4.
-- [ ] v53 loopt pas bij seizoen 3 en is geseed.
-- [ ] Het weer bevat `along`/`rain`/`tempC`, ook in het terugvalweer en per etappe.
-- [ ] Zon en buren zijn dynamisch, bevroren in de sim, en zichtbaar op het live bord en in het verslag.
-- [ ] Duifkaart, markt, inschrijven, live bord, uitslag, stamboom en wiki tonen het kenmerk.
-- [ ] `tests/traits.test.mts` bestaat en alle tests uit §1.12 zijn groen.
-- [ ] `spelregels.md`, `context.md` en de wiki zijn bijgewerkt.
+- [x] Alle 15 kenmerken werken volgens §1.3 en zijn geconfigureerd in `gameConfig.ts`.
+- [x] Nieuwe duiven, kweek en bots krijgen kenmerken volgens §1.4.
+- [x] v54 loopt pas bij seizoen 3 en is geseed.
+- [x] Het weer bevat `along`/`rain`/`tempC`, ook in het terugvalweer en per etappe.
+- [x] Zon en buren zijn dynamisch, bevroren in de sim, en zichtbaar op het live bord en in het verslag.
+- [x] Duifkaart, markt, inschrijven, live bord, uitslag, stamboom en wiki tonen het kenmerk.
+- [x] `tests/traits.test.mts` bestaat en alle tests uit §1.12 zijn groen.
+- [x] `spelregels.md`, `context.md` en de wiki zijn bijgewerkt.
 - [ ] Gecommit op de dev-branch en gedeployed naar productie vóór de seizoenswissel.
+
+---
+
+## 2. Sponsorlimiet
+
+### 2.1 Het probleem
+Sommige spelers krijgen **meer dan €1.200 per dag** van sponsors. Er zijn 17
+sponsors in 13 categorieën (één per categorie), dus nu tot 13 contracten tegelijk:
+met de beste sponsor per categorie is dat ~€1.220/dag, en een heraanbod kan
+×0,7–1,5 van het basisbedrag zijn (`SPONSOR_REOFFER_MULT_*`), dus nog meer.
+
+### 2.2 De regels
+1. **Tier 4: het dagbedrag daalt met 75 %.** Enkel het **dagbedrag**
+   (`dailyStipend`). Het **tekengeld** en de **podiumpremie** blijven ongewijzigd.
+   | Sponsor | Nu | Nieuw |
+   |---|---|---|
+   | 📡 Telecom Vleugelnet | €165 | **€40** |
+   | 🎰 Nationale Loterij — De Gouden Ring | €150 | **€40** |
+   | 🏆 Formule Duif Racing | €200 | **€50** |
+   - Geldt voor **nieuwe aanbiedingen**, **heraanbiedingen** (ook na de ×0,7–1,5)
+     én **bestaande contracten** en **openstaande aanbiedingen** (eenmalig bij de
+     seizoenswissel, zie §2.4). Afronden op €5, zoals `round5` in `sponsors.ts`.
+   - "Tier 4 en hoger": er is nu enkel tier 4. Komt er ooit een tier 5, dan valt
+     die er automatisch onder (regel op `tier >= 4`, niet op de drie ids).
+2. **Maximaal 6 sponsors tegelijk** per speler (`active.length ≤ 6`).
+3. **Een zevende aanbod** mag gewoon binnenkomen, maar tekenen kan enkel als de
+   speler **in dezelfde handeling** een van zijn huidige sponsors opzegt.
+   - Opzeggen kost dan de **gewone verbrekingsvergoeding** (`breakPenalty`), want
+     het is een eigen keuze. *(Bevestigd door de speler.)*
+   - Komt het aanbod van een **concurrent in dezelfde categorie**, dan blijft het
+     gewone overstappen gelden (de oude sponsor vervalt, het aantal blijft gelijk);
+     er hoeft dan niets extra opgezegd te worden.
+   - Dit geldt ook voor het **startersaanbod** van nieuwe spelers (§18), al zal
+     een nieuwe speler zelden aan 6 zitten.
+4. **Meer dan 6 bij de seizoenswissel → verplicht afbouwen.**
+   - Wie bij de start van seizoen 3 meer dan 6 sponsors heeft, moet er zelf
+     zoveel **opzeggen** tot hij er 6 heeft. Die opzeggingen zijn **gratis**
+     (geen verbrekingsvergoeding).
+   - **Zolang hij niet gekozen heeft, betaalt geen enkele sponsor iets uit**:
+     geen dagbedrag én geen podiumpremie, van **alle** sponsors. Wat hij in die
+     periode misloopt, wordt **niet** nabetaald.
+   - Hij krijgt een melding (stabiele id `ntf:season3:sponsorcap:<userId>`) en op
+     de sponsorpagina een verplichte keuze; bovenaan het spel een rode balk tot het
+     opgelost is. De rest van het spel blijft speelbaar.
+   - Een sponsor die zo gratis opgezegd wordt, gaat in `declined` zoals een gewone
+     opzegging (mag later opnieuw aankloppen, zonder nieuw tekengeld), maar
+     **niet** als definitieve weigering.
+5. **"Nee is nee" en de hogere tier.** De regel dat een geweigerde concurrent die
+   per dag niet meer betaalt **nooit meer** terugkomt (`refusalIsFinal` in
+   `sponsors.ts`), geldt **niet** als het aanbod uit een **hogere tier** komt dan
+   de huidige sponsor in die categorie. Anders zou bv. Formule Duif Racing (tier 4,
+   nu €50/dag) voorgoed wegblijven bij wie Racing Team Snelle Vleugel (tier 3,
+   €135/dag) heeft. *(Bevestigd door de speler.)*
+
+### 2.3 Technisch
+- **Config (`gameConfig.ts`):**
+  - `SPONSOR_MAX_ACTIVE = 6`;
+  - `SPONSOR_HIGH_TIER = 4` en `SPONSOR_HIGH_TIER_DAILY_MULT = 0.25`;
+  - pas de catalogus **niet** met de hand aan: de 75 % wordt toegepast via die
+    constante, zodat heraanbiedingen, `legacyDaily` en de weergave dezelfde regel
+    volgen. Eén helper `effectiveDailyStipend(def, raw)` in `sponsors.ts`, gebruikt
+    door `catalogTerms`, `scaledTerms` en `legacyDaily`.
+- **Aanvaarden (`applyAcceptSponsor`):** met 6 actieve contracten en geen
+  concurrent in dezelfde categorie → vereist een `dropSponsorId`; zonder →
+  foutmelding `!Je hebt al 6 sponsors. Kies eerst welke je opzegt.` Met → dat
+  contract opzeggen (vergoeding volgens §2.2 punt 3), dan tekenen. Nooit meer dan
+  6 na afloop (ook niet bij twee gelijktijdige verzoeken: controleer het aantal
+  opnieuw vlak voor het toevoegen).
+- **Endpoint** (`functions/api/[[path]].ts`): het accept-endpoint neemt een
+  optionele `dropSponsorId`. Nieuw endpoint voor de verplichte afbouw, bv.
+  `POST /api/sponsors/reduce` met de ids om gratis op te zeggen; weigert als het
+  resultaat nog boven 6 zit of als er geen afbouw openstaat.
+- **Afbouw-toestand:** een vlag op de sponsorstate, bv.
+  `SponsorState.mustReduce?: boolean` (rijdt mee in de bestaande `sponsorship`-
+  JSON van de loft, geen migratie van het schema). Gezet door de migratie (§2.4),
+  gewist zodra `active.length ≤ 6`.
+- **Uitbetalen blokkeren zolang `mustReduce`:**
+  - dagbedrag: `schedule.ts:~2743` (`stipend = activeContracts(...)`) → 0;
+  - podiumpremie: `schedule.ts:~996` (`sponsorPodiumBonus`) → overslaan;
+  - de **Dagbalans** (`economy.ts:~395`) toont de sponsors dan met €0 en de reden.
+- **"Nee is nee":** `refusalIsFinal` → `false` als `def.tier > rival.tier`.
+- **Bots:** hebben geen sponsors; niets te doen. Controleer het wel.
+- **Badges:** "Goed Omringd" (3 tegelijk) en "Sponsorimperium" (4 categorieën)
+  blijven haalbaar onder 6; niets te doen.
+
+### 2.4 Activering: migratie v55
+- Zelfde poort als v54: niets vóór de start van seizoen 3.
+- Zet voor elke loft:
+  - elk **actief tier-4-contract** en elk **openstaand tier-4-aanbod**:
+    `dailyStipend = round5(dailyStipend × 0,25)`;
+  - `mustReduce = true` als `active.length > 6`, en stuur de melding.
+- Idempotent via `dataVersion` (één keer), en de afronding mag nooit twee keer
+  toegepast worden.
+- Volgorde: v54 (kenmerken) en v55 (sponsors) mogen in hetzelfde verzoek lopen.
+
+### 2.5 Wat de speler ziet
+- **Sponsorpagina:**
+  - teller **"Sponsors: 5 / 6"**;
+  - bij 6/6 op een aanbod: de knop **"Tekenen"** opent een keuze *"Wie laat je
+    gaan?"* met per huidige sponsor zijn verbrekingsvergoeding;
+  - bij een verplichte afbouw: bovenaan een rood blok *"Je hebt X sponsors, het
+    maximum is 6. Kies er Y om op te zeggen — gratis. Tot dan betaalt geen enkele
+    sponsor uit."* met aanvinkvakjes en één bevestigknop.
+- **Overal in het spel:** zolang `mustReduce`, een rode balk met link naar de
+  sponsorpagina.
+- **Wiki:** de limiet van 6, de −75 % op tier 4 (met de nieuwe bedragen), en de
+  afbouwregel. Getallen enkel in de wiki.
+
+### 2.6 Tests
+Nieuw: **`tests/sponsor-cap.test.mts`**:
+- tier-4-dagbedragen worden ×0,25 bij nieuw aanbod, heraanbod (×0,7–1,5) en in de
+  migratie (bestaand contract + openstaand aanbod); tekengeld en podiumpremie niet;
+- v55 doet niets vóór de poort, loopt precies één keer;
+- een zevende tekenen zonder `dropSponsorId` faalt, met lukt en kost de
+  verbrekingsvergoeding; een concurrent in dezelfde categorie gaat zonder;
+- nooit meer dan 6 actief, ook niet na twee gelijktijdige accepts;
+- met `mustReduce`: dagbedrag én podiumpremie 0, geen nabetaling na het afbouwen;
+  afbouwen is gratis en wist de vlag; afbouwen tot boven 6 wordt geweigerd;
+- `refusalIsFinal` is `false` voor een aanbod uit een hogere tier.
+- **Blijft groen:** `sponsor-refusal.test.mts`, `newcomer.test.mts`,
+  `idle-writes`, `query-budget`, `daily-budget`.
+
+### 2.7 Beslissingen van de speler
+- ✅ Opzeggen om een **zevende** sponsor te tekenen kost de gewone
+  verbrekingsvergoeding.
+- ✅ Een sponsor uit een **hogere tier** mag na een weigering terugkomen, ook als
+  hij per dag minder betaalt dan de huidige sponsor in die categorie.
+
+### 2.8 Documentatie
+- **`spelregels.md` §12 Sponsors:** de limiet van 6, de −75 % voor tier 4 (en de
+  nieuwe "orde van grootte": tier 4 €40–50/dag), de afbouwregel, en de
+  aangepaste "nee is nee"-regel.
+- **`context.md`:** `SPONSOR_MAX_ACTIVE`, `SPONSOR_HIGH_TIER_DAILY_MULT`,
+  `SponsorState.mustReduce`, migratie v55.
+
+### 2.9 Klaar als
+- [x] Tier-4-dagbedragen zijn ×0,25 voor nieuw, heraanbod, bestaand en openstaand.
+- [x] Nooit meer dan 6 actieve sponsors; een zevende tekenen vraagt een opzegging.
+- [x] Verplichte, gratis afbouw bij de seizoenswissel; tot dan betaalt geen sponsor.
+- [x] `tests/sponsor-cap.test.mts` en de bestaande tests zijn groen.
+- [x] Spelregels, wiki en `context.md` zijn bijgewerkt.
+
+---
+
+## 3. Coachprijs volgens de algemene score, en trainen altijd +1
+
+### 3.1 Het probleem
+Een privécoach kost nu voor elke duif **€80 per dag**. Voor een zwakke of
+middelmatige duif is dat goed, maar een topduif haalt voor diezelfde €80 veel
+meer waarde (en hoe beter haar genen, hoe sneller ze groeit). Daarnaast geeft
+handmatig trainen nu een willekeurige **+0,84 tot +1,56** (gemiddeld +1,2), terwijl
+de spelregels "~+1" zeggen.
+
+### 3.2 De regels
+1. **Het dagsalaris van een coach hangt af van de algemene score** van de duif
+   (`talent` = gemiddelde van snelheid, conditie en oriëntatie, `pigeon.ts`):
+
+   | Algemene score | Coach per dag |
+   |---|---|
+   | lager dan 65 | **€80** |
+   | 65 tot 70 | **€100** |
+   | 70 tot 75 | **€140** |
+   | 75 tot 80 | **€180** |
+   | 80 tot 85 | **€220** |
+   | 85 tot 90 | **€300** |
+   | 90 en hoger | **€400** |
+
+   - Grenzen: de ondergrens hoort bij de hogere schijf (score 65,0 → €100; 64,9 →
+     €80). De score heeft één decimaal.
+   - **Elke dag opnieuw bepaald** bij de dagafrekening, op de score van dat moment.
+     Stijgt een duif over een grens, dan betaalt ze vanaf de volgende afrekening het
+     hogere tarief (en omgekeerd bij veroudering).
+   - Verder verandert er **niets** aan de coach: hij traint nog altijd alle drie de
+     vaardigheden richting de gen-cap, met dezelfde winst per dag
+     (`coachDailyGain`), en is nog altijd het enige wat boven 90 gaat.
+   - **Bewust niet gekozen** (niet opnieuw voorstellen): betalen per opgeleverd
+     punt, een percentage van de marktwaarde, of een coach die per punt bijna even
+     duur is als handmatig trainen. De speler koos deze vaste schijven, wetende dat
+     de coach per punt tot score 85 nog altijd 3 à 7× goedkoper is dan handmatig.
+2. **Handmatig trainen geeft altijd precies +1** aan de gekozen vaardigheid (geen
+   willekeur meer), nog steeds afgekapt op het handmatige plafond
+   (min(80, gen-cap)). Prijs, energiekost (15), ervaring (+4 × leerfactor) en de
+   limiet van 1× per week per vaardigheid blijven gelijk.
+   - Een punt kost dus exact de prijs van een trainingsbeurt: 60 → 61 €355,
+     65 → 66 €610, 70 → 71 €1.035, 75 → 76 €1.765, 79 → 80 ~€2.700.
+
+### 3.3 Technisch
+- **Config (`gameConfig.ts`):** vervang `COACH.dailySalary: 80` door een tabel,
+  bv. `COACH.salaryBands = [{ minTalent: 0, salary: 80 }, { minTalent: 65, salary:
+  100 }, … { minTalent: 90, salary: 400 }]`, plus een helper
+  `coachSalaryFor(talent)`. Houd `dailySalary` (80) enkel als het tarief van de
+  laagste schijf, voor oude clients (`functions/api/[[path]].ts:~478` stuurt
+  `coachSalary` mee — vervang door de schijven of een bedrag per duif).
+  `TRAINING.attributeGain` → **1** en verwijder de `randFloat(0.7, 1.3)`.
+- **Afrekening (`economy.ts:~386`):** `coaches = coachedCount × dailySalary` wordt
+  een **som per gecoachte duif**: `Σ coachSalaryFor(talent(p))`. De functie krijgt
+  dus de gecoachte duiven mee in plaats van enkel een aantal. Pas alle aanroepers
+  aan (dagafrekening in `schedule.ts`, de dagbalans/projectie, de schuld-poort).
+- **Starterspakket (`newcomer.ts`):** de gratis coach blijft **één gratis
+  gecoachte duif**. Nu de tarieven verschillen: de gratis coach dekt **de duurste**
+  gecoachte duif van dat hok (het gunstigste voor de nieuwe speler; zo komt er
+  geen verrassing als die duif stijgt). Pas `billableCoachedCount` daarop aan en de
+  afloopmelding (`newcomer.ts:~167`, die nu "€80/dag" noemt) naar het tarief van
+  zijn duiven.
+- **Bots (`bots.ts` `manageCoaches`):** betalen hetzelfde tarief. Controleer dat
+  `BOT.coachReserve` volstaat nu een coach op een topduif €300–400 kost, zodat bots
+  zich niet in het rood coachen (zie `bot-market.test.mts`).
+- **Trainen (`engine.ts:~953`, en de bot-training `bots.ts:~283`):** `gain = 1`.
+- **Schuld (`context.md` §5-Schuld):** in het rood worden coaches nog steeds meteen
+  ontslagen; niets te doen behalve dat het vrijgekomen bedrag nu per duif verschilt.
+
+### 3.4 Wat de speler ziet
+- **Duifpagina, bij de coachknop:** het tarief van **deze** duif (bv. "€220 per
+  dag"), en vanaf welke score het volgende tarief ingaat (bv. "vanaf 85: €300").
+- **Mijn hok / dagbalans:** de coachkost per duif in plaats van aantal × €80.
+- **Trainknop:** "+1" in plaats van "~+1".
+- **Wiki:** de tabel van de schijven, en dat trainen altijd +1 geeft. Getallen
+  enkel in de wiki.
+
+### 3.5 Activering
+- Pas **vanaf de start van seizoen 3**, zoals de rest. Laat de nieuwe tarieven en
+  de vaste +1 pas gelden als de seizoenspoort open is (zelfde poort als v54/v55),
+  of zorg dat de deploy op het moment van de wissel gebeurt — de speler zegt zelf
+  wanneer het live mag.
+- **Melding:** de nieuwe coachkost per duif (met de oude prijs ernaast) komt in de
+  **coachmelding** van §5.3, plus een regel in de welkomstmelding.
+- Geen datamigratie nodig: het tarief wordt elke dag berekend.
+
+### 3.6 Tests
+Nieuw of uitgebreid (bv. `tests/coach-salary.test.mts`):
+- `coachSalaryFor` op de grenzen (64,9 / 65,0 / 69,9 / 70,0 / … / 90,0 / 95);
+- de dagafrekening telt per duif, ook met een mix van schijven;
+- de gratis starterscoach dekt de duurste gecoachte duif;
+- een duif die over een grens stijgt, betaalt vanaf de volgende afrekening meer;
+- trainen geeft exact +1 en blijft onder min(80, gen-cap);
+- vóór de seizoenspoort: nog €80 en de oude willekeur.
+- **Blijft groen:** `newcomer.test.mts`, `debt.test.mts`, `bot-market.test.mts`,
+  `idle-writes`, `daily-budget`.
+
+### 3.7 Documentatie
+- **`spelregels.md`:** §8 (trainen = altijd +1), §13 (privécoach: de schijven),
+  §4.2 (vaste onkosten: coach per duif), §18 (starterspakket: gratis coach dekt de
+  duurste).
+- **`context.md`:** §5 (`COACH.salaryBands`, `TRAINING.attributeGain = 1`).
+
+### 3.8 Klaar als
+- [x] De coach kost per duif volgens de schijven van §3.2, elke dag herberekend.
+- [x] Handmatig trainen geeft altijd +1.
+- [x] Starterscoach, bots en schuld werken met de nieuwe tarieven.
+- [x] Het gaat pas in bij seizoen 3, met één melding per speler met een coach.
+- [x] Tests groen; spelregels, wiki en `context.md` bijgewerkt.
+
+---
+
+## 4. Gezondheidsverbruik na een vlucht ×1,15
+
+### 4.1 De regel
+Het gezondheidsverlies na een vlucht gaat **×1,15** (15 % meer), net zoals het
+energieverbruik eerder (dat is al live, niet in dit bestand).
+
+```
+gezondheidskost = ((0,5 + afstand/250) × (1 + (100 − energie bij aankomst)/100 × 0,8)
+                   + extra bij uitval (4…9)) × 1,15
+```
+- Geldt voor de **volledige** kost, ook de extra −4 tot −9 van een duif die
+  onderweg uitvalt (die wordt dus −4,6 tot −10,4).
+- **Blijft 0:** een duif die zelf opgeeft, en een oefenvlucht.
+- **Estafette:** dezelfde ×1,15 op de kost van haar eigen etappe.
+- Het **herstel** per dag (voer, apart hok, rebound) verandert **niet**.
+
+### 4.2 Voor en na (gewone vlucht, zonder uitval)
+
+| Afstand | Aankomst met 100 energie | met 70 | met 40 | leeg (0) |
+|---|---|---|---|---|
+| 100 km | 0,9 → **1,0** | 1,1 → **1,3** | 1,3 → **1,5** | 1,6 → **1,9** |
+| 200 km | 1,3 → **1,5** | 1,6 → **1,9** | 1,9 → **2,2** | 2,3 → **2,7** |
+| 300 km | 1,7 → **2,0** | 2,1 → **2,4** | 2,5 → **2,9** | 3,1 → **3,5** |
+| 500 km | 2,5 → **2,9** | 3,1 → **3,6** | 3,7 → **4,3** | 4,5 → **5,2** |
+| 700 km | 3,3 → **3,8** | 4,1 → **4,7** | 4,9 → **5,6** | 5,9 → **6,8** |
+| 1000 km | 4,5 → **5,2** | 5,6 → **6,4** | 6,7 → **7,7** | 8,1 → **9,3** |
+| 1200 km | 5,3 → **6,1** | 6,6 → **7,6** | 7,8 → **9,0** | 9,5 → **11,0** |
+
+### 4.3 Technisch
+- **Config (`gameConfig.ts`, `HEALTH`):** nieuwe knop `flightHealthMultiplier: 1.15`
+  naast `flightHealthBase`/`flightHealthPerKm`/`emptyTankFactor`, en werk het
+  commentaar met de formule (`gameConfig.ts:~2015`) bij.
+- **Toepassen** op de volledige `healthDelta` op beide plekken:
+  - gewone vlucht: `finalizeFlight`, `flight.ts:~1208`;
+  - estafette: `flight.ts:~1411`.
+  Het liefst via één kleine helper (zoals `routeEnergyCost` voor de energie), zodat
+  de twee niet uit elkaar kunnen lopen.
+- **Activering:** vanaf de start van seizoen 3, via dezelfde seizoenspoort als de
+  andere onderdelen (of de deploy op het moment van de wissel). Een vlucht die
+  vóór de wissel vertrok en erna eindigt: de kost wordt bij de afronding berekend,
+  dus die krijgt al ×1,15 — aanvaardbaar, niet speciaal afvangen.
+
+### 4.4 Tests
+- Een uitgevlogen duif verliest exact ×1,15 van de oude kost (gewone vlucht én
+  estafette-etappe), een uitgevallen duif ook op het extra deel.
+- Opgegeven en oefenvlucht: 0.
+- Vóór de seizoenspoort: nog de oude kost.
+- **Blijft groen:** `force-finish.test.mts` (natuurlijk uitvliegen == admin
+  beëindigen), `flight-eligibility`, `upset-balance`.
+
+### 4.5 Documentatie
+- **`spelregels.md` §3** (tabel "Effect van een vlucht": de gezondheidsregel) en
+  **§4.4** (formule ×1,15, en de tabel "leeg thuis" rechtzetten — die stond al te
+  laag: 200 km −2,3 → nu −2,7; 1000 km −8,1 → nu −9,3).
+- **`context.md` §5:** `HEALTH.flightHealthMultiplier`.
+- **Wiki:** als de gezondheidskost daar met getallen staat, mee aanpassen.
+
+### 4.6 Klaar als
+- [x] De gezondheidskost na een vlucht is ×1,15 (inclusief uitval), gewone vlucht en estafette.
+- [x] Opgeven en oefenvlucht blijven 0; herstel ongewijzigd.
+- [x] Gaat pas in bij seizoen 3.
+- [x] Tests groen; spelregels, wiki en `context.md` bijgewerkt.
+
+---
+
+## 5. Communicatie: iedereen mee in seizoen 3
+
+**Bouw dit onderdeel als laatste**: het vat alle andere onderdelen samen. Komt er
+later nog een onderdeel bij, werk dan ook de teksten hieronder bij.
+
+### 5.1 Doel
+Op het moment dat seizoen 3 live gaat, weet **elke** speler wat er veranderd is,
+ook wie nooit de wiki opent, en ook de wijziging die al eerder live ging:
+- **al live sinds eind september:** vluchten kosten ×1,15 energie, en ervaring
+  spaart nog maar ±6 % energie uit (was ±25 %);
+- **nieuw bij seizoen 3:** onderdeel 1 t/m 4 van dit bestand.
+
+Het idee "Unieke eigenschappen per duif" kwam uit **De Stem**: de communicatie
+zegt dat ook ("jullie stemden, hier is het").
+
+### 5.2 Vier kanalen, in deze volgorde
+Het spel heeft al twee bewezen patronen: een **belmelding via een migratie**
+(zie v51 voor De Stem) en een eenmalige **"wat is er nieuw"-rondleiding** met
+een eigen localStorage-sleutel (`newsKey` in `Layout.tsx`, stappen in `Tour.tsx`,
+bv. `RELAY_NEWS_STEPS`). Gebruik die, niets nieuws uitvinden.
+
+1. **Prijsuitreiking** (bestaat al, `PrizeCeremony`): toont de prijzen van seizoen 2,
+   volgens de nieuwe regels van **onderdeel 6** — ook de seizoenspremie, dus nu
+   krijgt bijna iedereen een prijsuitreiking te zien.
+   Die komt **eerst**; de rest wacht tot ze gesloten is.
+2. **Belmelding** (§5.3): bereikt iedereen, ook wie niet inlogt tot later.
+3. **Rondleiding "Nieuw in seizoen 3"** (§5.4): verschijnt één keer bij de eerste
+   pagina na de prijsuitreiking, met de spotlight op de plek waar het verandert.
+4. **Wiki-pagina "Nieuw in seizoen 3"** (§5.5): alles op een rij, met de getallen.
+   Alle andere kanalen linken hierheen (`/wiki#seizoen3`).
+
+Plus één **actiemelding** voor wie te veel sponsors heeft (§5.3), en een kleine
+**kaart op het Overzicht** (§5.6).
+
+**Timing:** alles hangt aan dezelfde seizoenspoort als v54/v55. Vóór de wissel is
+er niets van te zien, ook niet als de code al live staat. De rondleiding toont
+enkel als `world.seasonYear` ≥ het startnummer van seizoen 3. De sleutel is
+`roekoe.newsSeen.seizoen3.<userId>`. Een **nieuwe speler** die de volledige
+welkomstrondleiding krijgt, krijgt deze niet (zelfde regel als nu in `closeTour`).
+
+### 5.3 Belmeldingen
+
+**Welkomstmelding** — elke speler (geen bots), één keer, stabiele id
+`ntf:season3:welcome:<userId>`. Vervangt de losse meldingen die in onderdeel 1 en 3
+stonden. De regels met • verschijnen enkel als ze op deze speler van toepassing
+zijn.
+
+> **🎉 Seizoen 3 is begonnen!**
+> Jullie stemden in De Stem, en het winnende idee vliegt nu mee: **kenmerken**.
+> Voor jou betekent seizoen 3:
+> • ✨ **{n} van je duiven** kregen een kenmerk — kijk in je hok wanneer ze in hun element zijn.
+> • 🎓 Je coaches kosten nu samen **€{x} per dag** (was €{y}) — de prijs hangt af van hoe goed de duif is. Zie de coachmelding.
+> • 🤝 Je hebt **{s} sponsors** — het maximum is nu 6.
+> • ⚡ Vliegen vraagt meer: meer energie en gezondheid per vlucht, dus rust wordt belangrijker.
+> Alles op een rij: **Wiki → Nieuw in seizoen 3**.
+
+- `{n} = 0` → die regel wordt: *"✨ Geen van je duiven kreeg een kenmerk — jongen
+  uit je kweek of een aankoop kunnen er wel een hebben."*
+- Geen coach → coachregel weg (de coachmelding hieronder zegt dan wat een coach zou kosten). Geen sponsors → sponsorregel weg. Meer dan 6
+  sponsors → sponsorregel weg (de actiemelding hieronder neemt het over).
+- De ⚡-regel staat er altijd.
+
+**Coachmelding** — elke speler (geen bots), één keer, stabiele id
+`ntf:season3:coach:<userId>`. Zegt precies wat hij na de update per dag betaalt,
+per duif, met de oude prijs ernaast. Bedragen berekend met dezelfde functie als de
+dagafrekening (`coachSalaryFor(talent)`, onderdeel 3), op het moment van de wissel.
+
+*Met gecoachte duiven:*
+> **🎓 Wat je coaches voortaan kosten**
+> Vanaf seizoen 3 hangt de prijs van een coach af van de algemene score van je duif.
+> • Rosa (score 82) — **€220** per dag
+> • Karel (score 73) — **€140** per dag
+> • Mia (score 61) — **€80** per dag
+> **Samen: €440 per dag** (was €240) · ≈ €3.080 per week.
+> 🎁 Je gratis starterscoach dekt je duurste duif: Rosa kost je niets.
+> Het tarief wordt elke dag opnieuw bepaald: stijgt een duif over een grens, dan
+> betaal je vanaf de volgende dag het hogere tarief. Alle tarieven: Wiki → De privécoach.
+
+- Duiven gesorteerd van duur naar goedkoop; bij meer dan 6 gecoachte duiven de
+  6 duurste en "+ {k} andere: €{z}".
+- "Was €{y}" = het oude tarief (aantal gecoachte duiven × €80, min de gratis
+  starterscoach), zodat de speler het verschil ziet.
+- De 🎁-regel enkel als het starterspakket nog loopt.
+- Staat de speler in het rood (schuld), dan heeft hij geen coaches (die zijn al
+  ontslagen): hij krijgt de variant zonder coach.
+
+*Zonder gecoachte duiven:*
+> **🎓 De privécoach heeft nieuwe tarieven**
+> Vanaf seizoen 3 hangt de prijs van een coach af van de algemene score van je duif,
+> van €80 tot €400 per dag. Voor jouw beste duif, {naam} (score {x}), zou een coach
+> **€{bedrag} per dag** kosten. Alle tarieven: Wiki → De privécoach.
+
+**Actiemelding** — enkel wie meer dan 6 sponsors heeft, stabiele id
+`ntf:season3:sponsorcap:<userId>` (zie onderdeel 2):
+
+> **⚠️ Kies je sponsors**
+> Je hebt **{s} sponsors**, het maximum is nu 6. Kies op de sponsorpagina welke
+> **{s−6}** je laat gaan — dat is **gratis**. Tot je gekozen hebt, betaalt geen
+> enkele sponsor uit.
+
+### 5.4 Rondleiding "Nieuw in seizoen 3"
+Zes korte stappen, in `Tour.tsx` als `SEASON3_NEWS_STEPS`. Teksten zoals ze in het
+spel komen (Vlaams, kort, zonder tabellen; getallen enkel waar het een harde grens
+is):
+
+1. **Overzicht** — *🎉 Welkom in seizoen 3*
+   > Jullie stemden, en het winnende idee zit in het spel. Daarnaast is er aan een
+   > paar knoppen gedraaid. De belangrijkste in vijf stappen — alles in detail
+   > staat in de wiki.
+2. **Mijn hok** (spotlight op een duifkaart met een kenmerk; heeft de speler er
+   geen, dan op de eerste duifkaart) — *✨ Kenmerken*
+   > Ongeveer één op de drie duiven heeft nu een kenmerk: ze vliegt sneller in één
+   > bepaalde situatie — bij rugwind, in de kou, in het donker, op een sprint…
+   > Klik op het label om te zien wanneer. Kenmerken zijn **erfelijk** en voor
+   > iedereen zichtbaar, ook op de markt.
+3. **Vluchten** (spotlight op de vluchtkalender) — *✨ Wie is vandaag in haar element?*
+   > Bij het inschrijven zie je welke duif haar kenmerk kan gebruiken. Sommige
+   > hangen af van het weer bij de lossing; andere — dag, nacht, in groep of
+   > alleen — slaan zelfs pas **tijdens** de vlucht aan. Volg het op het live bord.
+4. **Sponsors** (spotlight op de sponsorteller) — *🤝 Hoogstens 6 sponsors*
+   > Je kan nog **maximaal 6 sponsors** tegelijk hebben. De prestigesponsors
+   > betalen per dag minder; hun tekengeld en podiumpremie blijven. Wil je een
+   > zevende, dan zeg je er eerst een op.
+5. **Mijn hok** (spotlight op de coachknop van een duif) — *🎓 Een betere duif, een duurdere coach*
+   > De prijs van een privécoach hangt nu af van hoe goed je duif is: een gewone
+   > duif blijft goedkoop, een topduif kost meer. **Jouw coaches kosten nu samen
+   > €{x} per dag** (was €{y}) — per duif zie je het bij de coachknop. En zelf
+   > trainen geeft voortaan altijd precies **+1**.
+   (Zonder coach: *"Bij elke duif zie je aan de coachknop wat een coach voor háár
+   kost."*)
+6. **Vluchten** — *⚡ Vliegen vraagt meer*
+   > Een vlucht kost je duiven meer **energie** en meer **gezondheid** dan vroeger,
+   > en ervaring spaart minder energie uit. Een volle tank en genoeg rust wegen dus
+   > zwaarder. Alles op een rij: **Wiki → Nieuw in seizoen 3**.
+   (knop "Naar de wiki" → `/wiki#seizoen3`)
+
+Bestaat een selector niet (bv. `data-tour`-attribuut op de coachknop of de
+sponsorteller), voeg hem toe; de rondleiding mag nooit op een lege plek wijzen.
+
+### 5.5 Wiki: "Nieuw in seizoen 3"
+Nieuwe sectie **bovenaan** `WikiPage.tsx`, id `seizoen3`, die na seizoen 3 gewoon
+blijft staan (als changelog). Inhoud, kort per blok, met een link naar de
+volledige sectie eronder:
+
+| Blok | Inhoud |
+|---|---|
+| ✨ **Kenmerken** | wat het is, de 15 kenmerken in één tabel (emoji, naam, wanneer, effect), 30 % kans, erfelijk, gewoon/zeldzaam → link naar `#kenmerken` |
+| 🤝 **Sponsors** | max. 6; prestigesponsors (tier 4) −75 % per dag met de nieuwe bedragen; een zevende = eerst opzeggen (met verbrekingsvergoeding); wie er te veel had: gratis afbouwen |
+| 🎓 **Coach & trainen** | de tabel van de zeven schijven; trainen = altijd +1 |
+| ❤️ **Gezondheid** | verlies na een vlucht ×1,15, met 3 voorbeelden (300 / 500 / 1000 km) |
+| ⚡ **Energie** *(al live sinds eind september)* | verbruik ×1,15; ervaring spaart nog maar ±6 % (was ±25 %); 2–3 voorbeelden |
+| 🏆 **Prijsuitreiking** | Roekoes nu €2.000 / €1.700 / €1.400; elke andere melker met punten krijgt seizoenspunten ÷ 3 in euro (voorbeeld: 1.200 punten → €400) |
+| 🔨 **Zondagveiling** | voortaan twee topduiven: één met score 60–70 (10:00–20:00) en één met score 70–80 (11:00–21:00) |
+| 📜 **Erfenis** | kies je bij de erfenis van een oude melker de spaarpot, dan krijg je nu €2.000 (was €600) |
+| 🗳️ **Van De Stem** | "Unieke eigenschappen per duif" staat op *In het spel*; stem mee op het volgende idee → link naar De Stem |
+
+### 5.6 Kaart op het Overzicht
+Een kleine, wegklikbare kaart bovenaan het Overzicht, **7 dagen** vanaf de start
+van seizoen 3: *"🎉 Seizoen 3: kenmerken, sponsorlimiet en meer — bekijk wat er
+nieuw is →"* (link naar `/wiki#seizoen3`). Wegklikken onthouden per browser
+(localStorage, in try/catch). Zo vindt ook wie de rondleiding wegklikte het later
+terug.
+
+### 5.7 De Stem
+Zet het idee "✨ Unieke eigenschappen per duif" op **`uitgevoerd`** ("In het spel")
+op het moment dat seizoen 3 start (via de migratie of met de admin-knop — noteer
+welke).
+
+### 5.8 Tests
+- De welkomstmelding: precies één per speler, geen voor bots, stabiele id (dubbele
+  verwerking = één rij); de regels met • verschijnen enkel wanneer van toepassing
+  ({n}=0, geen coach, geen sponsors, >6 sponsors).
+- De coachmelding: juiste bedragen per duif en in totaal (zelfde som als de eerste
+  dagafrekening van seizoen 3), "was"-bedrag klopt, gratis starterscoach op de
+  duurste duif, variant zonder coach noemt de beste duif; één per speler.
+- De actiemelding enkel bij >6 sponsors.
+- Vóór de seizoenspoort: geen meldingen, en `/state` geeft niets waardoor de
+  rondleiding of de kaart zou tonen.
+- `idle-writes` blijft groen (de meldingen komen uit de eenmalige migratie, nooit
+  uit een tick die elke poll draait).
+
+### 5.9 Klaar als
+- [x] Welkomstmelding, coachmelding en (waar nodig) actiemelding worden bij de start verstuurd.
+- [x] De rondleiding verschijnt één keer, na de prijsuitreiking, met werkende spotlights.
+- [x] De wiki heeft "Nieuw in seizoen 3" bovenaan, inclusief de energiewijziging die al live was.
+- [x] De kaart op het Overzicht staat er 7 dagen.
+- [ ] Het Stem-idee staat op "In het spel".
+- [x] Niets hiervan is zichtbaar vóór de start van seizoen 3.
+
+---
+
+## 6. Prijsuitreiking: nieuwe Roekoe-bedragen en een seizoenspremie voor iedereen
+
+### 6.1 De regels
+Bij de prijsuitreiking op het einde van een seizoen (`runSeasonEnd` in
+`core/game/season.ts`), voor de **melkerranglijst** (seizoenspunten):
+
+| Plaats | Prijs | Geld |
+|---|---|---|
+| 1 | 🏆 Gouden Roekoe | **€2.000** (+ badge Seizoenskampioen) |
+| 2 | Zilveren Roekoe | **€1.700** (was €1.500) |
+| 3 | Bronzen Roekoe | **€1.400** (was €1.000) |
+| 4 en verder | 💰 **Seizoenspremie** | **seizoenspunten ÷ 3**, in euro |
+
+- **Seizoenspremie:** elke melker **buiten de top 3** met **minstens 1
+  seizoenspunt** krijgt `floor(seizoenspunten / 3)` euro. Voorbeelden: 1.200 punten
+  → €400; 300 → €100; 100 → €33; 2 → €0 (geen premie, geen kaart).
+- De **top 3 krijgt enkel de Roekoe**, geen premie erbovenop.
+- **Bots** krijgen de premie ook (zoals ze nu al Roekoes kunnen winnen; ze krijgen
+  geen melding).
+- **Nieuwe spelers:** hun seizoenspunten tellen in hun eerste seizoen dubbel
+  (starterspakket), dus hun premie volgt vanzelf. Niet apart afvangen.
+- De **Vleugels** en het **criterium** blijven ongewijzigd.
+- **Gelijke stand** rond plaats 3: de bestaande sortering (punten, dan zeges dit
+  seizoen) beslist, zoals nu.
+
+### 6.2 Technisch
+- **Config (`gameConfig.ts`, `SEASON_AWARDS`):** `roekoe: [2000, 1700, 1400]` en
+  een nieuwe knop `pointsPremiumDivisor: 3`.
+- **`runSeasonEnd`:** na de top 3 loopt het over `standings[3…]` en geeft elk hok
+  met `floor(seasonPoints / 3) > 0` een award van een nieuw soort, bv.
+  `kind: 'premie'` (`SeasonAward` in `schema.ts`), met `value = seizoenspunten` en
+  `reward = het bedrag`. Via `give()`, zodat geld, `loft.awards` en de melding
+  hetzelfde pad volgen.
+  - ⚠️ `loft.awards` groeit zo elk seizoen bij bijna elk hok. Kijk of de erelijst
+    (Prestaties → Seizoensprijzen) de premies apart of niet toont: **niet** als
+    beker tellen (het is geen Roekoe), eventueel als regel "Seizoenspremie".
+- **Melding** (bestaande prijsuitreiking-melding, `ntf:season:<seizoen>:<userId>`):
+  de regel *"💰 Seizoenspremie: {punten} punten → €{bedrag}"*. Die melding gaat nu
+  naar bijna iedereen, niet enkel de top 3.
+- **Scherm** (`PrizeCeremony.tsx`): een eigen kaart voor de premie (💰, de punten
+  en het bedrag). `Layout.tsx` toont de uitreiking nu enkel als er awards zijn;
+  dat blijft zo, en geldt nu ook voor de premie.
+- **Ranglijst** (optioneel, als het klein blijft): per hok buiten de top 3 de
+  premie die hij **nu** zou krijgen ("≈ €400"). Enkel weergave.
+
+### 6.3 Activering
+- ✅ **Live gezet vóór de wissel**, los van de rest van dit bestand, op
+  uitdrukkelijke vraag van de speler. Geen seizoenspoort: het geldt vanaf de
+  eerstvolgende prijsuitreiking (de stand van seizoen 2, bij de wissel naar
+  seizoen 3).
+- Geen datamigratie nodig.
+- **Bij "implementeer seizoen3.md": dit onderdeel niet opnieuw bouwen.** Enkel de
+  vermelding in de communicatie (§5.5) blijft te doen.
+
+### 6.4 Tests
+Uitbreiden: `tests/season-prizes.test.mts`:
+- de top 3 krijgt €2.000 / €1.700 / €1.400 en geen premie;
+- plaats 4+ krijgt `floor(punten/3)`; 1.200 → 400; 2 punten → niets; 0 punten →
+  niets;
+- bots krijgen de premie maar geen melding;
+- één melding per speler met alle prijzen samen (stabiele id, dubbele verwerking
+  = één rij);
+- `seasonWins`-reset en de rest van de bestaande asserties blijven groen.
+
+### 6.5 Documentatie
+- **`spelregels.md` §15.2:** de nieuwe bedragen en de seizoenspremie.
+- **`context.md`:** `SEASON_AWARDS` en het award-soort `premie`.
+- **Wiki:** de tabel van de Roekoe met de premie, en de rij in "Nieuw in seizoen 3" (§5.5).
+
+### 6.6 Klaar als
+- [x] Roekoes betalen €2.000 / €1.700 / €1.400.
+- [x] Elke andere melker met punten krijgt seizoenspunten ÷ 3 (afgerond naar beneden).
+- [x] Melding, prijsuitreiking op het scherm en erelijst tonen de premie.
+- [x] `season-prizes.test.mts` groen; spelregels, wiki (sectie `seizoensprijzen`) en `context.md` bijgewerkt.
+
+---
+
+## 7. Zondag: twee topduiven onder de hamer
+
+### 7.1 Hoe het nu is
+Elke zondag van **11:00 tot 20:00** (Brussel) gaat **één** topduif onder de hamer
+(`createSundayAuction` in `core/game/auction.ts`). Ze wordt gemaakt met
+`generatePigeon(quality 0,82–0,98)`, wat in de praktijk een algemene score geeft
+van ~49 tot ~85 (mediaan ~68, gemeten over 4.000 duiven). De score ligt dus niet
+vast. Zolang ze loopt, komt er geen opvangcentrum-veiling tussen.
+
+### 7.2 De regels
+Elke zondag gaan er **twee** topduiven onder de hamer, **in plaats van** de ene van
+nu:
+
+| Veiling | Algemene score | Open | Sluit |
+|---|---|---|---|
+| 🔨 **Zondagveiling A** (duif 1) | **60 tot 70** | **10:00** | **20:00** |
+| 🔨 **Zondagveiling B** (duif 2) | **70 tot 80** | **11:00** | **21:00** |
+
+- **Algemene score** = `talent` (gemiddelde van snelheid, conditie en
+  oriëntatie), dezelfde score als bij de coachprijs. Grenzen: A in [60, 70),
+  B in [70, 80).
+- **Uren (beslist door de speler):** A loopt van 10:00 tot 20:00, B van 11:00 tot
+  21:00, allebei 10 uur. Ze overlappen van 11:00 tot 20:00. Wie A om 20:00
+  verliest, heeft nog een uur om op B te bieden.
+- Alle bestaande veilingregels blijven: openingsbod **30 % van de marktwaarde**
+  (minstens €300), slotfase van 30 minuten met hoogstens 3 biedingen per speler,
+  anti-snipe van 5 minuten, geld niet vastgehouden, verlies-meldingen.
+- **Vrije plaatsen in je hok** (regel van de speler — om te vermijden dat de
+  sterkste spelers beide duiven tegelijk opkopen):
+  - Op **één** zondagduif bieden vraagt **1 vrije plaats** (zoals nu al voor elke
+    veiling).
+  - Heb je het **hoogste bod op de ene** zondagduif, dan kan je **niet** op de
+    **andere** bieden, **tenzij je 2 vrije plaatsen** hebt.
+  - Word je op de ene **overboden** (iemand anders heeft er nu het hoogste bod),
+    dan mag je weer op de andere bieden met 1 vrije plaats.
+  - Voorbeeld: je hebt 1 vrije plaats en het hoogste bod op duif A. Bieden op B
+    wordt geweigerd: *"Je hebt al het hoogste bod op {A}. Om ook op {B} te
+    bieden heb je 2 vrije plaatsen nodig."* Wordt je op A overboden, dan kan je
+    op B bieden.
+  - Is een veiling **gesloten**, dan telt ze niet meer mee. Won je A om 20:00, dan
+    zit ze in je hok (één plaats minder) en heb je voor B gewoon 1 vrije plaats
+    nodig.
+  - De regel geldt enkel **tussen de twee zondagduiven**, niet voor
+    opvangcentrum- of gedwongen veilingen.
+- Win je toch allebei (met 2 vrije plaatsen), dan krijg je allebei, zolang je het
+  geld en de plaats hebt op het moment van sluiten (zoals nu: anders gaat de duif
+  naar de volgende bieder).
+- **Opvangcentrum:** komt niet tussen zolang **een** van de twee zondagveilingen
+  loopt.
+- **Bots** bieden mee zoals nu (`bot-bidding`), binnen hun band rond de marktwaarde.
+
+### 7.3 Technisch
+- **Een duif met een score binnen de band maken.** `generatePigeon` geeft een
+  brede spreiding, dus:
+  - genereer met een quality die rond de band ligt (bv. A: 0,60–0,75,
+    B: 0,72–0,90; afstemmen met een meting) en **trek opnieuw** tot
+    `talent(p)` in de band ligt, hoogstens ~50 pogingen;
+  - lukt het niet binnen de pogingen, schaal dan snelheid/conditie/oriëntatie
+    evenredig bij tot het midden van de band, en respecteer de gen-caps (verhoog
+    een gen-cap als dat nodig is, nooit boven 95).
+  - Houd `namesInUse` bij voor de tweede duif (de eerste staat al in de lijst).
+- **Stabiele id's** (zie het commentaar bij `createSundayAuction`): nu is de
+  sleutel `auction:<datum>`. Maak er twee van: `auction:<datum>:a` en
+  `auction:<datum>:b`, met duif-id `pig_<slug>` en veiling-id `auc_<slug>` per
+  sleutel. Zo levert twee keer tegelijk openen nog steeds exact twee veilingen op.
+  - ⚠️ **Overgang:** een oude sleutel `auction:<datum>` (zonder `:a`/`:b`) van de
+    zondag waarop de uitrol valt, mag geen derde veiling veroorzaken. Controleer of
+    er voor die datum al een veiling bestaat met eender welke van de drie sleutels.
+- **`auctionKind`**: beide blijven `'sunday'` (de sleutel begint met `auction:`).
+  Controleer elke plek die aanneemt dat er **één** zondagveiling is (bv. de
+  opvangcentrum-pauze in `ensureAuctions`, de markt-UI, het aftellen, de
+  15-seconden-poll in de slotfase in `MarketPage`): die moet met twee werken.
+- **Biedregel (`placeBid` in `auction.ts`):** nu staat daar al `owned >=
+  loft.capacity → 'Je hok zit vol'`. Voeg eraan toe: is dit een zondagveiling
+  en is er een **andere open** zondagveiling (zelfde datum) waar
+  `currentBidderId === userId`, dan is `capacity − owned ≥ 2` vereist, anders de
+  foutmelding van §7.2. `owned` telt zoals nu (de duiven van de speler in
+  `db.pigeons`). Bots volgen dezelfde regel (`bot-bidding`).
+- **Uren:** nu zijn `OPEN_HOUR` (11) en `WINDOW_HOURS` (9) vaste constanten in
+  `auction.ts`. Maak er per veiling een open- en sluituur van in de config
+  (A 10–20, B 11–21). `ensureAuctions` kijkt nu naar één venster per zondag; het
+  moet elke veiling openen zodra háár openingsuur voorbij is (B pas om 11:00), en
+  het opvangcentrum pauzeert van 10:00 tot 21:00.
+- **Config (`gameConfig.ts`, `AUCTION`):** de twee banden, de quality-bereiken, de
+  sluituren (17 en 20) en het maximum aantal pogingen.
+- **Melding** (één per speler, stabiele id `ntf:auc:open:<datum>:<userId>`):
+  *"🔨 Zondagveiling geopend! Twee topduiven gaan onder de hamer: {A} (score {x},
+  tot 20u) en {B} (score {y}, vanaf 11u, tot 21u). Bied mee op de markt!"*
+
+### 7.4 Wat de speler ziet
+- **Markt:** twee zondagkaarten, elk met de score, het aftellen en het sluituur.
+  Heb je het hoogste bod op de ene en maar 1 vrije plaats, dan staat bij de andere
+  meteen waarom je niet kan bieden (i.p.v. pas een fout na het klikken).
+  Sorteer ze op sluituur, zodat de eerste sluitende bovenaan staat.
+- **Overzicht** (`DashboardPage`, waar nu de lopende veiling staat): beide tonen.
+- **Wiki** (`veilingen`) en **spelregels** §12 *Zondagveiling*: twee duiven, hun
+  scoreband, de twee sluituren.
+
+### 7.5 Activering
+- Vanaf de eerste **zondag na de start van seizoen 3** (zelfde seizoenspoort). Tot
+  dan blijft het één duif.
+
+### 7.6 Tests
+Nieuw, bv. `tests/sunday-auction.test.mts`:
+- **biedregel:** met 1 vrije plaats en het hoogste bod op A wordt een bod op B
+  geweigerd; met 2 vrije plaatsen mag het; na overboden worden op A mag het met 1;
+  na het sluiten van A telt A niet meer; een opvangcentrum-veiling valt er buiten;
+- op zondag binnen het venster: exact twee zondagveilingen, A met score in
+  [60, 70) en B in [70, 80), over bv. 200 gesimuleerde zondagen;
+- A opent om 10:00 en sluit om 20:00, B opent om 11:00 en sluit om 21:00 (Brusselse tijd, ook over de wissel naar
+  wintertijd);
+- twee keer `ensureAuctions` na elkaar of "tegelijk" = nog steeds twee (stabiele
+  id's), één melding per speler;
+- de overgangszondag met een oude sleutel geeft geen derde veiling;
+- geen opvangcentrum-veiling zolang een van beide loopt;
+- vóór de seizoenspoort: nog de oude ene veiling.
+- **Blijft groen:** `bot-bidding`, `market-bidding`, `market-news`, `idle-writes`,
+  `query-budget`.
+
+### 7.7 Beslissingen van de speler
+- ✅ A (score 60–70): 10:00–20:00. B (score 70–80): 11:00–21:00.
+- ✅ Hoogste bod op de ene → op de andere bieden enkel met 2 vrije plaatsen (§7.2).
+
+### 7.8 Klaar als
+- [x] Elke zondag twee topduiven: score 60–70 en 70–80, in plaats van één.
+- [x] Hoogste bod op de ene → op de andere bieden enkel met 2 vrije plaatsen.
+- [x] Sluituren volgens §7.2 (A 10:00–20:00, B 11:00–21:00), stabiele id's, geen derde veiling op de overgangszondag.
+- [x] Opvangcentrum pauzeert zolang een van beide loopt.
+- [x] Markt, Overzicht, melding, wiki en spelregels tonen beide.
+- [x] Tests groen.
+
+---
+
+## 8. Erfenis van een oude melker: de spaarpot wordt €2.000
+
+### 8.1 De regel
+Het dilemma **📜 Erfenis van een oude melker** (`inheritanceCard` en de afhandeling
+`case 'inheritance'` in `core/game/events.ts`) laat de speler kiezen tussen:
+1. **De spaarpot** — nu **€600**, wordt **€2.000**;
+2. **De oude kampioen** — ongewijzigd;
+3. **De jonge belofte** — ongewijzigd.
+
+Enkel het bedrag van de spaarpot verandert. De kans op het dilemma blijft gelijk
+(zie §8.3).
+
+### 8.2 Technisch
+- Maak er een config-knop van, bv. `EVENTS.inheritanceCash = 2000` in
+  `gameConfig.ts`, en gebruik die op **alle drie** de plekken in `events.ts`, zodat
+  ze niet uit elkaar lopen:
+  - het label `'De spaarpot (€600)'` in `inheritanceCard()`;
+  - `loft.money += 600` bij `choice === 0`;
+  - de terugmelding `'Je koos de spaarpot: €600 rijker.'`
+- ⚠️ **Een kaart die al openstaat:** `inheritanceCard()` wordt als `pendingEvent`
+  op de loft bewaard, mét het label. Een speler die de erfenis vóór de wissel
+  kreeg en pas erna kiest, ziet nog "€600" op de knop maar krijgt €2.000 (de
+  afhandeling leest de config). Aanvaardbaar — in zijn voordeel. Niet apart
+  migreren.
+- **Activering:** vanaf de start van seizoen 3 (zelfde seizoenspoort), of gewoon
+  met de deploy op het moment van de wissel.
+
+### 8.3 Hoe vaak komt het voor (ter info, verandert niet)
+- Een dilemma kan enkel verschijnen bij de **eerste bezoek van de dag** (bij het
+  vernieuwen van de dagopdrachten, `refreshDailyMissions` in `missions.ts`), met
+  **34 %** kans, en enkel als er geen ander dilemma openstaat.
+- Dan wordt er **één** dilemma gekozen uit de mogelijke, allemaal even waarschijnlijk:
+  9 basisdilemma's, + 3 als je minstens één duif hebt, + 1 (de koopman) vanaf 4
+  duiven. Een gewoon hok (meer dan 3 duiven) heeft er **13**.
+- Kans op de erfenis: **0,34 × 1/13 ≈ 2,6 % per dag** dat je inlogt. Dat is
+  gemiddeld **één keer per ~38 speeldagen**, ~**17 %** per week en ~**52 %** per
+  seizoen van 28 dagen (bij elke dag inloggen).
+- Bots krijgen geen dilemma's.
+
+### 8.4 Tests
+- De spaarpot geeft €2.000 (voor de poort nog €600), het label toont €2.000.
+- De oude kampioen en de jonge belofte werken zoals voorheen (ook met een vol
+  hok: de duif wacht bij Kweek — `event-arrival.test.mts` blijft groen).
+
+### 8.5 Documentatie
+- **`spelregels.md` §12** (dilemma's): vermeld het bedrag van de spaarpot.
+- **Wiki:** als de erfenis er met een bedrag staat, aanpassen.
+
+### 8.6 Klaar als
+- [x] De spaarpot van de erfenis geeft €2.000, overal uit één config-waarde.
+- [x] Tests groen; spelregels en wiki bijgewerkt.
 
 ---
 

@@ -667,6 +667,8 @@ export interface World {
    *  auction house). Drives the dot on the Markt button — see marketSeen.ts. */
   marketNewsAt?: string;
   marketNewsBy?: string;
+  /** Wanneer de laatste grote aankondiging (seizoen 3) verstuurd werd; '' = geen. */
+  newsAt?: string;
 }
 
 export interface PigeonRankRow {

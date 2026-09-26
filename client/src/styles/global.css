@@ -543,7 +543,7 @@ a.bell-item:hover { background: var(--surface-2); }
 .bell-item-ico { font-size: 0.95rem; }
 .bell-item-title { font-weight: 700; font-size: 0.9rem; flex: 1; min-width: 0; }
 .bell-item-time { color: var(--text-soft); font-size: 0.72rem; flex-shrink: 0; }
-.bell-item-body { color: var(--text-soft); font-size: 0.84rem; margin-top: 3px; line-height: 1.35; }
+.bell-item-body { color: var(--text-soft); font-size: 0.84rem; margin-top: 3px; line-height: 1.35; white-space: pre-line; }
 
 /* --- Race recap ----------------------------------------------------------- */
 .recap {

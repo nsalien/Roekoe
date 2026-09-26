@@ -366,7 +366,7 @@ export function PigeonPage() {
               <h2>Ontwikkeling</h2>
 
               {/* Private coach */}
-              <div className="row" style={{ justifyContent: 'space-between', gap: 10, alignItems: 'flex-start' }}>
+              <div className="row" style={{ justifyContent: 'space-between', gap: 10, alignItems: 'flex-start' }} data-tour="coach">
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <strong>🎯 Privécoach</strong>
                   {/* Keep this to the two things that decide the click: what it costs
