@@ -913,8 +913,11 @@ app.get('/market', (c) => {
   const user = requireUser(c);
   const db = c.get('store').data;
   const botIds = new Set(db.lofts.filter((l) => l.isBot).map((l) => l.userId));
+  // Your own listings are included, so a seller sees his bird on the market like
+  // everyone else does. The client shows them without buy/bid buttons, and
+  // buyPigeon / makeOffer refuse your own bird anyway.
   const listings = db.pigeons
-    .filter((p) => p.forSale && p.ownerId !== user.id)
+    .filter((p) => p.forSale)
     .map((p) => pigeonDTO(db, p, user.id, user.isAdmin))
     .sort((a, b) => (a.price ?? 0) - (b.price ?? 0));
   // Every other real player's pigeon that is NOT already listed — you can make a

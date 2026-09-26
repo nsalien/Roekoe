@@ -1839,6 +1839,10 @@ Zet je een duif op de markt, dan geef je **twee** bedragen op:
 > de duif direct. Wie liever onderhandelt, kan €3.000 of meer bieden — jij bepaalt
 > of je erop ingaat.
 
+**Je ziet je eigen duif op de markt staan**, net zoals de andere spelers haar zien,
+met het label *Jouw duif*. Kopen of erop bieden kan je uiteraard niet; je kan ze
+daar wel meteen **uit de verkoop halen**.
+
 - Vul je **geen** ondergrens in, dan is je duif **enkel voor de marktprijs** te
   koop; bieden kan dan niet.
 - De ondergrens mag **niet boven** je marktprijs liggen — dan zou niemand ooit
