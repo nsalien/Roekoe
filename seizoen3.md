@@ -588,8 +588,8 @@ de spelregels "~+1" zeggen.
   de vaste +1 pas gelden als de seizoenspoort open is (zelfde poort als v53/v54),
   of zorg dat de deploy op het moment van de wissel gebeurt — de speler zegt zelf
   wanneer het live mag.
-- **Geen aparte melding hier:** de nieuwe coachkost komt in de gezamenlijke
-  welkomstmelding van **§5**.
+- **Melding:** de nieuwe coachkost per duif (met de oude prijs ernaast) komt in de
+  **coachmelding** van §5.3, plus een regel in de welkomstmelding.
 - Geen datamigratie nodig: het tarief wordt elke dag berekend.
 
 ### 3.6 Tests
@@ -734,16 +734,46 @@ zijn.
 > Jullie stemden in De Stem, en het winnende idee vliegt nu mee: **kenmerken**.
 > Voor jou betekent seizoen 3:
 > • ✨ **{n} van je duiven** kregen een kenmerk — kijk in je hok wanneer ze in hun element zijn.
-> • 🎓 Je coaches kosten nu samen **€{x} per dag** (de prijs hangt af van hoe goed de duif is).
+> • 🎓 Je coaches kosten nu samen **€{x} per dag** (was €{y}) — de prijs hangt af van hoe goed de duif is. Zie de coachmelding.
 > • 🤝 Je hebt **{s} sponsors** — het maximum is nu 6.
 > • ⚡ Vliegen vraagt meer: meer energie en gezondheid per vlucht, dus rust wordt belangrijker.
 > Alles op een rij: **Wiki → Nieuw in seizoen 3**.
 
 - `{n} = 0` → die regel wordt: *"✨ Geen van je duiven kreeg een kenmerk — jongen
   uit je kweek of een aankoop kunnen er wel een hebben."*
-- Geen coach → coachregel weg. Geen sponsors → sponsorregel weg. Meer dan 6
+- Geen coach → coachregel weg (de coachmelding hieronder zegt dan wat een coach zou kosten). Geen sponsors → sponsorregel weg. Meer dan 6
   sponsors → sponsorregel weg (de actiemelding hieronder neemt het over).
 - De ⚡-regel staat er altijd.
+
+**Coachmelding** — elke speler (geen bots), één keer, stabiele id
+`ntf:season3:coach:<userId>`. Zegt precies wat hij na de update per dag betaalt,
+per duif, met de oude prijs ernaast. Bedragen berekend met dezelfde functie als de
+dagafrekening (`coachSalaryFor(talent)`, onderdeel 3), op het moment van de wissel.
+
+*Met gecoachte duiven:*
+> **🎓 Wat je coaches voortaan kosten**
+> Vanaf seizoen 3 hangt de prijs van een coach af van de algemene score van je duif.
+> • Rosa (score 82) — **€220** per dag
+> • Karel (score 73) — **€140** per dag
+> • Mia (score 61) — **€80** per dag
+> **Samen: €440 per dag** (was €240) · ≈ €3.080 per week.
+> 🎁 Je gratis starterscoach dekt je duurste duif: Rosa kost je niets.
+> Het tarief wordt elke dag opnieuw bepaald: stijgt een duif over een grens, dan
+> betaal je vanaf de volgende dag het hogere tarief. Alle tarieven: Wiki → De privécoach.
+
+- Duiven gesorteerd van duur naar goedkoop; bij meer dan 6 gecoachte duiven de
+  6 duurste en "+ {k} andere: €{z}".
+- "Was €{y}" = het oude tarief (aantal gecoachte duiven × €80, min de gratis
+  starterscoach), zodat de speler het verschil ziet.
+- De 🎁-regel enkel als het starterspakket nog loopt.
+- Staat de speler in het rood (schuld), dan heeft hij geen coaches (die zijn al
+  ontslagen): hij krijgt de variant zonder coach.
+
+*Zonder gecoachte duiven:*
+> **🎓 De privécoach heeft nieuwe tarieven**
+> Vanaf seizoen 3 hangt de prijs van een coach af van de algemene score van je duif,
+> van €80 tot €400 per dag. Voor jouw beste duif, {naam} (score {x}), zou een coach
+> **€{bedrag} per dag** kosten. Alle tarieven: Wiki → De privécoach.
 
 **Actiemelding** — enkel wie meer dan 6 sponsors heeft, stabiele id
 `ntf:season3:sponsorcap:<userId>` (zie onderdeel 2):
@@ -778,8 +808,11 @@ is):
    > zevende, dan zeg je er eerst een op.
 5. **Mijn hok** (spotlight op de coachknop van een duif) — *🎓 Een betere duif, een duurdere coach*
    > De prijs van een privécoach hangt nu af van hoe goed je duif is: een gewone
-   > duif blijft goedkoop, een topduif kost meer. En zelf trainen geeft voortaan
-   > altijd precies **+1**.
+   > duif blijft goedkoop, een topduif kost meer. **Jouw coaches kosten nu samen
+   > €{x} per dag** (was €{y}) — per duif zie je het bij de coachknop. En zelf
+   > trainen geeft voortaan altijd precies **+1**.
+   (Zonder coach: *"Bij elke duif zie je aan de coachknop wat een coach voor háár
+   kost."*)
 6. **Vluchten** — *⚡ Vliegen vraagt meer*
    > Een vlucht kost je duiven meer **energie** en meer **gezondheid** dan vroeger,
    > en ervaring spaart minder energie uit. Een volle tank en genoeg rust wegen dus
@@ -822,6 +855,9 @@ welke).
 - De welkomstmelding: precies één per speler, geen voor bots, stabiele id (dubbele
   verwerking = één rij); de regels met • verschijnen enkel wanneer van toepassing
   ({n}=0, geen coach, geen sponsors, >6 sponsors).
+- De coachmelding: juiste bedragen per duif en in totaal (zelfde som als de eerste
+  dagafrekening van seizoen 3), "was"-bedrag klopt, gratis starterscoach op de
+  duurste duif, variant zonder coach noemt de beste duif; één per speler.
 - De actiemelding enkel bij >6 sponsors.
 - Vóór de seizoenspoort: geen meldingen, en `/state` geeft niets waardoor de
   rondleiding of de kaart zou tonen.
@@ -829,7 +865,7 @@ welke).
   uit een tick die elke poll draait).
 
 ### 5.9 Klaar als
-- [ ] Welkomstmelding en (waar nodig) actiemelding worden bij de start verstuurd.
+- [ ] Welkomstmelding, coachmelding en (waar nodig) actiemelding worden bij de start verstuurd.
 - [ ] De rondleiding verschijnt één keer, na de prijsuitreiking, met werkende spotlights.
 - [ ] De wiki heeft "Nieuw in seizoen 3" bovenaan, inclusief de energiewijziging die al live was.
 - [ ] De kaart op het Overzicht staat er 7 dagen.
