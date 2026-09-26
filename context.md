@@ -971,6 +971,10 @@ Entiteiten: `Pigeon`, `Loft`, `User`, `BreedingPair`, `PendingBrood`, `Flight` (
   **bedrag** → Bied. De bieder ziet **enkel de algemene score** (★talent), niet de
   precieze eigenschappen — verwijzing naar ranglijst/vluchtresultaten. `/market` levert
   `biddable` (alle niet-te-koop duiven van echte spelers, elk met `revealed:false`).
+  `listings` bevat **ook je eigen te-koop-duiven**: de verkoper ziet zijn duif op de
+  markt zoals iedereen, met een label "Jouw duif" en enkel een knop **Uit de verkoop
+  halen** (geen koop- of biedknop). `buyPigeon`/`makeOffer` weigeren je eigen duif
+  sowieso ("Dit is al jouw duif").
   Nav-badge op **Markt** = ontvangen biedingen; daarnaast een **stip** zodra er een duif
   te koop staat die deze speler nog niet zag (§8). De pagina zet die stip uit door bij
   het laden `markMarketSeen` te roepen met wat er op het scherm staat. De **verkoopgeschiedenis** onderaan toont

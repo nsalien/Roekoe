@@ -67,6 +67,20 @@ export function MarketPage() {
   });
   useVisiblePoll(() => void load(), 15000, auctionClosingSoon);
 
+  async function unlistOwn(p: Pigeon) {
+    setBusy(true);
+    try {
+      await api('/market/unlist', { method: 'POST', body: { pigeonId: p.id } });
+      toast.show(`${p.name} staat niet meer te koop.`, 'ok');
+      await load();
+      await refresh();
+    } catch (e) {
+      toast.show(e instanceof Error ? e.message : 'Mislukt', 'err');
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function buy(p: Pigeon) {
     setBusy(true);
     try {
@@ -206,6 +220,21 @@ export function MarketPage() {
             const h = Math.ceil(left / 3600000);
             return h >= 2 ? `nog ${h} u alleen voor spelers` : 'nog even alleen voor spelers';
           })();
+          // Your own listing: you see it like everyone else, but you can't buy or
+          // bid on your own bird — only take it off the market.
+          if (p.ownerId === user?.id) {
+            return (
+              <PigeonCard key={p.id} pigeon={p} showOwner showBreed showcase avatarSize={104}>
+                <div className="badge" style={{ background: 'var(--gold-soft)', marginBottom: 6 }}>
+                  🏷️ Jouw duif · te koop voor <Money value={p.price ?? 0} />
+                  {p.minBid != null && <> · bieden vanaf <Money value={p.minBid} /></>}
+                </div>
+                <button className="btn secondary block" disabled={busy} onClick={() => unlistOwn(p)}>
+                  Uit de verkoop halen
+                </button>
+              </PigeonCard>
+            );
+          }
           return (
             <PigeonCard key={p.id} pigeon={p} showOwner showBreed showcase avatarSize={104}>
               {headStart && (
