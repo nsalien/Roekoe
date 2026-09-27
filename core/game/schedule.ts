@@ -59,6 +59,7 @@ import {
   TITAN,
   type FlightTier,
   type RaceCity,
+  traitById,
 } from '../config/gameConfig.js';
 import type { CupStanding, Database, Flight, FlightResult, Loft, Pigeon, RaceLogEntry } from '../schema.js';
 import { emptySponsorState, emptyStats } from '../schema.js';
@@ -2343,6 +2344,36 @@ export function runDataMigrations(db: Database): void {
       }
     }
     db.world.dataVersion = 57;
+  }
+
+  if ((db.world.dataVersion ?? 0) < 58) {
+    // Owner's call: "De Vluchtige Vleugel" drew no trait on any of 13 birds in
+    // v55 (a ~1 % outcome — checked, not a bug). His birds WITHOUT a trait get
+    // one fresh roll at the normal odds, on a new seed so it is not the same
+    // draw again (and still identical if two requests race through here).
+    // Matched on loft name or username, real players only.
+    const norm = (s: string) => s.trim().toLowerCase().replace(/\s+/g, ' ');
+    const want = 'de vluchtige vleugel';
+    const target = db.lofts.find((l) => !l.isBot && (
+      norm(l.name) === want || norm(db.users.find((u) => u.id === l.userId)?.username ?? '') === want
+    ));
+    if (target) {
+      const won: string[] = [];
+      for (const p of db.pigeons) {
+        if (p.ownerId !== target.userId || p.trait) continue;
+        p.trait = rollTrait(seededRng(hashString(`trait:reroll:${p.id}`)));
+        const def = traitById(p.trait);
+        if (def) won.push(`${def.emoji} ${p.name} — ${def.name}`);
+      }
+      pushNotification(
+        db, target.userId, 'info', '✨ Je kenmerken opnieuw geloot',
+        won.length > 0
+          ? `Bij de start van seizoen 3 kreeg geen enkele van je duiven een kenmerk. We hebben de kansen voor jou opnieuw laten lopen:\n${won.join('\n')}`
+          : 'Bij de start van seizoen 3 kreeg geen enkele van je duiven een kenmerk. We hebben de kansen voor jou opnieuw laten lopen — helaas viel het opnieuw zo uit. Jongen uit je kweek en aankopen hebben elk opnieuw 30 % kans.',
+        null, `ntf:traitreroll:${target.userId}`,
+      );
+    }
+    db.world.dataVersion = 58;
   }
 }
 
