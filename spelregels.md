@@ -2195,9 +2195,10 @@ verliezen van iets beters dat jij bedenkt.
     alle drie de premies. Na elke wedstrijd waarin je scoort, krijg je een
     melding met wat elke sponsor precies betaalde.
   - **Orde van grootte.** Een buurtsponsor (tier 1) geeft €25–40 per dag en
-    €50–70 voor een nationale zege; een prestigesponsor (tier 4) €40–50 per
+    €50–70 voor een nationale zege; een prestigesponsor (tier 4) €75–100 per
     dag en €235–310. (Tier 4 betaalde tot seizoen 3 €150–200 per dag; sindsdien
-    een kwart daarvan. Tekengeld en podiumpremie bleven.)
+    de helft daarvan — bij de start van seizoen 3 kort een kwart, dat werd na een
+    dag verdubbeld. Tekengeld en podiumpremie bleven.)
   - **Hoogstens 6 sponsors tegelijk.** Wil je een zevende tekenen, dan zeg je in
     dezelfde handeling een van je sponsors op — tegen de gewone
     **verbrekingsvergoeding**. Overstappen naar een concurrent in dezelfde

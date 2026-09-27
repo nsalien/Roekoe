@@ -87,7 +87,7 @@ import {
 import { inheritanceCard } from './events.js';
 import { tickSeason } from './season.js';
 import { progressMissions } from './missions.js';
-import { activeContracts, applySponsorLimitMigration, evaluateSponsorOffers, offerStarterSponsor, restoreSeasonReviewDrops, sponsorsPaused } from './sponsors.js';
+import { activeContracts, applyHighTierDoubleMigration, applySponsorLimitMigration, evaluateSponsorOffers, offerStarterSponsor, restoreSeasonReviewDrops, sponsorsPaused } from './sponsors.js';
 import {
   applyFlightEffects,
   computeFinishPayouts,
@@ -2326,6 +2326,23 @@ export function runDataMigrations(db: Database): void {
     }
     db.world.newsAt = new Date(nowMs).toISOString();
     db.world.dataVersion = 56;
+  }
+
+  if ((db.world.dataVersion ?? 0) < 57) {
+    // Prestige sponsors (tier 4) pay HALF their old daily stipend instead of a
+    // quarter (owner: the −75 % was too much). Stored contracts and offers are
+    // doubled; one note to each player whose contract went up.
+    for (const loft of db.lofts) {
+      const raised = applyHighTierDoubleMigration(loft);
+      if (raised > 0) {
+        pushNotification(
+          db, loft.userId, 'info', '🤝 Prestigesponsors betalen dubbel',
+          `Goed nieuws: de prestigesponsors (tier 4) betalen per dag weer het dubbele — de helft van vroeger in plaats van een kwart. ${raised === 1 ? 'Je prestigesponsor betaalt' : `Je ${raised} prestigesponsors betalen`} vanaf vandaag meer.`,
+          null, `ntf:sponsortier4up:${loft.userId}`,
+        );
+      }
+    }
+    db.world.dataVersion = 57;
   }
 }
 
