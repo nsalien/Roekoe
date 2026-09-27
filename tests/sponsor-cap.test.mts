@@ -1,8 +1,9 @@
 /**
  * Seizoen 3, onderdeel 2: de sponsorlimiet.
  *
- *  - tier 4+ betaalt per dag een kwart (nieuw aanbod, heraanbod, bestaand contract
- *    en openstaand aanbod via migratie v54); tekengeld en podiumpremie niet;
+ *  - tier 4+ betaalt per dag de helft (nieuw aanbod, heraanbod, bestaand contract
+ *    en openstaand aanbod); tekengeld en podiumpremie niet. v54 zette ze op een
+ *    kwart, v57 verdubbelde dat — de keten v54→v57 komt op de helft uit;
  *  - hoogstens 6 sponsors; een zevende tekenen kan enkel door er een op te zeggen,
  *    tegen de gewone verbrekingsvergoeding; overstappen binnen een categorie blijft;
  *  - meer dan 6 bij de migratie → verplichte, gratis afbouw; tot dan betaalt geen
@@ -46,8 +47,8 @@ const contract = (def: typeof SPONSORS[number]) =>
 const offer = (def: typeof SPONSORS[number]) =>
   ({ id: def.id, at: new Date().toISOString(), signingBonus: def.signingBonus, dailyStipend: catalogDaily(def), podiumBase: def.podiumBase });
 
-console.log('\n1. Tier 4: een kwart per dag');
-for (const d of tier4) ok(catalogDaily(d) === Math.round((d.dailyStipend * 0.25) / 5) * 5, `${d.name}: €${d.dailyStipend} → €${catalogDaily(d)}`);
+console.log('\n1. Tier 4: de helft per dag');
+for (const d of tier4) ok(catalogDaily(d) === Math.round((d.dailyStipend * 0.5) / 5) * 5, `${d.name}: €${d.dailyStipend} → €${catalogDaily(d)}`);
 ok(SPONSORS.filter((s) => s.tier < 4).every((d) => catalogDaily(d) === d.dailyStipend), 'tier 1–3 ongewijzigd');
 
 console.log('\n2. Migratie v54 op bestaande contracten');
@@ -70,6 +71,31 @@ ok(db.notifications.some((n) => n.id === `ntf:season3:sponsorcap:${big.userId}`)
 ok(!db.notifications.some((n) => n.id === `ntf:season3:sponsorcap:${small.userId}`), 'het kleine niet');
 runDataMigrations(db);
 ok(big.sponsorship!.active.find((c) => c.id === tier4[0].id)!.dailyStipend === catalogDaily(tier4[0]), 'een tweede run verlaagt niet nog eens');
+
+console.log('\n2b. Migratie v57 op een wereld die al op een kwart stond');
+{
+  const q = (d: typeof SPONSORS[number]) => Math.max(5, Math.round((d.dailyStipend * 0.25) / 5) * 5);
+  const pro = mk('prestige');
+  pro.sponsorship!.active = [
+    { ...contract(tier4[0]), dailyStipend: q(tier4[0]) }, // catalogue quarter
+    { ...contract(tier4[1]), dailyStipend: 55 }, // a scaled re-offer
+    contract(oneEach.find((d) => d.tier < 4)!), // tier 1–3: untouched
+  ];
+  const lowDaily = pro.sponsorship!.active[2].dailyStipend;
+  pro.sponsorship!.offers = [{ ...offer(tier4[2]), dailyStipend: q(tier4[2]) }];
+  const plain = mk('gewoon');
+  plain.sponsorship!.active = oneEach.filter((d) => d.tier < 4).slice(0, 2).map(contract);
+  db.world.dataVersion = 56;
+  runDataMigrations(db);
+  ok(pro.sponsorship!.active[0].dailyStipend === catalogDaily(tier4[0]), `kwart €${q(tier4[0])} → catalogus €${catalogDaily(tier4[0])}`);
+  ok(pro.sponsorship!.active[1].dailyStipend === 110, 'een heraanbod van €55 wordt €110');
+  ok(pro.sponsorship!.active[2].dailyStipend === lowDaily, 'tier 1–3 blijft gelijk');
+  ok(pro.sponsorship!.offers[0].dailyStipend === catalogDaily(tier4[2]), 'openstaand tier-4-aanbod ook verdubbeld');
+  ok(db.notifications.some((n) => n.id === `ntf:sponsortier4up:${pro.userId}`), 'melding voor wie een prestigesponsor heeft');
+  ok(!db.notifications.some((n) => n.id === `ntf:sponsortier4up:${plain.userId}`), 'niet voor wie er geen heeft');
+  runDataMigrations(db);
+  ok(pro.sponsorship!.active[1].dailyStipend === 110, 'een tweede run verdubbelt niet nog eens');
+}
 
 console.log('\n3. Zolang je moet afbouwen, betaalt niemand');
 const bal = dailyRunningCostBreakdown(big, 8, 0, 0);

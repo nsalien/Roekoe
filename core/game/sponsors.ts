@@ -451,6 +451,9 @@ export function applyRefuseSponsor(db: Database, loft: Loft, sponsorId: string):
     : `Aanbod van ${name} geweigerd. Misschien komen ze later met een nieuw voorstel.`;
 }
 
+/** The tier-4 cut as v54 applied it (before v57 raised it to a half). */
+const V54_QUARTER = 0.25;
+
 /**
  * Migration v54 (seizoen 3), per loft: tier 4+ contracts and pending offers pay a
  * quarter of their daily stipend from now on, and a loft above the limit is put
@@ -460,15 +463,43 @@ export function applyRefuseSponsor(db: Database, loft: Loft, sponsorId: string):
 export function applySponsorLimitMigration(loft: Loft): number {
   if (loft.isBot) return 0;
   const st = state(loft);
+  // ⚠️ Pinned to the QUARTER this migration shipped with, not the live
+  // multiplier: v57 then doubles it. A world that runs v54 and v57 in one go
+  // must end where production did, not doubled twice.
   const cut = (id: string, daily: number) => {
     const def = BY_ID.get(id);
-    return def && tierDailyMult(def) !== 1 ? round5(daily * tierDailyMult(def)) : daily;
+    return def && tierDailyMult(def) !== 1 ? round5(daily * V54_QUARTER) : daily;
   };
   for (const c of st.active) c.dailyStipend = cut(c.id, c.dailyStipend);
   for (const o of st.offers) o.dailyStipend = cut(o.id, o.dailyStipend);
   const over = st.active.length - SPONSOR_MAX_ACTIVE;
   if (over > 0) st.mustReduce = true;
   return Math.max(0, over);
+}
+
+/**
+ * Migration v57: the prestige cut went from a quarter to a half, so every
+ * stored tier-4 daily stipend (active contract or open offer — v54 cut them
+ * once) doubles. A contract still on the old catalogue value (the quarter)
+ * lands exactly on the new catalogue value, so it matches what a fresh
+ * signature pays; a scaled re-offer is doubled as is. Returns how many ACTIVE
+ * contracts went up.
+ */
+export function applyHighTierDoubleMigration(loft: Loft): number {
+  if (loft.isBot) return 0;
+  const st = state(loft);
+  const up = (id: string, daily: number) => {
+    const def = BY_ID.get(id);
+    if (!def || tierDailyMult(def) === 1) return daily;
+    return daily === round5(def.dailyStipend * V54_QUARTER) ? catalogDaily(def) : round5(daily * 2);
+  };
+  let raised = 0;
+  for (const c of st.active) {
+    const next = up(c.id, c.dailyStipend);
+    if (next !== c.dailyStipend) { c.dailyStipend = next; raised++; }
+  }
+  for (const o of st.offers) o.dailyStipend = up(o.id, o.dailyStipend);
+  return raised;
 }
 
 /** True while the loft must drop sponsors: then NO sponsor pays anything. */

@@ -124,17 +124,17 @@ export function WikiPage() {
         <ul>
           <li>Je kan hoogstens <strong>6 sponsors</strong> tegelijk hebben. Een zevende tekenen = eerst een andere
             opzeggen (met de gewone verbrekingsvergoeding).</li>
-          <li>De prestigesponsors (tier 4) betalen <strong>75 % minder per dag</strong>; tekengeld en podiumpremie
-            blijven gelijk.</li>
+          <li>De prestigesponsors (tier 4) betalen <strong>de helft per dag</strong>; tekengeld en podiumpremie
+            blijven gelijk. (Bij de start was het even een kwart; dat is verdubbeld.)</li>
           <li>Had je er bij de update meer dan 6? Dan kies je gratis welke je laat gaan — tot dan betaalt geen enkele
             sponsor uit.</li>
         </ul>
         <MiniTable
           head={['Prestigesponsor', 'Per dag (was)', 'Per dag (nu)']}
           rows={[
-            ['📡 Telecom Vleugelnet', '€165', '€40'],
-            ['🎰 De Gouden Ring', '€150', '€40'],
-            ['🏆 Formule Duif Racing', '€200', '€50'],
+            ['📡 Telecom Vleugelnet', '€165', '€85'],
+            ['🎰 De Gouden Ring', '€150', '€75'],
+            ['🏆 Formule Duif Racing', '€200', '€100'],
           ]}
         />
         <p><a href="#sponsors">Meer over sponsors →</a></p>
@@ -480,13 +480,13 @@ export function WikiPage() {
             ['1 — buurtsponsor', '€25 – €40', '€50 – €70'],
             ['2 — lokale zaak', '€45 – €70', '€85 – €120'],
             ['3 — grote speler', '€90 – €135', '€145 – €215'],
-            ['4 — prestige', '€40 – €50', '€235 – €310'],
+            ['4 — prestige', '€75 – €100', '€235 – €310'],
           ]}
         />
         <p className="notice" style={{ marginTop: 10 }}>
           ⚠️ <strong>Hoogstens 6 sponsors tegelijk.</strong> Wil je een zevende, dan zeg je er eerst een op — dat kost
           de gewone verbrekingsvergoeding. Overstappen naar een concurrent in dezelfde categorie blijft gewoon kunnen.
-          De prestigesponsors (tier 4) betalen sinds seizoen 3 per dag een kwart van vroeger; hun tekengeld en
+          De prestigesponsors (tier 4) betalen sinds seizoen 3 per dag de helft van vroeger; hun tekengeld en
           podiumpremie bleven. Weiger je een sponsor uit een <strong>hogere tier</strong> dan je huidige in die
           categorie, dan mag hij later gewoon terugkomen.
         </p>

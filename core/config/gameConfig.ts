@@ -1710,11 +1710,12 @@ export const SPONSOR_MAX_PENDING_OFFERS = 2;
  *  - a loft holds at most SPONSOR_MAX_ACTIVE contracts; a seventh can only be
  *    signed by dropping one (normal break fee);
  *  - tier SPONSOR_HIGH_TIER and up pay only SPONSOR_HIGH_TIER_DAILY_MULT of their
- *    daily stipend (signing bonus and podium premium unchanged).
+ *    daily stipend (signing bonus and podium premium unchanged). Was 0.25 at
+ *    launch; the owner found that too harsh and doubled it (migration v57).
  */
 export const SPONSOR_MAX_ACTIVE = 6;
 export const SPONSOR_HIGH_TIER = 4;
-export const SPONSOR_HIGH_TIER_DAILY_MULT = 0.25;
+export const SPONSOR_HIGH_TIER_DAILY_MULT = 0.5;
 
 /**
  * Season review of active sponsor contracts. At each season rollover a sponsor
