@@ -39,6 +39,14 @@ export function rollTrait(rng: () => number = Math.random): PigeonTraitId | null
   return pool[Math.min(pool.length - 1, Math.floor(rng() * pool.length))].id;
 }
 
+/** A trait for sure (a gift, not a roll): gewoon/zeldzaam at the usual split,
+ *  then one of that rarity uniformly. */
+export function rollAnyTrait(rng: () => number = Math.random): PigeonTraitId {
+  const rare = rng() < TRAITS.rareShare;
+  const pool = PIGEON_TRAITS.filter((t) => (t.rarity === 'zeldzaam') === rare);
+  return pool[Math.min(pool.length - 1, Math.floor(rng() * pool.length))].id;
+}
+
 /**
  * A youngster's trait. Each parent WITH a trait passes it on with
  * TRAITS.inheritChance (sire first, then dam); both parents carrying the SAME
