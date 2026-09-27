@@ -109,7 +109,7 @@ import { generatePigeonName, isLegacyName, isWrongGenderName, nameKey, namesInUs
 import { breedingCooldownDaysLeft, breedingCooldownUntil, canRace, conditionScore, generatePigeon, isAway, noteAttrChange, rollBreed, rollGenes, talent } from './pigeon.js';
 import { NPC_OWNER_ID, ownerName } from './engine.js';
 import { pickRelayRoute, relayEntryTeams, relayLegKm, relayTeamComplete } from './relay.js';
-import { rollTrait } from './traits.js';
+import { rollAnyTrait, rollTrait } from './traits.js';
 import { season3CoachNote, season3Welcome } from './season3.js';
 import { bell, clamp, hashString, haversineKm, pick, randFloat, round1, seededRng } from './util.js';
 
@@ -2374,6 +2374,38 @@ export function runDataMigrations(db: Database): void {
       );
     }
     db.world.dataVersion = 58;
+  }
+
+  if ((db.world.dataVersion ?? 0) < 59) {
+    // Owner's gift: a guaranteed trait on N random birds WITHOUT one, for three
+    // named players. Seeded per player, so two racing requests pick the same
+    // birds and traits. Matched on loft name or username, real players only.
+    const norm = (s: string) => s.trim().toLowerCase().replace(/\s+/g, ' ');
+    const gifts: [string, number][] = [['marcel de neut', 2], ['de vluchtige vleugel', 2], ['vleugels inc.', 1]];
+    for (const [who, n] of gifts) {
+      const target = db.lofts.find((l) => !l.isBot && (
+        norm(l.name) === who || norm(db.users.find((u) => u.id === l.userId)?.username ?? '') === who
+      ));
+      if (!target) continue;
+      const rng = seededRng(hashString(`traitgift:${target.userId}`));
+      const pool = db.pigeons
+        .filter((p) => p.ownerId === target.userId && !p.trait)
+        .sort((a, b) => a.id.localeCompare(b.id));
+      const won: string[] = [];
+      for (let k = 0; k < n && pool.length > 0; k++) {
+        const p = pool.splice(Math.floor(rng() * pool.length), 1)[0];
+        p.trait = rollAnyTrait(rng);
+        const def = traitById(p.trait)!;
+        won.push(`${def.emoji} ${p.name} — ${def.name}`);
+      }
+      if (won.length === 0) continue;
+      pushNotification(
+        db, target.userId, 'info', '🎁 Een kenmerk cadeau',
+        `De spelleiding geeft je ${won.length === 1 ? 'een kenmerk' : `${won.length} kenmerken`} cadeau:\n${won.join('\n')}`,
+        null, `ntf:traitgift:${target.userId}`,
+      );
+    }
+    db.world.dataVersion = 59;
   }
 }
 
