@@ -869,7 +869,10 @@ Entiteiten: `Pigeon`, `Loft`, `User`, `BreedingPair`, `PendingBrood`, `Flight` (
   **Rode-kassa-waarschuwing** bovenaan zodra `loft.money < 0`: één regel met het aantal dagen
   tot de volgende gedwongen veiling (`loft.debtAuctionInDays`) + link naar `/wiki#schuld`.
   Beheerder-kaart (admin): "Volgende week" + "Toon recente veilingen" (biedgeschiedenis).
-- `LoftPage` (Mijn hok) — duivenlijst met per duif: voerkeuze-select, apart/samen-knop
+- `LoftPage` (Mijn hok) — duivenlijst met per duif: **inschrijven voor een vlucht** (select met
+  de vluchten waar ze nog op kan, kosten + kenmerkhint, en haar boekingen met ✕ uitschrijven;
+  één `/flights`-load bij aankomst, dezelfde regels als *Vluchten* via `game/flightEntry.ts`),
+  voerkeuze-select, apart/samen-knop
   (of "🏥 Ziekenboeg"-label als ze daar zit), verkoop, uitbreidingen. De statbalken
   tonen een **▲/▼ per dag** (groei/daling door je huidige keuze; via `pigeon.dailyCare`).
   ⚠️ **Beide uitbreidingen in `UpgradesCard` vragen eerst een `window.confirm`**
