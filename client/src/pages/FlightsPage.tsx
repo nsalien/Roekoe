@@ -6,6 +6,7 @@ import { api } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
 import { useGame } from '../game/GameContext';
 import { useVisiblePoll } from '../game/useVisiblePoll';
+import { buildDaysTaken, canEnter, flightDay } from '../game/flightEntry';
 import { Money, Spinner, countdownTo, formatDuration, formatFlightDay, formatFlightDayShort, formatFlightTime, tierLabel, traitEntryHint, TraitResultMark, useToast } from '../components/ui';
 import type { BetKind, BetPreview, BetView, Flight, FlightEntrant } from '../types';
 
@@ -42,10 +43,6 @@ function flightFamily(f: Flight): FlightFamily {
   return 'competition';
 }
 
-/** The calendar day a flight belongs to — the very key the one-race-per-day rule
- *  uses server-side (`flightDay` in core/game/flight.ts), so the grouping here and
- *  the "already booked that day" check can never disagree. */
-const flightDay = (f: Flight) => f.startAt.slice(0, 10);
 
 export function FlightsPage() {
   const { user } = useAuth();
@@ -90,20 +87,10 @@ export function FlightsPage() {
   // spent the moment it is on ANY flight of that day — scheduled, live, or long
   // since flown — so we map each of our birds to the days it is already booked
   // on. Flights that were called off don't count: nobody flew those.
-  const daysTaken = useMemo(() => {
-    const map = new Map<string, Set<string>>(); // pigeonId → days (YYYY-MM-DD)
-    for (const f of [...scheduled, ...live, ...completed]) {
-      if (f.cancelled) continue;
-      const day = f.startAt.slice(0, 10);
-      for (const e of f.entries) {
-        if (e.ownerId !== user?.id) continue;
-        let days = map.get(e.pigeonId);
-        if (!days) map.set(e.pigeonId, (days = new Set<string>()));
-        days.add(day);
-      }
-    }
-    return map;
-  }, [scheduled, live, completed, user]);
+  const daysTaken = useMemo(
+    () => buildDaysTaken([...scheduled, ...live, ...completed], user?.id),
+    [scheduled, live, completed, user],
+  );
 
   // Flights the player already has an open bet on (max one bet per flight).
   const betFlights = useMemo(() => {
@@ -273,14 +260,9 @@ export function FlightsPage() {
                   const dayBlocked = state.pigeons.filter(
                     (p) => p.canRace && !p.breeding && !onThisFlight.has(p.id) && daysTaken.get(p.id)?.has(dayKey),
                   ).length;
-                  const available = state.pigeons.filter(
-                    (p) =>
-                      p.canRace && !p.racing && !daysTaken.get(p.id)?.has(dayKey) && !p.breeding && (p.form ?? 0) >= 1 &&
-                      // A leeftijdscriterium takes one age bracket only. The server refuses
-                      // the rest anyway; hiding them here keeps the picker honest instead of
-                      // offering a bird that is guaranteed to bounce.
-                      (!f.ageCat || p.ageCat === f.ageCat),
-                  );
+                  // Same rules as Mijn hok (game/flightEntry.ts): day rule, age bracket,
+                  // one titan bird per loft, a full relay team.
+                  const available = state.pigeons.filter((p) => canEnter(p, f, daysTaken, user?.id));
                   return (
                     <div key={f.id} className="card" data-tour={f.id === tourFlightId ? 'flights' : undefined}>
                       <div className="row" style={{ justifyContent: 'space-between', alignItems: 'flex-start' }}>
