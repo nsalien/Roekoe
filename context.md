@@ -15,15 +15,15 @@
 
 | Rol | Branch | Doel |
 |-----|--------|------|
-| **Dev** | `claude/exciting-newton-xgvl6l` | Alle ontwikkeling/commits komen hier **eerst**. |
+| **Dev** | `ccr-9c78dbf3-rdb1ea` | Alle ontwikkeling/commits komen hier **eerst**. |
 | **Prod** | `claude/roekoe-game-website-jwa0vo` | Elke commit wordt hierheen **gecherry-pickt**; deze branch triggert de **Cloudflare Pages**-deploy naar productie. |
 
 > Vorige dev-branches (niet meer gebruiken): `claude/hallo-nno7pb`, `claude/hallo-r1wgvn`, `claude/hallo-ca55co`, `claude/hallo-qz9tmx`, `claude/hallo-fsp9nx`, `claude/hallo-mzjn0e`, `claude/hallo-su75jy`, `claude/hallo-rkr49f`, `claude/hallo-pvwabx`,
 > `claude/context-spelregels-q2ywtx`, `claude/hallo-49m6hj`, `claude/hallo-xifh0c`,
 > `claude/hallo-w97s85`, `claude/hallo-hrtwtv`,
 > `claude/prosper-postuum-tinne-race-j515f6`, `claude/hallo-v71l3e`,
-> `claude/duif-vorm-functie-s5fsaw`, `claude/context-spelregels-lsbm5a`. Ontwikkelt een sessie op een nieuwe
-> `claude/…`-branch, gebruik die dan als dev-branch en **werk deze tabel meteen bij** —
+> `claude/duif-vorm-functie-s5fsaw`, `claude/context-spelregels-lsbm5a`, `claude/exciting-newton-xgvl6l`. Ontwikkelt een sessie op een nieuwe
+> `claude/…`- (of `ccr-…`-)branch, gebruik die dan als dev-branch en **werk deze tabel meteen bij** —
 > de prod-branch hierboven verandert nooit.
 
 **Workflow per wijziging (zie §7 voor de exacte commando's):**
@@ -100,6 +100,12 @@ daarom ook **niet** in `Database` en lopen **niet** door de per-rij-diff van
 `persist()` — elke schrijfactie is een losse append of een DELETE op een
 samengestelde sleutel, dus twee spelers raken elkaars rij nooit.
 
+**Het Lokaal** (de vrije chat, `lokaal_messages`) gaat nog een stap verder: de
+routes `/api/lokaal*` staan bij de **featherweight**-routes in de middleware (net
+als login/`/auth/me`), dus ze laden de wereld **helemaal niet** en de motor draait
+niet — `c.get('store')` bestaat daar niet. Alles loopt via eigen, index-gedekte
+queries in `d1.ts`. Zie §8, *Het Lokaal*.
+
 Alles wat de engine globaal nodig heeft (users, lofts, pigeons, flights, auctions,
 offers, auction_bids) wordt nog steeds volledig geladen; die zijn begrensd door het
 aantal spelers en de 2-daagse vluchtretentie.
@@ -150,7 +156,7 @@ krijgen.**
 `core/game/schedule.ts` → `advanceRealtime(db, nowMs, weatherByFlight)` roept in
 volgorde:
 1. `runDataMigrations(db)` — eenmalige datafixes, **gated op `world.dataVersion`**
-   (staat nu op **59**; nieuwe migratie = nieuw `if ((db.world.dataVersion ?? 0) < N)`
+   (staat nu op **60** — v60 = de aankondigingsbel van Het Lokaal; nieuwe migratie = nieuw `if ((db.world.dataVersion ?? 0) < N)`
    blok + `db.world.dataVersion = N`). De oudere migraties hebben hun werk gedaan en
    zijn enkel nog van belang als **patroon** — zie §8, kop *Eenmalige migraties*.
 2. `ensureFlightsScheduled(db, nowMs)` — plant vluchten volgens `REAL_SCHEDULE`.
@@ -344,6 +350,7 @@ Roekoe/
 │       │                        PigeonAvatar, NotificationsBell,
 │       │                        FlightMap.tsx (live kaart, LAZY geladen) + geo.ts (grootcirkel)
 │       ├── game/GameContext.tsx useGame(): laadt /state, deelt state + refresh()
+│       ├── game/lokaalSeen.ts   bolletje op de Lokaal-knop (localStorage, React-vrij, zoals marketSeen.ts)
 │       ├── auth/AuthContext.tsx useAuth(): user + token
 │       ├── api/client.ts        api<T>(path, {method, body}) helper
 │       ├── styles/global.css    design system + thema via [data-theme] (dark default)
@@ -382,6 +389,7 @@ Roekoe/
 │       ├── pedigree.ts          stamboom + verwantschap (kinship/ancestorIds/pedigreeOf)
 │       ├── pigeon.ts, weather.ts, util.ts (seededRng/hashString/clamp/pickWith)
 │       ├── stem.ts              De Stem: regels van het ideeënbord + de 4 startideeën (géén DB)
+│       ├── lokaal.ts            Het Lokaal (chat): opkuisen/valideren, rem, wie mag weghalen, pollvenster (géén DB)
 │       ├── newcomer.ts          starterspakket nieuwe spelers (punten, gratis coach, 2x winst)
 │       ├── names.ts             naamgenerator — UNIEKE voornaam+bijnaam (namesInUse/nameKey)
 ├── functions/api/[[path]].ts    de HELE API (Hono) — dun laagje op de engine (+ /admin/auctions)
@@ -489,6 +497,11 @@ Entiteiten: `Pigeon`, `Loft`, `User`, `BreedingPair`, `PendingBrood`, `Flight` (
   een smal-laadpad is: daar de verse listings tellen zou de hele `pigeons`-tabel terug op
   de heetste route trekken. Gezet door `noteMarketNews` (market.ts) — **nooit vanuit een
   tick die elk verzoek draait**, anders stempelt elke poll de wereldrij.
+- `World.chatLastAt` / `chatLastBy` — laatste bericht in **Het Lokaal** en van wie (kolommen
+  `chat_last_at`/`chat_last_by`); voedt het bolletje op de Lokaal-knop, zoals `marketNewsAt`.
+  ⚠️ **Enkel geschreven door `insertLokaalMessage`** (een directe `UPDATE world SET chat_last_*`),
+  **niet** door de world-INSERT/UPDATE van `persist` — anders zet een verzoek dat de wereld net
+  vóór een bericht laadde de oude waarde terug. Gelezen gaat gratis mee met `SELECT * FROM world`.
 - `World.seasonStartedAt` / `seasonEndsAt` / `seasonWeek` — real-time seizoensklok
   (kolommen `season_started_at`/`season_ends_at`/`season_week`). `seasonYear` = het
   seizoensnummer; `currentWeek` blijft de monotone speelweek (leeftijden/vluchten).
@@ -508,6 +521,12 @@ Entiteiten: `Pigeon`, `Loft`, `User`, `BreedingPair`, `PendingBrood`, `Flight` (
   to_user_name, amount, status, created_at, resolved_at)` — **privé-biedingen** op
   duiven van andere spelers (zie §8). `db.offers` bevat enkel **openstaande** (pending)
   biedingen; afgehandelde worden verwijderd (de verkoop leeft voort in `db.trades`).
+- `lokaal_messages (id, user_id, author_name, body, created_at, deleted_at)` — **Het Lokaal**,
+  de vrije chat (`LokaalMessage` in schema.ts). **Buiten de wereldload** (niet in `Database`).
+  Indexen op `created_at`, `(user_id, created_at)` en `deleted_at`. Weghalen = `body = ''` +
+  `deleted_at` (de rij blijft, zodat andere polls het ook weghalen). Opruimen na
+  `LOKAAL.retentionDays` (30) gebeurt bij elk nieuw bericht. Een verwijderde speler wordt
+  `Oud-speler` (`purgeRemovedPlayers`).
 
 `FeedRationKey = 'normal' | 'premium' | 'libido' | 'herstel'`.
 `BetKind = 'win' | 'last' | 'own_top3' | 'top3' | 'mine_wins' | 'head2head'`
@@ -566,6 +585,10 @@ Entiteiten: `Pigeon`, `Loft`, `User`, `BreedingPair`, `PendingBrood`, `Flight` (
 - **Dagopdrachten/streak verlaagd** (missions.ts): opdrachtgeld ~gehalveerd (15–60),
   streakbonus `min(25, 5 + streak·2)` → samen ~€750/week i.p.v. ~€1750.
 - **Weddenschap max inzet €500** (`BETTING.maxStake`, was 5000).
+- **Het Lokaal (`LOKAAL`):** `loadLimit 60` (berichten bij openen / per "oudere laden"),
+  `pollLimit 100`, `pollSeconds 15` (client), `pollOverlapSeconds 20`, `bodyMax 500`,
+  `minIntervalSeconds 2` (rem per speler), `retentionDays 30`. Geen spelbalans — enkel remmen en
+  leesbudget. ⚠️ Verkort `pollSeconds` niet zonder de Worker-verzoeken (100k/dag) na te rekenen.
 - **Prijzengeld (`PRIZE_MONEY` — nu een `PrizeTable`, geen array):** `{places,
   bands, rest}` met `prizeForRank(table, rank)` als enige lookup. De tabel loopt door tot de
   **laatste finisher**: kopplaatsen exact, dan vlakke banden, dan een bodem. `bands` is
@@ -955,13 +978,27 @@ Entiteiten: `Pigeon`, `Loft`, `User`, `BreedingPair`, `PendingBrood`, `Flight` (
   stemt er niemand op. Het bord **zaait zichzelf** met vier startideeën (lenen bij de bank · onderling broeden · doping + dopingcontrole · unieke
   eigenschappen per duif) zodra het leeg is. Backend: `core/game/stem.ts` (regels) +
   de `stem_*`-queries in `core/d1.ts`; §8 heeft het waarom.
+- `LokaalPage` (`/lokaal`, nav 🍻 **Het Lokaal**, op gsm onder *Meer*) — de **vrije chat van alle
+  spelers** ("het lokaal" = het café van de duivenbond). Eén kaart die het scherm vult: de
+  berichtenstroom scrolt **binnen** de kaart, het tekstvak staat er altijd onder. Eigen berichten
+  rechts (blauw), andermans links met de hoknaam erboven; opeenvolgende berichten van dezelfde
+  speler binnen 5 min delen één naam; dagscheidingen (Vandaag/Gisteren/datum, Brusselse tijd);
+  een bericht dat jouw hok- of loginnaam noemt krijgt een oranje rand. Enter verstuurt op een
+  computer (Shift+Enter = nieuwe regel); op touch (`pointer: coarse`) is Enter een nieuwe regel en
+  verstuur je met de knop. Tik op een eigen bericht (beheerder: elk bericht) → *🗑️ Weghalen* (met
+  `window.confirm`). Pollt via `useVisiblePoll` elke `LOKAAL.pollSeconds` met `?since=<now>`;
+  wie aan het teruglezen is krijgt een pil "↓ N nieuwe berichten" i.p.v. een verspringende lijst.
+  "⬆ Oudere berichten" laadt de vorige pagina (`?before=`) met behoud van scrollpositie.
+  **Bolletje** op de nav-knop via `world.chatLastAt/By` + `game/lokaalSeen.ts` (localStorage,
+  zoals de markt); op gsm krijgt ook de **Meer**-knop een bolletje zodra iets erachter aandacht
+  vraagt (gold voor álle overflow-knoppen, ook Sponsors — voordien onzichtbaar op gsm).
 - `WikiPage` (`/wiki`, nav 📖 **Wiki**) — **statische**, client-only uitlegpagina van
   de strategie-bepalende mechanismen + kansen. **Dé plek voor lange uitleg** (zie
   §Tekstbudget): elk scherm houdt het bij het minimum en linkt hierheen. Secties (`id`):
   `genen` · **`coach`** · `ervaring` · `energie` (energie/voer/honger/rustkuur) · `vlucht` ·
   `eigenschappen` · `verdwalen` · `vorm` · `lage-energie` · **`titan`** · `estafette` ·
   `broeden` (kweken/overerving) · `ziekte` · **`ziekenboeg`** · `sterfte` · `rassen` ·
-  `veilingen` · **`tribune`** · **`stem`** · `hok` · **`schuld`** · `waarde` · `afscheid`. Bewust
+  `veilingen` · **`tribune`** · **`lokaal`** · **`stem`** · `hok` · **`schuld`** · `waarde` · `afscheid`. Bewust
   **niet 100% transparant**: richtwaarden i.p.v. exacte formules, geluk blijft benoemd.
   Geen backend/kosten. Cijfers **handmatig** in sync houden met `core/config/gameConfig.ts`.
   `WikiPage` scrollt naar de hash bij mount, dus `/wiki#coach` landt op de juiste sectie.
@@ -1025,7 +1062,12 @@ indienen). Eigen localStorage-sleutel `roekoe.newsSeen.stem.<id>`;
 toont pas als de hoofd-tour niet open is. `closeTour` zet ook de news-sleutel, zodat een
 nieuwe speler die de volledige tour afrondt niet nog eens de news krijgt. Bump de
 sleutel-suffix + wissel de `steps`-set (import in `Layout`) voor een volgende
-aankondiging. De vorige sets `PEDIGREE_NEWS_STEPS`, `PRIZE_NEWS_STEPS`, `AGE_CUP_NEWS_STEPS`, `FAREWELL_NEWS_STEPS`, `REST_CURE_NEWS_STEPS`,
+aankondiging. **Het Lokaal** kreeg een eigen, losse run náást de seizoen 3-run:
+`LOKAAL_NEWS_STEPS` (één spotlight op `[data-tour="lokaal"]`), sleutel
+`roekoe.newsSeen.lokaal.<id>`, en die toont pas als de seizoen 3-run gezien is (nooit twee
+aankondigingen op één bezoek). `closeTour` zet beide sleutels; de volledige tour heeft een
+Lokaal-stap vóór Profiel. De bel kwam via migratie **v60** (`LOKAAL_INTRO` in `game/lokaal.ts`).
+De vorige sets `PEDIGREE_NEWS_STEPS`, `PRIZE_NEWS_STEPS`, `AGE_CUP_NEWS_STEPS`, `FAREWELL_NEWS_STEPS`, `REST_CURE_NEWS_STEPS`,
 `RELAY_NEWS_STEPS`, `GENES_NEWS_STEPS`, `BREED_NEWS_STEPS`, `BID_NEWS_STEPS` en
 `SEASON_NEWS_STEPS` blijven in `Tour.tsx` als referentie. (De oude `FeatureTour` met gecentreerde kaarten
 is verwijderd — alles zit nu in `Tour`.)
@@ -1111,7 +1153,27 @@ npx tsx tests/sponsor-restore.test.mts    # v53: de sponsors van de wissel naar 
 npx tsx tests/coach-salary.test.mts       # coach per score, gratis starterscoach = duurste, trainen +1
 npx tsx tests/sponsor-cap.test.mts        # max 6 sponsors, tier 4 ×0,5/dag (v54→v57), verplichte gratis afbouw
 npx tsx tests/sunday-auction.test.mts     # twee zondagduiven, vensters, scoreband, 2-vrije-plaatsen-regel
+npx tsx tests/lokaal.test.mts             # Het Lokaal: laden/pagineren/poll+overlap, weghalen, opruimen, chat_last_at blijft staan
 ```
+
+> **Geen `tsx` beschikbaar?** (cloud-sessie waar de npm-registry geblokkeerd is: `npx tsx`
+> kan dan niets downloaden.) Node 22 draait de `.test.mts`-bestanden zelf, met een mini-loader
+> die `./x.js`-imports naar `./x.ts` omzet:
+> ```js
+> // loader.mjs
+> import { existsSync } from 'node:fs'; import { fileURLToPath } from 'node:url';
+> export async function resolve(s, c, next) {
+>   if (s.startsWith('.') && s.endsWith('.js') && c.parentURL) {
+>     const u = new URL(s, c.parentURL);
+>     if (!existsSync(fileURLToPath(u))) { const t = new URL(u.href.replace(/\.js$/, '.ts'));
+>       if (existsSync(fileURLToPath(t))) return next(t.href, c); } }
+>   return next(s, c);
+> }
+> // register.mjs:  import { register } from 'node:module'; register(new URL('./loader.mjs', import.meta.url));
+> ```
+> `node --experimental-transform-types --no-warnings --import ./register.mjs tests/<naam>.test.mts`.
+> Werkt voor alle tests behalve `family-chart` (importeert een `.tsx`-component). Typecheck en
+> client-build kunnen zonder `node_modules` niet — zeg dat dan eerlijk.
 Alles in één keer (bash, vanuit de root):
 ```bash
 for f in tests/*.test.mts; do printf '%-26s ' "$(basename "$f")"; npx tsx "$f" >/dev/null 2>&1 && echo OK || echo FAIL; done
@@ -1129,6 +1191,8 @@ zoeken:
   met ~184 inschrijvingen naar `relay = true`, wat geen echte estafette is). Bij de laatste
   volledige run is hij **groen**; blijft hij wisselen, **repareer dan de fixture en zet de
   assertie niet losser** — ze bewaakt het leesbudget.
+- `live-speed` — **flaky** (gezien bij de Lokaal-commit: 1 van 2 runs rood op de ONgewijzigde boom,
+  "langste stilstand 37 polls"). Willekeur in de fixture; niet gerepareerd.
 - `brood-choice` — was flaky (~1 op 5) door de rauwe `Math.random()` in `breed()`; sinds de
   twee tel-trekkingen geseed zijn is dat opgelost, maar de per-duif-worpen zijn dat nog
   niet. Zie §8, *Openstaande ideeën*.
@@ -4501,6 +4565,53 @@ komt daardoor ook niet terug via het zaaien: de rij bestaat nog.
 datamigratie **51** (`schedule.ts`) zet één bel in de inbox van élke echte speler
 (stabiele id `ntf:stem:intro:<userId>`), en `STEM_NEWS_STEPS` (`Tour.tsx`, sleutel
 `roekoe.newsSeen.stem.<id>`) zet de nav-knop in de schijnwerper bij het volgende bezoek.
+
+### Het Lokaal: een chat die geen wereld laadt
+
+**Wat het is.** Een vrije chat voor alle spelers op `/lokaal` (nav 🍻 **Het Lokaal** — "het
+lokaal" is het café van de duivenbond). Zelf typen, in tegenstelling tot de tribune. Regels in
+`core/game/lokaal.ts`, queries in `core/d1.ts` (`loadLokaalLatest`/`loadLokaalChanges`/
+`insertLokaalMessage`/`deleteLokaalMessage`/…), routes in `[[path]].ts`, UI in `LokaalPage.tsx`.
+
+**⚠️ Waarom featherweight en niet "zoals De Stem".** De Stem staat buiten `Database` maar laat
+de middleware nog de (smalle) wereldload doen — ~150 rijen per verzoek. Voor een pagina die
+**pollt** zolang ze open staat, is dat de verkeerde kant van de rekensom: 10 spelers met de chat
+open = ~2.400 polls/uur. Daarom staan `/api/lokaal*` bij de **featherweight**-routes: JWT
+verifiëren (pure crypto), `findUserById` (1 rij), en dan enkel de chatqueries. Een poll zonder
+nieuwe berichten leest zo ~1 rij en schrijft er 0. ⚠️ **Gevolg voor wie hier iets aan toevoegt:
+`c.get('store')` bestaat in deze handlers niet**; de naam van de schrijver komt uit
+`lokaalNameFor` (één `lofts`-rij), niet uit de wereld. En de motor draait niet op een chatpoll —
+dat mag, want de wereldklok is volledig uit tijdstempels afgeleid en de volgende gewone
+navigatie haalt alles in.
+
+**De poll: een cursor met overlap.** Elk antwoord draagt `now` (servertijd, zodat een verkeerd
+staande gsm-klok niets doet missen); de volgende poll vraagt `?since=<now>`, en de server kijkt
+`LOKAAL.pollOverlapSeconds` (20 s) **vóór** die cursor. Reden: een bericht krijgt zijn
+`created_at` vóór de INSERT het haalt, dus een poll die net tussen die twee valt, zou het anders
+voorgoed overslaan. De client ontdubbelt op id. Twee index-range-queries per poll: nieuwe
+berichten (`created_at > ?`) en weggehaalde (`deleted_at > ?`).
+
+**Weghalen is een soft delete.** `body = ''` + `deleted_at`: de tekst is echt weg, maar de rij
+blijft, anders zouden de andere open schermen nooit horen dat het bericht verdween. Eigen berichten
++ de beheerder (moderatie) — `canDeleteMessage`.
+
+**Het bolletje op de knop** komt van `world.chat_last_at/by`, net als de markt-stip, zodat
+`/state` er geen query voor hoeft te doen (`SELECT * FROM world` leest ze gratis mee). ⚠️ **Die
+twee kolommen schrijft ENKEL `insertLokaalMessage`**, met een directe `UPDATE world SET
+chat_last_*`, en ze staan bewust **niet** in de world-INSERT/UPDATE van `persist`: een verzoek dat
+de wereld laadde vlak vóór iemand iets postte, zou anders de oude waarde terugschrijven. Voeg ze
+daar dus nooit aan toe. Bewaakt door `lokaal.test.mts` ("een gewone persist zet de markering
+niet terug").
+
+**Opruimen** gebeurt in dezelfde batch als het plaatsen: `DELETE … WHERE created_at < nu − 30 d`
+(index-range, leest enkel wat het wist). Geen aparte tick, en een rustige chat kost dus niets.
+Een verwijderde speler wordt `Oud-speler` (`purgeRemovedPlayers`), net als op De Stem — het
+gesprek van de anderen blijft leesbaar.
+
+**Niet gebouwd (bewust, vraag eerst):** @-vermeldingen met een bel (nu enkel de oranje rand als je
+naam in een bericht staat), privéberichten, reacties/emoji op berichten, links klikbaar maken,
+en een ongelezen-teller op de knop (het bolletje zegt enkel *dat* er iets is — een eerlijk getal
+zou per speler een leespositie in de databank vragen).
 
 ### Performance & stabiliteit (503-fix — belangrijk)
 **Symptoom:** spelers kregen vaak **503**, werden willekeurig uitgelogd, en soms een

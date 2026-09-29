@@ -5,10 +5,11 @@ import { useEffect, useRef, useState } from 'react';
 import { useAuth } from '../auth/AuthContext';
 import { useGame } from '../game/GameContext';
 import { MARKET_SEEN_EVENT, hasMarketNews, marketSeenAt } from '../game/marketSeen';
+import { LOKAAL_SEEN_EVENT, hasLokaalNews, lokaalSeenAt } from '../game/lokaalSeen';
 import { api } from '../api/client';
 import { useToast } from './ui';
 import { NotificationsBell } from './NotificationsBell';
-import { Tour, season3NewsSteps } from './Tour';
+import { LOKAAL_NEWS_STEPS, Tour, season3NewsSteps } from './Tour';
 import { PrizeCeremony } from './PrizeCeremony';
 
 interface NavItem { to: string; label: string; short: string; icon: string; end?: boolean }
@@ -42,6 +43,22 @@ function useMarketSeenAt(userId: string | null | undefined): number {
   return at;
 }
 
+/** Same, for Het Lokaal (game/lokaalSeen.ts): until when this player read the chat. */
+function useLokaalSeenAt(userId: string | null | undefined): number {
+  const [at, setAt] = useState(() => lokaalSeenAt(userId));
+  useEffect(() => {
+    const sync = () => setAt(lokaalSeenAt(userId));
+    sync();
+    window.addEventListener(LOKAAL_SEEN_EVENT, sync);
+    window.addEventListener('storage', sync);
+    return () => {
+      window.removeEventListener(LOKAAL_SEEN_EVENT, sync);
+      window.removeEventListener('storage', sync);
+    };
+  }, [userId]);
+  return at;
+}
+
 const NAV: NavItem[] = [
   { to: '/', label: 'Overzicht', short: 'Start', icon: '🏠', end: true },
   { to: '/hok', label: 'Mijn hok', short: 'Hok', icon: '🕊️' },
@@ -52,6 +69,7 @@ const NAV: NavItem[] = [
   { to: '/sponsors', label: 'Sponsors', short: 'Sponsor', icon: '🤝' },
   { to: '/prestaties', label: 'Prestaties', short: 'Prestige', icon: '🎖️' },
   { to: '/ranglijst', label: 'Rang', short: 'Rang', icon: '🏆' },
+  { to: '/lokaal', label: 'Het Lokaal', short: 'Lokaal', icon: '🍻' },
   { to: '/stem', label: 'De Stem', short: 'Stem', icon: '🗳️' },
   { to: '/wiki', label: 'Wiki', short: 'Wiki', icon: '📖' },
   { to: '/profiel', label: 'Profiel', short: 'Profiel', icon: '👤' },
@@ -104,8 +122,9 @@ export function Layout() {
   function closeTour() {
     if (tourKey) { try { localStorage.setItem(tourKey, '1'); } catch { /* private mode */ } }
     // A brand-new player just saw everything in the full tour — don't also pop
-    // the "what's new" run at them afterwards.
+    // the "what's new" runs at them afterwards.
     if (newsKey) { try { localStorage.setItem(newsKey, '1'); } catch { /* private mode */ } }
+    if (user?.id) { try { localStorage.setItem(`roekoe.newsSeen.lokaal.${user.id}`, '1'); } catch { /* private mode */ } }
     setShowTour(false);
   }
 
@@ -134,6 +153,30 @@ export function Layout() {
   function closeNews() {
     if (newsKey) { try { localStorage.setItem(newsKey, '1'); } catch { /* private mode */ } }
     setShowNews(false);
+  }
+
+  // Aankondiging van HET LOKAAL (de chat): één spotlight op de pagina, met een
+  // eigen sleutel. Wacht bewust tot de seizoen 3-run hierboven gezien is — twee
+  // aankondigingen na elkaar op één bezoek is er één te veel; die volgt dan bij
+  // het volgende bezoek. Wie de volledige rondleiding doet, ziet Het Lokaal daar
+  // al (closeTour zet deze sleutel ook).
+  const lokaalNewsKey = user?.id ? `roekoe.newsSeen.lokaal.${user.id}` : null;
+  const [showLokaalNews, setShowLokaalNews] = useState(false);
+  const [lokaalNewsDone, setLokaalNewsDone] = useState(false);
+  useEffect(() => {
+    if (!lokaalNewsKey || !state?.loft || showTour || showNews || lokaalNewsDone) return;
+    let seen = true;
+    let season3Pending = false;
+    try {
+      seen = !!localStorage.getItem(lokaalNewsKey);
+      season3Pending = !!newsKey && !!state.world?.newsAt && !localStorage.getItem(newsKey);
+    } catch { /* private mode: treat as seen */ }
+    if (!seen && !season3Pending) setShowLokaalNews(true);
+  }, [lokaalNewsKey, newsKey, state?.loft, state?.world?.newsAt, showTour, showNews, lokaalNewsDone]);
+  function closeLokaalNews() {
+    if (lokaalNewsKey) { try { localStorage.setItem(lokaalNewsKey, '1'); } catch { /* private mode */ } }
+    setShowLokaalNews(false);
+    setLokaalNewsDone(true);
   }
 
   // Prijsuitreiking: de prizes of the season that just ended, one screen each.
@@ -185,6 +228,9 @@ export function Layout() {
   const marketNews = hasMarketNews(
     state?.world.marketNewsAt, state?.world.marketNewsBy, user?.id, marketSeenAt,
   );
+  // Same idea for Het Lokaal: a dot until this player has read the newest message.
+  const lokaalSeen = useLokaalSeenAt(user?.id);
+  const lokaalNews = hasLokaalNews(state?.world.chatLastAt, state?.world.chatLastBy, user?.id, lokaalSeen);
 
   function badgeFor(n: NavItem): NavBadge {
     if (n.to === '/sponsors') {
@@ -197,6 +243,9 @@ export function Layout() {
       if (count > 0) parts.push(`${count} nieuw bod op je duiven`);
       if (marketNews) parts.push('nieuw op de markt — er staat een duif te koop die je nog niet zag');
       return { count, news: marketNews, title: parts.join(' · ') };
+    }
+    if (n.to === '/lokaal') {
+      return { count: 0, news: lokaalNews, title: lokaalNews ? 'nieuwe berichten in Het Lokaal' : '' };
     }
     if (n.to === '/kweek') {
       // Anything waiting for a perch nags here: a held clutch (which also blocks
@@ -290,7 +339,10 @@ export function Layout() {
         <PrizeCeremony season={ceremony.season} awards={ceremony.awards} onClose={closeCeremony} />
       )}
       {showNews && !showTour && !showCeremony && <Tour steps={newsSteps} onClose={closeNews} />}
-      {state?.pendingEvent && !showTour && !showNews && !showCeremony && <EventModal />}
+      {showLokaalNews && !showNews && !showTour && !showCeremony && (
+        <Tour steps={LOKAAL_NEWS_STEPS} onClose={closeLokaalNews} />
+      )}
+      {state?.pendingEvent && !showTour && !showNews && !showLokaalNews && !showCeremony && <EventModal />}
     </div>
   );
 }
@@ -349,6 +401,13 @@ function BottomNav({ items, badgeFor }: { items: NavItem[]; badgeFor: (n: NavIte
   const [open, setOpen] = useState(false);
   const primary = items.slice(0, PRIMARY);
   const overflow = items.slice(PRIMARY);
+  // A marker on a button hidden behind "Meer" was invisible on a phone (a new
+  // chat message, a sponsor offer), so the closed Meer button carries a dot of
+  // its own whenever something behind it wants attention.
+  const overflowBadge: NavBadge = (() => {
+    const flagged = overflow.map((n) => badgeFor(n)).filter((b) => b.count > 0 || b.news);
+    return { count: 0, news: flagged.length > 0, title: flagged.map((b) => b.title).filter(Boolean).join(' · ') };
+  })();
   return (
     <>
       {/* The overflow row stays open while you navigate; it only collapses when
@@ -382,7 +441,10 @@ function BottomNav({ items, badgeFor }: { items: NavItem[]; badgeFor: (n: NavIte
             onClick={() => setOpen((o) => !o)}
             aria-label={open ? 'Minder' : 'Meer'}
           >
-            <span className="ico">{open ? '▾' : '›'}</span>
+            <span className="ico">
+              {open ? '▾' : '›'}
+              {!open && overflowBadge.news && <span className="bn-dot news" aria-label={overflowBadge.title} />}
+            </span>
             <span>{open ? 'Minder' : 'Meer'}</span>
           </button>
         )}
