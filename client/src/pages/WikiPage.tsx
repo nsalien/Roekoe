@@ -24,6 +24,7 @@ const SECTIONS = [
   { id: 'een-per-dag', icon: '🗓️', label: 'Eén vlucht per dag' },
   { id: 'prijzengeld', icon: '💶', label: 'Prijzengeld' },
   { id: 'tribune', icon: '💬', label: 'De tribune' },
+  { id: 'lokaal', icon: '🍻', label: 'Het Lokaal (chat)' },
   { id: 'stem', icon: '🗳️', label: 'De Stem' },
   { id: 'vorm', icon: '🎯', label: 'Vluchtvorm & blessures' },
   { id: 'lage-energie', icon: '🪫', label: 'Lage energie' },
@@ -1424,6 +1425,38 @@ export function WikiPage() {
           <li>
             <strong>De tribune verdwijnt met de vlucht.</strong> Zolang de uitslag zichtbaar is blijft hij
             staan; daarna wordt hij samen met de vlucht opgeruimd.
+          </li>
+        </ul>
+      </Section>
+
+      <Section id="lokaal" icon="🍻" title="Het Lokaal: praten met alle spelers">
+        <p className="muted" style={{ marginTop: 0 }}>
+          In het echte duivenmelken is <strong>het lokaal</strong> het café waar de bond samenkomt. In Roekoe is
+          het een <strong>vrije chat met alle spelers</strong>: uitslagen bespreken, een duif aanprijzen die je
+          verkoopt, of gewoon wat zeveren. Anders dan de tribune typ je hier zelf wat je wil.
+        </p>
+        <ul>
+          <li>
+            <strong>Schrijven.</strong> Typ onderaan je bericht en druk op <strong>Verstuur</strong> (op een
+            computer kan het ook met <strong>Enter</strong>; <strong>Shift + Enter</strong> geeft een nieuwe regel).
+            Een bericht mag tot 500 tekens lang zijn.
+          </li>
+          <li>
+            <strong>Lezen.</strong> Je eigen berichten staan rechts, die van de anderen links met hun hoknaam erboven.
+            Nieuwe berichten verschijnen vanzelf zolang de pagina open staat. Noemt iemand jouw hoknaam, dan krijgt
+            dat bericht een oranje rand.
+          </li>
+          <li>
+            <strong>Het bolletje.</strong> Staat er iets nieuws dat je nog niet las, dan krijgt de knop
+            {' '}<strong>🍻 Het Lokaal</strong> een bolletje (op gsm ook de knop <strong>Meer</strong>).
+          </li>
+          <li>
+            <strong>Weghalen.</strong> Tik op een eigen bericht om het weg te halen. De beheerder kan elk bericht
+            weghalen — hou het dus gezellig.
+          </li>
+          <li>
+            <strong>Hoe lang blijft het staan?</strong> Berichten blijven 30 dagen bewaard; daarna worden ze
+            opgeruimd. Met <strong>⬆ Oudere berichten</strong> bovenaan lees je verder terug.
           </li>
         </ul>
       </Section>

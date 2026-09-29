@@ -669,6 +669,10 @@ export interface World {
   marketNewsBy?: string;
   /** Wanneer de laatste grote aankondiging (seizoen 3) verstuurd werd; '' = geen. */
   newsAt?: string;
+  /** Laatste bericht in Het Lokaal, en van wie — het bolletje op de Lokaal-knop
+   *  (zie lokaalSeen.ts). */
+  chatLastAt?: string;
+  chatLastBy?: string;
 }
 
 export interface PigeonRankRow {
@@ -1033,4 +1037,29 @@ export interface StemVoterReport {
   /** Hoeveel spelers al stemden, op hoeveel echte spelers in totaal. */
   voted: number;
   players: number;
+}
+
+/** Eén bericht in Het Lokaal (spiegelt `LokaalMessage` in core/schema.ts). */
+export interface LokaalMessage {
+  id: string;
+  /** Leeg = een speler die niet meer meespeelt ("Oud-speler"). */
+  userId: string;
+  authorName: string;
+  body: string;
+  createdAt: string;
+  deletedAt?: string | null;
+}
+
+/**
+ * Wat `GET /lokaal` teruggeeft. `now` is de cursor voor de volgende poll
+ * (`?since=`); `limits` komt enkel mee bij de eerste lading.
+ */
+export interface LokaalResponse {
+  messages: LokaalMessage[];
+  /** Id's van berichten die intussen weggehaald werden (enkel bij een poll). */
+  deleted?: string[];
+  /** Zijn er nog oudere berichten (enkel bij de eerste lading / "oudere laden")? */
+  hasMore?: boolean;
+  now: string;
+  limits?: { bodyMax: number; pollSeconds: number };
 }

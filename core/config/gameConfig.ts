@@ -2682,6 +2682,39 @@ export const STEM = {
 } as const;
 
 // ===========================================================================
+// HET LOKAAL — de vrije chat van alle spelers (het café van de duivenbond)
+// ===========================================================================
+/**
+ * Grenzen van de chat. Net als bij De Stem is alles hier een REM of een
+ * leesbudget-grens, geen spelbalans: praten kost niets en levert niets op.
+ *
+ * ⚠️ `pollSeconds` en `pollOverlapSeconds` bepalen samen wat een open chat kost.
+ * Een poll leest enkel de berichten van het laatste (interval + overlap), via de
+ * index op `created_at` — zonder nieuwe berichten ~1 gelezen rij (de users-rij van
+ * de lichte auth). Maar elke poll is wél een Worker-verzoek (100k/dag, gratis
+ * plan), dus maak het interval niet korter zonder dat na te rekenen.
+ */
+export const LOKAAL = {
+  /** Berichten bij het openen, en per keer "oudere berichten". */
+  loadLimit: 60,
+  /** Nieuwe berichten die één poll hoogstens meebrengt. */
+  pollLimit: 100,
+  /** Hoe vaak de open pagina naar nieuwe berichten vraagt (client). */
+  pollSeconds: 15,
+  /**
+   * Hoever een poll terugkijkt vóór zijn eigen cursor. Een bericht krijgt zijn
+   * tijdstip vóór de INSERT het haalt; zonder overlap kan een poll die net
+   * tussen die twee valt het voorgoed overslaan. De client ontdubbelt op id.
+   */
+  pollOverlapSeconds: 20,
+  bodyMax: 500,
+  /** Minimum tussen twee berichten van dezelfde speler — tegen per ongeluk dubbel verzenden en spammen. */
+  minIntervalSeconds: 2,
+  /** Berichten ouder dan dit worden opgeruimd (bij het plaatsen van een nieuw). */
+  retentionDays: 30,
+} as const;
+
+// ===========================================================================
 // Funny Dutch pigeon names
 // ===========================================================================
 // A name is "<voornaam> <bijnaam>". Doffers get male first names, duivinnen

@@ -49,6 +49,7 @@ import type {
   Flight,
   Loft,
   LogAppend,
+  LokaalMessage,
   Notification,
   Pigeon,
   RaceLogEntry,
@@ -63,8 +64,9 @@ import type {
 } from './schema.js';
 import { emptyDatabase, emptyFoodStock, emptySponsorState, emptyStats } from './schema.js';
 import type { Store } from './store.js';
-import { ADVANCE_THROTTLE_SECONDS, STEM } from './config/gameConfig.js';
+import { ADVANCE_THROTTLE_SECONDS, LOKAAL, STEM } from './config/gameConfig.js';
 import { SEED_IDEAS, sortIdeas, type StemIdeaView, type StemThreadView } from './game/stem.js';
+import { retentionCutoff } from './game/lokaal.js';
 
 const b = (v: unknown) => (v ? 1 : 0);
 
@@ -544,6 +546,10 @@ export class D1Store implements Store {
         marketNewsAt: worldRow.market_news_at ?? '',
         marketNewsBy: worldRow.market_news_by ?? '',
         newsAt: worldRow.news_at ?? '',
+        // Read along for free (`SELECT *`), but NEVER written back by `persist`:
+        // only `insertLokaalMessage` sets them — see World.chatLastAt.
+        chatLastAt: worldRow.chat_last_at ?? '',
+        chatLastBy: worldRow.chat_last_by ?? '',
       };
     }
 
@@ -1213,6 +1219,137 @@ export async function setStemStatus(db: D1Database, ideaId: string, status: Stem
   return !!(await db.prepare('SELECT 1 AS v FROM stem_ideas WHERE id = ?').bind(ideaId).first());
 }
 
+// ---------------------------------------------------------------------------
+// HET LOKAAL — de vrije chat (zie core/game/lokaal.ts)
+// ---------------------------------------------------------------------------
+/*
+ * Zelfde aanpak als De Stem, één stap verder: de `/api/lokaal*`-routes laden de
+ * wereld NIET (ze staan bij de featherweight-routes in de API), dus alles wat de
+ * chat nodig heeft komt uit de queries hieronder. Elke query is door een index
+ * gedekt; een poll zonder nieuwe berichten leest daardoor zo goed als niets.
+ *
+ * Schrijven loopt evenmin door de per-rij-diff: een bericht is een losse append
+ * met een eigen id, en weghalen is een UPDATE op die ene id — twee spelers raken
+ * elkaars rij nooit.
+ */
+
+function rowToLokaal(r: any): LokaalMessage {
+  return {
+    id: r.id,
+    userId: r.user_id ?? '',
+    authorName: r.author_name,
+    body: r.body,
+    createdAt: r.created_at,
+    deletedAt: r.deleted_at ?? null,
+  };
+}
+
+/**
+ * De nieuwste berichten (oudste eerst, zoals een gesprek leest), plus of er nog
+ * oudere zijn. Met `beforeIso` de pagina daarvóór ("oudere berichten laden").
+ *
+ * Er wordt één rij méér gelezen dan getoond: zo weet de pagina of de knop
+ * "oudere berichten" zin heeft zonder een aparte COUNT(*).
+ */
+export async function loadLokaalLatest(
+  db: D1Database,
+  beforeIso?: string | null,
+): Promise<{ messages: LokaalMessage[]; hasMore: boolean }> {
+  const limit = LOKAAL.loadLimit;
+  const rows = ((beforeIso
+    ? await db
+        .prepare('SELECT * FROM lokaal_messages WHERE created_at < ? AND deleted_at IS NULL ORDER BY created_at DESC, id DESC LIMIT ?')
+        .bind(beforeIso, limit + 1)
+        .all()
+    : await db
+        .prepare('SELECT * FROM lokaal_messages WHERE deleted_at IS NULL ORDER BY created_at DESC, id DESC LIMIT ?')
+        .bind(limit + 1)
+        .all()).results as any[]);
+  const hasMore = rows.length > limit;
+  return { messages: rows.slice(0, limit).map(rowToLokaal).reverse(), hasMore };
+}
+
+/**
+ * Wat er veranderde sinds `fromIso`: nieuwe berichten, en de id's van berichten
+ * die weggehaald werden. Twee index-range-queries (`created_at` en `deleted_at`),
+ * dus een poll leest enkel de rijen die echt bewogen.
+ */
+export async function loadLokaalChanges(
+  db: D1Database,
+  fromIso: string,
+): Promise<{ messages: LokaalMessage[]; deleted: string[] }> {
+  const [fresh, gone] = await Promise.all([
+    db
+      .prepare('SELECT * FROM lokaal_messages WHERE created_at > ? AND deleted_at IS NULL ORDER BY created_at ASC, id ASC LIMIT ?')
+      .bind(fromIso, LOKAAL.pollLimit)
+      .all(),
+    db.prepare('SELECT id FROM lokaal_messages WHERE deleted_at > ?').bind(fromIso).all(),
+  ]);
+  return {
+    messages: (fresh.results as any[]).map(rowToLokaal),
+    deleted: (gone.results as any[]).map((r) => r.id as string),
+  };
+}
+
+/** Eén bericht (voor het weghalen: bestaat het, en van wie is het?). */
+export async function findLokaalMessage(db: D1Database, id: string): Promise<LokaalMessage | null> {
+  const row = (await db.prepare('SELECT * FROM lokaal_messages WHERE id = ?').bind(id).first()) as any;
+  return row ? rowToLokaal(row) : null;
+}
+
+/** Tijdstip van het laatste bericht van deze speler (de rem tegen dubbel verzenden). */
+export async function lastLokaalPostAt(db: D1Database, userId: string): Promise<string | null> {
+  const row = (await db
+    .prepare('SELECT created_at FROM lokaal_messages WHERE user_id = ? ORDER BY created_at DESC LIMIT 1')
+    .bind(userId)
+    .first()) as any;
+  return row?.created_at ?? null;
+}
+
+/**
+ * Onder welke naam een speler in het lokaal praat: zijn hoknaam, anders zijn
+ * login — dezelfde regel als op De Stem. Eén rij, via de primaire sleutel, want
+ * deze route heeft de wereld niet in het geheugen.
+ */
+export async function lokaalNameFor(db: D1Database, user: User): Promise<string> {
+  const row = (await db.prepare('SELECT name FROM lofts WHERE user_id = ?').bind(user.id).first()) as any;
+  const name = String(row?.name ?? '').trim();
+  return name || user.username;
+}
+
+/**
+ * Plaats een bericht. Drie statements in één batch:
+ *  1. het bericht zelf;
+ *  2. de markering op de wereldrij (`chat_last_at`/`chat_last_by`) die het
+ *     bolletje op de Lokaal-knop voedt — ⚠️ de ENIGE plek die die twee kolommen
+ *     schrijft (zie World.chatLastAt);
+ *  3. de opruiming van berichten ouder dan `LOKAAL.retentionDays`. Een range op
+ *     de index, dus die leest enkel wat ze effectief wist (meestal niets).
+ */
+export async function insertLokaalMessage(db: D1Database, msg: LokaalMessage, nowMs = Date.now()): Promise<void> {
+  await db.batch([
+    db
+      .prepare('INSERT INTO lokaal_messages (id, user_id, author_name, body, created_at, deleted_at) VALUES (?, ?, ?, ?, ?, NULL)')
+      .bind(msg.id, msg.userId, msg.authorName, msg.body, msg.createdAt),
+    db.prepare('UPDATE world SET chat_last_at = ?, chat_last_by = ? WHERE id = 1').bind(msg.createdAt, msg.userId),
+    db.prepare('DELETE FROM lokaal_messages WHERE created_at < ?').bind(retentionCutoff(nowMs)),
+  ]);
+}
+
+/**
+ * Een bericht weghalen. De tekst wordt gewist (een weggehaald bericht hoort
+ * nergens meer te staan), de rij blijft met `deleted_at`, zodat de polls van de
+ * andere spelers het ook van hun scherm halen. Geeft terug of er iets veranderde.
+ */
+export async function deleteLokaalMessage(db: D1Database, id: string, atIso: string): Promise<boolean> {
+  const res: any = await db
+    .prepare("UPDATE lokaal_messages SET body = '', deleted_at = ? WHERE id = ? AND deleted_at IS NULL")
+    .bind(atIso, id)
+    .run();
+  const changed = res?.meta?.changes;
+  return typeof changed === 'number' ? changed > 0 : true;
+}
+
 /**
  * Wis wat er van een verwijderde speler overblijft in de tabellen die de
  * wereldload NIET (volledig) draagt.
@@ -1251,6 +1388,9 @@ function purgeRemovedPlayers(
   chunked(userIds, (m) => `DELETE FROM stem_votes WHERE user_id IN (${m})`);
   chunked(userIds, (m) => `UPDATE stem_comments SET author_id = '', author_name = 'Oud-speler' WHERE author_id IN (${m})`);
   chunked(userIds, (m) => `UPDATE stem_ideas SET author_id = '', author_name = 'Oud-speler' WHERE author_id IN (${m})`);
+  // Het Lokaal: ook geanonimiseerd, niet gewist — anders hangen de antwoorden
+  // van de anderen in het gesprek plots in het luchtledige.
+  chunked(userIds, (m) => `UPDATE lokaal_messages SET user_id = '', author_name = 'Oud-speler' WHERE user_id IN (${m})`);
   chunked(pigeonIds, (m) => `DELETE FROM pigeon_log_entries WHERE pigeon_id IN (${m})`);
 }
 
@@ -1509,6 +1649,18 @@ const SCHEMA_STEPS: string[] = [
   'ALTER TABLE flights ADD COLUMN weather_rain INTEGER',
   'ALTER TABLE flights ADD COLUMN temp_c REAL',
   "ALTER TABLE world ADD COLUMN news_at TEXT NOT NULL DEFAULT ''",
+
+  // HET LOKAAL (zie core/game/lokaal.ts): de vrije chat. Eigen tabel BUITEN de
+  // wereldload, net als De Stem. `deleted_at` is NULL zolang het bericht staat;
+  // een poll vraagt via idx_lokaal_deleted welke berichten intussen weg zijn.
+  'CREATE TABLE IF NOT EXISTS lokaal_messages (id TEXT PRIMARY KEY, user_id TEXT NOT NULL, author_name TEXT NOT NULL, body TEXT NOT NULL, created_at TEXT NOT NULL, deleted_at TEXT)',
+  'CREATE INDEX IF NOT EXISTS idx_lokaal_created ON lokaal_messages (created_at)',
+  'CREATE INDEX IF NOT EXISTS idx_lokaal_user ON lokaal_messages (user_id, created_at)',
+  'CREATE INDEX IF NOT EXISTS idx_lokaal_deleted ON lokaal_messages (deleted_at)',
+  // The dot on the Lokaal nav button (World.chatLastAt). ⚠️ Written ONLY by
+  // `insertLokaalMessage`, never by the world UPDATE in `persist`.
+  "ALTER TABLE world ADD COLUMN chat_last_at TEXT NOT NULL DEFAULT ''",
+  "ALTER TABLE world ADD COLUMN chat_last_by TEXT NOT NULL DEFAULT ''",
 ];
 
 /**
