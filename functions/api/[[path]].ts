@@ -14,13 +14,20 @@ import type { D1Database } from '@cloudflare/workers-types';
 import {
   D1Store,
   countStemIdeasSince,
+  deleteLokaalMessage,
   ensureSchema,
+  findLokaalMessage,
   findUserById,
   findUserByUsername,
+  insertLokaalMessage,
   insertStemComment,
   insertStemIdea,
+  lastLokaalPostAt,
   loadLiveFlight,
+  loadLokaalChanges,
+  loadLokaalLatest,
   loadPigeonLogs,
+  lokaalNameFor,
   loadStemBoard,
   loadStemIdea,
   loadStemThread,
@@ -45,6 +52,7 @@ import {
   FOOD_RESALE_RATE,
   GENE,
   INFIRMARY,
+  LOKAAL,
   PIGEON_RESTAURANT,
   REST_CURE,
   RENAME_COST,
@@ -116,6 +124,13 @@ import {
   validateComment,
   validateIdea,
 } from '../../core/game/stem.js';
+import {
+  canDeleteMessage,
+  cleanMessage,
+  pollWindowStart,
+  rateLimitError,
+  validateMessage,
+} from '../../core/game/lokaal.js';
 import { makeOffer, withdrawOffer, respondOffer, offersFor } from '../../core/game/offers.js';
 import type { BetKind } from '../../core/schema.js';
 import { refreshDailyMissions } from '../../core/game/missions.js';
@@ -209,8 +224,14 @@ app.use('*', async (c, next) => {
   // entirely. They resolve the user with a single indexed row lookup and never
   // load the world at all. Registration is the exception: it creates a loft, so
   // it needs the real store (and it's rare enough not to matter).
+  //
+  // Het Lokaal (de chat) hoort hier ook bij: de pagina pollt zolang ze open staat,
+  // en ze leest en schrijft enkel haar eigen tabel (zie loadLokaalLatest in
+  // core/d1.ts). Met de wereldload erbij kostte elke poll ~150 rijen voor niets.
+  // ⚠️ Gevolg: in deze handlers bestaat `c.get('store')` NIET.
   const featherweight =
-    path === '/api/health' || path === '/api/auth/login' || path === '/api/auth/me';
+    path === '/api/health' || path === '/api/auth/login' || path === '/api/auth/me' ||
+    path === '/api/lokaal' || path.startsWith('/api/lokaal/');
   if (featherweight) {
     if (payload) {
       const user = await findUserById(c.env.DB, payload.sub);
@@ -1322,6 +1343,79 @@ app.post('/stem/ideas/:id/comments', async (c) => {
   // De verse draad terug, zodat de reactie meteen op het scherm staat en niet
   // pas na een tweede rondrit.
   return c.json({ ok: true, ...(await loadStemThread(c.env.DB, id, user.id)) });
+});
+
+// --- Het Lokaal (vrije chat) -------------------------------------------------
+/**
+ * De chat van alle spelers. ⚠️ Deze routes staan bij de FEATHERWEIGHT-routes in
+ * de middleware: de wereld wordt niet geladen en de motor draait niet, dus
+ * `c.get('store')` bestaat hier niet. Alles loopt via de lokaal-queries in
+ * core/d1.ts; de gebruiker komt uit `findUserById` (één rij).
+ *
+ * Eén GET, drie vormen:
+ *  - zonder parameters: de nieuwste berichten (de pagina opent);
+ *  - `?since=<now van het vorige antwoord>`: enkel wat er veranderde (de poll);
+ *  - `?before=<createdAt van het oudste bericht>`: de pagina daarvóór.
+ * Elk antwoord draagt `now`, de cursor voor de volgende poll — de klok van de
+ * server, zodat een verkeerd staande gsm-klok geen berichten doet missen.
+ */
+app.get('/lokaal', async (c) => {
+  requireUser(c);
+  const now = new Date().toISOString();
+  const before = c.req.query('before');
+  if (before) {
+    if (!Number.isFinite(Date.parse(before))) return c.json({ error: 'Ongeldige cursor' }, 400);
+    const page = await loadLokaalLatest(c.env.DB, before);
+    return c.json({ ...page, now });
+  }
+  const from = pollWindowStart(c.req.query('since'));
+  if (from) {
+    const changes = await loadLokaalChanges(c.env.DB, from);
+    return c.json({ ...changes, now });
+  }
+  const latest = await loadLokaalLatest(c.env.DB);
+  return c.json({
+    ...latest,
+    deleted: [],
+    now,
+    limits: { bodyMax: LOKAAL.bodyMax, pollSeconds: LOKAAL.pollSeconds },
+  });
+});
+
+app.post('/lokaal', async (c) => {
+  const user = requireUser(c);
+  if (user.isBot) return c.json({ error: 'Bots praten niet mee' }, 403);
+  const body = await c.req.json().catch(() => ({}));
+  const text = cleanMessage(body.body);
+  const err = validateMessage(text);
+  if (err) return c.json({ error: err }, 400);
+
+  const nowMs = Date.now();
+  const slow = rateLimitError(await lastLokaalPostAt(c.env.DB, user.id), nowMs);
+  if (slow) return c.json({ error: slow }, 429);
+
+  const message = {
+    id: newId('msg'),
+    userId: user.id,
+    authorName: await lokaalNameFor(c.env.DB, user),
+    body: text,
+    createdAt: new Date(nowMs).toISOString(),
+    deletedAt: null,
+  };
+  await insertLokaalMessage(c.env.DB, message, nowMs);
+  // Het verse bericht terug, zodat het meteen op het scherm staat en niet pas
+  // bij de volgende poll.
+  return c.json({ ok: true, message });
+});
+
+/** Een bericht weghalen: je eigen, of als beheerder elk bericht (moderatie). */
+app.post('/lokaal/:id/delete', async (c) => {
+  const user = requireUser(c);
+  const msg = await findLokaalMessage(c.env.DB, c.req.param('id'));
+  if (!msg || msg.deletedAt) return c.json({ error: 'Dat bericht bestaat niet (meer)' }, 404);
+  if (!canDeleteMessage(msg, user)) return c.json({ error: 'Je kan enkel je eigen berichten weghalen' }, 403);
+  await deleteLokaalMessage(c.env.DB, msg.id, new Date().toISOString());
+  return c.json({ ok: true, id: msg.id });
 });
 
 // --- Admin -----------------------------------------------------------------

@@ -905,6 +905,33 @@ export interface StemComment {
   createdAt: string;
 }
 
+/**
+ * HET LOKAAL — één bericht in de vrije chat van alle spelers.
+ *
+ * ⚠️ Net als De Stem staat dit BEWUST niet in `Database`: de chat is log-vormig
+ * en enkel de Lokaal-pagina leest hem. Sterker nog, de routes `/api/lokaal*`
+ * laden de wereld zelfs niet — ze worden beantwoord vóór de wereldload, met
+ * eigen queries in `core/d1.ts` (`loadLokaalLatest`/`loadLokaalChanges`/…).
+ * Een poll zonder nieuwe berichten kost zo ~1 gelezen rij in plaats van ~150.
+ *
+ * De naam staat BEVROREN op het bericht (zoals bij de tribune en De Stem): wie
+ * zijn hok hernoemt, houdt de oude naam op zijn oude berichten.
+ */
+export interface LokaalMessage {
+  id: string;
+  /** Lege string = een speler die intussen verwijderd werd (`Oud-speler`). */
+  userId: string;
+  authorName: string;
+  body: string;
+  createdAt: string;
+  /**
+   * Gezet wanneer de schrijver (of de beheerder) het bericht weghaalde. De rij
+   * blijft bestaan — met een lege tekst — zodat een poll bij de andere spelers
+   * kan melden dát het weg is; een gewiste rij zou niemand meer zien.
+   */
+  deletedAt?: string | null;
+}
+
 /** Global world state. */
 export interface World {
   currentWeek: number; // monotonic game-week counter (drives ages/flights/ailments)
@@ -988,6 +1015,19 @@ export interface World {
    * Empty = none.
    */
   newsAt?: string;
+  /**
+   * When the last message was posted in Het Lokaal, and by whom — the dot on the
+   * Lokaal nav button, on the world row for the same reason as `marketNewsAt`.
+   *
+   * ⚠️ READ-ONLY for the engine. These two are written by exactly one statement,
+   * the direct `UPDATE world SET chat_last_at …` in `insertLokaalMessage`
+   * (core/d1.ts), because posting a message never loads the world. They are
+   * deliberately NOT in the world INSERT/UPDATE of `D1Store.persist`: a request
+   * that loaded the world a moment before someone posted would otherwise write
+   * the old value straight back over the new one.
+   */
+  chatLastAt?: string;
+  chatLastBy?: string;
 }
 
 /** The full database document persisted to disk. */

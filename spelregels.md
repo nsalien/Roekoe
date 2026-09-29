@@ -2103,6 +2103,31 @@ duif van een andere speler**, **doping mét dopingcontrole**, en **unieke
 eigenschappen per duif**. Alle vier staan in stemming — en alle vier mogen ze
 verliezen van iets beters dat jij bedenkt.
 
+## 11ter. Het Lokaal: praten met alle spelers
+
+In het echte duivenmelken is **het lokaal** het café waar de bond samenkomt.
+In Roekoe is het de pagina **🍻 Het Lokaal**: een **vrije chat met alle
+spelers**. Anders dan de tribune bij een live vlucht (kant-en-klare kreten)
+typ je hier zelf wat je wil.
+
+- **Schrijven:** typ onderaan en druk op *Verstuur* (op een computer ook met
+  *Enter*; *Shift + Enter* is een nieuwe regel). Hoogstens **500 tekens** per
+  bericht en minstens **2 seconden** tussen twee berichten.
+- **Lezen:** je eigen berichten rechts, die van de anderen links met hun
+  **hoknaam** erboven. Nieuwe berichten verschijnen vanzelf zolang de pagina
+  open staat (elke ~15 seconden). Een bericht waarin **jouw hoknaam** staat,
+  krijgt een oranje rand.
+- **Het bolletje:** staat er een bericht dat je nog niet las, dan krijgt de
+  knop *Het Lokaal* een bolletje (op gsm ook de knop *Meer*). Je eigen
+  berichten tellen niet.
+- **Weghalen:** je eigen berichten kan je weghalen (tik erop). De **beheerder**
+  kan elk bericht weghalen.
+- **Bewaren:** berichten blijven **30 dagen** staan en worden daarna
+  opgeruimd. Je naam staat vast op je bericht: wie zijn hok hernoemt, houdt de
+  oude naam op zijn oude berichten.
+- Praten kost niets en levert niets op — geen geld, geen punten. De bots
+  zwijgen.
+
 ## 12. Dagopdrachten, gebeurtenissen, veilingen & sponsors
 
 - **Dagopdrachten.** Elke dag krijg je 3 kleine opdrachten (bv. een duif

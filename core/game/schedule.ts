@@ -111,6 +111,7 @@ import { NPC_OWNER_ID, ownerName } from './engine.js';
 import { pickRelayRoute, relayEntryTeams, relayLegKm, relayTeamComplete } from './relay.js';
 import { rollAnyTrait, rollTrait } from './traits.js';
 import { season3CoachNote, season3Welcome } from './season3.js';
+import { LOKAAL_INTRO } from './lokaal.js';
 import { bell, clamp, hashString, haversineKm, pick, randFloat, round1, seededRng } from './util.js';
 
 // --- Time-zone helpers -----------------------------------------------------
@@ -2406,6 +2407,18 @@ export function runDataMigrations(db: Database): void {
       );
     }
     db.world.dataVersion = 59;
+  }
+
+  if ((db.world.dataVersion ?? 0) < 60) {
+    // Aankondiging: HET LOKAAL staat online (de vrije chat, core/game/lokaal.ts).
+    // Zelfde vorm als v51 (De Stem): één bel per echte speler met een stabiele
+    // id, want er is geen gebeurtenis in het spel die naar de pagina wijst. De
+    // tweede helft van de aankondiging is LOKAAL_NEWS_STEPS in Tour.tsx.
+    for (const loft of db.lofts) {
+      if (loft.isBot) continue;
+      pushNotification(db, loft.userId, 'info', LOKAAL_INTRO.title, LOKAAL_INTRO.body, null, LOKAAL_INTRO.id(loft.userId));
+    }
+    db.world.dataVersion = 60;
   }
 }
 

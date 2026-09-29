@@ -218,6 +218,11 @@ const STEPS: Step[] = [
   },
   PRIZES_STEP,
   {
+    route: '/lokaal', selector: '[data-tour="lokaal"]',
+    title: '🍻 Het Lokaal',
+    body: 'Het café van de duivenmelkers: een chat waar je vrij praat met alle andere spelers. Een bolletje op de knop betekent dat er iets nieuws staat.',
+  },
+  {
     route: '/profiel', selector: '[data-tour="profile"]',
     title: '👤 Profiel',
     body: 'Hier pas je je hoknaam en thema (licht/donker) aan — en kan je deze rondleiding altijd opnieuw starten. Veel vliegplezier! 🕊️',
@@ -803,6 +808,28 @@ export function season3NewsSteps(opts: {
     },
   ];
 }
+
+/**
+ * Aankondiging van Het Lokaal (de vrije chat). Eén stap: de pagina zelf spreekt
+ * voor zich, en de bel van migratie v60 vertelde al wat het is. Draait pas na
+ * de seizoen 3-run (zie Layout), met een eigen sleutel `roekoe.newsSeen.lokaal`.
+ */
+export const LOKAAL_NEWS_STEPS: Step[] = [
+  {
+    route: '/lokaal', selector: '[data-tour="lokaal"]',
+    title: '🍻 Nieuw: Het Lokaal',
+    body: (
+      <>
+        Het café van de duivenmelkers is open: hier praat je <strong>vrij met alle spelers</strong>. Typ onderaan
+        je bericht en druk op <strong>Verstuur</strong>. Tik op een eigen bericht om het weg te halen.
+        <br />
+        <span className="faint" style={{ display: 'inline-block', marginTop: 4 }}>
+          Staat er iets nieuws? Dan krijgt de knop <strong>🍻 Lokaal</strong> een bolletje.
+        </span>
+      </>
+    ),
+  },
+];
 
 export const STEM_NEWS_STEPS: Step[] = [
   {
