@@ -483,6 +483,12 @@ export function WikiPage() {
             ['4 — prestige', '€75 – €100', '€235 – €310'],
           ]}
         />
+        <p style={{ marginTop: 10 }}>
+          <strong>Hoe krijg je een sponsor?</strong> Na elke competitievlucht waaraan je deelnam, kan er een sponsor
+          aankloppen: ≈ 50 % kans na een zege, 25 % na een podium en <strong>10 % na gewoon deelnemen</strong>. Welke
+          sponsors interesse hebben, hangt af van je prestaties <strong>of</strong> van je spelersniveau: tier 1 meteen,
+          tier 2 vanaf niveau 3, tier 3 vanaf niveau 6, tier 4 vanaf niveau 10. Hoogstens één nieuw aanbod per 6 uur.
+        </p>
         <p className="notice" style={{ marginTop: 10 }}>
           ⚠️ <strong>Hoogstens 6 sponsors tegelijk.</strong> Wil je een zevende, dan zeg je er eerst een op — dat kost
           de gewone verbrekingsvergoeding. Overstappen naar een concurrent in dezelfde categorie blijft gewoon kunnen.

@@ -87,7 +87,7 @@ export function SponsorsPage() {
         <div>
           <h1>Sponsors</h1>
           <p className="muted" style={{ marginBottom: 4 }}>
-            Sponsors kloppen pas aan ná een podium. Eén per categorie. Je beste duif heeft talent {view.bestTalent}.
+            Sponsors kloppen aan na je vluchten — winnen helpt, maar regelmatig meevliegen volstaat ook. Eén per categorie. Je beste duif heeft talent {view.bestTalent}.
             {max != null && <> <strong data-tour="sponsor-count">Sponsors: {view.active.length} / {max}</strong>.</>}
           </p>
           <p className="faint" style={{ margin: 0, fontSize: '0.82rem' }}>

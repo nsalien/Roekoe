@@ -4274,6 +4274,13 @@ Hieronder enkel wat je nodig hebt om eraan te werken.)
   Eerste seizoen na tekenen = enkel ijkpunt; `minReviewPoints` (20) dempt ruis.
   ⚠️ Bij zo'n vertrek worden de **voorwaarden van het contract niet bewaard** (enkel
   `{id, at, perf}` in `declined`), dus een exact herstel is achteraf onmogelijk.
+- **Sponsors ook voor wie gewoon meevliegt** (owner: lagere spelers winnen zelden).
+  `SPONSOR_OFFER_ON_PERFORMANCE.participationChance` (0.1): elke competitievlucht met een
+  duif van je (ook uitgevallen) geeft die kans op `evaluateSponsorOffers`, naast zege
+  0.5 / podium 0.25; spacing (6 u) en max 2 openstaand blijven. `isSponsorUnlocked` =
+  eigen `req` **of** `SPONSOR_LEVEL_ROUTE[tier]` (1→1, 2→3, 3→6, 4→10). Een aanbod via
+  de niveau-route krijgt de "trouwe deelnemer"-tekst i.p.v. de tagline (die een prestatie
+  prijst). Test: `tests/sponsor-access.test.mts`.
 - **Sponsorlimiet (seizoen 3, migratie v54):** `SPONSOR_MAX_ACTIVE 6`; tier ≥
   `SPONSOR_HIGH_TIER` (4) betaalt `SPONSOR_HIGH_TIER_DAILY_MULT` (**0.5**; bij de lancering 0.25, verdubbeld door **v57**) van het dagbedrag
   via `tierDailyMult`/`catalogDaily` (sponsors.ts) in `baseTerms`, `scaledTerms` en de

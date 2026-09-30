@@ -2161,19 +2161,22 @@ verliezen van iets beters dat jij bedenkt.
   kort, dus zonder dat liep zo'n duif geregeld af zonder dat iemand ze zag.
 - **Sponsors.** Er is **niets beschikbaar tot je het verdient**. Zodra je duiven
   en resultaten een drempel halen (bv. je eerste overwinning, veel deelnames, een
-  getalenteerde duif, seizoenspunten, niveau of gouden medailles), **biedt** die
+  getalenteerde duif, seizoenspunten, niveau of gouden medailles) — **of** je
+  spelersniveau de drempel van de tier haalt (tier 1: meteen · tier 2: niveau 3 ·
+  tier 3: niveau 6 · tier 4: niveau 10) — **biedt** die
   sponsor zich aan: er verschijnt een melding én een aanbod op de sponsorpagina
   dat je **aanvaardt of weigert**. Hoe beter je duiven en prestaties, hoe grotere
   sponsors zich melden en hoe groter het aanbod. Er is een brede waaier aan sponsors
   in veel categorieën (café, frituur, bakkerij, slagerij, brouwerij, dierenwinkel,
   landbouw, bank, verzekering, bouw, telecom, loterij, racingteam…) verspreid over
   **vier tiers** — van een buurtcafé tot echte prestige-partners die enkel de absolute
-  top binnenhaalt. **Sponsors verdien je op de vlucht.** Een aanbod komt **enkel ná een
-  goede competitievlucht** — wanneer een van je duiven op het **podium** eindigt of
-  **wint** — en dan nog **op een willekeurig moment** (het is een kans, groter bij een
-  overwinning dan bij een derde plaats). Ze verschijnen dus **nooit zomaar** en **nooit
-  allemaal tegelijk**: er meldt zich hoogstens **één nieuwe sponsor per keer**. Presteer
-  je goed, dan komen de suitors vanzelf langs; presteer je niet, dan blijft het stil.
+  top binnenhaalt. **Sponsors verdien je op de vlucht.** Een aanbod komt ná een
+  **competitievlucht waaraan je deelnam** — en dan nog **op een willekeurig moment**:
+  50 % kans na een overwinning, 25 % na een podium, en **10 % na gewoon deelnemen**.
+  Je hoeft dus niet te winnen: wie regelmatig meevliegt, krijgt ook aanbiedingen.
+  Ze verschijnen **nooit zomaar** en **nooit allemaal tegelijk**: er meldt zich
+  hoogstens **één nieuwe sponsor per keer** (minstens 6 uur ertussen, hoogstens 2
+  openstaande aanbiedingen).
   - Aanvaarden geeft eenmalig **tekengeld**, daarna **elke dag** een vaste
     bijdrage (zichtbaar in de dagbalans op het Overzicht, §4.2) en telkens een
     van je duiven op het **podium** eindigt een **podiumpremie**.
