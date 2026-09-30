@@ -1686,7 +1686,21 @@ export const SPONSOR_REOFFER_MULT_MAX = 1.5;
 export const SPONSOR_OFFER_ON_PERFORMANCE = {
   winChance: 0.5,
   podiumChance: 0.25,
+  /** Just taking part in a competition flight (no podium needed): lower-ranked
+   *  players rarely win, and sponsors should still find a loyal loft. With the
+   *  spacing and pending cap below this is roughly one offer every few days
+   *  for a player who flies daily. */
+  participationChance: 0.1,
 } as const;
+
+/**
+ * The LEVEL route to a sponsor (owner: "gewoon regelmatig deelnemen, gebaseerd
+ * op het level"). A sponsor is interested once the loft meets its own `req`
+ * (wins, medals, a top bird, …) OR reaches this player level for its tier —
+ * whichever comes first. Aligned with the sponsors that already asked for a
+ * level (tier 2 niveau 3, tier 3 niveau 6, tier 4 niveau 10).
+ */
+export const SPONSOR_LEVEL_ROUTE: Record<number, number> = { 1: 1, 2: 3, 3: 6, 4: 10 };
 
 /**
  * A short floor between two sponsor offers, so a lucky streak of back-to-back

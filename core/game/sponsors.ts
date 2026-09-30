@@ -18,6 +18,7 @@ import {
   SPONSORS,
   SPONSOR_HIGH_TIER,
   SPONSOR_HIGH_TIER_DAILY_MULT,
+  SPONSOR_LEVEL_ROUTE,
   SPONSOR_MAX_ACTIVE,
   SPONSOR_MAX_PENDING_OFFERS,
   SPONSOR_OFFER_SPACING_HOURS,
@@ -168,6 +169,17 @@ function perfScore(loft: Loft, bestTalent: number): number {
 
 /** Whether the loft currently meets every threshold of a sponsor. */
 export function isSponsorUnlocked(loft: Loft, def: SponsorDef, bestTalent: number): boolean {
+  return unlockedByLevel(loft, def) || meetsOwnRequirement(loft, def, bestTalent);
+}
+
+/** The level route: every sponsor also comes within reach at its tier's level. */
+function unlockedByLevel(loft: Loft, def: SponsorDef): boolean {
+  const lvl = SPONSOR_LEVEL_ROUTE[def.tier];
+  return lvl != null && (loft.level ?? 1) >= lvl;
+}
+
+/** The sponsor's own performance requirement (wins, medals, a top bird, …). */
+function meetsOwnRequirement(loft: Loft, def: SponsorDef, bestTalent: number): boolean {
   const r = def.req;
   if (r.level != null && (loft.level ?? 1) < r.level) return false;
   if (r.totalWins != null && loft.totalWins < r.totalWins) return false;
@@ -189,7 +201,9 @@ export function requirementLabel(def: SponsorDef): string {
   if (r.bestTalent != null) parts.push(`een duif met talent ${r.bestTalent}`);
   if (r.gold != null) parts.push(`${r.gold} gouden medailles`);
   if (parts.length === 0) return 'Meteen geïnteresseerd';
-  return parts.join(' · ');
+  const lvl = SPONSOR_LEVEL_ROUTE[def.tier];
+  const own = parts.join(' · ');
+  return lvl != null && r.level == null ? `${own} — of niveau ${lvl}` : own;
 }
 
 function round5(n: number): number {
@@ -278,8 +292,13 @@ export function evaluateSponsorOffers(db: Database, loft: Loft, nowMs: number): 
     } else {
       const terms = scaledTerms(def, 1);
       st.offers.push({ id: def.id, at: new Date(nowMs).toISOString(), ...terms });
+      // Its tagline praises a feat (a first win, a top bird…); a loft that came
+      // in through the level route gets a line about loyalty instead.
+      const why = meetsOwnRequirement(loft, def, best)
+        ? def.tagline
+        : `Je bent een trouwe deelnemer — ${def.name} wil graag met je hok in zee gaan.`;
       notify(db, loft, `${def.icon} Sponsoraanbod: ${def.name}`,
-        `${def.tagline} Bekijk en beslis op de sponsorpagina.`);
+        `${why} Bekijk en beslis op de sponsorpagina.`);
     }
     st.lastOfferAt = new Date(nowMs).toISOString();
     return true; // exactly one offer per call — the rest trickle in later

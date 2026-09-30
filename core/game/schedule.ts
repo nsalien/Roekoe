@@ -1024,12 +1024,14 @@ export function tickFlights(
               );
             }
           }
-          // A good result may draw a NEW sponsor — but only by chance, and only one
-          // at a time (evaluateSponsorOffers respects the cap + spacing). Sponsors
-          // never appear on a timer; they scout birds that just performed well.
+          // Taking part may draw a NEW sponsor — a win or podium more likely, but
+          // plain participation too (lower players rarely win). Only by chance and
+          // one at a time (evaluateSponsorOffers respects the cap + spacing).
+          // Sponsors never appear on a timer; they follow lofts that fly.
           const chance = wins > 0
             ? SPONSOR_OFFER_ON_PERFORMANCE.winChance
-            : podiums > 0 ? SPONSOR_OFFER_ON_PERFORMANCE.podiumChance : 0;
+            : podiums > 0 ? SPONSOR_OFFER_ON_PERFORMANCE.podiumChance
+            : SPONSOR_OFFER_ON_PERFORMANCE.participationChance;
           if (chance > 0) {
             const rng = seededRng(hashString(`spon-offer:${flight.id}:${ownerId}`));
             if (rng() < chance) evaluateSponsorOffers(db, loft, nowMs);
