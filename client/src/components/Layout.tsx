@@ -79,8 +79,10 @@ const NAV: NavItem[] = [
 const ADMIN_NAV: NavItem = { to: '/beheer', label: 'Beheer', short: 'Beheer', icon: '🛠️' };
 
 // On phones the bottom bar shows the first PRIMARY items; the rest hide behind
-// a "› Meer" button so the bar has room to grow with new sections.
-const PRIMARY = 5;
+// a "› Meer" button so the bar has room to grow with new sections. Six fit
+// (with "Meer" that is seven equal slots, ~51 px each on a 360 px phone); the
+// sixth is the Ziekenboeg, which the owner wanted out of the overflow row.
+const PRIMARY = 6;
 
 export function Layout() {
   const { user, logout } = useAuth();
