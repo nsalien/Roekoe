@@ -64,7 +64,7 @@ export function LokaalPage() {
 
   const [messages, setMessages] = useState<LokaalMessage[] | null>(null);
   const [hasMore, setHasMore] = useState(false);
-  const [limits, setLimits] = useState({ bodyMax: 500, pollSeconds: 15 });
+  const [limits, setLimits] = useState<{ bodyMax: number; pollSeconds: number; gifSearch?: boolean }>({ bodyMax: 500, pollSeconds: 15 });
   const [text, setText] = useState('');
   const [sending, setSending] = useState(false);
   const [loadingOlder, setLoadingOlder] = useState(false);
@@ -314,9 +314,11 @@ export function LokaalPage() {
           </button>
         )}
 
-        {gifOpen && <GifPicker disabled={sending} onPick={(url) => void send(undefined, url)} onClose={() => setGifOpen(false)} />}
+        {gifOpen && <GifPicker disabled={sending} isAdmin={isAdmin} onPick={(url) => void send(undefined, url)} onClose={() => setGifOpen(false)} />}
         <form className="lokaal-compose" onSubmit={send}>
-          <button
+          {/* Players only see the button once GIF search works; the admin sees it
+              always, so the panel can tell them what is still missing. */}
+          {(limits.gifSearch || isAdmin) && <button
             type="button"
             className={`btn ghost lokaal-gifbtn${gifOpen ? ' active' : ''}`}
             onClick={() => setGifOpen((o) => !o)}
@@ -324,7 +326,7 @@ export function LokaalPage() {
             title="GIF sturen"
           >
             GIF
-          </button>
+          </button>}
           <textarea
             ref={inputRef}
             rows={1}
@@ -356,7 +358,7 @@ interface GifHit { url: string; preview: string | null; title: string }
  * van giphy.com of tenor.com in het tekstvak, dat wordt vanzelf een GIF. Leeg
  * zoekveld = wat nu populair is.
  */
-function GifPicker({ onPick, onClose, disabled }: { onPick: (url: string) => void; onClose: () => void; disabled: boolean }) {
+function GifPicker({ onPick, onClose, disabled, isAdmin }: { onPick: (url: string) => void; onClose: () => void; disabled: boolean; isAdmin: boolean }) {
   const [q, setQ] = useState('');
   const [hits, setHits] = useState<GifHit[] | null>(null);
   const [enabled, setEnabled] = useState(true);
@@ -396,8 +398,14 @@ function GifPicker({ onPick, onClose, disabled }: { onPick: (url: string) => voi
       </div>
       {!enabled ? (
         <p className="faint" style={{ margin: '6px 0 0', fontSize: '0.85rem' }}>
-          Plak een link van <strong>giphy.com</strong> of <strong>tenor.com</strong> in het tekstvak en verstuur — die
-          verschijnt als GIF.
+          {isAdmin ? (
+            <>
+              🛠️ GIF zoeken staat nog niet aan. Maak een gratis sleutel op <strong>developers.giphy.com</strong> en zet
+              die in Cloudflare als secret <code>GIPHY_API_KEY</code> (zie DEPLOY.md). Tot dan zien spelers deze knop niet.
+            </>
+          ) : (
+            <>GIF zoeken is even niet beschikbaar.</>
+          )}
         </p>
       ) : (
         <>

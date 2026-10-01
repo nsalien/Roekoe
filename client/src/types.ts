@@ -1061,5 +1061,6 @@ export interface LokaalResponse {
   /** Zijn er nog oudere berichten (enkel bij de eerste lading / "oudere laden")? */
   hasMore?: boolean;
   now: string;
-  limits?: { bodyMax: number; pollSeconds: number };
+  /** `gifSearch` = the server has a Giphy key, so the GIF button can search. */
+  limits?: { bodyMax: number; pollSeconds: number; gifSearch?: boolean };
 }
