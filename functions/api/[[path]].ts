@@ -1382,7 +1382,7 @@ app.get('/lokaal', async (c) => {
     ...latest,
     deleted: [],
     now,
-    limits: { bodyMax: LOKAAL.bodyMax, pollSeconds: LOKAAL.pollSeconds },
+    limits: { bodyMax: LOKAAL.bodyMax, pollSeconds: LOKAAL.pollSeconds, gifSearch: !!c.env.GIPHY_API_KEY },
   });
 });
 
