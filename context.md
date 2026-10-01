@@ -104,7 +104,12 @@ samengestelde sleutel, dus twee spelers raken elkaars rij nooit.
 routes `/api/lokaal*` staan bij de **featherweight**-routes in de middleware (net
 als login/`/auth/me`), dus ze laden de wereld **helemaal niet** en de motor draait
 niet — `c.get('store')` bestaat daar niet. Alles loopt via eigen, index-gedekte
-queries in `d1.ts`. Zie §8, *Het Lokaal*.
+queries in `d1.ts`. Zie §8, *Het Lokaal*. **GIFs** (geen schemawijziging): een bericht dat
+enkel uit een Giphy/Tenor-link bestaat, maakt de server (`normalizeGifLink`, lokaal.ts) tot één
+vaste vorm (Giphy: `media.giphy.com/media/<id>/200.gif`); de client (`game/gif.ts`) toont ENKEL
+die vormen als `<img>` — andere links blijven tekst. Zoeken: `GET /api/lokaal/gifs?q=`
+(featherweight, proxy naar Giphy met het secret `GIPHY_API_KEY`; zonder sleutel
+`enabled:false` en toont de client enkel de plak-uitleg).
 
 Alles wat de engine globaal nodig heeft (users, lofts, pigeons, flights, auctions,
 offers, auction_bids) wordt nog steeds volledig geladen; die zijn begrensd door het

@@ -28,6 +28,47 @@ export function cleanMessage(raw: unknown): string {
     .trim();
 }
 
+/**
+ * GIFs (owner: "ook GIFs sturen in het lokaal"). Een GIF is een bericht dat
+ * enkel uit één link bestaat naar Giphy of Tenor; de client toont die als
+ * bewegend beeld (zie client/src/game/gif.ts — dezelfde regels). Enkel deze
+ * twee hosts: een willekeurige afbeeldingslink zou van de chat een plek maken
+ * waar iedereen alles kan tonen, en elke speler laadt ze automatisch in.
+ *
+ * Een Giphy-link (de pagina, of een media-URL met trackingparameters) wordt
+ * herschreven naar één vaste vorm: de 200 px hoge versie, licht genoeg voor een
+ * chat. Een Tenor-media-link blijft zoals hij is, zonder query. Elke andere
+ * tekst blijft ongemoeid.
+ */
+const GIPHY_ID = /^[A-Za-z0-9]{6,40}$/;
+export function giphyMediaUrl(id: string): string | null {
+  return GIPHY_ID.test(id) ? `https://media.giphy.com/media/${id}/200.gif` : null;
+}
+export function normalizeGifLink(text: string): string {
+  if (/\s/.test(text)) return text; // a sentence, not a lone link
+  const m = /^https?:\/\/([^/?#:]+)(\/[^?#]*)?/i.exec(text);
+  if (!m) return text;
+  const host = m[1].toLowerCase();
+  const path = m[2] ?? '/';
+  const parts = path.split('/').filter(Boolean);
+  if (host === 'giphy.com' || host === 'www.giphy.com') {
+    // giphy.com/gifs/<slug>-<id>  or  giphy.com/gifs/<id>
+    if (parts[0] === 'gifs' && parts[1]) return giphyMediaUrl(parts[1].split('-').pop()!) ?? text;
+    return text;
+  }
+  if (/^(media\d?\.)?giphy\.com$/.test(host) || host === 'i.giphy.com') {
+    // media*.giphy.com/media/[v1.<cid>/]<id>/<file>  or  i.giphy.com/<id>.gif
+    if (host === 'i.giphy.com') return giphyMediaUrl((parts[0] ?? '').replace(/\.(gif|webp)$/i, '')) ?? text;
+    const i = parts.indexOf('media');
+    if (i >= 0 && parts.length >= i + 3) return giphyMediaUrl(parts[parts.length - 2]) ?? text;
+    return text;
+  }
+  if (/^(media\d?|c)\.tenor\.com$/.test(host) && /\.gif$/i.test(path)) {
+    return `https://${host}${path}`;
+  }
+  return text;
+}
+
 /** Foutmelding (Nederlands) of `null` als het bericht mag. */
 export function validateMessage(body: string): string | null {
   if (body.length === 0) return 'Typ eerst iets.';
