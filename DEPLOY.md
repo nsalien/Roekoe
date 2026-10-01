@@ -124,6 +124,9 @@ Ga naar je nieuwe project → **Settings**.
    - Name: `INVITE_CODE` — Value: bv. `roekoe-vrienden` — type: gewone (Plaintext).
      Dit is de code die je vrienden nodig hebben om te registreren. Leeg = iedereen mag.
    - (optioneel) `ADMIN_USERS` — komma-gescheiden gebruikersnamen die ook beheerder zijn.
+   - (optioneel) `GIPHY_API_KEY` — type: **Secret**. Zet het **GIF-zoekvenster** in Het Lokaal
+     aan. Een gratis sleutel maak je op https://developers.giphy.com (Create an App → API).
+     Zonder sleutel kunnen spelers nog altijd een GIF-link van giphy.com of tenor.com plakken.
 
 ## 6. Opnieuw deployen
 Ga naar **Deployments → (laatste) → Retry deployment** (of push desnoods een klein

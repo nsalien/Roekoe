@@ -127,6 +127,8 @@ import {
 import {
   canDeleteMessage,
   cleanMessage,
+  giphyMediaUrl,
+  normalizeGifLink,
   pollWindowStart,
   rateLimitError,
   validateMessage,
@@ -158,6 +160,8 @@ interface Env {
   JWT_SECRET: string;
   INVITE_CODE?: string;
   ADMIN_USERS?: string;
+  /** Optional: enables the GIF search in Het Lokaal (developers.giphy.com). */
+  GIPHY_API_KEY?: string;
 }
 type Vars = { store: D1Store; user?: User };
 
@@ -1386,7 +1390,8 @@ app.post('/lokaal', async (c) => {
   const user = requireUser(c);
   if (user.isBot) return c.json({ error: 'Bots praten niet mee' }, 403);
   const body = await c.req.json().catch(() => ({}));
-  const text = cleanMessage(body.body);
+  // A lone Giphy/Tenor link becomes the canonical GIF link (see normalizeGifLink).
+  const text = normalizeGifLink(cleanMessage(body.body));
   const err = validateMessage(text);
   if (err) return c.json({ error: err }, 400);
 
@@ -1406,6 +1411,34 @@ app.post('/lokaal', async (c) => {
   // Het verse bericht terug, zodat het meteen op het scherm staat en niet pas
   // bij de volgende poll.
   return c.json({ ok: true, message });
+});
+
+/**
+ * GIF zoeken voor Het Lokaal, via Giphy. Enkel als de beheerder een
+ * GIPHY_API_KEY instelde (Cloudflare → Pages → instellingen → variabelen);
+ * zonder sleutel antwoordt dit `enabled: false` en kan je nog altijd een
+ * GIF-link plakken. De sleutel blijft op de server. Geen leeswerk op D1: dit is
+ * een featherweight-route (enkel de gebruiker, één rij).
+ */
+app.get('/lokaal/gifs', async (c) => {
+  requireUser(c);
+  const key = c.env.GIPHY_API_KEY;
+  if (!key) return c.json({ enabled: false, gifs: [] });
+  const q = (c.req.query('q') ?? '').trim().slice(0, 50);
+  const params = new URLSearchParams({ api_key: key, limit: '24', rating: 'pg-13', lang: 'nl' });
+  if (q) params.set('q', q);
+  const url = `https://api.giphy.com/v1/gifs/${q ? 'search' : 'trending'}?${params}`;
+  try {
+    const res = await fetch(url, { signal: AbortSignal.timeout(4000) });
+    if (!res.ok) return c.json({ enabled: true, gifs: [], error: 'GIF-dienst niet bereikbaar' });
+    const data = (await res.json()) as { data?: { id: string; title?: string; images?: { fixed_height_small?: { url?: string } } }[] };
+    const gifs = (data.data ?? [])
+      .map((g) => ({ url: giphyMediaUrl(g.id), preview: g.images?.fixed_height_small?.url ?? null, title: g.title ?? '' }))
+      .filter((g): g is { url: string; preview: string | null; title: string } => !!g.url);
+    return c.json({ enabled: true, gifs });
+  } catch {
+    return c.json({ enabled: true, gifs: [], error: 'GIF-dienst niet bereikbaar' });
+  }
 });
 
 /** Een bericht weghalen: je eigen, of als beheerder elk bericht (moderatie). */

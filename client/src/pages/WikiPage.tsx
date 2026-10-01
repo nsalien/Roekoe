@@ -1442,6 +1442,11 @@ export function WikiPage() {
             Een bericht mag tot 500 tekens lang zijn.
           </li>
           <li>
+            <strong>GIFs.</strong> Tik op de knop <strong>GIF</strong> naast het tekstvak om er een te zoeken en met één
+            tik te versturen. Je kan ook een link van <strong>giphy.com</strong> of <strong>tenor.com</strong> plakken: als
+            die als enige in je bericht staat, verschijnt ze als GIF. Andere afbeeldingslinks blijven gewone tekst.
+          </li>
+          <li>
             <strong>Lezen.</strong> Je eigen berichten staan rechts, die van de anderen links met hun hoknaam erboven.
             Nieuwe berichten verschijnen vanzelf zolang de pagina open staat. Noemt iemand jouw hoknaam, dan krijgt
             dat bericht een oranje rand.

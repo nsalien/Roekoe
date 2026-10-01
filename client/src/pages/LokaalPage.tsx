@@ -18,6 +18,7 @@ import { useAuth } from '../auth/AuthContext';
 import { useGame } from '../game/GameContext';
 import { useVisiblePoll } from '../game/useVisiblePoll';
 import { markLokaalSeen } from '../game/lokaalSeen';
+import { gifSrc } from '../game/gif';
 import { Spinner, useToast } from '../components/ui';
 import type { LokaalMessage, LokaalResponse } from '../types';
 
@@ -70,6 +71,7 @@ export function LokaalPage() {
   const [selected, setSelected] = useState<string | null>(null);
   const [unreadBelow, setUnreadBelow] = useState(0);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [gifOpen, setGifOpen] = useState(false);
 
   const cursor = useRef<string | null>(null);
   const polling = useRef(false);
@@ -163,14 +165,16 @@ export function LokaalPage() {
   }
 
   // --- Schrijven ---------------------------------------------------------
-  async function send(e?: FormEvent) {
+  /** `gif` = send this GIF link instead of what is in the text box. */
+  async function send(e?: FormEvent, gif?: string) {
     e?.preventDefault();
-    const body = text.trim();
+    const body = (gif ?? text).trim();
     if (!body || sending) return;
     setSending(true);
     try {
       const res = await api<{ message: LokaalMessage }>('/lokaal', { method: 'POST', body: { body } });
-      setText('');
+      if (gif) setGifOpen(false);
+      else setText('');
       scrollIntent.current = { kind: 'bottom' };
       setUnreadBelow(0);
       setMessages((prev) => merge(prev ?? [], [res.message]));
@@ -285,7 +289,11 @@ export function LokaalPage() {
                     onClick={deletable ? () => setSelected(isSel ? null : m.id) : undefined}
                     title={deletable ? 'Tik voor opties' : undefined}
                   >
-                    <span className="lokaal-text">{m.body}</span>
+                    {gifSrc(m.body) ? (
+                      <img className="lokaal-gif" src={gifSrc(m.body)!} alt="GIF" loading="lazy" referrerPolicy="no-referrer" />
+                    ) : (
+                      <span className="lokaal-text">{m.body}</span>
+                    )}
                     <span className="lokaal-time">{clock(m.createdAt)}</span>
                   </div>
                   {isSel && (
@@ -306,7 +314,17 @@ export function LokaalPage() {
           </button>
         )}
 
+        {gifOpen && <GifPicker disabled={sending} onPick={(url) => void send(undefined, url)} onClose={() => setGifOpen(false)} />}
         <form className="lokaal-compose" onSubmit={send}>
+          <button
+            type="button"
+            className={`btn ghost lokaal-gifbtn${gifOpen ? ' active' : ''}`}
+            onClick={() => setGifOpen((o) => !o)}
+            aria-label="GIF sturen"
+            title="GIF sturen"
+          >
+            GIF
+          </button>
           <textarea
             ref={inputRef}
             rows={1}
@@ -326,6 +344,80 @@ export function LokaalPage() {
           <div className="faint lokaal-count">{left} tekens over</div>
         )}
       </div>
+    </div>
+  );
+}
+
+interface GifHit { url: string; preview: string | null; title: string }
+
+/**
+ * Het GIF-venster boven het tekstvak. Zoekt via de server (Giphy, met de sleutel
+ * van de beheerder); zonder sleutel blijft enkel de uitleg over: plak een link
+ * van giphy.com of tenor.com in het tekstvak, dat wordt vanzelf een GIF. Leeg
+ * zoekveld = wat nu populair is.
+ */
+function GifPicker({ onPick, onClose, disabled }: { onPick: (url: string) => void; onClose: () => void; disabled: boolean }) {
+  const [q, setQ] = useState('');
+  const [hits, setHits] = useState<GifHit[] | null>(null);
+  const [enabled, setEnabled] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    // Wacht tot er even niet meer getypt wordt: één zoekopdracht per pauze.
+    const t = setTimeout(async () => {
+      try {
+        const res = await api<{ enabled: boolean; gifs: GifHit[]; error?: string }>(`/lokaal/gifs?q=${encodeURIComponent(q.trim())}`);
+        if (cancelled) return;
+        setEnabled(res.enabled);
+        setHits(res.gifs);
+        setError(res.error ?? null);
+      } catch {
+        if (!cancelled) setError('Zoeken lukte niet');
+      }
+    }, q ? 400 : 0);
+    return () => { cancelled = true; clearTimeout(t); };
+  }, [q]);
+
+  return (
+    <div className="lokaal-gifpanel">
+      <div className="row" style={{ gap: 6 }}>
+        {enabled && (
+          <input
+            autoFocus
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            placeholder="Zoek een GIF…"
+            aria-label="Zoek een GIF"
+            style={{ flex: 1, minWidth: 0 }}
+          />
+        )}
+        <button type="button" className="btn ghost sm" onClick={onClose} aria-label="Sluiten">✕</button>
+      </div>
+      {!enabled ? (
+        <p className="faint" style={{ margin: '6px 0 0', fontSize: '0.85rem' }}>
+          Plak een link van <strong>giphy.com</strong> of <strong>tenor.com</strong> in het tekstvak en verstuur — die
+          verschijnt als GIF.
+        </p>
+      ) : (
+        <>
+          {error && <p className="faint" style={{ margin: '6px 0 0' }}>{error}</p>}
+          {hits === null ? (
+            <Spinner />
+          ) : hits.length === 0 ? (
+            <p className="faint" style={{ margin: '6px 0 0' }}>Niets gevonden.</p>
+          ) : (
+            <div className="lokaal-gifgrid">
+              {hits.map((g) => (
+                <button key={g.url} type="button" disabled={disabled} onClick={() => onPick(g.url)} title={g.title || 'GIF'}>
+                  <img src={g.preview ?? g.url} alt={g.title || 'GIF'} loading="lazy" referrerPolicy="no-referrer" />
+                </button>
+              ))}
+            </div>
+          )}
+          <div className="faint" style={{ fontSize: '0.7rem', marginTop: 4, textAlign: 'right' }}>via GIPHY</div>
+        </>
+      )}
     </div>
   );
 }

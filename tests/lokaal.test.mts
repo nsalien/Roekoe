@@ -18,7 +18,9 @@
  *    kern van de keuze om die kolommen buiten de world-UPDATE te houden;
  *  - een verwijderde speler wordt `Oud-speler`, de rest blijft;
  *  - de regels: opkuisen, valideren, de rem, wie mag weghalen, het bolletje;
- *  - migratie v60 belt elke echte speler precies één keer, en geen bots.
+ *  - migratie v60 belt elke echte speler precies één keer, en geen bots;
+ *  - GIFs: een losse Giphy/Tenor-link wordt de vaste GIF-vorm, al de rest
+ *    (een zin met een link, een andere host) blijft gewoon tekst.
  *
  * Run: npx tsx tests/lokaal.test.mts (vanuit de repo-root)
  */
@@ -39,6 +41,7 @@ import {
   LOKAAL_INTRO,
   canDeleteMessage,
   cleanMessage,
+  normalizeGifLink,
   pollWindowStart,
   rateLimitError,
   validateMessage,
@@ -280,6 +283,19 @@ console.log('\nMigratie v60: de aankondiging');
   w.world.dataVersion = 59;
   runDataMigrations(w);
   ok(w.notifications.length === count, 'een tweede run schrijft geen extra bel (stabiele id)');
+}
+
+console.log('\nGIFs');
+{
+  const id = 'l0HlBO7eyXzSZkJri';
+  const want = `https://media.giphy.com/media/${id}/200.gif`;
+  ok(normalizeGifLink(`https://giphy.com/gifs/happy-dance-${id}`) === want, 'giphy-pagina → vaste GIF-link');
+  ok(normalizeGifLink(`https://media3.giphy.com/media/v1.Y2lkPTc5/${id}/giphy.gif?cid=abc&rid=giphy.gif`) === want, 'media-link met tracking → vaste GIF-link');
+  ok(normalizeGifLink(`https://i.giphy.com/${id}.gif`) === want, 'i.giphy.com → vaste GIF-link');
+  ok(normalizeGifLink('https://media.tenor.com/AbC-12/dans.gif?x=1') === 'https://media.tenor.com/AbC-12/dans.gif', 'tenor-media-link zonder query');
+  ok(normalizeGifLink(`kijk eens https://giphy.com/gifs/${id}`) === `kijk eens https://giphy.com/gifs/${id}`, 'een zin met een link blijft tekst');
+  ok(normalizeGifLink('https://example.com/kat.gif') === 'https://example.com/kat.gif', 'een andere host blijft gewone tekst');
+  ok(normalizeGifLink('https://giphy.com/explore/duif') === 'https://giphy.com/explore/duif', 'een giphy-zoekpagina is geen GIF');
 }
 
 console.log(fails === 0 ? '\n✅ alles groen' : `\n❌ ${fails} controle(s) gefaald`);
