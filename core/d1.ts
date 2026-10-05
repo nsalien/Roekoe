@@ -186,6 +186,8 @@ function rowToPigeon(r: any): Pigeon {
     damName: r.dam_name ?? null,
     quirk: r.quirk ?? null,
     trait: r.trait ?? null,
+    earnings: r.earnings ?? 0,
+    earningsOwner: r.earnings_owner ?? null,
     awayUntil: r.away_until ?? null,
     lastRaceWasPractice: !!r.last_race_practice,
     seasonPeakSpeed: r.season_peak_speed ?? 0,
@@ -376,7 +378,7 @@ const PIGEON_COLUMNS = [
   'season_start_score', 'season_practice_gain', 'trained_at', 'genes', 'decline_rate',
   'care_assigned', 'last_race_at', 'last_race_practice', 'last_rest_cure_at', 'away_until',
   'cup', 'titles', 'listed_at', 'min_bid', 'last_bred_at', 'sire_name', 'dam_name', 'quirk',
-  'trait',
+  'trait', 'earnings', 'earnings_owner',
 ];
 
 /**
@@ -419,6 +421,8 @@ function pigeonRow(p: Pigeon): unknown[] {
     p.damName ?? null,
     p.quirk ?? null,
     p.trait ?? null,
+    p.earnings ?? 0,
+    p.earningsOwner ?? null,
   ];
 }
 
@@ -1470,6 +1474,21 @@ const SCHEMA_STEPS_PER_RUN = 20;
  * Table creation comes first: `D1Store.load` guards its `auction_bids`/`offers`
  * queries, but a fresh install should get them early rather than after 56 ALTERs.
  */
+/** The one-off "opgebracht" backfill (see the step that uses it). Exported
+ *  so the test can run it against real rows. */
+export const EARNINGS_BACKFILL_SQL = `UPDATE pigeons SET earnings_owner = owner_id, earnings = COALESCE((
+     SELECT SUM(prize) FROM (
+       SELECT json_extract(e.data, '$.flightId') AS fid, json_extract(e.data, '$.prize') AS prize
+         FROM pigeon_log_entries e
+        WHERE e.pigeon_id = pigeons.id AND e.kind = 'race'
+          AND json_extract(e.data, '$.ownerId') = pigeons.owner_id
+       UNION
+       SELECT json_extract(j.value, '$.flightId'), json_extract(j.value, '$.prize')
+         FROM json_each(CASE WHEN json_valid(pigeons.race_log) THEN pigeons.race_log ELSE '[]' END) j
+        WHERE json_extract(j.value, '$.ownerId') = pigeons.owner_id
+     )
+   ), 0)`;
+
 const SCHEMA_STEPS: string[] = [
   // 0 — the progress counter itself, so tracking works from the very first run.
   'ALTER TABLE world ADD COLUMN schema_version INTEGER NOT NULL DEFAULT 0',
@@ -1661,6 +1680,20 @@ const SCHEMA_STEPS: string[] = [
   // `insertLokaalMessage`, never by the world UPDATE in `persist`.
   "ALTER TABLE world ADD COLUMN chat_last_at TEXT NOT NULL DEFAULT ''",
   "ALTER TABLE world ADD COLUMN chat_last_by TEXT NOT NULL DEFAULT ''",
+
+  // OPGEBRACHT: the prize money a bird has won for its CURRENT owner (shown under
+  // its value on Mijn hok). Kept as a running total, because the race history
+  // itself is not in the world load (see PIGEON_SELECT). `earnings_owner` is who
+  // it was earned for, so a sale needs no hook anywhere: the next prize for the
+  // new owner restarts the count, and until then the hok shows €0.
+  'ALTER TABLE pigeons ADD COLUMN earnings REAL NOT NULL DEFAULT 0',
+  'ALTER TABLE pigeons ADD COLUMN earnings_owner TEXT',
+  // One-off backfill from the race history (the log table + the legacy JSON
+  // blob, de-duplicated per flight), counting only races flown for the current
+  // owner. The history keeps the last 40 races per bird and the BASE prize (a
+  // newcomer's double is not in it), so for older birds this is a floor, not
+  // an exact sum; from here on every prize is counted exactly as paid.
+  EARNINGS_BACKFILL_SQL,
 ];
 
 /**

@@ -103,6 +103,8 @@ export interface Pigeon {
   // Breed (ras): cosmetic photo + rarity. Public for every bird.
   breed: PigeonBreed;
   value: number;
+  /** Prijzengeld dat deze duif voor haar huidige eigenaar won (alle vluchten). Null = niet jouw duif. */
+  earnings?: number | null;
   canRace: boolean;
   forSale: boolean;
   /** "Bieden vanaf": vanaf welk bedrag kopers een bod mogen doen. null = enkel

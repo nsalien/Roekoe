@@ -192,7 +192,13 @@ export function LoftPage() {
               </div>
             ) : (
               <div className="row" style={{ justifyContent: 'space-between' }}>
-                <span className="faint">Waarde <Money value={p.value} /></span>
+                <span className="faint stack" style={{ gap: 2 }}>
+                  <span>Waarde <Money value={p.value} /></span>
+                  {/* Prize money she has won for you, all flights together. */}
+                  <span title="Totaal prijzengeld dat deze duif voor jou won, over al haar vluchten">
+                    Opgebracht <Money value={p.earnings ?? 0} />
+                  </span>
+                </span>
                 {p.forSale ? (
                   <button className="btn secondary sm" disabled={busy} onClick={() => act(() => api('/market/unlist', { method: 'POST', body: { pigeonId: p.id } }), 'Uit de verkoop')}>
                     Uit verkoop

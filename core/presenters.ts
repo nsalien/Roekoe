@@ -118,6 +118,9 @@ export function pigeonDTO(db: Database, p: Pigeon, viewerId?: string, viewerIsAd
       };
     })(),
     canRace: canRace(p, week),
+    // Prize money this bird has won for her CURRENT owner, all flights together
+    // (own birds only — what another loft earned is its business).
+    earnings: revealed ? (p.earningsOwner === p.ownerId ? Math.round(p.earnings ?? 0) : 0) : null,
     forSale: p.forSale,
     // "Bieden vanaf" — null on a buy-now-only listing (and on every bot's bird).
     minBid: p.forSale ? p.minBid ?? null : null,
