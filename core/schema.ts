@@ -185,6 +185,10 @@ export interface Pigeon {
   seasonPeakSpeed?: number; // highest race velocity (m/min) reached this season
   seasonPodiums?: number; // number of top-3 finishes this season
   seasonStartScore?: number; // development score at the season's start (progress baseline)
+  /** Prize money this bird has won for `earningsOwner` (see creditEarnings in
+   *  schedule.ts). Shown on Mijn hok only when that is still her owner. */
+  earnings?: number;
+  earningsOwner?: string | null;
   seasonPracticeGain?: number; // score gained from practice flights this season (excluded from the ranking)
   /**
    * Leeftijdscriterium standings, PER age bracket (see AGE_CUP). A bird ages out

@@ -1675,6 +1675,11 @@ export function WikiPage() {
           via een privébod of onder de veilinghamer — wordt onthouden samen met het talent van die duif,
           en dat vormt de prijslijst van de club.
         </p>
+        <p>
+          Onder de waarde zie je op <strong>Mijn hok</strong> ook wat een duif al <strong>opgebracht</strong> heeft: al
+          het prijzengeld dat ze voor jou won, over al haar vluchten samen. Koop je een duif, dan begint die teller bij
+          jou opnieuw op nul.
+        </p>
 
         <ul>
           <li>

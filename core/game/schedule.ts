@@ -696,6 +696,26 @@ function logRaceResults(db: Database, flight: Flight): void {
 }
 
 /**
+ * Add each bird's prize to her "opgebracht" total, exactly as it was paid: the
+ * result's prize times the loft's newcomer multiplier at the START of the race
+ * (the same rule as payFinishedFlightPrizes and applyFlightEffects). Counted
+ * per OWNER: a prize for someone new restarts the count, so a sale needs no
+ * hook. Runs once per finalize (the flight flips to completed right after).
+ */
+export function creditEarnings(db: Database, flight: Flight): void {
+  const startMs = Date.parse(flight.startAt);
+  for (const r of flight.results) {
+    if (!(r.prize > 0)) continue;
+    const p = db.pigeons.find((x) => x.id === r.pigeonId);
+    if (!p) continue;
+    const loft = db.lofts.find((l) => l.userId === r.ownerId);
+    const mult = loft && Number.isFinite(startMs) ? winningsMultiplier(loft, startMs) : 1;
+    if (p.earningsOwner !== r.ownerId) { p.earnings = 0; p.earningsOwner = r.ownerId; }
+    p.earnings = (p.earnings ?? 0) + Math.round(r.prize * mult);
+  }
+}
+
+/**
  * Drop completed flights older than the retention window. This is the main fix
  * for the day-long D1 outages: the flights table was never pruned, so every
  * request re-read thousands of fat flight rows (blowing the free-tier "rows
@@ -910,6 +930,7 @@ export function tickFlights(
         // Durably record each surviving bird's placing before the flight can be
         // pruned (covers race, practice and titan flights).
         logRaceResults(db, flight);
+        creditEarnings(db, flight);
         // Oefenvluchten (practice) feed NONE of the rankings. Record the
         // development they added so it can be subtracted from the "vooruitgang"
         // ranking (birds still improve for real — only the ranking excludes it),
