@@ -3,9 +3,13 @@
  * waarde op Mijn hok.
  *
  * Wat de test bewaakt:
- *  - de eenmalige aanvulling (EARNINGS_BACKFILL_SQL) telt het prijzengeld uit de
+ *  - de herberekening (EARNINGS_BACKFILL_SQL) telt het prijzengeld uit de
  *    vluchthistoriek — de logtabel én de oude JSON-kolom — één keer per vlucht,
- *    en enkel de vluchten voor de HUIDIGE eigenaar; draait tegen echte SQLite;
+ *    enkel de vluchten voor de HUIDIGE eigenaar, en ×2 voor een vlucht binnen
+ *    het starterspakket van die eigenaar; draait tegen echte SQLite, VIA
+ *    ensureSchema, met een nep-D1 waarvan exec() — net als echte D1 — elke regel
+ *    als een apart statement uitvoert. ⚠️ Precies dat liet de eerste versie
+ *    stil mislukken in productie (alle duiven op €0);
  *  - een vlucht telt het uitbetaalde bedrag erbij (met de dubbele starterwinst);
  *  - een prijs voor een nieuwe eigenaar begint de telling opnieuw;
  *  - de DTO toont het enkel aan de eigenaar, en €0 zolang de nieuwe eigenaar
@@ -39,7 +43,9 @@ function fakeD1(): any {
     };
     return api;
   };
-  return { prepare, async exec(q: string) { sql.exec(q); }, async batch(stmts: any[]) { for (const s of stmts) s.run(); }, _raw: sql };
+  // Like real D1: exec() runs every LINE as its own statement.
+  const exec = async (q: string) => { for (const line of q.split('\n')) if (line.trim()) sql.exec(line); };
+  return { prepare, exec, async batch(stmts: any[]) { for (const s of stmts) s.run(); }, _raw: sql };
 }
 
 console.log('\n1. De aanvulling uit de historiek (echte SQLite)');
@@ -54,14 +60,15 @@ console.log('\n1. De aanvulling uit de historiek (echte SQLite)');
   const bird = (id: string, owner: string, raceLog: unknown[] | null) =>
     db._raw.prepare(`INSERT INTO pigeons (id, owner_id, name, sex, birth_week, speed, endurance, orientation, form, health, experience, created_at_week, race_log)
       VALUES (?, ?, ?, 'doffer', 1, 50, 50, 50, 50, 50, 50, 1, ?)`).run(id, owner, id, raceLog ? JSON.stringify(raceLog) : null);
-  const log = (pigeonId: string, flightId: string, ownerId: string, prize: number) =>
+  const log = (pigeonId: string, flightId: string, ownerId: string, prize: number, startAt = '2026-09-20T08:00:00.000Z') =>
     db._raw.prepare('INSERT INTO pigeon_log_entries (id, pigeon_id, kind, at, data) VALUES (?, ?, ?, ?, ?)')
-      .run(`${pigeonId}:race:${flightId}`, pigeonId, 'race', '2026-09-01', JSON.stringify({ flightId, ownerId, prize }));
+      .run(`${pigeonId}:race:${flightId}`, pigeonId, 'race', startAt, JSON.stringify({ flightId, ownerId, prize, startAt }));
 
   // A: three races for her owner in the table, one of them also in the legacy blob.
-  bird('A', 'u1', [{ flightId: 'f1', ownerId: 'u1', prize: 100 }, { flightId: 'f0', ownerId: 'u1', prize: 40 }]);
+  const late = '2026-09-20T08:00:00.000Z';
+  bird('A', 'u1', [{ flightId: 'f1', ownerId: 'u1', prize: 100, startAt: late }, { flightId: 'f0', ownerId: 'u1', prize: 40, startAt: late }]);
   log('A', 'f1', 'u1', 100);
-  log('A', 'f2', 'u1', 250);
+  log('A', 'f2', 'u1', 250, '2026-09-05T08:00:00.000Z'); // inside u1's starter package → paid 500
   log('A', 'f3', 'u1', 0);
   // B: bought from u9 — what she won for u9 does not count for u2.
   bird('B', 'u2', null);
@@ -70,9 +77,20 @@ console.log('\n1. De aanvulling uit de historiek (echte SQLite)');
   // C: never placed.
   bird('C', 'u3', null);
 
-  db._raw.exec(EARNINGS_BACKFILL_SQL);
+  // u1 is still in its starter package for races before 2026-09-10 (×2).
+  const loft = (userId: string, newcomer: string) =>
+    db._raw.prepare(`INSERT INTO lofts (user_id, name, money, food, feed_ration, capacity, newcomer) VALUES (?, ?, 0, 0, 'normal', 10, ?)`)
+      .run(userId, userId, newcomer);
+  loft('u1', JSON.stringify({ endsAt: '2026-09-10T00:00:00.000Z' }));
+  loft('u2', '');
+  loft('u3', '');
+
+  // The way production gets there: one step back, and ensureSchema runs the recount.
+  db._raw.exec('UPDATE world SET schema_version = schema_version - 1 WHERE id = 1');
+  ok(await ensureSchema(db), 'ensureSchema loopt de herberekening en is klaar');
+  ok(!EARNINGS_BACKFILL_SQL.includes('\n'), 'de herberekening staat op één regel');
   const row = (id: string) => db._raw.prepare('SELECT earnings, earnings_owner FROM pigeons WHERE id = ?').get(id) as any;
-  ok(row('A').earnings === 390, `A: 100 + 250 + 40 (oude kolom), f1 maar één keer → €${row('A').earnings}`);
+  ok(row('A').earnings === 640, `A: 100 + 250×2 (starterspakket) + 40 (oude kolom), f1 maar één keer → €${row('A').earnings}`);
   ok(row('B').earnings === 75, `B: enkel wat ze voor de huidige eigenaar won → €${row('B').earnings}`);
   ok(row('C').earnings === 0, 'C: nooit in de prijzen → €0');
   ok(row('A').earnings_owner === 'u1' && row('B').earnings_owner === 'u2', 'earnings_owner = huidige eigenaar');

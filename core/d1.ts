@@ -64,9 +64,12 @@ import type {
 } from './schema.js';
 import { emptyDatabase, emptyFoodStock, emptySponsorState, emptyStats } from './schema.js';
 import type { Store } from './store.js';
-import { ADVANCE_THROTTLE_SECONDS, LOKAAL, STEM } from './config/gameConfig.js';
+import { ADVANCE_THROTTLE_SECONDS, LOKAAL, NEWCOMER, STEM } from './config/gameConfig.js';
 import { SEED_IDEAS, sortIdeas, type StemIdeaView, type StemThreadView } from './game/stem.js';
 import { retentionCutoff } from './game/lokaal.js';
+
+/** Starter package prize multiplier, for the SQL recount (a number, not a bind). */
+const NEWCOMER_WINNINGS_MULT = Number(NEWCOMER.winningsMultiplier);
 
 const b = (v: unknown) => (v ? 1 : 0);
 
@@ -1474,20 +1477,38 @@ const SCHEMA_STEPS_PER_RUN = 20;
  * Table creation comes first: `D1Store.load` guards its `auction_bids`/`offers`
  * queries, but a fresh install should get them early rather than after 56 ALTERs.
  */
-/** The one-off "opgebracht" backfill (see the step that uses it). Exported
- *  so the test can run it against real rows. */
-export const EARNINGS_BACKFILL_SQL = `UPDATE pigeons SET earnings_owner = owner_id, earnings = COALESCE((
-     SELECT SUM(prize) FROM (
-       SELECT json_extract(e.data, '$.flightId') AS fid, json_extract(e.data, '$.prize') AS prize
-         FROM pigeon_log_entries e
-        WHERE e.pigeon_id = pigeons.id AND e.kind = 'race'
-          AND json_extract(e.data, '$.ownerId') = pigeons.owner_id
-       UNION
-       SELECT json_extract(j.value, '$.flightId'), json_extract(j.value, '$.prize')
-         FROM json_each(CASE WHEN json_valid(pigeons.race_log) THEN pigeons.race_log ELSE '[]' END) j
-        WHERE json_extract(j.value, '$.ownerId') = pigeons.owner_id
-     )
-   ), 0)`;
+/**
+ * The "opgebracht" recount from the race history (see the steps that use it).
+ *
+ * Per bird: every race in the log table AND the legacy JSON blob, de-duplicated
+ * per flight, counting only races flown for her CURRENT owner, at the prize as
+ * PAID — a race that started inside that owner's starter package (before
+ * `lofts.newcomer.endsAt`) paid NEWCOMER.winningsMultiplier times the base prize,
+ * exactly like payFinishedFlightPrizes. The history keeps the last
+ * PIGEON_LOG_CAP races per bird, so for a bird with more races than that it is
+ * a floor.
+ *
+ * ⚠️ ONE LINE. D1's `exec()` runs every LINE as its own statement, so a
+ * multi-line statement is split into broken fragments — and ensureSchema
+ * swallows errors (it expects "column already exists"), so it failed SILENTLY
+ * the first time and left every bird at €0. ensureSchema now also flattens each
+ * step defensively; keep this one-line anyway.
+ */
+export const EARNINGS_BACKFILL_SQL = [
+  'UPDATE pigeons SET earnings_owner = owner_id, earnings = COALESCE((',
+  'SELECT SUM(CASE WHEN x.at < nc.ends THEN x.prize * ' + String(NEWCOMER_WINNINGS_MULT) + ' ELSE x.prize END) FROM (',
+  "SELECT json_extract(e.data, '$.flightId') AS fid, json_extract(e.data, '$.prize') AS prize, json_extract(e.data, '$.startAt') AS at",
+  'FROM pigeon_log_entries e',
+  "WHERE e.pigeon_id = pigeons.id AND e.kind = 'race' AND json_extract(e.data, '$.ownerId') = pigeons.owner_id",
+  'UNION',
+  "SELECT json_extract(j.value, '$.flightId'), json_extract(j.value, '$.prize'), json_extract(j.value, '$.startAt')",
+  "FROM json_each(CASE WHEN json_valid(pigeons.race_log) THEN pigeons.race_log ELSE '[]' END) j",
+  "WHERE json_extract(j.value, '$.ownerId') = pigeons.owner_id",
+  ') x LEFT JOIN (',
+  "SELECT CASE WHEN json_valid(l.newcomer) THEN json_extract(l.newcomer, '$.endsAt') END AS ends FROM lofts l WHERE l.user_id = pigeons.owner_id",
+  ') nc ON 1 = 1',
+  '), 0)',
+].join(' ');
 
 const SCHEMA_STEPS: string[] = [
   // 0 — the progress counter itself, so tracking works from the very first run.
@@ -1694,6 +1715,11 @@ const SCHEMA_STEPS: string[] = [
   // newcomer's double is not in it), so for older birds this is a floor, not
   // an exact sum; from here on every prize is counted exactly as paid.
   EARNINGS_BACKFILL_SQL,
+  // The step above failed silently in production (it was multi-line, see
+  // EARNINGS_BACKFILL_SQL) and left every bird at €0. Run the — now one-line,
+  // newcomer-aware — recount again. Idempotent: it recomputes from the history,
+  // which also holds every race credited live since.
+  EARNINGS_BACKFILL_SQL,
 ];
 
 /**
@@ -1727,7 +1753,9 @@ export async function ensureSchema(db: D1Database): Promise<boolean> {
   const slice = SCHEMA_STEPS.slice(done, done + SCHEMA_STEPS_PER_RUN);
   for (const sql of slice) {
     try {
-      await db.exec(sql);
+      // D1's exec() treats every LINE as a separate statement: flatten, so a
+      // step written over several lines cannot silently split into fragments.
+      await db.exec(sql.replace(/\s*\n\s*/g, ' '));
     } catch {
       // Column/table/index already exists — nothing to do.
     }
