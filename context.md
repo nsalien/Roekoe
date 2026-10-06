@@ -15,10 +15,10 @@
 
 | Rol | Branch | Doel |
 |-----|--------|------|
-| **Dev** | `ccr-9c78dbf3-rdb1ea` | Alle ontwikkeling/commits komen hier **eerst**. |
+| **Dev** | `claude/demo-hokinrichting` | Alle ontwikkeling/commits komen hier **eerst**. ⚠️ Bevat de demomodus + hokinrichting (§0b) die **nog niet live** staan: niet cherry-picken zonder akkoord van de eigenaar. |
 | **Prod** | `claude/roekoe-game-website-jwa0vo` | Elke commit wordt hierheen **gecherry-pickt**; deze branch triggert de **Cloudflare Pages**-deploy naar productie. |
 
-> Vorige dev-branches (niet meer gebruiken): `claude/hallo-nno7pb`, `claude/hallo-r1wgvn`, `claude/hallo-ca55co`, `claude/hallo-qz9tmx`, `claude/hallo-fsp9nx`, `claude/hallo-mzjn0e`, `claude/hallo-su75jy`, `claude/hallo-rkr49f`, `claude/hallo-pvwabx`,
+> Vorige dev-branches (niet meer gebruiken): `ccr-9c78dbf3-rdb1ea`, `claude/hallo-nno7pb`, `claude/hallo-r1wgvn`, `claude/hallo-ca55co`, `claude/hallo-qz9tmx`, `claude/hallo-fsp9nx`, `claude/hallo-mzjn0e`, `claude/hallo-su75jy`, `claude/hallo-rkr49f`, `claude/hallo-pvwabx`,
 > `claude/context-spelregels-q2ywtx`, `claude/hallo-49m6hj`, `claude/hallo-xifh0c`,
 > `claude/hallo-w97s85`, `claude/hallo-hrtwtv`,
 > `claude/prosper-postuum-tinne-race-j515f6`, `claude/hallo-v71l3e`,
@@ -49,6 +49,55 @@
    in het scherm een link **"Meer info over … →"** naar `/wiki#<sectie>`. Blokken tekst
    in het spel worden niet gelezen. Zet **getallen bij voorkeur enkel in de wiki**, zodat
    er één plek is om met `gameConfig.ts` te synchroniseren.
+
+---
+
+## 0b. Demomodus & hokinrichting — ⚠️ ENKEL OP DEV, NOG NIET LIVE
+
+> Gebouwd op `claude/demo-hokinrichting` zodat de eigenaar de voorstellen kan **uitproberen
+> zonder dat ze live staan**. **Niet cherry-picken naar prod en niet live deployen** tot de
+> eigenaar na het testen beslist. Het voorstel (met alle getallen en de sketch) staat in de
+> artifact "Roekoe Hokinrichting".
+
+### Demomodus (preview-builds)
+- **Wanneer:** Cloudflare Pages zet `CF_PAGES_BRANCH` tijdens de build. Is die **niet**
+  `claude/roekoe-game-website-jwa0vo`, dan bouwt de client als demo (`client/vite.config.ts`).
+  `ROEKOE_DEMO=1` forceert het lokaal. Zonder `CF_PAGES_BRANCH` (lokaal, `wrangler pages dev`)
+  is het een gewone build. Preview-adres: `https://<branch>.<projectnaam>.pages.dev`
+  (slashes in de branchnaam worden streepjes; exact te zien onder *Deployments*).
+- **Hoe het de productie ongemoeid laat:** de demo-build verandert **enkel het instappunt** in
+  `index.html` (`/src/main.tsx` → `/demo/entry.ts`, via een Vite-plugin met `order: 'pre'`).
+  Geen enkel bestand onder `client/src` weet van de demo. Een productiebuild is daardoor
+  **byte-identiek** aan die van vóór de demomodus (zo geverifieerd), en
+  `tests/demo-build.test.mts` bewaakt het: geen wasm, geen demotekst in de prodbundel.
+- **Nooit naar de server:** `client/demo/index.ts` vervangt `window.fetch` vóór de app start.
+  Een verzoek naar `/api` wordt **in de pagina** beantwoord en verlaat ze nooit; een verzoek naar
+  een ander domein wordt geweigerd (het Open-Meteo-weer valt dan terug op een willekeurige
+  hemel). Cruciaal: de Preview-omgeving van het Pages-project kan aan de live `roekoe-db`
+  gekoppeld zijn. Raak de Cloudflare-instellingen niet aan.
+- **De echte API in de browser:** de demo draait **dezelfde Hono-app** (`onRequest` uit
+  `functions/api/[[path]].ts`, ongewijzigd) op een D1-nabootsing over **sql.js** (SQLite in
+  wasm, `client/demo/d1.ts`; zelfde idee als de `fakeD1` in de tests). Dus ook Het Lokaal,
+  De Stem en de logboeken werken, gewoon lokaal. Verzoeken lopen één voor één (zoals één Worker).
+- **Klaargezette wereld** (`client/demo/seed.ts`): eerst wat productie bij de allereerste
+  request doet (world-rij, `ensureSchema`, `seedWorld` = 8 bots, `advanceRealtime` = migraties +
+  vluchtkalender), dan de demospeler (`usr_demo`, **beheerder**) via `createLoftForUser`:
+  capaciteit 12, 2 aparte hokken (2 duiven erin), 10 willekeurige duiven (2 vrije plaatsen),
+  €8000, één dokter, één koppel via `startBreeding`, één zieke duif (`applyAilment`) in de
+  ziekenboeg. De token tekent de demo zelf (vaste, niet-geheime sleutel).
+- **Tijd:** de banner heeft **+1 uur / +6 uur / +1 dag**. `client/demo/clock.ts` verschuift
+  `Date.now()` én `new Date()` voor de hele pagina (de motor draait in dezelfde pagina, dus
+  motor en UI zijn het eens); de verschuiving blijft bewaard. De gewone beheerknoppen
+  (volgende week, vlucht beëindigen) werken ook.
+- **Bewaren:** de sql.js-databank gaat na elk verzoek (gedebounced) **gzip + base64** in
+  `localStorage` (`roekoe.demo.db`, ~25 kB bij de start). **"Demo opnieuw"** wist ze + de
+  klokverschuiving. Verandert de seed of het schema zo dat oude demo's stuk gaan, verhoog dan
+  `DEMO_VERSION` in `client/demo/index.ts`.
+- **Typecheck:** `client/demo` valt buiten `client/tsconfig.json` (anders zou de prodbuild de
+  demo meechecken) en heeft een eigen `client/demo/tsconfig.json`; `npm run typecheck` draait
+  hem mee (`typecheck:demo`). sql.js staat als devDependency in `client/package.json`.
+- **Tests:** `tests/demo-build.test.mts` (prod vs. preview vs. lokaal bouwen) en
+  `tests/demo-world.test.mts` (de seed + de API op sql.js in Node).
 
 ---
 
@@ -361,6 +410,8 @@ Roekoe/
 │       ├── styles/global.css    design system + thema via [data-theme] (dark default)
 │       └── types.ts             client-DTO's (spiegelen core/presenters.ts)
 │   └── index.html               inline script zet data-theme (dark default) vóór paint
+│   └── demo/                    DEMOMODUS (enkel preview-builds, §0b): entry/index (fetch-router +
+│                                in-page API), d1.ts (sql.js als D1), seed.ts, clock.ts, banner.ts
 ├── core/                        runtime-neutrale spelkern
 │   ├── config/gameConfig.ts     ← ALLE instelbare getallen ("de knoppen")
 │   ├── config/reactions.ts      vluchtreacties: de 90 templates + FLIGHT_CHAT (importeert niets)
@@ -1166,6 +1217,8 @@ npx tsx tests/coach-salary.test.mts       # coach per score, gratis starterscoac
 npx tsx tests/sponsor-cap.test.mts        # max 6 sponsors, tier 4 ×0,5/dag (v54→v57), verplichte gratis afbouw
 npx tsx tests/sunday-auction.test.mts     # twee zondagduiven, vensters, scoreband, 2-vrije-plaatsen-regel
 npx tsx tests/lokaal.test.mts             # Het Lokaal: laden/pagineren/poll+overlap, weghalen, opruimen, chat_last_at blijft staan
+npx tsx tests/demo-build.test.mts         # (dev) prodbuild zonder demo, previewbuild mét demo
+npx tsx tests/demo-world.test.mts         # (dev) de demowereld + de echte API op sql.js
 ```
 
 > **Geen `tsx` beschikbaar?** (cloud-sessie waar de npm-registry geblokkeerd is: `npx tsx`
