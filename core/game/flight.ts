@@ -14,6 +14,7 @@ import {
   DISTANCE_WEIGHTING,
   ENERGIE_IMPACT,
   FLIGHT_DYNAMICS,
+  FEED_EFFECTS,
   FLIGHT_FATIGUE,
   FLIGHT_RISK,
   INJURY,
@@ -637,7 +638,7 @@ export function startLiveFlight(flight: Flight, entries: Entry[], week: number, 
     const flownKm = flight.distanceKm + (prof.lost?.detourKm ?? 0);
     const formCost = flight.practice
       ? PRACTICE.energyCost
-      : round1(routeEnergyCost(e.pigeon.experience, flownKm, randFloat(0, FLIGHT_FATIGUE.jitter), e.pigeon.trait === 'frugal'));
+      : round1(routeEnergyCost(e.pigeon.experience, flownKm, randFloat(0, FLIGHT_FATIGUE.jitter), e.pigeon.trait === 'frugal', feedFlightEnergyMult(e.pigeon.ration, flight.distanceKm)));
     return {
       pigeonId: e.pigeon.id,
       pigeonName: e.pigeon.name,
@@ -986,7 +987,7 @@ function startLiveRelay(flight: Flight, entries: Entry[], week: number): void {
   for (const team of plan) {
     for (const { e, legIndex, prof, offset } of team) {
       // Each bird pays only for its own leg — a third of the route.
-      const formCost = round1(routeEnergyCost(e.pigeon.experience, legKm, randFloat(0, FLIGHT_FATIGUE.jitter), e.pigeon.trait === 'frugal'));
+      const formCost = round1(routeEnergyCost(e.pigeon.experience, legKm, randFloat(0, FLIGHT_FATIGUE.jitter), e.pigeon.trait === 'frugal', feedFlightEnergyMult(e.pigeon.ration, legKm)));
       sim.push({
         pigeonId: e.pigeon.id,
         pigeonName: e.pigeon.name,
@@ -1112,7 +1113,7 @@ export function flightClaimingDay(
  * a bird can actually fly the distance. Never used for the flight itself.
  */
 export function expectedFlightEnergyCost(pigeon: Pigeon, distanceKm: number): number {
-  return routeEnergyCost(pigeon.experience, distanceKm, FLIGHT_FATIGUE.jitter / 2, pigeon.trait === 'frugal');
+  return routeEnergyCost(pigeon.experience, distanceKm, FLIGHT_FATIGUE.jitter / 2, pigeon.trait === 'frugal', feedFlightEnergyMult(pigeon.ration, distanceKm));
 }
 
 /**
@@ -1134,13 +1135,25 @@ function flightHealthCost(km: number, endEnergie: number, dnfExtra: number): num
  * roll (0..FLIGHT_FATIGUE.jitter). Ervaring lowers the drain around a pivot of 50;
  * `costMultiplier` scales the whole thing. See FLIGHT_FATIGUE.
  */
-function routeEnergyCost(experience: number, km: number, jitter: number, frugal = false): number {
+function routeEnergyCost(experience: number, km: number, jitter: number, frugal = false, feedMult = 1): number {
   const expRelief = 1 - (clamp(experience, 0, 100) / 100 - 0.5) * FLIGHT_FATIGUE.experienceReliefSpread;
   return (
     ((FLIGHT_FATIGUE.base + km / FLIGHT_FATIGUE.perKmDivisor) * expRelief + jitter) *
     FLIGHT_FATIGUE.costMultiplier *
-    (frugal ? TRAITS.frugalEnergyMult : 1) // Zuinige vlieger (seizoen 3)
+    (frugal ? TRAITS.frugalEnergyMult : 1) * // Zuinige vlieger (seizoen 3)
+    feedMult // Sport-/Fondmengeling (hokinrichting)
   );
+}
+
+/**
+ * What the bird's feed does to the energie a route of `km` costs (hokinrichting
+ * — ⚠️ dev, nog niet live): Sportmengeling −4 % on every flight, Fondmengeling
+ * −8 % from FEED_EFFECTS.fondMinKm. Every other feed: ×1.
+ */
+export function feedFlightEnergyMult(ration: string | undefined, km: number): number {
+  if (ration === 'sport') return FEED_EFFECTS.sportFlightEnergyMult;
+  if (ration === 'fond' && km >= FEED_EFFECTS.fondMinKm) return FEED_EFFECTS.fondFlightEnergyMult;
+  return 1;
 }
 
 /**

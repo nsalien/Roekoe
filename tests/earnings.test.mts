@@ -19,7 +19,7 @@
  */
 import { DatabaseSync } from 'node:sqlite';
 import { readFileSync } from 'node:fs';
-import { ensureSchema, EARNINGS_BACKFILL_SQL } from '../core/d1.js';
+import { ensureSchema, EARNINGS_BACKFILL_SQL, SCHEMA_STEPS } from '../core/d1.js';
 import { creditEarnings } from '../core/game/schedule.js';
 import { pigeonDTO } from '../core/presenters.js';
 import { MemoryStore, newId } from '../core/store.js';
@@ -85,8 +85,9 @@ console.log('\n1. De aanvulling uit de historiek (echte SQLite)');
   loft('u2', '');
   loft('u3', '');
 
-  // The way production gets there: one step back, and ensureSchema runs the recount.
-  db._raw.exec('UPDATE world SET schema_version = schema_version - 1 WHERE id = 1');
+  // The way production got there: back to just before the recount, and
+  // ensureSchema runs it (plus whatever steps were appended after it since).
+  db._raw.exec(`UPDATE world SET schema_version = ${SCHEMA_STEPS.lastIndexOf(EARNINGS_BACKFILL_SQL)} WHERE id = 1`);
   ok(await ensureSchema(db), 'ensureSchema loopt de herberekening en is klaar');
   ok(!EARNINGS_BACKFILL_SQL.includes('\n'), 'de herberekening staat op één regel');
   const row = (id: string) => db._raw.prepare('SELECT earnings, earnings_owner FROM pigeons WHERE id = ?').get(id) as any;

@@ -1119,9 +1119,22 @@ De tabel toont **weekwaarden**; in het spel (Overzicht) zie je ze **per dag** (1
 | Type | Voer/duif/week | Prijs/kg | Effect (per week) |
 |---|---|---|---|
 | Normaal | 1.0 kg | €3 | energie +21, gezondheid +5 |
+| Herstel | 1.5 kg | €4 | **energie +42**, **gezondheid +12** — *enkel de 2 dagen na een vlucht*, anders zoals Normaal |
+| Sportmengeling | 1.3 kg | €5 | energie +30, gezondheid +7; **elke vlucht −4 % energie** |
+| Fondmengeling | 1.4 kg | €6 | energie +26, gezondheid +7; **vluchten vanaf 500 km −8 % energie** |
 | Premium | 1.5 kg | €6 | energie +28, gezondheid +9, **conditie +4** |
-| Libido-mix | 1.4 kg | €4.5 | energie +18, gezondheid +5, **libido +14** |
-| Herstel | 1.5 kg | €3 | **energie +42**, **gezondheid +12** |
+| Depuratief | 1.0 kg | €2.5 | energie +14, **gezondheid +18** |
+| Kweekmengeling | 1.4 kg | €4.5 | energie +18, gezondheid +5, **libido +14**; beide ouders erop: **+5 procentpunt tweelingkans** |
+| Seniorenmengeling | 1.2 kg | €7 | energie +20, gezondheid +10; **veroudering ×0,85** zolang ze het eet |
+
+> ⚠️ **Dev, nog niet live** (hokinrichting): Herstel, Sport, Fond, Depuratief,
+> Kweek en Senioren zoals hierboven. Live is het nog: Normaal, Premium,
+> Libido-mix (€4,50) en Herstel (€3, altijd volledig).
+
+**Herstel werkt enkel volledig in de twee dagen na een vlucht** (twee
+dagovergangen, gerekend vanaf haar laatste vlucht). Daarbuiten eet ze het en
+betaal je het, maar herstelt ze zoals op Normaal: wie niet vliegt, betaalt voor
+niets. Geen enkel voer is overal het beste.
 
 Iedereen start (na de overstap) met **50 kg Normaal**; alle duiven staan standaard
 op Normaal.
@@ -1136,9 +1149,13 @@ voorraad van dat type.
 | Type | Koopprijs/kg | Terugkoopprijs/kg | Verlies per kg |
 |---|---|---|---|
 | Normaal | €3 | €2,40 | €0,60 |
+| Herstel | €4 | €3,20 | €0,80 |
+| Sportmengeling | €5 | €4,00 | €1,00 |
+| Fondmengeling | €6 | €4,80 | €1,20 |
 | Premium | €6 | €4,80 | €1,20 |
-| Libido-mix | €4,50 | €3,60 | €0,90 |
-| Herstel | €3 | €2,40 | €0,60 |
+| Depuratief | €2,50 | €2,00 | €0,50 |
+| Kweekmengeling | €4,50 | €3,60 | €0,90 |
+| Seniorenmengeling | €7 | €5,60 | €1,40 |
 
 > Voer is dus **geen spaarpot**: 100 kg Premium kopen en meteen terugverkopen kost
 > je €120. Koop wat je de komende dagen nodig hebt — de terugkoop is een uitweg uit
@@ -1222,6 +1239,7 @@ onkosten/dag = 22                                    (vast, ongeacht hokgrootte)
              + dagloon per gecoachte duif           (coach, volgens haar score — §13)
              + 57 · dokters + 50 · kinesisten        (ziekenboegstaf, §5)
              + 6  · duiven_in_boeg (met medicatievoer)
+             + 14 als je een hokpoetser hebt         (§5.2bis — dev, nog niet live)
 ```
 
 **Onderhoud per duif gaat in schijven — hoe groter je hok, hoe duurder elke
@@ -1421,6 +1439,22 @@ besmet. Een **apart hok** verlaagt de ziektekans eveneens fors.
 verzorgt kan **dodelijk** aflopen. Een ernstig letsel dat je z'n hele beloop
 buiten de ziekenboeg laat, heeft zo'n **~1 kans op 4** om de duif te kosten; in de
 ziekenboeg zakt dat tot **~2 %**. Lichte aandoeningen zijn nooit dodelijk.
+
+### 5.2bis Hokhygiëne & vers stro — ⚠️ dev, nog niet live
+Je hok heeft een **hygiënemeter van 0 tot 100**. Vers stro zet hem op **100**.
+```
+stro          = €18 per baal, 1 baal per 8 plaatsen        (12 plaatsen = 2 balen = €36)
+ziektekans   ×= 1 − 0,2 · (hygiëne − 50) / 50   als hygiëne > 50    (×0,8 bij 100)
+             ×= 1                               als hygiëne ≤ 50    (zoals altijd)
+verval/dag    = 8 · (duiven thuis / capaciteit) · (1,5 met een zieke duif buiten de ziekenboeg)
+```
+- De meter zakt **één keer per dag**, op de dagovergang. Een hok dat nooit stro
+  kocht, staat op 50 en merkt niets: niets kopen = het spel van vroeger.
+- **Hokpoetser:** €14/dag, aannemen en ontslaan gratis. Zakt de meter onder
+  **70**, dan strooit hij vers stro (aan de gewone prijs). Hij ontsmet ook:
+  **besmetting tussen duiven ×0,85**.
+- **Bodem:** hygiëne, apart hok, poetser en IJzeren gestel samen maken de kans
+  op ziekte **nooit kleiner dan ×0,4** van wat ze zonder al die dingen zou zijn.
 
 ### 5.3 Herstel (in echte tijd)
 Herstel loopt **continu in echte tijd** (niet meer als wekelijkse kansworp). Een

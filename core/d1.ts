@@ -127,6 +127,7 @@ function rowToLoft(r: any): Loft {
     unlockedReactions: r.unlocked_reactions ? JSON.parse(r.unlocked_reactions) : [],
     debtDays: r.debt_days ?? 0,
     debtMisses: r.debt_misses ?? 0,
+    equipment: r.equipment ? JSON.parse(r.equipment) : undefined,
   };
 }
 
@@ -434,7 +435,7 @@ const LOFT_COLUMNS = [
   'season_points', 'total_wins', 'is_bot', 'infirmary_capacity', 'medicated_food', 'doctors',
   'physios', 'xp', 'level', 'stats', 'badges', 'missions', 'missions_day', 'streak',
   'pending_event', 'sponsorship', 'last_rest_cure', 'awards', 'pending_broods', 'newcomer',
-  'season_wins', 'unlocked_reactions', 'debt_days', 'debt_misses',
+  'season_wins', 'unlocked_reactions', 'debt_days', 'debt_misses', 'equipment',
 ];
 
 function loftRow(l: Loft): unknown[] {
@@ -460,6 +461,9 @@ function loftRow(l: Loft): unknown[] {
     // 0 for every solvent loft, so its column-narrowed UPDATE keeps skipping both.
     l.debtDays ?? 0,
     l.debtMisses ?? 0,
+    // '' for a loft that never touched its hokinrichting, so its column-narrowed
+    // UPDATE keeps skipping this column.
+    l.equipment ? JSON.stringify(l.equipment) : '',
   ];
 }
 
@@ -1510,7 +1514,7 @@ export const EARNINGS_BACKFILL_SQL = [
   '), 0)',
 ].join(' ');
 
-const SCHEMA_STEPS: string[] = [
+export const SCHEMA_STEPS: string[] = [
   // 0 — the progress counter itself, so tracking works from the very first run.
   'ALTER TABLE world ADD COLUMN schema_version INTEGER NOT NULL DEFAULT 0',
 
@@ -1720,6 +1724,10 @@ const SCHEMA_STEPS: string[] = [
   // newcomer-aware — recount again. Idempotent: it recomputes from the history,
   // which also holds every race credited live since.
   EARNINGS_BACKFILL_SQL,
+
+  // Hokinrichting (⚠️ dev, nog niet live): hygiëne, stro en poetser as one JSON
+  // blob on the loft row (Loft.equipment) — no table, no extra query.
+  "ALTER TABLE lofts ADD COLUMN equipment TEXT NOT NULL DEFAULT ''",
 ];
 
 /**

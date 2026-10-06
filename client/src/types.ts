@@ -41,7 +41,7 @@ export interface PigeonBreed {
   rarityLabel: string;
   image: string; // filename under /pigeon-images/
 }
-export type FeedRation = 'normal' | 'premium' | 'libido' | 'herstel';
+export type FeedRation = 'normal' | 'premium' | 'libido' | 'herstel' | 'sport' | 'fond' | 'depuratief' | 'senior';
 export type FoodStock = Record<FeedRation, number>;
 export type BetKind = 'win' | 'last' | 'own_top3' | 'top3' | 'mine_wins' | 'head2head';
 export type FlightType = 'regional' | 'national' | 'international';
@@ -233,6 +233,20 @@ export interface Loft {
   dailyCosts: DailyCostBreakdown;
   /** Starter package — null for every loft registered before it shipped. */
   newcomer: NewcomerState | null;
+  /** Hokinrichting: the hygiene meter and the hokpoetser. Absent on an older server. */
+  equipment?: LoftEquipment;
+  /** Breeding pairs (sire + dam), for the nest boxes in the loft view. */
+  nests?: { id: string; sireId: string; damId: string }[];
+}
+
+export interface LoftEquipment {
+  hygiene: number; // 0–100
+  lastStrawAt: string | null; // null = bare floor, never strewn
+  cleaner: boolean;
+  strawCost: number; // one load of fresh straw for this loft
+  cleanerWage: number; // the hokpoetser's daily wage
+  illnessMult: number; // what the meter does to the chance to fall ill (1 = nothing)
+  decayPerDay: number; // how much it drops tonight
 }
 
 /** What is left of the starter package, and how long the timed perks still run. */
@@ -257,6 +271,8 @@ export interface DailyCostBreakdown {
   doctors: number;
   physios: number;
   medicatedFeed: number;
+  /** Hokpoetser's wage (hokinrichting). Absent on an older server. */
+  cleaner?: number;
   /** Staff being paid with nothing of their kind to treat, and what that costs.
    *  Already included in `doctors`/`physios`/`total` — a warning, not a discount. */
   idleDoctors?: number;

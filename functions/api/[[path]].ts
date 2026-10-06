@@ -104,6 +104,7 @@ import {
 } from '../../core/game/engine.js';
 import { advanceRealtime, applyRelayForecasts, flightsAwaitingStart, relayLegsNeedingForecast, tickFlights } from '../../core/game/schedule.js';
 import { pigeonSeasonRankings } from '../../core/game/season.js';
+import { buyStraw, setCleaner } from '../../core/game/hygiene.js';
 import { spendAttribute, spendExperience } from '../../core/game/newcomer.js';
 import { velocityBreakdown, weightsForDistance } from '../../core/game/flight.js';
 import { ageInWeeks } from '../../core/game/pigeon.js';
@@ -771,6 +772,24 @@ app.post('/loft/compartment', async (c) => {
   const user = requireUser(c);
   const store = c.get('store');
   const err = buyCompartment(store, user.id);
+  await store.persist();
+  return err ? c.json({ error: err }, 400) : c.json({ ok: true });
+});
+
+// Hokinrichting (⚠️ dev, nog niet live): vers stro en de hokpoetser.
+app.post('/loft/straw', async (c) => {
+  const user = requireUser(c);
+  const store = c.get('store');
+  const err = buyStraw(store, user.id);
+  await store.persist();
+  return err ? c.json({ error: err }, 400) : c.json({ ok: true });
+});
+
+app.post('/loft/cleaner', async (c) => {
+  const user = requireUser(c);
+  const body = await c.req.json().catch(() => ({}));
+  const store = c.get('store');
+  const err = setCleaner(store, user.id, !!body.on);
   await store.persist();
   return err ? c.json({ error: err }, 400) : c.json({ ok: true });
 });

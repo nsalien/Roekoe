@@ -8,6 +8,7 @@ import { Money, Spinner, formatFlightTime, traitEntryHint, useToast } from '../c
 import { useAuth } from '../auth/AuthContext';
 import { buildDaysTaken, canEnter, entryCost } from '../game/flightEntry';
 import { PigeonCard } from '../components/PigeonCard';
+import { LoftView } from '../components/LoftView';
 import type { FeedRation, Flight, Loft, Pigeon } from '../types';
 
 type SortKey = 'talent' | 'speed' | 'endurance' | 'orientation' | 'form' | 'ageWeeks';
@@ -77,6 +78,18 @@ export function LoftPage() {
           </select>
         </label>
       </div>
+
+      {state.loft && (
+        <>
+          <LoftView
+            loft={state.loft}
+            pigeons={state.pigeons}
+            busy={busy}
+            onAssignCompartment={(id) => act(() => api(`/pigeons/${id}/compartment`, { method: 'POST', body: { on: true } }))}
+          />
+          {state.loft.equipment && <HygieneCard loft={state.loft} busy={busy} act={act} />}
+        </>
+      )}
 
       {state.loft && (
         <LoftUpgrades loft={state.loft} busy={busy} act={act} upkeepBands={state.economy.upkeepBands ?? []} />
@@ -210,6 +223,64 @@ export function LoftPage() {
             )}
           </PigeonCard>
         ))}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Hokhygiëne under the loft view: the meter, what it does now, fresh straw and
+ * the hokpoetser. The rule itself (decay, the ×0,8, the floor) is in the wiki.
+ */
+function HygieneCard({
+  loft,
+  busy,
+  act,
+}: {
+  loft: Loft;
+  busy: boolean;
+  act: (fn: () => Promise<unknown>, ok?: string) => void;
+}) {
+  const eq = loft.equipment!;
+  const h = Math.round(eq.hygiene);
+  const effect = eq.illnessMult < 1
+    ? `Minder kans op ziekte (×${eq.illnessMult.toLocaleString('nl-BE')})`
+    : 'Geen effect: onder 50 is het zoals altijd';
+  return (
+    <div className="card" style={{ marginBottom: 18 }}>
+      <div className="row" style={{ justifyContent: 'space-between', alignItems: 'baseline', gap: 8 }}>
+        <strong>🧹 Hokhygiëne</strong>
+        <strong style={{ fontVariantNumeric: 'tabular-nums' }}>{h}</strong>
+      </div>
+      <div className="hyg-meter" style={{ margin: '8px 0 4px' }} aria-hidden="true">
+        <i style={{ width: `${h}%`, background: h >= 50 ? 'var(--good)' : 'var(--warn)' }} />
+        <b />
+      </div>
+      <div className="faint" style={{ fontSize: '0.8rem' }}>
+        {effect} · zakt vannacht ~{Math.round(eq.decayPerDay)}
+        {eq.lastStrawAt ? '' : ' · nog nooit stro gestrooid'}
+      </div>
+      <div className="row" style={{ gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
+        <button
+          className="btn sm"
+          disabled={busy || h >= 100 || loft.money < eq.strawCost}
+          onClick={() => act(() => api('/loft/straw', { method: 'POST' }), 'Vers stro gestrooid 🌾')}
+        >
+          🌾 Vers stro · <Money value={eq.strawCost} />
+        </button>
+        <button
+          className={`btn sm ${eq.cleaner ? 'accent' : 'ghost'}`}
+          disabled={busy}
+          onClick={() => act(
+            () => api('/loft/cleaner', { method: 'POST', body: { on: !eq.cleaner } }),
+            eq.cleaner ? 'Hokpoetser ontslagen' : 'Hokpoetser aangenomen 🧹',
+          )}
+        >
+          {eq.cleaner ? '🧹 Hokpoetser ontslaan' : '🧹 Hokpoetser aannemen'} · <Money value={eq.cleanerWage} />/dag
+        </button>
+      </div>
+      <div className="faint" style={{ fontSize: '0.8rem', marginTop: 8 }}>
+        <Link to="/wiki#hygiene">Meer info over hokhygiëne →</Link>
       </div>
     </div>
   );

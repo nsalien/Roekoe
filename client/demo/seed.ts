@@ -2,8 +2,8 @@
  * The ready-made demo world: the eight bots and the normal flight calendar
  * (exactly what a fresh production database gets), plus one loft for the demo
  * player, who is beheerder. That loft is set up to show off the loft view:
- * capacity 12 with 2 private compartments, a breeding pair on the nest and a
- * sick bird in the infirmary.
+ * capacity 12 with 2 private compartments, a breeding pair on the nest, a
+ * sick bird in the infirmary and six-day-old straw on the floor.
  */
 
 import { D1Store, ensureSchema } from '../../core/d1.js';
@@ -66,6 +66,8 @@ export async function createDemoWorld(d1: DemoD1): Promise<void> {
     loft.compartments = DEMO_COMPARTMENTS;
     loft.money = 8000;
     loft.doctors = 1;
+    // Straw strewn six days ago: the floor is going brown, so fresh straw shows.
+    loft.equipment = { hygiene: 58, lastStrawAt: new Date(Date.now() - 6 * 86400000).toISOString(), cleaner: false };
     const taken = namesInUse(w.pigeons);
     const mine = () => w.pigeons.filter((p) => p.ownerId === user.id);
     // Make sure there is a doffer and a duivin to pair, then fill up.

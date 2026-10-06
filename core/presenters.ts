@@ -6,7 +6,7 @@
 
 import type { Database, Flight, Loft, Notification, Pigeon, RaceLogEntry, Trade } from './schema.js';
 import type { PigeonLogs } from './d1.js';
-import { AGE_CUP, AUCTION, BREED_RARITY, CITY_COORDS, COACH, DEBT, coachSalaryFor, nextCoachBand, ageCategoryDef, ageCategoryFor, compartmentCost, quirkById, RELAY, REST_CURE, TRADE_HISTORY_DAYS, TRAINING } from './config/gameConfig.js';
+import { AGE_CUP, AUCTION, BREED_RARITY, CITY_COORDS, COACH, DEBT, coachSalaryFor, nextCoachBand, ageCategoryDef, ageCategoryFor, compartmentCost, HYGIENE, hygieneIllnessMult, quirkById, strawCost, RELAY, REST_CURE, TRADE_HISTORY_DAYS, TRAINING } from './config/gameConfig.js';
 import {
   ageInWeeks,
   breedInfo,
@@ -40,6 +40,7 @@ import {
   winningsMultiplier,
 } from './game/newcomer.js';
 import { coveredInInfirmary, idleCareStaff } from './game/health.js';
+import { equipmentOf, hygieneDecay } from './game/hygiene.js';
 import { valuePigeon } from './game/market.js';
 import { flightCancelled, flightCommentary, liveSnapshot, pigeonCommittedToFlight } from './game/flight.js';
 import { relayEntryTeams, relayLegKm } from './game/relay.js';
@@ -326,6 +327,23 @@ export function loftDTO(db: Database, loft: Loft) {
     restCureAvailableAt: null as string | null,
     // Starter package (null for everyone who registered before it shipped).
     newcomer: newcomerDTO(loft),
+    // Hokinrichting (⚠️ dev, nog niet live): the hygiene meter and the hokpoetser.
+    equipment: (() => {
+      const eq = equipmentOf(loft);
+      return {
+        hygiene: eq.hygiene,
+        lastStrawAt: eq.lastStrawAt,
+        cleaner: eq.cleaner,
+        strawCost: strawCost(loft.capacity),
+        cleanerWage: HYGIENE.cleanerDailyWage,
+        illnessMult: round1(hygieneIllnessMult(eq.hygiene) * 100) / 100,
+        decayPerDay: round1(hygieneDecay(loft, pigeons)),
+      };
+    })(),
+    // Breeding pairs, so the loft view can put each pair in its own nest box.
+    nests: db.breedingPairs
+      .filter((bp) => bp.ownerId === loft.userId)
+      .map((bp) => ({ id: bp.id, sireId: bp.sireId, damId: bp.damId })),
     // The prizes of the MOST RECENT prijsuitreiking, so the client can hold a
     // little ceremony for them once (see PrizeCeremony). Only the last season's
     // awards, so this stays a handful of rows on the hottest route in the game —

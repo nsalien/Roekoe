@@ -99,6 +99,72 @@
 - **Tests:** `tests/demo-build.test.mts` (prod vs. preview vs. lokaal bouwen) en
   `tests/demo-world.test.mts` (de seed + de API op sql.js in Node).
 
+### Hokaanzicht bovenaan *Mijn hok* (`client/src/components/LoftView.tsx`)
+- **Puur weergave** van wat `/state` al geeft, geen eigen verzoek. Zitbakjes = `capacity −
+  compartments` (nooit minder dan de duiven die er één nodig hebben, zie `loftLayout`); aparte
+  hokken als eigen hokjes met deur (leeg hokje = keuzelijst "wie mag erin" → bestaande
+  `/pigeons/:id/compartment`); nestbakken (minstens 2) met de broedkoppels; de ziekenboeg als
+  bijgebouw met `infirmaryCapacity` bedden, herstelbalk uit `ailment.healed` en de staf.
+- **Wie niet thuis is** staat als schim op haar plaats met een icoon, in deze voorrang
+  (`awayStatus`): 🧭 de weg kwijt (`away`) · ✈️ onderweg (`racing`) · 🏥 ziekenboeg · 🥚 op het
+  nest (`breeding`) · 💤 rustkuur (`cureUntil`). Een duif in de ziekenboeg staat dus als schim
+  in een zitbakje **én** in een bed.
+- **Tikken:** duif → `/duif/:id`, vrij bakje → `/markt`, nestbak → `/kweek`, vrij bed → `/ziekenboeg`.
+- **Dag/nacht** volgt de Brusselse zon: `sunAltitudeDeg` is **gekopieerd** uit
+  `core/game/traits.ts` (core is servercode, zelfde keuze als `components/geo.ts`).
+- **Vloer:** beton zonder ooit stro (`lastStrawAt` null), vers stro bij hygiëne ≥ 60, anders vuil.
+- Eén kleine serveraanvulling: `loftDTO.nests` (`{id, sireId, damId}` per broedkoppel), zodat de
+  juiste duiven samen in een nestbak zitten. Uit de al geladen `breedingPairs`, geen query.
+- CSS: blok "Hokaanzicht" achteraan `global.css` (prefix `lv-`), een vaste houten wereld met
+  eigen lucht, gelijk in licht en donker thema. Gemeten op 1280 en 390 px, geen horizontale scroll.
+
+### Hokhygiëne, vers stro & hokpoetser (`core/game/hygiene.ts`, `HYGIENE` in gameConfig)
+- **Opslag:** `Loft.equipment` = JSON-kolom `equipment` op de loft-rij (achteraan
+  `SCHEMA_STEPS`), `{ hygiene, lastStrawAt, cleaner }`. Afwezig = nooit aangeraakt = hygiëne
+  50, niets ingehuurd. `loftRow` schrijft `''` zolang ze afwezig is, dus een onaangeroerd hok
+  (alle bots!) wordt niet herschreven. Bedoeld om later de rest van de inrichting (ventilatie,
+  ren, …) in dezelfde blob te zetten — geen nieuwe tabel, geen extra query.
+- **Regels:** vers stro `strawCost(capacity)` = €18 per 8 plaatsen → meter 100. Boven 50
+  ziektekans ×`hygieneIllnessMult` = 1 − 0,2·(h−50)/50; op/onder 50 ×1. Verval op de
+  **dagovergang** in `tickDailyCare` (`tickHygiene`, ná de dagafrekening): 8 × bezetting
+  (thuis/capaciteit), ×1,5 met een zieke duif (ziekte, geen kwetsuur) buiten de boeg. Nooit
+  per verzoek, dus `idle-writes` blijft groen.
+- **Poetser:** `HYGIENE.cleanerDailyWage` (€14) zit in `dailyRunningCostBreakdown.cleaner` →
+  vanzelf in de Dagbalans en in wat `tickDailyCare` afrekent. Onder 70 koopt `tickHygiene` een
+  lading stro aan de gewone prijs (eenmalige uitgave, níet in de Dagbalans). Besmetting ×0,85.
+- **Ziektekans:** `runHealthDay` gebruikt nu `illnessChance(...)`: hygiëne × apart hok ×
+  IJzeren gestel × (poetser op de besmetting), met als **bodem ×0,4** van de kans zonder al die
+  factoren. ⚠️ Gevolg voor wie het al had: apart hok (×0,5) + IJzeren gestel (×0,7) = ×0,35
+  wordt nu ×0,4. De legacy `runHealthWeek` (admin) is ongewijzigd.
+- **API:** `POST /api/loft/straw`, `POST /api/loft/cleaner {on}`. DTO: `loftDTO.equipment`
+  (`hygiene, lastStrawAt, cleaner, strawCost, cleanerWage, illnessMult, decayPerDay`).
+- **UI:** kaart "Hokhygiëne" onder het hokaanzicht (meter, effect, stro-knop, poetser
+  aan/uit) + wiki-sectie `#hygiene` + spelregels §5.2bis. Bots kopen (nog) niets: open vraag.
+
+### Nieuw voer (`FEED_RATIONS` + `FEED_EFFECTS` in gameConfig)
+- Acht soorten: Normaal, **Herstel** (€4/kg, enkel volledig binnen
+  `FEED_EFFECTS.herstelWindowHours` = 48 u na `lastRaceAt`, anders herstel zoals Normaal maar
+  eet/kost Herstel — `effectiveRation`/`inHerstelWindow` in economy.ts, gebruikt door
+  `applyDayOfCare` (krijgt nu `dayMs`) én `projectDailyCare`), **Sport** (−4 % vluchtenergie),
+  **Fond** (−8 % vanaf 500 km), Premium (ongewijzigd), **Depuratief**, **Kweekmengeling** (de
+  oude sleutel `libido`, nieuw label; beide ouders erop → `kweekTwinBonus` +5 pp in `breed()`,
+  binnen de geseede worp), **Senioren** (×0,85 in `runAgeDecline`).
+- Vluchtenergie: `routeEnergyCost(..., feedMult)` met `feedFlightEnergyMult(ration, km)` op alle
+  drie de plaatsen (solo, estafette-etappe met de etappelengte, `expectedFlightEnergyCost`).
+- ⚠️ **Open vraag aan de eigenaar:** mag Herstel bij livegang zo aangepast worden? Het raakt elk
+  hok dat er nu op draait. In de demo mag het.
+- **Bots** (`feedFlock` in bots.ts): onder `BOT.goodFeedFrom` Normaal zoals vroeger; anders per
+  duif Herstel (net gevlogen) → Kweek (op het nest) → Depuratief (gezondheid <
+  `BOT.depuratiefBelowHealth` 60) → Senioren (voorbij de piek) → Sport. Herstel/Kweek/Depuratief
+  houden ze maar een week op voorraad. Gemeten over 35 dagen (3 runs): gezondheid ~91 (was ~93),
+  energie ~46 (was ~58), kas gelijk — bots blijven gezond, maar Herstel was hun energiebron.
+- Oude data: `emptyFoodStock()` kent de nieuwe sleutels (rowToLoft voegt ze samen), migratie
+  v13 gebruikt nu `{ ...emptyFoodStock(), normal: 50 }`.
+- **Tests:** `tests/hygiene.test.mts` (formules, verval, niets-kopen-blijft-ongemoeid, poetser
+  + Dagbalans, bodem ×0,4, Herstel-venster, Sport/Fond, Senioren, botvoer).
+  `tests/earnings.test.mts` springt nu terug naar de index van `EARNINGS_BACKFILL_SQL` i.p.v.
+  "één stap terug" (die stap is niet meer de laatste; `SCHEMA_STEPS` is daarvoor geëxporteerd).
+
 ---
 
 ## 1. Wat is Roekoe
@@ -1219,6 +1285,7 @@ npx tsx tests/sunday-auction.test.mts     # twee zondagduiven, vensters, scoreba
 npx tsx tests/lokaal.test.mts             # Het Lokaal: laden/pagineren/poll+overlap, weghalen, opruimen, chat_last_at blijft staan
 npx tsx tests/demo-build.test.mts         # (dev) prodbuild zonder demo, previewbuild mét demo
 npx tsx tests/demo-world.test.mts         # (dev) de demowereld + de echte API op sql.js
+npx tsx tests/hygiene.test.mts            # (dev) hokhygiëne, stro, poetser, bodem ×0,4 en het nieuwe voer
 ```
 
 > **Geen `tsx` beschikbaar?** (cloud-sessie waar de npm-registry geblokkeerd is: `npx tsx`
@@ -1244,11 +1311,12 @@ Alles in één keer (bash, vanuit de root):
 for f in tests/*.test.mts; do printf '%-26s ' "$(basename "$f")"; npx tsx "$f" >/dev/null 2>&1 && echo OK || echo FAIL; done
 ```
 
-**Stand van de suite: 42 van de 43 groen** (gemeten bij de Stem-commit; `cpu-budget`
-apart gedraaid). Bekende rode — controleer of een rode test hierin staat vóór je gaat
+**Stand van de suite (dev, hokinrichting-commit): 55 van de 56 groen** (`cpu-budget` en
+`demo-build` apart gedraaid; `live-speed` groen in 2 van 2 herhalingen). Bekende rode — controleer of een rode test hierin staat vóór je gaat
 zoeken:
-- `age-cup` — **echt rood**, één assertie ("de cyclus is verankerd op het einde van het
-  lopende seizoen"); de overige 68 controles zijn groen. Nog te repareren.
+- `age-cup` — **echt rood**, intussen drie asserties ("de cyclus is verankerd op het einde
+  van het lopende seizoen", "er staan criteriumvluchten gepland (0)", "alle 4 klassen komen
+  aan bod"), identiek op de boom vóór de hokinrichting. Nog te repareren.
 - `cpu-budget` — **rood op een belaste machine**: de koude odds-meting schiet over haar
   budget (gemeten 6,3–8,4 ms over 3 runs op de ongewijzigde boom). Draai hem apart, niet
   naast een andere testrun; los gedraaid is hij groen (3,0 / 4,4 ms).

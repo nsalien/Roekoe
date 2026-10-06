@@ -144,8 +144,10 @@ const STEPS: Step[] = [
       <ul style={{ margin: '2px 0 0', paddingLeft: 18, lineHeight: 1.4 }}>
         <li><strong>Normaal</strong> — goedkoop; de dagelijkse basis als je op je budget let.</li>
         <li><strong>Premium</strong> — de beste allrounder: energie + gezondheid én wat conditie.</li>
-        <li><strong>Libido-mix</strong> — geef je als je die duif wil laten <strong>broeden</strong> (tilt het libido op).</li>
-        <li><strong>Herstel</strong> — snelste energie; ideaal om een uitgeputte duif weer <strong>vluchtklaar</strong> te krijgen.</li>
+        <li><strong>Sport</strong> — voor wie deze week vliegt: vluchten kosten minder energie.</li>
+        <li><strong>Herstel</strong> — snelste energie, maar enkel in de <strong>twee dagen na een vlucht</strong>.</li>
+        <li><strong>Kweek</strong> — geef je als je die duif wil laten <strong>broeden</strong>.</li>
+        <li>Meer soorten (Fond, Depuratief, Senioren) staan in de wiki.</li>
       </ul>
     ),
   },

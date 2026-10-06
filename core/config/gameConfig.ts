@@ -90,6 +90,36 @@ export const COMPARTMENT = {
   healthRecoveryBonus: 0.4, // up to +40% health recovery at full coverage
   diseaseReduction: 0.5, // up to −50% disease onset at full coverage
 } as const;
+/**
+ * Hokhygiëne & vers stro (hokinrichting — ⚠️ dev, nog niet live). A meter 0–100
+ * on the loft (`Loft.equipment.hygiene`). Above `neutral` it lowers the chance
+ * to fall ill, up to ×(1 − maxReduction) at 100; at or below `neutral` it does
+ * nothing, which is the game as it was. It drops once a day on the dagovergang.
+ */
+export const HYGIENE = {
+  neutral: 50, // a loft that never bought straw sits here: no effect
+  maxReduction: 0.2, // ×0,8 at hygiene 100
+  strawPricePerBale: 18,
+  strawPlacesPerBale: 8, // one bale per 8 places of capacity
+  dailyDecay: 8, // per day in a FULL loft, scaled by occupancy
+  sickDecayMult: 1.5, // +50 % with a sick bird outside the infirmary
+  cleanerDailyWage: 14,
+  cleanerRefreshBelow: 70, // the hokpoetser strews fresh straw below this
+  cleanerContagionMult: 0.85, // and disinfects: contagion between birds ×0,85
+  /** All disease factors together (hygiëne, apart hok, kenmerk, poetser) never below this. */
+  illnessFactorFloor: 0.4,
+} as const;
+/** What one load of fresh straw costs for a loft of this capacity. */
+export function strawCost(capacity: number): number {
+  return HYGIENE.strawPricePerBale * Math.max(1, Math.ceil(capacity / HYGIENE.strawPlacesPerBale));
+}
+/** The disease multiplier of a hygiene level (1 at or below neutral, 0,8 at 100). */
+export function hygieneIllnessMult(hygiene: number): number {
+  const h = Math.max(0, Math.min(100, hygiene));
+  if (h <= HYGIENE.neutral) return 1;
+  return 1 - HYGIENE.maxReduction * ((h - HYGIENE.neutral) / (100 - HYGIENE.neutral));
+}
+
 /** Price of the next compartment given how many you already own. */
 export function compartmentCost(owned: number): number {
   return COMPARTMENT.baseCost + owned * COMPARTMENT.stepCost;
@@ -330,10 +360,36 @@ export const STARTING_PIGEONS = 6;
 export const FEED_RATIONS = {
   normal: { label: 'Normaal', foodPerPigeon: 1.0, pricePerKg: 3, formRecovery: 21, healthRecovery: 5, enduranceRecovery: 0, libidoRecovery: 0 },
   premium: { label: 'Premium', foodPerPigeon: 1.5, pricePerKg: 6, formRecovery: 28, healthRecovery: 9, enduranceRecovery: 4, libidoRecovery: 0 },
-  libido: { label: 'Libido-mix', foodPerPigeon: 1.4, pricePerKg: 4.5, formRecovery: 18, healthRecovery: 5, enduranceRecovery: 0, libidoRecovery: 14 },
-  herstel: { label: 'Herstel', foodPerPigeon: 1.5, pricePerKg: 3, formRecovery: 42, healthRecovery: 12, enduranceRecovery: 0, libidoRecovery: 0 },
+  // The key stays 'libido' (stock, rations and old clients keep working); since
+  // the hokinrichting it is the Kweekmengeling, with a twin bonus (FEED_EFFECTS).
+  libido: { label: 'Kweekmengeling', foodPerPigeon: 1.4, pricePerKg: 4.5, formRecovery: 18, healthRecovery: 5, enduranceRecovery: 0, libidoRecovery: 14 },
+  // ⚠️ DEV, nog niet live (open vraag aan de eigenaar): full effect only in the
+  // FEED_EFFECTS.herstelWindowHours after a flight, otherwise it feeds like Normaal.
+  herstel: { label: 'Herstel', foodPerPigeon: 1.5, pricePerKg: 4, formRecovery: 42, healthRecovery: 12, enduranceRecovery: 0, libidoRecovery: 0 },
+  sport: { label: 'Sportmengeling', foodPerPigeon: 1.3, pricePerKg: 5, formRecovery: 30, healthRecovery: 7, enduranceRecovery: 0, libidoRecovery: 0 },
+  fond: { label: 'Fondmengeling', foodPerPigeon: 1.4, pricePerKg: 6, formRecovery: 26, healthRecovery: 7, enduranceRecovery: 0, libidoRecovery: 0 },
+  depuratief: { label: 'Depuratief', foodPerPigeon: 1.0, pricePerKg: 2.5, formRecovery: 14, healthRecovery: 18, enduranceRecovery: 0, libidoRecovery: 0 },
+  senior: { label: 'Seniorenmengeling', foodPerPigeon: 1.2, pricePerKg: 7, formRecovery: 20, healthRecovery: 10, enduranceRecovery: 0, libidoRecovery: 0 },
 } as const;
 export type FeedRationKey = keyof typeof FEED_RATIONS;
+
+/**
+ * What a feed does BESIDES its weekly recovery (hokinrichting — ⚠️ dev, nog niet
+ * live). Each feed has one moment where it is the best choice; none is best
+ * everywhere. Read by applyDayOfCare/projectDailyCare (Herstel), routeEnergyCost
+ * (Sport, Fond), breed (Kweek) and runAgeDecline (Senioren).
+ */
+export const FEED_EFFECTS = {
+  /** Herstel works in full only this long after the bird's last flight (two daily ticks). */
+  herstelWindowHours: 48,
+  /** Outside that window Herstel feeds like this ration (and still costs its own price). */
+  herstelOutsideAs: 'normal',
+  sportFlightEnergyMult: 0.96, // every flight −4 % energie
+  fondFlightEnergyMult: 0.92, // −8 % energie on a route of at least fondMinKm
+  fondMinKm: 500,
+  kweekTwinBonus: 0.05, // +5 procentpunt tweelingkans when BOTH parents eat it
+  seniorAgingMult: 0.85, // ageing ×0,85 while she eats it
+} as const;
 
 /**
  * Starvation. A pigeon with no food in stock of its ration goes hungry, and the
@@ -366,7 +422,7 @@ export const REST_BONUS = {
 } as const;
 
 /** Food (kg per type) a new player starts with. */
-export const STARTING_FOOD_STOCK = { normal: 50, premium: 0, libido: 0, herstel: 0 };
+export const STARTING_FOOD_STOCK = { normal: 50, premium: 0, libido: 0, herstel: 0, sport: 0, fond: 0, depuratief: 0, senior: 0 };
 
 /** Price of one kg of pigeon food when buying from the supply store. */
 export const FOOD_PRICE_PER_KG = 3;
@@ -1259,6 +1315,7 @@ export const BOT = {
    * possible fix and exactly what a player with that bank would do.
    */
   goodFeedFrom: 2500,
+  depuratiefBelowHealth: 60, // hokinrichting (dev): a run-down bird gets Depuratief first
   /** A bot rests a bird rather than racing it when its gezondheid is under this. */
   minHealthRace: 45,
 

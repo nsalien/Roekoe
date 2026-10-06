@@ -316,6 +316,21 @@ export interface Loft {
    * loft simply has them the moment the feature ships.
    */
   unlockedReactions?: string[];
+  /**
+   * Hokinrichting (⚠️ dev, nog niet live): one JSON column on the loft row, like
+   * `awards` — no table, no extra query. Absent = never touched = the game as it
+   * was (hygiene neutral, nothing hired). See HYGIENE in gameConfig.
+   */
+  equipment?: LoftEquipment;
+}
+
+export interface LoftEquipment {
+  /** Hokhygiëne 0–100. Drops once a day; fresh straw puts it at 100. */
+  hygiene: number;
+  /** When fresh straw was last strewn (ISO), or null: the floor is bare. */
+  lastStrawAt: string | null;
+  /** A hokpoetser is hired (€/day, keeps the straw fresh, disinfects). */
+  cleaner: boolean;
 }
 
 /**
@@ -1062,7 +1077,12 @@ export interface Database {
 }
 
 export function emptyFoodStock(): FoodStock {
-  return { normal: 0, premium: 0, libido: 0, herstel: 0 };
+  return { normal: 0, premium: 0, libido: 0, herstel: 0, sport: 0, fond: 0, depuratief: 0, senior: 0 };
+}
+
+/** The loft's hokinrichting as it stands today: everything off, hygiene neutral. */
+export function defaultEquipment(): LoftEquipment {
+  return { hygiene: 50, lastStrawAt: null, cleaner: false };
 }
 
 export function emptySponsorState(): SponsorState {

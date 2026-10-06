@@ -62,7 +62,8 @@ import {
   traitById,
 } from '../config/gameConfig.js';
 import type { CupStanding, Database, Flight, FlightResult, Loft, Pigeon, RaceLogEntry } from '../schema.js';
-import { emptySponsorState, emptyStats } from '../schema.js';
+import { emptyFoodStock, emptySponsorState, emptyStats } from '../schema.js';
+import { tickHygiene } from './hygiene.js';
 import { newId } from '../store.js';
 import { applyDayOfCare, dailyRunningCost } from './economy.js';
 import { coachBill, newNewcomerPerks, tickNewcomerExpiry, winningsMultiplier } from './newcomer.js';
@@ -1234,7 +1235,7 @@ export function runDataMigrations(db: Database): void {
     // Food is now kept per type. Wipe old stock, give everyone 50 kg Normaal,
     // and reset every bird to the 'normal' ration.
     for (const loft of db.lofts) {
-      loft.food = { normal: 50, premium: 0, libido: 0, herstel: 0 };
+      loft.food = { ...emptyFoodStock(), normal: 50 };
       loft.feedRation = 'normal';
     }
     for (const p of db.pigeons) p.ration = 'normal';
@@ -2910,7 +2911,7 @@ export function tickDailyCare(db: Database, nowMs: number): void {
       // Infirmary birds only recover energie (at a reduced rate) when properly
       // staffed — same coverage rule that speeds their healing.
       const coveredInfirmaryIds = coveredInInfirmary(loft, owned);
-      const { deaths } = applyDayOfCare(loft, owned, livePigeonIds, coveredInfirmaryIds);
+      const { deaths } = applyDayOfCare(loft, owned, livePigeonIds, coveredInfirmaryIds, dayMidnight);
       for (const dead of deaths) {
         db.pigeons = db.pigeons.filter((p) => p.id !== dead.id);
         db.breedingPairs = db.breedingPairs.filter((bp) => bp.sireId !== dead.id && bp.damId !== dead.id);
@@ -2966,6 +2967,9 @@ export function tickDailyCare(db: Database, nowMs: number): void {
           }
         }
       }
+      // Hokhygiëne drops once a day, and a hokpoetser strews fresh straw when it
+      // gets low (hokinrichting — a loft that never touched it is left alone).
+      tickHygiene(loft, db.pigeons.filter((p) => p.ownerId === loft.userId), dayMidnight);
       // AFTER the day's billing, because that is what can push a till into the
       // red in the first place: coaches off on day one, then a forced auction
       // every DEBT.graceDays for as long as it lasts (see game/debt.ts).

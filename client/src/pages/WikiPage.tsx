@@ -36,6 +36,7 @@ const SECTIONS = [
   { id: 'inteelt', icon: '🌳', label: 'Stamboom & inteelt' },
   { id: 'ziekte', icon: '🤒', label: 'Ziekte' },
   { id: 'ziekenboeg', icon: '🏥', label: 'De ziekenboeg' },
+  { id: 'hygiene', icon: '🧹', label: 'Hokhygiëne & stro' },
   { id: 'sterfte', icon: '🕯️', label: 'Sterfte' },
   { id: 'kenmerken', icon: '✨', label: 'Kenmerken' },
   { id: 'rassen', icon: '🎨', label: 'Rassen' },
@@ -384,12 +385,20 @@ export function WikiPage() {
         <MiniTable
           head={['Voer', 'Energie/dag (ruw)', 'Extra']}
           rows={[
-            ['Normaal', '≈ +3', '—'],
-            ['Premium', '≈ +4', '+ gezondheid, + conditie'],
-            ['Libido-mix', '≈ +2,5', '+ libido (voor de kweek)'],
-            ['Herstelvoer', '≈ +6', 'ideaal na een zware vlucht'],
+            ['Normaal', '≈ +3', 'onderhoud: kweek, rust, oude duiven'],
+            ['Herstelvoer', '≈ +6', 'enkel de 2 dagen na een vlucht; anders zoals Normaal'],
+            ['Sportmengeling', '≈ +4,3', 'elke vlucht kost 4 % minder energie'],
+            ['Fondmengeling', '≈ +3,7', 'vluchten vanaf 500 km kosten 8 % minder energie'],
+            ['Premium', '≈ +4', '+ gezondheid, + conditie (tot 80)'],
+            ['Depuratief', '≈ +2', '+ veel gezondheid: na een zware fond eerst de gezondheid terug'],
+            ['Kweekmengeling', '≈ +2,5', '+ libido; beide ouders erop: +5 procentpunt tweelingkans'],
+            ['Seniorenmengeling', '≈ +2,9', '+ gezondheid; veroudering ×0,85 zolang ze het eet'],
           ]}
         />
+        <p className="muted" style={{ marginTop: 8 }}>
+          <strong>Geen enkel voer is overal het beste.</strong> Herstelvoer werkt enkel volledig in de twee dagen na een
+          vlucht (twee dagovergangen): wie niet vliegt, eet het en betaalt het, maar herstelt zoals op Normaal.
+        </p>
         <ul style={{ marginTop: 12 }}>
           <li><strong>Ervaring versnelt het herstel:</strong> een geroutineerde duif komt merkbaar sneller op krachten dan een groentje.</li>
           <li><strong>Rustbonus:</strong> blijft een duif thuis (geen vlucht) én krijgt ze elke dag eten, dan bouwt ze rust op — elke 3e zulke dag <strong>+4 energie</strong> bovenop het voer. De teller reset zodra ze een vlucht doet.</li>
@@ -407,9 +416,13 @@ export function WikiPage() {
           head={['Voer', 'Prijs/kg', 'Terugkoop/kg', 'Verbruik/duif/dag']}
           rows={[
             ['Normaal', '€3', '€2,40', '≈ 0,14 kg'],
+            ['Herstelvoer', '€4', '€3,20', '≈ 0,21 kg'],
+            ['Sportmengeling', '€5', '€4,00', '≈ 0,19 kg'],
+            ['Fondmengeling', '€6', '€4,80', '≈ 0,20 kg'],
             ['Premium', '€6', '€4,80', '≈ 0,21 kg'],
-            ['Libido-mix', '€4,5', '€3,60', '≈ 0,20 kg'],
-            ['Herstelvoer', '€3', '€2,40', '≈ 0,21 kg'],
+            ['Depuratief', '€2,5', '€2,00', '≈ 0,14 kg'],
+            ['Kweekmengeling', '€4,5', '€3,60', '≈ 0,20 kg'],
+            ['Seniorenmengeling', '€7', '€5,60', '≈ 0,17 kg'],
           ]}
         />
         <p style={{ marginTop: 10 }}>
@@ -1144,7 +1157,7 @@ export function WikiPage() {
           </li>
           <li>Computermelkers vallen onder exact dezelfde regel.</li>
         </ul>
-        <p><strong>Strategie:</strong> koppel duiven met <em>hoge libido en goede energie</em>, en zet <em>Libido-mix</em> voer in tijdens de kweekperiode.</p>
+        <p><strong>Strategie:</strong> koppel duiven met <em>hoge libido en goede energie</em>, en zet beide ouders op <em>Kweekmengeling</em> tijdens de kweekperiode.</p>
         <p style={{ marginTop: 12 }}>
           <strong>Zit je hok vol wanneer de jongen uitkomen? Dan kies jij.</strong> Er gaat niets verloren: het hele
           nest blijft op de Kweek-pagina wachten tot je beslist hebt. Je ziet van elk jong de score én de{' '}
@@ -1600,6 +1613,21 @@ export function WikiPage() {
           Duiven die ingeschreven staan voor een vlucht, aan het koppelen zijn of de weg kwijt
           zijn, blijven eveneens buiten schot.
         </p>
+      </Section>
+
+      <Section id="hygiene" icon="🧹" title="Hokhygiëne, vers stro & de hokpoetser">
+        <p className="muted" style={{ marginTop: 0 }}>
+          Je hok heeft een <strong>hygiënemeter van 0 tot 100</strong>. Vers stro zet hem op 100. Bovenaan{' '}
+          <em>Mijn hok</em> zie je je hok in beeld: goudgeel stro wordt bruin met vlekken naarmate de meter zakt.
+        </p>
+        <ul>
+          <li><strong>Boven 50 zakt de kans op ziekte</strong>, tot <strong>×0,8</strong> bij 100 (bij 75 is dat ×0,9). Op of onder 50 gebeurt er niets — zo was het altijd.</li>
+          <li><strong>Vers stro:</strong> €18 per baal, één baal per 8 plaatsen (een hok van 12 = 2 balen = €36).</li>
+          <li><strong>De meter zakt elke dagovergang</strong>: 8 punten in een vol hok, minder in een half leeg hok, en 50 % sneller zolang er een zieke duif (ziekte, geen kwetsuur) tussen de anderen zit in plaats van in de ziekenboeg.</li>
+          <li><strong>Hokpoetser:</strong> €14 per dag, aannemen en ontslaan is gratis. Zakt de meter onder 70, dan strooit hij vers stro (aan de gewone prijs). Hij ontsmet ook: besmetting tussen duiven ×0,85. Hij kost ook op een dag met weinig werk.</li>
+          <li><strong>Een bodem:</strong> hygiëne, een apart hok, de poetser en het kenmerk IJzeren gestel samen maken de kans op ziekte nooit kleiner dan <strong>×0,4</strong>.</li>
+        </ul>
+        <p><strong>Rekenvoorbeeld:</strong> elke 6 dagen verversen kost voor een hok van 8 zo'n €21 per week.</p>
       </Section>
 
       <Section id="hok" icon="🏠" title="Hokcapaciteit & onderhoudskosten">

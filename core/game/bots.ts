@@ -22,6 +22,7 @@
  */
 
 import {
+  AGING,
   BOT,
   BREEDING,
   FEED_RATIONS,
@@ -36,6 +37,7 @@ import type { FeedRationKey } from '../config/gameConfig.js';
 import type { Database, Flight, Loft, Pigeon } from '../schema.js';
 import { newId } from '../store.js';
 import { expectedFlightEnergyCost, pigeonCommittedToFlight } from './flight.js';
+import { inHerstelWindow } from './economy.js';
 // The sale itself and the "bird leaves the world" cleanup live in engine.ts, so a
 // bot's purchase is literally the same transaction as a player's. engine.ts also
 // imports from here (botTakeWeeklyActions), which makes this a module cycle —
@@ -81,21 +83,46 @@ function manageInfirmary(loft: Loft, pigeons: Pigeon[]): void {
 }
 
 /**
- * What a bot feeds. Herstelvoer costs the same €3/kg as Normaal but returns
- * +42 energie / +12 gezondheid a week instead of +21/+5, so any bot with a bank
- * worth the name should be on it: a bird racing two or three times a week loses
- * more gezondheid than Normaal replaces, and that slow bleed — not money, not
- * bad luck — is what wore bot flocks down to nothing.
+ * What a bot feeds, per bird (hokinrichting — ⚠️ dev, nog niet live). Every feed
+ * now has its own moment, so a bot with money picks per bird:
+ *   - flew in the last two days → Herstel (it only works in full then);
+ *   - on the nest → Kweekmengeling (twin bonus when both parents eat it);
+ *   - health run down → Depuratief (health first);
+ *   - past her prime → Seniorenmengeling (slower ageing);
+ *   - everyone else → Sportmengeling (bots race all week).
+ * A bot short of money stays on Normaal, as before.
  */
-function chooseRation(loft: Loft): FeedRationKey {
-  return loft.money > BOT.goodFeedFrom ? 'herstel' : 'normal';
+function chooseRation(db: Database, loft: Loft, p: Pigeon, nowMs: number): FeedRationKey {
+  if (loft.money <= BOT.goodFeedFrom) return 'normal';
+  if (inHerstelWindow(p, nowMs)) return 'herstel';
+  if (db.breedingPairs.some((bp) => bp.sireId === p.id || bp.damId === p.id)) return 'libido';
+  if (p.health < BOT.depuratiefBelowHealth) return 'depuratief';
+  if (db.world.currentWeek - p.birthWeek > AGING.peakEndWeeks) return 'senior';
+  return 'sport';
 }
 
-/** Keep a few weeks of the loft's ration in stock. */
-function restockFood(loft: Loft, pigeons: Pigeon[], ration: FeedRationKey): void {
+/** Short-lived feeds (they follow a moment, not the bird) are stocked for one week only. */
+const SHORT_FEEDS: ReadonlySet<FeedRationKey> = new Set(['herstel', 'libido', 'depuratief']);
+
+/** Give every bird its feed and keep each feed in use in stock. */
+function feedFlock(db: Database, loft: Loft, pigeons: Pigeon[], nowMs: number): void {
+  const byRation = new Map<FeedRationKey, Pigeon[]>();
+  for (const p of pigeons) {
+    p.ration = chooseRation(db, loft, p, nowMs);
+    byRation.set(p.ration, [...(byRation.get(p.ration) ?? []), p]);
+  }
+  // The loft default follows the majority, for a bird bought later today.
+  loft.feedRation = [...byRation.entries()].sort((a, b) => b[1].length - a[1].length)[0]?.[0] ?? 'normal';
+  for (const [ration, birds] of byRation) {
+    restockFood(loft, birds, ration, SHORT_FEEDS.has(ration) ? 1 : BOT.foodWeeksBuffer);
+  }
+}
+
+/** Keep a few weeks of a ration in stock for the birds on it. */
+function restockFood(loft: Loft, pigeons: Pigeon[], ration: FeedRationKey, weeks: number = BOT.foodWeeksBuffer): void {
   const weeklyNeed = pigeons.length * FEED_RATIONS[ration].foodPerPigeon;
   if ((loft.food[ration] ?? 0) >= weeklyNeed) return;
-  const want = weeklyNeed * BOT.foodWeeksBuffer - (loft.food[ration] ?? 0);
+  const want = weeklyNeed * weeks - (loft.food[ration] ?? 0);
   // Food comes before every other spend — a starving flock dies within days, so
   // this one deliberately digs below BOT.reserve.
   const price = FEED_RATIONS[ration].pricePerKg;
@@ -411,10 +438,7 @@ function maybeBidOnMarket(
  * (a hungry flock dies), then care, then the investments.
  */
 export function botDailyActions(db: Database, loft: Loft, pigeons: Pigeon[], nowMs: number): void {
-  const ration = chooseRation(loft);
-  loft.feedRation = ration;
-  for (const p of pigeons) p.ration = ration;
-  restockFood(loft, pigeons, ration);
+  feedFlock(db, loft, pigeons, nowMs);
   manageInfirmary(loft, pigeons);
   maybeUpgradeInfirmary(loft, pigeons);
   maybeRestCure(db, loft, pigeons, nowMs);
@@ -438,9 +462,8 @@ export function botTakeWeeklyActions(
   pigeons: Pigeon[],
   _foodPricePerKg: number,
 ): void {
-  const ration = chooseRation(loft);
-  loft.feedRation = ration;
-  for (const p of pigeons) p.ration = ration;
+  // Feeding is the daily tick's job (feedFlock); a week jump only keeps the
+  // rations it already set.
   manageInfirmary(loft, pigeons);
   maybeTrain(loft, pigeons, Date.now(), 1);
 }

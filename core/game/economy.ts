@@ -8,8 +8,10 @@ import {
   HEALTH,
   pigeonUpkeepBands,
   type UpkeepBandCost,
+  FEED_EFFECTS,
   FEED_RATIONS,
   GENE,
+  HYGIENE,
   INFIRMARY,
   REST_BONUS,
   STARVATION,
@@ -59,6 +61,38 @@ export function coachDailyGain(attr: number, cap: number): number {
   return COACH.maxDailyGain * room; // callers round when storing (1 decimal)
 }
 
+/** Did this bird fly within FEED_EFFECTS.herstelWindowHours before `atMs`? */
+export function inHerstelWindow(p: Pigeon, atMs: number): boolean {
+  if (!p.lastRaceAt) return false;
+  const last = Date.parse(p.lastRaceAt);
+  if (Number.isNaN(last)) return false;
+  const age = atMs - last;
+  return age >= 0 && age <= FEED_EFFECTS.herstelWindowHours * 3600000;
+}
+
+/**
+ * The recovery a ration really gives this bird on the day at `atMs`. Every feed
+ * is itself, except Herstel (hokinrichting — ⚠️ dev, nog niet live): outside the
+ * days right after a flight it recovers like Normaal, while still eating — and
+ * costing — its own amount. "Wie niet vliegt, betaalt voor niets."
+ */
+export function effectiveRation(
+  key: keyof typeof FEED_RATIONS,
+  p: Pigeon,
+  atMs: number,
+): (typeof FEED_RATIONS)[keyof typeof FEED_RATIONS] {
+  const ration = FEED_RATIONS[key];
+  if (key !== 'herstel' || inHerstelWindow(p, atMs)) return ration;
+  const as = FEED_RATIONS[FEED_EFFECTS.herstelOutsideAs];
+  return {
+    ...ration,
+    formRecovery: as.formRecovery,
+    healthRecovery: as.healthRecovery,
+    enduranceRecovery: as.enduranceRecovery,
+    libidoRecovery: as.libidoRecovery,
+  } as unknown as (typeof FEED_RATIONS)[keyof typeof FEED_RATIONS];
+}
+
 /** A bird that starved to death during a day of care. */
 export interface StarvationDeath {
   id: string;
@@ -92,6 +126,8 @@ export function applyDayOfCare(
   pigeons: Pigeon[],
   livePigeonIds?: Set<string>,
   coveredInfirmaryIds?: Set<string>,
+  /** The dagovergang being processed — decides whether Herstel works in full. */
+  dayMs: number = Date.now(),
 ): DayOfCareResult {
   const active = pigeons;
   if (active.length === 0) return { allFed: true, deaths: [] };
@@ -107,7 +143,7 @@ export function applyDayOfCare(
     // isn't there. Everything else (rest bonus, coach, libido) is skipped too.
     if (isAway(p)) continue;
     const key = rationKeyOf(p);
-    const ration = FEED_RATIONS[key];
+    const ration = effectiveRation(key, p, dayMs);
     // Feeding is per pigeon, drawn from its own food type's stock (weekly rate,
     // 1/7 per day). No stock of that type → this bird goes unfed today.
     const dailyNeed = ration.foodPerPigeon / 7;
@@ -255,7 +291,8 @@ export interface DailyCareProjection {
 export function projectDailyCare(loft: Loft, p: Pigeon, live = false, covered = false): DailyCareProjection {
   const key: keyof typeof FEED_RATIONS =
     p.ration && p.ration in FEED_RATIONS ? p.ration : (loft.feedRation in FEED_RATIONS ? loft.feedRation : 'normal');
-  const ration = FEED_RATIONS[key];
+  // The projection is for the NEXT dagovergang (tonight's midnight, near enough).
+  const ration = effectiveRation(key, p, Date.now() + 12 * 3600000);
   const dailyNeed = ration.foodPerPigeon / 7;
   const fed = (loft.food[key] ?? 0) >= dailyNeed;
   const coachEligible = !!p.coached && !p.ailment && !p.inInfirmary && !live && fed;
@@ -349,6 +386,8 @@ export interface DailyCostBreakdown {
   doctors: number; // pigeon-doctor salaries
   physios: number; // physiotherapist salaries
   medicatedFeed: number; // medicated feed for the birds in the infirmary
+  /** Hokpoetser's wage (hokinrichting — ⚠️ dev). The straw he buys is a one-off spend, not in here. */
+  cleaner: number;
   /** Staff on the payroll with nothing to treat today, and what they still cost.
    *  ⚠️ Already counted in `doctors`/`physios`/`total` — this is a breakdown of a
    *  cost that IS charged, not a discount (see health.idleCareStaff). */
@@ -394,7 +433,8 @@ export function dailyRunningCostBreakdown(
   const idleDoctors = Math.min(loft.doctors, Math.max(0, idle.doctors));
   const idlePhysios = Math.min(loft.physios, Math.max(0, idle.physios));
   const idleStaffCost = idleDoctors * INFIRMARY.doctorSalary + idlePhysios * INFIRMARY.physioSalary;
-  const total = upkeepBase + upkeepPerPigeon + coaches + doctors + physios + medicatedFeed;
+  const cleaner = loft.equipment?.cleaner ? HYGIENE.cleanerDailyWage : 0;
+  const total = upkeepBase + upkeepPerPigeon + coaches + doctors + physios + medicatedFeed + cleaner;
   // While the loft must still drop sponsors (seizoen 3 limit), none pays: the
   // balance lists them at €0 so the player sees what he is missing.
   const paused = sponsorsPaused(loft);
@@ -403,7 +443,7 @@ export function dailyRunningCostBreakdown(
   }));
   const sponsorTotal = sponsors.reduce((s, x) => s + x.amount, 0);
   return {
-    upkeepBase, upkeepPerPigeon, upkeepBands, coaches, doctors, physios, medicatedFeed,
+    upkeepBase, upkeepPerPigeon, upkeepBands, coaches, doctors, physios, medicatedFeed, cleaner,
     idleDoctors, idlePhysios, idleStaffCost, total,
     sponsors, sponsorTotal, net: sponsorTotal - total, sponsorsPaused: paused,
   };

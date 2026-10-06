@@ -3,6 +3,7 @@
 import {
   BREEDING,
   DEFAULT_BREED_ID,
+  FEED_EFFECTS,
   GENE,
   INBREEDING,
   MIXED_BREED_ID,
@@ -102,7 +103,10 @@ export function breed(
    */
   const roll = pairId ? seededRng(hashString(`clutch:${pairId}`)) : Math.random;
   if (roll() > successChance) return []; // no young this time
-  const secondChance = clamp((avgLibido / 100) * 0.7 * energyFactor, 0, 0.7);
+  // Kweekmengeling (hokinrichting — ⚠️ dev): both parents on it → a few points
+  // more chance at a twin. Stays inside the seeded roll, so it adds no randomness.
+  const kweek = sire.ration === 'libido' && dam.ration === 'libido' ? FEED_EFFECTS.kweekTwinBonus : 0;
+  const secondChance = clamp((avgLibido / 100) * 0.7 * energyFactor, 0, 0.7) + kweek;
   const count = roll() < secondChance ? 2 : 1;
 
   const young: Pigeon[] = [];

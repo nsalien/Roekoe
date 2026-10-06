@@ -19,6 +19,9 @@ import wasmUrl from 'sql.js/dist/sql-wasm-browser.wasm?url';
 import initSql from '../../migrations/0001_init.sql?raw';
 import { onRequest } from '../../functions/api/[[path]].js';
 import { signToken } from '../../core/auth.js';
+import { D1Store } from '../../core/d1.js';
+import { advanceRealtime } from '../../core/game/schedule.js';
+import { computeLeaderboard } from '../../core/presenters.js';
 import { DemoD1 } from './d1';
 import { createDemoWorld, DEMO_USER_ID, DEMO_USERNAME } from './seed';
 import { advanceClock, installDemoClock, resetClock } from './clock';
@@ -125,10 +128,37 @@ async function openWorld(): Promise<void> {
   await saveNow();
 }
 
+/**
+ * Let the engine catch up with the demo clock before the app asks anything.
+ * The daily tick does one day — and only a slice of the lofts — per request,
+ * and reads within ADVANCE_THROTTLE_SECONDS skip the engine; live, the next
+ * polls finish the job. After "+1 dag" the demo should show the whole day at
+ * once, so run the same engine step (what the API middleware does) until the
+ * day is closed. Also covers a player coming back after real time passed.
+ */
+async function catchUp(): Promise<void> {
+  if (!d1) return;
+  let last = '';
+  for (let i = 0; i < 80; i++) {
+    const store = await D1Store.load(d1 as any, DEMO_USER_ID);
+    const nowMs = Date.now();
+    advanceRealtime(store.data, nowMs, new Map());
+    store.data.world.leaderboard = JSON.stringify(computeLeaderboard(store.data));
+    store.data.world.lastAdvance = new Date(nowMs).toISOString();
+    await store.persist();
+    const w = store.data.world;
+    const mark = `${w.lastDailyTick}|${w.dailyCareCursor ?? ''}`;
+    if (!w.dailyCareCursor && mark === last) return;
+    last = mark;
+  }
+}
+
 export async function bootDemo(): Promise<void> {
   installDemoClock();
   installFetchRouter();
   await openWorld();
+  await catchUp();
+  await saveNow();
   const token = await signToken({ sub: DEMO_USER_ID, username: DEMO_USERNAME }, DEMO_JWT_SECRET, 60 * 60 * 24 * 365);
   localStorage.setItem(TOKEN_KEY, token);
   mountBanner({

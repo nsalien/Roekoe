@@ -12,6 +12,7 @@
  */
 
 import {
+  FEED_EFFECTS,
   diseaseSeverityWeights,
   injurySeverityWeights,
   AGING,
@@ -30,6 +31,7 @@ import { newId } from '../store.js';
 import { ageInWeeks, ageMortality, conditionScore, isAway, noteAttrChange } from './pigeon.js';
 import { awardBadge, evaluateBadges } from './badges.js';
 import { clamp, pick, pickWith, round1 } from './util.js';
+import { equipmentOf, illnessChance } from './hygiene.js';
 
 export interface HealthEvent {
   pigeonId: string;
@@ -291,6 +293,7 @@ export function runHealthDay(db: Database, week: number): void {
     // 3. Contagion + spontaneous illness among the survivors. A bird that lost its
     //    way on a flight is not in the loft: it can neither infect nor be infected.
     const alive = birds.filter((p) => !dead.has(p.id) && !isAway(p));
+    const eq = equipmentOf(loft);
     const sources = alive.filter((p) => p.ailment?.kind === 'ziekte' && !p.inInfirmary).length;
     for (const p of alive) {
       if (p.ailment || p.inInfirmary) continue; // already ailing, or safely isolated
@@ -309,7 +312,12 @@ export function runHealthDay(db: Database, week: number): void {
       const compartmentGuard = p.compartment ? 1 - COMPARTMENT.diseaseReduction : 1;
       // IJzeren gestel (seizoen 3): falls ill less often — contagion and spontaneous.
       const sturdy = p.trait === 'sturdy' ? TRAITS.sturdyIllnessMult : 1;
-      const chance = clamp(1 - (1 - fromOthers) * (1 - spontaneous), 0, 0.85) * compartmentGuard * sturdy;
+      // Hokhygiëne and the hokpoetser (hokinrichting) join in; all of these
+      // together never go below HYGIENE.illnessFactorFloor (see hygiene.ts).
+      const chance = illnessChance({
+        spontaneous, fromOthers, hygiene: eq.hygiene, cleaner: eq.cleaner,
+        compartmentMult: compartmentGuard, traitMult: sturdy,
+      });
       if (Math.random() < chance) {
         const disease = randomDisease(week, condition);
         applyAilment(p, disease);
@@ -378,7 +386,9 @@ export function runAgeDecline(db: Database, week: number): void {
   for (const p of db.pigeons) {
     const age = week - p.birthWeek;
     if (age <= AGING.peakEndWeeks) continue;
-    const dec = AGING.declinePerWeekBase * ((age - AGING.peakEndWeeks) / 52) * (p.declineRate ?? 1);
+    // Seniorenmengeling (hokinrichting): she ages slower while she eats it.
+    const feed = p.ration === 'senior' ? FEED_EFFECTS.seniorAgingMult : 1;
+    const dec = AGING.declinePerWeekBase * ((age - AGING.peakEndWeeks) / 52) * (p.declineRate ?? 1) * feed;
     if (dec <= 0) continue;
     for (const attr of ['speed', 'endurance', 'orientation'] as const) {
       const before = p[attr];
