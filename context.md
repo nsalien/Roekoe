@@ -99,24 +99,16 @@
 - **Tests:** `tests/demo-build.test.mts` (prod vs. preview vs. lokaal bouwen) en
   `tests/demo-world.test.mts` (de seed + de API op sql.js in Node).
 
-### Hokaanzicht bovenaan *Mijn hok* (`client/src/components/LoftView.tsx`)
-- **Puur weergave** van wat `/state` al geeft, geen eigen verzoek. Zitbakjes = `capacity −
-  compartments` (nooit minder dan de duiven die er één nodig hebben, zie `loftLayout`); aparte
-  hokken als eigen hokjes met deur (leeg hokje = keuzelijst "wie mag erin" → bestaande
-  `/pigeons/:id/compartment`); nestbakken (minstens 2) met de broedkoppels; de ziekenboeg als
-  bijgebouw met `infirmaryCapacity` bedden, herstelbalk uit `ailment.healed` en de staf.
-- **Wie niet thuis is** staat als schim op haar plaats met een icoon, in deze voorrang
-  (`awayStatus`): 🧭 de weg kwijt (`away`) · ✈️ onderweg (`racing`) · 🏥 ziekenboeg · 🥚 op het
-  nest (`breeding`) · 💤 rustkuur (`cureUntil`). Een duif in de ziekenboeg staat dus als schim
-  in een zitbakje **én** in een bed.
-- **Tikken:** duif → `/duif/:id`, vrij bakje → `/markt`, nestbak → `/kweek`, vrij bed → `/ziekenboeg`.
-- **Dag/nacht** volgt de Brusselse zon: `sunAltitudeDeg` is **gekopieerd** uit
-  `core/game/traits.ts` (core is servercode, zelfde keuze als `components/geo.ts`).
-- **Vloer:** beton zonder ooit stro (`lastStrawAt` null), vers stro bij hygiëne ≥ 60, anders vuil.
-- Eén kleine serveraanvulling: `loftDTO.nests` (`{id, sireId, damId}` per broedkoppel), zodat de
-  juiste duiven samen in een nestbak zitten. Uit de al geladen `breedingPairs`, geen query.
-- CSS: blok "Hokaanzicht" achteraan `global.css` (prefix `lv-`), een vaste houten wereld met
-  eigen lucht, gelijk in licht en donker thema. Gemeten op 1280 en 390 px, geen horizontale scroll.
+### Hokoverzicht bovenaan *Mijn hok* (`client/src/components/LoftView.tsx`)
+- **Tekstueel, bewust.** Er was eerst een getekend hokaanzicht (zitbakjes, deurtjes, dag/nacht);
+  de eigenaar vond dat het op niets trok, dus het is vervangen door een kaart met regels:
+  plaatsen (bezet/thuis/vrij → markt), aparte hokken (namen + keuzelijst "Zet apart…" →
+  bestaande `/pigeons/:id/compartment`), nest (koppels), ziekenboeg (bedden, aandoening,
+  % hersteld) en "niet thuis". **Maak het niet opnieuw grafisch zonder het te vragen.**
+- **Niet thuis** (`awayStatus`, in deze voorrang): 🧭 de weg kwijt · ✈️ onderweg · 🏥 ziekenboeg
+  · 🥚 op het nest · 💤 rustkuur.
+- Puur weergave van `/state`, geen eigen verzoek. Eén serveraanvulling: `loftDTO.nests`
+  (`{id, sireId, damId}` per broedkoppel), uit de al geladen `breedingPairs`, geen query.
 
 ### Hokhygiëne, vers stro & hokpoetser (`core/game/hygiene.ts`, `HYGIENE` in gameConfig)
 - **Opslag:** `Loft.equipment` = JSON-kolom `equipment` op de loft-rij (achteraan
@@ -138,7 +130,7 @@
   wordt nu ×0,4. De legacy `runHealthWeek` (admin) is ongewijzigd.
 - **API:** `POST /api/loft/straw`, `POST /api/loft/cleaner {on}`. DTO: `loftDTO.equipment`
   (`hygiene, lastStrawAt, cleaner, strawCost, cleanerWage, illnessMult, decayPerDay`).
-- **UI:** kaart "Hokhygiëne" onder het hokaanzicht (meter, effect, stro-knop, poetser
+- **UI:** kaart "Hokhygiëne" onder het hokoverzicht (waarde, effect, stro-knop, poetser
   aan/uit) + wiki-sectie `#hygiene` + spelregels §5.2bis. Bots kopen (nog) niets: open vraag.
 
 ### Nieuw voer (`FEED_RATIONS` + `FEED_EFFECTS` in gameConfig)

@@ -1617,8 +1617,8 @@ export function WikiPage() {
 
       <Section id="hygiene" icon="🧹" title="Hokhygiëne, vers stro & de hokpoetser">
         <p className="muted" style={{ marginTop: 0 }}>
-          Je hok heeft een <strong>hygiënemeter van 0 tot 100</strong>. Vers stro zet hem op 100. Bovenaan{' '}
-          <em>Mijn hok</em> zie je je hok in beeld: goudgeel stro wordt bruin met vlekken naarmate de meter zakt.
+          Je hok heeft een <strong>hygiënemeter van 0 tot 100</strong>. Vers stro zet hem op 100. Je ziet hem op{' '}
+          <em>Mijn hok</em>, onder het hokoverzicht.
         </p>
         <ul>
           <li><strong>Boven 50 zakt de kans op ziekte</strong>, tot <strong>×0,8</strong> bij 100 (bij 75 is dat ×0,9). Op of onder 50 gebeurt er niets — zo was het altijd.</li>

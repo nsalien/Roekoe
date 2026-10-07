@@ -252,10 +252,6 @@ function HygieneCard({
         <strong>🧹 Hokhygiëne</strong>
         <strong style={{ fontVariantNumeric: 'tabular-nums' }}>{h}</strong>
       </div>
-      <div className="hyg-meter" style={{ margin: '8px 0 4px' }} aria-hidden="true">
-        <i style={{ width: `${h}%`, background: h >= 50 ? 'var(--good)' : 'var(--warn)' }} />
-        <b />
-      </div>
       <div className="faint" style={{ fontSize: '0.8rem' }}>
         {effect} · zakt vannacht ~{Math.round(eq.decayPerDay)}
         {eq.lastStrawAt ? '' : ' · nog nooit stro gestrooid'}
