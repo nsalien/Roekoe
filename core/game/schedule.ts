@@ -67,6 +67,7 @@ import type { CupStanding, Database, Flight, FlightResult, Loft, Pigeon, RaceLog
 import { emptySponsorState, emptyStats } from '../schema.js';
 import { tickHygiene } from './hygiene.js';
 import { entryMods, insuranceCost, insurancePayout, settleWidowhood, tickHawk, tickMagazine } from './inrichting.js';
+import { tickCouples } from './koppels.js';
 import { newId } from '../store.js';
 import { applyDayOfCare, dailyRunningCost } from './economy.js';
 import { coachBill, newNewcomerPerks, tickNewcomerExpiry, winningsMultiplier } from './newcomer.js';
@@ -3020,6 +3021,8 @@ export function tickDailyCare(db: Database, nowMs: number): void {
       tickHygiene(loft, db.pigeons.filter((p) => p.ownerId === loft.userId), dayMidnight);
       // De sperwer boven een ren zonder roofvogelafweer (hokinrichting).
       tickHawk(db, loft, db.pigeons.filter((p) => p.ownerId === loft.userId), dayNo, livePigeonIds);
+      // Koppels: reveal the wennen that decide today, maybe two birds find each other.
+      tickCouples(db, loft, db.pigeons.filter((p) => p.ownerId === loft.userId), dayNo, nowMs);
       // AFTER the day's billing, because that is what can push a till into the
       // red in the first place: coaches off on day one, then a forced auction
       // every DEBT.graceDays for as long as it lasts (see game/debt.ts).

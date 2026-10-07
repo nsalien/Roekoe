@@ -54,7 +54,8 @@ export function LoftView({
     .filter((pair) => pair.length > 0);
   const canMoveIn = pigeons.filter((p) => !p.compartment && !p.inInfirmary && !p.away);
   const freeComps = loft.compartments - inComp.length;
-  const widowers = pigeons.filter((p) => p.care?.widow);
+  const couples = loft.equipment?.couples ?? [];
+  const widowerIds = new Set(pigeons.filter((p) => p.care?.widow.on).map((p) => p.id));
   const insured = pigeons.filter((p) => p.care?.insurance).length;
   const vaccinated = pigeons.filter((p) => (p.care?.vaccines.length ?? 0) > 0).length;
 
@@ -103,9 +104,15 @@ export function LoftView({
           </span>
         ))}
       </Row>
-      {widowers.length > 0 && (
-        <Row label="Weduwschap">
-          {widowers.map((p, i) => <span key={p.id}>{i > 0 && ' · '}❤️ {firstName(p)} &amp; {p.care!.widow!.name.split(' ')[0]}</span>)}
+      {couples.length > 0 && (
+        <Row label="Koppels">
+          {couples.map((c, i) => (
+            <span key={c.dofferId}>
+              {i > 0 && ' · '}{c.status === 'koppel' ? '💑' : '⏳'} {c.dofferName.split(' ')[0]} &amp; {c.duivinName.split(' ')[0]}
+              {c.status === 'wennen' && <span className="faint"> wennen</span>}
+              {widowerIds.has(c.dofferId) && <span title="weduwschap"> ❤️</span>}
+            </span>
+          ))}
         </Row>
       )}
       {(insured > 0 || vaccinated > 0) && (

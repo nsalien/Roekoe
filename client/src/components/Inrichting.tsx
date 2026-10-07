@@ -67,6 +67,16 @@ export function InrichtingCard({ loft, cat, busy, act }: { loft: Loft; cat: Inri
         ) : <span className="faint">maximum bereikt</span>}
         <span className="faint" style={{ fontSize: '0.8rem' }}><Money value={cat.equipment.irBoxes.dailyPerBoxInUse ?? 0} />/dag per bak in gebruik</span>
       </Line>
+      <Line label={<><strong>{cat.equipment.partnerhok.label}</strong> <span className="faint">— twee duiven samen om aan elkaar te wennen, ook als hij een apart hok heeft; sneller en minder kans op weigeren · {eq.partnerhokken} ({eq.partnerhokInUse} in gebruik)</span></>}>
+        {eq.partnerhokNextPrice != null ? (
+          <button className="btn sm" disabled={busy || loft.money < eq.partnerhokNextPrice} onClick={() => {
+            if (!window.confirm(`Een partnerhok bouwen voor ${euro(eq.partnerhokNextPrice!)}?`)) return;
+            act(() => api('/loft/partnerhok', { method: 'POST' }), 'Partnerhok gebouwd');
+          }}>
+            +1 · <Money value={eq.partnerhokNextPrice} /> + <Money value={cat.equipment.partnerhok.dailyPerBox ?? 0} />/dag
+          </button>
+        ) : <span className="faint">maximum bereikt</span>}
+      </Line>
       <Line label={<><strong>{cat.equipment.magazine.label}</strong> <span className="faint">— bandbreedtes bij een privébod, marktrapport, elke maandag Het Duivenblad</span></>}>
         <button className={`btn sm ${eq.magazine ? 'accent' : 'ghost'}`} disabled={busy} onClick={() =>
           act(() => api('/loft/equipment', { method: 'POST', body: { key: 'magazine', on: !eq.magazine } }), eq.magazine ? 'Vakblad opgezegd' : 'Vakblad: welkom, abonnee 📰')}>
@@ -194,7 +204,6 @@ export function PigeonCareCard({ p, flock, cat, busy, run }: {
 }) {
   const care = p.care!;
   const day = (iso: string) => new Date(iso).toLocaleDateString('nl-BE', { day: 'numeric', month: 'short', timeZone: 'Europe/Brussels' });
-  const duivinnen = flock.filter((x) => x.sex === 'duivin' && x.id !== p.id);
   return (
     <div className="card">
       <h2>💉 Verzorging &amp; verzekering</h2>
@@ -226,22 +235,30 @@ export function PigeonCareCard({ p, flock, cat, busy, run }: {
         </Line>
       ) : <p className="faint" style={{ margin: '4px 0' }}>Geen marktwaarde om te verzekeren.</p>}
 
+      <div style={{ marginTop: 12 }}><strong>💑 Partner</strong></div>
+      <p style={{ margin: '4px 0' }}>
+        {care.partner ? <>Gekoppeld met <Link to={`/duif/${care.partner.id}`}>{care.partner.name}</Link>.</>
+          : care.wennenWith ? <>Aan het wennen aan <Link to={`/duif/${care.wennenWith.id}`}>{care.wennenWith.name}</Link>.</>
+          : <span className="faint">Geen partner. Een koppel vorm je op de pagina <Link to="/kweek">Kweek</Link>.</span>}
+      </p>
+
       {p.sex === 'doffer' && (
         <>
           <div style={{ marginTop: 12 }}><strong>❤️ Weduwschap</strong></div>
-          {!p.compartment ? (
-            <p className="faint" style={{ margin: '4px 0' }}>Een weduwnaar heeft een apart hok nodig.</p>
+          {!care.partner ? (
+            <p className="faint" style={{ margin: '4px 0' }}>Hij vliegt naar zijn partner — vorm eerst een koppel.</p>
+          ) : !p.compartment ? (
+            <p className="faint" style={{ margin: '4px 0' }}>Een weduwnaar heeft een apart hok nodig (zijn woonhok).</p>
           ) : (
-            <Line label={care.widow ? <>Vliegt naar <strong>{care.widow.name}</strong> · <Money value={cat.widowFee} /> per vlucht</> : <>Kies een duivin die thuis op hem wacht · <Money value={cat.widowFee} /> per vlucht</>}>
-              <select
-                value={care.widow?.id ?? ''}
-                disabled={busy}
-                onChange={(e) => run(() => api(`/pigeons/${p.id}/widow`, { method: 'POST', body: { duivinId: e.target.value || null } }), e.target.value ? 'Weduwschap ingesteld' : 'Weduwschap gestopt')}
-                style={{ width: 'auto' }}
-              >
-                <option value="">Geen weduwschap</option>
-                {duivinnen.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
-              </select>
+            <Line label={
+              care.widow.on
+                ? <>Aan · {care.widow.level === 2 ? <>{care.partner.name.split(' ')[0]} en hun jongen wachten thuis (sterk)</> : care.widow.level === 1 ? <>{care.partner.name.split(' ')[0]} wacht thuis</> : <>vandaag geen effect (partner niet thuis of op nest)</>} · <Money value={cat.widowFee} /> per vlucht</>
+                : <>Uit · <Money value={cat.widowFee} /> per vlucht als het werkt</>
+            }>
+              <button className={`btn sm ${care.widow.on ? 'ghost' : ''}`} disabled={busy} onClick={() =>
+                run(() => api(`/pigeons/${p.id}/widow`, { method: 'POST', body: { on: !care.widow.on } }), care.widow.on ? 'Weduwschap gestopt' : 'Weduwschap aan ❤️')}>
+                {care.widow.on ? 'Stoppen' : 'Aanzetten'}
+              </button>
             </Line>
           )}
         </>

@@ -133,6 +133,32 @@
 - **UI:** kaart "Hokhygiëne" op de pagina Inrichting (waarde, effect, stro-knop, poetser
   aan/uit) + wiki-sectie `#hygiene` + spelregels §5.2bis. Bots kopen (nog) niets: open vraag.
 
+### Koppels (`core/game/koppels.ts`, `COUPLES` in gameConfig) — ⚠️ dev
+- **Opslag:** `Loft.equipment.couples` (`Couple`: doffer, duivin, `status` `'wennen' | 'koppel'`,
+  `resolveDay`, `refuses`, `partnerhok`), `.attractions`, `.partnerhokken`. Geen kolom erbij.
+- **Wennen** (`startWennen`): enkel als ze **samen zitten** — allebei in het hoofdhok (`together`:
+  niet weg, niet in de boeg, geen `compartment`) of samen in een vrij **partnerhok** (dan mag hij
+  een apart hok hebben). Bij de start worden de beslisdag (1..7, partnerhok 1..4) en het oordeel
+  geloot (`refuseChance` = max(0,1; 0,4 − gem. libido/250), partnerhok ×0,5) — **nooit naar de
+  client** (de DTO toont enkel "dag X van hoogstens N"). `tickCouples` (tickDailyCare, per hok,
+  ná de sperwer) onthult het op die dagovergang: koppel, geweigerd, of mislukt als ze dan niet
+  meer samen zitten. Stabiele melding-id's.
+- **Aantrekking:** `tickCouples` laat per mensenhok met een vrij duo in het hoofdhok
+  ~12 %/dag (geseed op hok+dag) twee vrije, niet-verwante duiven naar elkaar toe trekken (gewogen
+  op libido), hoogstens 2 open, 3 dagen geldig. `confirmAttraction` = meteen een koppel.
+- **Breken:** `unpair` (koppel: beide libido ×0,5; wennen: gratis), `breakForForcedBreeding` in
+  `startBreeding` wanneer sire en dam geen koppel zijn (koppel(s) van beide uiteen, partners ×0,5,
+  melding). Een partner verkocht of dood: `tickCouples` ruimt op, zonder libidoverlies.
+- Bots koppelen nooit (geen aantrekking voor bothokken); hun kweek is ongewijzigd.
+- **API:** `POST /couples/start {dofferId, duivinId, partnerhok}`, `/couples/confirm`,
+  `/couples/dismiss`, `/couples/unpair {pigeonId}`, `/loft/partnerhok`, `/pigeons/:id/widow {on}`.
+- **UI:** kaart "💑 Koppels" bovenaan *Kweek* (`components/Koppels.tsx`); het nestformulier
+  ("Nest starten") kiest de partner vanzelf en waarschuwt vóór een geforceerd nest; partnerhok
+  kopen op *Inrichting*; partner + weduwschap aan/uit op de duifpagina; "Koppels" in het
+  hokoverzicht. Kweekmeldingen zeggen nu "broeden/nest" i.p.v. "koppelen".
+- **Demo:** het broedende duo is een koppel, en er staat één aantrekking klaar
+  (`DEMO_VERSION` = 3). **Test:** `tests/koppels.test.mts`.
+
 ### Voer: ongewijzigd
 - Een eerste poging met acht voersoorten (Herstel enkel na een vlucht, Sport, Fond, …) is op
   vraag van de eigenaar **volledig teruggedraaid**: "niet goed gedaan". `FEED_RATIONS`, de bots en
@@ -162,10 +188,12 @@
     en `breed(..., bonus)` (tweeling, succes onder 10 °C via `monthTemperature`);
   - reismanden: `Entry.mods` → `routeEnergyCost(..., mult)` en `SimEntry.healthMult` in finalize
     (solo én estafette);
-  - weduwschap: `Entry.mods.widow` → `buildPaceProfile(..., widow)` (zelfde trekkingen, andere
-    drempels) → `SimEntry.widow`; `settleWidowhood` direct na `startLiveFlight` (€10, duivin −3).
-    Enkel doffer met `compartment`, zij thuis (geen vlucht die dag, niet weg, niet in de boeg),
-    geen van beiden broedt. `upset-balance` blijft groen (bots gebruiken het niet);
+  - weduwschap: vliegt op de **partner** (`partnerOf`, koppels.ts) — `care.widow` is enkel nog
+    aan/uit. `widowLevelOn` → 0 / 1 (partner thuis) / 2 (partner + minstens één van hun jongen
+    thuis: `sireId`/`damId` = het koppel, niet weg, niet zelf vliegend die dag) → `Entry.mods.widow`
+    → `buildPaceProfile(..., widow)` met `WIDOW.base` / `WIDOW.withYoung` (zelfde trekkingen,
+    andere drempels) → `SimEntry.widow` (1|2); `settleWidowhood` (€10, partner −3). Vereist
+    `compartment` (woonhok), geen actief nest. `upset-balance` blijft groen (bots doen niet mee);
   - vaccins/kuren: `fendsOff` in `runHealthDay` na de ziektetrekking (buiten de bodem ×0,4);
     vaccin → `care.noFlyUntil`; `canRace` kijkt naar `groundedByCare` (pigeon.ts), `enterFlight`
     geeft de reden (`grounded`);
@@ -1328,7 +1356,8 @@ npx tsx tests/lokaal.test.mts             # Het Lokaal: laden/pagineren/poll+ove
 npx tsx tests/demo-build.test.mts         # (dev) prodbuild zonder demo, previewbuild mét demo
 npx tsx tests/demo-world.test.mts         # (dev) de demowereld + de echte API op sql.js
 npx tsx tests/hygiene.test.mts            # (dev) hokhygiëne, stro, poetser, bodem ×0,4
-npx tsx tests/inrichting.test.mts         # (dev) ventilatie, ren, sperwer, vaccins, verzekering, weduwschap, scout, vakblad, weerstation, bots
+npx tsx tests/inrichting.test.mts         # (dev) ventilatie, ren, sperwer, vaccins, verzekering, scout, vakblad, weerstation, bots
+npx tsx tests/koppels.test.mts            # (dev) koppels: wennen, weigeren, aantrekking, ontkoppelen, geforceerd nest, weduwschap
 ```
 
 > **Geen `tsx` beschikbaar?** (cloud-sessie waar de npm-registry geblokkeerd is: `npx tsx`

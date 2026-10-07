@@ -1,4 +1,4 @@
-/** Kweek: pair a doffer and a duivin to produce young that inherit attributes. */
+/** Kweek: koppels (partners) and nests — a doffer and a duivin produce young that inherit attributes. */
 
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
@@ -7,6 +7,7 @@ import { useGame } from '../game/GameContext';
 import { Money, Spinner, timeUntil, useToast } from '../components/ui';
 import { PigeonAvatar } from '../components/PigeonAvatar';
 import { NestChoice } from '../components/NestChoice';
+import { CouplesCard } from '../components/Koppels';
 import type { BreedingView } from '../types';
 
 export function BreedingPage() {
@@ -58,11 +59,48 @@ export function BreedingPage() {
     familie: 'familie van elkaar',
   };
 
+  // Koppels (hokinrichting): who is whose partner, so the nest form can pick the
+  // partner for you and warn before a forced nest breaks a koppel.
+  const koppels = (state.loft?.equipment?.couples ?? []).filter((c) => c.status === 'koppel');
+  const partnerOfId = (id: string) => {
+    const c = koppels.find((k) => k.dofferId === id || k.duivinId === id);
+    return c ? (c.dofferId === id ? c.duivinId : c.dofferId) : null;
+  };
+  const isKoppel = !!sireId && !!damId && partnerOfId(sireId) === damId;
+  const breaks = sireId && damId && !isKoppel
+    ? koppels.filter((k) => [k.dofferId, k.duivinId].some((x) => x === sireId || x === damId))
+    : [];
+  const halfLibido = Math.round((1 - (state.inrichting?.couples.breakLibidoMult ?? 0.5)) * 100);
+  function pickSire(id: string) {
+    setSireId(id);
+    const p = id ? partnerOfId(id) : null;
+    if (p && duivinnen.some((x) => x.id === p)) setDamId(p);
+  }
+  function pickDam(id: string) {
+    setDamId(id);
+    const p = id ? partnerOfId(id) : null;
+    if (p && doffers.some((x) => x.id === p)) setSireId(p);
+  }
+
+  async function act(fn: () => Promise<unknown>, ok?: string) {
+    setBusy(true);
+    try {
+      await fn();
+      if (ok) toast.show(ok, 'ok');
+      await loadPairs();
+      await refresh();
+    } catch (e) {
+      toast.show(e instanceof Error ? e.message : 'Mislukt', 'err');
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function stop(pairId: string) {
     setBusy(true);
     try {
       await api(`/breeding/${pairId}/stop`, { method: 'POST' });
-      toast.show('Koppel gestopt — de duiven kunnen weer vliegen.', 'ok');
+      toast.show('Nest gestopt — de duiven kunnen weer vliegen.', 'ok');
       await loadPairs();
       await refresh();
     } catch (e) {
@@ -80,10 +118,15 @@ export function BreedingPage() {
       `${sire?.name} en ${dam?.name} zijn ${KIN_LABEL[kin] ?? 'familie'}.\n\n` +
       'Het jong krijgt lagere genetische plafonds en waarschijnlijk een afwijking. Toch koppelen?',
     )) return;
+    // A forced nest breaks the koppel(s) these two are in: say so, and ask.
+    if (breaks.length > 0 && !window.confirm(
+      `${sire?.name} en ${dam?.name} zijn geen koppel. Dit nest breekt ${breaks.map((k) => `${k.dofferName.split(' ')[0]} & ${k.duivinName.split(' ')[0]}`).join(' en ')}: ` +
+      `beide partners verliezen ${halfLibido}% van hun libido. Toch broeden?`,
+    )) return;
     setBusy(true);
     try {
       await api('/breeding', { method: 'POST', body: { sireId, damId } });
-      toast.show('Koppel gevormd! Wanneer de jongen komen, is een verrassing. 🥚', 'ok');
+      toast.show('Nest gestart! Wanneer de jongen komen, is een verrassing. 🥚', 'ok');
       setSireId('');
       setDamId('');
       await loadPairs();
@@ -111,9 +154,13 @@ export function BreedingPage() {
         </div>
       )}
 
+      {state.loft?.equipment && state.inrichting && (
+        <CouplesCard loft={state.loft} pigeons={state.pigeons} cat={state.inrichting} busy={busy} act={act} />
+      )}
+
       <div className="grid cols-2">
         <div className="card" data-tour="breed">
-          <h2>Nieuw koppel</h2>
+          <h2>Nest starten</h2>
           {/* Two sentences: what it costs and what drives the odds. The rest
               (overerving, genen, uitkomsttijd) staat in de wiki. */}
           <p className="muted" style={{ marginBottom: 4 }}>
@@ -136,16 +183,16 @@ export function BreedingPage() {
 
           <div className="field">
             <label>Vader (doffer)</label>
-            <select value={sireId} onChange={(e) => setSireId(e.target.value)}>
+            <select value={sireId} onChange={(e) => pickSire(e.target.value)}>
               <option value="">— kies een doffer —</option>
               {doffers.map((p) => (
-                <option key={p.id} value={p.id}>{p.name} (★{p.talent} · ❤{Math.round(p.libido ?? 0)} · ⚡{Math.round(p.form ?? 0)})</option>
+                <option key={p.id} value={p.id}>{partnerOfId(p.id) ? '💑 ' : ''}{p.name} (★{p.talent} · ❤{Math.round(p.libido ?? 0)} · ⚡{Math.round(p.form ?? 0)})</option>
               ))}
             </select>
           </div>
           <div className="field">
             <label>Moeder (duivin)</label>
-            <select value={damId} onChange={(e) => setDamId(e.target.value)}>
+            <select value={damId} onChange={(e) => pickDam(e.target.value)}>
               <option value="">— kies een duivin —</option>
               {duivinnen.map((p) => (
                 <option key={p.id} value={p.id}>{p.name} (★{p.talent} · ❤{Math.round(p.libido ?? 0)} · ⚡{Math.round(p.form ?? 0)})</option>
@@ -187,9 +234,16 @@ export function BreedingPage() {
             </div>
           )}
 
+          {isKoppel && <p className="faint" style={{ margin: '0 0 10px', fontSize: '0.85rem' }}>💑 Een koppel — hun jongen versterken later het weduwschap.</p>}
+          {breaks.length > 0 && (
+            <p className="notice err" style={{ margin: '0 0 10px' }}>
+              💔 Geen koppel: dit nest breekt {breaks.map((k) => `${k.dofferName.split(' ')[0]} & ${k.duivinName.split(' ')[0]}`).join(' en ')} — beide partners
+              verliezen {halfLibido}% libido.
+            </p>
+          )}
           {blockingNests.length > 0 && (
             <p className="muted" style={{ fontSize: '0.85rem' }}>
-              Er wacht nog een nest op je keuze — beslis daar eerst over voor je opnieuw koppelt.
+              Er wacht nog een nest op je keuze — beslis daar eerst over voor je een nieuw nest start.
             </p>
           )}
           <button
@@ -197,13 +251,13 @@ export function BreedingPage() {
             disabled={busy || !sireId || !damId || blockingNests.length > 0}
             onClick={start}
           >
-            {kin ? 'Toch koppelen' : 'Koppelen'} · <Money value={BREED_COST} />
+            {kin || breaks.length > 0 ? 'Toch broeden' : 'Nest starten'} · <Money value={BREED_COST} />
           </button>
         </div>
 
         <div className="card">
           <h2>Broedsels onderweg</h2>
-          {pairs.length === 0 && <p className="muted">Geen koppels aan het broeden.</p>}
+          {pairs.length === 0 && <p className="muted">Geen nesten.</p>}
           <div className="stack">
             {pairs.map((pair) => (
               <div key={pair.id} className="card" style={{ boxShadow: 'none', background: 'var(--surface-2)' }}>

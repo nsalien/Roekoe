@@ -123,6 +123,7 @@ export const EQUIPMENT = {
   baskets: { label: 'Betere reismanden', price: 1000, daily: 0.5, energyMult: 0.97, healthMult: 0.95 },
   weatherStation: { label: 'Weerstation', price: 1500, daily: 1, forecastHours: 24, refreshHours: 6, finalHours: 2 },
   magazine: { label: 'Vakblad', price: 0, daily: 6, bandHalfWidth: 6, reportDays: 28 },
+  partnerhok: { label: 'Partnerhok', price: 600, dailyPerBox: 0.5, maxBoxes: 3 },
 } as const;
 export type EquipmentKey = 'ventilation' | 'run' | 'raptorGuard' | 'light' | 'baskets' | 'weatherStation' | 'magazine';
 /** What the next infrarood-nestbak costs: the first purchase is two boxes. */
@@ -181,12 +182,40 @@ export const SCOUT = {
 export type ScoutTier = keyof typeof SCOUT.tiers;
 export type ScoutMarket = keyof typeof SCOUT.markets;
 
-/** Weduwschap (⚠️ dev): the doffer flies home harder when his duivin waits. */
+/**
+ * Weduwschap (⚠️ dev): a doffer flies home harder when his PARTNER waits (see
+ * COUPLES) — and harder still when their young are home too. The two levels
+ * replace FLIGHT_DYNAMICS' big-day (0,10) and off-day (0,07) chances.
+ */
 export const WIDOW = {
   feePerFlight: 10,
-  bigDayChance: 0.14, // instead of FLIGHT_DYNAMICS.bigDayChance (0,10)
-  offDayChance: 0.05, // instead of FLIGHT_DYNAMICS.offDayChance (0,07)
+  base: { bigDayChance: 0.14, offDayChance: 0.05 }, // partner thuis
+  withYoung: { bigDayChance: 0.17, offDayChance: 0.04 }, // partner + hun jongen thuis
   duivinEnergyLoss: 3,
+} as const;
+
+/**
+ * Koppels (⚠️ dev). A doffer and a duivin become partners in one of two ways:
+ *  - the player lets them WENNEN: they must sit together (both in the main loft,
+ *    or together in a partnerhok); after a random 1..maxDays they accept each
+ *    other — or refuse (refusal chance falls with their libido);
+ *  - they find each other: now and then two free birds in the main loft draw
+ *    together on their own (a notification); confirm it and they are a koppel at
+ *    once, no wennen.
+ * Breaking a koppel — on purpose, or by making one of them breed with another
+ * bird — halves both partners' libido.
+ */
+export const COUPLES = {
+  wennenMaxDays: 7, // in the main loft: accepted (or refused) after 1..7 days
+  partnerhokMaxDays: 4, // in a partnerhok: 1..4 days
+  refuseMax: 0.4, // refusal chance = refuseMax − avgLibido / refuseLibidoDivisor, at least refuseMin
+  refuseMin: 0.1,
+  refuseLibidoDivisor: 250, // libido 50 → 20 %, 75 → 10 %, 25 → 30 %
+  partnerhokRefuseMult: 0.5,
+  breakLibidoMult: 0.5, // ontkoppelen (or forced breeding): libido −50 % for both partners
+  attractionChancePerDay: 0.12, // per loft with at least one free duo sitting together
+  attractionDays: 3, // how long the offer stays open
+  maxOpenAttractions: 2,
 } as const;
 
 /**

@@ -32,6 +32,7 @@ const SECTIONS = [
   { id: 'titan', icon: '🏆', label: 'Titanenwedstrijd' },
   { id: 'estafette', icon: '🔗', label: 'Estafettevlucht' },
   { id: 'criterium', icon: '🏆', label: 'Leeftijdscriterium' },
+  { id: 'koppels', icon: '💑', label: 'Koppels' },
   { id: 'broeden', icon: '🥚', label: 'Kweken & broeden' },
   { id: 'inteelt', icon: '🌳', label: 'Stamboom & inteelt' },
   { id: 'ziekte', icon: '🤒', label: 'Ziekte' },
@@ -1093,6 +1094,22 @@ export function WikiPage() {
         <p><strong>Strategie:</strong> race nooit een uitgeputte duif. Het levert amper punten op én riskeert een blessure of erger — laat haar eerst herstellen.</p>
       </Section>
 
+      <Section id="koppels" icon="💑" title="Koppels">
+        <p className="muted" style={{ marginTop: 0 }}>
+          Een doffer en een duivin kunnen <strong>partners</strong> worden. Dat doe je op de pagina <em>Kweek</em>. Een koppel
+          is nodig voor het <a href="#inrichting">weduwschap</a>.
+        </p>
+        <ul>
+          <li><strong>Laten wennen:</strong> ze moeten <strong>samen zitten</strong> — allebei in het hoofdhok (niet in een apart hok of de ziekenboeg), of samen in een <strong>partnerhok</strong>. Na <strong>1 tot 7 dagen</strong> aanvaarden ze elkaar, of ze <strong>weigeren</strong>. Hoelang het duurt en of ze weigeren weet je pas op die dag.</li>
+          <li><strong>Weigerkans:</strong> hoe hoger hun libido, hoe kleiner: bij libido 25 zo'n 30 %, bij 50 zo'n 20 %, vanaf 75 nog 10 %.</li>
+          <li><strong>Partnerhok</strong> (€600 + €0,50/dag, op de pagina <em>Inrichting</em>): twee duiven zitten er samen, ook als hij een apart hok heeft. Wennen duurt er 1 tot 4 dagen en de weigerkans is gehalveerd.</li>
+          <li><strong>Zelf naar elkaar toe trekken:</strong> af en toe zoeken twee vrije duiven in het hoofdhok elkaar op. Je krijgt een melding. Bevestig je het (binnen 3 dagen), dan zijn ze <strong>meteen een koppel</strong>, zonder wentijd.</li>
+          <li><strong>Ontkoppelen</strong> kost beide partners de <strong>helft van hun libido</strong>. Stoppen met wennen kost niets.</li>
+          <li><strong>Broeden met een andere duif</strong> mag, maar dan valt het koppel uiteen: ook dan verliezen beide partners de helft van hun libido.</li>
+          <li>Verkoop je een partner, of sterft ze, dan is het koppel voorbij — zonder libidoverlies.</li>
+        </ul>
+      </Section>
+
       <Section id="broeden" icon="🥚" title="Kweken & broeden">
         <p className="muted" style={{ marginTop: 0 }}>
           Koppelen kost <strong>€750</strong> en <strong>−15 energie per ouder</strong>, meteen afgerekend bij het
@@ -1665,9 +1682,10 @@ export function WikiPage() {
 
         <h3 style={{ marginBottom: 4 }}>Weduwschap</h3>
         <ul>
-          <li>Een <strong>doffer in een apart hok</strong> kan op weduwschap met een duivin uit je hok. €10 per vlucht.</li>
-          <li>Zijn dagvorm verschuift: kans op een grote dag 10 % → 14 %, op een slechte dag 7 % → 5 %.</li>
-          <li>Enkel als zij bij de lossing thuis is (niet zelf vliegt die dag, niet de weg kwijt, niet in de ziekenboeg) en geen van beiden broedt. Zij verliest 3 energie per vlucht van haar doffer.</li>
+          <li>Een <strong>doffer met een partner</strong> (zie <a href="#koppels">Koppels</a>) die in een <strong>apart hok</strong> woont, kan op weduwschap. Hij vliegt naar zijn partner. €10 per vlucht.</li>
+          <li><strong>Partner thuis</strong> (basis): kans op een grote dag 10 % → 14 %, op een slechte dag 7 % → 5 %.</li>
+          <li><strong>Partner én hun jongen thuis</strong> (extra): grote dag 17 %, slechte dag 4 %.</li>
+          <li>Enkel als zij bij de lossing thuis is (niet zelf vliegt die dag, niet de weg kwijt, niet in de ziekenboeg) en ze niet op een nest zitten. Een jong telt als het thuis is en die dag niet zelf vliegt. Zij verliest 3 energie per vlucht van haar doffer.</li>
         </ul>
 
         <h3 style={{ marginBottom: 4 }}>Scout op buitenlandse markten</h3>

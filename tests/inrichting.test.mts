@@ -16,8 +16,8 @@ import { createLoftForUser, enterFlight, seedWorld, startBreeding } from '../cor
 import { applyFlightForecasts, ensureFlightsScheduled, flightsNeedingForecast, tickDailyCare } from '../core/game/schedule.js';
 import {
   buyEquipment, buyIrBox, entryMods, fendsOff, grounded, insurancePayout, insurancePremium, insuranceQuote,
-  magazineRanges, setInsurance, setWidow, settleWidowhood, tickHawk, tickMagazine, vaccinate, vaccinateLoft,
-  widowActive, libidoTargetBonus, restBonusEnergy,
+  magazineRanges, setInsurance, tickHawk, tickMagazine, vaccinate, vaccinateLoft,
+  libidoTargetBonus, restBonusEnergy,
 } from '../core/game/inrichting.js';
 import { breed } from '../core/game/breeding.js';
 import { buyScouted, returnChance, rollReturnDay, scoutStatus, sendScout } from '../core/game/scout.js';
@@ -142,30 +142,7 @@ console.log('\n=== 4. Verzekering ===');
   ok(withIns.insurance === 1.23, 'premies staan in de Dagbalans');
 }
 
-console.log('\n=== 5. Weduwschap ===');
-{
-  const { store, db, userId, loft, birds } = world();
-  for (const p of birds()) p.birthWeek = db.world.currentWeek - 60;
-  birds()[0].sex = 'doffer'; birds()[1].sex = 'duivin';
-  const [d, w] = birds();
-  ok(setWidow(store, userId, d.id, w.id) !== null, 'zonder apart hok geweigerd');
-  d.compartment = true;
-  ok(setWidow(store, userId, w.id, d.id) !== null, 'enkel doffers');
-  ok(setWidow(store, userId, d.id, w.id) === null, 'doffer in een apart hok + duivin: ok');
-  ensureFlightsScheduled(db, Date.now());
-  const f = db.flights.find((x) => x.status === 'scheduled' && !x.relay && !x.practice)!;
-  const startMs = Date.parse(f.startAt);
-  ok(entryMods(db, d, f, startMs).widow, 'actief bij de lossing');
-  f.entries.push({ pigeonId: w.id, ownerId: userId } as any);
-  ok(!widowActive(db, d, f, startMs), 'vliegt zij die dag zelf, dan niet');
-  f.entries = [];
-  const flight = { ...f, id: 'flt_test', entries: [] } as Flight;
-  startLiveFlight(flight, [{ pigeon: d, ownerName: 'x', mods: entryMods(db, d, f, startMs) }], db.world.currentWeek, randomWeather());
-  ok(flight.sim[0].widow === true, 'de sim onthoudt het weduwschap');
-  const m = loft.money; const e = w.form;
-  settleWidowhood(db, flight);
-  ok(loft.money === m - 10 && Math.abs(w.form - Math.max(0, e - 3)) < 0.01, '€10 per vlucht, de duivin −3 energie');
-}
+console.log('\n=== 5. Weduwschap: zie koppels.test.mts ===');
 
 console.log('\n=== 6. Reismanden ===');
 {

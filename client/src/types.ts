@@ -266,6 +266,22 @@ export interface LoftEquipment {
   lastHawkDay: number | null;
   scout: ScoutView | null;
   scoutUsed: boolean; // once per season
+  partnerhokken: number;
+  partnerhokInUse: number;
+  partnerhokNextPrice: number | null;
+  couples: CoupleView[];
+  attractions: { dofferId: string; dofferName: string; duivinId: string; duivinName: string }[];
+}
+
+/** A koppel, or a pair still wennen (the outcome and end day stay on the server). */
+export interface CoupleView {
+  dofferId: string; dofferName: string;
+  duivinId: string; duivinName: string;
+  status: 'wennen' | 'koppel';
+  since: string | null;
+  day: number; // which day since they started
+  maxDays: number | null; // wennen: they decide within this many days
+  partnerhok: boolean;
 }
 
 export interface ScoutView {
@@ -292,11 +308,14 @@ export interface PigeonCareView {
   quarantineUntil: string | null;
   insurance: { payout: number; since: string; premium: number } | null;
   insuranceQuote: { payout: number; premium: number } | null;
-  widow: { id: string; name: string } | null;
+  partner: { id: string; name: string; since: string | null } | null;
+  wennenWith: { id: string; name: string } | null;
+  /** Weduwschap: switched on, and today's level (0 not possible, 1 partner home, 2 partner + young home). */
+  widow: { on: boolean; level: 0 | 1 | 2 };
 }
 
 export interface InrichtingCatalogue {
-  equipment: Record<string, { label: string; price?: number; daily?: number; priceFirstTwo?: number; pricePerExtra?: number; dailyPerBoxInUse?: number }>;
+  equipment: Record<string, { label: string; price?: number; daily?: number; priceFirstTwo?: number; pricePerExtra?: number; dailyPerBoxInUse?: number; dailyPerBox?: number; maxBoxes?: number }>;
   vaccines: Record<string, { label: string; disease: string; kind: 'vaccin' | 'kuur'; price: number; days: number; protect: number; noFlyDays: number; libidoHit: number }>;
   scout: {
     tiers: Record<string, { label: string; wage: number; scoreMin: number; scoreMax: number; maxDays: number; emptyChance: number }>;
@@ -304,6 +323,7 @@ export interface InrichtingCatalogue {
     choiceHours: number; quarantineDays: number;
   };
   widowFee: number;
+  couples: { wennenMaxDays: number; partnerhokMaxDays: number; breakLibidoMult: number };
   insurancePayoutRate: number;
 }
 

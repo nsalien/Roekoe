@@ -48,6 +48,7 @@ import {
   BREEDING,
   failedBreedRefund,
   COACH,
+  COUPLES,
   EQUIPMENT,
   INSURANCE,
   SCOUT,
@@ -112,6 +113,7 @@ import { pigeonSeasonRankings } from '../../core/game/season.js';
 import { buyStraw, setCleaner } from '../../core/game/hygiene.js';
 import { buyEquipment, buyIrBox, magazineReport, setInsurance, setWidow, vaccinate, vaccinateLoft } from '../../core/game/inrichting.js';
 import { buyScouted, dismissScout, sendScout } from '../../core/game/scout.js';
+import { buyPartnerhok, confirmAttraction, dismissAttraction, startWennen, unpair } from '../../core/game/koppels.js';
 import { spendAttribute, spendExperience } from '../../core/game/newcomer.js';
 import { velocityBreakdown, weightsForDistance } from '../../core/game/flight.js';
 import { ageInWeeks } from '../../core/game/pigeon.js';
@@ -528,6 +530,7 @@ app.get('/state', (c) => {
       vaccines: VACCINES,
       scout: { tiers: SCOUT.tiers, markets: SCOUT.markets, choiceHours: SCOUT.choiceHours, quarantineDays: SCOUT.quarantineDays },
       widowFee: WIDOW.feePerFlight,
+      couples: { wennenMaxDays: COUPLES.wennenMaxDays, partnerhokMaxDays: COUPLES.partnerhokMaxDays, breakLibidoMult: COUPLES.breakLibidoMult },
       insurancePayoutRate: INSURANCE.payoutRate,
     },
     infirmary: INFIRMARY,
@@ -883,7 +886,52 @@ app.post('/pigeons/:id/widow', async (c) => {
   const user = requireUser(c);
   const body = await c.req.json().catch(() => ({}));
   const store = c.get('store');
-  const err = setWidow(store, user.id, c.req.param('id'), body.duivinId ? String(body.duivinId) : null);
+  const err = setWidow(store, user.id, c.req.param('id'), !!body.on);
+  await store.persist();
+  return c.json(ok(err), err ? 400 : 200);
+});
+
+// Koppels (⚠️ dev): wennen, aantrekking bevestigen, ontkoppelen, partnerhok.
+app.post('/couples/start', async (c) => {
+  const user = requireUser(c);
+  const body = await c.req.json().catch(() => ({}));
+  const store = c.get('store');
+  const err = startWennen(store, user.id, String(body.dofferId ?? ''), String(body.duivinId ?? ''), { partnerhok: !!body.partnerhok });
+  await store.persist();
+  return c.json(ok(err), err ? 400 : 200);
+});
+
+app.post('/couples/confirm', async (c) => {
+  const user = requireUser(c);
+  const body = await c.req.json().catch(() => ({}));
+  const store = c.get('store');
+  const err = confirmAttraction(store, user.id, String(body.dofferId ?? ''), String(body.duivinId ?? ''));
+  await store.persist();
+  return c.json(ok(err), err ? 400 : 200);
+});
+
+app.post('/couples/dismiss', async (c) => {
+  const user = requireUser(c);
+  const body = await c.req.json().catch(() => ({}));
+  const store = c.get('store');
+  const err = dismissAttraction(store, user.id, String(body.dofferId ?? ''), String(body.duivinId ?? ''));
+  await store.persist();
+  return c.json(ok(err), err ? 400 : 200);
+});
+
+app.post('/couples/unpair', async (c) => {
+  const user = requireUser(c);
+  const body = await c.req.json().catch(() => ({}));
+  const store = c.get('store');
+  const err = unpair(store, user.id, String(body.pigeonId ?? ''));
+  await store.persist();
+  return c.json(ok(err), err ? 400 : 200);
+});
+
+app.post('/loft/partnerhok', async (c) => {
+  const user = requireUser(c);
+  const store = c.get('store');
+  const err = buyPartnerhok(store, user.id);
   await store.persist();
   return c.json(ok(err), err ? 400 : 200);
 });

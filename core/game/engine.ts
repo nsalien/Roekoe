@@ -65,6 +65,7 @@ import {
 } from './pigeon.js';
 import { clamp, randFloat, randInt, round1 } from './util.js';
 import { clearOwnerCare, grounded, inQuarantine } from './inrichting.js';
+import { breakForForcedBreeding } from './koppels.js';
 
 export const NPC_OWNER_ID = 'npc_market';
 
@@ -580,7 +581,7 @@ export function enterFlight(
       return 'Deze duif is niet vluchtklaar (te jong, ziek, gewond of in de ziekenboeg)';
     if (pigeon.form < 1) return 'Deze duif is volledig uitgeput — laat ze eerst wat rusten';
     const breeding = db.breedingPairs.some((bp) => bp.sireId === pigeonId || bp.damId === pigeonId);
-    if (breeding) return 'Deze duif koppelt — stop eerst het broeden voordat ze weer kan vliegen';
+    if (breeding) return 'Deze duif zit op een nest — stop eerst het broeden voordat ze weer kan vliegen';
     { const debt = debtBlock(loft); if (debt) return debt; }
     if (flight.entries.some((e) => e.pigeonId === pigeonId)) return 'Duif is al ingeschreven';
     // The titanenwedstrijd allows only one bird per loft.
@@ -727,7 +728,7 @@ export function listForSale(
     const racing = pigeonCommittedToFlight(db, pigeonId);
     if (racing) return 'Deze duif staat ingeschreven voor een vlucht';
     const breeding = db.breedingPairs.some((bp) => bp.sireId === pigeonId || bp.damId === pigeonId);
-    if (breeding) return 'Deze duif koppelt momenteel';
+    if (breeding) return 'Deze duif zit momenteel op een nest';
     pigeon.forSale = true;
     pigeon.price = Math.round(price);
     // A bot sells at its asking price and never negotiates, so it never gets a
@@ -852,7 +853,7 @@ function pigeonBusy(db: Database, pigeonId: string): string | null {
   const racing = pigeonCommittedToFlight(db, pigeonId);
   if (racing) return 'Deze duif staat ingeschreven voor een vlucht — schrijf ze eerst uit';
   const breeding = db.breedingPairs.some((bp) => bp.sireId === pigeonId || bp.damId === pigeonId);
-  if (breeding) return 'Deze duif koppelt momenteel — stop eerst het broeden';
+  if (breeding) return 'Deze duif zit momenteel op een nest — stop eerst het broeden';
   return null;
 }
 
@@ -993,11 +994,11 @@ export function startBreeding(
         return `${parent.name} is nog te jong om te kweken (${weeks} van de ${BREEDING.minAgeWeeks} weken)`;
       }
     }
-    if (sire.ailment || dam.ailment) return 'Een zieke of gekwetste duif kan niet koppelen';
-    if (sire.inInfirmary || dam.inInfirmary) return 'Een duif in de ziekenboeg kan niet koppelen';
-    if (onRestCure(sire) || onRestCure(dam)) return 'Een duif op rustkuur kan niet koppelen';
-    if (isAway(sire) || isAway(dam)) return 'Een duif die nog niet thuis is van haar vlucht kan niet koppelen';
-    if (inQuarantine(sire) || inQuarantine(dam)) return 'Een geïmporteerde duif in quarantaine kan nog niet koppelen';
+    if (sire.ailment || dam.ailment) return 'Een zieke of gekwetste duif kan niet broeden';
+    if (sire.inInfirmary || dam.inInfirmary) return 'Een duif in de ziekenboeg kan niet broeden';
+    if (onRestCure(sire) || onRestCure(dam)) return 'Een duif op rustkuur kan niet broeden';
+    if (isAway(sire) || isAway(dam)) return 'Een duif die nog niet thuis is van haar vlucht kan niet broeden';
+    if (inQuarantine(sire) || inQuarantine(dam)) return 'Een geïmporteerde duif in quarantaine kan nog niet broeden';
     // Rest between clutches, per bird (BREEDING.cooldownDays). Named so the
     // player knows WHICH of the two is not ready and for how long.
     for (const parent of [sire, dam]) {
@@ -1009,15 +1010,18 @@ export function startBreeding(
     const alreadyBreeding = db.breedingPairs.some(
       (bp) => bp.sireId === sireId || bp.damId === sireId || bp.sireId === damId || bp.damId === damId,
     );
-    if (alreadyBreeding) return 'Een van deze duiven koppelt al';
+    if (alreadyBreeding) return 'Een van deze duiven zit al op een nest';
     const racing = pigeonCommittedToFlight(db, sireId) || pigeonCommittedToFlight(db, damId);
-    if (racing) return 'Een ingeschreven duif kan niet koppelen — schrijf ze eerst uit voor een vlucht';
+    if (racing) return 'Een ingeschreven duif kan niet broeden — schrijf ze eerst uit voor een vlucht';
     // Only a real clutch blocks a new pair — the rule exists so nests do not pile
     // up. A bird an event handed over shares the waiting queue but has nothing to
     // do with breeding, so it must not lock the pairing form.
     if (loft.pendingBroods?.some((b) => (b.origin ?? 'nest') === 'nest'))
       return 'Er wacht nog een nest op je keuze — beslis eerst welke jongen je houdt';
-    if (loft.money < BREEDING.cost) return 'Niet genoeg geld om te koppelen';
+    if (loft.money < BREEDING.cost) return 'Niet genoeg geld voor een nest';
+    // Koppels (hokinrichting): breeding two birds that are not each other's partner
+    // breaks the koppel(s) they are in — both partners lose half their libido.
+    breakForForcedBreeding(db, loft, sireId, damId);
     loft.money -= BREEDING.cost;
     // Breeding costs the parents some energie.
     sire.form = round1(clamp(sire.form - 15, 0, 100));
