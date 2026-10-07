@@ -62,6 +62,7 @@ function useLokaalSeenAt(userId: string | null | undefined): number {
 const NAV: NavItem[] = [
   { to: '/', label: 'Overzicht', short: 'Start', icon: '🏠', end: true },
   { to: '/hok', label: 'Mijn hok', short: 'Hok', icon: '🕊️' },
+  { to: '/inrichting', label: 'Inrichting', short: 'Inricht.', icon: '🧰' },
   { to: '/vluchten', label: 'Vluchten', short: 'Vlucht', icon: '🏁' },
   { to: '/markt', label: 'Markt', short: 'Markt', icon: '🛒' },
   { to: '/kweek', label: 'Kweek', short: 'Kweek', icon: '🥚' },

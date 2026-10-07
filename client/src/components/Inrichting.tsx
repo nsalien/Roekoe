@@ -1,5 +1,5 @@
 /**
- * Hokinrichting op Mijn hok (⚠️ dev, nog niet live): de inrichting kopen, het
+ * Hokinrichting (⚠️ dev, nog niet live), op de pagina Inrichting en de Markt: de inrichting kopen, het
  * hele hok inenten of kuren, en de scout. Tekst en knoppen — de regels zelf
  * staan in de wiki (#inrichting).
  */
@@ -155,10 +155,10 @@ export function ScoutCard({ loft, cat, busy, act }: { loft: Loft; cat: Inrichtin
             Na {cat.scout.travelHours / 24} dagen komt hij terug met hoogstens drie duiven. Je koopt er één of geen; het scoutloon krijg je niet terug.
           </p>
           <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
-            <select value={market} onChange={(e) => setMarket(e.target.value)} style={{ width: 'auto' }}>
+            <select value={market} onChange={(e) => setMarket(e.target.value)} style={{ width: 'auto', maxWidth: '100%', minWidth: 0 }}>
               {Object.entries(cat.scout.markets).map(([k, m]) => <option key={k} value={k}>{m.label} — {m.blurb}</option>)}
             </select>
-            <select value={tier} onChange={(e) => setTier(e.target.value)} style={{ width: 'auto' }}>
+            <select value={tier} onChange={(e) => setTier(e.target.value)} style={{ width: 'auto', maxWidth: '100%', minWidth: 0 }}>
               {Object.entries(cat.scout.tiers).map(([k, t]) => <option key={k} value={k}>{t.label} · ★ {t.scoreMin}–{t.scoreMax} · €{t.wage}</option>)}
             </select>
             <button className="btn sm" disabled={busy || loft.money < cat.scout.tiers[tier].wage} onClick={() =>

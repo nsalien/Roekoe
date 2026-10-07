@@ -130,7 +130,7 @@
   wordt nu ×0,4. De legacy `runHealthWeek` (admin) is ongewijzigd.
 - **API:** `POST /api/loft/straw`, `POST /api/loft/cleaner {on}`. DTO: `loftDTO.equipment`
   (`hygiene, lastStrawAt, cleaner, strawCost, cleanerWage, illnessMult, decayPerDay`).
-- **UI:** kaart "Hokhygiëne" onder het hokoverzicht (waarde, effect, stro-knop, poetser
+- **UI:** kaart "Hokhygiëne" op de pagina Inrichting (waarde, effect, stro-knop, poetser
   aan/uit) + wiki-sectie `#hygiene` + spelregels §5.2bis. Bots kopen (nog) niets: open vraag.
 
 ### Voer: ongewijzigd
@@ -185,10 +185,15 @@
   `/scout/send {market, tier}`, `/scout/buy {index}`, `/scout/dismiss`. `/state.inrichting` =
   de catalogus. DTO: `loftDTO.equipment` (alle vlaggen + `scout`), `pigeonDTO.care` (enkel
   eigenaar), `.origin`, `.magazineRanges`, `flight.forecast`.
-- **UI (tekst):** op Mijn hok de kaarten Hokinrichting, Vaccins & kuren (hele hok) en Scout
-  (`components/Inrichting.tsx`); het hokoverzicht toont ook weduwschap, bescherming en 📦
-  quarantaine; duifpagina: kaart "Verzorging & verzekering" (`PigeonCareCard`), herkomst, en
-  vakblad-bandbreedtes bij andermans duif; Markt: Marktrapport; Vluchten: 📡 voorspelling.
+- **UI (tekst):** een eigen pagina **Inrichting** (`/inrichting`, `pages/InrichtingPage.tsx`,
+  menu-item 🧰 na *Mijn hok*) met de uitbreidingen (capaciteit + aparte hokken, verhuisd van
+  *Mijn hok*, `data-tour="upgrades"` — de rondleiding wijst er nu heen), Hokhygiëne,
+  Hokinrichting en Vaccins & kuren (hele hok). De **scout** staat op de **Markt**. *Mijn hok*
+  toont boven de duiven enkel het compacte hokoverzicht + een link naar Inrichting: de eigenaar
+  wil zonder scrollen bij zijn duiven. Kaarten in `components/Inrichting.tsx`; het hokoverzicht
+  toont ook weduwschap, bescherming en 📦 quarantaine; duifpagina: kaart "Verzorging &
+  verzekering" (`PigeonCareCard`), herkomst, vakblad-bandbreedtes bij andermans duif; Markt:
+  Scout + Marktrapport; Vluchten: 📡 voorspelling.
 - **Bots:** vers stro bij hygiëne ≤ 60 en dakventilatie zodra ze €5.000 boven hun reserve
   zitten (`maybeFitOutLoft`). Geen vaccins (die houden een duif 2 dagen aan de grond), geen
   scout, weduwschap, verzekering of vakblad. Dit was een open vraag; het voorstel is gevolgd.
@@ -1044,6 +1049,8 @@ Entiteiten: `Pigeon`, `Loft`, `User`, `BreedingPair`, `PendingBrood`, `Flight` (
   **Rode-kassa-waarschuwing** bovenaan zodra `loft.money < 0`: één regel met het aantal dagen
   tot de volgende gedwongen veiling (`loft.debtAuctionInDays`) + link naar `/wiki#schuld`.
   Beheerder-kaart (admin): "Volgende week" + "Toon recente veilingen" (biedgeschiedenis).
+- `InrichtingPage` (`/inrichting`, ⚠️ dev) — uitbreidingen (capaciteit, aparte hokken), hokhygiëne,
+  hokinrichting en vaccins voor het hele hok; zie §0b. Op dev staan de uitbreidingen niet meer op *Mijn hok*.
 - `LoftPage` (Mijn hok) — duivenlijst met per duif: onder de waarde **Opgebracht** (`pigeonDTO.earnings`:
   prijzengeld voor de HUIDIGE eigenaar; lopend totaal `Pigeon.earnings`/`earningsOwner`, opgeteld in
   `creditEarnings` bij de afronding, ×starterbonus zoals uitbetaald; met terugwerkende kracht

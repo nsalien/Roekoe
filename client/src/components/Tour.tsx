@@ -152,12 +152,12 @@ const STEPS: Step[] = [
   {
     route: '/hok', selector: '[data-tour="compartment"]',
     title: '🧱 Apart hok',
-    body: 'Met deze knop zet je een duif in een apart hok: beter energieherstel en minder kans op ziekte. Je koopt aparte hokken bij Uitbreidingen.',
+    body: 'Met deze knop zet je een duif in een apart hok: beter energieherstel en minder kans op ziekte. Je koopt aparte hokken op de pagina Inrichting.',
   },
   {
-    route: '/hok', selector: '[data-tour="upgrades"]',
+    route: '/inrichting', selector: '[data-tour="upgrades"]',
     title: '🏠 Hok uitbreiden',
-    body: 'Hier vergroot je je hokcapaciteit (meer duiven) en koop je aparte hokken. Een duif verkopen doe je met de knop onderaan elke duif.',
+    body: 'Op de pagina Inrichting vergroot je je hokcapaciteit (meer duiven) en koop je aparte hokken, stro, inrichting en vaccins. Een duif verkopen doe je op Mijn hok, met de knop onderaan elke duif.',
   },
   {
     route: '/', selector: '[data-tour="missions"]',

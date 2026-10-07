@@ -2341,7 +2341,7 @@ Verdiend geld kan je investeren in je hok en je duiven (bij *Mijn hok*, de
   betekent meer inschrijvingen en dus een groter deel van de prijzenpot. Daarom
   is het bewust een **investering van lange adem**: de trap wordt steil, én elke
   extra duif kost je daarna méér onderhoud per dag (de schijven in §4.2). Op de
-  uitbreidingskaart in *Mijn hok* zie je die tarieven vóór je koopt.
+  uitbreidingskaart op de pagina *Inrichting* zie je die tarieven vóór je koopt.
 - **Aparte hokken.** Koop losse compartimenten zodat je duiven niet allemaal op
   elkaar zitten. Elk apart hok wordt los gekocht (telkens wat duurder), en je
   **kiest zelf welke duiven** er een krijgen (knop bij *Mijn hok*). Heb je minder aparte hokken dan duiven, dan zitten de rest gewoon

@@ -1606,8 +1606,8 @@ export function WikiPage() {
 
       <Section id="hygiene" icon="🧹" title="Hokhygiëne, vers stro & de hokpoetser">
         <p className="muted" style={{ marginTop: 0 }}>
-          Je hok heeft een <strong>hygiënemeter van 0 tot 100</strong>. Vers stro zet hem op 100. Je ziet hem op{' '}
-          <em>Mijn hok</em>, onder het hokoverzicht.
+          Je hok heeft een <strong>hygiënemeter van 0 tot 100</strong>. Vers stro zet hem op 100. Je ziet en koopt het op de pagina{' '}
+          <em>Inrichting</em>.
         </p>
         <ul>
           <li><strong>Boven 50 zakt de kans op ziekte</strong>, tot <strong>×0,8</strong> bij 100 (bij 75 is dat ×0,9). Op of onder 50 gebeurt er niets — zo was het altijd.</li>
@@ -1620,7 +1620,7 @@ export function WikiPage() {
 
       <Section id="inrichting" icon="🛠️" title="Hokinrichting, vaccins & diensten">
         <p className="muted" style={{ marginTop: 0 }}>
-          Alles hieronder koop je op <em>Mijn hok</em> of op de pagina van een duif. <strong>Niets kopen = het spel zoals
+          Alles hieronder koop je op de pagina <em>Inrichting</em> of op de pagina van een duif; de scout stuur je vanop de <em>Markt</em>. <strong>Niets kopen = het spel zoals
           vroeger.</strong> Wat per dag kost, staat in je <em>Dagbalans</em>.
         </p>
         <MiniTable
@@ -1641,7 +1641,7 @@ export function WikiPage() {
         <p className="muted" style={{ marginTop: 0 }}>
           Elk middel werkt tegen één ziekte: wordt een beschermde duif ziek met precies die ziekte, dan weert ze het af
           met de kans uit de tabel. Een vaccin houdt haar 2 dagen aan de grond. Per duif op haar pagina, of het hele hok
-          tegelijk op <em>Mijn hok</em>.
+          tegelijk op de pagina <em>Inrichting</em>.
         </p>
         <MiniTable
           head={['Middel', 'Ziekte', 'Per duif', 'Werkt', 'Weert af', 'Bijwerking']}
@@ -1735,7 +1735,7 @@ export function WikiPage() {
           <li><strong>Een hok van 8 betaalt niets extra</strong> — de schijven raken alleen wie groter gaat.</li>
           <li><strong>Je ziet het per schijf terug</strong> in de <em>Dagbalans</em> op het Overzicht, naast je sponsorinkomsten.</li>
           <li><strong>Voer, aparte hokken en de ziekenboeg staan hier los van</strong> en worden apart aangerekend.</li>
-          <li>Op de uitbreidingskaart in <em>Mijn hok</em> zie je de tarieven <strong>vóór</strong> je een uitbreiding koopt.</li>
+          <li>Op de uitbreidingskaart op de pagina <em>Inrichting</em> zie je de tarieven <strong>vóór</strong> je een uitbreiding koopt.</li>
         </ul>
         <p>
           <strong>Strategie:</strong> een groter hok verdient zichzelf alleen terug als je die
