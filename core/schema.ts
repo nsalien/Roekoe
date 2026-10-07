@@ -37,6 +37,8 @@ export interface Ailment {
   // Real-time recovery bookkeeping (see tickHealing). All optional so older
   // saved ailments keep working; they ride in the ailment's JSON column.
   healed?: number; // recovery progress, 0..1
+  /** Spent time in the infirmary during this ailment (the verzekering asks). */
+  boeg?: boolean;
   lastTickMs?: number; // last time healing progressed
   lastUpdateMs?: number; // last doctor/physio status update
   updates?: number; // status-update counter (for stable notification ids)
@@ -189,6 +191,8 @@ export interface Pigeon {
    *  schedule.ts). Shown on Mijn hok only when that is still her owner. */
   earnings?: number;
   earningsOwner?: string | null;
+  /** Hokinrichting: vaccins, quarantaine, verzekering, weduwschap (column `care`). */
+  care?: PigeonCare;
   seasonPracticeGain?: number; // score gained from practice flights this season (excluded from the ranking)
   /**
    * Leeftijdscriterium standings, PER age bracket (see AGE_CUP). A bird ages out
@@ -331,6 +335,50 @@ export interface LoftEquipment {
   lastStrawAt: string | null;
   /** A hokpoetser is hired (€/day, keeps the straw fresh, disinfects). */
   cleaner: boolean;
+  // The rest of the hokinrichting (see EQUIPMENT in gameConfig). All optional:
+  // absent = not bought.
+  ventilation?: boolean;
+  run?: boolean; // buitenren
+  raptorGuard?: boolean; // net over de ren + lokuil
+  light?: boolean; // kunstlicht
+  irBoxes?: number; // infrarood-nestbakken (0 = none)
+  baskets?: boolean; // betere reismanden
+  weatherStation?: boolean;
+  magazine?: boolean; // vakblad-abonnement
+  /** Day number (Brussels) the last sperwerschrik in the ren happened — stable notification id. */
+  lastHawkDay?: number;
+  /** A scout abroad, or his report waiting for a choice (see scout.ts). */
+  scout?: ScoutMission | null;
+}
+
+/** A scout sent to a market abroad (EQUIPMENT/SCOUT in gameConfig). */
+export interface ScoutMission {
+  market: string; // SCOUT.markets key
+  tier: string; // SCOUT.tiers key
+  sentAt: string;
+  readyAt: string; // when the report comes in
+  expiresAt: string; // 48 h after readyAt
+  /** The birds he found. Generated when he leaves, shown from readyAt. */
+  offers: { pigeon: Pigeon; price: number; capsEstimate: { speed: number; endurance: number; orientation: number } }[];
+}
+
+/**
+ * Per-bird care from the hokinrichting (vaccins, quarantaine, verzekering,
+ * weduwschap, herkomst). One JSON column on the pigeon row; absent = none.
+ */
+export interface PigeonCare {
+  /** Vaccine/kuur id → valid until (ISO). See VACCINES in gameConfig. */
+  vaccines?: Record<string, string>;
+  /** May not fly before this (a fresh vaccine). */
+  noFlyUntil?: string;
+  /** Import quarantine: no flying, no pairing before this. */
+  quarantineUntil?: string;
+  /** Duivenverzekering: what is paid out on death, and since when. */
+  insurance?: { payout: number; since: string };
+  /** Weduwschap (doffer only): the duivin he flies home to. */
+  widowOf?: string;
+  /** Where she came from, when imported (e.g. "Import · Zuid-Afrika"). */
+  origin?: string;
 }
 
 /**
@@ -614,6 +662,10 @@ export interface RelayLeg {
 
 /** A single pigeon's frozen performance, computed when a flight goes live. */
 export interface SimEntry {
+  /** Hokinrichting: on weduwschap at the lossing (better odds of a big day). */
+  widow?: boolean;
+  /** Hokinrichting: reismanden — the flight costs this fraction of the usual health. */
+  healthMult?: number;
   pigeonId: string;
   pigeonName: string;
   ownerId: string;
@@ -756,6 +808,8 @@ export interface Flight {
   sim: SimEntry[]; // frozen when the flight goes live
   weather: string;
   weatherFactor: number;
+  /** Weerstation: the forecast for the release, fetched from 24 h before the start. */
+  forecast?: { label: string; factor: number; rain: boolean; tempC: number; at: string } | null;
   /** Seizoen 3 (kenmerken): the release weather in detail — wind along the route
    *  (km/h, + = tailwind), rain, and the temperature at the release point. */
   weatherAlong?: number;
@@ -1077,7 +1131,7 @@ export interface Database {
 }
 
 export function emptyFoodStock(): FoodStock {
-  return { normal: 0, premium: 0, libido: 0, herstel: 0, sport: 0, fond: 0, depuratief: 0, senior: 0 };
+  return { normal: 0, premium: 0, libido: 0, herstel: 0 };
 }
 
 /** The loft's hokinrichting as it stands today: everything off, hygiene neutral. */

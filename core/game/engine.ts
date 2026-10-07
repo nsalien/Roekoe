@@ -64,6 +64,7 @@ import {
   trainingCost,
 } from './pigeon.js';
 import { clamp, randFloat, randInt, round1 } from './util.js';
+import { clearOwnerCare, grounded, inQuarantine } from './inrichting.js';
 
 export const NPC_OWNER_ID = 'npc_market';
 
@@ -573,6 +574,8 @@ export function enterFlight(
     // and Wednesday is fine and is how you plan a week.
     if (pigeonAirborne(db, pigeonId, Date.now(), flight.id))
       return `${pigeon.name} is nog onderweg op een andere vlucht — wacht tot ze thuis is`;
+    const notYet = grounded(pigeon);
+    if (notYet) return notYet;
     if (!canRace(pigeon, db.world.currentWeek))
       return 'Deze duif is niet vluchtklaar (te jong, ziek, gewond of in de ziekenboeg)';
     if (pigeon.form < 1) return 'Deze duif is volledig uitgeput — laat ze eerst wat rusten';
@@ -769,6 +772,8 @@ export function unlist(store: Store, userId: string, pigeonId: string): string |
  * sale — this does the transfer, not the rules.
  */
 export function settlePigeonSale(db: Database, buyer: Loft, pigeon: Pigeon): void {
+  // A policy and a weduwschap belong to the old owner's loft, not to the bird.
+  clearOwnerCare(pigeon);
   const price = pigeon.price ?? 0;
   const sellerId = pigeon.ownerId;
   const soldTalent = talent(pigeon); // read BEFORE the bird changes hands
@@ -992,6 +997,7 @@ export function startBreeding(
     if (sire.inInfirmary || dam.inInfirmary) return 'Een duif in de ziekenboeg kan niet koppelen';
     if (onRestCure(sire) || onRestCure(dam)) return 'Een duif op rustkuur kan niet koppelen';
     if (isAway(sire) || isAway(dam)) return 'Een duif die nog niet thuis is van haar vlucht kan niet koppelen';
+    if (inQuarantine(sire) || inQuarantine(dam)) return 'Een geïmporteerde duif in quarantaine kan nog niet koppelen';
     // Rest between clutches, per bird (BREEDING.cooldownDays). Named so the
     // player knows WHICH of the two is not ready and for how long.
     for (const parent of [sire, dam]) {
@@ -1066,6 +1072,7 @@ export function setInfirmary(
     const racing = pigeonCommittedToFlight(db, pigeonId);
     if (racing) return 'Deze duif staat ingeschreven voor een vlucht';
     pigeon.inInfirmary = true;
+    if (pigeon.ailment) pigeon.ailment.boeg = true; // the verzekering asks
     // The bird KEEPS its compartment flag while isolated in the infirmary, but the
     // slot frees up in the meantime — compartmentsUsed and the assign-check both
     // ignore infirmary birds, and the rest-bonus is withheld — so another bird can

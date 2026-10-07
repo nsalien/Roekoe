@@ -192,6 +192,7 @@ function rowToPigeon(r: any): Pigeon {
     trait: r.trait ?? null,
     earnings: r.earnings ?? 0,
     earningsOwner: r.earnings_owner ?? null,
+    care: r.care ? JSON.parse(r.care) : undefined,
     awayUntil: r.away_until ?? null,
     lastRaceWasPractice: !!r.last_race_practice,
     seasonPeakSpeed: r.season_peak_speed ?? 0,
@@ -243,6 +244,7 @@ function rowToFlight(r: any): Flight {
     tempC: r.temp_c ?? undefined,
     results: JSON.parse(r.results || '[]'),
     recap: r.recap ?? '',
+    forecast: r.forecast ? JSON.parse(r.forecast) : undefined,
     chat: r.chat ? JSON.parse(r.chat) : [],
     createdAt: r.created_at,
   };
@@ -382,7 +384,7 @@ const PIGEON_COLUMNS = [
   'season_start_score', 'season_practice_gain', 'trained_at', 'genes', 'decline_rate',
   'care_assigned', 'last_race_at', 'last_race_practice', 'last_rest_cure_at', 'away_until',
   'cup', 'titles', 'listed_at', 'min_bid', 'last_bred_at', 'sire_name', 'dam_name', 'quirk',
-  'trait', 'earnings', 'earnings_owner',
+  'trait', 'earnings', 'earnings_owner', 'care',
 ];
 
 /**
@@ -427,6 +429,8 @@ function pigeonRow(p: Pigeon): unknown[] {
     p.trait ?? null,
     p.earnings ?? 0,
     p.earningsOwner ?? null,
+    // '' for a bird without any care, so its column-narrowed UPDATE skips it.
+    p.care && Object.keys(p.care).length ? JSON.stringify(p.care) : '',
   ];
 }
 
@@ -783,7 +787,7 @@ export class D1Store implements Store {
         'id', 'week', 'template_key', 'name', 'type', 'distance_km', 'entry_fee', 'from_city',
         'to_city', 'start_at', 'status', 'entries', 'sim', 'weather', 'weather_factor', 'results',
         'recap', 'created_at', 'practice', 'titan', 'relay', 'legs', 'age_cat', 'cup_sprint',
-        'chat', 'weather_along', 'weather_rain', 'temp_c',
+        'chat', 'weather_along', 'weather_rain', 'temp_c', 'forecast',
       ],
       keyColumn: 'id',
       row: (f) => [
@@ -796,6 +800,7 @@ export class D1Store implements Store {
         // keeps skipping the column.
         f.chat?.length ? JSON.stringify(f.chat) : '',
         f.weatherAlong ?? null, f.weatherRain == null ? null : b(f.weatherRain), f.tempC ?? null,
+        f.forecast ? JSON.stringify(f.forecast) : '',
       ],
       stmts,
     });
@@ -1728,6 +1733,10 @@ export const SCHEMA_STEPS: string[] = [
   // Hokinrichting (⚠️ dev, nog niet live): hygiëne, stro en poetser as one JSON
   // blob on the loft row (Loft.equipment) — no table, no extra query.
   "ALTER TABLE lofts ADD COLUMN equipment TEXT NOT NULL DEFAULT ''",
+  // Per-bird care (vaccins, quarantaine, verzekering, weduwschap) and the
+  // weerstation's forecast on the flight row — same rules: '' = untouched.
+  "ALTER TABLE pigeons ADD COLUMN care TEXT NOT NULL DEFAULT ''",
+  "ALTER TABLE flights ADD COLUMN forecast TEXT NOT NULL DEFAULT ''",
 ];
 
 /**

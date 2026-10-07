@@ -41,7 +41,7 @@ export interface PigeonBreed {
   rarityLabel: string;
   image: string; // filename under /pigeon-images/
 }
-export type FeedRation = 'normal' | 'premium' | 'libido' | 'herstel' | 'sport' | 'fond' | 'depuratief' | 'senior';
+export type FeedRation = 'normal' | 'premium' | 'libido' | 'herstel';
 export type FoodStock = Record<FeedRation, number>;
 export type BetKind = 'win' | 'last' | 'own_top3' | 'top3' | 'mine_wins' | 'head2head';
 export type FlightType = 'regional' | 'national' | 'international';
@@ -92,6 +92,12 @@ export interface Pigeon {
   // players' birds these are null (see `revealed`). The general score (talent)
   // is always public.
   revealed: boolean;
+  /** Hokinrichting: vaccins, quarantaine, verzekering, weduwschap — own birds only. */
+  care?: PigeonCareView | null;
+  /** Where she came from when imported by a scout. */
+  origin?: string | null;
+  /** Vakblad: someone else's bird as bands instead of hidden values. */
+  magazineRanges?: Record<'speed' | 'endurance' | 'orientation', [number, number]> | null;
   speed: number | null;
   endurance: number | null;
   orientation: number | null;
@@ -247,6 +253,54 @@ export interface LoftEquipment {
   cleanerWage: number; // the hokpoetser's daily wage
   illnessMult: number; // what the meter does to the chance to fall ill (1 = nothing)
   decayPerDay: number; // how much it drops tonight
+  ventilation: boolean;
+  run: boolean;
+  raptorGuard: boolean;
+  light: boolean;
+  irBoxes: number;
+  irInUse: number;
+  irNextPrice: number | null;
+  baskets: boolean;
+  weatherStation: boolean;
+  magazine: boolean;
+  lastHawkDay: number | null;
+  scout: ScoutView | null;
+}
+
+export interface ScoutView {
+  status: 'away' | 'report' | 'expired';
+  market: string;
+  tier: string;
+  readyAt: string;
+  expiresAt: string;
+  offers: {
+    index: number; name: string; sex: Sex; ageWeeks: number; talent: number;
+    speed: number; endurance: number; orientation: number;
+    capsEstimate: { speed: number; endurance: number; orientation: number };
+    trait: PigeonTrait | null; price: number; marketValue: number;
+  }[];
+}
+
+/** The owner's view of a bird's care (hokinrichting). */
+export interface PigeonCareView {
+  vaccines: { key: string; label: string; until: string }[];
+  noFlyUntil: string | null;
+  quarantineUntil: string | null;
+  insurance: { payout: number; since: string; premium: number } | null;
+  insuranceQuote: { payout: number; premium: number } | null;
+  widow: { id: string; name: string } | null;
+}
+
+export interface InrichtingCatalogue {
+  equipment: Record<string, { label: string; price?: number; daily?: number; priceFirstTwo?: number; pricePerExtra?: number; dailyPerBoxInUse?: number }>;
+  vaccines: Record<string, { label: string; disease: string; kind: 'vaccin' | 'kuur'; price: number; days: number; protect: number; noFlyDays: number; libidoHit: number }>;
+  scout: {
+    tiers: Record<string, { label: string; wage: number; scoreMin: number; scoreMax: number }>;
+    markets: Record<string, { label: string; blurb: string }>;
+    travelHours: number; choiceHours: number; quarantineDays: number;
+  };
+  widowFee: number;
+  insurancePayoutRate: number;
 }
 
 /** What is left of the starter package, and how long the timed perks still run. */
@@ -271,8 +325,11 @@ export interface DailyCostBreakdown {
   doctors: number;
   physios: number;
   medicatedFeed: number;
-  /** Hokpoetser's wage (hokinrichting). Absent on an older server. */
-  cleaner?: number;
+  /** Hokinrichting: running cost per item (poetser, ventilatie, ren, …). Absent on an older server. */
+  equipment?: { key: string; label: string; amount: number }[];
+  equipmentTotal?: number;
+  /** Duivenverzekering: today's premiums together. */
+  insurance?: number;
   /** Staff being paid with nothing of their kind to treat, and what that costs.
    *  Already included in `doctors`/`physios`/`total` — a warning, not a discount. */
   idleDoctors?: number;
@@ -419,6 +476,8 @@ export interface Flight {
   cupSprint?: boolean;
   cupPrizes?: PrizeTable;
   weather: string;
+  /** Weerstation (hokinrichting): the forecast for the release, only for station owners. */
+  forecast?: { label: string; factor: number; rain: boolean; tempC: number; at: string } | null;
   /** Zonsopgang/-ondergang thuis op de dag van de lossing (niet bij afgelopen vluchten). */
   sun?: { rise: string | null; set: string | null };
   entryCount: number;
@@ -787,6 +846,8 @@ export interface GameState {
   ageCup?: AgeCupInfo;
   offers: { received: OfferView[]; sent: OfferView[] };
   feedRations: Record<FeedRation, FeedRationInfo>;
+  /** Hokinrichting catalogue (absent on an older server). */
+  inrichting?: InrichtingCatalogue;
   infirmary: InfirmaryConfig;
   economy: EconomyCosts;
   missions: DailyMission[];

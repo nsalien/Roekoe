@@ -23,6 +23,13 @@ function ago(iso: string): string {
   return `${Math.floor(h / 24)} d geleden`;
 }
 
+/** Vakblad: what birds fetched per talent class, and every sale in the window. */
+interface MarketReport {
+  days: number;
+  classes: { label: string; count: number; avg: number; min: number; max: number }[];
+  sales: { pigeonName: string; price: number; at: string; talent: number | null; buyerName: string; sellerName: string }[];
+}
+
 export function MarketPage() {
   const { state, refresh } = useGame();
   const { user } = useAuth();
@@ -30,11 +37,13 @@ export function MarketPage() {
   const [listings, setListings] = useState<Pigeon[] | null>(null);
   const [biddable, setBiddable] = useState<Pigeon[]>([]);
   const [trades, setTrades] = useState<Trade[]>([]);
+  const [report, setReport] = useState<MarketReport | null>(null);
   const [auctions, setAuctions] = useState<AuctionInfo[]>([]);
   const [busy, setBusy] = useState(false);
 
   const load = useCallback(async () => {
-    const res = await api<{ listings: Pigeon[]; biddable: Pigeon[]; trades: Trade[]; auctions: AuctionInfo[] }>('/market');
+    const res = await api<{ listings: Pigeon[]; biddable: Pigeon[]; trades: Trade[]; auctions: AuctionInfo[]; report?: MarketReport | null }>('/market');
+    setReport(res.report ?? null);
     setListings(res.listings);
     setBiddable(res.biddable ?? []);
     setTrades(res.trades ?? []);
@@ -278,6 +287,40 @@ export function MarketPage() {
         onBid={(pigeonId, amount) => offerAct(() => api(`/pigeons/${pigeonId}/offer`, { method: 'POST', body: { amount } }), 'Bod uitgebracht! 🤝')}
         onWithdraw={(id) => offerAct(() => api(`/offers/${id}/withdraw`, { method: 'POST' }), 'Bod ingetrokken')}
       />
+
+      {/* Vakblad (hokinrichting): het marktrapport, enkel voor abonnees. */}
+      {report && (
+        <>
+          <div className="page-head" style={{ marginTop: 26 }}>
+            <h2>📰 Marktrapport</h2>
+            <span className="faint">laatste {report.days} dagen</span>
+          </div>
+          <div className="card">
+            {report.classes.length === 0 ? (
+              <p className="muted" style={{ margin: 0 }}>Nog geen verkopen om een prijs uit af te leiden.</p>
+            ) : (
+              <div className="stack" style={{ gap: 4 }}>
+                {report.classes.map((c) => (
+                  <div key={c.label} className="row" style={{ justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
+                    <span>{c.label} <span className="faint">· {c.count} verkocht</span></span>
+                    <span>gemiddeld <Money value={c.avg} /> <span className="faint">(<Money value={c.min} /> – <Money value={c.max} />)</span></span>
+                  </div>
+                ))}
+              </div>
+            )}
+            {report.sales.length > 0 && (
+              <details style={{ marginTop: 10 }}>
+                <summary className="faint">Alle {report.sales.length} verkopen</summary>
+                {report.sales.map((t, i) => (
+                  <div key={i} className="faint" style={{ fontSize: '0.85rem' }}>
+                    {new Date(t.at).toLocaleDateString('nl-BE')} · {t.pigeonName}{t.talent != null ? ` ★ ${t.talent}` : ''} · {t.sellerName} → {t.buyerName} · €{t.price.toLocaleString('nl-BE')}
+                  </div>
+                ))}
+              </details>
+            )}
+          </div>
+        </>
+      )}
 
       {/* Buy/sell history */}
       <div className="page-head" style={{ marginTop: 26 }}>

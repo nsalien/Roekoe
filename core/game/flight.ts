@@ -14,8 +14,8 @@ import {
   DISTANCE_WEIGHTING,
   ENERGIE_IMPACT,
   FLIGHT_DYNAMICS,
-  FEED_EFFECTS,
   FLIGHT_FATIGUE,
+  WIDOW,
   FLIGHT_RISK,
   INJURY,
   IMPROVE_WEIGHTING,
@@ -92,6 +92,8 @@ export function weightsForDistance(distanceKm: number) {
 export interface Entry {
   pigeon: Pigeon;
   ownerName: string;
+  /** Hokinrichting, frozen at the lossing (inrichting.entryMods). Omitted = none. */
+  mods?: { energyMult: number; healthMult: number; widow: boolean };
 }
 
 /**
@@ -254,6 +256,8 @@ function buildPaceProfile(
    *  social/loner on the second pass — where the neighbour condition held).
    *  Omitted = no trait effect at all (legacy callers). */
   traits?: TraitRun,
+  /** Weduwschap: a doffer whose duivin waits has better odds of a big day (WIDOW). */
+  widow = false,
 ): {
   velocity: number; segMult: number[]; durationSeconds: number; dnfAtSeconds: number | null; dnfKind: SimEntry['dnfKind'];
   lost: SimEntry['lost']; strays: SimEntry['strays']; strayDays?: number;
@@ -271,8 +275,9 @@ function buildPaceProfile(
 
   // Form of the day: everyday swing, plus rarer great / off days for upsets.
   let dayFactor = 1 + (rng() * 2 - 1) * FD.dayNoise;
-  if (rng() < FD.bigDayChance) dayFactor *= rf(FD.bigDayMin, FD.bigDayMax);
-  else if (rng() < FD.offDayChance) dayFactor *= rf(FD.offDayMin, FD.offDayMax);
+  // Same draws either way, so weduwschap shifts the odds without reshuffling the race.
+  if (rng() < (widow ? WIDOW.bigDayChance : FD.bigDayChance)) dayFactor *= rf(FD.bigDayMin, FD.bigDayMax);
+  else if (rng() < (widow ? WIDOW.offDayChance : FD.offDayChance)) dayFactor *= rf(FD.offDayMin, FD.offDayMax);
 
   // Weather affects birds differently: rough weather (factor<1) hurts some more;
   // a tailwind (factor>1) helps some more.
@@ -613,7 +618,7 @@ export function startLiveFlight(flight: Flight, entries: Entry[], week: number, 
     weather: { along: w.along, rain: w.rain, tempC: w.tempC },
   };
   const build = (e: Entry, groupKm?: [number, number][]) =>
-    buildPaceProfile(flight.id, e.pigeon, flight.distanceKm, week, w.factor, !!flight.practice, field, { ...run, groupKm });
+    buildPaceProfile(flight.id, e.pigeon, flight.distanceKm, week, w.factor, !!flight.practice, field, { ...run, groupKm }, !!e.mods?.widow);
   let profs = entries.map((e) => build(e));
   // Sociale duif / Eenzaat: where did she have company, measured on the field's
   // profiles WITHOUT this bonus — then rebuild only those birds with it. Same
@@ -638,8 +643,9 @@ export function startLiveFlight(flight: Flight, entries: Entry[], week: number, 
     const flownKm = flight.distanceKm + (prof.lost?.detourKm ?? 0);
     const formCost = flight.practice
       ? PRACTICE.energyCost
-      : round1(routeEnergyCost(e.pigeon.experience, flownKm, randFloat(0, FLIGHT_FATIGUE.jitter), e.pigeon.trait === 'frugal', feedFlightEnergyMult(e.pigeon.ration, flight.distanceKm)));
+      : round1(routeEnergyCost(e.pigeon.experience, flownKm, randFloat(0, FLIGHT_FATIGUE.jitter), e.pigeon.trait === 'frugal', e.mods?.energyMult ?? 1));
     return {
+      ...modSimFields(e),
       pigeonId: e.pigeon.id,
       pigeonName: e.pigeon.name,
       ownerId: e.pigeon.ownerId,
@@ -964,7 +970,7 @@ function startLiveRelay(flight: Flight, entries: Entry[], week: number): void {
         const leg = flight.legs?.[legIndex - 1];
         const prof = buildPaceProfile(
           flight.id, e.pigeon, legKm, week, leg?.weatherFactor ?? 1, false, legFields.get(legIndex),
-          legRun(legIndex, offset, groupKm?.get(e.pigeon.id)),
+          legRun(legIndex, offset, groupKm?.get(e.pigeon.id)), !!e.mods?.widow,
         );
         const planned = { e, legIndex, prof, offset };
         offset += prof.durationSeconds;
@@ -987,8 +993,9 @@ function startLiveRelay(flight: Flight, entries: Entry[], week: number): void {
   for (const team of plan) {
     for (const { e, legIndex, prof, offset } of team) {
       // Each bird pays only for its own leg — a third of the route.
-      const formCost = round1(routeEnergyCost(e.pigeon.experience, legKm, randFloat(0, FLIGHT_FATIGUE.jitter), e.pigeon.trait === 'frugal', feedFlightEnergyMult(e.pigeon.ration, legKm)));
+      const formCost = round1(routeEnergyCost(e.pigeon.experience, legKm, randFloat(0, FLIGHT_FATIGUE.jitter), e.pigeon.trait === 'frugal', e.mods?.energyMult ?? 1));
       sim.push({
+        ...modSimFields(e),
         pigeonId: e.pigeon.id,
         pigeonName: e.pigeon.name,
         ownerId: e.pigeon.ownerId,
@@ -1113,7 +1120,7 @@ export function flightClaimingDay(
  * a bird can actually fly the distance. Never used for the flight itself.
  */
 export function expectedFlightEnergyCost(pigeon: Pigeon, distanceKm: number): number {
-  return routeEnergyCost(pigeon.experience, distanceKm, FLIGHT_FATIGUE.jitter / 2, pigeon.trait === 'frugal', feedFlightEnergyMult(pigeon.ration, distanceKm));
+  return routeEnergyCost(pigeon.experience, distanceKm, FLIGHT_FATIGUE.jitter / 2, pigeon.trait === 'frugal');
 }
 
 /**
@@ -1135,25 +1142,22 @@ function flightHealthCost(km: number, endEnergie: number, dnfExtra: number): num
  * roll (0..FLIGHT_FATIGUE.jitter). Ervaring lowers the drain around a pivot of 50;
  * `costMultiplier` scales the whole thing. See FLIGHT_FATIGUE.
  */
-function routeEnergyCost(experience: number, km: number, jitter: number, frugal = false, feedMult = 1): number {
+function routeEnergyCost(experience: number, km: number, jitter: number, frugal = false, mult = 1): number {
   const expRelief = 1 - (clamp(experience, 0, 100) / 100 - 0.5) * FLIGHT_FATIGUE.experienceReliefSpread;
   return (
     ((FLIGHT_FATIGUE.base + km / FLIGHT_FATIGUE.perKmDivisor) * expRelief + jitter) *
     FLIGHT_FATIGUE.costMultiplier *
     (frugal ? TRAITS.frugalEnergyMult : 1) * // Zuinige vlieger (seizoen 3)
-    feedMult // Sport-/Fondmengeling (hokinrichting)
+    mult // hokinrichting: betere reismanden
   );
 }
 
-/**
- * What the bird's feed does to the energie a route of `km` costs (hokinrichting
- * — ⚠️ dev, nog niet live): Sportmengeling −4 % on every flight, Fondmengeling
- * −8 % from FEED_EFFECTS.fondMinKm. Every other feed: ×1.
- */
-export function feedFlightEnergyMult(ration: string | undefined, km: number): number {
-  if (ration === 'sport') return FEED_EFFECTS.sportFlightEnergyMult;
-  if (ration === 'fond' && km >= FEED_EFFECTS.fondMinKm) return FEED_EFFECTS.fondFlightEnergyMult;
-  return 1;
+/** The hokinrichting fields a sim entry carries (only when they do something). */
+function modSimFields(e: Entry): Pick<SimEntry, 'widow' | 'healthMult'> {
+  const out: Pick<SimEntry, 'widow' | 'healthMult'> = {};
+  if (e.mods?.widow) out.widow = true;
+  if (e.mods && e.mods.healthMult !== 1) out.healthMult = e.mods.healthMult;
+  return out;
 }
 
 /**
@@ -1443,7 +1447,7 @@ export function finalizeFlight(flight: Flight, pigeons: Pigeon[]): SimulatedFlig
     // more health it costs. This is what turns gezondheid into a resource you
     // manage over weeks instead of a number pinned at 100.
     const endEnergie = clamp((s.startForm ?? 100) - (s.formCost ?? 0), 0, 100);
-    const healthDelta = gaveUp ? 0 : -round1(flightHealthCost(flight.distanceKm, endEnergie, isDnf ? rf(4, 9) : 0));
+    const healthDelta = gaveUp ? 0 : -round1(flightHealthCost(flight.distanceKm, endEnergie, isDnf ? rf(4, 9) : 0) * (s.healthMult ?? 1));
     const pigeon = pigeons.find((p) => p.id === s.pigeonId);
     // Ervaring has diminishing returns: the same ride teaches a rookie far more
     // than a veteran (experienceGain scales the raw gain by the room left).
@@ -1641,7 +1645,7 @@ function finalizeRelayFlight(flight: Flight, pigeons: Pigeon[]): SimulatedFlight
       }
       const enduranceDelta = completed ? round1(0.3 + legKm / 500 + rf(0, 0.4)) : 0;
       const endEnergie = clamp((s.startForm ?? 100) - (s.formCost ?? 0), 0, 100);
-      const healthDelta = gaveUp ? 0 : -round1(flightHealthCost(legKm, endEnergie, completed ? 0 : rf(4, 9)));
+      const healthDelta = gaveUp ? 0 : -round1(flightHealthCost(legKm, endEnergie, completed ? 0 : rf(4, 9)) * (s.healthMult ?? 1));
       const pigeon = pigeons.find((p) => p.id === s.pigeonId);
       // Diminishing returns on ervaring — same curve as a solo race.
       const experienceDelta = round1(experienceGain(pigeon?.experience ?? 0, (completed ? 2 : 1) + legKm / 100));

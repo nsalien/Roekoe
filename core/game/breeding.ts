@@ -3,7 +3,6 @@
 import {
   BREEDING,
   DEFAULT_BREED_ID,
-  FEED_EFFECTS,
   GENE,
   INBREEDING,
   MIXED_BREED_ID,
@@ -78,12 +77,14 @@ export function breed(
    * is an ordinary pairing and behaves exactly as before.
    */
   kin?: KinshipDegree | null,
+  /** Infrarood above the nest (hokinrichting): extra twin chance, and success when it is cold. */
+  bonus: { twin?: number; success?: number } = {},
 ): Pigeon[] {
   const avgLibido = (sire.libido + dam.libido) / 2;
   // Low energie (form) makes a pair less likely to produce young.
   const avgEnergy = (sire.form + dam.form) / 2;
   const energyFactor = clamp(0.5 + avgEnergy / 200, 0.5, 1);
-  const successChance = clamp((0.55 + (avgLibido / 100) * 0.45) * energyFactor, 0.2, 1);
+  const successChance = clamp((0.55 + (avgLibido / 100) * 0.45) * energyFactor + (bonus.success ?? 0), 0.2, 1);
   /**
    * The two rolls that decide HOW MANY young come out are seeded on the pair, so
    * two overlapping requests that both resolve the same hatch reach the same
@@ -103,10 +104,7 @@ export function breed(
    */
   const roll = pairId ? seededRng(hashString(`clutch:${pairId}`)) : Math.random;
   if (roll() > successChance) return []; // no young this time
-  // Kweekmengeling (hokinrichting — ⚠️ dev): both parents on it → a few points
-  // more chance at a twin. Stays inside the seeded roll, so it adds no randomness.
-  const kweek = sire.ration === 'libido' && dam.ration === 'libido' ? FEED_EFFECTS.kweekTwinBonus : 0;
-  const secondChance = clamp((avgLibido / 100) * 0.7 * energyFactor, 0, 0.7) + kweek;
+  const secondChance = clamp((avgLibido / 100) * 0.7 * energyFactor, 0, 0.7) + (bonus.twin ?? 0);
   const count = roll() < secondChance ? 2 : 1;
 
   const young: Pigeon[] = [];

@@ -9,6 +9,7 @@ import { useAuth } from '../auth/AuthContext';
 import { buildDaysTaken, canEnter, entryCost } from '../game/flightEntry';
 import { PigeonCard } from '../components/PigeonCard';
 import { LoftView } from '../components/LoftView';
+import { InrichtingCard, ScoutCard, VaccineCard } from '../components/Inrichting';
 import type { FeedRation, Flight, Loft, Pigeon } from '../types';
 
 type SortKey = 'talent' | 'speed' | 'endurance' | 'orientation' | 'form' | 'ageWeeks';
@@ -88,6 +89,13 @@ export function LoftPage() {
             onAssignCompartment={(id) => act(() => api(`/pigeons/${id}/compartment`, { method: 'POST', body: { on: true } }))}
           />
           {state.loft.equipment && <HygieneCard loft={state.loft} busy={busy} act={act} />}
+          {state.loft.equipment && state.inrichting && (
+            <>
+              <InrichtingCard loft={state.loft} cat={state.inrichting} busy={busy} act={act} />
+              <VaccineCard loft={state.loft} pigeons={state.pigeons} cat={state.inrichting} busy={busy} act={act} />
+              <ScoutCard loft={state.loft} cat={state.inrichting} busy={busy} act={act} />
+            </>
+          )}
         </>
       )}
 

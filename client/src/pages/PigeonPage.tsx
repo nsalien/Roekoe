@@ -1,5 +1,6 @@
 /** Single pigeon: full stats, pedigree and training controls. */
 
+import { PigeonCareCard } from '../components/Inrichting';
 import { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { api } from '../api/client';
@@ -214,8 +215,15 @@ export function PigeonPage() {
               🛠️ Je ziet deze eigenschappen als <strong>beheerder</strong> — gewone spelers zien enkel ★ talent.
             </p>
           )}
+          {p.origin && <p className="faint" style={{ margin: '0 0 8px' }}>🌍 {p.origin}</p>}
           {p.revealed ? (
             <PigeonStats pigeon={p} />
+          ) : p.magazineRanges ? (
+            <p className="muted" style={{ margin: 0 }}>
+              📰 Vakblad: snelheid {p.magazineRanges.speed[0]}–{p.magazineRanges.speed[1]} · conditie{' '}
+              {p.magazineRanges.endurance[0]}–{p.magazineRanges.endurance[1]} · oriëntatie{' '}
+              {p.magazineRanges.orientation[0]}–{p.magazineRanges.orientation[1]} (★ {p.talent})
+            </p>
           ) : (
             <p className="muted" style={{ margin: 0 }}>
               🔒 Eigenschappen van andermans duiven zijn verborgen — enkel ★ talent {p.talent} is gekend.
@@ -479,6 +487,10 @@ export function PigeonPage() {
                 </div>
               )}
             </div>
+          )}
+
+          {mine && p.care && state?.inrichting && (
+            <PigeonCareCard p={p} flock={state.pigeons} cat={state.inrichting} busy={busy} run={run} />
           )}
 
           <div className="card">

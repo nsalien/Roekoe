@@ -16,6 +16,7 @@ export function awayStatus(p: Pigeon, nowMs: number = Date.now()): { icon: strin
   if (p.inInfirmary) return { icon: '🏥', label: 'ziekenboeg' };
   if (p.breeding) return { icon: '🥚', label: 'op het nest' };
   if (p.cureUntil && Date.parse(p.cureUntil) > nowMs) return { icon: '💤', label: 'rustkuur' };
+  if (p.care?.quarantineUntil) return { icon: '📦', label: 'quarantaine' };
   return null;
 }
 
@@ -53,6 +54,9 @@ export function LoftView({
     .filter((pair) => pair.length > 0);
   const canMoveIn = pigeons.filter((p) => !p.compartment && !p.inInfirmary && !p.away);
   const freeComps = loft.compartments - inComp.length;
+  const widowers = pigeons.filter((p) => p.care?.widow);
+  const insured = pigeons.filter((p) => p.care?.insurance).length;
+  const vaccinated = pigeons.filter((p) => (p.care?.vaccines.length ?? 0) > 0).length;
 
   return (
     <div className="card" style={{ marginBottom: 18 }}>
@@ -99,6 +103,18 @@ export function LoftView({
           </span>
         ))}
       </Row>
+      {widowers.length > 0 && (
+        <Row label="Weduwschap">
+          {widowers.map((p, i) => <span key={p.id}>{i > 0 && ' · '}❤️ {firstName(p)} &amp; {p.care!.widow!.name.split(' ')[0]}</span>)}
+        </Row>
+      )}
+      {(insured > 0 || vaccinated > 0) && (
+        <Row label="Bescherming">
+          {vaccinated > 0 && <>💉 {vaccinated} {vaccinated === 1 ? 'duif' : 'duiven'} ingeënt of gekuurd</>}
+          {vaccinated > 0 && insured > 0 && ' · '}
+          {insured > 0 && <>🛡️ {insured} verzekerd</>}
+        </Row>
+      )}
       {away.length > 0 && (
         <Row label="Niet thuis">
           {away.map(({ p, st }, i) => (

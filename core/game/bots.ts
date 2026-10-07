@@ -22,8 +22,9 @@
  */
 
 import {
-  AGING,
   BOT,
+  EQUIPMENT,
+  strawCost,
   BREEDING,
   FEED_RATIONS,
   INFIRMARY,
@@ -37,7 +38,7 @@ import type { FeedRationKey } from '../config/gameConfig.js';
 import type { Database, Flight, Loft, Pigeon } from '../schema.js';
 import { newId } from '../store.js';
 import { expectedFlightEnergyCost, pigeonCommittedToFlight } from './flight.js';
-import { inHerstelWindow } from './economy.js';
+import { equipmentOf } from './hygiene.js';
 // The sale itself and the "bird leaves the world" cleanup live in engine.ts, so a
 // bot's purchase is literally the same transaction as a player's. engine.ts also
 // imports from here (botTakeWeeklyActions), which makes this a module cycle —
@@ -83,46 +84,21 @@ function manageInfirmary(loft: Loft, pigeons: Pigeon[]): void {
 }
 
 /**
- * What a bot feeds, per bird (hokinrichting — ⚠️ dev, nog niet live). Every feed
- * now has its own moment, so a bot with money picks per bird:
- *   - flew in the last two days → Herstel (it only works in full then);
- *   - on the nest → Kweekmengeling (twin bonus when both parents eat it);
- *   - health run down → Depuratief (health first);
- *   - past her prime → Seniorenmengeling (slower ageing);
- *   - everyone else → Sportmengeling (bots race all week).
- * A bot short of money stays on Normaal, as before.
+ * What a bot feeds. Herstelvoer costs the same €3/kg as Normaal but returns
+ * +42 energie / +12 gezondheid a week instead of +21/+5, so any bot with a bank
+ * worth the name should be on it: a bird racing two or three times a week loses
+ * more gezondheid than Normaal replaces, and that slow bleed — not money, not
+ * bad luck — is what wore bot flocks down to nothing.
  */
-function chooseRation(db: Database, loft: Loft, p: Pigeon, nowMs: number): FeedRationKey {
-  if (loft.money <= BOT.goodFeedFrom) return 'normal';
-  if (inHerstelWindow(p, nowMs)) return 'herstel';
-  if (db.breedingPairs.some((bp) => bp.sireId === p.id || bp.damId === p.id)) return 'libido';
-  if (p.health < BOT.depuratiefBelowHealth) return 'depuratief';
-  if (db.world.currentWeek - p.birthWeek > AGING.peakEndWeeks) return 'senior';
-  return 'sport';
+function chooseRation(loft: Loft): FeedRationKey {
+  return loft.money > BOT.goodFeedFrom ? 'herstel' : 'normal';
 }
 
-/** Short-lived feeds (they follow a moment, not the bird) are stocked for one week only. */
-const SHORT_FEEDS: ReadonlySet<FeedRationKey> = new Set(['herstel', 'libido', 'depuratief']);
-
-/** Give every bird its feed and keep each feed in use in stock. */
-function feedFlock(db: Database, loft: Loft, pigeons: Pigeon[], nowMs: number): void {
-  const byRation = new Map<FeedRationKey, Pigeon[]>();
-  for (const p of pigeons) {
-    p.ration = chooseRation(db, loft, p, nowMs);
-    byRation.set(p.ration, [...(byRation.get(p.ration) ?? []), p]);
-  }
-  // The loft default follows the majority, for a bird bought later today.
-  loft.feedRation = [...byRation.entries()].sort((a, b) => b[1].length - a[1].length)[0]?.[0] ?? 'normal';
-  for (const [ration, birds] of byRation) {
-    restockFood(loft, birds, ration, SHORT_FEEDS.has(ration) ? 1 : BOT.foodWeeksBuffer);
-  }
-}
-
-/** Keep a few weeks of a ration in stock for the birds on it. */
-function restockFood(loft: Loft, pigeons: Pigeon[], ration: FeedRationKey, weeks: number = BOT.foodWeeksBuffer): void {
+/** Keep a few weeks of the loft's ration in stock. */
+function restockFood(loft: Loft, pigeons: Pigeon[], ration: FeedRationKey): void {
   const weeklyNeed = pigeons.length * FEED_RATIONS[ration].foodPerPigeon;
   if ((loft.food[ration] ?? 0) >= weeklyNeed) return;
-  const want = weeklyNeed * weeks - (loft.food[ration] ?? 0);
+  const want = weeklyNeed * BOT.foodWeeksBuffer - (loft.food[ration] ?? 0);
   // Food comes before every other spend — a starving flock dies within days, so
   // this one deliberately digs below BOT.reserve.
   const price = FEED_RATIONS[ration].pricePerKg;
@@ -438,7 +414,10 @@ function maybeBidOnMarket(
  * (a hungry flock dies), then care, then the investments.
  */
 export function botDailyActions(db: Database, loft: Loft, pigeons: Pigeon[], nowMs: number): void {
-  feedFlock(db, loft, pigeons, nowMs);
+  const ration = chooseRation(loft);
+  loft.feedRation = ration;
+  for (const p of pigeons) p.ration = ration;
+  restockFood(loft, pigeons, ration);
   manageInfirmary(loft, pigeons);
   maybeUpgradeInfirmary(loft, pigeons);
   maybeRestCure(db, loft, pigeons, nowMs);
@@ -450,6 +429,26 @@ export function botDailyActions(db: Database, loft: Loft, pigeons: Pigeon[], now
   // is genuinely free to spend. Reads `pigeons` before the purchase, which is
   // fine — the new bird needs no care until tomorrow's tick.
   maybeBuyFromMarket(db, loft, pigeons, nowMs);
+  maybeFitOutLoft(loft, nowMs);
+}
+
+/**
+ * Hokinrichting (⚠️ dev) — what a bot buys, per the proposal: fresh straw when
+ * the meter runs low, and dakventilatie once it has money to spare. No vaccins
+ * (they ground a bird for two days, which bots do not plan around), no scout,
+ * weduwschap or verzekering.
+ */
+function maybeFitOutLoft(loft: Loft, nowMs: number): void {
+  const eq = equipmentOf(loft);
+  if (!eq.ventilation && loft.money > BOT.reserve + BOT.ventilationReserve) {
+    loft.money -= EQUIPMENT.ventilation.price;
+    loft.equipment = { ...eq, ventilation: true };
+  }
+  const now = equipmentOf(loft);
+  if (now.hygiene <= BOT.strawBelowHygiene && loft.money > BOT.reserve) {
+    loft.money -= strawCost(loft.capacity);
+    loft.equipment = { ...now, hygiene: 100, lastStrawAt: new Date(nowMs).toISOString() };
+  }
 }
 
 /**
@@ -462,8 +461,9 @@ export function botTakeWeeklyActions(
   pigeons: Pigeon[],
   _foodPricePerKg: number,
 ): void {
-  // Feeding is the daily tick's job (feedFlock); a week jump only keeps the
-  // rations it already set.
+  const ration = chooseRation(loft);
+  loft.feedRation = ration;
+  for (const p of pigeons) p.ration = ration;
   manageInfirmary(loft, pigeons);
   maybeTrain(loft, pigeons, Date.now(), 1);
 }

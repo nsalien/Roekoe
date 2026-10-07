@@ -121,7 +121,7 @@
   **dagovergang** in `tickDailyCare` (`tickHygiene`, ná de dagafrekening): 8 × bezetting
   (thuis/capaciteit), ×1,5 met een zieke duif (ziekte, geen kwetsuur) buiten de boeg. Nooit
   per verzoek, dus `idle-writes` blijft groen.
-- **Poetser:** `HYGIENE.cleanerDailyWage` (€14) zit in `dailyRunningCostBreakdown.cleaner` →
+- **Poetser:** `HYGIENE.cleanerDailyWage` (€14) zit als lijn `cleaner` in `dailyRunningCostBreakdown.equipment` →
   vanzelf in de Dagbalans en in wat `tickDailyCare` afrekent. Onder 70 koopt `tickHygiene` een
   lading stro aan de gewone prijs (eenmalige uitgave, níet in de Dagbalans). Besmetting ×0,85.
 - **Ziektekans:** `runHealthDay` gebruikt nu `illnessChance(...)`: hygiëne × apart hok ×
@@ -133,29 +133,67 @@
 - **UI:** kaart "Hokhygiëne" onder het hokoverzicht (waarde, effect, stro-knop, poetser
   aan/uit) + wiki-sectie `#hygiene` + spelregels §5.2bis. Bots kopen (nog) niets: open vraag.
 
-### Nieuw voer (`FEED_RATIONS` + `FEED_EFFECTS` in gameConfig)
-- Acht soorten: Normaal, **Herstel** (€4/kg, enkel volledig binnen
-  `FEED_EFFECTS.herstelWindowHours` = 48 u na `lastRaceAt`, anders herstel zoals Normaal maar
-  eet/kost Herstel — `effectiveRation`/`inHerstelWindow` in economy.ts, gebruikt door
-  `applyDayOfCare` (krijgt nu `dayMs`) én `projectDailyCare`), **Sport** (−4 % vluchtenergie),
-  **Fond** (−8 % vanaf 500 km), Premium (ongewijzigd), **Depuratief**, **Kweekmengeling** (de
-  oude sleutel `libido`, nieuw label; beide ouders erop → `kweekTwinBonus` +5 pp in `breed()`,
-  binnen de geseede worp), **Senioren** (×0,85 in `runAgeDecline`).
-- Vluchtenergie: `routeEnergyCost(..., feedMult)` met `feedFlightEnergyMult(ration, km)` op alle
-  drie de plaatsen (solo, estafette-etappe met de etappelengte, `expectedFlightEnergyCost`).
-- ⚠️ **Open vraag aan de eigenaar:** mag Herstel bij livegang zo aangepast worden? Het raakt elk
-  hok dat er nu op draait. In de demo mag het.
-- **Bots** (`feedFlock` in bots.ts): onder `BOT.goodFeedFrom` Normaal zoals vroeger; anders per
-  duif Herstel (net gevlogen) → Kweek (op het nest) → Depuratief (gezondheid <
-  `BOT.depuratiefBelowHealth` 60) → Senioren (voorbij de piek) → Sport. Herstel/Kweek/Depuratief
-  houden ze maar een week op voorraad. Gemeten over 35 dagen (3 runs): gezondheid ~91 (was ~93),
-  energie ~46 (was ~58), kas gelijk — bots blijven gezond, maar Herstel was hun energiebron.
-- Oude data: `emptyFoodStock()` kent de nieuwe sleutels (rowToLoft voegt ze samen), migratie
-  v13 gebruikt nu `{ ...emptyFoodStock(), normal: 50 }`.
-- **Tests:** `tests/hygiene.test.mts` (formules, verval, niets-kopen-blijft-ongemoeid, poetser
-  + Dagbalans, bodem ×0,4, Herstel-venster, Sport/Fond, Senioren, botvoer).
-  `tests/earnings.test.mts` springt nu terug naar de index van `EARNINGS_BACKFILL_SQL` i.p.v.
-  "één stap terug" (die stap is niet meer de laatste; `SCHEMA_STEPS` is daarvoor geëxporteerd).
+### Voer: ongewijzigd
+- Een eerste poging met acht voersoorten (Herstel enkel na een vlucht, Sport, Fond, …) is op
+  vraag van de eigenaar **volledig teruggedraaid**: "niet goed gedaan". `FEED_RATIONS`, de bots en
+  de wiki staan weer zoals live. Begin daar niet opnieuw aan zonder een nieuw voorstel.
+
+### De rest van de hokinrichting (`core/game/inrichting.ts`, `core/game/scout.ts`)
+- **Config** in gameConfig: `EQUIPMENT` (ventilatie, ren, roofvogelafweer, kunstlicht,
+  infrarood, reismanden, weerstation, vakblad), `VACCINES`, `SCOUT`, `WIDOW`, `INSURANCE`,
+  plus `BOT.strawBelowHygiene`/`ventilationReserve`.
+- **Opslag:** alles van het hok in `Loft.equipment` (zelfde JSON-kolom als de hygiëne, incl.
+  `scout` en `lastHawkDay`). Per duif één nieuwe JSON-kolom **`care`** (`PigeonCare`: vaccins,
+  `noFlyUntil`, `quarantineUntil`, `insurance`, `widowOf`, `origin`), `''` als leeg. Op de vlucht
+  een kolom **`forecast`**. `Ailment.boeg` onthoudt of ze in de ziekenboeg lag. Drie nieuwe
+  stappen achteraan `SCHEMA_STEPS`. Pigeons blijven 1 rij per multi-row statement (53 kolommen).
+- **Dagkost:** `equipmentCostLines` + `insuranceCost` → `dailyRunningCostBreakdown.equipment`
+  (lijnen), `.equipmentTotal`, `.insurance`; zelfde bron voor Dagbalans en `tickDailyCare`.
+  Het oude veld `cleaner` is vervangen door een lijn `key: 'cleaner'`. Bedragen zijn nu soms
+  centen (0,50) — `loft.money` mag fractioneel worden, de DTO rondt af.
+- **Effecten en waar ze zitten:**
+  - ventilatie: `fendsOff` (ornithose), `feedHealthMult` (applyDayOfCare/projectDailyCare),
+    `hygieneDecay` ×0,75;
+  - ren: `restBonusEnergy`, `libidoTargetBonus`; sperwer `tickHawk` in tickDailyCare (geseed op
+    hok+dag, stabiele melding-id), niet bij `raptorGuard`; afweer maakt de event `poacher`
+    ongevaarlijk (events.ts);
+  - kunstlicht: `libidoTargetBonus`;
+  - infrarood: `tickBreedingHatch` (eerste `irBoxes` koppels per hok, op id) → gemiddelde ÷1,15
+    en `breed(..., bonus)` (tweeling, succes onder 10 °C via `monthTemperature`);
+  - reismanden: `Entry.mods` → `routeEnergyCost(..., mult)` en `SimEntry.healthMult` in finalize
+    (solo én estafette);
+  - weduwschap: `Entry.mods.widow` → `buildPaceProfile(..., widow)` (zelfde trekkingen, andere
+    drempels) → `SimEntry.widow`; `settleWidowhood` direct na `startLiveFlight` (€10, duivin −3).
+    Enkel doffer met `compartment`, zij thuis (geen vlucht die dag, niet weg, niet in de boeg),
+    geen van beiden broedt. `upset-balance` blijft groen (bots gebruiken het niet);
+  - vaccins/kuren: `fendsOff` in `runHealthDay` na de ziektetrekking (buiten de bodem ×0,4);
+    vaccin → `care.noFlyUntil`; `canRace` kijkt naar `groundedByCare` (pigeon.ts), `enterFlight`
+    geeft de reden (`grounded`);
+  - verzekering: `insurancePayout` op elke sterfteplek (ziekte/ouderdom in health.ts, vlucht en
+    honger in schedule.ts, sperwer in events.ts); premie = 1,3 × uitkering × (0,04 % +
+    `ageMortality`·4/7); `clearOwnerCare` bij elke eigendomswissel (engine/auction/offers);
+  - scout: duiven worden **bij vertrek** gerold (geen tick nodig, geen onenigheid tussen
+    verzoeken) en vanaf `readyAt` getoond; kopen vraagt een vrije plaats; quarantaine blokkeert
+    vliegen en koppelen (`inQuarantine` in startBreeding);
+  - vakblad: `pigeonDTO.magazineRanges` (geseed, bevat altijd de echte waarde), `/market.report`
+    (`magazineReport`), `tickMagazine` op de maandag-dagovergang (stabiele id per lezer+dag);
+  - weerstation: `flightsNeedingForecast`/`applyFlightForecasts` (schedule.ts), opgehaald in de
+    middleware naast de estafettevoorspellingen — **enkel als een hok een station heeft**;
+    `withForecast` in de API toont het enkel aan stationhouders.
+- **API:** `POST /loft/equipment {key, on}`, `/loft/irbox`, `/loft/vaccinate {key}`,
+  `/pigeons/:id/vaccinate {key}`, `/pigeons/:id/insurance {on}`, `/pigeons/:id/widow {duivinId}`,
+  `/scout/send {market, tier}`, `/scout/buy {index}`, `/scout/dismiss`. `/state.inrichting` =
+  de catalogus. DTO: `loftDTO.equipment` (alle vlaggen + `scout`), `pigeonDTO.care` (enkel
+  eigenaar), `.origin`, `.magazineRanges`, `flight.forecast`.
+- **UI (tekst):** op Mijn hok de kaarten Hokinrichting, Vaccins & kuren (hele hok) en Scout
+  (`components/Inrichting.tsx`); het hokoverzicht toont ook weduwschap, bescherming en 📦
+  quarantaine; duifpagina: kaart "Verzorging & verzekering" (`PigeonCareCard`), herkomst, en
+  vakblad-bandbreedtes bij andermans duif; Markt: Marktrapport; Vluchten: 📡 voorspelling.
+- **Bots:** vers stro bij hygiëne ≤ 60 en dakventilatie zodra ze €5.000 boven hun reserve
+  zitten (`maybeFitOutLoft`). Geen vaccins (die houden een duif 2 dagen aan de grond), geen
+  scout, weduwschap, verzekering of vakblad. Dit was een open vraag; het voorstel is gevolgd.
+- **Demo:** de demospeler start met €30.000 om alles te proberen; `DEMO_VERSION` = 2.
+- **Tests:** `tests/inrichting.test.mts` (alles hierboven), `tests/hygiene.test.mts`.
 
 ---
 
@@ -1277,7 +1315,8 @@ npx tsx tests/sunday-auction.test.mts     # twee zondagduiven, vensters, scoreba
 npx tsx tests/lokaal.test.mts             # Het Lokaal: laden/pagineren/poll+overlap, weghalen, opruimen, chat_last_at blijft staan
 npx tsx tests/demo-build.test.mts         # (dev) prodbuild zonder demo, previewbuild mét demo
 npx tsx tests/demo-world.test.mts         # (dev) de demowereld + de echte API op sql.js
-npx tsx tests/hygiene.test.mts            # (dev) hokhygiëne, stro, poetser, bodem ×0,4 en het nieuwe voer
+npx tsx tests/hygiene.test.mts            # (dev) hokhygiëne, stro, poetser, bodem ×0,4
+npx tsx tests/inrichting.test.mts         # (dev) ventilatie, ren, sperwer, vaccins, verzekering, weduwschap, scout, vakblad, weerstation, bots
 ```
 
 > **Geen `tsx` beschikbaar?** (cloud-sessie waar de npm-registry geblokkeerd is: `npx tsx`

@@ -292,6 +292,11 @@ export function FlightsPage() {
                             {' · '}
                             {f.practice ? 'gratis' : <>inschrijfgeld <Money value={f.entryFee} /></>}
                           </div>
+                          {f.forecast && (
+                            <div className="faint" style={{ marginTop: 2, fontSize: '0.85rem' }} title="Weerstation: voorspelling, het weer bij de lossing kan nog afwijken">
+                              📡 {f.forecast.label}
+                            </div>
+                          )}
                           {f.sun && (f.sun.rise || f.sun.set) && (
                             <div className="faint" style={{ marginTop: 2, fontSize: '0.85rem' }} title={`Zon in ${f.toCity}, die dag`}>
                               🌅 {f.sun.rise ? clockBrussels(f.sun.rise) : '—'} · 🌇 {f.sun.set ? clockBrussels(f.sun.set) : '—'}

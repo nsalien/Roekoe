@@ -214,9 +214,17 @@ export function canRace(pigeon: Pigeon, currentWeek: number): boolean {
     !pigeon.inInfirmary &&
     !onRestCure(pigeon) &&
     !isAway(pigeon) && // still finding her way home from a previous flight
+    !groundedByCare(pigeon) && // a fresh vaccine or import quarantine (hokinrichting)
     ageInWeeks(pigeon, currentWeek) >= RACE_AGE_WEEKS &&
     pigeon.health > 15
   );
+}
+
+/** A fresh vaccine or import quarantine keeps her on the ground (see inrichting.grounded). */
+export function groundedByCare(pigeon: Pigeon, nowMs: number = Date.now()): boolean {
+  const c = pigeon.care;
+  if (!c) return false;
+  return (!!c.noFlyUntil && Date.parse(c.noFlyUntil) > nowMs) || (!!c.quarantineUntil && Date.parse(c.quarantineUntil) > nowMs);
 }
 
 /** Whether a paid rest cure is still running (bird rests, can do nothing). */

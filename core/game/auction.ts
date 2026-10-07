@@ -11,6 +11,7 @@
  * close the winner keeps the bird. Multiple auctions can run at once.
  */
 
+import { clearOwnerCare } from './inrichting.js';
 import type { Auction, Database, Loft, Pigeon } from '../schema.js';
 import { newId } from '../store.js';
 import { AUCTION, DEBT, GENE } from '../config/gameConfig.js';
@@ -296,6 +297,7 @@ function closeAuction(db: Database, a: Auction): void {
       }
       db.offers = db.offers.filter((o) => o.pigeonId !== p.id);
     }
+    clearOwnerCare(p);
     p.ownerId = winner.userId;
     p.forSale = false;
     // Stable trade id keyed on the auction: two concurrent requests that both

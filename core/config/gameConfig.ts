@@ -109,6 +109,94 @@ export const HYGIENE = {
   /** All disease factors together (hygiëne, apart hok, kenmerk, poetser) never below this. */
   illnessFactorFloor: 0.4,
 } as const;
+/**
+ * De rest van de hokinrichting (⚠️ dev, nog niet live). Each item has its own
+ * effect and, almost always, a running cost — a money sink, not a one-off buy.
+ * Nothing bought = the game as it was. Stored on Loft.equipment.
+ */
+export const EQUIPMENT = {
+  ventilation: { label: 'Dakventilatie', price: 1200, daily: 0.5, ornithoseMult: 0.6, healthRecoveryBonus: 0.05, hygieneDecayMult: 0.75 },
+  run: { label: 'Buitenren', price: 2500, daily: 2, restBonusEnergy: 6, libidoTarget: 3, hawkChancePerDay: 1 / 40, hawkEnergyLoss: 6 },
+  raptorGuard: { label: 'Roofvogelafweer', price: 900, daily: 0 },
+  light: { label: 'Kunstlicht', price: 700, daily: 1.5, libidoTarget: 6 },
+  irBoxes: { label: 'Infrarood nestbakken', priceFirstTwo: 1600, pricePerExtra: 500, dailyPerBoxInUse: 1.5, hatchSpeed: 1.15, twinBonus: 0.06, coldSuccessBonus: 0.04, coldBelowC: 10, maxBoxes: 6 },
+  baskets: { label: 'Betere reismanden', price: 1000, daily: 0.5, energyMult: 0.97, healthMult: 0.95 },
+  weatherStation: { label: 'Weerstation', price: 1500, daily: 1, forecastHours: 24, refreshHours: 6, finalHours: 2 },
+  magazine: { label: 'Vakblad', price: 0, daily: 6, bandHalfWidth: 6, reportDays: 28 },
+} as const;
+export type EquipmentKey = 'ventilation' | 'run' | 'raptorGuard' | 'light' | 'baskets' | 'weatherStation' | 'magazine';
+/** What the next infrarood-nestbak costs: the first purchase is two boxes. */
+export function irBoxPrice(owned: number): number {
+  return owned === 0 ? EQUIPMENT.irBoxes.priceFirstTwo : EQUIPMENT.irBoxes.pricePerExtra;
+}
+
+/**
+ * Vaccins en kuren (⚠️ dev). Each works on ONE disease: a protected bird that
+ * falls ill with exactly that disease fends it off with `protect`. Vaccines are
+ * dearer, last long and ground the bird for `noFlyDays`; kuren are cheap and
+ * short. `days` in real days (a duivenjaar = 52 gameweken = 91 echte dagen).
+ * They sit OUTSIDE the ×0,4 floor: they are per disease and paid per disease.
+ */
+export const VACCINES = {
+  pmv: { label: 'PMV-vaccin', disease: 'Paramyxovirose', kind: 'vaccin', price: 12, days: 91, protect: 0.8, noFlyDays: 2, libidoHit: 0 },
+  pokken: { label: 'Pokkenvaccin', disease: 'Duivenpokken', kind: 'vaccin', price: 8, days: 91, protect: 0.8, noFlyDays: 2, libidoHit: 0 },
+  salmonella: { label: 'Salmonellavaccin', disease: 'Salmonellose (paratyfus)', kind: 'vaccin', price: 15, days: 45, protect: 0.6, noFlyDays: 2, libidoHit: 0 },
+  geel: { label: 'Geelkuur', disease: 'Het Geel', kind: 'kuur', price: 3, days: 7, protect: 0.75, noFlyDays: 0, libidoHit: 0 },
+  cocci: { label: 'Coccidiosekuur', disease: 'Coccidiose', kind: 'kuur', price: 5, days: 10, protect: 0.75, noFlyDays: 0, libidoHit: 0 },
+  adem: { label: 'Ademhalingskuur', disease: 'Ornithose', kind: 'kuur', price: 8, days: 7, protect: 0.6, noFlyDays: 0, libidoHit: 10 },
+} as const;
+export type VaccineKey = keyof typeof VACCINES;
+
+/**
+ * Scout op buitenlandse markten (⚠️ dev). Two days away, back with at most three
+ * birds of the market's speciality; buy one or none within 48 h. The wage is
+ * gone either way. Imports sit 5 days in quarantine (no flying, no pairing).
+ */
+export const SCOUT = {
+  travelHours: 48,
+  choiceHours: 48,
+  offers: 3,
+  quarantineDays: 5,
+  traitChance: 0.5,
+  capsEstimateNoise: 3,
+  tiers: {
+    brons: { label: 'Brons', wage: 250, scoreMin: 60, scoreMax: 68 },
+    zilver: { label: 'Zilver', wage: 500, scoreMin: 68, scoreMax: 76 },
+    goud: { label: 'Goud', wage: 900, scoreMin: 76, scoreMax: 84 },
+  },
+  markets: {
+    taiwan: { label: 'Taiwan', blurb: 'korte zeevluchten', boost: 'speed', scoreBonus: 0, priceMin: 1.4, priceMax: 1.7 },
+    zuidafrika: { label: 'Zuid-Afrika', blurb: 'de Million Dollar-race', boost: 'endurance', scoreBonus: 0, priceMin: 1.4, priceMax: 1.7 },
+    vs: { label: 'Verenigde Staten', blurb: 'grote afstanden over land', boost: 'orientation', scoreBonus: 0, priceMin: 1.4, priceMax: 1.7 },
+    china: { label: 'China', blurb: 'de duurste markt', boost: null, scoreBonus: 4, priceMin: 1.8, priceMax: 2.2 },
+  },
+  /** How much higher the market's speciality gene cap rolls. */
+  geneBoost: 6,
+} as const;
+export type ScoutTier = keyof typeof SCOUT.tiers;
+export type ScoutMarket = keyof typeof SCOUT.markets;
+
+/** Weduwschap (⚠️ dev): the doffer flies home harder when his duivin waits. */
+export const WIDOW = {
+  feePerFlight: 10,
+  bigDayChance: 0.14, // instead of FLIGHT_DYNAMICS.bigDayChance (0,10)
+  offDayChance: 0.05, // instead of FLIGHT_DYNAMICS.offDayChance (0,07)
+  duivinEnergyLoss: 3,
+} as const;
+
+/**
+ * Duivenverzekering (⚠️ dev). Pays `payoutRate` of the market value at signing
+ * when she dies of a covered cause. Premium per day = loading × payout × her
+ * chance to die that day (a base for illness/flight + old age).
+ */
+export const INSURANCE = {
+  payoutRate: 0.6,
+  loading: 1.3,
+  baseDailyDeath: 0.0004, // 0,04 % per day: illness and flight deaths
+  waitingDays: 7,
+  minStartEnergy: 5, // leaving with less than this is not covered
+} as const;
+
 /** What one load of fresh straw costs for a loft of this capacity. */
 export function strawCost(capacity: number): number {
   return HYGIENE.strawPricePerBale * Math.max(1, Math.ceil(capacity / HYGIENE.strawPlacesPerBale));
@@ -360,36 +448,10 @@ export const STARTING_PIGEONS = 6;
 export const FEED_RATIONS = {
   normal: { label: 'Normaal', foodPerPigeon: 1.0, pricePerKg: 3, formRecovery: 21, healthRecovery: 5, enduranceRecovery: 0, libidoRecovery: 0 },
   premium: { label: 'Premium', foodPerPigeon: 1.5, pricePerKg: 6, formRecovery: 28, healthRecovery: 9, enduranceRecovery: 4, libidoRecovery: 0 },
-  // The key stays 'libido' (stock, rations and old clients keep working); since
-  // the hokinrichting it is the Kweekmengeling, with a twin bonus (FEED_EFFECTS).
-  libido: { label: 'Kweekmengeling', foodPerPigeon: 1.4, pricePerKg: 4.5, formRecovery: 18, healthRecovery: 5, enduranceRecovery: 0, libidoRecovery: 14 },
-  // ⚠️ DEV, nog niet live (open vraag aan de eigenaar): full effect only in the
-  // FEED_EFFECTS.herstelWindowHours after a flight, otherwise it feeds like Normaal.
-  herstel: { label: 'Herstel', foodPerPigeon: 1.5, pricePerKg: 4, formRecovery: 42, healthRecovery: 12, enduranceRecovery: 0, libidoRecovery: 0 },
-  sport: { label: 'Sportmengeling', foodPerPigeon: 1.3, pricePerKg: 5, formRecovery: 30, healthRecovery: 7, enduranceRecovery: 0, libidoRecovery: 0 },
-  fond: { label: 'Fondmengeling', foodPerPigeon: 1.4, pricePerKg: 6, formRecovery: 26, healthRecovery: 7, enduranceRecovery: 0, libidoRecovery: 0 },
-  depuratief: { label: 'Depuratief', foodPerPigeon: 1.0, pricePerKg: 2.5, formRecovery: 14, healthRecovery: 18, enduranceRecovery: 0, libidoRecovery: 0 },
-  senior: { label: 'Seniorenmengeling', foodPerPigeon: 1.2, pricePerKg: 7, formRecovery: 20, healthRecovery: 10, enduranceRecovery: 0, libidoRecovery: 0 },
+  libido: { label: 'Libido-mix', foodPerPigeon: 1.4, pricePerKg: 4.5, formRecovery: 18, healthRecovery: 5, enduranceRecovery: 0, libidoRecovery: 14 },
+  herstel: { label: 'Herstel', foodPerPigeon: 1.5, pricePerKg: 3, formRecovery: 42, healthRecovery: 12, enduranceRecovery: 0, libidoRecovery: 0 },
 } as const;
 export type FeedRationKey = keyof typeof FEED_RATIONS;
-
-/**
- * What a feed does BESIDES its weekly recovery (hokinrichting — ⚠️ dev, nog niet
- * live). Each feed has one moment where it is the best choice; none is best
- * everywhere. Read by applyDayOfCare/projectDailyCare (Herstel), routeEnergyCost
- * (Sport, Fond), breed (Kweek) and runAgeDecline (Senioren).
- */
-export const FEED_EFFECTS = {
-  /** Herstel works in full only this long after the bird's last flight (two daily ticks). */
-  herstelWindowHours: 48,
-  /** Outside that window Herstel feeds like this ration (and still costs its own price). */
-  herstelOutsideAs: 'normal',
-  sportFlightEnergyMult: 0.96, // every flight −4 % energie
-  fondFlightEnergyMult: 0.92, // −8 % energie on a route of at least fondMinKm
-  fondMinKm: 500,
-  kweekTwinBonus: 0.05, // +5 procentpunt tweelingkans when BOTH parents eat it
-  seniorAgingMult: 0.85, // ageing ×0,85 while she eats it
-} as const;
 
 /**
  * Starvation. A pigeon with no food in stock of its ration goes hungry, and the
@@ -422,7 +484,7 @@ export const REST_BONUS = {
 } as const;
 
 /** Food (kg per type) a new player starts with. */
-export const STARTING_FOOD_STOCK = { normal: 50, premium: 0, libido: 0, herstel: 0, sport: 0, fond: 0, depuratief: 0, senior: 0 };
+export const STARTING_FOOD_STOCK = { normal: 50, premium: 0, libido: 0, herstel: 0 };
 
 /** Price of one kg of pigeon food when buying from the supply store. */
 export const FOOD_PRICE_PER_KG = 3;
@@ -1315,7 +1377,8 @@ export const BOT = {
    * possible fix and exactly what a player with that bank would do.
    */
   goodFeedFrom: 2500,
-  depuratiefBelowHealth: 60, // hokinrichting (dev): a run-down bird gets Depuratief first
+  strawBelowHygiene: 60, // hokinrichting (dev): fresh straw at or below this
+  ventilationReserve: 5000, // …and dakventilatie once this much above `reserve`
   /** A bot rests a bird rather than racing it when its gezondheid is under this. */
   minHealthRace: 45,
 

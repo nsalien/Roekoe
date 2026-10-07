@@ -12,7 +12,6 @@
  */
 
 import {
-  FEED_EFFECTS,
   diseaseSeverityWeights,
   injurySeverityWeights,
   AGING,
@@ -32,6 +31,7 @@ import { ageInWeeks, ageMortality, conditionScore, isAway, noteAttrChange } from
 import { awardBadge, evaluateBadges } from './badges.js';
 import { clamp, pick, pickWith, round1 } from './util.js';
 import { equipmentOf, illnessChance } from './hygiene.js';
+import { fendsOff, insurancePayout } from './inrichting.js';
 
 export interface HealthEvent {
   pigeonId: string;
@@ -254,7 +254,7 @@ function pushHealthNote(db: Database, userId: string, title: string, body: strin
  * ailments keep sapping health, and an untreated ailment can turn fatal.
  * (Old-age mortality is applied per game-week in runAgeMortality.)
  */
-export function runHealthDay(db: Database, week: number): void {
+export function runHealthDay(db: Database, week: number, nowMs: number = Date.now()): void {
   const humanIds = new Set(db.lofts.filter((l) => !l.isBot).map((l) => l.userId));
   const dead = new Set<string>();
 
@@ -266,6 +266,7 @@ export function runHealthDay(db: Database, week: number): void {
     // 1. An ongoing ailment keeps draining health (worse when left untreated).
     for (const p of birds) {
       if (!p.ailment) continue;
+      if (p.inInfirmary) p.ailment.boeg = true; // the verzekering asks whether she was cared for
       let drain = HEALTH.ailmentHealthDrainPerDay[p.ailment.severity];
       if (!p.inInfirmary) drain *= HEALTH.ailmentDrainOutsideFactor;
       p.health = round1(clamp(p.health - drain, 0, 100));
@@ -280,6 +281,7 @@ export function runHealthDay(db: Database, week: number): void {
       const pDeath = weeklyToDaily(table[p.ailment.severity]);
       if (pDeath > 0 && Math.random() < pDeath) {
         dead.add(p.id);
+        insurancePayout(db, p, p.ailment.name === 'Sperwerverwonding' ? 'sperwer' : 'ziekte', nowMs);
         if (p.ailment.name === 'Sperwerverwonding') awardBadge(db, loft, 'rip_sperwer');
         if (human) {
           pushHealthNote(
@@ -320,6 +322,16 @@ export function runHealthDay(db: Database, week: number): void {
       });
       if (Math.random() < chance) {
         const disease = randomDisease(week, condition);
+        // Hokinrichting: ventilatie, a vaccine or a kuur against exactly this disease.
+        if (fendsOff(loft, p, disease.name, nowMs)) {
+          if (human) {
+            pushHealthNote(
+              db, loft.userId, `💉 ${p.name} weerde ${disease.name.toLowerCase()} af`,
+              `${p.name} kwam in contact met ${disease.name.toLowerCase()}, maar haar bescherming hield stand.`,
+            );
+          }
+          continue;
+        }
         applyAilment(p, disease);
         if (human) {
           pushHealthNote(
@@ -355,6 +367,7 @@ export function runAgeMortality(db: Database, week: number): void {
       const pDeath = ageMortality(p, week);
       if (pDeath > 0 && Math.random() < clamp(pDeath, 0, 0.95)) {
         dead.add(p.id);
+        insurancePayout(db, p, 'ouderdom', Date.now());
         awardBadge(db, loft, 'vredig');
         if (humanIds.has(loft.userId)) {
           const years = Math.floor(ageInWeeks(p, week) / 52);
@@ -386,9 +399,7 @@ export function runAgeDecline(db: Database, week: number): void {
   for (const p of db.pigeons) {
     const age = week - p.birthWeek;
     if (age <= AGING.peakEndWeeks) continue;
-    // Seniorenmengeling (hokinrichting): she ages slower while she eats it.
-    const feed = p.ration === 'senior' ? FEED_EFFECTS.seniorAgingMult : 1;
-    const dec = AGING.declinePerWeekBase * ((age - AGING.peakEndWeeks) / 52) * (p.declineRate ?? 1) * feed;
+    const dec = AGING.declinePerWeekBase * ((age - AGING.peakEndWeeks) / 52) * (p.declineRate ?? 1);
     if (dec <= 0) continue;
     for (const attr of ['speed', 'endurance', 'orientation'] as const) {
       const before = p[attr];

@@ -37,6 +37,7 @@ const SECTIONS = [
   { id: 'ziekte', icon: '🤒', label: 'Ziekte' },
   { id: 'ziekenboeg', icon: '🏥', label: 'De ziekenboeg' },
   { id: 'hygiene', icon: '🧹', label: 'Hokhygiëne & stro' },
+  { id: 'inrichting', icon: '🛠️', label: 'Hokinrichting, vaccins & diensten' },
   { id: 'sterfte', icon: '🕯️', label: 'Sterfte' },
   { id: 'kenmerken', icon: '✨', label: 'Kenmerken' },
   { id: 'rassen', icon: '🎨', label: 'Rassen' },
@@ -385,20 +386,12 @@ export function WikiPage() {
         <MiniTable
           head={['Voer', 'Energie/dag (ruw)', 'Extra']}
           rows={[
-            ['Normaal', '≈ +3', 'onderhoud: kweek, rust, oude duiven'],
-            ['Herstelvoer', '≈ +6', 'enkel de 2 dagen na een vlucht; anders zoals Normaal'],
-            ['Sportmengeling', '≈ +4,3', 'elke vlucht kost 4 % minder energie'],
-            ['Fondmengeling', '≈ +3,7', 'vluchten vanaf 500 km kosten 8 % minder energie'],
-            ['Premium', '≈ +4', '+ gezondheid, + conditie (tot 80)'],
-            ['Depuratief', '≈ +2', '+ veel gezondheid: na een zware fond eerst de gezondheid terug'],
-            ['Kweekmengeling', '≈ +2,5', '+ libido; beide ouders erop: +5 procentpunt tweelingkans'],
-            ['Seniorenmengeling', '≈ +2,9', '+ gezondheid; veroudering ×0,85 zolang ze het eet'],
+            ['Normaal', '≈ +3', '—'],
+            ['Premium', '≈ +4', '+ gezondheid, + conditie'],
+            ['Libido-mix', '≈ +2,5', '+ libido (voor de kweek)'],
+            ['Herstelvoer', '≈ +6', 'ideaal na een zware vlucht'],
           ]}
         />
-        <p className="muted" style={{ marginTop: 8 }}>
-          <strong>Geen enkel voer is overal het beste.</strong> Herstelvoer werkt enkel volledig in de twee dagen na een
-          vlucht (twee dagovergangen): wie niet vliegt, eet het en betaalt het, maar herstelt zoals op Normaal.
-        </p>
         <ul style={{ marginTop: 12 }}>
           <li><strong>Ervaring versnelt het herstel:</strong> een geroutineerde duif komt merkbaar sneller op krachten dan een groentje.</li>
           <li><strong>Rustbonus:</strong> blijft een duif thuis (geen vlucht) én krijgt ze elke dag eten, dan bouwt ze rust op — elke 3e zulke dag <strong>+4 energie</strong> bovenop het voer. De teller reset zodra ze een vlucht doet.</li>
@@ -416,13 +409,9 @@ export function WikiPage() {
           head={['Voer', 'Prijs/kg', 'Terugkoop/kg', 'Verbruik/duif/dag']}
           rows={[
             ['Normaal', '€3', '€2,40', '≈ 0,14 kg'],
-            ['Herstelvoer', '€4', '€3,20', '≈ 0,21 kg'],
-            ['Sportmengeling', '€5', '€4,00', '≈ 0,19 kg'],
-            ['Fondmengeling', '€6', '€4,80', '≈ 0,20 kg'],
             ['Premium', '€6', '€4,80', '≈ 0,21 kg'],
-            ['Depuratief', '€2,5', '€2,00', '≈ 0,14 kg'],
-            ['Kweekmengeling', '€4,5', '€3,60', '≈ 0,20 kg'],
-            ['Seniorenmengeling', '€7', '€5,60', '≈ 0,17 kg'],
+            ['Libido-mix', '€4,5', '€3,60', '≈ 0,20 kg'],
+            ['Herstelvoer', '€3', '€2,40', '≈ 0,21 kg'],
           ]}
         />
         <p style={{ marginTop: 10 }}>
@@ -1157,7 +1146,7 @@ export function WikiPage() {
           </li>
           <li>Computermelkers vallen onder exact dezelfde regel.</li>
         </ul>
-        <p><strong>Strategie:</strong> koppel duiven met <em>hoge libido en goede energie</em>, en zet beide ouders op <em>Kweekmengeling</em> tijdens de kweekperiode.</p>
+        <p><strong>Strategie:</strong> koppel duiven met <em>hoge libido en goede energie</em>, en zet <em>Libido-mix</em> voer in tijdens de kweekperiode.</p>
         <p style={{ marginTop: 12 }}>
           <strong>Zit je hok vol wanneer de jongen uitkomen? Dan kies jij.</strong> Er gaat niets verloren: het hele
           nest blijft op de Kweek-pagina wachten tot je beslist hebt. Je ziet van elk jong de score én de{' '}
@@ -1623,11 +1612,72 @@ export function WikiPage() {
         <ul>
           <li><strong>Boven 50 zakt de kans op ziekte</strong>, tot <strong>×0,8</strong> bij 100 (bij 75 is dat ×0,9). Op of onder 50 gebeurt er niets — zo was het altijd.</li>
           <li><strong>Vers stro:</strong> €18 per baal, één baal per 8 plaatsen (een hok van 12 = 2 balen = €36).</li>
-          <li><strong>De meter zakt elke dagovergang</strong>: 8 punten in een vol hok, minder in een half leeg hok, en 50 % sneller zolang er een zieke duif (ziekte, geen kwetsuur) tussen de anderen zit in plaats van in de ziekenboeg.</li>
-          <li><strong>Hokpoetser:</strong> €14 per dag, aannemen en ontslaan is gratis. Zakt de meter onder 70, dan strooit hij vers stro (aan de gewone prijs). Hij ontsmet ook: besmetting tussen duiven ×0,85. Hij kost ook op een dag met weinig werk.</li>
-          <li><strong>Een bodem:</strong> hygiëne, een apart hok, de poetser en het kenmerk IJzeren gestel samen maken de kans op ziekte nooit kleiner dan <strong>×0,4</strong>.</li>
+          <li><strong>De meter zakt elke dagovergang</strong>: 8 punten in een vol hok, minder in een half leeg hok, 50 % sneller zolang er een zieke duif (ziekte, geen kwetsuur) tussen de anderen zit, en 25 % trager met dakventilatie.</li>
+          <li><strong>Hokpoetser:</strong> €14 per dag, aannemen en ontslaan is gratis. Zakt de meter onder 70, dan strooit hij vers stro (aan de gewone prijs). Hij ontsmet ook: besmetting tussen duiven ×0,85.</li>
+          <li><strong>Een bodem:</strong> hygiëne, een apart hok, de poetser en het kenmerk IJzeren gestel samen maken de kans op ziekte nooit kleiner dan <strong>×0,4</strong>. Vaccins tellen daar los bovenop.</li>
         </ul>
-        <p><strong>Rekenvoorbeeld:</strong> elke 6 dagen verversen kost voor een hok van 8 zo'n €21 per week.</p>
+      </Section>
+
+      <Section id="inrichting" icon="🛠️" title="Hokinrichting, vaccins & diensten">
+        <p className="muted" style={{ marginTop: 0 }}>
+          Alles hieronder koop je op <em>Mijn hok</em> of op de pagina van een duif. <strong>Niets kopen = het spel zoals
+          vroeger.</strong> Wat per dag kost, staat in je <em>Dagbalans</em>.
+        </p>
+        <MiniTable
+          head={['Wat', 'Aankoop', 'Per dag', 'Effect']}
+          rows={[
+            ['Dakventilatie', '€1.200', '€0,50', 'ornithose ×0,6 · gezondheidsherstel uit voer +5 % · stro zakt 25 % trager'],
+            ['Buitenren', '€2.500', '€2', 'rustbonus +6 i.p.v. +4 · libido-doel +3 · zonder afweer ~1× per 40 dagen een sperwer: wie thuis rust −6 energie'],
+            ['Roofvogelafweer', '€900', '—', 'net + lokuil (vraagt een ren): geen sperwer in de ren, en de gebeurtenis "Sperwer in de buurt" is ongevaarlijk'],
+            ['Kunstlicht', '€700', '€1,50', 'libido-doel +6 voor alle duiven: meer broedsucces, sneller een nest'],
+            ['Infrarood nestbakken', '€1.600 voor 2, +€500 per bak', '€1,50 per bak in gebruik', 'koppel komt ±15 % sneller uit, +6 procentpunt tweelingkans, onder 10 °C +4 procentpunt succes'],
+            ['Betere reismanden', '€1.000', '€0,50', 'elke vlucht −3 % energie en −5 % gezondheid'],
+            ['Weerstation', '€1.500', '€1', 'de weersvoorspelling vanaf 24 u vóór de lossing (het weer bij de lossing kan nog afwijken)'],
+            ['Vakblad', '—', '€6, opzegbaar', 'bandbreedte i.p.v. enkel ★ bij andermans duif · marktrapport over 28 dagen · elke maandag Het Duivenblad'],
+          ]}
+        />
+
+        <h3 style={{ marginBottom: 4 }}>Vaccins &amp; kuren</h3>
+        <p className="muted" style={{ marginTop: 0 }}>
+          Elk middel werkt tegen één ziekte: wordt een beschermde duif ziek met precies die ziekte, dan weert ze het af
+          met de kans uit de tabel. Een vaccin houdt haar 2 dagen aan de grond. Per duif op haar pagina, of het hele hok
+          tegelijk op <em>Mijn hok</em>.
+        </p>
+        <MiniTable
+          head={['Middel', 'Ziekte', 'Per duif', 'Werkt', 'Weert af', 'Bijwerking']}
+          rows={[
+            ['PMV-vaccin', 'Paramyxovirose', '€12', '91 dagen', '80 %', '2 dagen niet vliegen'],
+            ['Pokkenvaccin', 'Duivenpokken', '€8', '91 dagen', '80 %', '2 dagen niet vliegen'],
+            ['Salmonellavaccin', 'Salmonellose', '€15', '45 dagen', '60 %', '2 dagen niet vliegen'],
+            ['Geelkuur', 'Het Geel', '€3', '7 dagen', '75 %', '—'],
+            ['Coccidiosekuur', 'Coccidiose', '€5', '10 dagen', '75 %', '—'],
+            ['Ademhalingskuur', 'Ornithose', '€8', '7 dagen', '60 %', 'libido −10'],
+          ]}
+        />
+
+        <h3 style={{ marginBottom: 4 }}>Verzekering</h3>
+        <ul>
+          <li>Per duif. Sterft ze, dan krijg je <strong>60 % van haar marktwaarde op het moment dat je afsloot</strong>.</li>
+          <li>Premie per dag = 1,3 × uitkering × de kans dat ze die dag sterft: spotgoedkoop voor een jonge duif, duur voor een oude. Gemiddeld betaal je 30 % meer dan je terugkrijgt — je koopt rust, geen winst.</li>
+          <li><strong>Gedekt:</strong> ziekte, ouderdom, de sperwer. <strong>Niet gedekt:</strong> honger, vertrekken met minder dan 5 energie, een ziekte die nooit in de ziekenboeg lag, vrijlaten of verkopen, en de eerste 7 dagen.</li>
+          <li>Verkoop je haar, dan vervalt de verzekering.</li>
+        </ul>
+
+        <h3 style={{ marginBottom: 4 }}>Weduwschap</h3>
+        <ul>
+          <li>Een <strong>doffer in een apart hok</strong> kan op weduwschap met een duivin uit je hok. €10 per vlucht.</li>
+          <li>Zijn dagvorm verschuift: kans op een grote dag 10 % → 14 %, op een slechte dag 7 % → 5 %.</li>
+          <li>Enkel als zij bij de lossing thuis is (niet zelf vliegt die dag, niet de weg kwijt, niet in de ziekenboeg) en geen van beiden broedt. Zij verliest 3 energie per vlucht van haar doffer.</li>
+        </ul>
+
+        <h3 style={{ marginBottom: 4 }}>Scout op buitenlandse markten</h3>
+        <ul>
+          <li>Je stuurt een scout naar een markt. Na <strong>2 dagen</strong> komt hij terug met hoogstens drie duiven; je koopt er één of geen binnen 48 u. Het scoutloon krijg je niet terug.</li>
+          <li>Budget: brons ★ 60–68 (€250), zilver ★ 68–76 (€500), goud ★ 76–84 (€900).</li>
+          <li>Taiwan: gen-cap snelheid hoger · Zuid-Afrika: conditie · Verenigde Staten: oriëntatie · China: score +4. Prijs ×1,4–1,7 van de marktwaarde (China ×1,8–2,2).</li>
+          <li>Je ziet alle eigenschappen; de gen-caps zijn een schatting (±3). Kenmerkkans 50 %. Je hebt een vrije plaats nodig, en een importduif zit <strong>5 dagen in quarantaine</strong> (niet vliegen, niet koppelen). Eén opdracht tegelijk.</li>
+        </ul>
+        <p className="faint" style={{ fontSize: '0.85rem' }}>Bots kopen vers stro en dakventilatie, verder niets.</p>
       </Section>
 
       <Section id="hok" icon="🏠" title="Hokcapaciteit & onderhoudskosten">

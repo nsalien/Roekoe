@@ -64,7 +64,7 @@ export async function createDemoWorld(d1: DemoD1): Promise<void> {
   store.mutate((w) => {
     loft.capacity = DEMO_CAPACITY;
     loft.compartments = DEMO_COMPARTMENTS;
-    loft.money = 8000;
+    loft.money = 30000; // enough to try the whole hokinrichting
     loft.doctors = 1;
     // Straw strewn six days ago: the meter is low, so fresh straw shows its effect.
     loft.equipment = { hygiene: 58, lastStrawAt: new Date(Date.now() - 6 * 86400000).toISOString(), cleaner: false };

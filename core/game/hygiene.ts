@@ -12,7 +12,7 @@
  * price) and disinfects: contagion between birds ×0,85.
  */
 
-import { HYGIENE, hygieneIllnessMult, strawCost } from '../config/gameConfig.js';
+import { EQUIPMENT, HYGIENE, hygieneIllnessMult, strawCost } from '../config/gameConfig.js';
 import type { Loft, LoftEquipment, Pigeon } from '../schema.js';
 import { defaultEquipment } from '../schema.js';
 import type { Store } from '../store.js';
@@ -34,7 +34,8 @@ export function hygieneDecay(loft: Loft, birds: Pigeon[]): number {
   const home = birds.filter((p) => !isAway(p));
   const occupancy = loft.capacity > 0 ? Math.min(1, home.length / loft.capacity) : 0;
   const sickAmongOthers = home.some((p) => p.ailment?.kind === 'ziekte' && !p.inInfirmary);
-  return HYGIENE.dailyDecay * occupancy * (sickAmongOthers ? HYGIENE.sickDecayMult : 1);
+  const ventilated = loft.equipment?.ventilation ? EQUIPMENT.ventilation.hygieneDecayMult : 1; // drier straw
+  return HYGIENE.dailyDecay * occupancy * (sickAmongOthers ? HYGIENE.sickDecayMult : 1) * ventilated;
 }
 
 /**
@@ -55,11 +56,6 @@ export function tickHygiene(loft: Loft, birds: Pigeon[], dayMs: number): number 
     return cost;
   }
   return 0;
-}
-
-/** The hokpoetser's wage for today (0 without one). */
-export function cleanerWage(loft: Loft): number {
-  return loft.equipment?.cleaner ? HYGIENE.cleanerDailyWage : 0;
 }
 
 /**

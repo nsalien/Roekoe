@@ -1119,22 +1119,9 @@ De tabel toont **weekwaarden**; in het spel (Overzicht) zie je ze **per dag** (1
 | Type | Voer/duif/week | Prijs/kg | Effect (per week) |
 |---|---|---|---|
 | Normaal | 1.0 kg | €3 | energie +21, gezondheid +5 |
-| Herstel | 1.5 kg | €4 | **energie +42**, **gezondheid +12** — *enkel de 2 dagen na een vlucht*, anders zoals Normaal |
-| Sportmengeling | 1.3 kg | €5 | energie +30, gezondheid +7; **elke vlucht −4 % energie** |
-| Fondmengeling | 1.4 kg | €6 | energie +26, gezondheid +7; **vluchten vanaf 500 km −8 % energie** |
 | Premium | 1.5 kg | €6 | energie +28, gezondheid +9, **conditie +4** |
-| Depuratief | 1.0 kg | €2.5 | energie +14, **gezondheid +18** |
-| Kweekmengeling | 1.4 kg | €4.5 | energie +18, gezondheid +5, **libido +14**; beide ouders erop: **+5 procentpunt tweelingkans** |
-| Seniorenmengeling | 1.2 kg | €7 | energie +20, gezondheid +10; **veroudering ×0,85** zolang ze het eet |
-
-> ⚠️ **Dev, nog niet live** (hokinrichting): Herstel, Sport, Fond, Depuratief,
-> Kweek en Senioren zoals hierboven. Live is het nog: Normaal, Premium,
-> Libido-mix (€4,50) en Herstel (€3, altijd volledig).
-
-**Herstel werkt enkel volledig in de twee dagen na een vlucht** (twee
-dagovergangen, gerekend vanaf haar laatste vlucht). Daarbuiten eet ze het en
-betaal je het, maar herstelt ze zoals op Normaal: wie niet vliegt, betaalt voor
-niets. Geen enkel voer is overal het beste.
+| Libido-mix | 1.4 kg | €4.5 | energie +18, gezondheid +5, **libido +14** |
+| Herstel | 1.5 kg | €3 | **energie +42**, **gezondheid +12** |
 
 Iedereen start (na de overstap) met **50 kg Normaal**; alle duiven staan standaard
 op Normaal.
@@ -1149,13 +1136,9 @@ voorraad van dat type.
 | Type | Koopprijs/kg | Terugkoopprijs/kg | Verlies per kg |
 |---|---|---|---|
 | Normaal | €3 | €2,40 | €0,60 |
-| Herstel | €4 | €3,20 | €0,80 |
-| Sportmengeling | €5 | €4,00 | €1,00 |
-| Fondmengeling | €6 | €4,80 | €1,20 |
 | Premium | €6 | €4,80 | €1,20 |
-| Depuratief | €2,50 | €2,00 | €0,50 |
-| Kweekmengeling | €4,50 | €3,60 | €0,90 |
-| Seniorenmengeling | €7 | €5,60 | €1,40 |
+| Libido-mix | €4,50 | €3,60 | €0,90 |
+| Herstel | €3 | €2,40 | €0,60 |
 
 > Voer is dus **geen spaarpot**: 100 kg Premium kopen en meteen terugverkopen kost
 > je €120. Koop wat je de komende dagen nodig hebt — de terugkoop is een uitweg uit
@@ -1239,7 +1222,7 @@ onkosten/dag = 22                                    (vast, ongeacht hokgrootte)
              + dagloon per gecoachte duif           (coach, volgens haar score — §13)
              + 57 · dokters + 50 · kinesisten        (ziekenboegstaf, §5)
              + 6  · duiven_in_boeg (met medicatievoer)
-             + 14 als je een hokpoetser hebt         (§5.2bis — dev, nog niet live)
+             + hokinrichting en verzekeringspremies   (§5.2bis/§5.2ter — dev, nog niet live)
 ```
 
 **Onderhoud per duif gaat in schijven — hoe groter je hok, hoe duurder elke
@@ -1447,6 +1430,7 @@ stro          = €18 per baal, 1 baal per 8 plaatsen        (12 plaatsen = 2 ba
 ziektekans   ×= 1 − 0,2 · (hygiëne − 50) / 50   als hygiëne > 50    (×0,8 bij 100)
              ×= 1                               als hygiëne ≤ 50    (zoals altijd)
 verval/dag    = 8 · (duiven thuis / capaciteit) · (1,5 met een zieke duif buiten de ziekenboeg)
+                · (0,75 met dakventilatie)
 ```
 - De meter zakt **één keer per dag**, op de dagovergang. Een hok dat nooit stro
   kocht, staat op 50 en merkt niets: niets kopen = het spel van vroeger.
@@ -1455,6 +1439,41 @@ verval/dag    = 8 · (duiven thuis / capaciteit) · (1,5 met een zieke duif buit
   **besmetting tussen duiven ×0,85**.
 - **Bodem:** hygiëne, apart hok, poetser en IJzeren gestel samen maken de kans
   op ziekte **nooit kleiner dan ×0,4** van wat ze zonder al die dingen zou zijn.
+
+### 5.2ter Hokinrichting, vaccins & diensten — ⚠️ dev, nog niet live
+Niets kopen = het spel van vroeger. Dagkosten staan in de Dagbalans.
+
+| Wat | Aankoop | Per dag | Effect |
+|---|---|---|---|
+| Dakventilatie | €1.200 | €0,50 | ornithose ×0,6; gezondheidsherstel uit voer +5 %; hygiëne zakt 25 % trager |
+| Buitenren | €2.500 | €2 | rustbonus +6 i.p.v. +4; libido-doel +3; zonder afweer gemiddeld 1× per 40 dagen een sperwer: wie thuis rust −6 energie |
+| Roofvogelafweer | €900 | — | vraagt een ren; geen sperwer in de ren; "Sperwer in de buurt" wordt ongevaarlijk |
+| Kunstlicht | €700 | €1,50 | libido-doel +6 |
+| Infrarood nestbakken | €1.600 voor 2, +€500/bak | €1,50 per bak in gebruik | uitkomen ×1,15 sneller, +6 pp tweelingkans, onder 10 °C +4 pp succes |
+| Betere reismanden | €1.000 | €0,50 | vlucht −3 % energie, −5 % gezondheid |
+| Weerstation | €1.500 | €1 | voorspelling vanaf 24 u vóór de lossing |
+| Vakblad | — | €6 | bandbreedtes (±6) bij andermans duif; marktrapport 28 dagen; maandag Het Duivenblad |
+
+**Vaccins & kuren** (per ziekte, buiten de bodem ×0,4): PMV €12 (91 d, 80 %),
+pokken €8 (91 d, 80 %), salmonella €15 (45 d, 60 %) — een vaccin = 2 dagen niet
+vliegen; geelkuur €3 (7 d, 75 %), coccidiosekuur €5 (10 d, 75 %),
+ademhalingskuur €8 (7 d, 60 %, libido −10).
+
+**Verzekering:** uitkering 60 % van de marktwaarde bij afsluiten; premie/dag =
+1,3 × uitkering × (0,04 % + ouderdomssterfte per dag). Niet gedekt: honger,
+vertrekken met < 5 energie, een ziekte die nooit in de ziekenboeg lag, de eerste 7
+dagen. Vervalt bij verkoop.
+
+**Weduwschap:** doffer in een apart hok + duivin uit je hok, €10 per vlucht; grote
+dag 10 % → 14 %, slechte dag 7 % → 5 %; zij moet thuis zijn bij de lossing, geen
+van beiden broedt; zij −3 energie per vlucht.
+
+**Scout:** brons/zilver/goud (€250/€500/€900, ★ 60–68/68–76/76–84); Taiwan
+(snelheid), Zuid-Afrika (conditie), VS (oriëntatie): die gen-cap +6, prijs
+×1,4–1,7; China: score +4, ×1,8–2,2. 2 dagen weg, 48 u kiezen, één of geen;
+kenmerkkans 50 %; 5 dagen quarantaine; één opdracht tegelijk.
+
+**Bots** kopen vers stro (meter ≤ 60) en dakventilatie, verder niets.
 
 ### 5.3 Herstel (in echte tijd)
 Herstel loopt **continu in echte tijd** (niet meer als wekelijkse kansworp). Een

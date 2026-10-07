@@ -41,16 +41,6 @@ function Season3NewsCard({ newsAt }: { newsAt?: string }) {
   );
 }
 
-/** The one moment each feed is for (the rule itself lives in the wiki). */
-const FEED_ROLE: Partial<Record<FeedRation, string>> = {
-  herstel: 'Volle werking enkel in de dagen net na een vlucht.',
-  sport: 'Vluchten kosten minder energie.',
-  fond: 'Lange vluchten kosten minder energie.',
-  libido: 'Voor het nest: beide ouders erop geeft meer kans op een tweeling.',
-  depuratief: 'Gezondheid eerst, na een zware vlucht.',
-  senior: 'Een oudere duif veroudert trager.',
-};
-
 export function DashboardPage() {
   const { state, loading, refresh } = useGame();
   const { user } = useAuth();
@@ -119,10 +109,12 @@ export function DashboardPage() {
     { key: 'doctor', label: 'Duivendokter', detail: `${loft.doctors} × `, unit: inf.doctorSalary, amount: costs.doctors, note: idleNote(idleDoctors, 'dokter') },
     { key: 'physio', label: 'Kinesist', detail: `${loft.physios} × `, unit: inf.physioSalary, amount: costs.physios, note: idleNote(idlePhysios, 'kinesist') },
     { key: 'medfeed', label: 'Medicatievoer', detail: loft.medicatedFood ? `${loft.infirmaryCount} × ` : 'uit', unit: loft.medicatedFood ? inf.medicatedFoodPerBird : undefined, amount: costs.medicatedFeed },
-    ...(costs.cleaner ? [{ key: 'cleaner', label: 'Hokpoetser', detail: 'houdt het stro vers', amount: costs.cleaner }] : []),
+    // Hokinrichting: one row per item that costs per day, plus the insurance premiums.
+    ...(costs.equipment ?? []).map((l) => ({ key: `eq-${l.key}`, label: l.label, detail: 'hokinrichting', amount: l.amount })),
+    ...(costs.insurance ? [{ key: 'insurance', label: 'Verzekering', detail: 'premies van je verzekerde duiven', amount: costs.insurance }] : []),
   ];
   // How many pigeons eat each food type, and which types are running out.
-  const rationCounts = Object.fromEntries(Object.keys(feedRations).map((k) => [k, 0])) as Record<FeedRation, number>;
+  const rationCounts = { normal: 0, premium: 0, libido: 0, herstel: 0 } as Record<FeedRation, number>;
   for (const p of pigeons) rationCounts[p.ration] = (rationCounts[p.ration] ?? 0) + 1;
   const weekNeed = (k: FeedRation) => feedRations[k].foodPerPigeon * rationCounts[k];
   const hungry = (Object.keys(feedRations) as FeedRation[]).filter((k) => rationCounts[k] > 0 && (loft.food[k] ?? 0) < weekNeed(k));
@@ -443,9 +435,7 @@ export function DashboardPage() {
                     {r.enduranceRecovery > 0 && <span className="chip-mini good">conditie +{perDay(r.enduranceRecovery)}</span>}
                     {r.libidoRecovery > 0 && <span className="chip-mini good">libido +{perDay(r.libidoRecovery)}</span>}
                   </div>
-                  {FEED_ROLE[key] && (
-                    <div className="faint" style={{ fontSize: '0.75rem', marginTop: 4 }}>{FEED_ROLE[key]}</div>
-                  )}
+
                 </div>
               );
             })}
