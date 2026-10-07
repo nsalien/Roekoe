@@ -526,7 +526,7 @@ app.get('/state', (c) => {
     inrichting: {
       equipment: EQUIPMENT,
       vaccines: VACCINES,
-      scout: { tiers: SCOUT.tiers, markets: SCOUT.markets, travelHours: SCOUT.travelHours, choiceHours: SCOUT.choiceHours, quarantineDays: SCOUT.quarantineDays },
+      scout: { tiers: SCOUT.tiers, markets: SCOUT.markets, choiceHours: SCOUT.choiceHours, quarantineDays: SCOUT.quarantineDays },
       widowFee: WIDOW.feePerFlight,
       insurancePayoutRate: INSURANCE.payoutRate,
     },

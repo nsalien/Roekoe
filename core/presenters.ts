@@ -300,12 +300,17 @@ function scoutDTO(db: Database, m: ScoutMission | null | undefined, nowMs: numbe
   if (!m || status === 'none') return null;
   const market = SCOUT.markets[m.market as keyof typeof SCOUT.markets];
   const tier = SCOUT.tiers[m.tier as keyof typeof SCOUT.tiers];
+  const day = Math.floor((nowMs - Date.parse(m.sentAt)) / 86400000) + 1;
   return {
     status,
     market: market?.label ?? m.market,
     tier: tier?.label ?? m.tier,
-    readyAt: m.readyAt,
-    expiresAt: m.expiresAt,
+    sentAt: m.sentAt,
+    // While he is away nobody knows when he is back — not even the client.
+    readyAt: status === 'away' ? null : m.readyAt,
+    day,
+    maxDays: tier?.maxDays ?? null,
+    expiresAt: status === 'away' ? null : m.expiresAt,
     offers: status === 'report'
       ? m.offers.map((o, index) => ({
           index,
@@ -413,6 +418,8 @@ export function loftDTO(db: Database, loft: Loft) {
         magazine: !!eq.magazine,
         lastHawkDay: eq.lastHawkDay ?? null,
         scout: scoutDTO(db, eq.scout, Date.now()),
+        // Once per season: has this season's scout already gone out?
+        scoutUsed: eq.scoutSeason === db.world.seasonYear,
       };
     })(),
     // Breeding pairs, so the loft view can put each pair in its own nest box.

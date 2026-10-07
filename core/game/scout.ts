@@ -1,12 +1,15 @@
 /**
  * Scout op buitenlandse markten (hokinrichting — ⚠️ dev, nog niet live).
  *
- * The player pays a scout's wage and picks a market and a budget. He is away
- * SCOUT.travelHours; the birds he finds are rolled the moment he leaves (so no
- * tick has to make them and two requests cannot disagree) and shown once he is
- * back. The player buys one or none within SCOUT.choiceHours; the wage is gone
- * either way. A bought bird sits SCOUT.quarantineDays in quarantine. One mission
- * at a time, bots never take part. Everything lives on Loft.equipment.scout.
+ * The player pays a scout's wage and picks a market and a budget, once per
+ * season. How long he is away is uncertain (`returnChance`, up to the tier's
+ * `maxDays`), and he may come back empty-handed (`emptyChance`). All of that —
+ * the return day, whether he finds anything, and the birds themselves — is
+ * rolled the moment he leaves, so no tick has to make it and two requests can
+ * never disagree; the player only learns it when he is back. Then: buy one or
+ * none within SCOUT.choiceHours. The wage is gone either way. A bought bird sits
+ * SCOUT.quarantineDays in quarantine. Bots never take part. Everything lives on
+ * Loft.equipment.scout.
  */
 
 import { GENE, SCOUT, type ScoutMarket, type ScoutTier } from '../config/gameConfig.js';
@@ -22,6 +25,22 @@ import { rollAnyTrait } from './traits.js';
 import { clamp, round1 } from './util.js';
 
 const HOUR = 3600000;
+const DAY = 24 * HOUR;
+
+/** The chance he comes home on day `day` of the trip, given he is not back yet. */
+export function returnChance(tier: ScoutTier, day: number): number {
+  const max = SCOUT.tiers[tier].maxDays;
+  if (day >= max) return 1;
+  if (day <= 1) return SCOUT.firstDayChance;
+  return SCOUT.firstDayChance + (1 - SCOUT.firstDayChance) * Math.pow((day - 1) / (max - 1), SCOUT.returnCurve);
+}
+
+/** Roll the day he comes home (1..maxDays). */
+export function rollReturnDay(tier: ScoutTier, rng: () => number = Math.random): number {
+  const max = SCOUT.tiers[tier].maxDays;
+  for (let d = 1; d < max; d++) if (rng() < returnChance(tier, d)) return d;
+  return max;
+}
 
 /** The scout's state for a loft: away, back with a report, or nothing. */
 export function scoutStatus(m: ScoutMission | null | undefined, nowMs: number): 'none' | 'away' | 'report' | 'expired' {
@@ -69,6 +88,7 @@ export function sendScout(store: Store, userId: string, market: string, tier: st
     const st = scoutStatus(eq.scout, nowMs);
     if (st === 'away') return 'Je scout is nog onderweg';
     if (st === 'report') return 'Er ligt nog een scoutrapport — koop een duif of sluit het rapport eerst';
+    if (eq.scoutSeason === db.world.seasonYear) return 'Je scout ging dit seizoen al op pad — volgend seizoen kan het weer';
     const debt = debtBlock(loft); if (debt) return debt;
     const t = SCOUT.tiers[tier as ScoutTier];
     if (loft.money < t.wage) return 'Niet genoeg geld voor het scoutloon';
@@ -76,11 +96,14 @@ export function sendScout(store: Store, userId: string, market: string, tier: st
     const m = SCOUT.markets[market as ScoutMarket];
     const taken = namesInUse(db.pigeons);
     const offers: ScoutMission['offers'] = [];
-    for (let i = 0; i < SCOUT.offers; i++) {
+    // Thin supply: the better the birds he is after, the likelier he finds none.
+    const found = Math.random() >= t.emptyChance ? SCOUT.offers : 0;
+    for (let i = 0; i < found; i++) {
       const p = scoutBird(market as ScoutMarket, tier as ScoutTier, db.world.currentWeek, taken);
       taken.add(nameKey(p.name));
       const base = marketValue(db, p, db.world.currentWeek);
-      const price = Math.max(100, Math.round((base * (m.priceMin + Math.random() * (m.priceMax - m.priceMin))) / 100) * 100);
+      // Rounded UP to €100: an import is never cheaper than its multiplier says.
+      const price = Math.max(100, Math.ceil((base * (m.priceMin + Math.random() * (m.priceMax - m.priceMin))) / 100) * 100);
       const est = (v: number) => Math.round(clamp(v + (Math.random() * 2 - 1) * SCOUT.capsEstimateNoise, GENE.floor, GENE.ceil));
       offers.push({
         pigeon: p,
@@ -92,9 +115,10 @@ export function sendScout(store: Store, userId: string, market: string, tier: st
         },
       });
     }
-    const readyAt = nowMs + SCOUT.travelHours * HOUR;
+    const readyAt = nowMs + rollReturnDay(tier as ScoutTier) * DAY;
     loft.equipment = {
       ...eq,
+      scoutSeason: db.world.seasonYear,
       scout: {
         market, tier,
         sentAt: new Date(nowMs).toISOString(),

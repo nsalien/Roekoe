@@ -1468,10 +1468,12 @@ dagen. Vervalt bij verkoop.
 dag 10 % → 14 %, slechte dag 7 % → 5 %; zij moet thuis zijn bij de lossing, geen
 van beiden broedt; zij −3 energie per vlucht.
 
-**Scout:** brons/zilver/goud (€250/€500/€900, ★ 60–68/68–76/76–84); Taiwan
-(snelheid), Zuid-Afrika (conditie), VS (oriëntatie): die gen-cap +6, prijs
-×1,4–1,7; China: score +4, ×1,8–2,2. 2 dagen weg, 48 u kiezen, één of geen;
-kenmerkkans 50 %; 5 dagen quarantaine; één opdracht tegelijk.
+**Scout:** één keer per seizoen. Brons/zilver/goud (€250/€500/€900, ★ 60–68/68–76/76–84,
+hoogstens 7/14/21 dagen weg). Terugkeerkans op dag d van maximaal N:
+`5 % + 95 % · ((d−1)/(N−1))^1,6` — brons 5 · 10 · 21 · 36 · 55 · 76 · 100 %. Met lege handen
+terug: 10 % / 25 % / 40 %. Taiwan (snelheid), Zuid-Afrika (conditie), VS (oriëntatie): die
+gen-cap +6, prijs ×1,4–1,7 van de marktwaarde; China: score +4, ×1,8–2,2. 48 u kiezen, één of
+geen; kenmerkkans 50 %; 5 dagen quarantaine.
 
 **Bots** kopen vers stro (meter ≤ 60) en dakventilatie, verder niets.
 

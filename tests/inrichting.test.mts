@@ -20,7 +20,7 @@ import {
   widowActive, libidoTargetBonus, restBonusEnergy,
 } from '../core/game/inrichting.js';
 import { breed } from '../core/game/breeding.js';
-import { buyScouted, scoutStatus, sendScout } from '../core/game/scout.js';
+import { buyScouted, returnChance, rollReturnDay, scoutStatus, sendScout } from '../core/game/scout.js';
 import { dailyRunningCostBreakdown } from '../core/game/economy.js';
 import { startLiveFlight } from '../core/game/flight.js';
 import { canRace, talent } from '../core/game/pigeon.js';
@@ -181,25 +181,61 @@ console.log('\n=== 6. Reismanden ===');
 
 console.log('\n=== 7. Scout ===');
 {
-  const { store, db, userId, loft, birds } = world();
-  const m = loft.money;
-  ok(sendScout(store, userId, 'china', 'zilver', T0) === null && loft.money === m - SCOUT.tiers.zilver.wage, 'scout naar China (zilver): €500 loon');
+  // Terugkeer: de kans per dag stijgt tot 100 % op de laatste dag.
+  const bronze = [1, 2, 3, 4, 5, 6, 7].map((d) => Math.round(returnChance('brons', d) * 100));
+  ok(bronze[0] === 5 && bronze[1] === 10 && bronze[2] >= 19 && bronze[2] <= 22 && bronze[6] === 100, `brons per dag: ${bronze.join(' · ')} %`);
+  for (const [tier, max] of [['brons', 7], ['zilver', 14], ['goud', 21]] as const) {
+    const days = Array.from({ length: 4000 }, () => rollReturnDay(tier));
+    const mean = days.reduce((a, b) => a + b, 0) / days.length;
+    ok(Math.min(...days) >= 1 && Math.max(...days) <= max && days.some((d) => d === 1),
+      `${tier}: 1 tot ${max} dagen, gemiddeld ${mean.toFixed(1)}`);
+  }
+
+  // Een wereld waarin hij iets vond (lege handen is een echte kans: probeer opnieuw).
+  let w = world();
+  for (let i = 0; i < 30; i++) {
+    w = world();
+    sendScout(w.store, w.userId, 'china', 'zilver', T0);
+    if (w.loft.equipment!.scout!.offers.length === 3) break;
+  }
+  const { store, db, userId, loft, birds } = w;
+  ok(loft.money === 50000 - SCOUT.tiers.zilver.wage, 'scout naar China (zilver): €500 loon');
   ok(sendScout(store, userId, 'taiwan', 'brons', T0) !== null, 'één opdracht tegelijk');
-  ok(scoutStatus(loft.equipment!.scout, T0 + DAY) === 'away' && buyScouted(store, userId, 0, T0 + DAY) !== null, 'onderweg: nog niets te kopen');
+  const back = Date.parse(loft.equipment!.scout!.readyAt);
+  ok(back - T0 >= DAY && back - T0 <= 14 * DAY, `terug na ${Math.round((back - T0) / DAY)} dag(en), binnen 14`);
+  ok(scoutStatus(loft.equipment!.scout, back - 1000) === 'away' && buyScouted(store, userId, 0, back - 1000) !== null, 'onderweg: nog niets te kopen');
   const offers = loft.equipment!.scout!.offers;
   const scores = offers.map((o) => talent(o.pigeon));
   ok(offers.length === 3 && scores.every((s) => s >= 68 && s <= 82), `3 duiven, score in de band + 4 (${scores.join(', ')})`);
+  ok(offers.every((o) => o.price >= marketValue(db, o.pigeon, db.world.currentWeek) * 1.8), 'China: altijd ≥ ×1,8 de marktwaarde');
   const n = birds().length;
-  ok(buyScouted(store, userId, 1, T0 + 49 * 3600000) === null && birds().length === n + 1, 'na 48 u: kopen lukt');
+  ok(buyScouted(store, userId, 1, back + 3600000) === null && birds().length === n + 1, 'terug: kopen lukt');
   const imp = birds().find((p) => p.care?.origin)!;
   ok(imp.care!.origin === 'Import · China' && !!imp.care!.quarantineUntil, 'herkomst + quarantaine');
   ok(!canRace(imp, db.world.currentWeek), 'in quarantaine: niet vliegen');
   ok(loft.equipment!.scout === null, 'het rapport is gesloten na de aankoop');
-  sendScout(store, userId, 'vs', 'brons', T0);
-  ok(scoutStatus(loft.equipment!.scout, T0 + 97 * 3600000) === 'expired' && buyScouted(store, userId, 0, T0 + 97 * 3600000) !== null, 'na 48 u kiestijd verlopen');
+  ok((sendScout(store, userId, 'vs', 'brons', back + DAY) ?? '').includes('seizoen'), 'één keer per seizoen');
+  db.world.seasonYear += 1;
+  ok(sendScout(store, userId, 'vs', 'brons', back + DAY) === null, 'volgend seizoen weer');
+  const s2 = loft.equipment!.scout!;
+  const exp = Date.parse(s2.readyAt) + 49 * 3600000;
+  ok(scoutStatus(s2, exp) === 'expired' && buyScouted(store, userId, 0, exp) !== null, 'na 48 u kiestijd verlopen');
   const sire = birds().find((p) => p.id !== imp.id)!;
   imp.sex = 'duivin'; sire.sex = 'doffer';
   ok((startBreeding(store, userId, sire.id, imp.id) ?? '').includes('quarantaine'), 'in quarantaine: niet koppelen');
+
+  // Lege handen: brons zelden, goud vaak.
+  const emptyShare = (tier: 'brons' | 'goud') => {
+    let empty = 0;
+    for (let i = 0; i < 200; i++) {
+      const x = world();
+      sendScout(x.store, x.userId, 'taiwan', tier, T0);
+      if (x.loft.equipment!.scout!.offers.length === 0) empty += 1;
+    }
+    return empty / 200;
+  };
+  const eb = emptyShare('brons'), eg = emptyShare('goud');
+  ok(eb < 0.2 && eg > 0.28 && eg < 0.52, `lege handen: brons ${Math.round(eb * 100)} %, goud ${Math.round(eg * 100)} %`);
 }
 
 console.log('\n=== 8. Vakblad ===');

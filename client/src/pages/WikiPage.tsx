@@ -1672,8 +1672,9 @@ export function WikiPage() {
 
         <h3 style={{ marginBottom: 4 }}>Scout op buitenlandse markten</h3>
         <ul>
-          <li>Je stuurt een scout naar een markt. Na <strong>2 dagen</strong> komt hij terug met hoogstens drie duiven; je koopt er één of geen binnen 48 u. Het scoutloon krijg je niet terug.</li>
-          <li>Budget: brons ★ 60–68 (€250), zilver ★ 68–76 (€500), goud ★ 76–84 (€900).</li>
+          <li>Je stuurt een scout naar een markt, <strong>één keer per seizoen</strong>. Je weet niet wanneer hij terugkomt: dag 1 is er 5 % kans, en elke dag wordt die kans groter tot 100 % op de laatste dag (brons: 5 · 10 · 21 · 36 · 55 · 76 · 100 %).</li>
+          <li>Budget: brons ★ 60–68 (€250, 1–7 dagen), zilver ★ 68–76 (€500, 1–14 dagen), goud ★ 76–84 (€900, 1–21 dagen).</li>
+          <li>Hoe beter de duiven die hij zoekt, hoe kleiner het aanbod: hij komt <strong>met lege handen</strong> terug in 10 % (brons), 25 % (zilver) of 40 % (goud) van de gevallen. Anders brengt hij drie duiven mee; je koopt er één of geen binnen 48 u. Het scoutloon krijg je nooit terug.</li>
           <li>Taiwan: gen-cap snelheid hoger · Zuid-Afrika: conditie · Verenigde Staten: oriëntatie · China: score +4. Prijs ×1,4–1,7 van de marktwaarde (China ×1,8–2,2).</li>
           <li>Je ziet alle eigenschappen; de gen-caps zijn een schatting (±3). Kenmerkkans 50 %. Je hebt een vrije plaats nodig, en een importduif zit <strong>5 dagen in quarantaine</strong> (niet vliegen, niet koppelen). Eén opdracht tegelijk.</li>
         </ul>

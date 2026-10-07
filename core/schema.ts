@@ -349,6 +349,8 @@ export interface LoftEquipment {
   lastHawkDay?: number;
   /** A scout abroad, or his report waiting for a choice (see scout.ts). */
   scout?: ScoutMission | null;
+  /** The season (World.seasonYear) the scout last went out — once per season. */
+  scoutSeason?: number;
 }
 
 /** A scout sent to a market abroad (EQUIPMENT/SCOUT in gameConfig). */
@@ -356,9 +358,10 @@ export interface ScoutMission {
   market: string; // SCOUT.markets key
   tier: string; // SCOUT.tiers key
   sentAt: string;
-  readyAt: string; // when the report comes in
+  /** When he is back. Rolled at departure and NOT shown while he is away. */
+  readyAt: string;
   expiresAt: string; // 48 h after readyAt
-  /** The birds he found. Generated when he leaves, shown from readyAt. */
+  /** The birds he found (empty = he came back empty-handed). Rolled when he leaves, shown from readyAt. */
   offers: { pigeon: Pigeon; price: number; capsEstimate: { speed: number; endurance: number; orientation: number } }[];
 }
 

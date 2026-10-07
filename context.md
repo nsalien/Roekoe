@@ -172,8 +172,13 @@
   - verzekering: `insurancePayout` op elke sterfteplek (ziekte/ouderdom in health.ts, vlucht en
     honger in schedule.ts, sperwer in events.ts); premie = 1,3 × uitkering × (0,04 % +
     `ageMortality`·4/7); `clearOwnerCare` bij elke eigendomswissel (engine/auction/offers);
-  - scout: duiven worden **bij vertrek** gerold (geen tick nodig, geen onenigheid tussen
-    verzoeken) en vanaf `readyAt` getoond; kopen vraagt een vrije plaats; quarantaine blokkeert
+  - scout: **één keer per seizoen** (`equipment.scoutSeason` = `world.seasonYear`). Bij vertrek
+    wordt álles gerold (geen tick nodig, geen onenigheid tussen verzoeken): de terugkeerdag
+    (`rollReturnDay`, kans per dag `returnChance` = 5 % + 95 %·((d−1)/(N−1))^1,6, N = 7/14/21
+    voor brons/zilver/goud; gemiddeld ~4 / ~6 / ~7 dagen), lege handen (`emptyChance`
+    10/25/40 %) en de duiven. `readyAt` gaat **niet** naar de client zolang hij weg is (enkel
+    "dag X van hoogstens N"). Prijs = marktwaarde × 1,4–1,7 (China 1,8–2,2), dus altijd boven de
+    marktwaarde, hoe die ook beweegt. Kopen vraagt een vrije plaats; quarantaine blokkeert
     vliegen en koppelen (`inQuarantine` in startBreeding);
   - vakblad: `pigeonDTO.magazineRanges` (geseed, bevat altijd de echte waarde), `/market.report`
     (`magazineReport`), `tickMagazine` op de maandag-dagovergang (stabiele id per lezer+dag);

@@ -265,14 +265,18 @@ export interface LoftEquipment {
   magazine: boolean;
   lastHawkDay: number | null;
   scout: ScoutView | null;
+  scoutUsed: boolean; // once per season
 }
 
 export interface ScoutView {
   status: 'away' | 'report' | 'expired';
   market: string;
   tier: string;
-  readyAt: string;
-  expiresAt: string;
+  sentAt: string;
+  readyAt: string | null; // hidden while he is away
+  day: number; // which day of the trip it is
+  maxDays: number | null;
+  expiresAt: string | null;
   offers: {
     index: number; name: string; sex: Sex; ageWeeks: number; talent: number;
     speed: number; endurance: number; orientation: number;
@@ -295,9 +299,9 @@ export interface InrichtingCatalogue {
   equipment: Record<string, { label: string; price?: number; daily?: number; priceFirstTwo?: number; pricePerExtra?: number; dailyPerBoxInUse?: number }>;
   vaccines: Record<string, { label: string; disease: string; kind: 'vaccin' | 'kuur'; price: number; days: number; protect: number; noFlyDays: number; libidoHit: number }>;
   scout: {
-    tiers: Record<string, { label: string; wage: number; scoreMin: number; scoreMax: number }>;
+    tiers: Record<string, { label: string; wage: number; scoreMin: number; scoreMax: number; maxDays: number; emptyChance: number }>;
     markets: Record<string, { label: string; blurb: string }>;
-    travelHours: number; choiceHours: number; quarantineDays: number;
+    choiceHours: number; quarantineDays: number;
   };
   widowFee: number;
   insurancePayoutRate: number;
