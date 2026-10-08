@@ -2214,18 +2214,27 @@ export const INFIRMARY_CAPACITY_TIERS: { capacity: number; price: number }[] = [
  */
 export const MARKET_VALUATION = {
   /** How close in talent a sale must be to count as "comparable" (Gaussian sigma,
-   *  in talent points). 10 keeps a sale relevant across a broad band, which matters
-   *  with only a handful of sales a week — and since sales scale the curve rather
-   *  than replace prices outright, a nearby band is a fair guide. */
-  talentSigma: 10,
-  /** A sale's weight halves every this many days, so prices drift with the market
-   *  instead of being anchored to one old record sale. */
+   *  in talent points). Was 10: one record sale then lifted every bird from ~20
+   *  points below it, and a run of ordinary sales in the 60s dragged the top band
+   *  down with them (the reference curve is flatter than what the market pays at
+   *  the top, so their factors are lower). 6 keeps a sale about the birds that are
+   *  genuinely comparable: ±6 still counts for ~60 %, ±12 for ~14 %. */
+  talentSigma: 6,
+  /** Among the sales that count, a newer one weighs more in the PRICE LEVEL: its
+   *  weight halves every this many days, so the latest deals set the price.
+   *  ⚠️ Not in the trust (see `fadeDays`): age alone never pulls a price back. */
   halfLifeDays: 10,
-  /** Sales older than this are ignored outright. */
-  observationDays: 28,
-  /** Comparable weight at which the market fully overrules the model. Roughly two
-   *  fresh, on-talent sales — small on purpose: with ten players there will never
-   *  be many, and a real price beats a guessed one. */
+  /** Sales older than this are ignored outright. Was 28: a price set by a record
+   *  sale faded back to the (too low) model within weeks while nothing cheaper
+   *  sold. Two seasons now. */
+  observationDays: 60,
+  /** How much a sale counts as EVIDENCE (the trust) does not shrink with age — a
+   *  price holds until a newer sale says otherwise. Only over the last this many
+   *  days of the window does a sale fade out, so it never drops off a cliff. */
+  fadeDays: 14,
+  /** Comparable evidence at which the market fully overrules the model. Roughly two
+   *  on-talent sales — small on purpose: with ten players there will never be
+   *  many, and a real price beats a guessed one. */
   trustWeight: 1.5,
   /** Never let the market be the *only* voice; the model keeps a small say so a
    *  single odd sale cannot define a whole talent band. */
@@ -2241,7 +2250,7 @@ export const MARKET_VALUATION = {
  * How far back the in-game verkoopgeschiedenis on the market reaches.
  *
  * ⚠️ Display only, and deliberately far SHORTER than
- * `MARKET_VALUATION.observationDays` (28): the valuation still learns from every
+ * `MARKET_VALUATION.observationDays` (60): the valuation still learns from every
  * sale in its own window. Trimming the visible list only keeps the market page
  * about what is happening now instead of a scroll of month-old deals.
  */
