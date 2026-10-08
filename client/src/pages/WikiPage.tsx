@@ -1637,7 +1637,7 @@ export function WikiPage() {
 
       <Section id="inrichting" icon="🛠️" title="Hokinrichting, vaccins & diensten">
         <p className="muted" style={{ marginTop: 0 }}>
-          Alles hieronder koop je op de pagina <em>Inrichting</em> of op de pagina van een duif; de scout stuur je vanop de <em>Markt</em>. <strong>Niets kopen = het spel zoals
+          Alles hieronder koop je op de pagina <em>Inrichting</em> (bouwen &amp; uitbreiden, hygiëne &amp; klimaat, vaccins, kweek, vluchten) of op de pagina van een duif; de scout en het vakblad vind je op de <em>Markt</em>. <strong>Niets kopen = het spel zoals
           vroeger.</strong> Wat per dag kost, staat in je <em>Dagbalans</em>.
         </p>
         <MiniTable

@@ -1,6 +1,8 @@
 /**
- * Hokinrichting (⚠️ dev, nog niet live), op de pagina Inrichting en de Markt: de inrichting kopen, het
- * hele hok inenten of kuren, en de scout. Tekst en knoppen — de regels zelf
+ * Hokinrichting (⚠️ dev, nog niet live): de kaarten van de pagina Inrichting,
+ * gegroepeerd op waarvoor iets dient — bouwen & uitbreiden, hygiëne & klimaat,
+ * vaccins, kweek en vluchten — plus het vakblad en de scout op de Markt en de
+ * verzorgingskaart op de pagina van een duif. Tekst en knoppen; de regels zelf
  * staan in de wiki (#inrichting).
  */
 
@@ -15,48 +17,207 @@ type Act = (fn: () => Promise<unknown>, ok?: string) => void;
 function Line({ label, children }: { label: React.ReactNode; children: React.ReactNode }) {
   return (
     <div className="row" style={{ gap: 10, alignItems: 'center', flexWrap: 'wrap', justifyContent: 'space-between', padding: '6px 0', borderTop: '1px solid var(--border)' }}>
-      <span style={{ flex: '1 1 180px', minWidth: 0 }}>{label}</span>
+      <span style={{ flex: '1 1 240px', minWidth: 0 }}>{label}</span>
       <span className="row" style={{ gap: 6, flexWrap: 'wrap' }}>{children}</span>
+    </div>
+  );
+}
+
+function Card({ title, tour, children }: { title: string; tour?: string; children: React.ReactNode }) {
+  return (
+    <div className="card" style={{ marginBottom: 18 }} data-tour={tour}>
+      <h2 style={{ marginTop: 0 }}>{title}</h2>
+      {children}
     </div>
   );
 }
 
 const euro = (n: number) => `€${n.toLocaleString('nl-BE')}`;
 
-export function InrichtingCard({ loft, cat, busy, act }: { loft: Loft; cat: InrichtingCatalogue; busy: boolean; act: Act }) {
-  const eq = loft.equipment!;
-  const items: { key: string; owned: boolean; what: string; needs?: string }[] = [
-    { key: 'ventilation', owned: eq.ventilation, what: 'minder ornithose, droger stro, iets beter herstel' },
-    { key: 'run', owned: eq.run, what: 'grotere rustbonus, hoger libido' },
-    { key: 'raptorGuard', owned: eq.raptorGuard, what: 'net + lokuil: geen sperwer meer', needs: eq.run ? undefined : 'eerst een ren' },
-    { key: 'light', owned: eq.light, what: 'hoger libido, vlotter kweken' },
-    { key: 'baskets', owned: eq.baskets, what: 'elke vlucht kost minder energie en gezondheid' },
-    { key: 'weatherStation', owned: eq.weatherStation, what: 'weervoorspelling 24 u vóór de lossing' },
-  ];
-  const buy = (key: string, label: string, price: number) => {
-    if (!window.confirm(`${label} kopen voor ${euro(price)}? Dat kan je niet terugverkopen.`)) return;
-    act(() => api('/loft/equipment', { method: 'POST', body: { key } }), `${label} gekocht`);
-  };
+const ICON: Record<string, string> = {
+  ventilation: '🌬️', run: '🌳', raptorGuard: '🦅', light: '💡', irBoxes: '🔥',
+  baskets: '🧺', weatherStation: '📡', partnerhok: '💑', magazine: '📰',
+};
+
+/** One piece of inrichting you buy once: in your loft, waiting on another, or a buy button. */
+function EquipmentLine({ k, owned, what, needs, loft, cat, busy, act }: {
+  k: string; owned: boolean; what: string; needs?: string;
+  loft: Loft; cat: InrichtingCatalogue; busy: boolean; act: Act;
+}) {
+  const item = cat.equipment[k];
+  const price = item.price ?? 0;
   return (
-    <div className="card" style={{ marginBottom: 18 }}>
-      <h2 style={{ marginTop: 0 }}>🛠️ Hokinrichting</h2>
-      {items.map((it) => {
-        const item = cat.equipment[it.key];
-        return (
-          <Line key={it.key} label={<><strong>{item.label}</strong> <span className="faint">— {it.what}</span></>}>
-            {it.owned ? (
-              <span className="badge">✓ in je hok{item.daily ? <> · <Money value={item.daily} />/dag</> : null}</span>
-            ) : it.needs ? (
-              <span className="faint">{it.needs}</span>
-            ) : (
-              <button className="btn sm" disabled={busy || loft.money < (item.price ?? 0)} onClick={() => buy(it.key, item.label, item.price ?? 0)}>
-                Kopen · <Money value={item.price ?? 0} />{item.daily ? <> + <Money value={item.daily} />/dag</> : null}
-              </button>
-            )}
-          </Line>
-        );
-      })}
-      <Line label={<><strong>{cat.equipment.irBoxes.label}</strong> <span className="faint">— koppels komen sneller uit, meer tweelingen · {eq.irBoxes} {eq.irBoxes === 1 ? 'bak' : 'bakken'}, {eq.irInUse} in gebruik</span></>}>
+    <Line label={<><strong>{ICON[k]} {item.label}</strong> <span className="faint">— {what}</span></>}>
+      {owned ? (
+        <span className="badge">✓ in je hok{item.daily ? <> · <Money value={item.daily} />/dag</> : null}</span>
+      ) : needs ? (
+        <span className="faint">{needs}</span>
+      ) : (
+        <button className="btn sm" disabled={busy || loft.money < price} onClick={() => {
+          if (!window.confirm(`${item.label} kopen voor ${euro(price)}? Dat kan je niet terugverkopen.`)) return;
+          act(() => api('/loft/equipment', { method: 'POST', body: { key: k } }), `${item.label} gekocht`);
+        }}>
+          Kopen · <Money value={price} />{item.daily ? <> + <Money value={item.daily} />/dag</> : null}
+        </button>
+      )}
+    </Line>
+  );
+}
+
+/**
+ * Bouwen & uitbreiden: every room and structure you add to the loft, side by
+ * side — plaatsen, aparte hokken, partnerhokken, ziekenboegbedden, the buitenren
+ * and the net over it. None of it can be sold back, so each one asks first.
+ */
+export function BuildCard({ loft, cat, upkeepBands, busy, act }: {
+  loft: Loft; cat: InrichtingCatalogue | null; upkeepBands: { upTo: number; perPigeon: number }[]; busy: boolean; act: Act;
+}) {
+  const eq = loft.equipment;
+  // Daily upkeep rate the NEXT bird would fall into (bands are ascending; the
+  // last one also covers anything beyond it).
+  const nextBirdRate = upkeepBands.length
+    ? (upkeepBands.find((b) => loft.pigeonCount + 1 <= b.upTo) ?? upkeepBands[upkeepBands.length - 1]).perPigeon
+    : null;
+  // Bound to consts so the narrowing survives into the click handlers.
+  const nextCap = loft.nextCapacity;
+  const compartmentCost = loft.compartmentCost;
+  const nextBeds = loft.nextInfirmary;
+  return (
+    <Card title="🏗️ Bouwen & uitbreiden" tour="upgrades">
+      <Line label={
+        <>
+          <strong>🏠 Hokcapaciteit</strong>{' '}
+          <span className="faint">
+            — nu {loft.capacity} plaatsen
+            {/* Upkeep rises per band: name what the next bird costs, so a bigger
+                loft is never a hidden recurring cost. */}
+            {nextBirdRate !== null && <> · je volgende duif kost €{nextBirdRate}/dag aan onderhoud (<Link to="/wiki#hok">schijven</Link>)</>}
+          </span>
+        </>
+      }>
+        {nextCap ? (
+          <button
+            className="btn accent sm"
+            disabled={busy || loft.money < nextCap.price}
+            onClick={() => {
+              if (!window.confirm(
+                `Ben je zeker dat je je hok wil uitbreiden naar ${nextCap.capacity} plaatsen voor ${euro(nextCap.price)}?\n\n`
+                + `Dat bedrag gaat er meteen af.`
+                + (nextBirdRate !== null ? ` Je volgende duif kost daarna €${nextBirdRate}/dag aan onderhoud.` : ''),
+              )) return;
+              act(() => api('/loft/capacity', { method: 'POST' }), 'Hok uitgebreid! 🏠');
+            }}
+          >
+            Naar {nextCap.capacity} · <Money value={nextCap.price} />
+          </button>
+        ) : <span className="faint">maximum bereikt</span>}
+      </Line>
+      <Line label={<><strong>🧱 Aparte hokken</strong> <span className="faint">— {loft.compartmentsUsed}/{loft.compartments} in gebruik · beter energieherstel en minder ziekte; wie apart zit kies je op <Link to="/hok">Mijn hok</Link></span></>}>
+        {compartmentCost != null ? (
+          <button
+            className="btn sm"
+            disabled={busy || loft.money < compartmentCost}
+            onClick={() => {
+              if (!window.confirm(
+                `Ben je zeker dat je een apart hok wil bijbouwen voor ${euro(compartmentCost)}?\n\n`
+                + `Dat bedrag gaat er meteen af, en elk volgend apart hok wordt duurder.`,
+              )) return;
+              act(() => api('/loft/compartment', { method: 'POST' }), 'Apart hok gebouwd! 🧱');
+            }}
+          >
+            Bijbouwen · <Money value={compartmentCost} />
+          </button>
+        ) : <span className="faint">elke plaats heeft er al een</span>}
+      </Line>
+      {eq && cat && (
+        <Line label={<><strong>{ICON.partnerhok} {cat.equipment.partnerhok.label}</strong> <span className="faint">— twee duiven wennen er samen aan elkaar, ook vanuit een apart hok: sneller en minder kans op weigeren · {eq.partnerhokken === 0 ? 'nog geen' : `${eq.partnerhokken} gebouwd, ${eq.partnerhokInUse} in gebruik`}</span></>}>
+          {eq.partnerhokNextPrice != null ? (
+            <button className="btn sm" disabled={busy || loft.money < eq.partnerhokNextPrice} onClick={() => {
+              if (!window.confirm(`Een partnerhok bouwen voor ${euro(eq.partnerhokNextPrice!)}?`)) return;
+              act(() => api('/loft/partnerhok', { method: 'POST' }), 'Partnerhok gebouwd');
+            }}>
+              +1 · <Money value={eq.partnerhokNextPrice} /> + <Money value={cat.equipment.partnerhok.dailyPerBox ?? 0} />/dag
+            </button>
+          ) : <span className="faint">maximum bereikt</span>}
+        </Line>
+      )}
+      <Line label={<><strong>🛏️ Ziekenboeg</strong> <span className="faint">— {loft.infirmaryCapacity} bedden, {loft.infirmaryCount} bezet · dokters, kinesisten en medicinaal voer op de <Link to="/ziekenboeg">ziekenboeg</Link></span></>}>
+        {nextBeds ? (
+          <button className="btn sm" disabled={busy || loft.money < nextBeds.price} onClick={() => {
+            if (!window.confirm(`De ziekenboeg uitbreiden naar ${nextBeds.capacity} bedden voor ${euro(nextBeds.price)}?`)) return;
+            act(() => api('/loft/infirmary/upgrade', { method: 'POST' }), 'Ziekenboeg uitgebreid! 🏥');
+          }}>
+            Naar {nextBeds.capacity} · <Money value={nextBeds.price} />
+          </button>
+        ) : <span className="faint">maximum bereikt</span>}
+      </Line>
+      {eq && cat && (
+        <>
+          <EquipmentLine k="run" owned={eq.run} what="grotere rustbonus, hoger libido; trekt soms een sperwer aan" loft={loft} cat={cat} busy={busy} act={act} />
+          <EquipmentLine k="raptorGuard" owned={eq.raptorGuard} what="net + lokuil boven de ren: geen sperwer meer" needs={eq.run ? undefined : 'eerst een buitenren'} loft={loft} cat={cat} busy={busy} act={act} />
+        </>
+      )}
+    </Card>
+  );
+}
+
+/**
+ * Hygiëne & klimaat: the meter, what it does now, fresh straw, the hokpoetser
+ * and the dakventilatie (drier straw: the meter drops slower). The rule itself
+ * (decay, the ×0,8, the floor) is in the wiki.
+ */
+export function HygieneCard({ loft, cat, busy, act }: { loft: Loft; cat: InrichtingCatalogue | null; busy: boolean; act: Act }) {
+  const eq = loft.equipment!;
+  const h = Math.round(eq.hygiene);
+  const effect = eq.illnessMult < 1
+    ? `Minder kans op ziekte (×${eq.illnessMult.toLocaleString('nl-BE')})`
+    : 'Geen effect: onder 50 is het zoals altijd';
+  return (
+    <Card title="🧹 Hygiëne & klimaat">
+      <div className="row" style={{ justifyContent: 'space-between', alignItems: 'baseline', gap: 8 }}>
+        <strong>Hokhygiëne</strong>
+        <strong style={{ fontVariantNumeric: 'tabular-nums' }}>{h}</strong>
+      </div>
+      <div className="faint" style={{ fontSize: '0.8rem' }}>
+        {effect} · zakt vannacht ~{Math.round(eq.decayPerDay)}
+        {eq.lastStrawAt ? '' : ' · nog nooit stro gestrooid'}
+      </div>
+      <div className="row" style={{ gap: 8, margin: '10px 0', flexWrap: 'wrap' }}>
+        <button
+          className="btn sm"
+          disabled={busy || h >= 100 || loft.money < eq.strawCost}
+          onClick={() => act(() => api('/loft/straw', { method: 'POST' }), 'Vers stro gestrooid 🌾')}
+        >
+          🌾 Vers stro · <Money value={eq.strawCost} />
+        </button>
+        <button
+          className={`btn sm ${eq.cleaner ? 'accent' : 'ghost'}`}
+          disabled={busy}
+          onClick={() => act(
+            () => api('/loft/cleaner', { method: 'POST', body: { on: !eq.cleaner } }),
+            eq.cleaner ? 'Hokpoetser ontslagen' : 'Hokpoetser aangenomen 🧹',
+          )}
+        >
+          {eq.cleaner ? '🧹 Hokpoetser ontslaan' : '🧹 Hokpoetser aannemen'} · <Money value={eq.cleanerWage} />/dag
+        </button>
+      </div>
+      {cat && (
+        <EquipmentLine k="ventilation" owned={eq.ventilation} what="droger stro (de hygiëne zakt trager), minder ornithose, iets beter herstel" loft={loft} cat={cat} busy={busy} act={act} />
+      )}
+      <div className="faint" style={{ fontSize: '0.8rem', marginTop: 8 }}>
+        <Link to="/wiki#hygiene">Meer info over hokhygiëne →</Link>
+      </div>
+    </Card>
+  );
+}
+
+/** Kweek: what makes breeding go faster. Koppels and nests themselves are on the Kweek page. */
+export function BreedingGearCard({ loft, cat, busy, act }: { loft: Loft; cat: InrichtingCatalogue; busy: boolean; act: Act }) {
+  const eq = loft.equipment!;
+  return (
+    <Card title="🥚 Kweek">
+      <EquipmentLine k="light" owned={eq.light} what="hoger libido, vlotter kweken" loft={loft} cat={cat} busy={busy} act={act} />
+      <Line label={<><strong>{ICON.irBoxes} {cat.equipment.irBoxes.label}</strong> <span className="faint">— koppels komen sneller uit, meer tweelingen · {eq.irBoxes} {eq.irBoxes === 1 ? 'bak' : 'bakken'}, {eq.irInUse} in gebruik</span></>}>
         {eq.irNextPrice != null ? (
           <button className="btn sm" disabled={busy || loft.money < eq.irNextPrice} onClick={() => {
             if (!window.confirm(`${eq.irBoxes === 0 ? 'Twee verwarmde nestbakken' : 'Een extra verwarmde nestbak'} voor ${euro(eq.irNextPrice!)}?`)) return;
@@ -67,24 +228,42 @@ export function InrichtingCard({ loft, cat, busy, act }: { loft: Loft; cat: Inri
         ) : <span className="faint">maximum bereikt</span>}
         <span className="faint" style={{ fontSize: '0.8rem' }}><Money value={cat.equipment.irBoxes.dailyPerBoxInUse ?? 0} />/dag per bak in gebruik</span>
       </Line>
-      <Line label={<><strong>{cat.equipment.partnerhok.label}</strong> <span className="faint">— twee duiven samen om aan elkaar te wennen, ook als hij een apart hok heeft; sneller en minder kans op weigeren · {eq.partnerhokken} ({eq.partnerhokInUse} in gebruik)</span></>}>
-        {eq.partnerhokNextPrice != null ? (
-          <button className="btn sm" disabled={busy || loft.money < eq.partnerhokNextPrice} onClick={() => {
-            if (!window.confirm(`Een partnerhok bouwen voor ${euro(eq.partnerhokNextPrice!)}?`)) return;
-            act(() => api('/loft/partnerhok', { method: 'POST' }), 'Partnerhok gebouwd');
-          }}>
-            +1 · <Money value={eq.partnerhokNextPrice} /> + <Money value={cat.equipment.partnerhok.dailyPerBox ?? 0} />/dag
-          </button>
-        ) : <span className="faint">maximum bereikt</span>}
-      </Line>
-      <Line label={<><strong>{cat.equipment.magazine.label}</strong> <span className="faint">— bandbreedtes bij een privébod, marktrapport, elke maandag Het Duivenblad</span></>}>
-        <button className={`btn sm ${eq.magazine ? 'accent' : 'ghost'}`} disabled={busy} onClick={() =>
-          act(() => api('/loft/equipment', { method: 'POST', body: { key: 'magazine', on: !eq.magazine } }), eq.magazine ? 'Vakblad opgezegd' : 'Vakblad: welkom, abonnee 📰')}>
-          {eq.magazine ? 'Opzeggen' : 'Abonneren'} · <Money value={cat.equipment.magazine.daily ?? 0} />/dag
-        </button>
-      </Line>
       <div className="faint" style={{ fontSize: '0.8rem', marginTop: 8 }}>
-        <Link to="/wiki#inrichting">Meer info over de hokinrichting →</Link>
+        Koppels en nesten start je op de pagina <Link to="/kweek">Kweek</Link>; het partnerhok staat bij Bouwen &amp; uitbreiden.
+      </div>
+    </Card>
+  );
+}
+
+/** Vluchten: what you buy for the races themselves. */
+export function FlightGearCard({ loft, cat, busy, act }: { loft: Loft; cat: InrichtingCatalogue; busy: boolean; act: Act }) {
+  const eq = loft.equipment!;
+  return (
+    <Card title="🏁 Vluchten">
+      <EquipmentLine k="baskets" owned={eq.baskets} what="elke vlucht kost minder energie en gezondheid" loft={loft} cat={cat} busy={busy} act={act} />
+      <EquipmentLine k="weatherStation" owned={eq.weatherStation} what="weervoorspelling 24 u vóór de lossing" loft={loft} cat={cat} busy={busy} act={act} />
+    </Card>
+  );
+}
+
+/**
+ * Vakblad, on the Markt: all it gives is market news (bands on a private offer,
+ * the marktrapport, Het Duivenblad), so it sits with the report it unlocks.
+ */
+export function MagazineCard({ loft, cat, busy, act }: { loft: Loft; cat: InrichtingCatalogue; busy: boolean; act: Act }) {
+  const on = loft.equipment!.magazine;
+  const m = cat.equipment.magazine;
+  return (
+    <div className="card" style={{ marginBottom: 18 }}>
+      <div className="row" style={{ gap: 10, alignItems: 'center', flexWrap: 'wrap', justifyContent: 'space-between' }}>
+        <span style={{ flex: '1 1 180px', minWidth: 0 }}>
+          <strong>{ICON.magazine} {m.label}</strong>{' '}
+          <span className="faint">— {on ? 'je bent abonnee: ' : ''}bandbreedtes bij een privébod, het marktrapport en elke maandag Het Duivenblad</span>
+        </span>
+        <button className={`btn sm ${on ? 'accent' : 'ghost'}`} disabled={busy} onClick={() =>
+          act(() => api('/loft/equipment', { method: 'POST', body: { key: 'magazine', on: !on } }), on ? 'Vakblad opgezegd' : 'Vakblad: welkom, abonnee 📰')}>
+          {on ? 'Opzeggen' : 'Abonneren'} · <Money value={m.daily ?? 0} />/dag
+        </button>
       </div>
     </div>
   );

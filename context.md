@@ -232,14 +232,26 @@
   de catalogus. DTO: `loftDTO.equipment` (alle vlaggen + `scout`), `pigeonDTO.care` (enkel
   eigenaar), `.origin`, `.magazineRanges`, `flight.forecast`.
 - **UI (tekst):** een eigen pagina **Inrichting** (`/inrichting`, `pages/InrichtingPage.tsx`,
-  menu-item 🧰 na *Mijn hok*) met de uitbreidingen (capaciteit + aparte hokken, verhuisd van
-  *Mijn hok*, `data-tour="upgrades"` — de rondleiding wijst er nu heen), Hokhygiëne,
-  Hokinrichting en Vaccins & kuren (hele hok). De **scout** staat op de **Markt**. *Mijn hok*
-  toont boven de duiven enkel het compacte hokoverzicht + een link naar Inrichting: de eigenaar
-  wil zonder scrollen bij zijn duiven. Kaarten in `components/Inrichting.tsx`; het hokoverzicht
-  toont ook weduwschap, bescherming en 📦 quarantaine; duifpagina: kaart "Verzorging &
-  verzekering" (`PigeonCareCard`), herkomst, vakblad-bandbreedtes bij andermans duif; Markt:
-  Scout + Marktrapport; Vluchten: 📡 voorspelling.
+  menu-item 🧰 na *Mijn hok*), **gegroepeerd op waarvoor iets dient** (wens van de eigenaar:
+  wat bij elkaar hoort, staat samen). Kaarten in `components/Inrichting.tsx`, elk item een
+  regel (`Line`/`EquipmentLine`; op de gsm staat de knop altijd onder de tekst):
+  1. 🏗️ **Bouwen & uitbreiden** (`BuildCard`, `data-tour="upgrades"` — de rondleiding wijst
+     erheen): hokcapaciteit, aparte hokken, partnerhok, ziekenboegbedden (zelfde
+     `/loft/infirmary/upgrade` als op de ziekenboegpagina, hier met bevestiging), buitenren en
+     roofvogelafweer (net boven de ren, "eerst een buitenren").
+  2. 🧹 **Hygiëne & klimaat** (`HygieneCard`): meter, vers stro, hokpoetser, dakventilatie
+     (droger stro → de meter zakt trager).
+  3. 💉 **Vaccins & kuren** (`VaccineCard`, hele hok).
+  4. 🥚 **Kweek** (`BreedingGearCard`): kunstlicht, infrarood nestbakken (+ verwijzing naar
+     *Kweek* en het partnerhok).
+  5. 🏁 **Vluchten** (`FlightGearCard`): betere reismanden, weerstation.
+
+  Marktinformatie staat op de **Markt**: de **scout** en het **vakblad** (`MagazineCard`, net
+  boven het marktrapport dat het ontgrendelt; na (de)abonneren herlaadt de Markt `/market`).
+  *Mijn hok* toont boven de duiven enkel het compacte hokoverzicht + een link naar Inrichting: de
+  eigenaar wil zonder scrollen bij zijn duiven. Het hokoverzicht toont ook weduwschap en
+  bescherming; duifpagina: kaart "Verzorging & verzekering" (`PigeonCareCard`), herkomst,
+  vakblad-bandbreedtes bij andermans duif; Vluchten: 📡 voorspelling.
 - **Bots:** vers stro bij hygiëne ≤ 60 en dakventilatie zodra ze €5.000 boven hun reserve
   zitten (`maybeFitOutLoft`). Geen vaccins (die houden een duif 2 dagen aan de grond), geen
   scout, weduwschap, verzekering of vakblad. Dit was een open vraag; het voorstel is gevolgd.
