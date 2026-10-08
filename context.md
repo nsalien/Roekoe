@@ -101,12 +101,25 @@
 
 ### Hokoverzicht bovenaan *Mijn hok* (`client/src/components/LoftView.tsx`)
 - **Tekstueel, bewust.** Er was eerst een getekend hokaanzicht (zitbakjes, deurtjes, dag/nacht);
-  de eigenaar vond dat het op niets trok, dus het is vervangen door een kaart met regels:
-  plaatsen (bezet/thuis/vrij → markt), aparte hokken (namen + keuzelijst "Zet apart…" →
-  bestaande `/pigeons/:id/compartment`), nest (koppels), ziekenboeg (bedden, aandoening,
-  % hersteld) en "niet thuis". **Maak het niet opnieuw grafisch zonder het te vragen.**
-- **Niet thuis** (`awayStatus`, in deze voorrang): 🧭 de weg kwijt · ✈️ onderweg · 🏥 ziekenboeg
-  · 🥚 op het nest · 💤 rustkuur.
+  de eigenaar vond dat het op niets trok, dus het is vervangen door een kaart met regels.
+  **Maak het niet opnieuw grafisch zonder het te vragen.**
+- **Eén duif of koppel per regel, altijd de volledige naam** (wens van de eigenaar). Het
+  pictogram hangt vooraan (`Line`), zodat een lange naam die op de gsm omloopt herkenbaar één
+  regel blijft; de grijze toelichting springt als geheel naar de volgende regel.
+  - *Plaatsen:* "10 van 12 bezet · 2 vrij →" (markt), daaronder "8 thuis".
+  - *Aparte hokken:* elke naam op een eigen regel, daaronder "N vrij" + keuzelijst "Zet apart…"
+    (bestaande `/pigeons/:id/compartment`).
+  - *Nest:* elk broedkoppel op een regel (of "leeg · naar de kweek →").
+  - *Ziekenboeg:* "1 van de 2 bedden bezet", daaronder per patiënt 🦠/🩹 naam + aandoening,
+    % hersteld (+ "wacht op verzorging" als geen dokter/kinesist haar behandelt).
+  - *Koppels:* elk koppel op een regel (💑 / ⏳ "wennen, dag N" / "❤️ weduwschap").
+  - *Bescherming:* 💉 ingeënt/gekuurd en 🛡️ verzekerd, elk op een regel.
+- **Thuis / niet thuis** (`awayStatus`): niet thuis is enkel wie 🧭 de weg kwijt is, ✈️ nu
+  vliegt of 🏥 in de ziekenboeg ligt, elk op een eigen regel. Op het nest, in een koppel,
+  op rustkuur, in quarantaine of ingeschreven voor een latere vlucht = **thuis**.
+  "Vliegt" komt uit de nieuwe `pigeonDTO.flying` (`live && pigeonAirborne`): smaller dan
+  `racing`, dat ook geldt voor een vlucht die nog moet beginnen; de scan loopt enkel voor een
+  duif op een lopende vlucht. **Test:** `tests/hokoverzicht.test.mts`.
 - Puur weergave van `/state`, geen eigen verzoek. Eén serveraanvulling: `loftDTO.nests`
   (`{id, sireId, damId}` per broedkoppel), uit de al geladen `breedingPairs`, geen query.
 
@@ -1358,6 +1371,7 @@ npx tsx tests/demo-world.test.mts         # (dev) de demowereld + de echte API o
 npx tsx tests/hygiene.test.mts            # (dev) hokhygiëne, stro, poetser, bodem ×0,4
 npx tsx tests/inrichting.test.mts         # (dev) ventilatie, ren, sperwer, vaccins, verzekering, scout, vakblad, weerstation, bots
 npx tsx tests/koppels.test.mts            # (dev) koppels: wennen, weigeren, aantrekking, ontkoppelen, geforceerd nest, weduwschap
+npx tsx tests/hokoverzicht.test.mts       # (dev) hokoverzicht: flying (in de lucht) vs. racing (ook gepland)
 ```
 
 > **Geen `tsx` beschikbaar?** (cloud-sessie waar de npm-registry geblokkeerd is: `npx tsx`

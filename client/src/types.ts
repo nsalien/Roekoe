@@ -151,6 +151,8 @@ export interface Pigeon {
   breedAvailableAt: string | null;
   trainAvailableAt: { speed: string | null; endurance: string | null; orientation: string | null };
   racing: boolean;
+  /** In the air right now (racing also counts a race still to come). */
+  flying: boolean;
   breeding: boolean;
   dailyCare: DailyCareProjection | null;
   // Genetics (own birds only; null for other players' birds).

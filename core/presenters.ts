@@ -45,7 +45,7 @@ import { insuranceCost, insurancePremium, insuranceQuote, irBoxesInUse, magazine
 import { coupleOf, partnerhokInUse, partnerOf } from './game/koppels.js';
 import { scoutStatus } from './game/scout.js';
 import { marketValue, valuePigeon } from './game/market.js';
-import { flightCancelled, flightCommentary, liveSnapshot, pigeonCommittedToFlight } from './game/flight.js';
+import { flightCancelled, flightCommentary, liveSnapshot, pigeonAirborne, pigeonCommittedToFlight } from './game/flight.js';
 import { relayEntryTeams, relayLegKm } from './game/relay.js';
 import { BADGES, levelForXp } from './game/badges.js';
 import { round1 } from './game/util.js';
@@ -213,6 +213,10 @@ export function pigeonDTO(db: Database, p: Pigeon, viewerId?: string, viewerIsAd
     // Only true while the bird is genuinely tied up: one that already crossed the
     // line is free again, even though its flight runs on for the stragglers.
     racing: pigeonCommittedToFlight(db, p.id),
+    // In the air right now (the hokoverzicht's "niet thuis"): narrower than
+    // `racing`, which also holds for a bird merely entered for a race still to
+    // come. The scan only runs for a bird on a live flight.
+    flying: live && pigeonAirborne(db, p.id),
     breeding: revealed && db.breedingPairs.some((bp) => bp.sireId === p.id || bp.damId === p.id),
     dailyCare,
     // GENETICS (own birds only): the per-skill ceilings for the red cap markers,
