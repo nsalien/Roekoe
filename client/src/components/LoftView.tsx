@@ -125,14 +125,14 @@ export function LoftView({
           )}
         </Row>
       )}
-      <Row label="Nest">
+      <Row label="Broeden">
         {nests.length > 0
           ? nests.map((pair, i) => (
               <Line key={i} icon="🥚">
                 {pair.map((p, j) => <span key={p.id}>{j > 0 && ' & '}<Name id={p.id} name={p.name} /></span>)}
               </Line>
             ))
-          : <div><span className="faint">leeg · </span><Link to="/kweek">naar de kweek →</Link></div>}
+          : <div><span className="faint">niemand · </span><Link to="/kweek">naar de kweek →</Link></div>}
       </Row>
       <Row label="Ziekenboeg">
         <div>{patients.length} van {beds === 1 ? '1 bed' : `de ${beds} bedden`} bezet</div>
@@ -149,7 +149,8 @@ export function LoftView({
               key={c.dofferId}
               icon={c.status === 'koppel' ? '💑' : '⏳'}
               note={[
-                c.status === 'wennen' && `wennen, dag ${c.day}${c.partnerhok ? ' · partnerhok' : ''}`,
+                c.status === 'wennen' && `wennen, dag ${c.day}`,
+                c.partnerhok && 'partnerhok',
                 (widowerIds.has(c.dofferId) || widowerIds.has(c.duivinId)) && '❤️ weduwschap',
               ].filter(Boolean).join(' · ') || undefined}
             >

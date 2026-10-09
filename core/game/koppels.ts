@@ -19,7 +19,7 @@
  * table, no extra query. Bots never pair; they breed the way they always did.
  */
 
-import { BREEDING, COUPLES, EQUIPMENT, TIMEZONE } from '../config/gameConfig.js';
+import { BREEDING, COUPLES, EQUIPMENT, TIMEZONE, partnerhokPrice } from '../config/gameConfig.js';
 import type { Attraction, Couple, Database, Loft, Pigeon } from '../schema.js';
 import type { Store } from '../store.js';
 import { debtBlock } from './economy.js';
@@ -71,7 +71,7 @@ export function areCouple(loft: Loft | undefined, dofferId: string, duivinId: st
 
 /** Partnerhokken in use by a pair that is wennen there. */
 export function partnerhokInUse(loft: Loft): number {
-  return (loft.equipment?.couples ?? []).filter((c) => c.status === 'wennen' && c.partnerhok).length;
+  return (loft.equipment?.couples ?? []).filter((c) => c.partnerhok).length;
 }
 
 /**
@@ -140,8 +140,9 @@ export function buyPartnerhok(store: Store, userId: string): string | null {
     const eq = equipmentOf(loft);
     const owned = eq.partnerhokken ?? 0;
     if (owned >= EQUIPMENT.partnerhok.maxBoxes) return 'Je hebt al het maximum aan partnerhokken';
-    if (loft.money < EQUIPMENT.partnerhok.price) return 'Niet genoeg geld voor een partnerhok';
-    loft.money -= EQUIPMENT.partnerhok.price;
+    const price = partnerhokPrice(owned);
+    if (loft.money < price) return 'Niet genoeg geld voor een partnerhok';
+    loft.money -= price;
     loft.equipment = { ...eq, partnerhokken: owned + 1 };
     return null;
   });
@@ -222,6 +223,50 @@ export function dismissAttraction(store: Store, userId: string, dofferId: string
 }
 
 /**
+ * A koppel moves into a partnerhok (or back out). The box is theirs: they leave an
+ * apart hok if they had one, and a weduwnaar stops being one — he lives with her
+ * now. Only a koppel moves in; a pair that wennen picks the box at the start.
+ */
+export function setPartnerhok(store: Store, userId: string, pigeonId: string, into: boolean): string | null {
+  return store.mutate((db) => {
+    const loft = loftOf(db, userId);
+    if (!loft || !own(db, userId, pigeonId)) return 'Duif niet gevonden';
+    const c = coupleOf(loft, pigeonId);
+    if (!c) return 'Deze duif heeft geen partner';
+    const couples = loft.equipment?.couples ?? [];
+    if (!into) {
+      if (!c.partnerhok) return null;
+      if (c.status === 'wennen') return 'Ze wennen in het partnerhok — stop het wennen, of wacht tot ze beslist hebben';
+      const { partnerhok: _gone, ...rest } = c;
+      setCouples(loft, couples.map((x) => (x === c ? rest : x)));
+      return null;
+    }
+    if (c.partnerhok) return null;
+    if (c.status !== 'koppel') return 'Enkel een koppel trekt in een partnerhok — om te wennen kies je het partnerhok bij de start';
+    if (partnerhokInUse(loft) >= (loft.equipment?.partnerhokken ?? 0)) return 'Er is geen vrij partnerhok — koop er een op de pagina Inrichting';
+    for (const id of [c.dofferId, c.duivinId]) {
+      const p = own(db, userId, id);
+      if (p) p.compartment = false;
+    }
+    const doffer = own(db, userId, c.dofferId);
+    if (doffer?.care?.widow) {
+      delete doffer.care.widow;
+      if (Object.keys(doffer.care).length === 0) delete doffer.care;
+    }
+    setCouples(loft, couples.map((x) => (x === c ? { ...x, partnerhok: true } : x)));
+    return null;
+  });
+}
+
+/** A bird that moves into an apart hok takes her koppel out of its partnerhok. */
+export function leavePartnerhok(loft: Loft, pigeonId: string): void {
+  const c = coupleOf(loft, pigeonId);
+  if (!c?.partnerhok || c.status !== 'koppel') return;
+  const { partnerhok: _gone, ...rest } = c;
+  setCouples(loft, (loft.equipment?.couples ?? []).map((x) => (x === c ? rest : x)));
+}
+
+/**
  * Break the couple this bird is in. A koppel: both lose half their libido. A pair
  * still wennen simply stops (they were not partners yet).
  */
@@ -295,7 +340,10 @@ export function tickCouples(db: Database, loft: Loft, owned: Pigeon[], dayNo: nu
         note(db, loft, id, '🙅 Ze willen elkaar niet', `${first(doffer)} en ${first(duivin)} hebben elkaar geweigerd. Probeer een andere partner.`);
       } else {
         const since = new Date(nowMs).toISOString();
-        next = next.map((x) => (x === c ? { dofferId: c.dofferId, duivinId: c.duivinId, status: 'koppel' as const, startedAt: c.startedAt, since } : x));
+        // Wennen in a partnerhok: the new koppel stays in it (out again via setPartnerhok).
+        next = next.map((x) => (x === c
+          ? { dofferId: c.dofferId, duivinId: c.duivinId, status: 'koppel' as const, startedAt: c.startedAt, since, ...(c.partnerhok ? { partnerhok: true } : {}) }
+          : x));
         note(db, loft, id, '💑 Een nieuw koppel', `${first(doffer)} en ${first(duivin)} hebben elkaar aanvaard — ze zijn nu partners.`);
       }
     }

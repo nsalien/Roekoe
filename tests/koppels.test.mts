@@ -17,16 +17,17 @@
 import { MemoryStore, newId } from '../core/store.js';
 import { emptyDatabase } from '../core/schema.js';
 import type { Database, Flight, Pigeon, User } from '../core/schema.js';
-import { createLoftForUser, seedWorld, startBreeding } from '../core/game/engine.js';
+import { createLoftForUser, seedWorld, setPigeonCompartment, startBreeding } from '../core/game/engine.js';
 import { ensureFlightsScheduled, tickDailyCare } from '../core/game/schedule.js';
 import {
   brusselsDayNumber, buyPartnerhok, confirmAttraction, coupleOf, dismissAttraction, partnerOf, refuseChance,
-  startWennen, tickCouples, unpair,
+  startWennen, tickCouples, unpair, setPartnerhok, partnerhokInUse,
 } from '../core/game/koppels.js';
 import { entryMods, setWidow, settleWidowhood, widowLevel } from '../core/game/inrichting.js';
 import { startLiveFlight } from '../core/game/flight.js';
 import { loftDTO } from '../core/presenters.js';
-import { COUPLES, WIDOW } from '../core/config/gameConfig.js';
+import { COMPARTMENT, COUPLES, EQUIPMENT, WIDOW, partnerhokPrice } from '../core/config/gameConfig.js';
+import { projectDailyCare } from '../core/game/economy.js';
 import { randomWeather } from '../core/game/weather.js';
 
 let fail = 0;
@@ -223,6 +224,47 @@ console.log('\n=== 7. De dagovergang beslist het wennen ===');
   let now = NOW;
   for (let dd = 0; dd < 2; dd++) { now += DAY; for (let i = 0; i < 40; i++) tickDailyCare(db, now); }
   ok(coupleOf(loft, d1.id)?.status === 'koppel', 'na de dagovergang zijn ze een koppel');
+}
+
+console.log('\n=== Partnerhok: een eigen hok voor een koppel ===');
+{
+  const { store, db, userId, loft, d1, h1, d2, h2 } = world();
+  ok(partnerhokPrice(0) === 1600 && partnerhokPrice(1) === 2400 && partnerhokPrice(2) === 3200, 'prijs: 2× een apart hok — €1.600, €2.400, €3.200');
+  const m = loft.money;
+  ok(buyPartnerhok(store, userId) === null && loft.money === m - 1600, 'het eerste partnerhok kost €1.600');
+  ok(buyPartnerhok(store, userId) === null && loft.money === m - 1600 - 2400, 'het tweede €2.400');
+
+  // A koppel (confirmed attraction = koppel at once), one of them in an apart hok, weduwschap on.
+  const iso = new Date(NOW).toISOString();
+  loft.equipment = { ...loft.equipment!, couples: [{ dofferId: d1.id, duivinId: h1.id, status: 'koppel', startedAt: iso, since: iso }] };
+  d1.compartment = true;
+  loft.compartments = Math.max(loft.compartments ?? 0, 1);
+  d1.care = { ...(d1.care ?? {}), widow: true };
+  ok(setPartnerhok(store, userId, d1.id, true) === null && coupleOf(loft, d1.id)?.partnerhok === true, 'een bestaand koppel trekt in het partnerhok');
+  ok(!d1.compartment && !d1.care?.widow, '…hij verlaat zijn apart hok en het weduwschap stopt');
+  ok(partnerhokInUse(loft) === 1, 'het partnerhok telt als in gebruik');
+
+  // Recovery: half of an apart hok's bonus.
+  const base = { ...h1, form: 40, health: 70, inInfirmary: false, compartment: false };
+  const plain = projectDailyCare({ ...loft, equipment: { ...loft.equipment!, couples: [] } }, base);
+  const boxed = projectDailyCare(loft, base);
+  const apart = projectDailyCare({ ...loft, equipment: { ...loft.equipment!, couples: [] } }, { ...base, compartment: true });
+  const gain = (x: typeof plain) => x.deltas.form;
+  ok(gain(boxed) > gain(plain) && gain(boxed) < gain(apart), `herstel: hoofdhok ▲${gain(plain)} < partnerhok ▲${gain(boxed)} < apart hok ▲${gain(apart)}`);
+  ok(EQUIPMENT.partnerhok.recoveryShare === 0.5 && COMPARTMENT.formRecoveryBonus === 0.6, 'partnerhok = de helft van een apart hok (+30 % i.p.v. +60 % energie)');
+
+  // An apart hok and a partnerhok exclude each other.
+  loft.compartments = 2;
+  ok(setPigeonCompartment(store, userId, h1.id, true) === null && h1.compartment && !coupleOf(loft, d1.id)?.partnerhok, 'zet je haar apart, dan verlaat het koppel het partnerhok');
+  ok(setPartnerhok(store, userId, d1.id, true) === null && setPartnerhok(store, userId, d1.id, false) === null && !coupleOf(loft, d1.id)?.partnerhok, 'en uit het partnerhok kan ook');
+
+  // Wennen in the box: a new koppel stays in it.
+  ok(startWennen(store, userId, d2.id, h2.id, { partnerhok: true }, NOW, seq(0, 0.99)) === null, 'wennen in het tweede partnerhok');
+  ok((setPartnerhok(store, userId, d2.id, false) ?? '').includes('wennen'), 'wie er nog wennen is, haal je er niet zomaar uit');
+  let now = NOW;
+  for (let dd = 0; dd < 6; dd++) { now += DAY; for (let i = 0; i < 40; i++) tickDailyCare(db, now); }
+  const c2 = coupleOf(loft, d2.id);
+  ok(c2?.status === 'koppel' && c2.partnerhok === true, 'een koppel dat in het partnerhok wende, blijft er wonen');
 }
 
 if (fail > 0) { console.log(`\n${fail} mislukt`); process.exitCode = 1; }

@@ -465,9 +465,18 @@ function BidCascade({
                 <strong style={{ fontSize: '1.05rem' }}>{selected.name}</strong>
               </Link>
               <div className="faint">★ talent {selected.talent} · {selected.sex} · {selected.ageWeeks} wk</div>
-              <div className="faint" style={{ fontSize: '0.82rem', marginTop: 2 }}>
-                🔒 Precieze eigenschappen onbekend — bekijk de <Link to="/ranglijst">ranglijst</Link> of vluchtresultaten.
-              </div>
+              {selected.magazineRanges ? (
+                // Vakblad: the bands instead of only the ★ — what the subscription is for.
+                <div className="faint" style={{ fontSize: '0.82rem', marginTop: 2 }}>
+                  📰 Vakblad: snelheid {selected.magazineRanges.speed[0]}–{selected.magazineRanges.speed[1]} · conditie{' '}
+                  {selected.magazineRanges.endurance[0]}–{selected.magazineRanges.endurance[1]} · oriëntatie{' '}
+                  {selected.magazineRanges.orientation[0]}–{selected.magazineRanges.orientation[1]}
+                </div>
+              ) : (
+                <div className="faint" style={{ fontSize: '0.82rem', marginTop: 2 }}>
+                  🔒 Precieze eigenschappen onbekend — bekijk de <Link to="/ranglijst">ranglijst</Link> of vluchtresultaten.
+                </div>
+              )}
             </div>
           </div>
 

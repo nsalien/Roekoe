@@ -25,6 +25,15 @@ export function equipmentOf(loft: Loft): LoftEquipment {
   return { ...defaultEquipment(), ...(loft.equipment ?? {}) };
 }
 
+/** The birds living in a partnerhok right now (a koppel, or a pair wennen there). */
+export function partnerhokBirds(loft: Loft): Set<string> {
+  const ids = new Set<string>();
+  for (const c of loft.equipment?.couples ?? []) {
+    if (c.partnerhok) { ids.add(c.dofferId); ids.add(c.duivinId); }
+  }
+  return ids;
+}
+
 /** An item's level: 0 = not bought, 1 = the first purchase, up to EQUIPMENT_LEVELS.maxLevel. */
 export function equipmentLevel(loft: Loft, key: LevelKey): number {
   const eq = loft.equipment;

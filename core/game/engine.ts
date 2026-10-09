@@ -65,7 +65,7 @@ import {
 } from './pigeon.js';
 import { clamp, randFloat, randInt, round1 } from './util.js';
 import { clearOwnerCare, grounded, inQuarantine } from './inrichting.js';
-import { breakForForcedBreeding } from './koppels.js';
+import { breakForForcedBreeding, leavePartnerhok } from './koppels.js';
 
 export const NPC_OWNER_ID = 'npc_market';
 
@@ -461,6 +461,8 @@ export function setPigeonCompartment(store: Store, userId: string, pigeonId: str
     // Birds in the infirmary don't occupy a compartment slot, so don't count them.
     const used = db.pigeons.filter((p) => p.ownerId === userId && p.compartment && !p.inInfirmary).length;
     if (used >= (loft.compartments ?? 0)) return 'Geen vrij apart hok — bouw er eerst een bij';
+    // An apart hok and a partnerhok exclude each other: her koppel leaves the box.
+    leavePartnerhok(loft, pigeon.id);
     pigeon.compartment = true;
     progressMissions(db, loft, 'apart', 1);
     evaluateBadges(db, loft);

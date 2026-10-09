@@ -5,6 +5,7 @@ import {
   COACH,
   COMPARTMENT,
   DAILY_UPKEEP_BASE,
+  EQUIPMENT,
   HEALTH,
   pigeonUpkeepBands,
   type UpkeepBandCost,
@@ -20,6 +21,7 @@ import { experienceGain, geneCap, isAway, noteAttrChange } from './pigeon.js';
 import { activeContracts, sponsorsPaused } from './sponsors.js';
 import { clamp, hashString, round1 } from './util.js';
 import { equipmentCostLines, feedHealthMult, libidoTargetBonus, restBonusEnergy, type EquipmentCostLine } from './inrichting.js';
+import { partnerhokBirds } from './hygiene.js';
 
 const RACING_ATTRS: RacingAttr[] = ['speed', 'endurance', 'orientation'];
 
@@ -102,6 +104,7 @@ export function applyDayOfCare(
 
   let allFed = true;
   const deaths: StarvationDeath[] = [];
+  const boxed = partnerhokBirds(loft); // koppels in a partnerhok (hokinrichting)
   for (const p of active) {
     // A bird that lost its way is not in the loft: it eats none of your stock, and
     // its hunger streak must NOT tick up — you are not neglecting it, it simply
@@ -126,8 +129,10 @@ export function applyDayOfCare(
       // not while it's isolated in the infirmary (it still holds the slot flag so
       // it can reclaim it on the way out, yet gets no compartment rest bonus there).
       const inCompartment = !!p.compartment && !p.inInfirmary;
-      const formMult = 1 + (inCompartment ? COMPARTMENT.formRecoveryBonus : 0);
-      const healthMult = 1 + (inCompartment ? COMPARTMENT.healthRecoveryBonus : 0);
+      // A partnerhok (a koppel's own box) helps too, at a share of an apart hok.
+      const room = inCompartment ? 1 : !p.inInfirmary && boxed.has(p.id) ? EQUIPMENT.partnerhok.recoveryShare : 0;
+      const formMult = 1 + COMPARTMENT.formRecoveryBonus * room;
+      const healthMult = 1 + COMPARTMENT.healthRecoveryBonus * room;
       // A bird convalescing in the infirmary still recovers ENERGIE from its feed,
       // but only when properly staffed (doctor for illness / physio for injury) and
       // then only at INFIRMARY.energyRecoveryFactor of the healthy rate; an uncovered
@@ -282,8 +287,9 @@ export function projectDailyCare(loft: Loft, p: Pigeon, live = false, covered = 
 
   if (fed) {
     const inCompartment = !!p.compartment && !p.inInfirmary; // no rest bonus while in the infirmary
-    const formMult = 1 + (inCompartment ? COMPARTMENT.formRecoveryBonus : 0);
-    const healthMult = 1 + (inCompartment ? COMPARTMENT.healthRecoveryBonus : 0);
+    const room = inCompartment ? 1 : !p.inInfirmary && partnerhokBirds(loft).has(p.id) ? EQUIPMENT.partnerhok.recoveryShare : 0;
+    const formMult = 1 + COMPARTMENT.formRecoveryBonus * room;
+    const healthMult = 1 + COMPARTMENT.healthRecoveryBonus * room;
     let rawForm = (ration.formRecovery / 7) * (1 + p.experience / 200) * formMult * infirmaryEnergyMult;
     // A rest-bonus day (fed, home) adds an extra energie boost — show it in the
     // projected ▲ on the day it lands. Not while convalescing in the infirmary.

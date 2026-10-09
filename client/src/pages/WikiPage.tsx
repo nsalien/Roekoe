@@ -1102,7 +1102,14 @@ export function WikiPage() {
         <ul>
           <li><strong>Laten wennen:</strong> ze moeten <strong>samen zitten</strong> — allebei in het hoofdhok (niet in een apart hok of de ziekenboeg), of samen in een <strong>partnerhok</strong>. Na <strong>1 tot 7 dagen</strong> aanvaarden ze elkaar, of ze <strong>weigeren</strong>. Hoelang het duurt en of ze weigeren weet je pas op die dag.</li>
           <li><strong>Weigerkans:</strong> hoe hoger hun libido, hoe kleiner: bij libido 25 zo'n 30 %, bij 50 zo'n 20 %, vanaf 75 nog 10 %.</li>
-          <li><strong>Partnerhok</strong> (€600, eenmalig, op de pagina <em>Inrichting</em>): twee duiven zitten er samen, ook als hij een apart hok heeft. Wennen duurt er 1 tot 4 dagen en de weigerkans is gehalveerd.</li>
+          <li><strong>Partnerhok</strong> (op de pagina <em>Inrichting</em>, 2× de prijs van een apart hok: €1.600, €2.400, €3.200, max. 3): een eigen hok voor twee duiven, los van de aparte hokken.
+            <ul>
+              <li><strong>Wennen</strong> in het partnerhok duurt 1 tot 4 dagen en de weigerkans is gehalveerd. Lukt het, dan blijft het koppel erin wonen.</li>
+              <li><strong>Een bestaand koppel</strong> zet je erin (of eruit) met de knop <em>In partnerhok</em> bij het koppel op de pagina <em>Kweek</em>.</li>
+              <li><strong>Herstel:</strong> wie in het partnerhok woont, herstelt sneller, maar half zo veel als in een apart hok: +30 % energie, +20 % gezondheid, 25 % minder kans op ziekte.</li>
+              <li>Een apart hok en het partnerhok sluiten elkaar uit: wie erin trekt, verlaat zijn apart hok. Een weduwnaar woont in een apart hok, dus in het partnerhok stopt het weduwschap.</li>
+            </ul>
+          </li>
           <li><strong>Zelf naar elkaar toe trekken:</strong> af en toe zoeken twee vrije duiven in het hoofdhok elkaar op. Je krijgt een melding. Bevestig je het (binnen 3 dagen), dan zijn ze <strong>meteen een koppel</strong>, zonder wentijd.</li>
           <li><strong>Ontkoppelen</strong> kost beide partners de <strong>helft van hun libido</strong>. Stoppen met wennen kost niets.</li>
           <li><strong>Broeden met een andere duif</strong> mag, maar dan valt het koppel uiteen: ook dan verliezen beide partners de helft van hun libido.</li>
@@ -1653,10 +1660,10 @@ export function WikiPage() {
             ['Roofvogelafweer', '€900', 'net + lokuil (vraagt een ren): geen sperwer in de ren, en de gebeurtenis "Sperwer in de buurt" is ongevaarlijk'],
             ['Kunstlicht', '€700', 'libido +6 bij al je duiven: sneller een nest en meer broedsucces'],
             ['Infrarood nestbakken', '€1.600 voor 2, +€500 per bak', 'een nest komt 15 % sneller uit · +6 % kans op een tweeling · onder 10 °C +4 % slaagkans'],
-            ['Partnerhok', '€600 per hok (max. 3)', 'wennen duurt 1–4 dagen i.p.v. 1–7 · 50 % minder kans dat ze elkaar weigeren'],
+            ['Partnerhok', '€1.600 · €2.400 · €3.200 (max. 3)', 'een koppel woont er samen: +30 % energieherstel, +20 % gezondheidsherstel, 25 % minder kans op ziekte · wennen 1–4 dagen i.p.v. 1–7, 50 % minder kans dat ze elkaar weigeren'],
             ['Betere reismanden', '€1.000', 'elke vlucht 3 % minder energieverlies en 5 % minder gezondheidsverlies'],
             ['Weerstation', '€1.500', 'het weer bij de lossing al 24 u vooraf, om de 6 u bijgewerkt (het weer kan nog afwijken)'],
-            ['Vakblad', '€6/dag, opzegbaar', 'bandbreedte i.p.v. enkel ★ bij andermans duif · marktrapport over 28 dagen · elke maandag Het Duivenblad'],
+            ['Vakblad', '€6/dag, opzegbaar', 'bandbreedte i.p.v. enkel ★ bij andermans duif (op haar pagina en bij een privébod) · marktrapport over 28 dagen (onderaan de Markt) · elke maandag Het Duivenblad (in je meldingen)'],
           ]}
         />
 

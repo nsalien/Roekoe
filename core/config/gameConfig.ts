@@ -129,7 +129,9 @@ export const EQUIPMENT = {
   baskets: { label: 'Betere reismanden', price: 1000, energyMult: 0.97, healthMult: 0.95 },
   weatherStation: { label: 'Weerstation', price: 1500, forecastHours: 24, refreshHours: 6, finalHours: 2 },
   magazine: { label: 'Vakblad', price: 0, daily: 6, bandHalfWidth: 6, reportDays: 28 },
-  partnerhok: { label: 'Partnerhok', price: 600, maxBoxes: 3 },
+  // A koppel's own box, apart from the apart hokken: two birds, so twice an apart
+  // hok's price (same ladder), and recovery at `recoveryShare` of an apart hok's.
+  partnerhok: { label: 'Partnerhok', priceFactor: 2, maxBoxes: 3, recoveryShare: 0.5 },
 } as const;
 export type EquipmentKey = 'ventilation' | 'run' | 'raptorGuard' | 'light' | 'baskets' | 'weatherStation' | 'magazine';
 /**
@@ -151,6 +153,10 @@ export type LevelKey = (typeof EQUIPMENT_LEVELS.keys)[number];
 export function levelPrice(key: LevelKey, level: number): number {
   const base = key === 'irBoxes' ? EQUIPMENT.irBoxes.priceFirstTwo : EQUIPMENT[key].price;
   return base * Math.pow(EQUIPMENT_LEVELS.priceGrowth, level - 1);
+}
+/** What the next partnerhok costs: twice an apart hok at the same count (€1.600, €2.400, €3.200). */
+export function partnerhokPrice(owned: number): number {
+  return EQUIPMENT.partnerhok.priceFactor * compartmentCost(owned);
 }
 /** What the next infrarood-nestbak costs: the first purchase is two boxes. */
 export function irBoxPrice(owned: number): number {

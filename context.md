@@ -109,10 +109,10 @@
   - *Plaatsen:* "10 van 12 bezet · 2 vrij →" (markt), daaronder "8 thuis".
   - *Aparte hokken:* elke naam op een eigen regel, daaronder "N vrij" + keuzelijst "Zet apart…"
     (bestaande `/pigeons/:id/compartment`).
-  - *Nest:* elk broedkoppel op een regel (of "leeg · naar de kweek →").
+  - *Broeden* (was "Nest"): elk broedkoppel op een regel (of "niemand · naar de kweek →").
   - *Ziekenboeg:* "1 van de 2 bedden bezet", daaronder per patiënt 🦠/🩹 naam + aandoening,
     % hersteld (+ "wacht op verzorging" als geen dokter/kinesist haar behandelt).
-  - *Koppels:* elk koppel op een regel (💑 / ⏳ "wennen, dag N" / "❤️ weduwschap").
+  - *Koppels:* elk koppel op een regel (💑 / ⏳ "wennen, dag N" / "partnerhok" / "❤️ weduwschap").
   - *Bescherming:* 💉 ingeënt/gekuurd en 🛡️ verzekerd, elk op een regel.
 - **Thuis / niet thuis** (`awayStatus`): niet thuis is enkel wie 🧭 de weg kwijt is, ✈️ nu
   vliegt of 🏥 in de ziekenboeg ligt, elk op een eigen regel. Op het nest, in een koppel,
@@ -164,13 +164,27 @@
 - **Breken:** `unpair` (koppel: beide libido ×0,5; wennen: gratis), `breakForForcedBreeding` in
   `startBreeding` wanneer sire en dam geen koppel zijn (koppel(s) van beide uiteen, partners ×0,5,
   melding). Een partner verkocht of dood: `tickCouples` ruimt op, zonder libidoverlies.
+- **Partnerhok = een eigen hok voor een koppel** (los van de aparte hokken; wens van de eigenaar).
+  Prijs `partnerhokPrice` = 2× `compartmentCost` op dezelfde telling (€1.600, €2.400, €3.200;
+  max. 3). Wie erin woont (`partnerhokBirds`, hygiene.ts) krijgt `recoveryShare` (0,5) van de
+  apart-hok-bonus: +30 % energie, +20 % gezondheid (`applyDayOfCare` én `projectDailyCare`) en
+  25 % minder ziekte (de dagelijkse `runHealthDay`; de oude weekfunctie is ongemoeid). Een koppel
+  trekt erin/eruit met `setPartnerhok` (verlaat dan zijn apart hok; een weduwnaar stopt — die woont
+  in een apart hok); wie wennen in het partnerhok slaagt, blijft erin wonen; `setPigeonCompartment`
+  haalt het koppel eruit (`leavePartnerhok`): apart hok en partnerhok sluiten elkaar uit.
+  `partnerhokInUse` telt elk koppel met de vlag. In de boeg behoudt ze de vlag (zoals bij een apart
+  hok) maar krijgt ze de bonus niet.
 - Bots koppelen nooit (geen aantrekking voor bothokken); hun kweek is ongewijzigd.
 - **API:** `POST /couples/start {dofferId, duivinId, partnerhok}`, `/couples/confirm`,
-  `/couples/dismiss`, `/couples/unpair {pigeonId}`, `/loft/partnerhok`, `/pigeons/:id/widow {on}`.
-- **UI:** kaart "💑 Koppels" bovenaan *Kweek* (`components/Koppels.tsx`); het nestformulier
+  `/couples/dismiss`, `/couples/unpair {pigeonId}`, `/couples/partnerhok {pigeonId, on}`,
+  `/loft/partnerhok`, `/pigeons/:id/widow {on}`.
+- **UI:** kaart "💑 Koppels" bovenaan *Kweek* (`components/Koppels.tsx`), per koppel **In/Uit
+  partnerhok** (met bevestiging als iemand een apart hok of weduwschap verliest); het nestformulier
   ("Nest starten") kiest de partner vanzelf en waarschuwt vóór een geforceerd nest; partnerhok
   kopen op *Inrichting*; partner + weduwschap aan/uit op de duifpagina; "Koppels" in het
-  hokoverzicht. Kweekmeldingen zeggen nu "broeden/nest" i.p.v. "koppelen".
+  hokoverzicht (met "partnerhok"); de knop Apart/Samen op *Mijn hok* toont "💑 Partnerhok".
+  Kweekmeldingen zeggen nu "broeden/nest" i.p.v. "koppelen"; de rij in het hokoverzicht heet
+  **"Broeden"** (was "Nest").
 - **Demo:** het broedende duo is een koppel, en er staat één aantrekking klaar
   (`DEMO_VERSION` = 3). **Test:** `tests/koppels.test.mts`.
 
@@ -254,8 +268,12 @@
     "dag X van hoogstens N"). Prijs = marktwaarde × 1,4–1,7 (China 1,8–2,2), dus altijd boven de
     marktwaarde, hoe die ook beweegt. Kopen vraagt een vrije plaats; quarantaine blokkeert
     vliegen en koppelen (`inQuarantine` in startBreeding);
-  - vakblad: `pigeonDTO.magazineRanges` (geseed, bevat altijd de echte waarde), `/market.report`
-    (`magazineReport`), `tickMagazine` op de maandag-dagovergang (stabiele id per lezer+dag);
+  - vakblad: `pigeonDTO.magazineRanges` (geseed, bevat altijd de echte waarde) — getoond op de
+    duifpagina van andermans duif **én bij een privébod op de Markt** (BidCascade); `/market.report`
+    (`magazineReport`, onderaan de Markt), `tickMagazine` op de maandag-dagovergang (stabiele id per
+    lezer+dag). De vakbladkaart zegt een abonnee waar hij het ziet. ⚠️ In de demo zijn er geen
+    andere mensen (privébod onmogelijk) en weinig verkopen: daar zie je vooral de bandbreedtes
+    op de pagina's van botduiven (via de ranglijst) en Het Duivenblad op maandag.
   - weerstation: `flightsNeedingForecast`/`applyFlightForecasts` (schedule.ts), opgehaald in de
     middleware naast de estafettevoorspellingen — **enkel als een hok een station heeft**;
     `withForecast` in de API toont het enkel aan stationhouders.

@@ -114,7 +114,7 @@ import { pigeonSeasonRankings } from '../../core/game/season.js';
 import { buyStraw, setCleaner } from '../../core/game/hygiene.js';
 import { buyEquipment, buyIrBox, inrichtingLevels, magazineReport, setInsurance, setWidow, upgradeEquipment, vaccinate, vaccinateLoft } from '../../core/game/inrichting.js';
 import { buyScouted, dismissScout, sendScout } from '../../core/game/scout.js';
-import { buyPartnerhok, confirmAttraction, dismissAttraction, startWennen, unpair } from '../../core/game/koppels.js';
+import { buyPartnerhok, confirmAttraction, dismissAttraction, setPartnerhok, startWennen, unpair } from '../../core/game/koppels.js';
 import { spendAttribute, spendExperience } from '../../core/game/newcomer.js';
 import { velocityBreakdown, weightsForDistance } from '../../core/game/flight.js';
 import { ageInWeeks } from '../../core/game/pigeon.js';
@@ -939,6 +939,16 @@ app.post('/couples/unpair', async (c) => {
   const body = await c.req.json().catch(() => ({}));
   const store = c.get('store');
   const err = unpair(store, user.id, String(body.pigeonId ?? ''));
+  await store.persist();
+  return c.json(ok(err), err ? 400 : 200);
+});
+
+// A koppel moves into its partnerhok, or back out (koppels.setPartnerhok).
+app.post('/couples/partnerhok', async (c) => {
+  const user = requireUser(c);
+  const body = await c.req.json().catch(() => ({}));
+  const store = c.get('store');
+  const err = setPartnerhok(store, user.id, String(body.pigeonId ?? ''), body.on !== false);
   await store.persist();
   return c.json(ok(err), err ? 400 : 200);
 });

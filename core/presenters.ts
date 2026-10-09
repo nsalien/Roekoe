@@ -6,7 +6,7 @@
 
 import type { Database, Flight, Loft, Notification, Pigeon, RaceLogEntry, ScoutMission, Trade } from './schema.js';
 import type { PigeonLogs } from './d1.js';
-import { AGE_CUP, AUCTION, BREED_RARITY, CITY_COORDS, COACH, DEBT, coachSalaryFor, nextCoachBand, ageCategoryDef, ageCategoryFor, compartmentCost, COUPLES, EQUIPMENT, EQUIPMENT_LEVELS, cleanerWage, hygieneIllnessMult, irBoxPrice, SCOUT, VACCINES, type VaccineKey, quirkById, strawCost, RELAY, REST_CURE, TRADE_HISTORY_DAYS, TRAINING } from './config/gameConfig.js';
+import { AGE_CUP, AUCTION, BREED_RARITY, CITY_COORDS, COACH, DEBT, coachSalaryFor, nextCoachBand, ageCategoryDef, ageCategoryFor, compartmentCost, COUPLES, EQUIPMENT, EQUIPMENT_LEVELS, cleanerWage, partnerhokPrice, hygieneIllnessMult, irBoxPrice, SCOUT, VACCINES, type VaccineKey, quirkById, strawCost, RELAY, REST_CURE, TRADE_HISTORY_DAYS, TRAINING } from './config/gameConfig.js';
 import {
   ageInWeeks,
   breedInfo,
@@ -440,7 +440,7 @@ export function loftDTO(db: Database, loft: Loft) {
         scoutUsed: eq.scoutSeason === db.world.seasonYear,
         partnerhokken: eq.partnerhokken ?? 0,
         partnerhokInUse: partnerhokInUse(loft),
-        partnerhokNextPrice: (eq.partnerhokken ?? 0) >= EQUIPMENT.partnerhok.maxBoxes ? null : EQUIPMENT.partnerhok.price,
+        partnerhokNextPrice: (eq.partnerhokken ?? 0) >= EQUIPMENT.partnerhok.maxBoxes ? null : partnerhokPrice(eq.partnerhokken ?? 0),
         // Koppels and pairs still wennen. The day they decide and whether they
         // refuse stay on the server: the player only sees how long it has been.
         couples: (eq.couples ?? []).map((c) => {

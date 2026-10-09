@@ -16,6 +16,7 @@ import {
   injurySeverityWeights,
   AGING,
   COMPARTMENT,
+  EQUIPMENT,
   DISEASES,
   HEALING,
   HEALTH,
@@ -30,7 +31,7 @@ import { newId } from '../store.js';
 import { ageInWeeks, ageMortality, conditionScore, isAway, noteAttrChange } from './pigeon.js';
 import { awardBadge, evaluateBadges } from './badges.js';
 import { clamp, pick, pickWith, round1 } from './util.js';
-import { equipmentOf, illnessChance } from './hygiene.js';
+import { equipmentOf, illnessChance, partnerhokBirds } from './hygiene.js';
 import { fendsOff, insurancePayout } from './inrichting.js';
 
 export interface HealthEvent {
@@ -297,6 +298,7 @@ export function runHealthDay(db: Database, week: number, nowMs: number = Date.no
     const alive = birds.filter((p) => !dead.has(p.id) && !isAway(p));
     const eq = equipmentOf(loft);
     const sources = alive.filter((p) => p.ailment?.kind === 'ziekte' && !p.inInfirmary).length;
+    const boxed = partnerhokBirds(loft); // koppels in a partnerhok (hokinrichting)
     for (const p of alive) {
       if (p.ailment || p.inInfirmary) continue; // already ailing, or safely isolated
       // Falling ill runs on the SAME conditie-score as a strain injury does (energie
@@ -311,7 +313,10 @@ export function runHealthDay(db: Database, week: number, nowMs: number = Date.no
       const susceptibility = ILLNESS.contagionFloor + (1 - ILLNESS.contagionFloor) * frailty;
       const perSource = weeklyToDaily(HEALTH.contagionPerSource) * susceptibility;
       const fromOthers = sources > 0 ? 1 - Math.pow(1 - perSource, sources) : 0;
-      const compartmentGuard = p.compartment ? 1 - COMPARTMENT.diseaseReduction : 1;
+      // An apart hok guards against disease; a partnerhok (two birds) at a share of that.
+      const compartmentGuard = p.compartment
+        ? 1 - COMPARTMENT.diseaseReduction
+        : boxed.has(p.id) ? 1 - COMPARTMENT.diseaseReduction * EQUIPMENT.partnerhok.recoveryShare : 1;
       // IJzeren gestel (seizoen 3): falls ill less often — contagion and spontaneous.
       const sturdy = p.trait === 'sturdy' ? TRAITS.sturdyIllnessMult : 1;
       // Hokhygiëne and the hokpoetser (hokinrichting) join in; all of these

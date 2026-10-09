@@ -51,7 +51,7 @@ const WHAT: Record<string, string> = {
   irBoxes: 'Nesten komen sneller uit, vaker een tweeling',
   baskets: 'Elke vlucht kost minder energie en gezondheid',
   weatherStation: 'Je ziet het weer van de lossing een dag vooraf',
-  partnerhok: 'Koppels wennen sneller en weigeren minder vaak',
+  partnerhok: 'Een koppel woont er samen: sneller herstel, iets minder dan in een apart hok; wennen gaat er ook sneller',
   magazine: 'Marktrapport, scherpere schattingen bij andermans duif en elke maandag Het Duivenblad',
 };
 
@@ -221,7 +221,7 @@ export function BuildCard({ loft, cat, upkeepBands, busy, act }: {
           icon={ICON.partnerhok}
           name={cat.equipment.partnerhok.label}
           status={<Usage used={eq.partnerhokInUse} total={eq.partnerhokken} unit="in gebruik" />}
-          what={WHAT.partnerhok}
+          what={<>{WHAT.partnerhok} · een koppel zet je erin op <Link to="/kweek">Kweek</Link></>}
         >
           {eq.partnerhokNextPrice != null ? (
             <button className="btn sm" disabled={busy || loft.money < eq.partnerhokNextPrice} onClick={() => {
@@ -346,7 +346,11 @@ export function MagazineCard({ loft, cat, busy, act }: { loft: Loft; cat: Inrich
       <div className="row" style={{ gap: 10, alignItems: 'center', flexWrap: 'wrap', justifyContent: 'space-between' }}>
         <span style={{ flex: '1 1 240px', minWidth: 0 }}>
           <span><strong>{ICON.magazine} {m.label}</strong>{on && <>: abonnee</>}</span>
-          <span className="faint" style={{ display: 'block', fontSize: '0.85rem', marginTop: 1 }}>{WHAT.magazine}</span>
+          <span className="faint" style={{ display: 'block', fontSize: '0.85rem', marginTop: 1 }}>
+            {on
+              ? 'Het marktrapport staat hieronder · bij andermans duif (en bij een privébod) zie je bandbreedtes i.p.v. enkel ★ · Het Duivenblad komt elke maandag in je meldingen'
+              : WHAT.magazine}
+          </span>
         </span>
         <button className={`btn sm ${on ? 'accent' : 'ghost'}`} disabled={busy} onClick={() =>
           act(() => api('/loft/equipment', { method: 'POST', body: { key: 'magazine', on: !on } }), on ? 'Vakblad opgezegd' : 'Vakblad: welkom, abonnee 📰')}>
