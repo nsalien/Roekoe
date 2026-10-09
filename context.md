@@ -195,7 +195,11 @@
 - **Ontwerpregel (eigenaar):** elk onderdeel geeft maar een **klein** voordeel; pas alles samen
   is het een echt verschil. **Op de pagina kort en zonder cijfers** (de eigenaar vond de lange
   teksten met percentages te veel): één zin per onderdeel (`WHAT` in `components/Inrichting.tsx`)
-  en bovenaan een link naar de wiki. **De exacte cijfers en de formules staan in de wiki**
+  en bovenaan een link naar de wiki. **Vaste vorm per onderdeel** (`Item`): regel 1 = naam +
+  wat je ervan hebt ("Aparte hokken: 2/2 in gebruik", "Dakventilatie: niveau 2/4"), regel 2 =
+  de beschrijving, de knop ernaast. Tellers met een maximum (`Usage`: plaatsen, aparte hokken,
+  partnerhok, ziekenboeg, infrarood) zijn **groen zolang er plaats vrij is, rood als alles
+  bezet is**; 0 gekocht = "nog geen". **De exacte cijfers en de formules staan in de wiki**
   (#inrichting: tabel niveau 1 incl. apart hok en ziekenboegbed, niveautabel, formules; #hygiene).
   ⚠️ Die wikitabellen zijn met de hand geschreven: pas ze mee aan als je `EQUIPMENT`,
   `EQUIPMENT_LEVELS`, `VACCINES`, `COMPARTMENT` of `HYGIENE` wijzigt.

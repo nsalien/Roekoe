@@ -44,16 +44,48 @@ const ICON: Record<string, string> = {
 
 /** What each item does, in one short sentence. The exact numbers are in the wiki. */
 const WHAT: Record<string, string> = {
-  ventilation: 'minder ornithose, het stro blijft langer proper',
-  run: 'meer energie na een rustdag en een hoger libido; trekt soms een sperwer aan',
-  raptorGuard: 'houdt de sperwer weg van de ren',
-  light: 'hoger libido: sneller een nest',
-  irBoxes: 'nesten komen sneller uit, vaker een tweeling',
-  baskets: 'elke vlucht kost minder energie en gezondheid',
-  weatherStation: 'je ziet het weer van de lossing een dag vooraf',
-  partnerhok: 'koppels wennen sneller en weigeren minder vaak',
-  magazine: 'marktrapport, scherpere schattingen bij andermans duif en elke maandag Het Duivenblad',
+  ventilation: 'Minder ornithose, het stro blijft langer proper',
+  run: 'Meer energie na een rustdag en een hoger libido; trekt soms een sperwer aan',
+  raptorGuard: 'Houdt de sperwer weg van de ren',
+  light: 'Hoger libido: sneller een nest',
+  irBoxes: 'Nesten komen sneller uit, vaker een tweeling',
+  baskets: 'Elke vlucht kost minder energie en gezondheid',
+  weatherStation: 'Je ziet het weer van de lossing een dag vooraf',
+  partnerhok: 'Koppels wennen sneller en weigeren minder vaak',
+  magazine: 'Marktrapport, scherpere schattingen bij andermans duif en elke maandag Het Duivenblad',
 };
+
+/** "2/3 in gebruik": green while there is room, red once everything is taken. */
+function Usage({ used, total, unit }: { used: number; total: number; unit: string }) {
+  if (total <= 0) return <span className="faint">nog geen</span>;
+  return (
+    <span>
+      <span style={{ color: used >= total ? 'var(--bad)' : 'var(--good)', fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>
+        {used}/{total}
+      </span>{' '}
+      {unit}
+    </span>
+  );
+}
+
+/**
+ * One item, always in the same shape: the name and what you have of it on top
+ * ("Aparte hokken: 2/2 in gebruik"), what it does underneath, its button aside.
+ */
+function Item({ icon, name, status, what, children }: {
+  icon?: string; name: string; status?: React.ReactNode; what: React.ReactNode; children?: React.ReactNode;
+}) {
+  return (
+    <Line label={
+      <>
+        <span><strong>{icon ? `${icon} ` : ''}{name}</strong>{status != null && <>: {status}</>}</span>
+        <span className="faint" style={{ display: 'block', fontSize: '0.85rem', marginTop: 1 }}>{what}</span>
+      </>
+    }>
+      {children}
+    </Line>
+  );
+}
 
 /** A bought item with levels: where it stands and what the next level costs. */
 function levelInfo(cat: InrichtingCatalogue | null, k: string, level: number) {
@@ -64,10 +96,6 @@ function levelInfo(cat: InrichtingCatalogue | null, k: string, level: number) {
   return { level, max: L.max, next };
 }
 type LevelInfo = NonNullable<ReturnType<typeof levelInfo>>;
-
-function LevelBadge({ info }: { info: LevelInfo }) {
-  return <span className="badge" style={{ fontSize: '0.72rem' }}>niveau {info.level}/{info.max}</span>;
-}
 
 function LevelButton({ k, label, info, loft, busy, act }: { k: string; label: string; info: LevelInfo; loft: Loft; busy: boolean; act: Act }) {
   const n = info.next;
@@ -90,13 +118,12 @@ function EquipmentLine({ k, owned, needs, loft, cat, busy, act }: {
   const item = cat.equipment[k];
   const price = item.price ?? 0;
   const info = owned ? levelInfo(cat, k, loft.equipment?.levels?.[k] ?? 1) : null;
+  const status = info ? `niveau ${info.level}/${info.max}` : owned ? 'in je hok' : undefined;
   return (
-    <Line label={<><strong>{ICON[k]} {item.label}</strong>{info && <> <LevelBadge info={info} /></>} <span className="faint">— {WHAT[k]}</span></>}>
+    <Item icon={ICON[k]} name={item.label} status={status} what={WHAT[k]}>
       {info ? (
         <LevelButton k={k} label={item.label} info={info} loft={loft} busy={busy} act={act} />
-      ) : owned ? (
-        <span className="badge">✓ in je hok</span>
-      ) : needs ? (
+      ) : owned ? null : needs ? (
         <span className="faint">{needs}</span>
       ) : (
         <button className="btn sm" disabled={busy || loft.money < price} onClick={() => {
@@ -106,7 +133,7 @@ function EquipmentLine({ k, owned, needs, loft, cat, busy, act }: {
           Kopen · <Money value={price} />
         </button>
       )}
-    </Line>
+    </Item>
   );
 }
 
@@ -131,7 +158,12 @@ export function BuildCard({ loft, cat, upkeepBands, busy, act }: {
   return (
     <Card title="🏗️ Bouwen & uitbreiden" tour="upgrades">
       {/* Upkeep rises per band: name what the next bird costs, so a bigger loft is never a hidden recurring cost. */}
-      <Line label={<><strong>🏠 Hokcapaciteit</strong> <span className="faint">— plaats voor meer duiven · nu {loft.capacity}{nextBirdRate !== null && ` · je volgende duif kost €${nextBirdRate}/dag`}</span></>}>
+      <Item
+        icon="🏠"
+        name="Hokcapaciteit"
+        status={<Usage used={loft.pigeonCount} total={loft.capacity} unit="bezet" />}
+        what={<>Plaats voor meer duiven{nextBirdRate !== null && ` · je volgende duif kost €${nextBirdRate}/dag`}</>}
+      >
         {nextCap ? (
           <button
             className="btn accent sm"
@@ -148,8 +180,13 @@ export function BuildCard({ loft, cat, upkeepBands, busy, act }: {
             Naar {nextCap.capacity} · <Money value={nextCap.price} />
           </button>
         ) : <span className="faint">maximum bereikt</span>}
-      </Line>
-      <Line label={<><strong>🧱 Aparte hokken</strong> <span className="faint">— sneller herstel en minder ziekte · {loft.compartmentsUsed}/{loft.compartments} in gebruik</span></>}>
+      </Item>
+      <Item
+        icon="🧱"
+        name="Aparte hokken"
+        status={<Usage used={loft.compartmentsUsed} total={loft.compartments} unit="in gebruik" />}
+        what="Sneller herstel en minder snel ziek"
+      >
         {compartmentCost != null ? (
           <button
             className="btn sm"
@@ -165,9 +202,14 @@ export function BuildCard({ loft, cat, upkeepBands, busy, act }: {
             Bijbouwen · <Money value={compartmentCost} />
           </button>
         ) : <span className="faint">elke plaats heeft er al een</span>}
-      </Line>
+      </Item>
       {eq && cat && (
-        <Line label={<><strong>{ICON.partnerhok} {cat.equipment.partnerhok.label}</strong> <span className="faint">— {WHAT.partnerhok} · {eq.partnerhokken === 0 ? 'nog geen' : `${eq.partnerhokken} gebouwd, ${eq.partnerhokInUse} in gebruik`}</span></>}>
+        <Item
+          icon={ICON.partnerhok}
+          name={cat.equipment.partnerhok.label}
+          status={<Usage used={eq.partnerhokInUse} total={eq.partnerhokken} unit="in gebruik" />}
+          what={WHAT.partnerhok}
+        >
           {eq.partnerhokNextPrice != null ? (
             <button className="btn sm" disabled={busy || loft.money < eq.partnerhokNextPrice} onClick={() => {
               if (!window.confirm(`Een partnerhok bouwen voor ${euro(eq.partnerhokNextPrice!)}?`)) return;
@@ -176,9 +218,14 @@ export function BuildCard({ loft, cat, upkeepBands, busy, act }: {
               +1 · <Money value={eq.partnerhokNextPrice} />
             </button>
           ) : <span className="faint">maximum bereikt</span>}
-        </Line>
+        </Item>
       )}
-      <Line label={<><strong>🛏️ Ziekenboeg</strong> <span className="faint">— meer zieke duiven tegelijk verzorgen · {loft.infirmaryCapacity} bedden, {loft.infirmaryCount} bezet</span></>}>
+      <Item
+        icon="🛏️"
+        name="Ziekenboeg"
+        status={<Usage used={loft.infirmaryCount} total={loft.infirmaryCapacity} unit="bedden bezet" />}
+        what="Meer zieke duiven tegelijk verzorgen"
+      >
         {nextBeds ? (
           <button className="btn sm" disabled={busy || loft.money < nextBeds.price} onClick={() => {
             if (!window.confirm(`De ziekenboeg uitbreiden naar ${nextBeds.capacity} bedden voor ${euro(nextBeds.price)}?`)) return;
@@ -187,7 +234,7 @@ export function BuildCard({ loft, cat, upkeepBands, busy, act }: {
             Naar {nextBeds.capacity} · <Money value={nextBeds.price} />
           </button>
         ) : <span className="faint">maximum bereikt</span>}
-      </Line>
+      </Item>
       {eq && cat && (
         <>
           <EquipmentLine k="run" owned={eq.run} loft={loft} cat={cat} busy={busy} act={act} />
@@ -204,14 +251,12 @@ export function HygieneCard({ loft, cat, busy, act }: { loft: Loft; cat: Inricht
   const h = Math.round(eq.hygiene);
   return (
     <Card title="🧹 Hygiëne & klimaat">
-      <div className="row" style={{ justifyContent: 'space-between', alignItems: 'baseline', gap: 8 }}>
-        <strong>Hokhygiëne</strong>
-        <strong style={{ fontVariantNumeric: 'tabular-nums' }}>{h}</strong>
-      </div>
-      <div className="faint" style={{ fontSize: '0.8rem', marginBottom: 8 }}>
-        {eq.illnessMult < 1 ? 'Je duiven worden minder snel ziek' : 'Pas boven 50 worden je duiven minder snel ziek'} · zakt ~{Math.round(eq.decayPerDay)} per nacht
-      </div>
-      <Line label={<><strong>🌾 Vers stro</strong> <span className="faint">— hygiëne terug op 100</span></>}>
+      <Item
+        name="Hokhygiëne"
+        status={<strong style={{ fontVariantNumeric: 'tabular-nums' }}>{h}/100</strong>}
+        what={`${eq.illnessMult < 1 ? 'Je duiven worden minder snel ziek' : 'Pas boven 50 worden je duiven minder snel ziek'} · zakt ~${Math.round(eq.decayPerDay)} per nacht`}
+      />
+      <Item icon="🌾" name="Vers stro" what="Zet de hygiëne terug op 100">
         <button
           className="btn sm"
           disabled={busy || h >= 100 || loft.money < eq.strawCost}
@@ -219,9 +264,8 @@ export function HygieneCard({ loft, cat, busy, act }: { loft: Loft; cat: Inricht
         >
           Strooien · <Money value={eq.strawCost} />
         </button>
-      </Line>
-      <Line label={<><strong>🧹 Hokpoetser</strong> <span className="faint">— strooit zelf stro en ontsmet het hok</span></>}>
-        {eq.cleaner && <span className="badge">✓ aan het werk</span>}
+      </Item>
+      <Item icon="🧹" name="Hokpoetser" status={eq.cleaner ? 'aan het werk' : undefined} what="Strooit zelf stro en ontsmet het hok">
         <button
           className={`btn sm ${eq.cleaner ? 'ghost' : ''}`}
           disabled={busy}
@@ -232,7 +276,7 @@ export function HygieneCard({ loft, cat, busy, act }: { loft: Loft; cat: Inricht
         >
           {eq.cleaner ? 'Ontslaan' : 'Aannemen'} · <Money value={eq.cleanerWage} />/dag
         </button>
-      </Line>
+      </Item>
       {cat && <EquipmentLine k="ventilation" owned={eq.ventilation} loft={loft} cat={cat} busy={busy} act={act} />}
     </Card>
   );
@@ -245,7 +289,12 @@ export function BreedingGearCard({ loft, cat, busy, act }: { loft: Loft; cat: In
   return (
     <Card title="🥚 Kweek">
       <EquipmentLine k="light" owned={eq.light} loft={loft} cat={cat} busy={busy} act={act} />
-      <Line label={<><strong>{ICON.irBoxes} {cat.equipment.irBoxes.label}</strong>{irInfo && <> <LevelBadge info={irInfo} /></>} <span className="faint">— {WHAT.irBoxes} · {eq.irBoxes} {eq.irBoxes === 1 ? 'bak' : 'bakken'}, {eq.irInUse} in gebruik</span></>}>
+      <Item
+        icon={ICON.irBoxes}
+        name={cat.equipment.irBoxes.label}
+        status={<><Usage used={eq.irInUse} total={eq.irBoxes} unit="in gebruik" />{irInfo && ` · niveau ${irInfo.level}/${irInfo.max}`}</>}
+        what={WHAT.irBoxes}
+      >
         {irInfo && <LevelButton k="irBoxes" label={cat.equipment.irBoxes.label} info={irInfo} loft={loft} busy={busy} act={act} />}
         {eq.irNextPrice != null ? (
           <button className="btn sm" disabled={busy || loft.money < eq.irNextPrice} onClick={() => {
@@ -255,7 +304,7 @@ export function BreedingGearCard({ loft, cat, busy, act }: { loft: Loft; cat: In
             {eq.irBoxes === 0 ? '2 bakken' : '+1 bak'} · <Money value={eq.irNextPrice} />
           </button>
         ) : <span className="faint">alle bakken</span>}
-      </Line>
+      </Item>
     </Card>
   );
 }
@@ -281,9 +330,9 @@ export function MagazineCard({ loft, cat, busy, act }: { loft: Loft; cat: Inrich
   return (
     <div className="card" style={{ marginBottom: 18 }}>
       <div className="row" style={{ gap: 10, alignItems: 'center', flexWrap: 'wrap', justifyContent: 'space-between' }}>
-        <span style={{ flex: '1 1 180px', minWidth: 0 }}>
-          <strong>{ICON.magazine} {m.label}</strong>{' '}
-          <span className="faint">— {on ? 'je bent abonnee: ' : ''}{WHAT.magazine}</span>
+        <span style={{ flex: '1 1 240px', minWidth: 0 }}>
+          <span><strong>{ICON.magazine} {m.label}</strong>{on && <>: abonnee</>}</span>
+          <span className="faint" style={{ display: 'block', fontSize: '0.85rem', marginTop: 1 }}>{WHAT.magazine}</span>
         </span>
         <button className={`btn sm ${on ? 'accent' : 'ghost'}`} disabled={busy} onClick={() =>
           act(() => api('/loft/equipment', { method: 'POST', body: { key: 'magazine', on: !on } }), on ? 'Vakblad opgezegd' : 'Vakblad: welkom, abonnee 📰')}>
@@ -314,7 +363,12 @@ export function VaccineCard({ loft, pigeons, cat, busy, act }: { loft: Loft; pig
         const n = needs(key, v.days);
         const cost = n * v.price;
         return (
-          <Line key={key} label={<><strong>{v.label}</strong> <span className="faint">— {v.disease} · {v.days} dagen{v.libidoHit ? ' · verlaagt het libido' : ''} · {covered(key)}/{home.length} beschermd</span></>}>
+          <Item
+            key={key}
+            name={v.label}
+            status={`${covered(key)}/${home.length} beschermd`}
+            what={`${v.disease} · ${v.days} dagen${v.libidoHit ? ' · verlaagt het libido' : ''}`}
+          >
             {n > 0 ? (
               <button className="btn sm ghost" disabled={busy || loft.money < cost} onClick={() => {
                 if (v.noFlyDays && !window.confirm(`${v.label} voor ${n} ${n === 1 ? 'duif' : 'duiven'} (${euro(cost)})? Ze mogen dan ${v.noFlyDays} dagen niet vliegen.`)) return;
@@ -323,7 +377,7 @@ export function VaccineCard({ loft, pigeons, cat, busy, act }: { loft: Loft; pig
                 Hele hok ({n}) · <Money value={cost} />
               </button>
             ) : <span className="faint">{home.length === 0 ? 'niemand thuis' : 'iedereen beschermd'}</span>}
-          </Line>
+          </Item>
         );
       })}
     </Card>
