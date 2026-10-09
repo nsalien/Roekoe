@@ -72,14 +72,18 @@ function Usage({ used, total, unit }: { used: number; total: number; unit: strin
  * One item, always in the same shape: the name and what you have of it on top
  * ("Aparte hokken: 2/2 in gebruik"), what it does underneath, its button aside.
  */
-function Item({ icon, name, status, what, children }: {
-  icon?: string; name: string; status?: React.ReactNode; what: React.ReactNode; children?: React.ReactNode;
+function Item({ icon, name, status, what, more, children }: {
+  icon?: string; name: string; status?: React.ReactNode; what: React.ReactNode;
+  /** A third line, e.g. what the next level adds. */
+  more?: React.ReactNode;
+  children?: React.ReactNode;
 }) {
   return (
     <Line label={
       <>
         <span><strong>{icon ? `${icon} ` : ''}{name}</strong>{status != null && <>: {status}</>}</span>
         <span className="faint" style={{ display: 'block', fontSize: '0.85rem', marginTop: 1 }}>{what}</span>
+        {more && <span style={{ display: 'block', fontSize: '0.85rem', marginTop: 1, color: 'var(--good)' }}>{more}</span>}
       </>
     }>
       {children}
@@ -87,22 +91,31 @@ function Item({ icon, name, status, what, children }: {
   );
 }
 
-/** A bought item with levels: where it stands and what the next level costs. */
+/** A bought item with levels: where it stands, what the next level costs and what it adds. */
 function levelInfo(cat: InrichtingCatalogue | null, k: string, level: number) {
   const L = cat?.levels;
   const prices = L?.prices[k];
   if (!L || !prices || level === 0) return null;
-  const next = level < L.max ? { level: level + 1, price: prices[level], scale: L.scale[level] } : null;
+  const g = L.gain?.[k];
+  const next = level < L.max ? {
+    level: level + 1,
+    price: prices[level],
+    // "ornithose −60 % → −72 %": the main effect now, and at the next level.
+    gain: g ? `${g.what} ${g.values[level - 1]} → ${g.values[level]}` : null,
+  } : null;
   return { level, max: L.max, next };
 }
 type LevelInfo = NonNullable<ReturnType<typeof levelInfo>>;
+
+/** The third line of a levelled item: what one level up adds to what you have now. */
+const levelGain = (info: LevelInfo | null) => (info?.next?.gain ? `↑ Niveau ${info.next.level}: ${info.next.gain}` : undefined);
 
 function LevelButton({ k, label, info, loft, busy, act }: { k: string; label: string; info: LevelInfo; loft: Loft; busy: boolean; act: Act }) {
   const n = info.next;
   if (!n) return <span className="badge">✓ hoogste niveau</span>;
   return (
     <button className="btn sm ghost" disabled={busy || loft.money < n.price} onClick={() => {
-      if (!window.confirm(`${label} naar niveau ${n.level} voor ${euro(n.price)}?\n\nHet werkt dan ${n.scale.toLocaleString('nl-BE')}× zo sterk als niveau 1. Dat kan je niet terugverkopen.`)) return;
+      if (!window.confirm(`${label} naar niveau ${n.level} voor ${euro(n.price)}?\n\n${n.gain ? `${n.gain[0].toUpperCase()}${n.gain.slice(1)}; ook de andere voordelen worden evenveel sterker.` : 'Het werkt dan sterker.'}\n\nDat kan je niet terugverkopen.`)) return;
       act(() => api('/loft/equipment/upgrade', { method: 'POST', body: { key: k } }), `${label}: niveau ${n.level} 🔧`);
     }}>
       Niveau {n.level} · <Money value={n.price} />
@@ -120,7 +133,7 @@ function EquipmentLine({ k, owned, needs, loft, cat, busy, act }: {
   const info = owned ? levelInfo(cat, k, loft.equipment?.levels?.[k] ?? 1) : null;
   const status = info ? `niveau ${info.level}/${info.max}` : owned ? 'in je hok' : undefined;
   return (
-    <Item icon={ICON[k]} name={item.label} status={status} what={WHAT[k]}>
+    <Item icon={ICON[k]} name={item.label} status={status} what={WHAT[k]} more={levelGain(info)}>
       {info ? (
         <LevelButton k={k} label={item.label} info={info} loft={loft} busy={busy} act={act} />
       ) : owned ? null : needs ? (
@@ -265,7 +278,7 @@ export function HygieneCard({ loft, cat, busy, act }: { loft: Loft; cat: Inricht
           Strooien · <Money value={eq.strawCost} />
         </button>
       </Item>
-      <Item icon="🧹" name="Hokpoetser" status={eq.cleaner ? 'aan het werk' : undefined} what="Strooit zelf stro en ontsmet het hok">
+      <Item icon="🧹" name="Hokpoetser" status={eq.cleaner ? 'aan het werk' : undefined} what="Strooit zelf stro en ontsmet het hok; hoe meer duiven, hoe duurder">
         <button
           className={`btn sm ${eq.cleaner ? 'ghost' : ''}`}
           disabled={busy}
@@ -294,6 +307,7 @@ export function BreedingGearCard({ loft, cat, busy, act }: { loft: Loft; cat: In
         name={cat.equipment.irBoxes.label}
         status={<><Usage used={eq.irInUse} total={eq.irBoxes} unit="in gebruik" />{irInfo && ` · niveau ${irInfo.level}/${irInfo.max}`}</>}
         what={WHAT.irBoxes}
+        more={levelGain(irInfo)}
       >
         {irInfo && <LevelButton k="irBoxes" label={cat.equipment.irBoxes.label} info={irInfo} loft={loft} busy={busy} act={act} />}
         {eq.irNextPrice != null ? (

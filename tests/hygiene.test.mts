@@ -18,7 +18,7 @@ import { createLoftForUser, seedWorld } from '../core/game/engine.js';
 import { tickDailyCare } from '../core/game/schedule.js';
 import { buyStraw, hygieneDecay, illnessChance, setCleaner, tickHygiene } from '../core/game/hygiene.js';
 import { dailyRunningCostBreakdown } from '../core/game/economy.js';
-import { HYGIENE, hygieneIllnessMult, strawCost } from '../core/config/gameConfig.js';
+import { HYGIENE, cleanerWage, hygieneIllnessMult, strawCost } from '../core/config/gameConfig.js';
 
 let fail = 0;
 const ok = (c: boolean, m: string) => { if (c) console.log(`  ✓ ${m}`); else { fail++; console.log(`  ✗ ${m}`); } };
@@ -85,9 +85,13 @@ console.log('\n=== 4. Stro, poetser en de Dagbalans ===');
   ok(buyStraw(store, userId, T0) === null, 'stro kopen lukt');
   ok(loft.equipment?.hygiene === 100 && loft.money === before - strawCost(loft.capacity), `meter op 100, €${strawCost(loft.capacity)} betaald`);
   ok(setCleaner(store, userId, true) === null && loft.equipment?.cleaner === true, 'poetser aangenomen');
-  const costs = dailyRunningCostBreakdown(loft, db.pigeons.filter((p) => p.ownerId === userId).length, 0, 0);
+  const count = db.pigeons.filter((p) => p.ownerId === userId).length;
+  const costs = dailyRunningCostBreakdown(loft, count, 0, 0);
   const line = costs.equipment.find((l) => l.key === 'cleaner');
-  ok(line?.amount === HYGIENE.cleanerDailyWage && costs.total >= line.amount, 'poetser €14 in de Dagbalans en in het totaal');
+  ok(line?.amount === cleanerWage(count) && costs.total >= line.amount, `poetser €${cleanerWage(count)} (${count} duiven) in de Dagbalans en in het totaal`);
+  ok(cleanerWage(10) === 14 && cleanerWage(20) === 24 && cleanerWage(8) === 12, 'hoe meer duiven, hoe duurder: 8 → €12, 10 → €14, 20 → €24');
+  const big = dailyRunningCostBreakdown(loft, 20, 0, 0).equipment.find((l) => l.key === 'cleaner');
+  ok(big?.amount === 24, 'een hok van 20 betaalt de poetser €24 per dag');
 
   // De poetser ververst zodra de meter onder 70 zakt.
   const birds = db.pigeons.filter((p) => p.ownerId === userId);

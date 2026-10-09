@@ -1630,7 +1630,7 @@ export function WikiPage() {
           <li><strong>Boven 50 zakt de kans op ziekte</strong>, tot <strong>×0,8</strong> bij 100 (bij 75 is dat ×0,9). Op of onder 50 gebeurt er niets — zo was het altijd.</li>
           <li><strong>Vers stro:</strong> €18 per baal, één baal per 8 plaatsen (een hok van 12 = 2 balen = €36).</li>
           <li><strong>De meter zakt elke dagovergang</strong>: 8 punten in een vol hok, minder in een half leeg hok, 50 % sneller zolang er een zieke duif (ziekte, geen kwetsuur) tussen de anderen zit, en 25 % trager met dakventilatie.</li>
-          <li><strong>Hokpoetser:</strong> €14 per dag, aannemen en ontslaan is gratis. Zakt de meter onder 70, dan strooit hij vers stro (aan de gewone prijs). Hij ontsmet ook: besmetting tussen duiven ×0,85.</li>
+          <li><strong>Hokpoetser:</strong> €4 per dag + €1 per duif (10 duiven = €14, 20 duiven = €24): hoe meer duiven, hoe duurder. Aannemen en ontslaan is gratis. Zakt de meter onder 70, dan strooit hij vers stro (aan de gewone prijs). Hij ontsmet ook: besmetting tussen duiven ×0,85.</li>
           <li><strong>Een bodem:</strong> hygiëne, een apart hok, de poetser en het kenmerk IJzeren gestel samen maken de kans op ziekte nooit kleiner dan <strong>×0,4</strong>. Vaccins tellen daar los bovenop.</li>
         </ul>
       </Section>
@@ -1671,6 +1671,8 @@ export function WikiPage() {
           <li><strong>Formule prijs:</strong> prijs niveau <em>n</em> = prijs niveau 1 × 3<sup><em>n</em>−1</sup> (×1, ×3, ×9, ×27).</li>
           <li><strong>Formule effect:</strong> elk getal uit de tabel hierboven × 1 · 1,5 · 1,8 · 2 voor niveau 1 · 2 · 3 · 4.
             Voorbeeld: ventilatie niveau 3 = 40 % × 1,8 = 72 % minder kans op ornithose.</li>
+          <li>Op de pagina <em>Inrichting</em> zie je bij elk niveau het <strong>hoofdeffect, nu en na de stap</strong>
+            (bv. "ornithose −60 % → −72 %"); de andere effecten van dat onderdeel groeien evenveel mee.</li>
         </ul>
         <MiniTable
           head={['Onderdeel', 'Niveau 1', 'Niveau 2', 'Niveau 3', 'Niveau 4', 'Op niveau 4']}

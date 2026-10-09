@@ -321,7 +321,11 @@ export interface PigeonCareView {
 export interface InrichtingCatalogue {
   equipment: Record<string, { label: string; price?: number; daily?: number; priceFirstTwo?: number; pricePerExtra?: number; maxBoxes?: number }>;
   /** Niveaus: up to `max`; level n works `scale[n−1]`× as hard as level 1 and costs `prices[key][n−1]`. */
-  levels?: { max: number; scale: number[]; prices: Record<string, number[]> };
+  levels?: {
+    max: number; scale: number[]; prices: Record<string, number[]>;
+    /** The main effect per level, e.g. { what: 'ornithose', values: ['−40 %', '−60 %', …] }. */
+    gain?: Record<string, { what: string; values: string[] }>;
+  };
   vaccines: Record<string, { label: string; disease: string; kind: 'vaccin' | 'kuur'; price: number; days: number; protect: number; noFlyDays: number; libidoHit: number }>;
   /** "Hele hok" skips a bird with more than this share of her course left. */
   vaccineRenewShare: number;

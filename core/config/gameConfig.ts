@@ -103,7 +103,10 @@ export const HYGIENE = {
   strawPlacesPerBale: 8, // one bale per 8 places of capacity
   dailyDecay: 8, // per day in a FULL loft, scaled by occupancy
   sickDecayMult: 1.5, // +50 % with a sick bird outside the infirmary
-  cleanerDailyWage: 14,
+  // The hokpoetser's day wage grows with the loft: more birds, more to clean.
+  // €4 + €1 per duif — a loft of 10 pays the old flat €14.
+  cleanerBaseWage: 4,
+  cleanerWagePerPigeon: 1,
   cleanerRefreshBelow: 70, // the hokpoetser strews fresh straw below this
   cleanerContagionMult: 0.85, // and disinfects: contagion between birds ×0,85
   /** All disease factors together (hygiëne, apart hok, kenmerk, poetser) never below this. */
@@ -264,6 +267,10 @@ export const INSURANCE = {
 /** What one load of fresh straw costs for a loft of this capacity. */
 export function strawCost(capacity: number): number {
   return HYGIENE.strawPricePerBale * Math.max(1, Math.ceil(capacity / HYGIENE.strawPlacesPerBale));
+}
+/** The hokpoetser's wage per day for a loft with this many birds. */
+export function cleanerWage(pigeonCount: number): number {
+  return HYGIENE.cleanerBaseWage + HYGIENE.cleanerWagePerPigeon * Math.max(0, pigeonCount);
 }
 /** The disease multiplier of a hygiene level (1 at or below neutral, 0,8 at 100). */
 export function hygieneIllnessMult(hygiene: number): number {

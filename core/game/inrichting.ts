@@ -12,7 +12,8 @@
 import {
   EQUIPMENT,
   EQUIPMENT_LEVELS,
-  HYGIENE,
+  REST_BONUS,
+  cleanerWage,
   INSURANCE,
   VACCINES,
   VACCINE_RENEW_SHARE,
@@ -144,30 +145,50 @@ export function irBoxesInUse(loft: Loft, pairs: number): number {
 /**
  * What runs per day, per item. Read by dailyRunningCostBreakdown, so it is in
  * the Dagbalans AND in what tickDailyCare charges — one source. Equipment is a
- * one-off purchase now: only a person (the hokpoetser) and a subscription (the
- * vakblad) cost something every day. `_pairs` is kept for the callers.
+ * one-off purchase now: only a person (the hokpoetser, more birds = dearer) and
+ * a subscription (the vakblad) cost something every day.
  */
-export function equipmentCostLines(loft: Loft, _pairs: number): EquipmentCostLine[] {
+export function equipmentCostLines(loft: Loft, pigeonCount: number): EquipmentCostLine[] {
   const eq = equipmentOf(loft);
   const lines: EquipmentCostLine[] = [];
-  if (eq.cleaner) lines.push({ key: 'cleaner', label: 'Hokpoetser', amount: HYGIENE.cleanerDailyWage });
+  if (eq.cleaner) lines.push({ key: 'cleaner', label: 'Hokpoetser', amount: cleanerWage(pigeonCount) });
   if (eq.magazine) lines.push({ key: 'magazine', label: EQUIPMENT.magazine.label, amount: EQUIPMENT.magazine.daily });
   return lines;
 }
 
 // --- niveaus for the page ----------------------------------------------------
 
+/** 22,5 / 72 / 7,6: one decimal only where there is one. */
+const dec = (x: number) => (Math.round(x * 10) / 10).toLocaleString('nl-BE');
+
+/**
+ * Each levelled item's main effect, per level — what the page shows next to an
+ * upgrade ("ornithose −60 % → −72 %"). All its other effects grow by the same factor.
+ */
+const GAIN: Record<LevelKey, { what: string; at: (s: number) => string }> = {
+  ventilation: { what: 'ornithose', at: (s) => `−${dec((1 - EQUIPMENT.ventilation.ornithoseMult) * 100 * s)} %` },
+  run: { what: 'energie na een rustdag', at: (s) => `+${dec(REST_BONUS.energy + (EQUIPMENT.run.restBonusEnergy - REST_BONUS.energy) * s)}` },
+  light: { what: 'libido', at: (s) => `+${dec(EQUIPMENT.light.libidoTarget * s)}` },
+  irBoxes: { what: 'sneller uit', at: (s) => `+${dec((EQUIPMENT.irBoxes.hatchSpeed - 1) * 100 * s)} %` },
+  baskets: { what: 'energieverlies per vlucht', at: (s) => `−${dec((1 - EQUIPMENT.baskets.energyMult) * 100 * s)} %` },
+};
+
 /**
  * What the Inrichting page needs to offer a level: how far it goes, how much
- * stronger each level works (×1 · ×1,5 · ×1,8 · ×2) and what every level costs.
- * The page itself only says it in a few words; the exact numbers are in the wiki.
+ * stronger each level works (×1 · ×1,5 · ×1,8 · ×2), what every level costs and
+ * the main effect at every level. The exact numbers of all effects are in the wiki.
  */
-export function inrichtingLevels(): { max: number; scale: readonly number[]; prices: Record<LevelKey, number[]> } {
+export function inrichtingLevels(): {
+  max: number; scale: readonly number[]; prices: Record<LevelKey, number[]>;
+  gain: Record<LevelKey, { what: string; values: string[] }>;
+} {
   const prices = {} as Record<LevelKey, number[]>;
+  const gain = {} as Record<LevelKey, { what: string; values: string[] }>;
   for (const k of EQUIPMENT_LEVELS.keys) {
     prices[k] = EQUIPMENT_LEVELS.effectScale.map((_, i) => levelPrice(k, i + 1));
+    gain[k] = { what: GAIN[k].what, values: EQUIPMENT_LEVELS.effectScale.map((sc) => GAIN[k].at(sc)) };
   }
-  return { max: EQUIPMENT_LEVELS.maxLevel, scale: EQUIPMENT_LEVELS.effectScale, prices };
+  return { max: EQUIPMENT_LEVELS.maxLevel, scale: EQUIPMENT_LEVELS.effectScale, prices, gain };
 }
 
 // --- equipment: effects -------------------------------------------------------

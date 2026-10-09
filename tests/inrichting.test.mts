@@ -339,6 +339,9 @@ console.log('\n=== 12. Niveaus: elk niveau 3× duurder, het effect ×1,5 · ×1,
   ok(L.max === 4 && L.scale.join('/') === '1/1.5/1.8/2', 'de pagina kent het aantal niveaus en hoe sterk elk werkt');
   ok(L.prices.ventilation.join('/') === '1200/3600/10800/32400' && L.prices.irBoxes[1] === 4800 && L.prices.light[3] === 18900,
     `en wat elk niveau kost (ventilatie ${L.prices.ventilation.map((p) => `€${p.toLocaleString('nl-BE')}`).join(' · ')})`);
+  ok(L.gain.ventilation.values.join(' | ') === '−40 % | −60 % | −72 % | −80 %', `en wat elk niveau oplevert: ornithose ${L.gain.ventilation.values.join(' → ')}`);
+  ok(L.gain.run.values[2] === '+7,6' && L.gain.baskets.values[1] === '−4,5 %' && L.gain.irBoxes.values[1] === '+22,5 %',
+    `kommagetallen waar het telt: rustdag ${L.gain.run.values[2]}, reismanden ${L.gain.baskets.values[1]}, infrarood ${L.gain.irBoxes.values[1]}`);
 }
 
 if (fail > 0) { console.log(`\n${fail} mislukt`); process.exitCode = 1; }

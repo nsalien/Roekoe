@@ -6,7 +6,7 @@
 
 import type { Database, Flight, Loft, Notification, Pigeon, RaceLogEntry, ScoutMission, Trade } from './schema.js';
 import type { PigeonLogs } from './d1.js';
-import { AGE_CUP, AUCTION, BREED_RARITY, CITY_COORDS, COACH, DEBT, coachSalaryFor, nextCoachBand, ageCategoryDef, ageCategoryFor, compartmentCost, COUPLES, EQUIPMENT, EQUIPMENT_LEVELS, HYGIENE, hygieneIllnessMult, irBoxPrice, SCOUT, VACCINES, type VaccineKey, quirkById, strawCost, RELAY, REST_CURE, TRADE_HISTORY_DAYS, TRAINING } from './config/gameConfig.js';
+import { AGE_CUP, AUCTION, BREED_RARITY, CITY_COORDS, COACH, DEBT, coachSalaryFor, nextCoachBand, ageCategoryDef, ageCategoryFor, compartmentCost, COUPLES, EQUIPMENT, EQUIPMENT_LEVELS, cleanerWage, hygieneIllnessMult, irBoxPrice, SCOUT, VACCINES, type VaccineKey, quirkById, strawCost, RELAY, REST_CURE, TRADE_HISTORY_DAYS, TRAINING } from './config/gameConfig.js';
 import {
   ageInWeeks,
   breedInfo,
@@ -419,7 +419,7 @@ export function loftDTO(db: Database, loft: Loft) {
         lastStrawAt: eq.lastStrawAt,
         cleaner: eq.cleaner,
         strawCost: strawCost(loft.capacity),
-        cleanerWage: HYGIENE.cleanerDailyWage,
+        cleanerWage: cleanerWage(pigeons.length),
         illnessMult: round1(hygieneIllnessMult(eq.hygiene) * 100) / 100,
         decayPerDay: round1(hygieneDecay(loft, pigeons)),
         ventilation: !!eq.ventilation,

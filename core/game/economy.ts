@@ -390,7 +390,7 @@ export function dailyRunningCostBreakdown(
   /** Staff with no patient of their kind today (health.idleCareStaff). Purely
    *  informational: it never changes `total`, so the biller can leave it out. */
   idle: { doctors: number; physios: number } = { doctors: 0, physios: 0 },
-  /** Hokinrichting: breeding pairs (infrarood in use) and today's insurance premiums. */
+  /** Hokinrichting: today's insurance premiums (`pairs` is no longer priced: infrarood is a one-off buy). */
   extra: { pairs: number; insurance: number } = { pairs: 0, insurance: 0 },
 ): DailyCostBreakdown {
   const upkeepBase = DAILY_UPKEEP_BASE;
@@ -405,7 +405,7 @@ export function dailyRunningCostBreakdown(
   const idleDoctors = Math.min(loft.doctors, Math.max(0, idle.doctors));
   const idlePhysios = Math.min(loft.physios, Math.max(0, idle.physios));
   const idleStaffCost = idleDoctors * INFIRMARY.doctorSalary + idlePhysios * INFIRMARY.physioSalary;
-  const equipment = equipmentCostLines(loft, extra.pairs);
+  const equipment = equipmentCostLines(loft, pigeonCount);
   const equipmentTotal = Math.round(equipment.reduce((s, l) => s + l.amount, 0) * 100) / 100;
   const insurance = extra.insurance;
   const total = Math.round((upkeepBase + upkeepPerPigeon + coaches + doctors + physios + medicatedFeed + equipmentTotal + insurance) * 100) / 100;

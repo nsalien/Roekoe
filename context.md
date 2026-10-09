@@ -134,7 +134,9 @@
   **dagovergang** in `tickDailyCare` (`tickHygiene`, ná de dagafrekening): 8 × bezetting
   (thuis/capaciteit), ×1,5 met een zieke duif (ziekte, geen kwetsuur) buiten de boeg. Nooit
   per verzoek, dus `idle-writes` blijft groen.
-- **Poetser:** `HYGIENE.cleanerDailyWage` (€14) zit als lijn `cleaner` in `dailyRunningCostBreakdown.equipment` →
+- **Poetser:** `cleanerWage(aantal duiven)` = `cleanerBaseWage` €4 + `cleanerWagePerPigeon` €1 per duif
+  (10 duiven = €14, 20 = €24: hoe meer duiven, hoe duurder; wens van de eigenaar) zit als lijn
+  `cleaner` in `dailyRunningCostBreakdown.equipment` (`equipmentCostLines(loft, pigeonCount)`) →
   vanzelf in de Dagbalans en in wat `tickDailyCare` afrekent. Onder 70 koopt `tickHygiene` een
   lading stro aan de gewone prijs (eenmalige uitgave, níet in de Dagbalans). Besmetting ×0,85.
 - **Ziektekans:** `runHealthDay` gebruikt nu `illnessChance(...)`: hygiëne × apart hok ×
@@ -189,7 +191,7 @@
 - **Dagkost:** `equipmentCostLines` + `insuranceCost` → `dailyRunningCostBreakdown.equipment`
   (lijnen), `.equipmentTotal`, `.insurance`; zelfde bron voor Dagbalans en `tickDailyCare`.
   Het oude veld `cleaner` is vervangen door een lijn `key: 'cleaner'`. **Inrichting is
-  eenmalig** (de eigenaar: €0,50–€2/dag is de moeite niet): enkel de **hokpoetser** (€14) en
+  eenmalig** (de eigenaar: €0,50–€2/dag is de moeite niet): enkel de **hokpoetser** (€4 + €1/duif) en
   het **vakblad** (€6, abonnement) staan nog in `equipmentCostLines`; de verzekeringspremie
   komt erbij. De premie is soms centen — `loft.money` mag fractioneel worden, de DTO rondt af.
 - **Ontwerpregel (eigenaar):** elk onderdeel geeft maar een **klein** voordeel; pas alles samen
@@ -212,8 +214,11 @@
   `libidoTargetBonus`, `entryMods` (reismanden), `irBoxEffect` (tickBreedingHatch). API
   `POST /loft/equipment/upgrade {key}` → `upgradeEquipment`; DTO `equipment.levels`; catalogus
   `inrichting.levels` = `{max, scale, prices}` uit `inrichtingLevels()`. De pagina toont een
-  badge "niveau n/4" en de knop "Niveau n+1 · €…"; de bevestiging zegt "werkt dan 1,8× zo sterk
-  als niveau 1". Bots waarderen niet op.
+  badge "niveau n/4", de knop "Niveau n+1 · €…" en (groen) **wat het volgende niveau oplevert
+  t.o.v. nu**: "↑ Niveau 3: ornithose −60 % → −72 %" — het hoofdeffect per onderdeel uit
+  `inrichtingLevels().gain` (`GAIN` in inrichting.ts: ornithose, energie na een rustdag, libido,
+  sneller uit, energieverlies per vlucht); de andere effecten groeien evenveel mee. Bots waarderen
+  niet op.
 - **Vaccins ×5** (PMV €60, pokken €40, salmonella €75, geel €15, cocci €25, adem €40; waren
   €3–€15 naast een rustkuur van €300). "Hele hok" (`vaccinateLoft`) slaat wie nog meer dan
   `VACCINE_RENEW_SHARE` (25 %) van haar kuur heeft over (`needsCourse`); de client rekent met
