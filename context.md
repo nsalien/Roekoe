@@ -197,6 +197,17 @@
   (inrichting.ts) bouwt ze uit de config en de API stuurt ze mee als `inrichting.benefits`
   (sleutels: `compartment`, `straw`, `cleaner` + elke `EQUIPMENT`-sleutel). **Schrijf geen
   effecttekst met de hand in de UI**: pas de config aan en de tekst volgt.
+- **Niveaus** (`EQUIPMENT_LEVELS`): ventilatie, buitenren, kunstlicht, infrarood en reismanden
+  gaan na de aankoop (= niveau 1) tot **niveau 4**. Prijs `levelPrice` = eerste prijs ×
+  3^(niveau−1) (1×, 3×, 9×, 27×; infrarood rekent met de eerste 2 bakken), effect ×
+  `effectScale` [1; 1,5; 1,8; 2]. Opslag: `Loft.equipment.levels` (afwezig = niveau 1 voor wat
+  gekocht is). `equipmentLevel`/`effectScale` (hygiene.ts) voeden elk effect: `fendsOff`,
+  `feedHealthMult`, `hygieneDecay`, `restBonusEnergy` (basis + extra × schaal),
+  `libidoTargetBonus`, `entryMods` (reismanden), `irBoxEffect` (tickBreedingHatch). API
+  `POST /loft/equipment/upgrade {key}` → `upgradeEquipment`; DTO `equipment.levels`; catalogus
+  `inrichting.levels` (per niveau `{benefit, price}` uit `inrichtingLevels()`, dezelfde
+  tekstsjablonen als `inrichtingBenefits`). De pagina toont "niveau n/4", wat het nu doet, wat
+  het volgende niveau doet en "Naar niveau n+1 · €…" (bevestiging). Bots waarderen niet op.
 - **Vaccins ×5** (PMV €60, pokken €40, salmonella €75, geel €15, cocci €25, adem €40; waren
   €3–€15 naast een rustkuur van €300). "Hele hok" (`vaccinateLoft`) slaat wie nog meer dan
   `VACCINE_RENEW_SHARE` (25 %) van haar kuur heeft over (`needsCourse`); de client rekent met

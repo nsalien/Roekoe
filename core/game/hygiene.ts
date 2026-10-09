@@ -12,7 +12,7 @@
  * price) and disinfects: contagion between birds ×0,85.
  */
 
-import { EQUIPMENT, HYGIENE, hygieneIllnessMult, strawCost } from '../config/gameConfig.js';
+import { EQUIPMENT, EQUIPMENT_LEVELS, HYGIENE, hygieneIllnessMult, strawCost, type LevelKey } from '../config/gameConfig.js';
 import type { Loft, LoftEquipment, Pigeon } from '../schema.js';
 import { defaultEquipment } from '../schema.js';
 import type { Store } from '../store.js';
@@ -25,6 +25,21 @@ export function equipmentOf(loft: Loft): LoftEquipment {
   return { ...defaultEquipment(), ...(loft.equipment ?? {}) };
 }
 
+/** An item's level: 0 = not bought, 1 = the first purchase, up to EQUIPMENT_LEVELS.maxLevel. */
+export function equipmentLevel(loft: Loft, key: LevelKey): number {
+  const eq = loft.equipment;
+  if (!eq) return 0;
+  const owned = key === 'irBoxes' ? (eq.irBoxes ?? 0) > 0 : !!eq[key];
+  if (!owned) return 0;
+  return Math.min(Math.max(1, Math.round(eq.levels?.[key] ?? 1)), EQUIPMENT_LEVELS.maxLevel);
+}
+
+/** How hard an item works at its level, as a multiple of level 1 (0 = not bought). */
+export function effectScale(loft: Loft, key: LevelKey): number {
+  const level = equipmentLevel(loft, key);
+  return level === 0 ? 0 : EQUIPMENT_LEVELS.effectScale[level - 1];
+}
+
 /**
  * How many hygiene points this loft loses in one day: `dailyDecay` in a full
  * loft, scaled by how full it is, and `sickDecayMult` faster while a sick bird
@@ -34,7 +49,7 @@ export function hygieneDecay(loft: Loft, birds: Pigeon[]): number {
   const home = birds.filter((p) => !isAway(p));
   const occupancy = loft.capacity > 0 ? Math.min(1, home.length / loft.capacity) : 0;
   const sickAmongOthers = home.some((p) => p.ailment?.kind === 'ziekte' && !p.inInfirmary);
-  const ventilated = loft.equipment?.ventilation ? EQUIPMENT.ventilation.hygieneDecayMult : 1; // drier straw
+  const ventilated = 1 - (1 - EQUIPMENT.ventilation.hygieneDecayMult) * effectScale(loft, 'ventilation'); // drier straw
   return HYGIENE.dailyDecay * occupancy * (sickAmongOthers ? HYGIENE.sickDecayMult : 1) * ventilated;
 }
 

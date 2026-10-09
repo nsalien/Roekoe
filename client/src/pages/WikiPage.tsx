@@ -1656,6 +1656,24 @@ export function WikiPage() {
           ]}
         />
 
+        <h3 style={{ marginBottom: 4 }}>Niveaus</h3>
+        <p className="muted" style={{ marginTop: 0 }}>
+          Ventilatie, buitenren, kunstlicht, infrarood en reismanden kan je, eens gekocht, <strong>tot niveau 4</strong>{' '}
+          opwaarderen. Elk niveau kost <strong>3× zoveel</strong> als het vorige en werkt sterker: niveau 2 ×1,5, niveau 3 ×1,8,
+          niveau 4 <strong>dubbel</strong> zo sterk als niveau 1. Steeds duurder voor steeds minder: iets voor wie geld over heeft,
+          nooit een must. Roofvogelafweer, weerstation, partnerhok en vakblad hebben geen niveaus.
+        </p>
+        <MiniTable
+          head={['Onderdeel', 'Niveau 1', 'Niveau 2', 'Niveau 3', 'Niveau 4', 'Op niveau 4']}
+          rows={[
+            ['Dakventilatie', '€1.200', '€3.600', '€10.800', '€32.400', '80 % minder ornithose · hygiëne zakt 50 % trager · +10 % herstel'],
+            ['Buitenren', '€2.500', '€7.500', '€22.500', '€67.500', '+8 i.p.v. +4 energie op elke 3e rustdag · libido +6'],
+            ['Kunstlicht', '€700', '€2.100', '€6.300', '€18.900', 'libido +12'],
+            ['Infrarood nestbakken', '€1.600', '€4.800', '€14.400', '€43.200', 'nest 30 % sneller uit · +12 % tweelingkans · onder 10 °C +8 % slaagkans'],
+            ['Betere reismanden', '€1.000', '€3.000', '€9.000', '€27.000', 'elke vlucht 6 % minder energie- en 10 % minder gezondheidsverlies'],
+          ]}
+        />
+
         <h3 style={{ marginBottom: 4 }}>Vaccins &amp; kuren</h3>
         <p className="muted" style={{ marginTop: 0 }}>
           Elk middel werkt tegen één ziekte: wordt een beschermde duif ziek met precies die ziekte, dan weert ze het af

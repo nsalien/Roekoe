@@ -6,7 +6,7 @@
 
 import type { Database, Flight, Loft, Notification, Pigeon, RaceLogEntry, ScoutMission, Trade } from './schema.js';
 import type { PigeonLogs } from './d1.js';
-import { AGE_CUP, AUCTION, BREED_RARITY, CITY_COORDS, COACH, DEBT, coachSalaryFor, nextCoachBand, ageCategoryDef, ageCategoryFor, compartmentCost, COUPLES, EQUIPMENT, HYGIENE, hygieneIllnessMult, irBoxPrice, SCOUT, VACCINES, type VaccineKey, quirkById, strawCost, RELAY, REST_CURE, TRADE_HISTORY_DAYS, TRAINING } from './config/gameConfig.js';
+import { AGE_CUP, AUCTION, BREED_RARITY, CITY_COORDS, COACH, DEBT, coachSalaryFor, nextCoachBand, ageCategoryDef, ageCategoryFor, compartmentCost, COUPLES, EQUIPMENT, EQUIPMENT_LEVELS, HYGIENE, hygieneIllnessMult, irBoxPrice, SCOUT, VACCINES, type VaccineKey, quirkById, strawCost, RELAY, REST_CURE, TRADE_HISTORY_DAYS, TRAINING } from './config/gameConfig.js';
 import {
   ageInWeeks,
   breedInfo,
@@ -40,7 +40,7 @@ import {
   winningsMultiplier,
 } from './game/newcomer.js';
 import { coveredInInfirmary, idleCareStaff } from './game/health.js';
-import { equipmentOf, hygieneDecay } from './game/hygiene.js';
+import { equipmentLevel, equipmentOf, hygieneDecay } from './game/hygiene.js';
 import { insuranceCost, insurancePremium, insuranceQuote, irBoxesInUse, magazineRanges, readsMagazine, widowLevelNow } from './game/inrichting.js';
 import { coupleOf, partnerhokInUse, partnerOf } from './game/koppels.js';
 import { scoutStatus } from './game/scout.js';
@@ -430,6 +430,8 @@ export function loftDTO(db: Database, loft: Loft) {
         irInUse: irBoxesInUse(loft, pairs),
         irNextPrice: (eq.irBoxes ?? 0) >= EQUIPMENT.irBoxes.maxBoxes ? null : irBoxPrice(eq.irBoxes ?? 0),
         baskets: !!eq.baskets,
+        // Niveaus: 0 = not bought, 1..EQUIPMENT_LEVELS.maxLevel.
+        levels: Object.fromEntries(EQUIPMENT_LEVELS.keys.map((k) => [k, equipmentLevel(loft, k)])),
         weatherStation: !!eq.weatherStation,
         magazine: !!eq.magazine,
         lastHawkDay: eq.lastHawkDay ?? null,

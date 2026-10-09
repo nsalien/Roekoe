@@ -13,6 +13,7 @@ import {
   COMPARTMENT,
   COUPLES,
   EQUIPMENT,
+  EQUIPMENT_LEVELS,
   HYGIENE,
   INSURANCE,
   REST_BONUS,
@@ -20,13 +21,15 @@ import {
   VACCINE_RENEW_SHARE,
   WIDOW,
   irBoxPrice,
+  levelPrice,
   type EquipmentKey,
+  type LevelKey,
   type VaccineKey,
 } from '../config/gameConfig.js';
 import type { Database, Flight, Loft, Pigeon, PigeonCare } from '../schema.js';
 import type { Store } from '../store.js';
 import { debtBlock } from './economy.js';
-import { equipmentOf } from './hygiene.js';
+import { effectScale, equipmentLevel, equipmentOf } from './hygiene.js';
 import { marketValue } from './market.js';
 import { ageMortality, isAway } from './pigeon.js';
 import { hashString, round1, seededRng } from './util.js';
@@ -88,6 +91,32 @@ export function buyEquipment(store: Store, userId: string, key: EquipmentKey, on
   });
 }
 
+/**
+ * Take an item one level up (EQUIPMENT_LEVELS). It must be bought first; every
+ * level costs `priceGrowth` times the one before. Like the first purchase, it
+ * cannot be sold back.
+ */
+export function upgradeEquipment(store: Store, userId: string, key: string): string | null {
+  return store.mutate((db) => {
+    const loft = loftOf(db, userId);
+    if (!loft) return 'Geen hok gevonden';
+    if (!(EQUIPMENT_LEVELS.keys as readonly string[]).includes(key)) return 'Dit heeft geen niveaus';
+    const k = key as LevelKey;
+    const level = equipmentLevel(loft, k);
+    const label = EQUIPMENT[k].label.toLowerCase();
+    if (level === 0) return `Koop eerst ${label}`;
+    if (level >= EQUIPMENT_LEVELS.maxLevel) return `${EQUIPMENT[k].label} staat al op het hoogste niveau`;
+    const debt = debtBlock(loft); if (debt) return debt;
+    const price = levelPrice(k, level + 1);
+    if (loft.money < price) return `Niet genoeg geld voor niveau ${level + 1} (€${price.toLocaleString('nl-BE')})`;
+    loft.money -= price;
+    const eq = { ...equipmentOf(loft) };
+    eq.levels = { ...(eq.levels ?? {}), [k]: level + 1 };
+    loft.equipment = eq;
+    return null;
+  });
+}
+
 /** Buy infrarood above the nest boxes: the first purchase covers two. */
 export function buyIrBox(store: Store, userId: string): string | null {
   return store.mutate((db) => {
@@ -131,7 +160,30 @@ export function equipmentCostLines(loft: Loft, _pairs: number): EquipmentCostLin
 
 // --- what it gives you, in plain numbers -----------------------------------------
 
-const pct = (x: number) => `${Math.round(x * 100)} %`;
+/** 0,045 → "4,5 %", 0,375 → "38 %": a decimal only where it matters. */
+const pct = (x: number) => {
+  const v = x * 100;
+  return `${(v < 10 ? Math.round(v * 10) / 10 : Math.round(v)).toLocaleString('nl-BE')} %`;
+};
+const num = (x: number) => (Math.round(x * 10) / 10).toLocaleString('nl-BE');
+
+/** The effect of a levelled item at strength `s` (1 = level 1), in the engine's numbers. */
+const LEVEL_TEXT: Record<LevelKey, (s: number) => string> = {
+  ventilation: (s) => `${pct((1 - EQUIPMENT.ventilation.ornithoseMult) * s)} minder kans op ornithose · de hygiëne zakt ${pct((1 - EQUIPMENT.ventilation.hygieneDecayMult) * s)} trager · +${pct(EQUIPMENT.ventilation.healthRecoveryBonus * s)} gezondheidsherstel uit het voer`,
+  run: (s) => `+${num(REST_BONUS.energy + (EQUIPMENT.run.restBonusEnergy - REST_BONUS.energy) * s)} i.p.v. +${REST_BONUS.energy} energie op elke ${REST_BONUS.everyDays}e rustdag · libido +${num(EQUIPMENT.run.libidoTarget * s)} · zonder roofvogelafweer ~1× per ${Math.round(1 / EQUIPMENT.run.hawkChancePerDay)} dagen een sperwer: wie thuis rust −${EQUIPMENT.run.hawkEnergyLoss} energie`,
+  light: (s) => `libido +${num(EQUIPMENT.light.libidoTarget * s)} bij al je duiven: sneller een nest en meer broedsucces`,
+  irBoxes: (s) => `een nest komt ${pct((EQUIPMENT.irBoxes.hatchSpeed - 1) * s)} sneller uit · +${pct(EQUIPMENT.irBoxes.twinBonus * s)} kans op een tweeling · onder ${EQUIPMENT.irBoxes.coldBelowC} °C +${pct(EQUIPMENT.irBoxes.coldSuccessBonus * s)} slaagkans`,
+  baskets: (s) => `elke vlucht ${pct((1 - EQUIPMENT.baskets.energyMult) * s)} minder energieverlies en ${pct((1 - EQUIPMENT.baskets.healthMult) * s)} minder gezondheidsverlies`,
+};
+
+/** Per levelled item, for levels 1..max: what it does and what that level costs. */
+export function inrichtingLevels(): Record<LevelKey, { benefit: string; price: number }[]> {
+  const out = {} as Record<LevelKey, { benefit: string; price: number }[]>;
+  for (const k of EQUIPMENT_LEVELS.keys) {
+    out[k] = EQUIPMENT_LEVELS.effectScale.map((s, i) => ({ benefit: LEVEL_TEXT[k](s), price: levelPrice(k, i + 1) }));
+  }
+  return out;
+}
 
 /**
  * What every piece of inrichting does, in the numbers the engine uses — built
@@ -144,13 +196,13 @@ export function inrichtingBenefits(): Record<string, string> {
     compartment: `per duif in een apart hok: +${pct(COMPARTMENT.formRecoveryBonus)} energieherstel, +${pct(COMPARTMENT.healthRecoveryBonus)} gezondheidsherstel, ${pct(COMPARTMENT.diseaseReduction)} minder kans op ziekte`,
     straw: `zet de hygiëne terug op 100; boven ${HYGIENE.neutral} worden je duiven minder snel ziek, tot ${pct(HYGIENE.maxReduction)} minder bij 100`,
     cleaner: `strooit zelf vers stro zodra de hygiëne onder ${HYGIENE.cleanerRefreshBelow} zakt en ontsmet: ${pct(1 - HYGIENE.cleanerContagionMult)} minder besmetting tussen je duiven`,
-    ventilation: `${pct(1 - E.ventilation.ornithoseMult)} minder kans op ornithose · de hygiëne zakt ${pct(1 - E.ventilation.hygieneDecayMult)} trager · +${pct(E.ventilation.healthRecoveryBonus)} gezondheidsherstel uit het voer`,
-    run: `+${E.run.restBonusEnergy} i.p.v. +${REST_BONUS.energy} energie op elke ${REST_BONUS.everyDays}e rustdag · libido +${E.run.libidoTarget} · zonder roofvogelafweer ~1× per ${Math.round(1 / E.run.hawkChancePerDay)} dagen een sperwer: wie thuis rust −${E.run.hawkEnergyLoss} energie`,
+    ventilation: LEVEL_TEXT.ventilation(1),
+    run: LEVEL_TEXT.run(1),
     raptorGuard: 'net en lokuil boven de ren: geen sperwer meer, ook niet bij "Sperwer in de buurt"',
-    light: `libido +${E.light.libidoTarget} bij al je duiven: sneller een nest en meer broedsucces`,
-    irBoxes: `een nest komt ${pct(E.irBoxes.hatchSpeed - 1)} sneller uit · +${pct(E.irBoxes.twinBonus)} kans op een tweeling · onder ${E.irBoxes.coldBelowC} °C +${pct(E.irBoxes.coldSuccessBonus)} slaagkans`,
+    light: LEVEL_TEXT.light(1),
+    irBoxes: LEVEL_TEXT.irBoxes(1),
     partnerhok: `wennen duurt 1–${COUPLES.partnerhokMaxDays} dagen i.p.v. 1–${COUPLES.wennenMaxDays} · ${pct(1 - COUPLES.partnerhokRefuseMult)} minder kans dat ze elkaar weigeren · ook voor een duif met een apart hok`,
-    baskets: `elke vlucht ${pct(1 - E.baskets.energyMult)} minder energieverlies en ${pct(1 - E.baskets.healthMult)} minder gezondheidsverlies`,
+    baskets: LEVEL_TEXT.baskets(1),
     weatherStation: `het weer bij de lossing al ${E.weatherStation.forecastHours} u vooraf, om de ${E.weatherStation.refreshHours} u bijgewerkt`,
     magazine: `bandbreedtes i.p.v. enkel ★ bij andermans duif · het marktrapport over ${E.magazine.reportDays} dagen · elke maandag Het Duivenblad`,
   };
@@ -160,23 +212,32 @@ export function inrichtingBenefits(): Record<string, string> {
 
 /** Extra libido target from kunstlicht and the buitenren (applyDayOfCare). */
 export function libidoTargetBonus(loft: Loft): number {
-  const eq = equipmentOf(loft);
-  return (eq.light ? EQUIPMENT.light.libidoTarget : 0) + (eq.run ? EQUIPMENT.run.libidoTarget : 0);
+  return EQUIPMENT.light.libidoTarget * effectScale(loft, 'light') + EQUIPMENT.run.libidoTarget * effectScale(loft, 'run');
 }
 
-/** The rest bonus on every third rest day: +6 with a buitenren instead of +4. */
+/** The rest bonus on every third rest day: +6 with a buitenren instead of +4 (more per level). */
 export function restBonusEnergy(loft: Loft, base: number): number {
-  return equipmentOf(loft).run ? EQUIPMENT.run.restBonusEnergy : base;
+  return base + (EQUIPMENT.run.restBonusEnergy - base) * effectScale(loft, 'run');
 }
 
-/** Health recovery from feed: +5 % with dakventilatie. */
+/** Health recovery from feed: +5 % with dakventilatie (more per level). */
 export function feedHealthMult(loft: Loft): number {
-  return equipmentOf(loft).ventilation ? 1 + EQUIPMENT.ventilation.healthRecoveryBonus : 1;
+  return 1 + EQUIPMENT.ventilation.healthRecoveryBonus * effectScale(loft, 'ventilation');
+}
+
+/** Infrarood at its level: how much faster a heated nest hatches, and its bonuses. */
+export function irBoxEffect(loft: Loft): { hatchSpeed: number; twin: number; coldSuccess: number } {
+  const s = effectScale(loft, 'irBoxes');
+  return {
+    hatchSpeed: 1 + (EQUIPMENT.irBoxes.hatchSpeed - 1) * s,
+    twin: EQUIPMENT.irBoxes.twinBonus * s,
+    coldSuccess: EQUIPMENT.irBoxes.coldSuccessBonus * s,
+  };
 }
 
 /** Does this bird fend off the disease she just caught? (ventilatie, vaccins, kuren) */
 export function fendsOff(loft: Loft, p: Pigeon, diseaseName: string, nowMs: number, rng: () => number = Math.random): boolean {
-  if (diseaseName === 'Ornithose' && equipmentOf(loft).ventilation && rng() < 1 - EQUIPMENT.ventilation.ornithoseMult) return true;
+  if (diseaseName === 'Ornithose' && rng() < (1 - EQUIPMENT.ventilation.ornithoseMult) * effectScale(loft, 'ventilation')) return true;
   const until = p.care?.vaccines ?? {};
   for (const [key, iso] of Object.entries(until)) {
     const v = VACCINES[key as VaccineKey];
@@ -428,10 +489,10 @@ export interface EntryMods {
 /** The hokinrichting's effect on one bird's flight, frozen at the lossing. */
 export function entryMods(db: Database, p: Pigeon, flight: Flight, startMs: number): EntryMods {
   const loft = loftOf(db, p.ownerId);
-  const baskets = loft?.equipment?.baskets ?? false;
+  const s = loft ? effectScale(loft, 'baskets') : 0;
   return {
-    energyMult: baskets ? EQUIPMENT.baskets.energyMult : 1,
-    healthMult: baskets ? EQUIPMENT.baskets.healthMult : 1,
+    energyMult: 1 - (1 - EQUIPMENT.baskets.energyMult) * s,
+    healthMult: 1 - (1 - EQUIPMENT.baskets.healthMult) * s,
     widow: flight.practice ? 0 : widowLevel(db, p, flight, startMs),
   };
 }

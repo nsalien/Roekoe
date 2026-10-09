@@ -66,7 +66,7 @@ import {
 import type { CupStanding, Database, Flight, FlightResult, Loft, Pigeon, RaceLogEntry } from '../schema.js';
 import { emptySponsorState, emptyStats } from '../schema.js';
 import { tickHygiene } from './hygiene.js';
-import { entryMods, insuranceCost, insurancePayout, settleWidowhood, tickHawk, tickMagazine } from './inrichting.js';
+import { entryMods, insuranceCost, insurancePayout, irBoxEffect, settleWidowhood, tickHawk, tickMagazine } from './inrichting.js';
 import { tickCouples } from './koppels.js';
 import { newId } from '../store.js';
 import { applyDayOfCare, dailyRunningCost } from './economy.js';
@@ -3196,12 +3196,14 @@ export function tickBreedingHatch(db: Database, nowMs: number): void {
   const humanIds = new Set(db.lofts.filter((l) => !l.isBot).map((l) => l.userId));
   const hatched = new Set<string>();
   // Which pairs sit in a heated nest box: per loft, its first `irBoxes` pairs.
-  const heatedPairIds = new Set<string>();
+  // Pair id → what the infrarood above its nest does (its loft's level).
+  const heatedPairs = new Map<string, ReturnType<typeof irBoxEffect>>();
   for (const loft of db.lofts) {
     const boxes = loft.equipment?.irBoxes ?? 0;
     if (boxes <= 0) continue;
+    const effect = irBoxEffect(loft);
     db.breedingPairs.filter((bp) => bp.ownerId === loft.userId).sort((a, b) => (a.id < b.id ? -1 : 1))
-      .slice(0, boxes).forEach((bp) => heatedPairIds.add(bp.id));
+      .slice(0, boxes).forEach((bp) => heatedPairs.set(bp.id, effect));
   }
   for (const bp of db.breedingPairs) {
     const checkedAt = bp.hatchAt ? Date.parse(bp.hatchAt) : NaN;
@@ -3237,10 +3239,10 @@ export function tickBreedingHatch(db: Database, nowMs: number): void {
       0,
       100,
     ) / 100;
-    const heated = heatedPairIds.has(bp.id); // infrarood boven het nest (hokinrichting)
+    const heated = heatedPairs.get(bp.id); // infrarood boven het nest (hokinrichting)
     const meanDays =
       (BREEDING.hatchMaxMeanDays - fertility * (BREEDING.hatchMaxMeanDays - BREEDING.hatchMinMeanDays)) /
-      (heated ? EQUIPMENT.irBoxes.hatchSpeed : 1);
+      (heated ? heated.hatchSpeed : 1);
     const lambdaPerHour = 1 / (meanDays * 24);
     const hatchNow = Math.random() < 1 - Math.exp(-lambdaPerHour * dtHours);
     if (!hatchNow) {
@@ -3255,7 +3257,7 @@ export function tickBreedingHatch(db: Database, nowMs: number): void {
     const cold = monthTemperature(nowMs) < EQUIPMENT.irBoxes.coldBelowC;
     const young = breed(
       sire, dam, bp.ownerId, db.world.currentWeek, namesInUse(db.pigeons), bp.id, kin,
-      heated ? { twin: EQUIPMENT.irBoxes.twinBonus, success: cold ? EQUIPMENT.irBoxes.coldSuccessBonus : 0 } : {},
+      heated ? { twin: heated.twin, success: cold ? heated.coldSuccess : 0 } : {},
     );
     if (young.length > 0) {
       // The rest is per BIRD and starts at the hatch, so it survives the pair

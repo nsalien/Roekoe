@@ -263,6 +263,8 @@ export interface LoftEquipment {
   irInUse: number;
   irNextPrice: number | null;
   baskets: boolean;
+  /** Niveaus: 0 = not bought, else 1..max, for ventilation, run, light, irBoxes, baskets. */
+  levels?: Record<string, number>;
   weatherStation: boolean;
   magazine: boolean;
   lastHawkDay: number | null;
@@ -320,6 +322,8 @@ export interface InrichtingCatalogue {
   equipment: Record<string, { label: string; price?: number; daily?: number; priceFirstTwo?: number; pricePerExtra?: number; maxBoxes?: number }>;
   /** What each item does, in the engine's numbers: compartment, straw, cleaner and every equipment key. */
   benefits: Record<string, string>;
+  /** Niveaus, per levelled item: index 0 = level 1 (the purchase). What it does there and what it costs. */
+  levels?: Record<string, { benefit: string; price: number }[]>;
   vaccines: Record<string, { label: string; disease: string; kind: 'vaccin' | 'kuur'; price: number; days: number; protect: number; noFlyDays: number; libidoHit: number }>;
   /** "Hele hok" skips a bird with more than this share of her course left. */
   vaccineRenewShare: number;

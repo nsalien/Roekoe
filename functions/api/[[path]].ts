@@ -112,7 +112,7 @@ import {
 import { advanceRealtime, applyFlightForecasts, applyRelayForecasts, flightsAwaitingStart, flightsNeedingForecast, relayLegsNeedingForecast, tickFlights } from '../../core/game/schedule.js';
 import { pigeonSeasonRankings } from '../../core/game/season.js';
 import { buyStraw, setCleaner } from '../../core/game/hygiene.js';
-import { buyEquipment, buyIrBox, inrichtingBenefits, magazineReport, setInsurance, setWidow, vaccinate, vaccinateLoft } from '../../core/game/inrichting.js';
+import { buyEquipment, buyIrBox, inrichtingBenefits, inrichtingLevels, magazineReport, setInsurance, setWidow, upgradeEquipment, vaccinate, vaccinateLoft } from '../../core/game/inrichting.js';
 import { buyScouted, dismissScout, sendScout } from '../../core/game/scout.js';
 import { buyPartnerhok, confirmAttraction, dismissAttraction, startWennen, unpair } from '../../core/game/koppels.js';
 import { spendAttribute, spendExperience } from '../../core/game/newcomer.js';
@@ -191,6 +191,8 @@ let schemaReady = false;
 const PEDIGREE_GENERATIONS = 3;
 /** Hokinrichting (⚠️ dev): what each item does, from the config — the same for every request. */
 const INRICHTING_BENEFITS = inrichtingBenefits();
+/** …and per level, with its price (EQUIPMENT_LEVELS). */
+const INRICHTING_LEVELS = inrichtingLevels();
 /** How far DOWN the family view goes: children, grandchildren, great-grandchildren. */
 const DESCENDANT_GENERATIONS = 3;
 
@@ -532,6 +534,7 @@ app.get('/state', (c) => {
       equipment: EQUIPMENT,
       // What each item does, in the engine's own numbers (built once, see below).
       benefits: INRICHTING_BENEFITS,
+      levels: INRICHTING_LEVELS,
       vaccines: VACCINES,
       vaccineRenewShare: VACCINE_RENEW_SHARE,
       scout: { tiers: SCOUT.tiers, markets: SCOUT.markets, choiceHours: SCOUT.choiceHours, quarantineDays: SCOUT.quarantineDays },
@@ -847,6 +850,16 @@ app.post('/loft/equipment', async (c) => {
   if (!keys.includes(key)) return c.json({ error: 'Onbekend onderdeel' }, 400);
   const store = c.get('store');
   const err = buyEquipment(store, user.id, key as any, body.on !== false);
+  await store.persist();
+  return c.json(ok(err), err ? 400 : 200);
+});
+
+// Niveaus (hokinrichting): one level up for an item that is already bought.
+app.post('/loft/equipment/upgrade', async (c) => {
+  const user = requireUser(c);
+  const body = await c.req.json().catch(() => ({}));
+  const store = c.get('store');
+  const err = upgradeEquipment(store, user.id, String(body.key ?? ''));
   await store.persist();
   return c.json(ok(err), err ? 400 : 200);
 });

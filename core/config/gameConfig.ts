@@ -129,6 +129,26 @@ export const EQUIPMENT = {
   partnerhok: { label: 'Partnerhok', price: 600, maxBoxes: 3 },
 } as const;
 export type EquipmentKey = 'ventilation' | 'run' | 'raptorGuard' | 'light' | 'baskets' | 'weatherStation' | 'magazine';
+/**
+ * Niveaus op de hokinrichting (⚠️ dev). The first purchase is level 1. Every next
+ * level costs `priceGrowth` times the one before — 1×, 3×, 9×, 27× the first
+ * price — and makes the item work `effectScale` times as hard as level 1 (×1,5,
+ * ×1,8, then double). Ever dearer for ever less: something for a loft with money
+ * to spare, never a must. Only items whose effect is a NUMBER have levels; the
+ * roofvogelafweer, weerstation, partnerhok (per stuk) and vakblad do not.
+ */
+export const EQUIPMENT_LEVELS = {
+  keys: ['ventilation', 'run', 'light', 'irBoxes', 'baskets'] as const,
+  maxLevel: 4,
+  priceGrowth: 3,
+  effectScale: [1, 1.5, 1.8, 2] as readonly number[],
+};
+export type LevelKey = (typeof EQUIPMENT_LEVELS.keys)[number];
+/** The price of `level` of an item (level 1 = the first purchase; infrarood: its first two boxes). */
+export function levelPrice(key: LevelKey, level: number): number {
+  const base = key === 'irBoxes' ? EQUIPMENT.irBoxes.priceFirstTwo : EQUIPMENT[key].price;
+  return base * Math.pow(EQUIPMENT_LEVELS.priceGrowth, level - 1);
+}
 /** What the next infrarood-nestbak costs: the first purchase is two boxes. */
 export function irBoxPrice(owned: number): number {
   return owned === 0 ? EQUIPMENT.irBoxes.priceFirstTwo : EQUIPMENT.irBoxes.pricePerExtra;

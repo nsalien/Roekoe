@@ -357,6 +357,8 @@ export interface LoftEquipment {
   couples?: Couple[];
   /** Free birds that drew together on their own, waiting for the player's yes. */
   attractions?: Attraction[];
+  /** Niveaus (EQUIPMENT_LEVELS): absent = level 1 for whatever is bought. */
+  levels?: Partial<Record<'ventilation' | 'run' | 'light' | 'irBoxes' | 'baskets', number>>;
 }
 
 /** A koppel, or a doffer and a duivin still getting used to each other (COUPLES). */

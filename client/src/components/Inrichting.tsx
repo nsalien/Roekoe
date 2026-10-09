@@ -42,6 +42,51 @@ const ICON: Record<string, string> = {
 /** What an item does, in the engine's numbers (from the server), as the faint half of a line. */
 const benefit = (cat: InrichtingCatalogue | null, key: string) => (cat?.benefits?.[key] ? <> — {cat.benefits[key]}</> : null);
 
+/**
+ * Niveaus: where a bought item stands, what the next level would do, and the
+ * button to get there. `level` 0 = not bought (nothing to show).
+ */
+function levelInfo(cat: InrichtingCatalogue, k: string, level: number) {
+  const steps = cat.levels?.[k];
+  if (!steps || level === 0) return null;
+  const max = steps.length;
+  const next = level < max ? steps[level] : null; // index = next level − 1
+  return { max, now: steps[level - 1].benefit, next, nextLevel: level + 1 };
+}
+
+function LevelButton({ k, label, info, loft, busy, act }: {
+  k: string; label: string; info: NonNullable<ReturnType<typeof levelInfo>>;
+  loft: Loft; busy: boolean; act: Act;
+}) {
+  if (!info.next) return <span className="badge">✓ hoogste niveau</span>;
+  const { price, benefit: then } = info.next;
+  return (
+    <button className="btn sm ghost" disabled={busy || loft.money < price} onClick={() => {
+      if (!window.confirm(`${label} naar niveau ${info.nextLevel} voor ${euro(price)}?\n\nDan: ${then}.\n\nDat kan je niet terugverkopen.`)) return;
+      act(() => api('/loft/equipment/upgrade', { method: 'POST', body: { key: k } }), `${label}: niveau ${info.nextLevel} 🔧`);
+    }}>
+      Naar niveau {info.nextLevel} · <Money value={price} />
+    </button>
+  );
+}
+
+/** The label of a bought, levelled item: its level, what it does now, and what the next level adds. */
+function LevelLabel({ icon, label, info, extra }: {
+  icon: string; label: string; info: NonNullable<ReturnType<typeof levelInfo>>; extra?: React.ReactNode;
+}) {
+  return (
+    <>
+      <strong>{icon} {label}</strong> <span className="badge" style={{ fontSize: '0.72rem' }}>niveau {info.nextLevel - 1}/{info.max}</span>{' '}
+      <span className="faint">— {info.now}{extra}</span>
+      {info.next && (
+        <span className="faint" style={{ display: 'block', fontSize: '0.8rem', marginTop: 2 }}>
+          Niveau {info.nextLevel}: {info.next.benefit}
+        </span>
+      )}
+    </>
+  );
+}
+
 /** One piece of inrichting you buy once: in your loft, waiting on another, or a buy button. */
 function EquipmentLine({ k, owned, needs, loft, cat, busy, act }: {
   k: string; owned: boolean; needs?: string;
@@ -49,6 +94,14 @@ function EquipmentLine({ k, owned, needs, loft, cat, busy, act }: {
 }) {
   const item = cat.equipment[k];
   const price = item.price ?? 0;
+  const info = owned ? levelInfo(cat, k, loft.equipment?.levels?.[k] ?? 1) : null;
+  if (info) {
+    return (
+      <Line label={<LevelLabel icon={ICON[k]} label={item.label} info={info} />}>
+        <LevelButton k={k} label={item.label} info={info} loft={loft} busy={busy} act={act} />
+      </Line>
+    );
+  }
   return (
     <Line label={<><strong>{ICON[k]} {item.label}</strong> <span className="faint">{benefit(cat, k)}</span></>}>
       {owned ? (
@@ -218,10 +271,16 @@ export function HygieneCard({ loft, cat, busy, act }: { loft: Loft; cat: Inricht
 /** Kweek: what makes breeding go faster. Koppels and nests themselves are on the Kweek page. */
 export function BreedingGearCard({ loft, cat, busy, act }: { loft: Loft; cat: InrichtingCatalogue; busy: boolean; act: Act }) {
   const eq = loft.equipment!;
+  const irInfo = eq.irBoxes > 0 ? levelInfo(cat, 'irBoxes', eq.levels?.irBoxes ?? 1) : null;
   return (
     <Card title="🥚 Kweek">
       <EquipmentLine k="light" owned={eq.light} loft={loft} cat={cat} busy={busy} act={act} />
-      <Line label={<><strong>{ICON.irBoxes} {cat.equipment.irBoxes.label}</strong> <span className="faint">{benefit(cat, 'irBoxes')} · {eq.irBoxes} {eq.irBoxes === 1 ? 'bak' : 'bakken'}, {eq.irInUse} in gebruik</span></>}>
+      <Line label={
+        irInfo
+          ? <LevelLabel icon={ICON.irBoxes} label={cat.equipment.irBoxes.label} info={irInfo} extra={<> · {eq.irBoxes} {eq.irBoxes === 1 ? 'bak' : 'bakken'}, {eq.irInUse} in gebruik</>} />
+          : <><strong>{ICON.irBoxes} {cat.equipment.irBoxes.label}</strong> <span className="faint">{benefit(cat, 'irBoxes')} · {eq.irBoxes} {eq.irBoxes === 1 ? 'bak' : 'bakken'}, {eq.irInUse} in gebruik</span></>
+      }>
+        {irInfo && <LevelButton k="irBoxes" label={cat.equipment.irBoxes.label} info={irInfo} loft={loft} busy={busy} act={act} />}
         {eq.irNextPrice != null ? (
           <button className="btn sm" disabled={busy || loft.money < eq.irNextPrice} onClick={() => {
             if (!window.confirm(`${eq.irBoxes === 0 ? 'Twee verwarmde nestbakken' : 'Een extra verwarmde nestbak'} voor ${euro(eq.irNextPrice!)}?`)) return;

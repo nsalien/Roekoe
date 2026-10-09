@@ -17,15 +17,16 @@ import { applyFlightForecasts, ensureFlightsScheduled, flightsNeedingForecast, t
 import {
   buyEquipment, buyIrBox, entryMods, fendsOff, grounded, insurancePayout, insurancePremium, insuranceQuote,
   inrichtingBenefits, magazineRanges, setInsurance, tickHawk, tickMagazine, vaccinate, vaccinateLoft,
-  libidoTargetBonus, restBonusEnergy,
+  libidoTargetBonus, restBonusEnergy, upgradeEquipment, inrichtingLevels, feedHealthMult, irBoxEffect,
 } from '../core/game/inrichting.js';
+import { equipmentLevel, hygieneDecay } from '../core/game/hygiene.js';
 import { breed } from '../core/game/breeding.js';
 import { buyScouted, returnChance, rollReturnDay, scoutStatus, sendScout } from '../core/game/scout.js';
 import { dailyRunningCostBreakdown } from '../core/game/economy.js';
 import { startLiveFlight } from '../core/game/flight.js';
 import { canRace, talent } from '../core/game/pigeon.js';
 import { marketValue } from '../core/game/market.js';
-import { EQUIPMENT, INSURANCE, SCOUT, VACCINES } from '../core/config/gameConfig.js';
+import { EQUIPMENT, EQUIPMENT_LEVELS, INSURANCE, SCOUT, VACCINES } from '../core/config/gameConfig.js';
 import { randomWeather } from '../core/game/weather.js';
 
 let fail = 0;
@@ -292,6 +293,59 @@ console.log('\n=== 11. Kunstlicht, ren en infrarood bij het kweken ===');
     heated += breed(sire, dam, 'o', 100, new Set(), `pair${i}`, null, { twin: EQUIPMENT.irBoxes.twinBonus }).length === 2 ? 1 : 0;
   }
   ok(heated > plain, `infrarood: meer tweelingen (${plain} → ${heated} op 300)`);
+}
+
+console.log('\n=== 12. Niveaus: elk niveau 3× duurder, het effect ×1,5 · ×1,8 · ×2 ===');
+{
+  const { store, db, userId, loft, birds } = world(200000);
+  const lvl = (k: Parameters<typeof equipmentLevel>[1]) => equipmentLevel(loft, k);
+  ok(upgradeEquipment(store, userId, 'ventilation') !== null && lvl('ventilation') === 0, 'een niveau hoger zonder het te hebben: geweigerd');
+  ok(upgradeEquipment(store, userId, 'weatherStation') !== null, 'een weerstation heeft geen niveaus');
+  buyEquipment(store, userId, 'ventilation');
+  ok(lvl('ventilation') === 1, 'gekocht = niveau 1');
+  const prices: number[] = [];
+  for (let n = 2; n <= EQUIPMENT_LEVELS.maxLevel; n++) {
+    const m = loft.money;
+    ok(upgradeEquipment(store, userId, 'ventilation') === null && lvl('ventilation') === n, `naar niveau ${n}`);
+    prices.push(m - loft.money);
+  }
+  ok(prices.join('/') === '3600/10800/32400', `prijzen niveau 2–4: €${prices.map((p) => p.toLocaleString('nl-BE')).join(' / €')} (×3 per niveau)`);
+  ok(upgradeEquipment(store, userId, 'ventilation') !== null && lvl('ventilation') === 4, 'niveau 5 bestaat niet');
+
+  // Effects at each level, from the same numbers the page shows.
+  const p = birds()[0];
+  const atLevel = (n: number) => { loft.equipment = { ...loft.equipment!, levels: { ...loft.equipment!.levels, ventilation: n } }; };
+  atLevel(1);
+  ok(!fendsOff(loft, p, 'Ornithose', T0, () => 0.55), 'ventilatie niveau 1: 40 % — een trekking van 0,55 slaagt niet');
+  atLevel(2);
+  ok(fendsOff(loft, p, 'Ornithose', T0, () => 0.55) && Math.abs(feedHealthMult(loft) - 1.075) < 1e-9, 'niveau 2: 60 % afgeweerd, +7,5 % herstel');
+  atLevel(4);
+  const full = hygieneDecay({ ...loft, equipment: { ...loft.equipment!, ventilation: false } }, birds());
+  ok(Math.abs(hygieneDecay(loft, birds()) - full * 0.5) < 1e-9, 'niveau 4: de hygiëne zakt half zo snel (×0,5)');
+
+  buyEquipment(store, userId, 'baskets');
+  upgradeEquipment(store, userId, 'baskets'); upgradeEquipment(store, userId, 'baskets');
+  const f = { id: 'f', practice: true, startAt: new Date().toISOString() } as unknown as Flight; // a practice flight: no weduwschap to weigh
+  const mods = entryMods(db, p, f, Date.now());
+  ok(Math.abs(mods.energyMult - (1 - 0.03 * 1.8)) < 1e-9 && Math.abs(mods.healthMult - (1 - 0.05 * 1.8)) < 1e-9,
+    `reismanden niveau 3: ×${mods.energyMult.toFixed(3)} energie, ×${mods.healthMult.toFixed(3)} gezondheid`);
+
+  buyEquipment(store, userId, 'run');
+  buyEquipment(store, userId, 'light');
+  for (let i = 0; i < 3; i++) upgradeEquipment(store, userId, 'light');
+  upgradeEquipment(store, userId, 'run');
+  ok(libidoTargetBonus(loft) === 12 + 4.5, `kunstlicht niveau 4 (+12) + ren niveau 2 (+4,5): libido +${libidoTargetBonus(loft)}`);
+  ok(restBonusEnergy(loft, 4) === 7, 'ren niveau 2: +7 i.p.v. +4 energie op een rustdag');
+
+  buyIrBox(store, userId);
+  upgradeEquipment(store, userId, 'irBoxes'); upgradeEquipment(store, userId, 'irBoxes');
+  const ir = irBoxEffect(loft);
+  ok(Math.abs(ir.hatchSpeed - 1.27) < 1e-9 && Math.abs(ir.twin - 0.108) < 1e-9, 'infrarood niveau 3: 27 % sneller uit, +10,8 % tweelingkans');
+
+  const L = inrichtingLevels();
+  ok(L.ventilation.length === 4 && L.ventilation[3].benefit.includes('80 %') && L.ventilation[3].price === 32400,
+    `de pagina kent elk niveau: "${L.ventilation[3].benefit}" — €${L.ventilation[3].price.toLocaleString('nl-BE')}`);
+  ok(L.baskets[1].benefit.includes('4,5 %'), `kommagetal waar het telt: "${L.baskets[1].benefit}"`);
 }
 
 if (fail > 0) { console.log(`\n${fail} mislukt`); process.exitCode = 1; }
