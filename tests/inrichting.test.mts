@@ -16,7 +16,7 @@ import { createLoftForUser, enterFlight, seedWorld, startBreeding } from '../cor
 import { applyFlightForecasts, ensureFlightsScheduled, flightsNeedingForecast, tickDailyCare } from '../core/game/schedule.js';
 import {
   buyEquipment, buyIrBox, entryMods, fendsOff, grounded, insurancePayout, insurancePremium, insuranceQuote,
-  magazineRanges, setInsurance, tickHawk, tickMagazine, vaccinate, vaccinateLoft,
+  inrichtingBenefits, magazineRanges, setInsurance, tickHawk, tickMagazine, vaccinate, vaccinateLoft,
   libidoTargetBonus, restBonusEnergy,
 } from '../core/game/inrichting.js';
 import { breed } from '../core/game/breeding.js';
@@ -55,20 +55,30 @@ console.log('\n=== 1. Inrichting kopen + de Dagbalans ===');
 {
   const { store, db, userId, loft } = world();
   ok(buyEquipment(store, userId, 'ventilation') === null && loft.money === 50000 - 1200, 'dakventilatie: €1.200');
-  ok(costLine(db, userId, 'ventilation') === 0.5, '…en €0,50/dag in de Dagbalans');
+  ok(costLine(db, userId, 'ventilation') === 0, '…eenmalig: geen dagkost in de Dagbalans');
   ok(buyEquipment(store, userId, 'ventilation') !== null, 'twee keer kopen kan niet');
   ok(buyEquipment(store, userId, 'raptorGuard') !== null, 'roofvogelafweer zonder ren wordt geweigerd');
-  ok(buyEquipment(store, userId, 'run') === null && costLine(db, userId, 'run') === 2, 'buitenren: €2/dag');
+  ok(buyEquipment(store, userId, 'run') === null && costLine(db, userId, 'run') === 0, 'buitenren: eenmalig');
   ok(buyEquipment(store, userId, 'raptorGuard') === null && costLine(db, userId, 'raptorGuard') === 0, 'roofvogelafweer: eenmalig, geen dagkost');
-  ok(buyEquipment(store, userId, 'light') === null && costLine(db, userId, 'light') === 1.5, 'kunstlicht: €1,50/dag');
-  ok(buyEquipment(store, userId, 'baskets') === null && costLine(db, userId, 'baskets') === 0.5, 'reismanden: €0,50/dag');
-  ok(buyEquipment(store, userId, 'weatherStation') === null && costLine(db, userId, 'station') === 1, 'weerstation: €1/dag');
-  ok(buyEquipment(store, userId, 'magazine') === null && costLine(db, userId, 'magazine') === 6, 'vakblad: €6/dag');
+  ok(buyEquipment(store, userId, 'light') === null && costLine(db, userId, 'light') === 0, 'kunstlicht: eenmalig');
+  ok(buyEquipment(store, userId, 'baskets') === null && costLine(db, userId, 'baskets') === 0, 'reismanden: eenmalig');
+  ok(buyEquipment(store, userId, 'weatherStation') === null && costLine(db, userId, 'station') === 0, 'weerstation: eenmalig');
+  ok(buyEquipment(store, userId, 'magazine') === null && costLine(db, userId, 'magazine') === 6, 'vakblad: een abonnement, €6/dag');
   ok(buyEquipment(store, userId, 'magazine', false) === null && costLine(db, userId, 'magazine') === 0, 'vakblad opzeggen kan');
   const m = loft.money;
   ok(buyIrBox(store, userId) === null && loft.money === m - 1600 && loft.equipment!.irBoxes === 2, 'infrarood: eerste aankoop = 2 bakken voor €1.600');
   ok(buyIrBox(store, userId) === null && loft.money === m - 2100 && loft.equipment!.irBoxes === 3, '…elke extra bak €500');
-  ok(costLine(db, userId, 'ir') === 0, 'geen koppel = geen dagkost voor infrarood');
+  ok(costLine(db, userId, 'ir') === 0, 'infrarood: geen dagkost');
+  const lines = dailyRunningCostBreakdown(loft, 6, 0, 0, undefined, { pairs: 3, insurance: 0 }).equipment.map((l) => l.key);
+  ok(lines.length === 0, `met alle inrichting en zonder poetser of vakblad: niets per dag (${lines.join(', ') || 'leeg'})`);
+
+  // What it gives you, in the engine's own numbers.
+  const b = inrichtingBenefits();
+  ok(b.ventilation.includes('40 %') && b.ventilation.includes('25 %') && b.ventilation.includes('5 %'), `ventilatie: "${b.ventilation}"`);
+  ok(b.baskets.includes('3 %') && b.baskets.includes('5 %'), `reismanden: "${b.baskets}"`);
+  ok(b.run.includes('+6') && b.run.includes('+4') && b.run.includes('40 dagen'), `buitenren: "${b.run}"`);
+  ok(['compartment', 'straw', 'cleaner', 'ventilation', 'run', 'raptorGuard', 'light', 'irBoxes', 'partnerhok', 'baskets', 'weatherStation', 'magazine']
+    .every((k) => typeof b[k] === 'string' && b[k].length > 10), 'elk onderdeel heeft een uitleg');
 }
 
 console.log('\n=== 2. Ren, sperwer en roofvogelafweer ===');
@@ -94,7 +104,7 @@ console.log('\n=== 3. Vaccins en kuren ===');
   const { store, db, userId, loft, birds } = world();
   const p = birds()[0];
   const m = loft.money;
-  ok(vaccinate(store, userId, p.id, 'pmv', T0) === null && loft.money === m - 12, 'PMV-vaccin: €12');
+  ok(vaccinate(store, userId, p.id, 'pmv', T0) === null && loft.money === m - VACCINES.pmv.price && VACCINES.pmv.price === 60, 'PMV-vaccin: €60');
   ok(!!grounded(p, T0 + DAY) && !canRace(p, db.world.currentWeek) === !!grounded(p), 'na een vaccin 2 dagen aan de grond');
   ok(grounded(p, T0 + 2.1 * DAY) === null, '…daarna weer vrij');
   ok(fendsOff(loft, p, 'Paramyxovirose', T0 + 10 * DAY, () => 0.1), 'weert PMV af (kans 80 %)');
@@ -106,7 +116,17 @@ console.log('\n=== 3. Vaccins en kuren ===');
   ok(Math.abs(birds()[1].libido - Math.max(0, lib - 10)) < 0.01 && grounded(birds()[1], T0 + 1) === null, 'ademhalingskuur: libido −10, mag wel vliegen');
   const m2 = loft.money;
   const res = vaccinateLoft(store, userId, 'geel', T0);
-  ok(res.error === null && loft.money === m2 - res.count * VACCINES.geel.price, `hele hok kuren: ${res.count} × €3`);
+  ok(res.error === null && res.count === birds().length && loft.money === m2 - res.count * VACCINES.geel.price,
+    `hele hok kuren: ${res.count} × €${VACCINES.geel.price}`);
+  const again = vaccinateLoft(store, userId, 'geel', T0 + DAY);
+  ok(again.error !== null && again.count === 0, 'een dag later: iedereen nog beschermd, niemand betaalt opnieuw');
+  const late = vaccinateLoft(store, userId, 'geel', T0 + 6 * DAY);
+  ok(late.error === null && late.count === birds().length, 'in het laatste kwart van de kuur mag hernieuwen');
+  const m3 = loft.money;
+  vaccinate(store, userId, p.id, 'pmv', T0); // p already had it: renewing her own is fine
+  const pmvRound = vaccinateLoft(store, userId, 'pmv', T0 + DAY);
+  ok(pmvRound.count === birds().length - 1 && loft.money === m3 - VACCINES.pmv.price * birds().length,
+    `PMV voor het hele hok slaat de beschermde duif over (${pmvRound.count} van ${birds().length})`);
   ok(!fendsOff(loft, p, 'Ornithose', T0, () => 0.3), 'zonder ventilatie geen extra bescherming tegen ornithose');
   buyEquipment(store, userId, 'ventilation');
   ok(fendsOff(loft, p, 'Ornithose', T0, () => 0.3), 'dakventilatie: ornithose ×0,6');

@@ -53,6 +53,7 @@ import {
   INSURANCE,
   SCOUT,
   VACCINES,
+  VACCINE_RENEW_SHARE,
   WIDOW,
   FEED_RATIONS,
   FOOD_RESALE_RATE,
@@ -111,7 +112,7 @@ import {
 import { advanceRealtime, applyFlightForecasts, applyRelayForecasts, flightsAwaitingStart, flightsNeedingForecast, relayLegsNeedingForecast, tickFlights } from '../../core/game/schedule.js';
 import { pigeonSeasonRankings } from '../../core/game/season.js';
 import { buyStraw, setCleaner } from '../../core/game/hygiene.js';
-import { buyEquipment, buyIrBox, magazineReport, setInsurance, setWidow, vaccinate, vaccinateLoft } from '../../core/game/inrichting.js';
+import { buyEquipment, buyIrBox, inrichtingBenefits, magazineReport, setInsurance, setWidow, vaccinate, vaccinateLoft } from '../../core/game/inrichting.js';
 import { buyScouted, dismissScout, sendScout } from '../../core/game/scout.js';
 import { buyPartnerhok, confirmAttraction, dismissAttraction, startWennen, unpair } from '../../core/game/koppels.js';
 import { spendAttribute, spendExperience } from '../../core/game/newcomer.js';
@@ -188,6 +189,8 @@ let schemaReady = false;
  * costs no extra query: every ancestor still alive is in the loaded world.
  */
 const PEDIGREE_GENERATIONS = 3;
+/** Hokinrichting (⚠️ dev): what each item does, from the config — the same for every request. */
+const INRICHTING_BENEFITS = inrichtingBenefits();
 /** How far DOWN the family view goes: children, grandchildren, great-grandchildren. */
 const DESCENDANT_GENERATIONS = 3;
 
@@ -527,7 +530,10 @@ app.get('/state', (c) => {
     // Hokinrichting (⚠️ dev): the catalogue the Mijn hok / duif screens price from.
     inrichting: {
       equipment: EQUIPMENT,
+      // What each item does, in the engine's own numbers (built once, see below).
+      benefits: INRICHTING_BENEFITS,
       vaccines: VACCINES,
+      vaccineRenewShare: VACCINE_RENEW_SHARE,
       scout: { tiers: SCOUT.tiers, markets: SCOUT.markets, choiceHours: SCOUT.choiceHours, quarantineDays: SCOUT.quarantineDays },
       widowFee: WIDOW.feePerFlight,
       couples: { wennenMaxDays: COUPLES.wennenMaxDays, partnerhokMaxDays: COUPLES.partnerhokMaxDays, breakLibidoMult: COUPLES.breakLibidoMult },

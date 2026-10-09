@@ -10,10 +10,14 @@
  */
 
 import {
+  COMPARTMENT,
+  COUPLES,
   EQUIPMENT,
   HYGIENE,
   INSURANCE,
+  REST_BONUS,
   VACCINES,
+  VACCINE_RENEW_SHARE,
   WIDOW,
   irBoxPrice,
   type EquipmentKey,
@@ -106,30 +110,50 @@ export function buyIrBox(store: Store, userId: string): string | null {
 
 export interface EquipmentCostLine { key: string; label: string; amount: number }
 
-/** How many heated nest boxes hold a pair right now (those cost per day). */
+/** How many heated nest boxes hold a pair right now. */
 export function irBoxesInUse(loft: Loft, pairs: number): number {
   return Math.min(equipmentOf(loft).irBoxes ?? 0, pairs);
 }
 
 /**
- * The equipment's running cost per day, per item. Read by
- * dailyRunningCostBreakdown, so it is in the Dagbalans AND in what tickDailyCare
- * charges — one source.
+ * What runs per day, per item. Read by dailyRunningCostBreakdown, so it is in
+ * the Dagbalans AND in what tickDailyCare charges — one source. Equipment is a
+ * one-off purchase now: only a person (the hokpoetser) and a subscription (the
+ * vakblad) cost something every day. `_pairs` is kept for the callers.
  */
-export function equipmentCostLines(loft: Loft, pairs: number): EquipmentCostLine[] {
+export function equipmentCostLines(loft: Loft, _pairs: number): EquipmentCostLine[] {
   const eq = equipmentOf(loft);
   const lines: EquipmentCostLine[] = [];
-  const add = (key: string, label: string, amount: number) => { if (amount > 0) lines.push({ key, label, amount }); };
-  if (eq.cleaner) add('cleaner', 'Hokpoetser', HYGIENE.cleanerDailyWage);
-  if (eq.ventilation) add('ventilation', EQUIPMENT.ventilation.label, EQUIPMENT.ventilation.daily);
-  if (eq.run) add('run', EQUIPMENT.run.label, EQUIPMENT.run.daily);
-  if (eq.light) add('light', EQUIPMENT.light.label, EQUIPMENT.light.daily);
-  add('ir', `Infrarood (${irBoxesInUse(loft, pairs)} in gebruik)`, irBoxesInUse(loft, pairs) * EQUIPMENT.irBoxes.dailyPerBoxInUse);
-  if (eq.baskets) add('baskets', EQUIPMENT.baskets.label, EQUIPMENT.baskets.daily);
-  if (eq.weatherStation) add('station', EQUIPMENT.weatherStation.label, EQUIPMENT.weatherStation.daily);
-  if (eq.magazine) add('magazine', EQUIPMENT.magazine.label, EQUIPMENT.magazine.daily);
-  add('partnerhok', `Partnerhok (${eq.partnerhokken ?? 0})`, (eq.partnerhokken ?? 0) * EQUIPMENT.partnerhok.dailyPerBox);
+  if (eq.cleaner) lines.push({ key: 'cleaner', label: 'Hokpoetser', amount: HYGIENE.cleanerDailyWage });
+  if (eq.magazine) lines.push({ key: 'magazine', label: EQUIPMENT.magazine.label, amount: EQUIPMENT.magazine.daily });
   return lines;
+}
+
+// --- what it gives you, in plain numbers -----------------------------------------
+
+const pct = (x: number) => `${Math.round(x * 100)} %`;
+
+/**
+ * What every piece of inrichting does, in the numbers the engine uses — built
+ * from the config, so the Inrichting page can never promise something else than
+ * what happens. Each one is small on purpose; together they add up.
+ */
+export function inrichtingBenefits(): Record<string, string> {
+  const E = EQUIPMENT;
+  return {
+    compartment: `per duif in een apart hok: +${pct(COMPARTMENT.formRecoveryBonus)} energieherstel, +${pct(COMPARTMENT.healthRecoveryBonus)} gezondheidsherstel, ${pct(COMPARTMENT.diseaseReduction)} minder kans op ziekte`,
+    straw: `zet de hygiëne terug op 100; boven ${HYGIENE.neutral} worden je duiven minder snel ziek, tot ${pct(HYGIENE.maxReduction)} minder bij 100`,
+    cleaner: `strooit zelf vers stro zodra de hygiëne onder ${HYGIENE.cleanerRefreshBelow} zakt en ontsmet: ${pct(1 - HYGIENE.cleanerContagionMult)} minder besmetting tussen je duiven`,
+    ventilation: `${pct(1 - E.ventilation.ornithoseMult)} minder kans op ornithose · de hygiëne zakt ${pct(1 - E.ventilation.hygieneDecayMult)} trager · +${pct(E.ventilation.healthRecoveryBonus)} gezondheidsherstel uit het voer`,
+    run: `+${E.run.restBonusEnergy} i.p.v. +${REST_BONUS.energy} energie op elke ${REST_BONUS.everyDays}e rustdag · libido +${E.run.libidoTarget} · zonder roofvogelafweer ~1× per ${Math.round(1 / E.run.hawkChancePerDay)} dagen een sperwer: wie thuis rust −${E.run.hawkEnergyLoss} energie`,
+    raptorGuard: 'net en lokuil boven de ren: geen sperwer meer, ook niet bij "Sperwer in de buurt"',
+    light: `libido +${E.light.libidoTarget} bij al je duiven: sneller een nest en meer broedsucces`,
+    irBoxes: `een nest komt ${pct(E.irBoxes.hatchSpeed - 1)} sneller uit · +${pct(E.irBoxes.twinBonus)} kans op een tweeling · onder ${E.irBoxes.coldBelowC} °C +${pct(E.irBoxes.coldSuccessBonus)} slaagkans`,
+    partnerhok: `wennen duurt 1–${COUPLES.partnerhokMaxDays} dagen i.p.v. 1–${COUPLES.wennenMaxDays} · ${pct(1 - COUPLES.partnerhokRefuseMult)} minder kans dat ze elkaar weigeren · ook voor een duif met een apart hok`,
+    baskets: `elke vlucht ${pct(1 - E.baskets.energyMult)} minder energieverlies en ${pct(1 - E.baskets.healthMult)} minder gezondheidsverlies`,
+    weatherStation: `het weer bij de lossing al ${E.weatherStation.forecastHours} u vooraf, om de ${E.weatherStation.refreshHours} u bijgewerkt`,
+    magazine: `bandbreedtes i.p.v. enkel ★ bij andermans duif · het marktrapport over ${E.magazine.reportDays} dagen · elke maandag Het Duivenblad`,
+  };
 }
 
 // --- equipment: effects -------------------------------------------------------
@@ -210,6 +234,13 @@ function applyVaccine(p: Pigeon, key: VaccineKey, nowMs: number): void {
   if (v.libidoHit) p.libido = round1(Math.max(0, p.libido - v.libidoHit));
 }
 
+/** Is she unprotected against this, or close enough to the end of her course to renew? */
+export function needsCourse(p: Pigeon, key: VaccineKey, nowMs: number): boolean {
+  const until = p.care?.vaccines?.[key];
+  if (!until) return true;
+  return Date.parse(until) - nowMs < VACCINES[key].days * VACCINE_RENEW_SHARE * DAY;
+}
+
 /** Give one bird a vaccine or kuur. */
 export function vaccinate(store: Store, userId: string, pigeonId: string, key: VaccineKey, nowMs: number = Date.now()): string | null {
   return store.mutate((db) => {
@@ -234,9 +265,12 @@ export function vaccinateLoft(store: Store, userId: string, key: VaccineKey, now
     const v = VACCINES[key];
     if (!loft || !v) return { error: 'Onbekend middel', count: 0 };
     const debt = debtBlock(loft); if (debt) return { error: debt, count: 0 };
-    const birds = db.pigeons.filter((p) => p.ownerId === userId && !isAway(p));
+    const home = db.pigeons.filter((p) => p.ownerId === userId && !isAway(p));
+    if (home.length === 0) return { error: 'Geen duiven thuis', count: 0 };
+    // Skip who is still well covered: renewing her is a choice on her own page.
+    const birds = home.filter((p) => needsCourse(p, key, nowMs));
+    if (birds.length === 0) return { error: `Al je duiven thuis zijn nog beschermd met ${v.label.toLowerCase()}`, count: 0 };
     const cost = birds.length * v.price;
-    if (birds.length === 0) return { error: 'Geen duiven thuis', count: 0 };
     if (loft.money < cost) return { error: `Niet genoeg geld (€${cost} voor ${birds.length} duiven)`, count: 0 };
     loft.money -= cost;
     for (const p of birds) applyVaccine(p, key, nowMs);

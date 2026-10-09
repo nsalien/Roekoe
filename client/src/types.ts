@@ -317,8 +317,12 @@ export interface PigeonCareView {
 }
 
 export interface InrichtingCatalogue {
-  equipment: Record<string, { label: string; price?: number; daily?: number; priceFirstTwo?: number; pricePerExtra?: number; dailyPerBoxInUse?: number; dailyPerBox?: number; maxBoxes?: number }>;
+  equipment: Record<string, { label: string; price?: number; daily?: number; priceFirstTwo?: number; pricePerExtra?: number; maxBoxes?: number }>;
+  /** What each item does, in the engine's numbers: compartment, straw, cleaner and every equipment key. */
+  benefits: Record<string, string>;
   vaccines: Record<string, { label: string; disease: string; kind: 'vaccin' | 'kuur'; price: number; days: number; protect: number; noFlyDays: number; libidoHit: number }>;
+  /** "Hele hok" skips a bird with more than this share of her course left. */
+  vaccineRenewShare: number;
   scout: {
     tiers: Record<string, { label: string; wage: number; scoreMin: number; scoreMax: number; maxDays: number; emptyChance: number }>;
     markets: Record<string, { label: string; blurb: string }>;

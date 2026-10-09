@@ -110,20 +110,23 @@ export const HYGIENE = {
   illnessFactorFloor: 0.4,
 } as const;
 /**
- * De rest van de hokinrichting (⚠️ dev, nog niet live). Each item has its own
- * effect and, almost always, a running cost — a money sink, not a one-off buy.
- * Nothing bought = the game as it was. Stored on Loft.equipment.
+ * De rest van de hokinrichting (⚠️ dev, nog niet live). Each item has its own,
+ * deliberately SMALL effect — it is all of them together that adds up to a real
+ * edge. One-off purchases: the running costs of €0,50–€2 a day were dropped (the
+ * owner: barely worth the bookkeeping). Only what is a subscription or a person
+ * runs per day: the vakblad here, the hokpoetser in HYGIENE. Nothing bought = the
+ * game as it was. Stored on Loft.equipment.
  */
 export const EQUIPMENT = {
-  ventilation: { label: 'Dakventilatie', price: 1200, daily: 0.5, ornithoseMult: 0.6, healthRecoveryBonus: 0.05, hygieneDecayMult: 0.75 },
-  run: { label: 'Buitenren', price: 2500, daily: 2, restBonusEnergy: 6, libidoTarget: 3, hawkChancePerDay: 1 / 40, hawkEnergyLoss: 6 },
-  raptorGuard: { label: 'Roofvogelafweer', price: 900, daily: 0 },
-  light: { label: 'Kunstlicht', price: 700, daily: 1.5, libidoTarget: 6 },
-  irBoxes: { label: 'Infrarood nestbakken', priceFirstTwo: 1600, pricePerExtra: 500, dailyPerBoxInUse: 1.5, hatchSpeed: 1.15, twinBonus: 0.06, coldSuccessBonus: 0.04, coldBelowC: 10, maxBoxes: 6 },
-  baskets: { label: 'Betere reismanden', price: 1000, daily: 0.5, energyMult: 0.97, healthMult: 0.95 },
-  weatherStation: { label: 'Weerstation', price: 1500, daily: 1, forecastHours: 24, refreshHours: 6, finalHours: 2 },
+  ventilation: { label: 'Dakventilatie', price: 1200, ornithoseMult: 0.6, healthRecoveryBonus: 0.05, hygieneDecayMult: 0.75 },
+  run: { label: 'Buitenren', price: 2500, restBonusEnergy: 6, libidoTarget: 3, hawkChancePerDay: 1 / 40, hawkEnergyLoss: 6 },
+  raptorGuard: { label: 'Roofvogelafweer', price: 900 },
+  light: { label: 'Kunstlicht', price: 700, libidoTarget: 6 },
+  irBoxes: { label: 'Infrarood nestbakken', priceFirstTwo: 1600, pricePerExtra: 500, hatchSpeed: 1.15, twinBonus: 0.06, coldSuccessBonus: 0.04, coldBelowC: 10, maxBoxes: 6 },
+  baskets: { label: 'Betere reismanden', price: 1000, energyMult: 0.97, healthMult: 0.95 },
+  weatherStation: { label: 'Weerstation', price: 1500, forecastHours: 24, refreshHours: 6, finalHours: 2 },
   magazine: { label: 'Vakblad', price: 0, daily: 6, bandHalfWidth: 6, reportDays: 28 },
-  partnerhok: { label: 'Partnerhok', price: 600, dailyPerBox: 0.5, maxBoxes: 3 },
+  partnerhok: { label: 'Partnerhok', price: 600, maxBoxes: 3 },
 } as const;
 export type EquipmentKey = 'ventilation' | 'run' | 'raptorGuard' | 'light' | 'baskets' | 'weatherStation' | 'magazine';
 /** What the next infrarood-nestbak costs: the first purchase is two boxes. */
@@ -134,19 +137,26 @@ export function irBoxPrice(owned: number): number {
 /**
  * Vaccins en kuren (⚠️ dev). Each works on ONE disease: a protected bird that
  * falls ill with exactly that disease fends it off with `protect`. Vaccines are
- * dearer, last long and ground the bird for `noFlyDays`; kuren are cheap and
- * short. `days` in real days (a duivenjaar = 52 gameweken = 91 echte dagen).
- * They sit OUTSIDE the ×0,4 floor: they are per disease and paid per disease.
+ * dearer, last long and ground the bird for `noFlyDays`; kuren are cheaper and
+ * short — for when something is going round. `days` in real days (a duivenjaar =
+ * 52 gameweken = 91 echte dagen). They sit OUTSIDE the ×0,4 floor: they are per
+ * disease and paid per disease. Prices ×5 (were €3–€15, next to a €300 rustkuur
+ * and a €57/dag dokter): protecting a whole loft is now a choice, not a reflex —
+ * worth it for a valuable bird, debatable for a cheap one.
  */
 export const VACCINES = {
-  pmv: { label: 'PMV-vaccin', disease: 'Paramyxovirose', kind: 'vaccin', price: 12, days: 91, protect: 0.8, noFlyDays: 2, libidoHit: 0 },
-  pokken: { label: 'Pokkenvaccin', disease: 'Duivenpokken', kind: 'vaccin', price: 8, days: 91, protect: 0.8, noFlyDays: 2, libidoHit: 0 },
-  salmonella: { label: 'Salmonellavaccin', disease: 'Salmonellose (paratyfus)', kind: 'vaccin', price: 15, days: 45, protect: 0.6, noFlyDays: 2, libidoHit: 0 },
-  geel: { label: 'Geelkuur', disease: 'Het Geel', kind: 'kuur', price: 3, days: 7, protect: 0.75, noFlyDays: 0, libidoHit: 0 },
-  cocci: { label: 'Coccidiosekuur', disease: 'Coccidiose', kind: 'kuur', price: 5, days: 10, protect: 0.75, noFlyDays: 0, libidoHit: 0 },
-  adem: { label: 'Ademhalingskuur', disease: 'Ornithose', kind: 'kuur', price: 8, days: 7, protect: 0.6, noFlyDays: 0, libidoHit: 10 },
+  pmv: { label: 'PMV-vaccin', disease: 'Paramyxovirose', kind: 'vaccin', price: 60, days: 91, protect: 0.8, noFlyDays: 2, libidoHit: 0 },
+  pokken: { label: 'Pokkenvaccin', disease: 'Duivenpokken', kind: 'vaccin', price: 40, days: 91, protect: 0.8, noFlyDays: 2, libidoHit: 0 },
+  salmonella: { label: 'Salmonellavaccin', disease: 'Salmonellose (paratyfus)', kind: 'vaccin', price: 75, days: 45, protect: 0.6, noFlyDays: 2, libidoHit: 0 },
+  geel: { label: 'Geelkuur', disease: 'Het Geel', kind: 'kuur', price: 15, days: 7, protect: 0.75, noFlyDays: 0, libidoHit: 0 },
+  cocci: { label: 'Coccidiosekuur', disease: 'Coccidiose', kind: 'kuur', price: 25, days: 10, protect: 0.75, noFlyDays: 0, libidoHit: 0 },
+  adem: { label: 'Ademhalingskuur', disease: 'Ornithose', kind: 'kuur', price: 40, days: 7, protect: 0.6, noFlyDays: 0, libidoHit: 10 },
 } as const;
 export type VaccineKey = keyof typeof VACCINES;
+/** "Hele hok" skips a bird that is still protected for more than this share of
+ *  the course (PMV: more than ~23 of its 91 days left) — at these prices a
+ *  whole-loft round should not charge again for birds that are fine. */
+export const VACCINE_RENEW_SHARE = 0.25;
 
 /**
  * Scout op buitenlandse markten (⚠️ dev). Once per season. He is away for an

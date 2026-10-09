@@ -1102,7 +1102,7 @@ export function WikiPage() {
         <ul>
           <li><strong>Laten wennen:</strong> ze moeten <strong>samen zitten</strong> — allebei in het hoofdhok (niet in een apart hok of de ziekenboeg), of samen in een <strong>partnerhok</strong>. Na <strong>1 tot 7 dagen</strong> aanvaarden ze elkaar, of ze <strong>weigeren</strong>. Hoelang het duurt en of ze weigeren weet je pas op die dag.</li>
           <li><strong>Weigerkans:</strong> hoe hoger hun libido, hoe kleiner: bij libido 25 zo'n 30 %, bij 50 zo'n 20 %, vanaf 75 nog 10 %.</li>
-          <li><strong>Partnerhok</strong> (€600 + €0,50/dag, op de pagina <em>Inrichting</em>): twee duiven zitten er samen, ook als hij een apart hok heeft. Wennen duurt er 1 tot 4 dagen en de weigerkans is gehalveerd.</li>
+          <li><strong>Partnerhok</strong> (€600, eenmalig, op de pagina <em>Inrichting</em>): twee duiven zitten er samen, ook als hij een apart hok heeft. Wennen duurt er 1 tot 4 dagen en de weigerkans is gehalveerd.</li>
           <li><strong>Zelf naar elkaar toe trekken:</strong> af en toe zoeken twee vrije duiven in het hoofdhok elkaar op. Je krijgt een melding. Bevestig je het (binnen 3 dagen), dan zijn ze <strong>meteen een koppel</strong>, zonder wentijd.</li>
           <li><strong>Ontkoppelen</strong> kost beide partners de <strong>helft van hun libido</strong>. Stoppen met wennen kost niets.</li>
           <li><strong>Broeden met een andere duif</strong> mag, maar dan valt het koppel uiteen: ook dan verliezen beide partners de helft van hun libido.</li>
@@ -1638,37 +1638,40 @@ export function WikiPage() {
       <Section id="inrichting" icon="🛠️" title="Hokinrichting, vaccins & diensten">
         <p className="muted" style={{ marginTop: 0 }}>
           Alles hieronder koop je op de pagina <em>Inrichting</em> (bouwen &amp; uitbreiden, hygiëne &amp; klimaat, vaccins, kweek, vluchten) of op de pagina van een duif; de scout en het vakblad vind je op de <em>Markt</em>. <strong>Niets kopen = het spel zoals
-          vroeger.</strong> Wat per dag kost, staat in je <em>Dagbalans</em>.
+          vroeger.</strong> Elk onderdeel geeft maar een <strong>klein</strong> voordeel; pas alles samen maakt het verschil. Inrichting
+          koop je <strong>één keer</strong>: enkel de hokpoetser, het vakblad en een verzekering kosten per dag (zie je <em>Dagbalans</em>).
         </p>
         <MiniTable
-          head={['Wat', 'Aankoop', 'Per dag', 'Effect']}
+          head={['Wat', 'Prijs', 'Voordeel']}
           rows={[
-            ['Dakventilatie', '€1.200', '€0,50', 'ornithose ×0,6 · gezondheidsherstel uit voer +5 % · stro zakt 25 % trager'],
-            ['Buitenren', '€2.500', '€2', 'rustbonus +6 i.p.v. +4 · libido-doel +3 · zonder afweer ~1× per 40 dagen een sperwer: wie thuis rust −6 energie'],
-            ['Roofvogelafweer', '€900', '—', 'net + lokuil (vraagt een ren): geen sperwer in de ren, en de gebeurtenis "Sperwer in de buurt" is ongevaarlijk'],
-            ['Kunstlicht', '€700', '€1,50', 'libido-doel +6 voor alle duiven: meer broedsucces, sneller een nest'],
-            ['Infrarood nestbakken', '€1.600 voor 2, +€500 per bak', '€1,50 per bak in gebruik', 'koppel komt ±15 % sneller uit, +6 procentpunt tweelingkans, onder 10 °C +4 procentpunt succes'],
-            ['Betere reismanden', '€1.000', '€0,50', 'elke vlucht −3 % energie en −5 % gezondheid'],
-            ['Weerstation', '€1.500', '€1', 'de weersvoorspelling vanaf 24 u vóór de lossing (het weer bij de lossing kan nog afwijken)'],
-            ['Vakblad', '—', '€6, opzegbaar', 'bandbreedte i.p.v. enkel ★ bij andermans duif · marktrapport over 28 dagen · elke maandag Het Duivenblad'],
+            ['Dakventilatie', '€1.200', '40 % minder kans op ornithose · de hygiëne zakt 25 % trager · +5 % gezondheidsherstel uit het voer'],
+            ['Buitenren', '€2.500', '+6 i.p.v. +4 energie op elke 3e rustdag · libido +3 · zonder afweer ~1× per 40 dagen een sperwer: wie thuis rust −6 energie'],
+            ['Roofvogelafweer', '€900', 'net + lokuil (vraagt een ren): geen sperwer in de ren, en de gebeurtenis "Sperwer in de buurt" is ongevaarlijk'],
+            ['Kunstlicht', '€700', 'libido +6 bij al je duiven: sneller een nest en meer broedsucces'],
+            ['Infrarood nestbakken', '€1.600 voor 2, +€500 per bak', 'een nest komt 15 % sneller uit · +6 % kans op een tweeling · onder 10 °C +4 % slaagkans'],
+            ['Partnerhok', '€600 per hok (max. 3)', 'wennen duurt 1–4 dagen i.p.v. 1–7 · 50 % minder kans dat ze elkaar weigeren'],
+            ['Betere reismanden', '€1.000', 'elke vlucht 3 % minder energieverlies en 5 % minder gezondheidsverlies'],
+            ['Weerstation', '€1.500', 'het weer bij de lossing al 24 u vooraf, om de 6 u bijgewerkt (het weer kan nog afwijken)'],
+            ['Vakblad', '€6/dag, opzegbaar', 'bandbreedte i.p.v. enkel ★ bij andermans duif · marktrapport over 28 dagen · elke maandag Het Duivenblad'],
           ]}
         />
 
         <h3 style={{ marginBottom: 4 }}>Vaccins &amp; kuren</h3>
         <p className="muted" style={{ marginTop: 0 }}>
           Elk middel werkt tegen één ziekte: wordt een beschermde duif ziek met precies die ziekte, dan weert ze het af
-          met de kans uit de tabel. Een vaccin houdt haar 2 dagen aan de grond. Per duif op haar pagina, of het hele hok
-          tegelijk op de pagina <em>Inrichting</em>.
+          met de kans uit de tabel. Een vaccin houdt haar 2 dagen aan de grond; een kuur is kort, voor als er iets
+          rondgaat. Per duif op haar pagina, of het hele hok tegelijk op de pagina <em>Inrichting</em>: dat slaat duiven
+          over die nog meer dan een kwart van hun bescherming hebben.
         </p>
         <MiniTable
           head={['Middel', 'Ziekte', 'Per duif', 'Werkt', 'Weert af', 'Bijwerking']}
           rows={[
-            ['PMV-vaccin', 'Paramyxovirose', '€12', '91 dagen', '80 %', '2 dagen niet vliegen'],
-            ['Pokkenvaccin', 'Duivenpokken', '€8', '91 dagen', '80 %', '2 dagen niet vliegen'],
-            ['Salmonellavaccin', 'Salmonellose', '€15', '45 dagen', '60 %', '2 dagen niet vliegen'],
-            ['Geelkuur', 'Het Geel', '€3', '7 dagen', '75 %', '—'],
-            ['Coccidiosekuur', 'Coccidiose', '€5', '10 dagen', '75 %', '—'],
-            ['Ademhalingskuur', 'Ornithose', '€8', '7 dagen', '60 %', 'libido −10'],
+            ['PMV-vaccin', 'Paramyxovirose', '€60', '91 dagen', '80 %', '2 dagen niet vliegen'],
+            ['Pokkenvaccin', 'Duivenpokken', '€40', '91 dagen', '80 %', '2 dagen niet vliegen'],
+            ['Salmonellavaccin', 'Salmonellose', '€75', '45 dagen', '60 %', '2 dagen niet vliegen'],
+            ['Geelkuur', 'Het Geel', '€15', '7 dagen', '75 %', '—'],
+            ['Coccidiosekuur', 'Coccidiose', '€25', '10 dagen', '75 %', '—'],
+            ['Ademhalingskuur', 'Ornithose', '€40', '7 dagen', '60 %', 'libido −10'],
           ]}
         />
 

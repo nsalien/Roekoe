@@ -188,8 +188,19 @@
   stappen achteraan `SCHEMA_STEPS`. Pigeons blijven 1 rij per multi-row statement (53 kolommen).
 - **Dagkost:** `equipmentCostLines` + `insuranceCost` → `dailyRunningCostBreakdown.equipment`
   (lijnen), `.equipmentTotal`, `.insurance`; zelfde bron voor Dagbalans en `tickDailyCare`.
-  Het oude veld `cleaner` is vervangen door een lijn `key: 'cleaner'`. Bedragen zijn nu soms
-  centen (0,50) — `loft.money` mag fractioneel worden, de DTO rondt af.
+  Het oude veld `cleaner` is vervangen door een lijn `key: 'cleaner'`. **Inrichting is
+  eenmalig** (de eigenaar: €0,50–€2/dag is de moeite niet): enkel de **hokpoetser** (€14) en
+  het **vakblad** (€6, abonnement) staan nog in `equipmentCostLines`; de verzekeringspremie
+  komt erbij. De premie is soms centen — `loft.money` mag fractioneel worden, de DTO rondt af.
+- **Ontwerpregel (eigenaar):** elk onderdeel geeft maar een **klein** voordeel; pas alles samen
+  is het een echt verschil. De voordelen staan in **getallen** op de pagina: `inrichtingBenefits()`
+  (inrichting.ts) bouwt ze uit de config en de API stuurt ze mee als `inrichting.benefits`
+  (sleutels: `compartment`, `straw`, `cleaner` + elke `EQUIPMENT`-sleutel). **Schrijf geen
+  effecttekst met de hand in de UI**: pas de config aan en de tekst volgt.
+- **Vaccins ×5** (PMV €60, pokken €40, salmonella €75, geel €15, cocci €25, adem €40; waren
+  €3–€15 naast een rustkuur van €300). "Hele hok" (`vaccinateLoft`) slaat wie nog meer dan
+  `VACCINE_RENEW_SHARE` (25 %) van haar kuur heeft over (`needsCourse`); de client rekent met
+  dezelfde regel (`inrichting.vaccineRenewShare`). Per duif hernieuwen kan altijd.
 - **Effecten en waar ze zitten:**
   - ventilatie: `fendsOff` (ornithose), `feedHealthMult` (applyDayOfCare/projectDailyCare),
     `hygieneDecay` ×0,75;
