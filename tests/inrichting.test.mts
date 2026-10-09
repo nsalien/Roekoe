@@ -16,7 +16,7 @@ import { createLoftForUser, enterFlight, seedWorld, startBreeding } from '../cor
 import { applyFlightForecasts, ensureFlightsScheduled, flightsNeedingForecast, tickDailyCare } from '../core/game/schedule.js';
 import {
   buyEquipment, buyIrBox, entryMods, fendsOff, grounded, insurancePayout, insurancePremium, insuranceQuote,
-  inrichtingBenefits, magazineRanges, setInsurance, tickHawk, tickMagazine, vaccinate, vaccinateLoft,
+  magazineRanges, setInsurance, tickHawk, tickMagazine, vaccinate, vaccinateLoft,
   libidoTargetBonus, restBonusEnergy, upgradeEquipment, inrichtingLevels, feedHealthMult, irBoxEffect,
 } from '../core/game/inrichting.js';
 import { equipmentLevel, hygieneDecay } from '../core/game/hygiene.js';
@@ -73,13 +73,6 @@ console.log('\n=== 1. Inrichting kopen + de Dagbalans ===');
   const lines = dailyRunningCostBreakdown(loft, 6, 0, 0, undefined, { pairs: 3, insurance: 0 }).equipment.map((l) => l.key);
   ok(lines.length === 0, `met alle inrichting en zonder poetser of vakblad: niets per dag (${lines.join(', ') || 'leeg'})`);
 
-  // What it gives you, in the engine's own numbers.
-  const b = inrichtingBenefits();
-  ok(b.ventilation.includes('40 %') && b.ventilation.includes('25 %') && b.ventilation.includes('5 %'), `ventilatie: "${b.ventilation}"`);
-  ok(b.baskets.includes('3 %') && b.baskets.includes('5 %'), `reismanden: "${b.baskets}"`);
-  ok(b.run.includes('+6') && b.run.includes('+4') && b.run.includes('40 dagen'), `buitenren: "${b.run}"`);
-  ok(['compartment', 'straw', 'cleaner', 'ventilation', 'run', 'raptorGuard', 'light', 'irBoxes', 'partnerhok', 'baskets', 'weatherStation', 'magazine']
-    .every((k) => typeof b[k] === 'string' && b[k].length > 10), 'elk onderdeel heeft een uitleg');
 }
 
 console.log('\n=== 2. Ren, sperwer en roofvogelafweer ===');
@@ -343,9 +336,9 @@ console.log('\n=== 12. Niveaus: elk niveau 3× duurder, het effect ×1,5 · ×1,
   ok(Math.abs(ir.hatchSpeed - 1.27) < 1e-9 && Math.abs(ir.twin - 0.108) < 1e-9, 'infrarood niveau 3: 27 % sneller uit, +10,8 % tweelingkans');
 
   const L = inrichtingLevels();
-  ok(L.ventilation.length === 4 && L.ventilation[3].benefit.includes('80 %') && L.ventilation[3].price === 32400,
-    `de pagina kent elk niveau: "${L.ventilation[3].benefit}" — €${L.ventilation[3].price.toLocaleString('nl-BE')}`);
-  ok(L.baskets[1].benefit.includes('4,5 %'), `kommagetal waar het telt: "${L.baskets[1].benefit}"`);
+  ok(L.max === 4 && L.scale.join('/') === '1/1.5/1.8/2', 'de pagina kent het aantal niveaus en hoe sterk elk werkt');
+  ok(L.prices.ventilation.join('/') === '1200/3600/10800/32400' && L.prices.irBoxes[1] === 4800 && L.prices.light[3] === 18900,
+    `en wat elk niveau kost (ventilatie ${L.prices.ventilation.map((p) => `€${p.toLocaleString('nl-BE')}`).join(' · ')})`);
 }
 
 if (fail > 0) { console.log(`\n${fail} mislukt`); process.exitCode = 1; }

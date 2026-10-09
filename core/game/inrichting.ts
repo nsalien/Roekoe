@@ -10,13 +10,10 @@
  */
 
 import {
-  COMPARTMENT,
-  COUPLES,
   EQUIPMENT,
   EQUIPMENT_LEVELS,
   HYGIENE,
   INSURANCE,
-  REST_BONUS,
   VACCINES,
   VACCINE_RENEW_SHARE,
   WIDOW,
@@ -158,54 +155,19 @@ export function equipmentCostLines(loft: Loft, _pairs: number): EquipmentCostLin
   return lines;
 }
 
-// --- what it gives you, in plain numbers -----------------------------------------
-
-/** 0,045 → "4,5 %", 0,375 → "38 %": a decimal only where it matters. */
-const pct = (x: number) => {
-  const v = x * 100;
-  return `${(v < 10 ? Math.round(v * 10) / 10 : Math.round(v)).toLocaleString('nl-BE')} %`;
-};
-const num = (x: number) => (Math.round(x * 10) / 10).toLocaleString('nl-BE');
-
-/** The effect of a levelled item at strength `s` (1 = level 1), in the engine's numbers. */
-const LEVEL_TEXT: Record<LevelKey, (s: number) => string> = {
-  ventilation: (s) => `${pct((1 - EQUIPMENT.ventilation.ornithoseMult) * s)} minder kans op ornithose · de hygiëne zakt ${pct((1 - EQUIPMENT.ventilation.hygieneDecayMult) * s)} trager · +${pct(EQUIPMENT.ventilation.healthRecoveryBonus * s)} gezondheidsherstel uit het voer`,
-  run: (s) => `+${num(REST_BONUS.energy + (EQUIPMENT.run.restBonusEnergy - REST_BONUS.energy) * s)} i.p.v. +${REST_BONUS.energy} energie op elke ${REST_BONUS.everyDays}e rustdag · libido +${num(EQUIPMENT.run.libidoTarget * s)} · zonder roofvogelafweer ~1× per ${Math.round(1 / EQUIPMENT.run.hawkChancePerDay)} dagen een sperwer: wie thuis rust −${EQUIPMENT.run.hawkEnergyLoss} energie`,
-  light: (s) => `libido +${num(EQUIPMENT.light.libidoTarget * s)} bij al je duiven: sneller een nest en meer broedsucces`,
-  irBoxes: (s) => `een nest komt ${pct((EQUIPMENT.irBoxes.hatchSpeed - 1) * s)} sneller uit · +${pct(EQUIPMENT.irBoxes.twinBonus * s)} kans op een tweeling · onder ${EQUIPMENT.irBoxes.coldBelowC} °C +${pct(EQUIPMENT.irBoxes.coldSuccessBonus * s)} slaagkans`,
-  baskets: (s) => `elke vlucht ${pct((1 - EQUIPMENT.baskets.energyMult) * s)} minder energieverlies en ${pct((1 - EQUIPMENT.baskets.healthMult) * s)} minder gezondheidsverlies`,
-};
-
-/** Per levelled item, for levels 1..max: what it does and what that level costs. */
-export function inrichtingLevels(): Record<LevelKey, { benefit: string; price: number }[]> {
-  const out = {} as Record<LevelKey, { benefit: string; price: number }[]>;
-  for (const k of EQUIPMENT_LEVELS.keys) {
-    out[k] = EQUIPMENT_LEVELS.effectScale.map((s, i) => ({ benefit: LEVEL_TEXT[k](s), price: levelPrice(k, i + 1) }));
-  }
-  return out;
-}
+// --- niveaus for the page ----------------------------------------------------
 
 /**
- * What every piece of inrichting does, in the numbers the engine uses — built
- * from the config, so the Inrichting page can never promise something else than
- * what happens. Each one is small on purpose; together they add up.
+ * What the Inrichting page needs to offer a level: how far it goes, how much
+ * stronger each level works (×1 · ×1,5 · ×1,8 · ×2) and what every level costs.
+ * The page itself only says it in a few words; the exact numbers are in the wiki.
  */
-export function inrichtingBenefits(): Record<string, string> {
-  const E = EQUIPMENT;
-  return {
-    compartment: `per duif in een apart hok: +${pct(COMPARTMENT.formRecoveryBonus)} energieherstel, +${pct(COMPARTMENT.healthRecoveryBonus)} gezondheidsherstel, ${pct(COMPARTMENT.diseaseReduction)} minder kans op ziekte`,
-    straw: `zet de hygiëne terug op 100; boven ${HYGIENE.neutral} worden je duiven minder snel ziek, tot ${pct(HYGIENE.maxReduction)} minder bij 100`,
-    cleaner: `strooit zelf vers stro zodra de hygiëne onder ${HYGIENE.cleanerRefreshBelow} zakt en ontsmet: ${pct(1 - HYGIENE.cleanerContagionMult)} minder besmetting tussen je duiven`,
-    ventilation: LEVEL_TEXT.ventilation(1),
-    run: LEVEL_TEXT.run(1),
-    raptorGuard: 'net en lokuil boven de ren: geen sperwer meer, ook niet bij "Sperwer in de buurt"',
-    light: LEVEL_TEXT.light(1),
-    irBoxes: LEVEL_TEXT.irBoxes(1),
-    partnerhok: `wennen duurt 1–${COUPLES.partnerhokMaxDays} dagen i.p.v. 1–${COUPLES.wennenMaxDays} · ${pct(1 - COUPLES.partnerhokRefuseMult)} minder kans dat ze elkaar weigeren · ook voor een duif met een apart hok`,
-    baskets: LEVEL_TEXT.baskets(1),
-    weatherStation: `het weer bij de lossing al ${E.weatherStation.forecastHours} u vooraf, om de ${E.weatherStation.refreshHours} u bijgewerkt`,
-    magazine: `bandbreedtes i.p.v. enkel ★ bij andermans duif · het marktrapport over ${E.magazine.reportDays} dagen · elke maandag Het Duivenblad`,
-  };
+export function inrichtingLevels(): { max: number; scale: readonly number[]; prices: Record<LevelKey, number[]> } {
+  const prices = {} as Record<LevelKey, number[]>;
+  for (const k of EQUIPMENT_LEVELS.keys) {
+    prices[k] = EQUIPMENT_LEVELS.effectScale.map((_, i) => levelPrice(k, i + 1));
+  }
+  return { max: EQUIPMENT_LEVELS.maxLevel, scale: EQUIPMENT_LEVELS.effectScale, prices };
 }
 
 // --- equipment: effects -------------------------------------------------------

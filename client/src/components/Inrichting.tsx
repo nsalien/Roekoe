@@ -2,8 +2,11 @@
  * Hokinrichting (⚠️ dev, nog niet live): de kaarten van de pagina Inrichting,
  * gegroepeerd op waarvoor iets dient — bouwen & uitbreiden, hygiëne & klimaat,
  * vaccins, kweek en vluchten — plus het vakblad en de scout op de Markt en de
- * verzorgingskaart op de pagina van een duif. Tekst en knoppen; de regels zelf
- * staan in de wiki (#inrichting).
+ * verzorgingskaart op de pagina van een duif.
+ *
+ * Kort, op vraag van de eigenaar: per onderdeel één zin over wat het doet, geen
+ * percentages. De exacte cijfers en formules staan in de wiki (#inrichting,
+ * #hygiene); de pagina verwijst ernaar.
  */
 
 import { useState } from 'react';
@@ -39,55 +42,47 @@ const ICON: Record<string, string> = {
   baskets: '🧺', weatherStation: '📡', partnerhok: '💑', magazine: '📰',
 };
 
-/** What an item does, in the engine's numbers (from the server), as the faint half of a line. */
-const benefit = (cat: InrichtingCatalogue | null, key: string) => (cat?.benefits?.[key] ? <> — {cat.benefits[key]}</> : null);
+/** What each item does, in one short sentence. The exact numbers are in the wiki. */
+const WHAT: Record<string, string> = {
+  ventilation: 'minder ornithose, het stro blijft langer proper',
+  run: 'meer energie na een rustdag en een hoger libido; trekt soms een sperwer aan',
+  raptorGuard: 'houdt de sperwer weg van de ren',
+  light: 'hoger libido: sneller een nest',
+  irBoxes: 'nesten komen sneller uit, vaker een tweeling',
+  baskets: 'elke vlucht kost minder energie en gezondheid',
+  weatherStation: 'je ziet het weer van de lossing een dag vooraf',
+  partnerhok: 'koppels wennen sneller en weigeren minder vaak',
+  magazine: 'marktrapport, scherpere schattingen bij andermans duif en elke maandag Het Duivenblad',
+};
 
-/**
- * Niveaus: where a bought item stands, what the next level would do, and the
- * button to get there. `level` 0 = not bought (nothing to show).
- */
-function levelInfo(cat: InrichtingCatalogue, k: string, level: number) {
-  const steps = cat.levels?.[k];
-  if (!steps || level === 0) return null;
-  const max = steps.length;
-  const next = level < max ? steps[level] : null; // index = next level − 1
-  return { max, now: steps[level - 1].benefit, next, nextLevel: level + 1 };
+/** A bought item with levels: where it stands and what the next level costs. */
+function levelInfo(cat: InrichtingCatalogue | null, k: string, level: number) {
+  const L = cat?.levels;
+  const prices = L?.prices[k];
+  if (!L || !prices || level === 0) return null;
+  const next = level < L.max ? { level: level + 1, price: prices[level], scale: L.scale[level] } : null;
+  return { level, max: L.max, next };
+}
+type LevelInfo = NonNullable<ReturnType<typeof levelInfo>>;
+
+function LevelBadge({ info }: { info: LevelInfo }) {
+  return <span className="badge" style={{ fontSize: '0.72rem' }}>niveau {info.level}/{info.max}</span>;
 }
 
-function LevelButton({ k, label, info, loft, busy, act }: {
-  k: string; label: string; info: NonNullable<ReturnType<typeof levelInfo>>;
-  loft: Loft; busy: boolean; act: Act;
-}) {
-  if (!info.next) return <span className="badge">✓ hoogste niveau</span>;
-  const { price, benefit: then } = info.next;
+function LevelButton({ k, label, info, loft, busy, act }: { k: string; label: string; info: LevelInfo; loft: Loft; busy: boolean; act: Act }) {
+  const n = info.next;
+  if (!n) return <span className="badge">✓ hoogste niveau</span>;
   return (
-    <button className="btn sm ghost" disabled={busy || loft.money < price} onClick={() => {
-      if (!window.confirm(`${label} naar niveau ${info.nextLevel} voor ${euro(price)}?\n\nDan: ${then}.\n\nDat kan je niet terugverkopen.`)) return;
-      act(() => api('/loft/equipment/upgrade', { method: 'POST', body: { key: k } }), `${label}: niveau ${info.nextLevel} 🔧`);
+    <button className="btn sm ghost" disabled={busy || loft.money < n.price} onClick={() => {
+      if (!window.confirm(`${label} naar niveau ${n.level} voor ${euro(n.price)}?\n\nHet werkt dan ${n.scale.toLocaleString('nl-BE')}× zo sterk als niveau 1. Dat kan je niet terugverkopen.`)) return;
+      act(() => api('/loft/equipment/upgrade', { method: 'POST', body: { key: k } }), `${label}: niveau ${n.level} 🔧`);
     }}>
-      Naar niveau {info.nextLevel} · <Money value={price} />
+      Niveau {n.level} · <Money value={n.price} />
     </button>
   );
 }
 
-/** The label of a bought, levelled item: its level, what it does now, and what the next level adds. */
-function LevelLabel({ icon, label, info, extra }: {
-  icon: string; label: string; info: NonNullable<ReturnType<typeof levelInfo>>; extra?: React.ReactNode;
-}) {
-  return (
-    <>
-      <strong>{icon} {label}</strong> <span className="badge" style={{ fontSize: '0.72rem' }}>niveau {info.nextLevel - 1}/{info.max}</span>{' '}
-      <span className="faint">— {info.now}{extra}</span>
-      {info.next && (
-        <span className="faint" style={{ display: 'block', fontSize: '0.8rem', marginTop: 2 }}>
-          Niveau {info.nextLevel}: {info.next.benefit}
-        </span>
-      )}
-    </>
-  );
-}
-
-/** One piece of inrichting you buy once: in your loft, waiting on another, or a buy button. */
+/** One piece of inrichting you buy once: a buy button, then its level (if it has levels). */
 function EquipmentLine({ k, owned, needs, loft, cat, busy, act }: {
   k: string; owned: boolean; needs?: string;
   loft: Loft; cat: InrichtingCatalogue; busy: boolean; act: Act;
@@ -95,16 +90,11 @@ function EquipmentLine({ k, owned, needs, loft, cat, busy, act }: {
   const item = cat.equipment[k];
   const price = item.price ?? 0;
   const info = owned ? levelInfo(cat, k, loft.equipment?.levels?.[k] ?? 1) : null;
-  if (info) {
-    return (
-      <Line label={<LevelLabel icon={ICON[k]} label={item.label} info={info} />}>
-        <LevelButton k={k} label={item.label} info={info} loft={loft} busy={busy} act={act} />
-      </Line>
-    );
-  }
   return (
-    <Line label={<><strong>{ICON[k]} {item.label}</strong> <span className="faint">{benefit(cat, k)}</span></>}>
-      {owned ? (
+    <Line label={<><strong>{ICON[k]} {item.label}</strong>{info && <> <LevelBadge info={info} /></>} <span className="faint">— {WHAT[k]}</span></>}>
+      {info ? (
+        <LevelButton k={k} label={item.label} info={info} loft={loft} busy={busy} act={act} />
+      ) : owned ? (
         <span className="badge">✓ in je hok</span>
       ) : needs ? (
         <span className="faint">{needs}</span>
@@ -140,17 +130,8 @@ export function BuildCard({ loft, cat, upkeepBands, busy, act }: {
   const nextBeds = loft.nextInfirmary;
   return (
     <Card title="🏗️ Bouwen & uitbreiden" tour="upgrades">
-      <Line label={
-        <>
-          <strong>🏠 Hokcapaciteit</strong>{' '}
-          <span className="faint">
-            — nu {loft.capacity} plaatsen
-            {/* Upkeep rises per band: name what the next bird costs, so a bigger
-                loft is never a hidden recurring cost. */}
-            {nextBirdRate !== null && <> · je volgende duif kost €{nextBirdRate}/dag aan onderhoud (<Link to="/wiki#hok">schijven</Link>)</>}
-          </span>
-        </>
-      }>
+      {/* Upkeep rises per band: name what the next bird costs, so a bigger loft is never a hidden recurring cost. */}
+      <Line label={<><strong>🏠 Hokcapaciteit</strong> <span className="faint">— plaats voor meer duiven · nu {loft.capacity}{nextBirdRate !== null && ` · je volgende duif kost €${nextBirdRate}/dag`}</span></>}>
         {nextCap ? (
           <button
             className="btn accent sm"
@@ -168,7 +149,7 @@ export function BuildCard({ loft, cat, upkeepBands, busy, act }: {
           </button>
         ) : <span className="faint">maximum bereikt</span>}
       </Line>
-      <Line label={<><strong>🧱 Aparte hokken</strong> <span className="faint">{benefit(cat, 'compartment') ?? ' — beter energieherstel en minder ziekte'} · {loft.compartmentsUsed}/{loft.compartments} in gebruik; wie apart zit kies je op <Link to="/hok">Mijn hok</Link></span></>}>
+      <Line label={<><strong>🧱 Aparte hokken</strong> <span className="faint">— sneller herstel en minder ziekte · {loft.compartmentsUsed}/{loft.compartments} in gebruik</span></>}>
         {compartmentCost != null ? (
           <button
             className="btn sm"
@@ -186,7 +167,7 @@ export function BuildCard({ loft, cat, upkeepBands, busy, act }: {
         ) : <span className="faint">elke plaats heeft er al een</span>}
       </Line>
       {eq && cat && (
-        <Line label={<><strong>{ICON.partnerhok} {cat.equipment.partnerhok.label}</strong> <span className="faint">{benefit(cat, 'partnerhok')} · {eq.partnerhokken === 0 ? 'nog geen' : `${eq.partnerhokken} gebouwd, ${eq.partnerhokInUse} in gebruik`}</span></>}>
+        <Line label={<><strong>{ICON.partnerhok} {cat.equipment.partnerhok.label}</strong> <span className="faint">— {WHAT.partnerhok} · {eq.partnerhokken === 0 ? 'nog geen' : `${eq.partnerhokken} gebouwd, ${eq.partnerhokInUse} in gebruik`}</span></>}>
           {eq.partnerhokNextPrice != null ? (
             <button className="btn sm" disabled={busy || loft.money < eq.partnerhokNextPrice} onClick={() => {
               if (!window.confirm(`Een partnerhok bouwen voor ${euro(eq.partnerhokNextPrice!)}?`)) return;
@@ -197,7 +178,7 @@ export function BuildCard({ loft, cat, upkeepBands, busy, act }: {
           ) : <span className="faint">maximum bereikt</span>}
         </Line>
       )}
-      <Line label={<><strong>🛏️ Ziekenboeg</strong> <span className="faint">— {loft.infirmaryCapacity} bedden, {loft.infirmaryCount} bezet · dokters, kinesisten en medicinaal voer op de <Link to="/ziekenboeg">ziekenboeg</Link></span></>}>
+      <Line label={<><strong>🛏️ Ziekenboeg</strong> <span className="faint">— meer zieke duiven tegelijk verzorgen · {loft.infirmaryCapacity} bedden, {loft.infirmaryCount} bezet</span></>}>
         {nextBeds ? (
           <button className="btn sm" disabled={busy || loft.money < nextBeds.price} onClick={() => {
             if (!window.confirm(`De ziekenboeg uitbreiden naar ${nextBeds.capacity} bedden voor ${euro(nextBeds.price)}?`)) return;
@@ -217,17 +198,10 @@ export function BuildCard({ loft, cat, upkeepBands, busy, act }: {
   );
 }
 
-/**
- * Hygiëne & klimaat: the meter, what it does now, fresh straw, the hokpoetser
- * and the dakventilatie (drier straw: the meter drops slower). The rule itself
- * (decay, the ×0,8, the floor) is in the wiki.
- */
+/** Hygiëne & klimaat: the meter, fresh straw, the hokpoetser and the dakventilatie. */
 export function HygieneCard({ loft, cat, busy, act }: { loft: Loft; cat: InrichtingCatalogue | null; busy: boolean; act: Act }) {
   const eq = loft.equipment!;
   const h = Math.round(eq.hygiene);
-  const effect = eq.illnessMult < 1
-    ? `Minder kans op ziekte (×${eq.illnessMult.toLocaleString('nl-BE')})`
-    : 'Geen effect: onder 50 is het zoals altijd';
   return (
     <Card title="🧹 Hygiëne & klimaat">
       <div className="row" style={{ justifyContent: 'space-between', alignItems: 'baseline', gap: 8 }}>
@@ -235,10 +209,9 @@ export function HygieneCard({ loft, cat, busy, act }: { loft: Loft; cat: Inricht
         <strong style={{ fontVariantNumeric: 'tabular-nums' }}>{h}</strong>
       </div>
       <div className="faint" style={{ fontSize: '0.8rem', marginBottom: 8 }}>
-        {effect} · zakt vannacht ~{Math.round(eq.decayPerDay)}
-        {eq.lastStrawAt ? '' : ' · nog nooit stro gestrooid'}
+        {eq.illnessMult < 1 ? 'Je duiven worden minder snel ziek' : 'Pas boven 50 worden je duiven minder snel ziek'} · zakt ~{Math.round(eq.decayPerDay)} per nacht
       </div>
-      <Line label={<><strong>🌾 Vers stro</strong> <span className="faint">{benefit(cat, 'straw')}</span></>}>
+      <Line label={<><strong>🌾 Vers stro</strong> <span className="faint">— hygiëne terug op 100</span></>}>
         <button
           className="btn sm"
           disabled={busy || h >= 100 || loft.money < eq.strawCost}
@@ -247,7 +220,7 @@ export function HygieneCard({ loft, cat, busy, act }: { loft: Loft; cat: Inricht
           Strooien · <Money value={eq.strawCost} />
         </button>
       </Line>
-      <Line label={<><strong>🧹 Hokpoetser</strong> <span className="faint">{benefit(cat, 'cleaner')}</span></>}>
+      <Line label={<><strong>🧹 Hokpoetser</strong> <span className="faint">— strooit zelf stro en ontsmet het hok</span></>}>
         {eq.cleaner && <span className="badge">✓ aan het werk</span>}
         <button
           className={`btn sm ${eq.cleaner ? 'ghost' : ''}`}
@@ -261,9 +234,6 @@ export function HygieneCard({ loft, cat, busy, act }: { loft: Loft; cat: Inricht
         </button>
       </Line>
       {cat && <EquipmentLine k="ventilation" owned={eq.ventilation} loft={loft} cat={cat} busy={busy} act={act} />}
-      <div className="faint" style={{ fontSize: '0.8rem', marginTop: 8 }}>
-        <Link to="/wiki#hygiene">Meer info over hokhygiëne →</Link>
-      </div>
     </Card>
   );
 }
@@ -275,11 +245,7 @@ export function BreedingGearCard({ loft, cat, busy, act }: { loft: Loft; cat: In
   return (
     <Card title="🥚 Kweek">
       <EquipmentLine k="light" owned={eq.light} loft={loft} cat={cat} busy={busy} act={act} />
-      <Line label={
-        irInfo
-          ? <LevelLabel icon={ICON.irBoxes} label={cat.equipment.irBoxes.label} info={irInfo} extra={<> · {eq.irBoxes} {eq.irBoxes === 1 ? 'bak' : 'bakken'}, {eq.irInUse} in gebruik</>} />
-          : <><strong>{ICON.irBoxes} {cat.equipment.irBoxes.label}</strong> <span className="faint">{benefit(cat, 'irBoxes')} · {eq.irBoxes} {eq.irBoxes === 1 ? 'bak' : 'bakken'}, {eq.irInUse} in gebruik</span></>
-      }>
+      <Line label={<><strong>{ICON.irBoxes} {cat.equipment.irBoxes.label}</strong>{irInfo && <> <LevelBadge info={irInfo} /></>} <span className="faint">— {WHAT.irBoxes} · {eq.irBoxes} {eq.irBoxes === 1 ? 'bak' : 'bakken'}, {eq.irInUse} in gebruik</span></>}>
         {irInfo && <LevelButton k="irBoxes" label={cat.equipment.irBoxes.label} info={irInfo} loft={loft} busy={busy} act={act} />}
         {eq.irNextPrice != null ? (
           <button className="btn sm" disabled={busy || loft.money < eq.irNextPrice} onClick={() => {
@@ -288,11 +254,8 @@ export function BreedingGearCard({ loft, cat, busy, act }: { loft: Loft; cat: In
           }}>
             {eq.irBoxes === 0 ? '2 bakken' : '+1 bak'} · <Money value={eq.irNextPrice} />
           </button>
-        ) : <span className="faint">maximum bereikt</span>}
+        ) : <span className="faint">alle bakken</span>}
       </Line>
-      <div className="faint" style={{ fontSize: '0.8rem', marginTop: 8 }}>
-        Koppels en nesten start je op de pagina <Link to="/kweek">Kweek</Link>; het partnerhok staat bij Bouwen &amp; uitbreiden.
-      </div>
     </Card>
   );
 }
@@ -320,7 +283,7 @@ export function MagazineCard({ loft, cat, busy, act }: { loft: Loft; cat: Inrich
       <div className="row" style={{ gap: 10, alignItems: 'center', flexWrap: 'wrap', justifyContent: 'space-between' }}>
         <span style={{ flex: '1 1 180px', minWidth: 0 }}>
           <strong>{ICON.magazine} {m.label}</strong>{' '}
-          <span className="faint">— {on ? 'je bent abonnee: ' : ''}{cat.benefits?.magazine ?? 'bandbreedtes bij een privébod, het marktrapport en elke maandag Het Duivenblad'}</span>
+          <span className="faint">— {on ? 'je bent abonnee: ' : ''}{WHAT.magazine}</span>
         </span>
         <button className={`btn sm ${on ? 'accent' : 'ghost'}`} disabled={busy} onClick={() =>
           act(() => api('/loft/equipment', { method: 'POST', body: { key: 'magazine', on: !on } }), on ? 'Vakblad opgezegd' : 'Vakblad: welkom, abonnee 📰')}>
@@ -331,7 +294,7 @@ export function MagazineCard({ loft, cat, busy, act }: { loft: Loft; cat: Inrich
   );
 }
 
-/** "Hele hok": one vaccine or kuur for every bird at home. Per bird is on her page. */
+/** "Hele hok": one vaccine or kuur for every bird at home who needs it. Per bird is on her page. */
 export function VaccineCard({ loft, pigeons, cat, busy, act }: { loft: Loft; pigeons: Pigeon[]; cat: InrichtingCatalogue; busy: boolean; act: Act }) {
   const now = Date.now();
   const home = pigeons.filter((p) => !p.away);
@@ -343,26 +306,15 @@ export function VaccineCard({ loft, pigeons, cat, busy, act }: { loft: Loft; pig
     return !u || Date.parse(u) - now < days * (cat.vaccineRenewShare ?? 0) * 86400000;
   }).length;
   return (
-    <div className="card" style={{ marginBottom: 18 }}>
-      <h2 style={{ marginTop: 0 }}>💉 Vaccins &amp; kuren</h2>
+    <Card title="💉 Vaccins & kuren">
       <p className="faint" style={{ marginTop: 0, fontSize: '0.85rem' }}>
-        Elk middel beschermt tegen één ziekte: wordt een beschermde duif net daarmee ziek, dan weert ze het af met de kans
-        hieronder. Een vaccin houdt een duif 2 dagen aan de grond; een kuur is kort, voor als er iets rondgaat. "Hele hok"
-        slaat duiven over die nog lang genoeg beschermd zijn; per duif kan het op haar pagina.
+        Elk middel beschermt tegen één ziekte. Een vaccin werkt lang, maar je duif mag 2 dagen niet vliegen; een kuur is kort.
       </p>
       {Object.entries(cat.vaccines).map(([key, v]) => {
         const n = needs(key, v.days);
         const cost = n * v.price;
         return (
-          <Line key={key} label={
-            <>
-              <strong>{v.label}</strong>{' '}
-              <span className="faint">
-                — {v.disease}: {Math.round(v.protect * 100)} % afgeweerd · {v.days} dagen · <Money value={v.price} /> per duif
-                {v.noFlyDays ? ` · ${v.noFlyDays} dagen niet vliegen` : ''}{v.libidoHit ? ` · libido −${v.libidoHit}` : ''} · {covered(key)}/{home.length} beschermd
-              </span>
-            </>
-          }>
+          <Line key={key} label={<><strong>{v.label}</strong> <span className="faint">— {v.disease} · {v.days} dagen{v.libidoHit ? ' · verlaagt het libido' : ''} · {covered(key)}/{home.length} beschermd</span></>}>
             {n > 0 ? (
               <button className="btn sm ghost" disabled={busy || loft.money < cost} onClick={() => {
                 if (v.noFlyDays && !window.confirm(`${v.label} voor ${n} ${n === 1 ? 'duif' : 'duiven'} (${euro(cost)})? Ze mogen dan ${v.noFlyDays} dagen niet vliegen.`)) return;
@@ -374,7 +326,7 @@ export function VaccineCard({ loft, pigeons, cat, busy, act }: { loft: Loft; pig
           </Line>
         );
       })}
-    </div>
+    </Card>
   );
 }
 
@@ -474,7 +426,7 @@ export function PigeonCareCard({ p, flock, cat, busy, run }: {
       {Object.entries(cat.vaccines).map(([key, v]) => {
         const has = care.vaccines.find((x) => x.key === key);
         return (
-          <Line key={key} label={<>{v.label} <span className="faint">— {v.disease}: {Math.round(v.protect * 100)} % afgeweerd, {v.days} dagen{has ? ` · werkt tot ${day(has.until)}` : ''}</span></>}>
+          <Line key={key} label={<>{v.label} <span className="faint">— {v.disease}{has ? ` · werkt tot ${day(has.until)}` : ''}</span></>}>
             <button className={`btn sm ${has ? 'ghost' : ''}`} disabled={busy || p.away} onClick={() => {
               if (v.noFlyDays && !window.confirm(`${v.label}? ${p.name} mag dan ${v.noFlyDays} dagen niet vliegen.`)) return;
               run(() => api(`/pigeons/${p.id}/vaccinate`, { method: 'POST', body: { key } }), `${v.label} gegeven`);

@@ -1640,10 +1640,14 @@ export function WikiPage() {
           Alles hieronder koop je op de pagina <em>Inrichting</em> (bouwen &amp; uitbreiden, hygiëne &amp; klimaat, vaccins, kweek, vluchten) of op de pagina van een duif; de scout en het vakblad vind je op de <em>Markt</em>. <strong>Niets kopen = het spel zoals
           vroeger.</strong> Elk onderdeel geeft maar een <strong>klein</strong> voordeel; pas alles samen maakt het verschil. Inrichting
           koop je <strong>één keer</strong>: enkel de hokpoetser, het vakblad en een verzekering kosten per dag (zie je <em>Dagbalans</em>).
+          De pagina <em>Inrichting</em> zegt het kort; hier staan de <strong>exacte cijfers</strong> (niveau 1). Stro en de hokpoetser:
+          zie <a href="#hygiene">Hokhygiëne</a>.
         </p>
         <MiniTable
           head={['Wat', 'Prijs', 'Voordeel']}
           rows={[
+            ['Apart hok', '€800, elk volgend +€400', 'voor de duif die erin zit: +60 % energieherstel, +40 % gezondheidsherstel, 50 % minder kans op ziekte'],
+            ['Ziekenboegbed', '€800 → €2.400', 'meer zieke duiven tegelijk in de ziekenboeg (zie Ziekenboeg)'],
             ['Dakventilatie', '€1.200', '40 % minder kans op ornithose · de hygiëne zakt 25 % trager · +5 % gezondheidsherstel uit het voer'],
             ['Buitenren', '€2.500', '+6 i.p.v. +4 energie op elke 3e rustdag · libido +3 · zonder afweer ~1× per 40 dagen een sperwer: wie thuis rust −6 energie'],
             ['Roofvogelafweer', '€900', 'net + lokuil (vraagt een ren): geen sperwer in de ren, en de gebeurtenis "Sperwer in de buurt" is ongevaarlijk'],
@@ -1663,6 +1667,11 @@ export function WikiPage() {
           niveau 4 <strong>dubbel</strong> zo sterk als niveau 1. Steeds duurder voor steeds minder: iets voor wie geld over heeft,
           nooit een must. Roofvogelafweer, weerstation, partnerhok en vakblad hebben geen niveaus.
         </p>
+        <ul>
+          <li><strong>Formule prijs:</strong> prijs niveau <em>n</em> = prijs niveau 1 × 3<sup><em>n</em>−1</sup> (×1, ×3, ×9, ×27).</li>
+          <li><strong>Formule effect:</strong> elk getal uit de tabel hierboven × 1 · 1,5 · 1,8 · 2 voor niveau 1 · 2 · 3 · 4.
+            Voorbeeld: ventilatie niveau 3 = 40 % × 1,8 = 72 % minder kans op ornithose.</li>
+        </ul>
         <MiniTable
           head={['Onderdeel', 'Niveau 1', 'Niveau 2', 'Niveau 3', 'Niveau 4', 'Op niveau 4']}
           rows={[

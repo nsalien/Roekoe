@@ -193,10 +193,12 @@
   het **vakblad** (€6, abonnement) staan nog in `equipmentCostLines`; de verzekeringspremie
   komt erbij. De premie is soms centen — `loft.money` mag fractioneel worden, de DTO rondt af.
 - **Ontwerpregel (eigenaar):** elk onderdeel geeft maar een **klein** voordeel; pas alles samen
-  is het een echt verschil. De voordelen staan in **getallen** op de pagina: `inrichtingBenefits()`
-  (inrichting.ts) bouwt ze uit de config en de API stuurt ze mee als `inrichting.benefits`
-  (sleutels: `compartment`, `straw`, `cleaner` + elke `EQUIPMENT`-sleutel). **Schrijf geen
-  effecttekst met de hand in de UI**: pas de config aan en de tekst volgt.
+  is het een echt verschil. **Op de pagina kort en zonder cijfers** (de eigenaar vond de lange
+  teksten met percentages te veel): één zin per onderdeel (`WHAT` in `components/Inrichting.tsx`)
+  en bovenaan een link naar de wiki. **De exacte cijfers en de formules staan in de wiki**
+  (#inrichting: tabel niveau 1 incl. apart hok en ziekenboegbed, niveautabel, formules; #hygiene).
+  ⚠️ Die wikitabellen zijn met de hand geschreven: pas ze mee aan als je `EQUIPMENT`,
+  `EQUIPMENT_LEVELS`, `VACCINES`, `COMPARTMENT` of `HYGIENE` wijzigt.
 - **Niveaus** (`EQUIPMENT_LEVELS`): ventilatie, buitenren, kunstlicht, infrarood en reismanden
   gaan na de aankoop (= niveau 1) tot **niveau 4**. Prijs `levelPrice` = eerste prijs ×
   3^(niveau−1) (1×, 3×, 9×, 27×; infrarood rekent met de eerste 2 bakken), effect ×
@@ -205,9 +207,9 @@
   `feedHealthMult`, `hygieneDecay`, `restBonusEnergy` (basis + extra × schaal),
   `libidoTargetBonus`, `entryMods` (reismanden), `irBoxEffect` (tickBreedingHatch). API
   `POST /loft/equipment/upgrade {key}` → `upgradeEquipment`; DTO `equipment.levels`; catalogus
-  `inrichting.levels` (per niveau `{benefit, price}` uit `inrichtingLevels()`, dezelfde
-  tekstsjablonen als `inrichtingBenefits`). De pagina toont "niveau n/4", wat het nu doet, wat
-  het volgende niveau doet en "Naar niveau n+1 · €…" (bevestiging). Bots waarderen niet op.
+  `inrichting.levels` = `{max, scale, prices}` uit `inrichtingLevels()`. De pagina toont een
+  badge "niveau n/4" en de knop "Niveau n+1 · €…"; de bevestiging zegt "werkt dan 1,8× zo sterk
+  als niveau 1". Bots waarderen niet op.
 - **Vaccins ×5** (PMV €60, pokken €40, salmonella €75, geel €15, cocci €25, adem €40; waren
   €3–€15 naast een rustkuur van €300). "Hele hok" (`vaccinateLoft`) slaat wie nog meer dan
   `VACCINE_RENEW_SHARE` (25 %) van haar kuur heeft over (`needsCourse`); de client rekent met

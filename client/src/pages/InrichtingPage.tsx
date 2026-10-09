@@ -39,7 +39,10 @@ export function InrichtingPage() {
       <div className="page-head">
         <div>
           <h1>Inrichting</h1>
-          <p className="muted">Bouwen, hygiëne, vaccins, kweek en vluchten · <Link to="/hok">naar je duiven →</Link></p>
+          <p className="muted">
+            Kort wat elk onderdeel doet · exacte cijfers en formules in de <Link to="/wiki#inrichting">wiki</Link> ·{' '}
+            <Link to="/hok">naar je duiven →</Link>
+          </p>
         </div>
       </div>
       <BuildCard loft={loft} cat={cat} upkeepBands={state.economy.upkeepBands ?? []} busy={busy} act={act} />
@@ -50,8 +53,7 @@ export function InrichtingPage() {
           <BreedingGearCard loft={loft} cat={cat} busy={busy} act={act} />
           <FlightGearCard loft={loft} cat={cat} busy={busy} act={act} />
           <p className="faint" style={{ fontSize: '0.8rem', margin: 0 }}>
-            De scout en het vakblad vind je op de <Link to="/markt">Markt</Link>, verzekering en weduwschap op de
-            pagina van een duif. <Link to="/wiki#inrichting">Meer info over de hokinrichting →</Link>
+            De scout en het vakblad vind je op de <Link to="/markt">Markt</Link>, verzekering en weduwschap op de pagina van een duif.
           </p>
         </>
       )}
