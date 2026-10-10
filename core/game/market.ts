@@ -16,6 +16,12 @@
  *  3. Those factors are averaged per talent band — weighted by how close the sale
  *     is in talent (`talentSigma`) and how recent it is (`halfLifeDays`) — giving a
  *     price curve that genuinely drifts week to week with what people pay.
+ *  4. How far the market overrules the model (the *trust*) depends on how much
+ *     comparable evidence there is — NOT on its age. It used to: a sale's weight
+ *     halved every 10 days in the trust too, so a record price slid back towards
+ *     the model day after day while nothing cheaper sold (a score-80 bird went from
+ *     €20.000 to €12.000 in about a week). Now a price holds until a newer sale says
+ *     otherwise; a sale only fades out over the last `fadeDays` of its window.
  *
  * Why factors instead of the sale prices themselves: with ten players there will
  * never be sales in every talent band. Blending straight to observed prices made a
@@ -85,18 +91,25 @@ interface MarketCurve {
 const curveCache = new WeakMap<Database, { curve: MarketCurve; trades: number }>();
 
 function buildCurve(db: Database, nowMs: number): MarketCurve {
-  const { talentSigma, halfLifeDays, observationDays, trustWeight, maxTrust, minFactor, maxFactor } =
+  const { talentSigma, halfLifeDays, observationDays, fadeDays, trustWeight, maxTrust, minFactor, maxFactor } =
     MARKET_VALUATION;
 
   // Collect usable observations once.
-  const obs: { talent: number; price: number; recency: number }[] = [];
+  const obs: { talent: number; price: number; recency: number; presence: number }[] = [];
   for (const trade of db.trades) {
     if (typeof trade.talent !== 'number' || trade.price <= 0) continue; // pre-market-data sale
     const atMs = Date.parse(trade.at);
     if (Number.isNaN(atMs)) continue;
     const ageDays = (nowMs - atMs) / 86400000;
     if (ageDays < 0 || ageDays > observationDays) continue;
-    obs.push({ talent: trade.talent, price: trade.price, recency: Math.pow(0.5, ageDays / halfLifeDays) });
+    obs.push({
+      talent: trade.talent,
+      price: trade.price,
+      // Which sales set the price LEVEL: the newest weigh most.
+      recency: Math.pow(0.5, ageDays / halfLifeDays),
+      // How much a sale counts as evidence: fully, until it nears the end of the window.
+      presence: clamp((observationDays - ageDays) / fadeDays, 0, 1),
+    });
   }
 
   const scaled: number[] = [];
@@ -106,6 +119,7 @@ function buildCurve(db: Database, nowMs: number): MarketCurve {
   const price: (number | null)[] = [];
 
   for (const t of GRID) {
+    let evidence = 0;
     let weightSum = 0;
     let weightedFactor = 0;
     let weightedPrice = 0;
@@ -113,15 +127,19 @@ function buildCurve(db: Database, nowMs: number): MarketCurve {
     for (const o of obs) {
       const dt = o.talent - t;
       const similarity = Math.exp(-(dt * dt) / (2 * talentSigma * talentSigma));
-      const w = similarity * o.recency;
-      if (w < 0.02) continue; // too far off in talent, or too old to matter
+      if (similarity < 0.02) continue; // too far off in talent to say anything here
+      const e = similarity * o.presence;
+      if (e <= 0) continue;
+      const w = e * o.recency;
+      evidence += e;
       weightSum += w;
       weightedFactor += w * (o.price / reference(o.talent));
       weightedPrice += w * o.price;
       n += 1;
     }
     const f = weightSum > 0 ? clamp(weightedFactor / weightSum, minFactor, maxFactor) : 1;
-    const tr = weightSum > 0 ? clamp(weightSum / trustWeight, 0, maxTrust) : 0;
+    // Trust from the evidence alone: without a newer sale, a price stays put.
+    const tr = clamp(evidence / trustWeight, 0, maxTrust);
     factor.push(f);
     trustArr.push(tr);
     samples.push(n);

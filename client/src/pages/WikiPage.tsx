@@ -1684,12 +1684,14 @@ export function WikiPage() {
         <ul>
           <li>
             <strong>Vergelijkbare duiven bepalen de prijs.</strong> Ging er een duif van talent 70 weg
-            voor €7.000, dan schuiven alle duiven in die buurt mee omhoog.
+            voor €7.000, dan schuiven de duiven in die buurt mee omhoog: een paar punten talent verschil
+            telt bijna volledig mee, wie twaalf punten lager zit merkt er weinig van.
           </li>
           <li>
-            <strong>Recente verkopen wegen zwaarder.</strong> Het gewicht van een verkoop halveert elke
-            10 dagen en na 4 weken telt ze niet meer mee. Prijzen kunnen dus <strong>van week tot week
-            verschillen</strong>, net als op een echte markt.
+            <strong>Een prijs blijft staan tot een nieuwere verkoop iets anders zegt.</strong> Wordt er
+            niets vergelijkbaars meer verkocht, dan zakt de waarde niet vanzelf terug. Komt er wel een
+            nieuwe verkoop, dan weegt die zwaarder dan de oudere: zo volgen de prijzen de markt van week
+            tot week. Een verkoop telt 60 dagen mee, de laatste twee weken steeds minder.
           </li>
           <li>
             <strong>Waar niet op geboden wordt, is weinig waard.</strong> Gaan zwakke duiven voor een
