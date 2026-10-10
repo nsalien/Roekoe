@@ -133,8 +133,9 @@
   **dagovergang** in `tickDailyCare` (`tickHygiene`, ná de dagafrekening): 8 × bezetting
   (thuis/capaciteit), ×1,5 met een zieke duif (ziekte, geen kwetsuur) buiten de boeg. Nooit
   per verzoek, dus `idle-writes` blijft groen.
-- **Poetser:** `cleanerWage(aantal duiven)` = `cleanerBaseWage` €4 + `cleanerWagePerPigeon` €1 per duif
-  (10 duiven = €14, 20 = €24: hoe meer duiven, hoe duurder; wens van de eigenaar) zit als lijn
+- **Poetser:** `cleanerWage(aantal duiven)` per schijf (`HYGIENE.cleanerWageBands`, tabel van de
+  eigenaar): t/m 8 duiven €10, 12 €15, 14 €20, 16 €30, 18 €45, 20 €75 (de laatste schijf geldt ook
+  daarboven). Telt alle eigen duiven, net als de Dagbalans. Zit als lijn
   `cleaner` in `dailyRunningCostBreakdown.equipment` (`equipmentCostLines(loft, pigeonCount)`) →
   vanzelf in de Dagbalans en in wat `tickDailyCare` afrekent. Onder 70 koopt `tickHygiene` een
   lading stro aan de gewone prijs (eenmalige uitgave, níet in de Dagbalans). Besmetting ×0,85.
@@ -183,7 +184,7 @@
 - **Dagkost:** `equipmentCostLines` + `insuranceCost` → `dailyRunningCostBreakdown.equipment`
   (lijnen), `.equipmentTotal`, `.insurance`; zelfde bron voor Dagbalans en `tickDailyCare`.
   Het oude veld `cleaner` is vervangen door een lijn `key: 'cleaner'`. **Inrichting is
-  eenmalig** (de eigenaar: €0,50–€2/dag is de moeite niet): enkel de **hokpoetser** (€4 + €1/duif) en
+  eenmalig** (de eigenaar: €0,50–€2/dag is de moeite niet): enkel de **hokpoetser** (€10–€75 per schijf) en
   het **vakblad** (€6, abonnement) staan nog in `equipmentCostLines`; de verzekeringspremie
   komt erbij. De premie is soms centen — `loft.money` mag fractioneel worden, de DTO rondt af.
 - **Ontwerpregel (eigenaar):** elk onderdeel geeft maar een **klein** voordeel; pas alles samen
@@ -262,7 +263,8 @@
   `roekoe.inrichting.open`, in try/catch). Een link `/inrichting#hokken|hygiene|vaccins|uitrusting`
   opent dat blok meteen (ook bij een hashwissel op de pagina zelf).
   1. 🏠 **Plaatsen & hokken** (`RoomsSection`, `data-tour="upgrades"` — de rondleiding wijst
-     erheen) — dicht: "10/12 plaatsen · 2/2 apart · ziekenboeg 1/2".
+     erheen) — dicht: drie regels, altijd alle drie (wens van de eigenaar): "Plaatsen: 10/12",
+     "Apart: 2/2", "Ziekenboeg: 1/2" (`Usage`; 0 aparte hokken = "nog geen").
      Hokcapaciteit, aparte hokken, ziekenboegbedden
      (zelfde `/loft/infirmary/upgrade` als op de ziekenboegpagina, hier met bevestiging).
   2. 🧹 **Hygiëne** (`HygieneSection`) — dicht: "58/100 proper" (+ "de poetser is aan het werk"
@@ -272,7 +274,13 @@
   4. 🛠️ **Uitrusting** (`GearSection`) — dicht: "Nog niets gekocht" of "3 van de 7 gekocht".
      Alles wat je één keer koopt en (meestal) tot niveau 4 opwaardeert: buitenren,
      roofvogelafweer ("eerst een buitenren"), dakventilatie, kunstlicht, infrarood nestbakken,
-     betere reismanden, weerstation.
+     betere reismanden, weerstation. **Elk onderdeel heeft een ⓘ** (`InfoToggle` in `Item`): tik
+     erop en er klapt een tabelletje open (`EffectInfo`) met **elk effect nu en na aankoop** (niet
+     gekocht: "Nu" vs "Na aankoop"; gekocht: "Nu (niveau n)" vs "Niveau n+1"; op niveau 4 enkel
+     "Nu" + "Dit is het hoogste niveau"). De cijfers komen van de server: `inrichtingEffects()`
+     (inrichting.ts, zelfde formules als de effecten zelf) → `/state.inrichting.effects`
+     (`{label, none, values[]}` per onderdeel; `values[i]` = niveau i+1, `none` = zonder). Zo
+     blijft de pagina kort en staan de exacte cijfers één tik verder.
 
   Elk item binnen een blok in de vaste vorm `Item` (zie de ontwerpregel hierboven); op de gsm
   staat de knop onder de tekst. Gemeten op 390 px: dicht ~1.000 px hoog (de oude lijst ~2.900).

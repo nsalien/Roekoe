@@ -21,7 +21,7 @@ type Act = (fn: () => Promise<unknown>, ok?: string) => void;
 function Line({ label, children }: { label: React.ReactNode; children: React.ReactNode }) {
   return (
     <div className="row" style={{ gap: 10, alignItems: 'center', flexWrap: 'wrap', justifyContent: 'space-between', padding: '6px 0', borderTop: '1px solid var(--border)' }}>
-      <span style={{ flex: '1 1 240px', minWidth: 0 }}>{label}</span>
+      <div style={{ flex: '1 1 240px', minWidth: 0 }}>{label}</div>
       <span className="row" style={{ gap: 6, flexWrap: 'wrap' }}>{children}</span>
     </div>
   );
@@ -47,14 +47,14 @@ const WHAT: Record<string, string> = {
 };
 
 /** "2/3 in gebruik": green while there is room, red once everything is taken. */
-function Usage({ used, total, unit }: { used: number; total: number; unit: string }) {
+function Usage({ used, total, unit }: { used: number; total: number; unit?: string }) {
   if (total <= 0) return <span className="faint">nog geen</span>;
   return (
     <span>
       <span style={{ color: used >= total ? 'var(--bad)' : 'var(--good)', fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>
         {used}/{total}
-      </span>{' '}
-      {unit}
+      </span>
+      {unit && <> {unit}</>}
     </span>
   );
 }
@@ -62,24 +62,98 @@ function Usage({ used, total, unit }: { used: number; total: number; unit: strin
 /**
  * One item, always in the same shape: the name and what you have of it on top
  * ("Aparte hokken: 2/2 in gebruik"), what it does underneath, its button aside.
+ * With `info`, a small ⓘ after the first line opens the exact numbers below it.
  */
-function Item({ icon, name, status, what, more, children }: {
+function Item({ icon, name, status, what, more, info, children }: {
   icon?: string; name: string; status?: React.ReactNode; what: React.ReactNode;
   /** A third line, e.g. what the next level adds. */
   more?: React.ReactNode;
+  /** Behind the ⓘ: what it gives now and after buying (see EffectInfo). */
+  info?: React.ReactNode;
   children?: React.ReactNode;
 }) {
+  const [open, setOpen] = useState(false);
   return (
     <Line label={
       <>
-        <span><strong>{icon ? `${icon} ` : ''}{name}</strong>{status != null && <>: {status}</>}</span>
+        <span>
+          <strong>{icon ? `${icon} ` : ''}{name}</strong>{status != null && <>: {status}</>}
+          {info && <InfoToggle open={open} name={name} onClick={() => setOpen((o) => !o)} />}
+        </span>
         <span className="faint" style={{ display: 'block', fontSize: '0.85rem', marginTop: 1 }}>{what}</span>
         {more && <span style={{ display: 'block', fontSize: '0.85rem', marginTop: 1, color: 'var(--good)' }}>{more}</span>}
+        {info && open && info}
       </>
     }>
       {children}
     </Line>
   );
+}
+
+/** The small round ⓘ next to an item's name. */
+function InfoToggle({ open, name, onClick }: { open: boolean; name: string; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-expanded={open}
+      aria-label={`Wat levert ${name} op?`}
+      title="Wat levert het op?"
+      style={{
+        marginLeft: 8, width: 22, height: 22, padding: 0, borderRadius: '50%', verticalAlign: 'text-bottom',
+        border: '1px solid var(--border-strong)', background: open ? 'var(--surface-3)' : 'transparent',
+        color: 'var(--text-soft)', font: 'italic 700 0.8rem/20px Georgia, serif', cursor: 'pointer',
+      }}
+    >
+      i
+    </button>
+  );
+}
+
+type Effects = NonNullable<InrichtingCatalogue['effects']>[string];
+
+/**
+ * Behind the ⓘ: every effect of an item as it stands now, next to what buying
+ * it (or the next level) would make of it. `level` 0 = not bought; `max` 1 for
+ * an item without levels.
+ */
+function EffectInfo({ effects, level, max }: { effects: Effects; level: number; max: number }) {
+  const now = (e: Effects[number]) => (level === 0 ? e.none : e.values[level - 1]);
+  const hasNext = level < max;
+  const nowHead = level > 0 && max > 1 ? `Nu (niveau ${level})` : 'Nu';
+  const nextHead = level === 0 ? 'Na aankoop' : `Niveau ${level + 1}`;
+  const cell: React.CSSProperties = { padding: '2px 0 2px 10px', textAlign: 'right', whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' };
+  return (
+    <div style={{ marginTop: 6, padding: '6px 10px', borderRadius: 'var(--r-sm)', background: 'var(--surface-2)', fontSize: '0.8rem' }}>
+      <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+        <thead>
+          <tr className="faint">
+            <th style={{ textAlign: 'left', fontWeight: 400 }} />
+            <th style={{ ...cell, fontWeight: 400 }}>{nowHead}</th>
+            {hasNext && <th style={{ ...cell, fontWeight: 400 }}>{nextHead}</th>}
+          </tr>
+        </thead>
+        <tbody>
+          {effects.map((e) => (
+            <tr key={e.label}>
+              <td style={{ padding: '2px 0' }}>{e.label}</td>
+              <td style={cell}>{now(e)}</td>
+              {hasNext && <td style={{ ...cell, color: 'var(--good)', fontWeight: 700 }}>{e.values[level]}</td>}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      {!hasNext && max > 1 && <div className="faint" style={{ marginTop: 2 }}>Dit is het hoogste niveau.</div>}
+    </div>
+  );
+}
+
+/** The ⓘ panel for an item, or nothing if the server sent no effects for it. */
+function effectInfo(cat: InrichtingCatalogue, k: string, level: number) {
+  const fx = cat.effects?.[k];
+  if (!fx) return undefined;
+  const max = cat.levels?.prices[k] ? cat.levels.max : 1;
+  return <EffectInfo effects={fx} level={level} max={max} />;
 }
 
 /** A bought item with levels: where it stands, what the next level costs and what it adds. */
@@ -124,7 +198,8 @@ function EquipmentLine({ k, owned, needs, loft, cat, busy, act }: {
   const info = owned ? levelInfo(cat, k, loft.equipment?.levels?.[k] ?? 1) : null;
   const status = info ? `niveau ${info.level}/${info.max}` : owned ? 'in je hok' : undefined;
   return (
-    <Item icon={ICON[k]} name={item.label} status={status} what={WHAT[k]} more={levelGain(info)}>
+    <Item icon={ICON[k]} name={item.label} status={status} what={WHAT[k]} more={levelGain(info)}
+      info={effectInfo(cat, k, owned ? (loft.equipment?.levels?.[k] ?? 1) : 0)}>
       {info ? (
         <LevelButton k={k} label={item.label} info={info} loft={loft} busy={busy} act={act} />
       ) : owned ? null : needs ? (
@@ -189,11 +264,12 @@ export function RoomsSection({ loft, upkeepBands, busy, act, open, onToggle }: S
   const nextCap = loft.nextCapacity;
   const compartmentCost = loft.compartmentCost;
   const nextBeds = loft.nextInfirmary;
+  // One line each, always all three (the owner's wish): plaatsen, apart, ziekenboeg.
   const summary = (
     <>
-      <Usage used={loft.pigeonCount} total={loft.capacity} unit="plaatsen" />
-      {loft.compartments > 0 && <> · <Usage used={loft.compartmentsUsed} total={loft.compartments} unit="apart" /></>}
-      {' · '}ziekenboeg <Usage used={loft.infirmaryCount} total={loft.infirmaryCapacity} unit="" />
+      <span style={{ display: 'block' }}>Plaatsen: <Usage used={loft.pigeonCount} total={loft.capacity} /></span>
+      <span style={{ display: 'block' }}>Apart: <Usage used={loft.compartmentsUsed} total={loft.compartments} /></span>
+      <span style={{ display: 'block' }}>Ziekenboeg: <Usage used={loft.infirmaryCount} total={loft.infirmaryCapacity} /></span>
     </>
   );
   return (
@@ -375,6 +451,7 @@ export function GearSection({ loft, cat, busy, act, open, onToggle }: SectionPro
         status={<><Usage used={eq.irInUse} total={eq.irBoxes} unit="in gebruik" />{irInfo && ` · niveau ${irInfo.level}/${irInfo.max}`}</>}
         what={WHAT.irBoxes}
         more={levelGain(irInfo)}
+        info={effectInfo(cat, 'irBoxes', eq.irBoxes > 0 ? (eq.levels?.irBoxes ?? 1) : 0)}
       >
         {irInfo && <LevelButton k="irBoxes" label={cat.equipment.irBoxes.label} info={irInfo} loft={loft} busy={busy} act={act} />}
         {eq.irNextPrice != null ? (

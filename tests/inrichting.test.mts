@@ -17,7 +17,7 @@ import { applyFlightForecasts, ensureFlightsScheduled, flightsNeedingForecast, t
 import {
   buyEquipment, buyIrBox, entryMods, fendsOff, grounded, insurancePayout, insurancePremium, insuranceQuote,
   magazineRanges, setInsurance, tickHawk, tickMagazine, vaccinate, vaccinateLoft,
-  libidoTargetBonus, restBonusEnergy, upgradeEquipment, inrichtingLevels, feedHealthMult, irBoxEffect,
+  libidoTargetBonus, restBonusEnergy, upgradeEquipment, inrichtingLevels, inrichtingEffects, feedHealthMult, irBoxEffect,
 } from '../core/game/inrichting.js';
 import { equipmentLevel, hygieneDecay } from '../core/game/hygiene.js';
 import { breed } from '../core/game/breeding.js';
@@ -341,6 +341,13 @@ console.log('\n=== 12. Niveaus: elk niveau 3× duurder, het effect ×1,5 · ×1,
   ok(L.gain.ventilation.values.join(' | ') === '−40 % | −60 % | −72 % | −80 %', `en wat elk niveau oplevert: ornithose ${L.gain.ventilation.values.join(' → ')}`);
   ok(L.gain.run.values[2] === '+7,6' && L.gain.baskets.values[1] === '−4,5 %' && L.gain.irBoxes.values[1] === '+22,5 %',
     `kommagetallen waar het telt: rustdag ${L.gain.run.values[2]}, reismanden ${L.gain.baskets.values[1]}, infrarood ${L.gain.irBoxes.values[1]}`);
+  // The ⓘ: every effect, now and after buying — the same numbers as the wiki's level-4 column.
+  const fx = inrichtingEffects();
+  const top = fx.ventilation.map((e) => e.values[3]).join(' · ');
+  ok(top === '−80 % · 50 % · +10 %' && fx.run[0].none === '+4' && fx.run[0].values[3] === '+8' && fx.irBoxes.map((e) => e.values[3]).join(' · ') === '+30 % · +12 % · +8 %',
+    `ⓘ alle effecten per niveau: ventilatie niveau 4 ${top}, rustdag zonder ren ${fx.run[0].none} → ${fx.run[0].values.join(' · ')}`);
+  ok(fx.raptorGuard.every((e) => e.values.length === 1) && fx.weatherStation[0].none === 'niet vooraf' && Object.keys(fx).length === 7,
+    'ⓘ ook voor roofvogelafweer en weerstation (zonder niveaus): 7 onderdelen');
 }
 
 if (fail > 0) { console.log(`\n${fail} mislukt`); process.exitCode = 1; }

@@ -5,7 +5,7 @@
  *   - boven 50 ziektekans ×(1 − 0,2·(h−50)/50), op of onder 50 géén effect;
  *   - −8 per dag in een vol hok (geschaald op bezetting), +50 % met een zieke
  *     duif buiten de ziekenboeg;
- *   - poetser €14/dag, ververst onder 70, besmetting ×0,85;
+ *   - poetser €10–€75/dag per schijf duiven, ververst onder 70, besmetting ×0,85;
  *   - alle ziektefactoren samen nooit onder ×0,4;
  *   - niets kopen = het spel van vandaag (hok zonder `equipment` blijft onaangeroerd).
  *
@@ -89,9 +89,11 @@ console.log('\n=== 4. Stro, poetser en de Dagbalans ===');
   const costs = dailyRunningCostBreakdown(loft, count, 0, 0);
   const line = costs.equipment.find((l) => l.key === 'cleaner');
   ok(line?.amount === cleanerWage(count) && costs.total >= line.amount, `poetser €${cleanerWage(count)} (${count} duiven) in de Dagbalans en in het totaal`);
-  ok(cleanerWage(10) === 14 && cleanerWage(20) === 24 && cleanerWage(8) === 12, 'hoe meer duiven, hoe duurder: 8 → €12, 10 → €14, 20 → €24');
+  const wages = [0, 8, 9, 12, 13, 14, 15, 16, 17, 18, 19, 20, 24].map((n) => `${n}:${cleanerWage(n)}`).join(' ');
+  ok(wages === '0:10 8:10 9:15 12:15 13:20 14:20 15:30 16:30 17:45 18:45 19:75 20:75 24:75',
+    `per schijf: t/m 8 duiven €10, 12 €15, 14 €20, 16 €30, 18 €45, 20 (en meer) €75 — ${wages}`);
   const big = dailyRunningCostBreakdown(loft, 20, 0, 0).equipment.find((l) => l.key === 'cleaner');
-  ok(big?.amount === 24, 'een hok van 20 betaalt de poetser €24 per dag');
+  ok(big?.amount === 75, 'een hok van 20 betaalt de poetser €75 per dag in de Dagbalans');
 
   // De poetser ververst zodra de meter onder 70 zakt.
   const birds = db.pigeons.filter((p) => p.ownerId === userId);

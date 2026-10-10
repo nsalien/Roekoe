@@ -1434,7 +1434,8 @@ verval/dag    = 8 · (duiven thuis / capaciteit) · (1,5 met een zieke duif buit
 ```
 - De meter zakt **één keer per dag**, op de dagovergang. Een hok dat nooit stro
   kocht, staat op 50 en merkt niets: niets kopen = het spel van vroeger.
-- **Hokpoetser:** €14/dag, aannemen en ontslaan gratis. Zakt de meter onder
+- **Hokpoetser:** per dag €10 t/m 8 duiven, €15 t/m 12, €20 t/m 14, €30 t/m 16,
+  €45 t/m 18 en €75 t/m 20 duiven (en meer); aannemen en ontslaan gratis. Zakt de meter onder
   **70**, dan strooit hij vers stro (aan de gewone prijs). Hij ontsmet ook:
   **besmetting tussen duiven ×0,85**.
 - **Bodem:** hygiëne, apart hok, poetser en IJzeren gestel samen maken de kans

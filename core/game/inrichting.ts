@@ -171,6 +171,64 @@ const GAIN: Record<LevelKey, { what: string; at: (s: number) => string }> = {
   baskets: { what: 'energieverlies per vlucht', at: (s) => `−${dec((1 - EQUIPMENT.baskets.energyMult) * 100 * s)} %` },
 };
 
+/** One effect of an item, at effect scale `s` (level 1 = ×1); `none` is how it stands without the item. */
+type Effect = { label: string; at: (s: number) => string; none?: string };
+
+/**
+ * Every effect of every item in the Uitrusting block — what its ⓘ shows: how it
+ * stands now and after the next purchase or level. Same formulas as the effects
+ * themselves (fendsOff, hygieneDecay, feedHealthMult, restBonusEnergy,
+ * libidoTargetBonus, irBoxEffect, entryMods, tickHawk, the weerstation).
+ */
+const EFFECTS: Record<LevelKey | 'raptorGuard' | 'weatherStation', Effect[]> = {
+  ventilation: [
+    { label: 'Kans op ornithose', at: (s) => `−${dec((1 - EQUIPMENT.ventilation.ornithoseMult) * 100 * s)} %` },
+    { label: 'Hygiëne zakt trager', at: (s) => `${dec((1 - EQUIPMENT.ventilation.hygieneDecayMult) * 100 * s)} %` },
+    { label: 'Gezondheidsherstel uit voer', at: (s) => `+${dec(EQUIPMENT.ventilation.healthRecoveryBonus * 100 * s)} %` },
+  ],
+  run: [
+    {
+      label: 'Energie op elke 3e rustdag',
+      at: (s) => `+${dec(REST_BONUS.energy + (EQUIPMENT.run.restBonusEnergy - REST_BONUS.energy) * s)}`,
+      none: `+${REST_BONUS.energy}`,
+    },
+    { label: 'Libido', at: (s) => `+${dec(EQUIPMENT.run.libidoTarget * s)}` },
+  ],
+  light: [{ label: 'Libido', at: (s) => `+${dec(EQUIPMENT.light.libidoTarget * s)}` }],
+  irBoxes: [
+    { label: 'Nest komt sneller uit', at: (s) => `+${dec((EQUIPMENT.irBoxes.hatchSpeed - 1) * 100 * s)} %` },
+    { label: 'Kans op een tweeling', at: (s) => `+${dec(EQUIPMENT.irBoxes.twinBonus * 100 * s)} %` },
+    { label: `Slaagkans onder ${EQUIPMENT.irBoxes.coldBelowC} °C`, at: (s) => `+${dec(EQUIPMENT.irBoxes.coldSuccessBonus * 100 * s)} %` },
+  ],
+  baskets: [
+    { label: 'Energieverlies per vlucht', at: (s) => `−${dec((1 - EQUIPMENT.baskets.energyMult) * 100 * s)} %` },
+    { label: 'Gezondheidsverlies per vlucht', at: (s) => `−${dec((1 - EQUIPMENT.baskets.healthMult) * 100 * s)} %` },
+  ],
+  raptorGuard: [
+    { label: 'Sperwer boven de ren', at: () => 'nooit', none: `~1× per ${Math.round(1 / EQUIPMENT.run.hawkChancePerDay)} dagen` },
+    { label: '"Sperwer in de buurt"', at: () => 'gratis veilig', none: 'netten of risico' },
+  ],
+  weatherStation: [
+    { label: 'Weer van de lossing', at: () => `${EQUIPMENT.weatherStation.forecastHours} u vooraf`, none: 'niet vooraf' },
+    { label: 'Bijgewerkt', at: () => `elke ${EQUIPMENT.weatherStation.refreshHours} u` },
+  ],
+};
+
+/**
+ * The ⓘ data for the page: per item its effects, each with its value at every
+ * level (one value for an item without levels) and without the item ('—' when
+ * there is nothing to compare).
+ */
+export function inrichtingEffects(): Record<string, { label: string; none: string; values: string[] }[]> {
+  const out: Record<string, { label: string; none: string; values: string[] }[]> = {};
+  for (const [k, list] of Object.entries(EFFECTS)) {
+    const levelled = (EQUIPMENT_LEVELS.keys as readonly string[]).includes(k);
+    const scales = levelled ? EQUIPMENT_LEVELS.effectScale : [1];
+    out[k] = list.map((e) => ({ label: e.label, none: e.none ?? '—', values: scales.map((sc) => e.at(sc)) }));
+  }
+  return out;
+}
+
 /**
  * What the Inrichting page needs to offer a level: how far it goes, how much
  * stronger each level works (×1 · ×1,5 · ×1,8 · ×2), what every level costs and

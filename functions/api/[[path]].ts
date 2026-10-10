@@ -110,7 +110,7 @@ import {
 import { advanceRealtime, applyFlightForecasts, applyRelayForecasts, flightsAwaitingStart, flightsNeedingForecast, relayLegsNeedingForecast, tickFlights } from '../../core/game/schedule.js';
 import { pigeonSeasonRankings } from '../../core/game/season.js';
 import { buyStraw, setCleaner } from '../../core/game/hygiene.js';
-import { buyEquipment, buyIrBox, inrichtingLevels, magazineReport, setInsurance, upgradeEquipment, vaccinate, vaccinateLoft } from '../../core/game/inrichting.js';
+import { buyEquipment, buyIrBox, inrichtingEffects, inrichtingLevels, magazineReport, setInsurance, upgradeEquipment, vaccinate, vaccinateLoft } from '../../core/game/inrichting.js';
 import { buyScouted, dismissScout, sendScout } from '../../core/game/scout.js';
 import { spendAttribute, spendExperience } from '../../core/game/newcomer.js';
 import { velocityBreakdown, weightsForDistance } from '../../core/game/flight.js';
@@ -188,6 +188,7 @@ let schemaReady = false;
 const PEDIGREE_GENERATIONS = 3;
 /** Hokinrichting (⚠️ dev): niveaus and their prices, from the config — the same for every request. */
 const INRICHTING_LEVELS = inrichtingLevels();
+const INRICHTING_EFFECTS = inrichtingEffects();
 /** How far DOWN the family view goes: children, grandchildren, great-grandchildren. */
 const DESCENDANT_GENERATIONS = 3;
 
@@ -528,6 +529,7 @@ app.get('/state', (c) => {
     inrichting: {
       equipment: EQUIPMENT,
       levels: INRICHTING_LEVELS,
+      effects: INRICHTING_EFFECTS,
       vaccines: VACCINES,
       vaccineRenewShare: VACCINE_RENEW_SHARE,
       scout: { tiers: SCOUT.tiers, markets: SCOUT.markets, choiceHours: SCOUT.choiceHours, quarantineDays: SCOUT.quarantineDays },
