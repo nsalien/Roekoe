@@ -316,32 +316,6 @@
 - **Demo:** de demospeler start met €30.000 om alles te proberen; `DEMO_VERSION` = 2.
 - **Tests:** `tests/inrichting.test.mts` (alles hierboven), `tests/hygiene.test.mts`.
 
-### Marktwaarde houdt stand (`core/game/market.ts`) — ⚠️ dev, los van de hokinrichting
-- **Melding van de eigenaar (productie):** na een dure verkoop schoten de waarden omhoog en
-  zakten ze daarna dag na dag terug, terwijl die hogere prijs net de juiste was (een duif van
-  score 80: €20.000 → €12.000 in een paar dagen).
-- **Oorzaak:** het **vertrouwen** in de markt (hoeveel de verkopen het model overrulen) werd
-  berekend uit dezelfde recentheidsgewichten als het prijsniveau. Het gewicht van een verkoop
-  halveerde elke 10 dagen, dus ook zonder één nieuwe verkoop gleed de waarde elke dag terug
-  naar het model, dat de top veel te laag schat (gesimuleerd: €12.800 → €7.500 in 10 dagen,
-  het model na 28). Daarbovenop: enkel de nieuwste **40** verkopen werden bewaard (een drukke
-  week duwde een topverkoop er binnen dagen uit), en met `talentSigma 10` trok een reeks
-  gewone verkopen rond score 60–70 de top omlaag én tilde één topverkoop de hele club op.
-- **Fix:** vertrouwen = **hoeveelheid vergelijkbaar bewijs, niet de leeftijd** (`evidence` =
-  Σ gelijkenis × `presence`); recentheid bepaalt enkel welke verkoop het **prijsniveau**
-  zet (de nieuwste weegt het zwaarst). Zonder nieuwe verkoop blijft de prijs dus staan.
-  `observationDays` 28 → **60**, met `fadeDays` **14** (een verkoop vervaagt pas in de laatste
-  14 dagen, geen klif); `talentSigma` 10 → **6** (±6 talent telt ~60 %, ±12 ~14 %);
-  `TRADE_LOAD_LIMIT` 40 → **100** (zoals vroeger). `halfLifeDays 10`, `trustWeight 1.5`,
-  `maxTrust 0.85` en de factorband 0.1–8 ongewijzigd. Wiki (#markt) aangepast.
-- **Kost:** +60 rijen per volledig verzoek → `daily-budget.test.mts` **28,3 %** van de 5M/dag
-  (was ~24,6 %), 184 rijen/verzoek. CPU-budget ongewijzigd groen.
-- **Afweging:** een prijs die blijft staan, blijft ook staan als hij door een vriendendeal is
-  opgedreven (tot een nieuwere verkoop in die band of 60 dagen). Het plafond blijft 8× de
-  curve en een enkele verkoop telt maar voor 2/3.
-- **Eén zelfstandige commit** (market.ts, gameConfig, d1.ts, test, wiki, dit stuk), zodat hij
-  apart naar prod kan als de eigenaar dat beslist. **Test:** `tests/market-memory.test.mts`.
-
 ---
 
 ## 1. Wat is Roekoe
@@ -1044,7 +1018,7 @@ Entiteiten: `Pigeon`, `Loft`, `User`, `BreedingPair`, `PendingBrood`, `Flight` (
   **afgehandelde** weddenschap nog in `betsView` zit; open weddenschappen zijn nooit
   begrensd. Puur weergave — de rijen blijven (100, `boundedCleanups`).
 - **`TRADE_HISTORY_DAYS` (7)** — hoever de **verkoopgeschiedenis** op de markt terugkijkt
-  (`recentTrades`). ⚠️ Bewust véél korter dan `MARKET_VALUATION.observationDays` (28; op dev 60):
+  (`recentTrades`). ⚠️ Bewust véél korter dan `MARKET_VALUATION.observationDays` (60):
   de waardering leest `db.trades` zelf en blijft dus van oudere verkopen leren.
 - **Oefenvlucht (`PRACTICE`):** `energyCost 4`, `improveChance 0.7` /
   `coachedImproveChance 0.92`, `weights {speed 0.15, endurance 0.45, orientation 0.4}`,
@@ -1462,13 +1436,13 @@ npx tsx tests/coach-salary.test.mts       # coach per score, gratis starterscoac
 npx tsx tests/sponsor-cap.test.mts        # max 6 sponsors, tier 4 ×0,5/dag (v54→v57), verplichte gratis afbouw
 npx tsx tests/sunday-auction.test.mts     # twee zondagduiven, vensters, scoreband, 2-vrije-plaatsen-regel
 npx tsx tests/lokaal.test.mts             # Het Lokaal: laden/pagineren/poll+overlap, weghalen, opruimen, chat_last_at blijft staan
+npx tsx tests/market-memory.test.mts      # marktwaarde blijft staan tot een nieuwere verkoop; σ 6; venster 60
 npx tsx tests/demo-build.test.mts         # (dev) prodbuild zonder demo, previewbuild mét demo
 npx tsx tests/demo-world.test.mts         # (dev) de demowereld + de echte API op sql.js
 npx tsx tests/hygiene.test.mts            # (dev) hokhygiëne, stro, poetser, bodem ×0,4
 npx tsx tests/inrichting.test.mts         # (dev) ventilatie, ren, sperwer, vaccins, verzekering, scout, vakblad, weerstation, bots
 npx tsx tests/koppels.test.mts            # (dev) koppels: wennen, weigeren, aantrekking, ontkoppelen, geforceerd nest, weduwschap
 npx tsx tests/hokoverzicht.test.mts       # (dev) hokoverzicht: flying (in de lucht) vs. racing (ook gepland)
-npx tsx tests/market-memory.test.mts      # (dev) marktwaarde blijft staan tot een nieuwere verkoop; σ 6; venster 60
 ```
 
 > **Geen `tsx` beschikbaar?** (cloud-sessie waar de npm-registry geblokkeerd is: `npx tsx`
@@ -1560,7 +1534,32 @@ Alles hieronder staat **live** op de deploy-branch. Data-migraties liepen door t
 > getrapt is. Nieuwste bovenaan. Voor "hoe werkt het spel nu" hoef je §8 niet te lezen;
 > daarvoor volstaan §2 t/m §7.
 
-**Kassa onder nul: niets meer kopen, en na 10 dagen de hamer (nieuwste)**
+**Marktwaarde houdt stand tot een nieuwere verkoop (nieuwste)**
+- **Melding van de eigenaar:** na een dure verkoop schoten de waarden omhoog en zakten ze
+  daarna dag na dag terug, terwijl die hogere prijs net de juiste was (een duif van score 80:
+  €20.000 → €12.000 in een paar dagen).
+- **Oorzaak:** het **vertrouwen** in de markt (hoeveel de verkopen het model overrulen) werd
+  berekend uit dezelfde recentheidsgewichten als het prijsniveau. Het gewicht van een verkoop
+  halveerde elke 10 dagen, dus ook zonder één nieuwe verkoop gleed de waarde elke dag terug
+  naar het model, dat de top veel te laag schat (gesimuleerd: €12.800 → €7.500 in 10 dagen,
+  het model na 28). Daarbovenop: enkel de nieuwste **40** verkopen werden bewaard (een drukke
+  week duwde een topverkoop er binnen dagen uit), en met `talentSigma 10` trok een reeks
+  gewone verkopen rond score 60–70 de top omlaag én tilde één topverkoop de hele club op.
+- **Fix (`core/game/market.ts`):** vertrouwen = **hoeveelheid vergelijkbaar bewijs, niet de
+  leeftijd** (`evidence` = Σ gelijkenis × `presence`); recentheid bepaalt enkel welke verkoop
+  het **prijsniveau** zet (de nieuwste weegt het zwaarst). Zonder nieuwe verkoop blijft de prijs
+  dus staan. `observationDays` 28 → **60**, met `fadeDays` **14** (een verkoop vervaagt pas in de
+  laatste 14 dagen, geen klif); `talentSigma` 10 → **6** (±6 talent telt ~60 %, ±12 ~14 %);
+  `TRADE_LOAD_LIMIT` 40 → **100** (zoals vroeger). `halfLifeDays 10`, `trustWeight 1.5`,
+  `maxTrust 0.85` en de factorband 0.1–8 ongewijzigd. Wiki (#markt) en spelregels §9.0 mee.
+- **Kost:** +60 rijen per volledig verzoek → `daily-budget.test.mts` **28,4 %** van de 5M/dag,
+  185 rijen per verzoek. CPU-budget ongewijzigd groen. Geen schemawijziging, geen migratie.
+- **Afweging:** een prijs die blijft staan, blijft ook staan als hij door een vriendendeal is
+  opgedreven (tot een nieuwere verkoop in die band of 60 dagen). Het plafond blijft 8× de
+  curve en een enkele verkoop telt maar voor 2/3.
+- **Test:** `tests/market-memory.test.mts`.
+
+**Kassa onder nul: niets meer kopen, en na 10 dagen de hamer**
 - **Vraag van de eigenaar:** wie op 0 of minder staat kan niets meer aankopen, krijgt een
   melding, verliest zijn coaches, en ziet na 10 dagen in het rood zijn slechtste duif
   **geveild** (niet rechtstreeks verkocht) aan de marktwaarde — en elke 10 dagen de volgende.
@@ -2872,8 +2871,8 @@ Alles hieronder staat **live** op de deploy-branch. Data-migraties liepen door t
   voeden badges — dit is puur wat de speler ziet.
 - **Markthistoriek toont 7 dagen** (`TRADE_HISTORY_DAYS`), server-side in `recentTrades`.
   ⚠️ **Raakt de waardering niet:** `market.ts` leest `db.trades` rechtstreeks met zijn eigen
-  venster van 28 dagen (`MARKET_VALUATION.observationDays`), dus een verkoop stuurt de prijzen
-  nog drie weken nadat ze van het lijstje af is. (⚠️ Op dev: 60 dagen, zie §0b.)
+  venster van 60 dagen (`MARKET_VALUATION.observationDays`), dus een verkoop stuurt de prijzen
+  nog zo'n zeven weken nadat ze van het lijstje af is.
 - **Beide vensters zijn tijdgebaseerd, niet aantalsgebaseerd**, dus dezelfde wereld loopt
   vanzelf leeg — geen opruimtick, geen migratie, geen extra query. De UI zegt het zelf
   ("laatste 24 uur" / "laatste 7 dagen"): een lijst die stilletjes korter wordt leest als een bug.
@@ -4158,9 +4157,9 @@ Hieronder enkel wat je nodig hebt om eraan te werken.)
      (`Trade.talent`, kolom `talent REAL` achteraan `SCHEMA_STEPS`);
   2. per verkoop een **factor** = prijs ÷ referentiecurve op dat talent;
   3. die factoren worden gemiddeld per talentband, gewogen op **talentafstand**
-     (`talentSigma 10`) en **recentheid** (`halfLifeDays 10`, venster 28 dagen);
-     ⚠️ op dev anders (σ 6, venster 60, vertrouwen veroudert niet) — zie §0b "Marktwaarde
-     houdt stand";
+     (`talentSigma 6`) en **recentheid** (`halfLifeDays 10`, venster 60 dagen); hoe ver de
+     markt het model overrult (het **vertrouwen**) hangt enkel af van hoeveel vergelijkbare
+     verkopen er zijn, niet van hun leeftijd — zie §8 "Marktwaarde houdt stand";
   4. de curve wordt **monotoon** gemaakt (cumulatief maximum) → een betere duif is nooit
      minder waard, ook niet als er in één band een koopje voorbijkwam.
 - **Waarom factoren en niet de prijzen zelf:** met 10 spelers zijn er nooit verkopen in
@@ -5126,8 +5125,8 @@ klopt.** (Dezelfde les als ronde 2, twee keer geleerd.)
 13. **`TRADE_LOAD_LIMIT` 100 → 40** (`core/d1.ts`, **geëxporteerd** zodat
     `d1-partial-load.test.mts` de constante volgt i.p.v. 100 te hardcoderen). De
     marktwaardering weegt een verkoop toch al op recentheid (halfwaardetijd 10 dagen,
-    venster 28 dagen), dus de oudste 60 bewogen de curve nauwelijks. (⚠️ Op dev terug naar
-    100: een prijs blijft er nu staan tot een nieuwere verkoop — zie §0b.)
+    venster 28 dagen), dus de oudste 60 bewogen de curve nauwelijks. (Later terug naar 100:
+    een prijs blijft nu staan tot een nieuwere verkoop — zie §8 "Marktwaarde houdt stand".)
 
 **Ronde 6, bevinding 1 — een verzoek kán hangen (past op "blijft laden").** De middleware
 deed de weer-fetches **sequentieel**, elk met een eigen timeout van 4 s. Een estafette heeft

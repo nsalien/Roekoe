@@ -1,5 +1,5 @@
 /**
- * Marktwaarde houdt stand (⚠️ dev, nog niet live).
+ * Marktwaarde houdt stand.
  *
  * Een verkoop zet de prijs voor vergelijkbare duiven, en die prijs BLIJFT staan tot
  * een nieuwere verkoop iets anders zegt. Vroeger zakte hij elke dag terug naar het

@@ -1961,10 +1961,13 @@ betalen**. Elke afgeronde verkoop — markt, privébod of veilinghamer — wordt
 mét het talent van die duif, en samen vormen die de prijslijst van de club.
 
 - **Vergelijkbare duiven bepalen de prijs.** Ging een duif van talent 70 weg voor
-  €7.000, dan schuiven alle duiven in die klasse mee omhoog.
-- **Recente verkopen wegen zwaarder:** het gewicht halveert elke **10 dagen** en na
-  **4 weken** telt een verkoop niet meer mee. Prijzen verschillen dus **van week tot
-  week**, zoals op een echte markt.
+  €7.000, dan schuiven de duiven in die klasse mee omhoog: een paar punten talent
+  verschil telt bijna volledig mee, wie twaalf punten lager zit merkt er weinig van.
+- **Een prijs blijft staan tot een nieuwere verkoop iets anders zegt.** Wordt er niets
+  vergelijkbaars meer verkocht, dan zakt de schatting niet vanzelf terug. Komt er wel
+  een nieuwe verkoop, dan weegt die zwaarder dan de oudere (het gewicht halveert elke
+  **10 dagen**): zo volgen de prijzen de markt **van week tot week**. Een verkoop telt
+  **60 dagen** mee, de laatste twee weken steeds minder.
 - **Waar niet op geboden wordt, is weinig waard.** Gaan zwakke duiven voor een
   habbekrats weg, dan zakt de schatting voor dat soort duiven mee tot enkele tientjes.
 - **Een betere duif is nooit minder waard** dan een mindere, ook al kwam er in haar
