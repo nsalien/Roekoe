@@ -103,6 +103,8 @@ export interface Pigeon {
   // Breed (ras): cosmetic photo + rarity. Public for every bird.
   breed: PigeonBreed;
   value: number;
+  /** The lowest price she may change hands for: 1/5 of her value (MIN_SALE_SHARE). */
+  minPrice?: number;
   /** Prijzengeld dat deze duif voor haar huidige eigenaar won (alle vluchten). Null = niet jouw duif. */
   earnings?: number | null;
   canRace: boolean;

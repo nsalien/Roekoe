@@ -2093,6 +2093,28 @@ export const MARKET_VALUATION = {
 };
 
 /**
+ * A bird never changes hands below this share of her market value (the owner:
+ * "een duif van €10.000 kan niet verkocht worden onder de €2.000"). Checked on a
+ * listing (vraagprijs and "bieden vanaf"), when it is bought, on a bod and when
+ * a bod is accepted — the value can move in between. Auctions already open at
+ * the market value. See market.ts::minSalePrice.
+ */
+export const MIN_SALE_SHARE = 0.2;
+
+/**
+ * Sales that do NOT count for the market value (the owner's call): two birds that
+ * Roekoeloos sold to Graanabolica for €25 in early October 2026, far under what
+ * they were worth, which dragged every comparable bird down. They stay in the
+ * sale history; only the valuation skips them. Matched on name, price and both
+ * lofts (a bird's name is unique in the world). Harmless once they are out of
+ * the valuation window (MARKET_VALUATION.observationDays) — then they can go.
+ */
+export const IGNORED_TRADES: readonly { pigeonName: string; price: number; sellerName: string; buyerName: string }[] = [
+  { pigeonName: 'Zulma uit het Zolderhok', price: 25, sellerName: 'Roekoeloos', buyerName: 'Graanabolica' },
+  { pigeonName: 'Freddy de Fondkoning', price: 25, sellerName: 'Roekoeloos', buyerName: 'Graanabolica' },
+];
+
+/**
  * How far back the in-game verkoopgeschiedenis on the market reaches.
  *
  * ⚠️ Display only, and deliberately far SHORTER than

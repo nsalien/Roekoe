@@ -415,21 +415,22 @@ function BidCascade({
               <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
                 <input
                   type="number"
-                  min={1}
+                  min={selected.minPrice ?? 1}
                   value={amount || ''}
-                  placeholder="bedrag"
+                  placeholder={`vanaf ${selected.minPrice ?? 1}`}
                   onChange={(e) => setAmount(Number(e.target.value))}
                   style={{ maxWidth: 160 }}
                 />
                 <button
                   className="btn accent"
-                  disabled={busy || !(amount > 0) || amount > money}
+                  disabled={busy || !(amount > 0) || amount < (selected.minPrice ?? 0) || amount > money}
                   onClick={() => { onBid(selected.id, amount); setAmount(0); }}
                 >
                   Bied <Money value={amount || 0} />
                 </button>
                 <span className="faint" style={{ alignSelf: 'center' }}>je kassa: <Money value={money} /></span>
               </div>
+              <span className="faint sm">Minstens <Money value={selected.minPrice ?? 0} />: nooit onder 1/5 van haar waarde.</span>
             </div>
           )}
         </>
@@ -613,7 +614,8 @@ function ListingBid({
   busy: boolean;
   onBid: (pigeonId: string, amount: number) => void;
 }) {
-  const floor = pigeon.minBid ?? 0;
+  // The seller's "bieden vanaf", but never under 1/5 of her value (the server's floor).
+  const floor = Math.max(pigeon.minBid ?? 0, pigeon.minPrice ?? 0);
   const ask = pigeon.price ?? 0;
   const [amount, setAmount] = useState<number>(floor);
   const tooLow = amount < floor;

@@ -1711,7 +1711,9 @@ export function WikiPage() {
 
         <p>
           <strong>Wat je ermee doet:</strong> de waarde is een <em>richtprijs</em>, geen verplichting —
-          je mag je duif voor elk bedrag te koop zetten. Ze bepaalt wel het <strong>startbod van de
+          je mag je duif voor elk bedrag te koop zetten <strong>vanaf 1/5 van haar waarde</strong> (een duif
+          van €10.000 dus vanaf €2.000). Lager kan niet, ook niet als bod; steeg haar waarde intussen, dan
+          geldt 1/5 van de nieuwe waarde. Ze bepaalt wel het <strong>startbod van de
           veilingen</strong> (30 % van de waarde, zodat er nog te bieden valt) en wat de gladde koopman
           in een dilemma voor je pronkstuk neerlegt.
         </p>

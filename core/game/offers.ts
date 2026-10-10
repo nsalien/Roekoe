@@ -17,6 +17,7 @@ import { awardBadge, evaluateBadges } from './badges.js';
 import { progressMissions } from './missions.js';
 import { pigeonCommittedToFlight } from './flight.js';
 import { isAway, talent } from './pigeon.js';
+import { minSalePrice } from './market.js';
 
 function notify(db: Database, userId: string, title: string, body: string): void {
   db.notifications.push({
@@ -51,6 +52,9 @@ export function makeOffer(db: Database, fromUserId: string, pigeonId: string, am
   const debt = debtBlock(bidder); if (debt) return debt;
   const bid = Math.round(amount);
   if (!(bid > 0)) return 'Ongeldig bod';
+  // Never under 1/5 of her market value (MIN_SALE_SHARE).
+  const min = minSalePrice(db, pigeon);
+  if (bid < min) return `Een bod onder 1/5 van haar marktwaarde kan niet: bied minstens €${min}`;
   // A bird ON the market can only be bid on when its seller opened the door with
   // a "bieden vanaf". Otherwise the listing is buy-now only and haggling would
   // just be a way to dodge the asking price.
@@ -150,6 +154,9 @@ export function respondOffer(db: Database, ownerId: string, offerId: string, acc
   const buyer = db.lofts.find((l) => l.userId === o.fromUserId);
   const seller = db.lofts.find((l) => l.userId === ownerId);
   if (!buyer || !seller) { remove(); return 'Speler niet gevonden'; }
+  // Her value may have risen since the bod: below 1/5 of it, it can only be refused.
+  const min = minSalePrice(db, pigeon);
+  if (o.amount < min) return `Dit bod ligt onder 1/5 van haar marktwaarde (minstens €${min}) — je kan het enkel weigeren`;
   // The pigeon must be free to move.
   const racing = pigeonCommittedToFlight(db, pigeon.id);
   if (racing) return 'Deze duif staat ingeschreven voor een vlucht — schrijf ze eerst uit';
