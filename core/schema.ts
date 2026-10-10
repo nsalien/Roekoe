@@ -853,6 +853,14 @@ export interface Trade {
    * trained on, been sold again, or died.
    */
   talent?: number;
+  /**
+   * How much the sold bird was worth per the model, relative to talent alone
+   * (estimateValue ÷ talentCurve at the sale: her age, experience, genes, breed,
+   * kenmerk). A sale is measured against THAT, not against an average bird of her
+   * talent — otherwise good genes counted twice: once in what was paid, and again
+   * in the value of every other good bird (market.ts). Absent on older sales.
+   */
+  quality?: number;
 }
 
 /**

@@ -38,7 +38,7 @@
 
 import type { Database, Pigeon, Trade } from '../schema.js';
 import { IGNORED_TRADES, MARKET_VALUATION, MIN_SALE_SHARE } from '../config/gameConfig.js';
-import { estimateValue, talent } from './pigeon.js';
+import { estimateValue, talent, talentCurve } from './pigeon.js';
 import { clamp } from './util.js';
 
 /** Talent grid the curve is sampled on (0..100 inclusive, step 2). */
@@ -66,7 +66,16 @@ export interface MarketValuation {
  * market pays N× the curve" regardless of the sold bird's age or experience.
  */
 function reference(t: number): number {
-  return Math.max(50, Math.pow(Math.max(t, 1) / 50, 2.2) * 800);
+  return Math.max(50, talentCurve(t));
+}
+
+/**
+ * How much this bird is worth per the model beyond her talent alone — her age,
+ * experience, genes, breed and kenmerk (Trade.quality). Stored with every sale, so
+ * the sale can be measured against what THAT bird was worth.
+ */
+export function saleQuality(pigeon: Pigeon, currentWeek: number): number {
+  return Math.round((estimateValue(pigeon, currentWeek) / reference(clamp(talent(pigeon), 0, 100))) * 1000) / 1000;
 }
 
 interface MarketCurve {
@@ -91,11 +100,11 @@ interface MarketCurve {
 const curveCache = new WeakMap<Database, { curve: MarketCurve; trades: number }>();
 
 function buildCurve(db: Database, nowMs: number): MarketCurve {
-  const { talentSigma, halfLifeDays, observationDays, fadeDays, trustWeight, maxTrust, minFactor, maxFactor } =
+  const { talentSigma, halfLifeDays, observationDays, fadeDays, trustWeight, maxTrust, minFactor, maxFactor, legacyQuality } =
     MARKET_VALUATION;
 
   // Collect usable observations once.
-  const obs: { talent: number; price: number; recency: number; presence: number }[] = [];
+  const obs: { talent: number; price: number; recency: number; presence: number; factor: number }[] = [];
   for (const trade of db.trades) {
     if (typeof trade.talent !== 'number' || trade.price <= 0) continue; // pre-market-data sale
     if (!countsForValuation(trade)) continue; // set aside by the owner (IGNORED_TRADES)
@@ -103,9 +112,14 @@ function buildCurve(db: Database, nowMs: number): MarketCurve {
     if (Number.isNaN(atMs)) continue;
     const ageDays = (nowMs - atMs) / 86400000;
     if (ageDays < 0 || ageDays > observationDays) continue;
+    // What THIS sale says: the price against what that bird was worth per the
+    // model (talent curve × her own quality), clamped so one sale can never say
+    // more than minFactor..maxFactor.
+    const quality = typeof trade.quality === 'number' && trade.quality > 0 ? trade.quality : legacyQuality;
     obs.push({
       talent: trade.talent,
       price: trade.price,
+      factor: clamp(trade.price / (reference(trade.talent) * quality), minFactor, maxFactor),
       // Which sales set the price LEVEL: the newest weigh most.
       recency: Math.pow(0.5, ageDays / halfLifeDays),
       // How much a sale counts as evidence: fully, until it nears the end of the window.
@@ -122,7 +136,8 @@ function buildCurve(db: Database, nowMs: number): MarketCurve {
   for (const t of GRID) {
     let evidence = 0;
     let weightSum = 0;
-    let weightedFactor = 0;
+    const logFactors: number[] = [];
+    const weights: number[] = [];
     let weightedPrice = 0;
     let n = 0;
     for (const o of obs) {
@@ -134,11 +149,13 @@ function buildCurve(db: Database, nowMs: number): MarketCurve {
       const w = e * o.recency;
       evidence += e;
       weightSum += w;
-      weightedFactor += w * (o.price / reference(o.talent));
+      logFactors.push(Math.log(o.factor));
+      weights.push(w);
       weightedPrice += w * o.price;
       n += 1;
     }
-    const f = weightSum > 0 ? clamp(weightedFactor / weightSum, minFactor, maxFactor) : 1;
+    // What the sales say together, robustly (see robustLogMean).
+    const f = weightSum > 0 ? Math.exp(robustLogMean(logFactors, weights)) : 1;
     // Trust from the evidence alone: without a newer sale, a price stays put.
     const tr = clamp(evidence / trustWeight, 0, maxTrust);
     factor.push(f);
@@ -154,6 +171,37 @@ function buildCurve(db: Database, nowMs: number): MarketCurve {
   for (let i = 1; i < scaled.length; i++) scaled[i] = Math.max(scaled[i], scaled[i - 1]);
 
   return { scaled, factor, trust: trustArr, samples, price };
+}
+
+/**
+ * The consensus of a band's sales, in log space (so a sale at 2× and one at ½×
+ * cancel out): Huber's robust mean, started at the weighted median. A sale within
+ * MARKET_VALUATION.outlierBand of the consensus counts fully; one further off
+ * still counts, but pulls no harder than a sale right at that edge. Six rounds is
+ * plenty for the handful of sales a band ever has.
+ */
+function robustLogMean(xs: number[], ws: number[]): number {
+  const order = xs.map((_, i) => i).sort((a, b) => xs[a] - xs[b]);
+  const total = ws.reduce((s, w) => s + w, 0);
+  let m = xs[order[0]];
+  let acc = 0;
+  for (const i of order) {
+    acc += ws[i];
+    if (acc >= total / 2) { m = xs[i]; break; }
+  }
+  const c = Math.log(MARKET_VALUATION.outlierBand);
+  for (let round = 0; round < 6; round++) {
+    let num = 0;
+    let den = 0;
+    for (let i = 0; i < xs.length; i++) {
+      const off = Math.abs(xs[i] - m);
+      const k = off <= c ? 1 : c / off;
+      num += ws[i] * k * xs[i];
+      den += ws[i] * k;
+    }
+    if (den > 0) m = num / den;
+  }
+  return m;
 }
 
 function curveFor(db: Database, nowMs: number): MarketCurve {

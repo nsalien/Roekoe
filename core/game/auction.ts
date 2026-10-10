@@ -18,7 +18,7 @@ import { AUCTION, DEBT, GENE } from '../config/gameConfig.js';
 import { awardBadge } from './badges.js';
 import { generatePigeon, talent } from './pigeon.js';
 import { debtBlock } from './economy.js';
-import { marketValue, noteMarketNews } from './market.js';
+import { marketValue, noteMarketNews, saleQuality } from './market.js';
 import { namesInUse } from './names.js';
 import { clamp, randFloat, round1 } from './util.js';
 
@@ -309,7 +309,7 @@ function closeAuction(db: Database, a: Auction): void {
       id: tradeId, pigeonId: p.id, pigeonName: p.name,
       sellerId, sellerName,
       buyerId: winner.userId, buyerName: winner.name, price,
-      at: new Date().toISOString(), talent: talent(p),
+      at: new Date().toISOString(), talent: talent(p), quality: saleQuality(p, db.world.currentWeek),
     };
     if (existing) Object.assign(existing, trade);
     else db.trades.push(trade);

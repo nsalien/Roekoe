@@ -167,6 +167,44 @@
 - **Demo:** `DEMO_VERSION` = 4, zodat een bewaarde demo met koppels opnieuw opgebouwd wordt; het
   broedende duo in de demo is gewoon een nest (`startBreeding`), zonder aantrekking.
 
+### Marktwaarde v2 — correct en stabiel (⚠️ dev, nog niet live)
+- **Vraag van de eigenaar:** "ik wil kunnen baseren op marktwaarde, maar daarvoor moet die eerst
+  correct worden bepaald" — en niet meer fluctueren. Een ★80 werd op ~€14.000 geschat terwijl
+  spelers €20–25.000 betalen. De scout blijft voorlopig zoals hij is (hij rekent met de waarde).
+- **Oorzaken (gemeten):** (1) de schatting was aan de top veel te laag: `(t/50)^2.2 × 800` gaf een
+  gewone ★80 €2.600; (2) één verkoop telde voor 2/3, het model hield altijd 15 % en de marktfactor
+  was begrensd op ×8 → één verkoop van €20.000 gaf €14.680, vier gaven €18.000 (de grens);
+  (3) **dubbeltelling**: een verkoop werd gemeten t.o.v. een *gemiddelde* duif van dat talent, en
+  daarna nog eens vermenigvuldigd met de genen/ervaring van de getaxeerde duif — een goede duif
+  verkocht aan haar schatting maakte de hele band ~40 % duurder.
+- **Fix:**
+  1. **`talentCurve(t)`** (pigeon.ts, `VALUE_CURVE`): `800 × (t/50)^2.2 × (1 + 0,01375 × max(0, t−60)²)`
+     — ×6,5 bij ★80. Zowel `estimateValue` als `reference` in market.ts gebruiken hem. Gewone duif
+     (genen 82, ervaring 30): ★70 €4.600 · ★75 €9.200 · ★80 €16.800 · ★85 €28.400 · ★90 €44.800;
+     goede (genen 90, ervaring 60) ~1,5×. ★60 en lager ongewijzigd.
+  2. **`Trade.quality`** = `estimateValue ÷ talentCurve` bij de verkoop (`saleQuality`, gezet in
+     `settlePigeonSale`, `offers.transfer` en de veilinghamer). Een verkoop zegt
+     `prijs ÷ (curve × quality)`, per verkoop begrensd op **0,5–2** (`minFactor/maxFactor`: in de demo
+     zette één oude "verkoop" van €7.000 voor een ★55 elke ★55 45 % hoger toen de grens nog 0,2–5 was;
+     blijft de markt buiten die band betalen, herijk dan `VALUE_CURVE`). Oude
+     verkopen zonder quality rekenen met `legacyQuality` 1,15. Nieuwe kolom `trades.quality`:
+     ⚠️ **SCHEMA_STEPS**: de stap staat achteraan dev (na de 3 hokinrichtingsstappen); bij een
+     cherry-pick naar productie zet je hem achteraan *productie's* lijst (dev heeft geen eigen
+     databank, enkel demo's, dus de volgorde op dev mag nadien gelijkgetrokken worden).
+  3. **Robuust gemiddelde:** `robustLogMean` = Huber in log-ruimte, gestart op de gewogen mediaan;
+     een verkoop verder dan **×1,5** (`outlierBand`) van de consensus trekt niet harder dan een
+     verkoop op die rand. Log-ruimte: 2× en ½× heffen elkaar op.
+  4. **`trustWeight` 1,5 → 3**: één verkoop verschuift een derde, ~drie verkopen 85 % (`maxTrust`).
+- **Gemeten (`tests/market-memory.test.mts`, herschreven):** zonder verkopen = schatting; verkopen
+  aan hun schatting (goede of gewone) veranderen niets; één verkoop aan 2× → ×1,33; drie aan 1,3×
+  → ×1,26; twee normale + één uitschieter aan 3× → ×1,26 (was ×1,49); de prijs blijft staan (dag
+  1 = dag 40), vervaagt op het einde, is na 60 dagen weg; monotoon.
+- **Gevolgen:** alles wat op de waarde steunt schuift mee (verzekering, veilingstart 30 %, 1/5-grens,
+  schuldveiling, wat bots willen betalen). Bots geven hoogstens de helft van hun vrije kas uit,
+  dus een topduif van €25.000+ kopen ze zelden. Testfixtures aangepast: `market-bidding` (duif ★60
+  i.p.v. ★75, anders lagen €3.000–€4.000 onder 1/5), `bot-bidding` (koopje ★75 i.p.v. ★85),
+  `bot-market` (bot krijgt €400.000 om te winkelen). `DEMO_VERSION` 5.
+
 ### Voer: ongewijzigd
 - Een eerste poging met acht voersoorten (Herstel enkel na een vlucht, Sport, Fond, …) is op
   vraag van de eigenaar **volledig teruggedraaid**: "niet goed gedaan". `FEED_RATIONS`, de bots en
@@ -296,7 +334,7 @@
 - **Demo:** de demospeler heeft **altijd minstens €100.000** (wens van de eigenaar): de seed geeft
   `DEMO_MONEY`, en `topUpDemoMoney` (client/demo/seed.ts) vult bij **elke start** van de demo aan tot
   dat bedrag — ook na +1 uur/+6 uur/+1 dag en "Demo opnieuw" (die herladen de pagina). Binnen een
-  bezoek zie je wat je uitgeeft; meer dan €100.000 (prijzengeld) blijft staan. `DEMO_VERSION` = 4.
+  bezoek zie je wat je uitgeeft; meer dan €100.000 (prijzengeld) blijft staan. `DEMO_VERSION` = 5.
 - **Tests:** `tests/inrichting.test.mts` (alles hierboven), `tests/hygiene.test.mts`.
 
 ---
@@ -1541,7 +1579,7 @@ Alles hieronder staat **live** op de deploy-branch. Data-migraties liepen door t
 - **Test:** `tests/market-floor.test.mts`. `bot-market` test 2 zet de botduif nu op precies 1/5
   (spotgoedkoop maar toegelaten), zodat enkel de bot-check haar tegenhoudt, zoals bedoeld.
 
-**Marktwaarde houdt stand tot een nieuwere verkoop**
+**Marktwaarde houdt stand tot een nieuwere verkoop** (⚠️ op dev vervangen door *Marktwaarde v2*, §0b)
 - **Melding van de eigenaar:** na een dure verkoop schoten de waarden omhoog en zakten ze
   daarna dag na dag terug, terwijl die hogere prijs net de juiste was (een duif van score 80:
   €20.000 → €12.000 in een paar dagen).

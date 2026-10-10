@@ -2240,19 +2240,52 @@ export const MARKET_VALUATION = {
    *  price holds until a newer sale says otherwise. Only over the last this many
    *  days of the window does a sale fade out, so it never drops off a cliff. */
   fadeDays: 14,
-  /** Comparable evidence at which the market fully overrules the model. Roughly two
-   *  on-talent sales — small on purpose: with ten players there will never be
-   *  many, and a real price beats a guessed one. */
-  trustWeight: 1.5,
+  /** Comparable evidence at which the market fully overrules the model: about
+   *  three on-talent sales. One sale moves comparable birds a THIRD of the way to
+   *  its price — so one odd deal (a friend paying double) no longer swings a whole
+   *  band. Was 1.5 (one sale = two thirds) while the model was far too low at the
+   *  top and every sale had to drag it up; now that VALUE_CURVE prices the top
+   *  right, steadiness wins (the owner: "niet zo fluctueren"). */
+  trustWeight: 3,
   /** Never let the market be the *only* voice; the model keeps a small say so a
    *  single odd sale cannot define a whole talent band. */
   maxTrust: 0.85,
-  /** Hard band on the market factor, so one eccentric sale cannot move the whole
-   *  scale absurdly far. A cheap-birds-are-worthless market may push prices down to
-   *  a tenth of the curve; a hot market up to eightfold. */
-  minFactor: 0.1,
-  maxFactor: 8,
+  /** Hard band on what ONE sale says (price ÷ what that bird was worth per the
+   *  model), applied per sale before averaging: at most double, at least half.
+   *  With the model priced right (VALUE_CURVE), a sale far outside that is a
+   *  special deal — a friend paying a fortune, a dump — and a single one used to
+   *  swing a band by half or more (one €7.000 sale of a ★55 lifted every ★55 by
+   *  45 %). Was 0.1–8 on the averaged factor, when the model sat at a fifth of
+   *  real top prices and needed the room. If the market keeps paying beyond this
+   *  band, recalibrate VALUE_CURVE rather than widen it. */
+  minFactor: 0.5,
+  maxFactor: 2,
+  /** A sale further than this factor from what the other comparable sales say (×1,5
+   *  up or down) is an outlier: it still counts, but its pull is capped (Huber).
+   *  Without it, one friend deal at 3× among two normal sales lifted the band by
+   *  half; now by about a quarter. */
+  outlierBand: 1.5,
+  /** The quality (Trade.quality) assumed for a sale recorded before it was stored:
+   *  a typical bird is worth about this much more than talent alone (a fresh world:
+   *  median 1,08, p75 1,17; birds that raced a while sit a bit higher). Only for
+   *  the sales already on file — they leave the window within observationDays. */
+  legacyQuality: 1.15,
 };
+
+/**
+ * The value of talent alone (pigeon.ts::talentCurve): 800 × (t/50)^2.2, plus a
+ * quadratic premium above `topFrom` — ×(1 + topPremium × (t − topFrom)²), ×6,5 at
+ * ★80. The old curve priced a plain ★80 at €2.250 while players paid €20.000+ (the
+ * top of the club wins the prize money: the top 3 take ~75 % per flight), so the
+ * market had to drag every top value up from a fifth and one sale more or less
+ * made the price. With the top priced right, the market only has to nudge.
+ * Plain bird (genes 82, experience 30): ★70 €4.600 · ★75 €9.200 · ★80 €16.800 ·
+ * ★85 €28.400 · ★90 €44.800; a good one (genes 90, experience 60) ~1,5× that.
+ */
+export const VALUE_CURVE = {
+  topFrom: 60,
+  topPremium: 0.01375,
+} as const;
 
 /**
  * A bird never changes hands below this share of her market value (the owner:

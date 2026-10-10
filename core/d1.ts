@@ -325,6 +325,7 @@ function rowToTrade(r: any): Trade {
     price: r.price,
     at: r.at,
     talent: typeof r.talent === 'number' ? r.talent : undefined,
+    quality: typeof r.quality === 'number' ? r.quality : undefined,
   };
 }
 
@@ -820,9 +821,9 @@ export class D1Store implements Store {
     diff(this.snapshots.trades, w.trades, (t) => t.id, {
       db,
       table: 'trades',
-      columns: ['id', 'pigeon_id', 'pigeon_name', 'seller_id', 'seller_name', 'buyer_id', 'buyer_name', 'price', 'at', 'talent'],
+      columns: ['id', 'pigeon_id', 'pigeon_name', 'seller_id', 'seller_name', 'buyer_id', 'buyer_name', 'price', 'at', 'talent', 'quality'],
       keyColumn: 'id',
-      row: (t) => [t.id, t.pigeonId, t.pigeonName, t.sellerId, t.sellerName, t.buyerId, t.buyerName, t.price, t.at, t.talent ?? null],
+      row: (t) => [t.id, t.pigeonId, t.pigeonName, t.sellerId, t.sellerName, t.buyerId, t.buyerName, t.price, t.at, t.talent ?? null, t.quality ?? null],
       onInsert: () => { addedTrade = true; },
       stmts,
     });
@@ -1739,6 +1740,12 @@ export const SCHEMA_STEPS: string[] = [
   // weerstation's forecast on the flight row — same rules: '' = untouched.
   "ALTER TABLE pigeons ADD COLUMN care TEXT NOT NULL DEFAULT ''",
   "ALTER TABLE flights ADD COLUMN forecast TEXT NOT NULL DEFAULT ''",
+
+  // Marktwaarde (⚠️ dev): how good the sold bird was beyond her talent (Trade.quality),
+  // so a sale is measured against HER, not an average bird. ⚠️ Going to production:
+  // append this step at the END of production's list (it does not have the three
+  // hokinrichting steps above); dev has no database of its own, only demos.
+  'ALTER TABLE trades ADD COLUMN quality REAL',
 ];
 
 /**

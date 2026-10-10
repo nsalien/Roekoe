@@ -63,7 +63,7 @@ function list(w: ReturnType<typeof world>, pick: Pigeon, factor = 1): number {
  * blokken hieronder toetsen iets ánders dan die wachttijd — anders zou elke test
  * er per ongeluk op slagen.
  */
-function botDay(w: ReturnType<typeof world>, money = 40000, at = Date.now() + RIPE) {
+function botDay(w: ReturnType<typeof world>, money = 400000, at = Date.now() + RIPE) {
   w.bot.money = money;
   botDailyActions(w.db, w.bot, w.owned(w.bot), at);
 }
@@ -83,11 +83,11 @@ console.log('\n0. Een verse listing is eerst van de spelers');
   // verzonnen testklok zou hier langs de regel heen glijden.
   const t0 = Date.parse(best.listedAt!);
 
-  botDay(w, 40000, t0); // meteen
+  botDay(w, 400000, t0); // meteen
   ok(best.ownerId === w.player.userId, 'meteen na het te koop zetten koopt geen enkele bot');
-  botDay(w, 40000, t0 + (BOT.marketMinListedHours - 1) * 3600000);
+  botDay(w, 400000, t0 + (BOT.marketMinListedHours - 1) * 3600000);
   ok(best.ownerId === w.player.userId, `een uur vóór de grens (${BOT.marketMinListedHours} u) nog steeds niet`);
-  botDay(w, 40000, t0 + RIPE);
+  botDay(w, 400000, t0 + RIPE);
   ok(best.ownerId === w.bot.userId, 'daarna is ze wel vrij spel');
 }
 {
@@ -100,9 +100,9 @@ console.log('\n0. Een verse listing is eerst van de spelers');
   ok(best.listedAt == null, 'uit de markt halen wist de stempel');
   list(w, best); // opnieuw te koop → nieuwe stempel
   const t1 = Date.parse(best.listedAt!);
-  botDay(w, 40000, t1 + 3600000); // een uur na het opnieuw plaatsen
+  botDay(w, 400000, t1 + 3600000); // een uur na het opnieuw plaatsen
   ok(best.ownerId === w.player.userId, 'na opnieuw plaatsen begint de wachttijd van voren af aan');
-  botDay(w, 40000, t1 + RIPE);
+  botDay(w, 400000, t1 + RIPE);
   ok(best.ownerId === w.bot.userId, '…en loopt daarna gewoon af');
 }
 {
@@ -113,7 +113,7 @@ console.log('\n0. Een verse listing is eerst van de spelers');
   list(w, best);
   const t0 = Date.parse(best.listedAt!);
   best.listedAt = null; // zoals een rij uit de database van vóór de kolom
-  botDay(w, 40000, t0);
+  botDay(w, 400000, t0);
   ok(best.ownerId === w.bot.userId, 'een listing zonder stempel geldt als oud en mag gekocht worden');
 }
 

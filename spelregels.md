@@ -1948,19 +1948,27 @@ De **geschatte waarde** komt niet uit een vaste formule maar uit **wat spelers e
 betalen**. Elke afgeronde verkoop — markt, privébod of veilinghamer — wordt onthouden
 mét het talent van die duif, en samen vormen die de prijslijst van de club.
 
-- **Vergelijkbare duiven bepalen de prijs.** Ging een duif van talent 70 weg voor
-  €7.000, dan schuiven de duiven in die klasse mee omhoog: een paar punten talent
+- **Vergelijkbare duiven bepalen de prijs.** Elke verkoop wordt vergeleken met wat
+  díe duif volgens de schatting waard was (talent, genen, ervaring, leeftijd). Betaalde
+  iemand meer, dan schuiven de duiven in die klasse mee omhoog: een paar punten talent
   verschil telt bijna volledig mee, wie twaalf punten lager zit merkt er weinig van.
+- **Eén verkoop zegt niet alles.** Eén verkoop verschuift de waarde een derde van het
+  verschil; na een drietal vergelijkbare verkopen telt de markt voor **85 %**. Eén
+  verkoop telt hoogstens als het **dubbele of de helft** van de schatting, en een
+  uitschieter (meer dan **1,5×** naast wat de andere verkopen zeggen) telt maar
+  gedeeltelijk mee.
 - **Een prijs blijft staan tot een nieuwere verkoop iets anders zegt.** Wordt er niets
   vergelijkbaars meer verkocht, dan zakt de schatting niet vanzelf terug. Komt er wel
   een nieuwe verkoop, dan weegt die zwaarder dan de oudere (het gewicht halveert elke
   **10 dagen**): zo volgen de prijzen de markt **van week tot week**. Een verkoop telt
   **60 dagen** mee, de laatste twee weken steeds minder.
 - **Waar niet op geboden wordt, is weinig waard.** Gaan zwakke duiven voor een
-  habbekrats weg, dan zakt de schatting voor dat soort duiven mee tot enkele tientjes.
+  habbekrats weg, dan zakt de schatting voor dat soort duiven mee, tot iets meer dan de helft.
 - **Een betere duif is nooit minder waard** dan een mindere, ook al kwam er in haar
   klasse toevallig één koopje voorbij.
 - **Zonder verkopen** valt de schatting terug op talent, genen, leeftijd en ervaring.
+  Die loopt aan de top steil op: een gewone duif van score 70 ±€4.600, 75 ±€9.200,
+  80 ±€16.800, 85 ±€28.400, 90 ±€44.800; met goede genen en ervaring ±1,5× zoveel.
   Op de duifpagina zie je hoe de prijs tot stand kwam: hoeveel procent markt, en op
   hoeveel verkopen.
 

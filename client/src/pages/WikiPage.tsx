@@ -1787,9 +1787,18 @@ export function WikiPage() {
 
         <ul>
           <li>
-            <strong>Vergelijkbare duiven bepalen de prijs.</strong> Ging er een duif van talent 70 weg
-            voor €7.000, dan schuiven de duiven in die buurt mee omhoog: een paar punten talent verschil
-            telt bijna volledig mee, wie twaalf punten lager zit merkt er weinig van.
+            <strong>Vergelijkbare duiven bepalen de prijs.</strong> Elke verkoop wordt vergeleken met wat
+            díe duif volgens de schatting waard was (haar talent, genen, ervaring en leeftijd). Betaalde
+            iemand meer, dan schuiven de duiven in die buurt mee omhoog; een paar punten talent verschil telt
+            bijna volledig mee, wie twaalf punten lager zit merkt er weinig van. Een goede duif die aan haar
+            schatting verkocht wordt, maakt een gewone duif dus niet duurder.
+          </li>
+          <li>
+            <strong>Eén verkoop zegt niet alles.</strong> Eén verkoop verschuift de waarde een derde van het
+            verschil; pas na een drietal vergelijkbare verkopen telt de markt voor 85 %. Eén verkoop telt
+            hoogstens als het dubbele of de helft van de schatting, en een uitschieter — meer dan 1,5× boven
+            of onder wat de andere verkopen zeggen — telt maar gedeeltelijk mee. Zo maakt één vriendendeal
+            de prijzen niet kapot.
           </li>
           <li>
             <strong>Een prijs blijft staan tot een nieuwere verkoop iets anders zegt.</strong> Wordt er
@@ -1799,8 +1808,8 @@ export function WikiPage() {
           </li>
           <li>
             <strong>Waar niet op geboden wordt, is weinig waard.</strong> Gaan zwakke duiven voor een
-            habbekrats van de hand, dan zakt de schatting voor dat soort duiven mee — tot enkele
-            tientjes.
+            habbekrats van de hand, dan zakt de schatting voor dat soort duiven mee — tot iets meer dan de
+            helft.
           </li>
           <li>
             <strong>Een betere duif is nooit minder waard</strong> dan een mindere. Ook als er in een
@@ -1808,8 +1817,10 @@ export function WikiPage() {
           </li>
           <li>
             <strong>Zonder verkopen valt ze terug op een schatting</strong> op basis van talent, genen,
-            leeftijd en ervaring. Op de duifpagina staat erbij hoe de prijs tot stand kwam: hoeveel
-            procent markt, en op hoeveel verkopen dat gebaseerd is.
+            leeftijd en ervaring. Die loopt aan de top steil op, want daar wordt het prijzengeld gewonnen:
+            een gewone duif van score 70 ±€4.600, 75 ±€9.200, 80 ±€16.800, 85 ±€28.400, 90 ±€44.800; met
+            goede genen en veel ervaring ongeveer anderhalf keer zoveel. Op de duifpagina staat erbij hoe
+            de prijs tot stand kwam: hoeveel procent markt, en op hoeveel verkopen dat gebaseerd is.
           </li>
         </ul>
 

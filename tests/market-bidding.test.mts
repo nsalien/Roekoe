@@ -24,7 +24,9 @@ const ok = (label: string, cond: boolean, detail = '') => {
 const WEEK = 400;
 const bird = (id: string, owner: string): Pigeon => ({
   id, ownerId: owner, name: id, sex: 'doffer', birthWeek: WEEK - 60,
-  speed: 75, endurance: 75, orientation: 75, libido: 60, form: 85, health: 92,
+  // ★60: with the steeper value curve a ★75 is worth ~€16.000, and the €3.000–€4.000
+  // in these tests would sit under 1/5 of it. The mechanics tested here do not care.
+  speed: 60, endurance: 60, orientation: 60, libido: 60, form: 85, health: 92,
   experience: 55, sireId: null, damId: null, forSale: false, price: null, minBid: null,
   createdAtWeek: WEEK - 60, ailment: null, inInfirmary: false, races: 20,
   everAiled: false, coached: false, ration: 'normal', compartment: false,

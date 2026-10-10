@@ -46,7 +46,7 @@ const loft = (userId: string, name: string, isBot: boolean, money: number): Loft
 function world(opts: { price: number; minBid: number | null; botMoney?: number }) {
   const pigeons: Pigeon[] = [
     ...Array.from({ length: 4 }, (_, i) => bird(`bot${i}`, 'bot1', 55 + i)),
-    bird('koopje', 'speler', 85),
+    bird('koopje', 'speler', 75), // clearly better than the bot's 55–58; a ★85 is now beyond its half-cash budget
   ];
   const te = pigeons.find((p) => p.id === 'koopje')!;
   te.forSale = true; te.price = opts.price; te.minBid = opts.minBid; te.listedAt = OUD;

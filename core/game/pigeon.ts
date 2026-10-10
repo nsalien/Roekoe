@@ -14,6 +14,7 @@ import {
   RACE_AGE_WEEKS,
   TRAINING,
   TRAITS,
+  VALUE_CURVE,
   traitById,
   type BreedDef,
   type RacingAttr,
@@ -354,9 +355,20 @@ export function seasonScore(pigeon: Pigeon): number {
 }
 
 /** A suggested market value in coins based on talent, potential, age and condition. */
+/**
+ * What talent alone is worth: a bird with everything else neutral (prime age, no
+ * experience, average genes, no kenmerk). See VALUE_CURVE — steep at the top,
+ * because that is what players pay for the birds that win the prize money.
+ * market.ts measures every sale against this same curve.
+ */
+export function talentCurve(t: number): number {
+  const top = Math.max(0, t - VALUE_CURVE.topFrom);
+  return Math.pow(Math.max(t, 1) / 50, 2.2) * 800 * (1 + VALUE_CURVE.topPremium * top * top);
+}
+
 export function estimateValue(pigeon: Pigeon, currentWeek: number): number {
   const t = talent(pigeon);
-  const base = Math.pow(t / 50, 2.2) * 800; // talent scales value steeply
+  const base = talentCurve(t); // talent scales value steeply, the top most of all
   const ageFactor = ageMultiplier(pigeon, currentWeek);
   const expFactor = 1 + pigeon.experience / 200;
   // A rarer breed fetches a small premium (cosmetic only — attributes unchanged).
