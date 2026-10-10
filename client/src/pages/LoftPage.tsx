@@ -39,8 +39,6 @@ export function LoftPage() {
 
   if (loading || !state) return <Spinner />;
   const pigeons = [...state.pigeons].sort((a, b) => (b[sort] ?? 0) - (a[sort] ?? 0));
-  // Koppels living in a partnerhok (hokinrichting): shown on their apart/samen button.
-  const boxed = new Set((state.loft?.equipment?.couples ?? []).filter((c) => c.partnerhok).flatMap((c) => [c.dofferId, c.duivinId]));
   const traitIdx = pigeons.findIndex((p) => p.trait);
 
   async function act(fn: () => Promise<unknown>, ok?: string, reloadFlights = false) {
@@ -132,10 +130,10 @@ export function LoftPage() {
                   className={`btn sm ${p.compartment ? 'accent' : 'ghost'}`}
                   data-tour={idx === 0 ? 'compartment' : undefined}
                   disabled={busy || (!p.compartment && (state.loft?.compartmentsUsed ?? 0) >= (state.loft?.compartments ?? 0))}
-                  title={p.compartment ? 'Zit in een apart hok' : boxed.has(p.id) ? 'Woont met haar partner in het partnerhok — klik om haar apart te zetten' : 'Zit samen met de anderen'}
+                  title={p.compartment ? 'Zit in een apart hok' : 'Zit samen met de anderen'}
                   onClick={() => act(() => api(`/pigeons/${p.id}/compartment`, { method: 'POST', body: { on: !p.compartment } }))}
                 >
-                  {p.compartment ? '🧱 Apart' : boxed.has(p.id) ? '💑 Partnerhok' : '🧱 Samen'}
+                  🧱 {p.compartment ? 'Apart' : 'Samen'}
                 </button>
               ) : (
                 <span

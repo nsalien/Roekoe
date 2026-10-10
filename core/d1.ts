@@ -1735,7 +1735,7 @@ export const SCHEMA_STEPS: string[] = [
   // Hokinrichting (⚠️ dev, nog niet live): hygiëne, stro en poetser as one JSON
   // blob on the loft row (Loft.equipment) — no table, no extra query.
   "ALTER TABLE lofts ADD COLUMN equipment TEXT NOT NULL DEFAULT ''",
-  // Per-bird care (vaccins, quarantaine, verzekering, weduwschap) and the
+  // Per-bird care (vaccins, quarantaine, verzekering) and the
   // weerstation's forecast on the flight row — same rules: '' = untouched.
   "ALTER TABLE pigeons ADD COLUMN care TEXT NOT NULL DEFAULT ''",
   "ALTER TABLE flights ADD COLUMN forecast TEXT NOT NULL DEFAULT ''",

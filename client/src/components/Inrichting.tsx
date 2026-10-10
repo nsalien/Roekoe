@@ -31,7 +31,7 @@ const euro = (n: number) => `€${n.toLocaleString('nl-BE')}`;
 
 const ICON: Record<string, string> = {
   ventilation: '🌬️', run: '🌳', raptorGuard: '🦅', light: '💡', irBoxes: '🔥',
-  baskets: '🧺', weatherStation: '📡', partnerhok: '💑', magazine: '📰',
+  baskets: '🧺', weatherStation: '📡', magazine: '📰',
 };
 
 /** What each item does, in one short sentence. The exact numbers are in the wiki. */
@@ -43,7 +43,6 @@ const WHAT: Record<string, string> = {
   irBoxes: 'Nesten komen sneller uit, vaker een tweeling',
   baskets: 'Elke vlucht kost minder energie en gezondheid',
   weatherStation: 'Je ziet het weer van de lossing een dag vooraf',
-  partnerhok: 'Een koppel woont er samen: sneller herstel, iets minder dan in een apart hok; wennen gaat er ook sneller',
   magazine: 'Marktrapport, scherpere schattingen bij andermans duif en elke maandag Het Duivenblad',
 };
 
@@ -175,13 +174,12 @@ type SectionProps = { open: boolean; onToggle: () => void; busy: boolean; act: A
 
 /**
  * Plaatsen & hokken: every room you add to the loft, each with how full it is —
- * plaatsen, aparte hokken, partnerhokken, ziekenboegbedden. None of it can be
- * sold back, so each one asks first.
+ * plaatsen, aparte hokken, ziekenboegbedden. None of it can be sold back, so
+ * each one asks first.
  */
-export function RoomsSection({ loft, cat, upkeepBands, busy, act, open, onToggle }: SectionProps & {
-  loft: Loft; cat: InrichtingCatalogue | null; upkeepBands: { upTo: number; perPigeon: number }[];
+export function RoomsSection({ loft, upkeepBands, busy, act, open, onToggle }: SectionProps & {
+  loft: Loft; upkeepBands: { upTo: number; perPigeon: number }[];
 }) {
-  const eq = loft.equipment;
   // Daily upkeep rate the NEXT bird would fall into (bands are ascending; the
   // last one also covers anything beyond it).
   const nextBirdRate = upkeepBands.length
@@ -196,7 +194,6 @@ export function RoomsSection({ loft, cat, upkeepBands, busy, act, open, onToggle
       <Usage used={loft.pigeonCount} total={loft.capacity} unit="plaatsen" />
       {loft.compartments > 0 && <> · <Usage used={loft.compartmentsUsed} total={loft.compartments} unit="apart" /></>}
       {' · '}ziekenboeg <Usage used={loft.infirmaryCount} total={loft.infirmaryCapacity} unit="" />
-      {eq && eq.partnerhokken > 0 && <> · partnerhok <Usage used={eq.partnerhokInUse} total={eq.partnerhokken} unit="" /></>}
     </>
   );
   return (
@@ -247,23 +244,6 @@ export function RoomsSection({ loft, cat, upkeepBands, busy, act, open, onToggle
           </button>
         ) : <span className="faint">elke plaats heeft er al een</span>}
       </Item>
-      {eq && cat && (
-        <Item
-          icon={ICON.partnerhok}
-          name={cat.equipment.partnerhok.label}
-          status={<Usage used={eq.partnerhokInUse} total={eq.partnerhokken} unit="in gebruik" />}
-          what={<>{WHAT.partnerhok} · een koppel zet je erin op <Link to="/kweek">Kweek</Link></>}
-        >
-          {eq.partnerhokNextPrice != null ? (
-            <button className="btn sm" disabled={busy || loft.money < eq.partnerhokNextPrice} onClick={() => {
-              if (!window.confirm(`Een partnerhok bouwen voor ${euro(eq.partnerhokNextPrice!)}?`)) return;
-              act(() => api('/loft/partnerhok', { method: 'POST' }), 'Partnerhok gebouwd');
-            }}>
-              +1 · <Money value={eq.partnerhokNextPrice} />
-            </button>
-          ) : <span className="faint">maximum bereikt</span>}
-        </Item>
-      )}
       <Item
         icon="🛏️"
         name="Ziekenboeg"
@@ -519,9 +499,9 @@ export function ScoutCard({ loft, cat, busy, act }: { loft: Loft; cat: Inrichtin
   );
 }
 
-/** On her own page: entingskaart, verzekering, weduwschap. */
-export function PigeonCareCard({ p, flock, cat, busy, run }: {
-  p: Pigeon; flock: Pigeon[]; cat: InrichtingCatalogue; busy: boolean;
+/** On her own page: entingskaart and verzekering. */
+export function PigeonCareCard({ p, cat, busy, run }: {
+  p: Pigeon; cat: InrichtingCatalogue; busy: boolean;
   run: (fn: () => Promise<unknown>, ok: string) => void;
 }) {
   const care = p.care!;
@@ -529,7 +509,7 @@ export function PigeonCareCard({ p, flock, cat, busy, run }: {
   return (
     <div className="card">
       <h2>💉 Verzorging &amp; verzekering</h2>
-      {care.quarantineUntil && <p className="notice" style={{ marginTop: 0 }}>📦 In quarantaine tot {day(care.quarantineUntil)}: niet vliegen, niet koppelen.</p>}
+      {care.quarantineUntil && <p className="notice" style={{ marginTop: 0 }}>📦 In quarantaine tot {day(care.quarantineUntil)}: niet vliegen, niet broeden.</p>}
       {care.noFlyUntil && <p className="notice" style={{ marginTop: 0 }}>💉 Net ingeënt: mag vliegen vanaf {day(care.noFlyUntil)}.</p>}
       <strong>Entingskaart</strong>
       {Object.entries(cat.vaccines).map(([key, v]) => {
@@ -557,36 +537,8 @@ export function PigeonCareCard({ p, flock, cat, busy, run }: {
         </Line>
       ) : <p className="faint" style={{ margin: '4px 0' }}>Geen marktwaarde om te verzekeren.</p>}
 
-      <div style={{ marginTop: 12 }}><strong>💑 Partner</strong></div>
-      <p style={{ margin: '4px 0' }}>
-        {care.partner ? <>Gekoppeld met <Link to={`/duif/${care.partner.id}`}>{care.partner.name}</Link>.</>
-          : care.wennenWith ? <>Aan het wennen aan <Link to={`/duif/${care.wennenWith.id}`}>{care.wennenWith.name}</Link>.</>
-          : <span className="faint">Geen partner. Een koppel vorm je op de pagina <Link to="/kweek">Kweek</Link>.</span>}
-      </p>
-
-      {p.sex === 'doffer' && (
-        <>
-          <div style={{ marginTop: 12 }}><strong>❤️ Weduwschap</strong></div>
-          {!care.partner ? (
-            <p className="faint" style={{ margin: '4px 0' }}>Hij vliegt naar zijn partner — vorm eerst een koppel.</p>
-          ) : !p.compartment ? (
-            <p className="faint" style={{ margin: '4px 0' }}>Een weduwnaar heeft een apart hok nodig (zijn woonhok).</p>
-          ) : (
-            <Line label={
-              care.widow.on
-                ? <>Aan · {care.widow.level === 2 ? <>{care.partner.name.split(' ')[0]} en hun jongen wachten thuis (sterk)</> : care.widow.level === 1 ? <>{care.partner.name.split(' ')[0]} wacht thuis</> : <>vandaag geen effect (partner niet thuis of op nest)</>} · <Money value={cat.widowFee} /> per vlucht</>
-                : <>Uit · <Money value={cat.widowFee} /> per vlucht als het werkt</>
-            }>
-              <button className={`btn sm ${care.widow.on ? 'ghost' : ''}`} disabled={busy} onClick={() =>
-                run(() => api(`/pigeons/${p.id}/widow`, { method: 'POST', body: { on: !care.widow.on } }), care.widow.on ? 'Weduwschap gestopt' : 'Weduwschap aan ❤️')}>
-                {care.widow.on ? 'Stoppen' : 'Aanzetten'}
-              </button>
-            </Line>
-          )}
-        </>
-      )}
       <div className="faint" style={{ fontSize: '0.8rem', marginTop: 8 }}>
-        <Link to="/wiki#inrichting">Meer info over vaccins, verzekering en weduwschap →</Link>
+        <Link to="/wiki#inrichting">Meer info over vaccins en verzekering →</Link>
       </div>
     </div>
   );

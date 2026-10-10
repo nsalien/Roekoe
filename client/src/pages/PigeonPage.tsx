@@ -490,7 +490,7 @@ export function PigeonPage() {
           )}
 
           {mine && p.care && state?.inrichting && (
-            <PigeonCareCard p={p} flock={state.pigeons} cat={state.inrichting} busy={busy} run={run} />
+            <PigeonCareCard p={p} cat={state.inrichting} busy={busy} run={run} />
           )}
 
           <div className="card">

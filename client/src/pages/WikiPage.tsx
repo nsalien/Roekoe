@@ -32,7 +32,6 @@ const SECTIONS = [
   { id: 'titan', icon: '🏆', label: 'Titanenwedstrijd' },
   { id: 'estafette', icon: '🔗', label: 'Estafettevlucht' },
   { id: 'criterium', icon: '🏆', label: 'Leeftijdscriterium' },
-  { id: 'koppels', icon: '💑', label: 'Koppels' },
   { id: 'broeden', icon: '🥚', label: 'Kweken & broeden' },
   { id: 'inteelt', icon: '🌳', label: 'Stamboom & inteelt' },
   { id: 'ziekte', icon: '🤒', label: 'Ziekte' },
@@ -1094,29 +1093,6 @@ export function WikiPage() {
         <p><strong>Strategie:</strong> race nooit een uitgeputte duif. Het levert amper punten op én riskeert een blessure of erger — laat haar eerst herstellen.</p>
       </Section>
 
-      <Section id="koppels" icon="💑" title="Koppels">
-        <p className="muted" style={{ marginTop: 0 }}>
-          Een doffer en een duivin kunnen <strong>partners</strong> worden. Dat doe je op de pagina <em>Kweek</em>. Een koppel
-          is nodig voor het <a href="#inrichting">weduwschap</a>.
-        </p>
-        <ul>
-          <li><strong>Laten wennen:</strong> ze moeten <strong>samen zitten</strong> — allebei in het hoofdhok (niet in een apart hok of de ziekenboeg), of samen in een <strong>partnerhok</strong>. Na <strong>1 tot 7 dagen</strong> aanvaarden ze elkaar, of ze <strong>weigeren</strong>. Hoelang het duurt en of ze weigeren weet je pas op die dag.</li>
-          <li><strong>Weigerkans:</strong> hoe hoger hun libido, hoe kleiner: bij libido 25 zo'n 30 %, bij 50 zo'n 20 %, vanaf 75 nog 10 %.</li>
-          <li><strong>Partnerhok</strong> (op de pagina <em>Inrichting</em>, 2× de prijs van een apart hok: €1.600, €2.400, €3.200, max. 3): een eigen hok voor twee duiven, los van de aparte hokken.
-            <ul>
-              <li><strong>Wennen</strong> in het partnerhok duurt 1 tot 4 dagen en de weigerkans is gehalveerd. Lukt het, dan blijft het koppel erin wonen.</li>
-              <li><strong>Een bestaand koppel</strong> zet je erin (of eruit) met de knop <em>In partnerhok</em> bij het koppel op de pagina <em>Kweek</em>.</li>
-              <li><strong>Herstel:</strong> wie in het partnerhok woont, herstelt sneller, maar half zo veel als in een apart hok: +30 % energie, +20 % gezondheid, 25 % minder kans op ziekte.</li>
-              <li>Een apart hok en het partnerhok sluiten elkaar uit: wie erin trekt, verlaat zijn apart hok. Een weduwnaar woont in een apart hok, dus in het partnerhok stopt het weduwschap.</li>
-            </ul>
-          </li>
-          <li><strong>Zelf naar elkaar toe trekken:</strong> af en toe zoeken twee vrije duiven in het hoofdhok elkaar op. Je krijgt een melding. Bevestig je het (binnen 3 dagen), dan zijn ze <strong>meteen een koppel</strong>, zonder wentijd.</li>
-          <li><strong>Ontkoppelen</strong> kost beide partners de <strong>helft van hun libido</strong>. Stoppen met wennen kost niets.</li>
-          <li><strong>Broeden met een andere duif</strong> mag, maar dan valt het koppel uiteen: ook dan verliezen beide partners de helft van hun libido.</li>
-          <li>Verkoop je een partner, of sterft ze, dan is het koppel voorbij — zonder libidoverlies.</li>
-        </ul>
-      </Section>
-
       <Section id="broeden" icon="🥚" title="Kweken & broeden">
         <p className="muted" style={{ marginTop: 0 }}>
           Koppelen kost <strong>€750</strong> en <strong>−15 energie per ouder</strong>, meteen afgerekend bij het
@@ -1654,7 +1630,6 @@ export function WikiPage() {
           head={['Wat', 'Prijs', 'Voordeel']}
           rows={[
             ['Apart hok', '€800, elk volgend +€400', 'voor de duif die erin zit: +60 % energieherstel, +40 % gezondheidsherstel, 50 % minder kans op ziekte'],
-            ['Partnerhok', '€1.600 · €2.400 · €3.200 (max. 3)', 'een koppel woont er samen: +30 % energieherstel, +20 % gezondheidsherstel, 25 % minder kans op ziekte · wennen 1–4 dagen i.p.v. 1–7, 50 % minder kans dat ze elkaar weigeren'],
             ['Ziekenboegbed', '€800 → €2.400', 'meer zieke duiven tegelijk in de ziekenboeg (zie Ziekenboeg)'],
             ['Buitenren', '€2.500', '+6 i.p.v. +4 energie op elke 3e rustdag · libido +3 · zonder afweer ~1× per 40 dagen een sperwer: wie thuis rust −6 energie'],
             ['Roofvogelafweer', '€900', 'net + lokuil (vraagt een ren): geen sperwer in de ren, en de gebeurtenis "Sperwer in de buurt" is ongevaarlijk'],
@@ -1672,7 +1647,7 @@ export function WikiPage() {
           Ventilatie, buitenren, kunstlicht, infrarood en reismanden kan je, eens gekocht, <strong>tot niveau 4</strong>{' '}
           opwaarderen. Elk niveau kost <strong>3× zoveel</strong> als het vorige en werkt sterker: niveau 2 ×1,5, niveau 3 ×1,8,
           niveau 4 <strong>dubbel</strong> zo sterk als niveau 1. Steeds duurder voor steeds minder: iets voor wie geld over heeft,
-          nooit een must. Roofvogelafweer, weerstation, partnerhok en vakblad hebben geen niveaus.
+          nooit een must. Roofvogelafweer, weerstation en vakblad hebben geen niveaus.
         </p>
         <ul>
           <li><strong>Formule prijs:</strong> prijs niveau <em>n</em> = prijs niveau 1 × 3<sup><em>n</em>−1</sup> (×1, ×3, ×9, ×27).</li>
@@ -1719,21 +1694,13 @@ export function WikiPage() {
           <li>Verkoop je haar, dan vervalt de verzekering.</li>
         </ul>
 
-        <h3 style={{ marginBottom: 4 }}>Weduwschap</h3>
-        <ul>
-          <li>Een <strong>doffer met een partner</strong> (zie <a href="#koppels">Koppels</a>) die in een <strong>apart hok</strong> woont, kan op weduwschap. Hij vliegt naar zijn partner. €10 per vlucht.</li>
-          <li><strong>Partner thuis</strong> (basis): kans op een grote dag 10 % → 14 %, op een slechte dag 7 % → 5 %.</li>
-          <li><strong>Partner én hun jongen thuis</strong> (extra): grote dag 17 %, slechte dag 4 %.</li>
-          <li>Enkel als zij bij de lossing thuis is (niet zelf vliegt die dag, niet de weg kwijt, niet in de ziekenboeg) en ze niet op een nest zitten. Een jong telt als het thuis is en die dag niet zelf vliegt. Zij verliest 3 energie per vlucht van haar doffer.</li>
-        </ul>
-
         <h3 style={{ marginBottom: 4 }}>Scout op buitenlandse markten</h3>
         <ul>
           <li>Je stuurt een scout naar een markt, <strong>één keer per seizoen</strong>. Je weet niet wanneer hij terugkomt: dag 1 is er 5 % kans, en elke dag wordt die kans groter tot 100 % op de laatste dag (brons: 5 · 10 · 21 · 36 · 55 · 76 · 100 %).</li>
           <li>Budget: brons ★ 60–68 (€250, 1–7 dagen), zilver ★ 68–76 (€500, 1–14 dagen), goud ★ 76–84 (€900, 1–21 dagen).</li>
           <li>Hoe beter de duiven die hij zoekt, hoe kleiner het aanbod: hij komt <strong>met lege handen</strong> terug in 10 % (brons), 25 % (zilver) of 40 % (goud) van de gevallen. Anders brengt hij drie duiven mee; je koopt er één of geen binnen 48 u. Het scoutloon krijg je nooit terug.</li>
           <li>Taiwan: gen-cap snelheid hoger · Zuid-Afrika: conditie · Verenigde Staten: oriëntatie · China: score +4. Prijs ×1,4–1,7 van de marktwaarde (China ×1,8–2,2).</li>
-          <li>Je ziet alle eigenschappen; de gen-caps zijn een schatting (±3). Kenmerkkans 50 %. Je hebt een vrije plaats nodig, en een importduif zit <strong>5 dagen in quarantaine</strong> (niet vliegen, niet koppelen). Eén opdracht tegelijk.</li>
+          <li>Je ziet alle eigenschappen; de gen-caps zijn een schatting (±3). Kenmerkkans 50 %. Je hebt een vrije plaats nodig, en een importduif zit <strong>5 dagen in quarantaine</strong> (niet vliegen, niet broeden). Eén opdracht tegelijk.</li>
         </ul>
         <p className="faint" style={{ fontSize: '0.85rem' }}>Bots kopen vers stro en dakventilatie, verder niets.</p>
       </Section>

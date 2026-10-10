@@ -3,7 +3,7 @@
  *
  * A plain-text summary of where every bird is: the main loft, the private
  * compartments, the nest boxes, the ziekenboeg and who is not home. One bird
- * or koppel per line, always by full name. Purely a view of the state Mijn hok
+ * or breeding pair per line, always by full name. Purely a view of the state Mijn hok
  * already loads — no request of its own.
  */
 
@@ -35,7 +35,7 @@ function Name({ id, name }: { id: string; name: string }) {
 }
 
 /**
- * One bird or koppel per line. The icon hangs in front, so a long name that
+ * One bird or breeding pair per line. The icon hangs in front, so a long name that
  * wraps on a phone stays visibly one entry; the faint note moves to the next
  * line as a whole when it does not fit behind the name.
  */
@@ -86,8 +86,6 @@ export function LoftView({
     .filter((pair) => pair.length > 0);
   const canMoveIn = pigeons.filter((p) => !p.compartment && !p.inInfirmary && !p.away);
   const freeComps = loft.compartments - inComp.length;
-  const couples = loft.equipment?.couples ?? [];
-  const widowerIds = new Set(pigeons.filter((p) => p.care?.widow.on).map((p) => p.id));
   const insured = pigeons.filter((p) => p.care?.insurance).length;
   const vaccinated = pigeons.filter((p) => (p.care?.vaccines.length ?? 0) > 0).length;
 
@@ -142,23 +140,6 @@ export function LoftView({
           </Line>
         ))}
       </Row>
-      {couples.length > 0 && (
-        <Row label="Koppels">
-          {couples.map((c) => (
-            <Line
-              key={c.dofferId}
-              icon={c.status === 'koppel' ? '💑' : '⏳'}
-              note={[
-                c.status === 'wennen' && `wennen, dag ${c.day}`,
-                c.partnerhok && 'partnerhok',
-                (widowerIds.has(c.dofferId) || widowerIds.has(c.duivinId)) && '❤️ weduwschap',
-              ].filter(Boolean).join(' · ') || undefined}
-            >
-              <Name id={c.dofferId} name={c.dofferName} /> &amp; <Name id={c.duivinId} name={c.duivinName} />
-            </Line>
-          ))}
-        </Row>
-      )}
       {(insured > 0 || vaccinated > 0) && (
         <Row label="Bescherming">
           {vaccinated > 0 && <Line icon="💉">{vaccinated} {vaccinated === 1 ? 'duif' : 'duiven'} ingeënt of gekuurd</Line>}

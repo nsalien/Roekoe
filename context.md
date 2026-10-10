@@ -103,7 +103,7 @@
 - **Tekstueel, bewust.** Er was eerst een getekend hokaanzicht (zitbakjes, deurtjes, dag/nacht);
   de eigenaar vond dat het op niets trok, dus het is vervangen door een kaart met regels.
   **Maak het niet opnieuw grafisch zonder het te vragen.**
-- **Eén duif of koppel per regel, altijd de volledige naam** (wens van de eigenaar). Het
+- **Eén duif of broedkoppel per regel, altijd de volledige naam** (wens van de eigenaar). Het
   pictogram hangt vooraan (`Line`), zodat een lange naam die op de gsm omloopt herkenbaar één
   regel blijft; de grijze toelichting springt als geheel naar de volgende regel.
   - *Plaatsen:* "10 van 12 bezet · 2 vrij →" (markt), daaronder "8 thuis".
@@ -112,10 +112,9 @@
   - *Broeden* (was "Nest"): elk broedkoppel op een regel (of "niemand · naar de kweek →").
   - *Ziekenboeg:* "1 van de 2 bedden bezet", daaronder per patiënt 🦠/🩹 naam + aandoening,
     % hersteld (+ "wacht op verzorging" als geen dokter/kinesist haar behandelt).
-  - *Koppels:* elk koppel op een regel (💑 / ⏳ "wennen, dag N" / "partnerhok" / "❤️ weduwschap").
   - *Bescherming:* 💉 ingeënt/gekuurd en 🛡️ verzekerd, elk op een regel.
 - **Thuis / niet thuis** (`awayStatus`): niet thuis is enkel wie 🧭 de weg kwijt is, ✈️ nu
-  vliegt of 🏥 in de ziekenboeg ligt, elk op een eigen regel. Op het nest, in een koppel,
+  vliegt of 🏥 in de ziekenboeg ligt, elk op een eigen regel. Op het nest,
   op rustkuur, in quarantaine of ingeschreven voor een latere vlucht = **thuis**.
   "Vliegt" komt uit de nieuwe `pigeonDTO.flying` (`live && pigeonAirborne`): smaller dan
   `racing`, dat ook geldt voor een vlucht die nog moet beginnen; de scan loopt enkel voor een
@@ -148,45 +147,24 @@
 - **UI:** blok "Hygiëne" op de pagina Inrichting (waarde, effect, stro-knop, poetser
   aan/uit) + wiki-sectie `#hygiene` + spelregels §5.2bis. Bots kopen (nog) niets: open vraag.
 
-### Koppels (`core/game/koppels.ts`, `COUPLES` in gameConfig) — ⚠️ dev
-- **Opslag:** `Loft.equipment.couples` (`Couple`: doffer, duivin, `status` `'wennen' | 'koppel'`,
-  `resolveDay`, `refuses`, `partnerhok`), `.attractions`, `.partnerhokken`. Geen kolom erbij.
-- **Wennen** (`startWennen`): enkel als ze **samen zitten** — allebei in het hoofdhok (`together`:
-  niet weg, niet in de boeg, geen `compartment`) of samen in een vrij **partnerhok** (dan mag hij
-  een apart hok hebben). Bij de start worden de beslisdag (1..7, partnerhok 1..4) en het oordeel
-  geloot (`refuseChance` = max(0,1; 0,4 − gem. libido/250), partnerhok ×0,5) — **nooit naar de
-  client** (de DTO toont enkel "dag X van hoogstens N"). `tickCouples` (tickDailyCare, per hok,
-  ná de sperwer) onthult het op die dagovergang: koppel, geweigerd, of mislukt als ze dan niet
-  meer samen zitten. Stabiele melding-id's.
-- **Aantrekking:** `tickCouples` laat per mensenhok met een vrij duo in het hoofdhok
-  ~12 %/dag (geseed op hok+dag) twee vrije, niet-verwante duiven naar elkaar toe trekken (gewogen
-  op libido), hoogstens 2 open, 3 dagen geldig. `confirmAttraction` = meteen een koppel.
-- **Breken:** `unpair` (koppel: beide libido ×0,5; wennen: gratis), `breakForForcedBreeding` in
-  `startBreeding` wanneer sire en dam geen koppel zijn (koppel(s) van beide uiteen, partners ×0,5,
-  melding). Een partner verkocht of dood: `tickCouples` ruimt op, zonder libidoverlies.
-- **Partnerhok = een eigen hok voor een koppel** (los van de aparte hokken; wens van de eigenaar).
-  Prijs `partnerhokPrice` = 2× `compartmentCost` op dezelfde telling (€1.600, €2.400, €3.200;
-  max. 3). Wie erin woont (`partnerhokBirds`, hygiene.ts) krijgt `recoveryShare` (0,5) van de
-  apart-hok-bonus: +30 % energie, +20 % gezondheid (`applyDayOfCare` én `projectDailyCare`) en
-  25 % minder ziekte (de dagelijkse `runHealthDay`; de oude weekfunctie is ongemoeid). Een koppel
-  trekt erin/eruit met `setPartnerhok` (verlaat dan zijn apart hok; een weduwnaar stopt — die woont
-  in een apart hok); wie wennen in het partnerhok slaagt, blijft erin wonen; `setPigeonCompartment`
-  haalt het koppel eruit (`leavePartnerhok`): apart hok en partnerhok sluiten elkaar uit.
-  `partnerhokInUse` telt elk koppel met de vlag. In de boeg behoudt ze de vlag (zoals bij een apart
-  hok) maar krijgt ze de bonus niet.
-- Bots koppelen nooit (geen aantrekking voor bothokken); hun kweek is ongewijzigd.
-- **API:** `POST /couples/start {dofferId, duivinId, partnerhok}`, `/couples/confirm`,
-  `/couples/dismiss`, `/couples/unpair {pigeonId}`, `/couples/partnerhok {pigeonId, on}`,
-  `/loft/partnerhok`, `/pigeons/:id/widow {on}`.
-- **UI:** kaart "💑 Koppels" bovenaan *Kweek* (`components/Koppels.tsx`), per koppel **In/Uit
-  partnerhok** (met bevestiging als iemand een apart hok of weduwschap verliest); het nestformulier
-  ("Nest starten") kiest de partner vanzelf en waarschuwt vóór een geforceerd nest; partnerhok
-  kopen op *Inrichting*; partner + weduwschap aan/uit op de duifpagina; "Koppels" in het
-  hokoverzicht (met "partnerhok"); de knop Apart/Samen op *Mijn hok* toont "💑 Partnerhok".
-  Kweekmeldingen zeggen nu "broeden/nest" i.p.v. "koppelen"; de rij in het hokoverzicht heet
-  **"Broeden"** (was "Nest").
-- **Demo:** het broedende duo is een koppel, en er staat één aantrekking klaar
-  (`DEMO_VERSION` = 3). **Test:** `tests/koppels.test.mts`.
+### Koppels, partnerhok en weduwschap — voorlopig weggehaald
+- **Op vraag van de eigenaar volledig van dev gehaald** (10 okt): partners (wennen, aantrekking,
+  ontkoppelen, geforceerd nest), het **partnerhok** en het **weduwschap**. **Broeden werkt zoals op
+  productie:** elke doffer met elke duivin, zonder partnerband en zonder libidoverlies. Wat dev wel
+  houdt: de kweekteksten zeggen "nest/broeden" i.p.v. "koppelen", en de rij in het hokoverzicht
+  heet **"Broeden"** (was "Nest").
+- **Wat weg is:** `core/game/koppels.ts`, `COUPLES`, `WIDOW`, `EQUIPMENT.partnerhok` +
+  `partnerhokPrice`, `Loft.equipment.couples/attractions/partnerhokken`, `PigeonCare.widow`,
+  `SimEntry.widow` en `Entry.mods.widow` (de dagvorm in `buildPaceProfile` is weer die van
+  productie), `settleWidowhood`, `tickCouples`, `partnerhokBirds` (de partnerhokbonus op herstel en
+  ziekte), `/couples/*`, `/loft/partnerhok`, `/pigeons/:id/widow`, `components/Koppels.tsx`, de
+  partner- en weduwschapblokken op de duifpagina, de wikisectie `#koppels` en
+  `tests/koppels.test.mts`. `entryMods(db, p)` neemt geen vlucht meer mee (enkel reismanden).
+- **Terughalen?** De laatste versie mét alles is commit `70d3209` (koppels kwamen in `e12c28c`,
+  het partnerhok als woonhok in `cc1281c`). Het weduwschap vloog op de partner: zonder koppels
+  heeft het eerst een nieuw ontwerp nodig.
+- **Demo:** `DEMO_VERSION` = 4, zodat een bewaarde demo met koppels opnieuw opgebouwd wordt; het
+  broedende duo in de demo is gewoon een nest (`startBreeding`), zonder aantrekking.
 
 ### Voer: ongewijzigd
 - Een eerste poging met acht voersoorten (Herstel enkel na een vlucht, Sport, Fond, …) is op
@@ -195,11 +173,11 @@
 
 ### De rest van de hokinrichting (`core/game/inrichting.ts`, `core/game/scout.ts`)
 - **Config** in gameConfig: `EQUIPMENT` (ventilatie, ren, roofvogelafweer, kunstlicht,
-  infrarood, reismanden, weerstation, vakblad), `VACCINES`, `SCOUT`, `WIDOW`, `INSURANCE`,
+  infrarood, reismanden, weerstation, vakblad), `VACCINES`, `SCOUT`, `INSURANCE`,
   plus `BOT.strawBelowHygiene`/`ventilationReserve`.
 - **Opslag:** alles van het hok in `Loft.equipment` (zelfde JSON-kolom als de hygiëne, incl.
   `scout` en `lastHawkDay`). Per duif één nieuwe JSON-kolom **`care`** (`PigeonCare`: vaccins,
-  `noFlyUntil`, `quarantineUntil`, `insurance`, `widowOf`, `origin`), `''` als leeg. Op de vlucht
+  `noFlyUntil`, `quarantineUntil`, `insurance`, `origin`), `''` als leeg. Op de vlucht
   een kolom **`forecast`**. `Ailment.boeg` onthoudt of ze in de ziekenboeg lag. Drie nieuwe
   stappen achteraan `SCHEMA_STEPS`. Pigeons blijven 1 rij per multi-row statement (53 kolommen).
 - **Dagkost:** `equipmentCostLines` + `insuranceCost` → `dailyRunningCostBreakdown.equipment`
@@ -214,7 +192,7 @@
   en bovenaan een link naar de wiki. **Vaste vorm per onderdeel** (`Item`): regel 1 = naam +
   wat je ervan hebt ("Aparte hokken: 2/2 in gebruik", "Dakventilatie: niveau 2/4"), regel 2 =
   de beschrijving, de knop ernaast. Tellers met een maximum (`Usage`: plaatsen, aparte hokken,
-  partnerhok, ziekenboeg, infrarood) zijn **groen zolang er plaats vrij is, rood als alles
+  ziekenboeg, infrarood) zijn **groen zolang er plaats vrij is, rood als alles
   bezet is**; 0 gekocht = "nog geen". **De exacte cijfers en de formules staan in de wiki**
   (#inrichting: tabel niveau 1 incl. apart hok en ziekenboegbed, niveautabel, formules; #hygiene).
   ⚠️ Die wikitabellen zijn met de hand geschreven: pas ze mee aan als je `EQUIPMENT`,
@@ -248,12 +226,6 @@
     en `breed(..., bonus)` (tweeling, succes onder 10 °C via `monthTemperature`);
   - reismanden: `Entry.mods` → `routeEnergyCost(..., mult)` en `SimEntry.healthMult` in finalize
     (solo én estafette);
-  - weduwschap: vliegt op de **partner** (`partnerOf`, koppels.ts) — `care.widow` is enkel nog
-    aan/uit. `widowLevelOn` → 0 / 1 (partner thuis) / 2 (partner + minstens één van hun jongen
-    thuis: `sireId`/`damId` = het koppel, niet weg, niet zelf vliegend die dag) → `Entry.mods.widow`
-    → `buildPaceProfile(..., widow)` met `WIDOW.base` / `WIDOW.withYoung` (zelfde trekkingen,
-    andere drempels) → `SimEntry.widow` (1|2); `settleWidowhood` (€10, partner −3). Vereist
-    `compartment` (woonhok), geen actief nest. `upset-balance` blijft groen (bots doen niet mee);
   - vaccins/kuren: `fendsOff` in `runHealthDay` na de ziektetrekking (buiten de bodem ×0,4);
     vaccin → `care.noFlyUntil`; `canRace` kijkt naar `groundedByCare` (pigeon.ts), `enterFlight`
     geeft de reden (`grounded`);
@@ -278,7 +250,7 @@
     middleware naast de estafettevoorspellingen — **enkel als een hok een station heeft**;
     `withForecast` in de API toont het enkel aan stationhouders.
 - **API:** `POST /loft/equipment {key, on}`, `/loft/irbox`, `/loft/vaccinate {key}`,
-  `/pigeons/:id/vaccinate {key}`, `/pigeons/:id/insurance {on}`, `/pigeons/:id/widow {duivinId}`,
+  `/pigeons/:id/vaccinate {key}`, `/pigeons/:id/insurance {on}`,
   `/scout/send {market, tier}`, `/scout/buy {index}`, `/scout/dismiss`. `/state.inrichting` =
   de catalogus. DTO: `loftDTO.equipment` (alle vlaggen + `scout`), `pigeonDTO.care` (enkel
   eigenaar), `.origin`, `.magazineRanges`, `flight.forecast`.
@@ -288,10 +260,10 @@
   **in één regel hoe je ervoor staat**; je tikt er één open, **één tegelijk** (`Section` in
   `components/Inrichting.tsx`; de keuze blijft per toestel bewaard in localStorage
   `roekoe.inrichting.open`, in try/catch). Een link `/inrichting#hokken|hygiene|vaccins|uitrusting`
-  opent dat blok meteen (ook bij een hashwissel op de pagina zelf); *Kweek* linkt naar `#hokken`.
+  opent dat blok meteen (ook bij een hashwissel op de pagina zelf).
   1. 🏠 **Plaatsen & hokken** (`RoomsSection`, `data-tour="upgrades"` — de rondleiding wijst
-     erheen) — dicht: "10/12 plaatsen · 2/2 apart · ziekenboeg 1/2 · partnerhok 1/1".
-     Hokcapaciteit, aparte hokken, partnerhok (koppel erin zet je op *Kweek*), ziekenboegbedden
+     erheen) — dicht: "10/12 plaatsen · 2/2 apart · ziekenboeg 1/2".
+     Hokcapaciteit, aparte hokken, ziekenboegbedden
      (zelfde `/loft/infirmary/upgrade` als op de ziekenboegpagina, hier met bevestiging).
   2. 🧹 **Hygiëne** (`HygieneSection`) — dicht: "58/100 proper" (+ "de poetser is aan het werk"
      of "tijd voor vers stro" op ≤ 50). Meter, vers stro, hokpoetser.
@@ -307,13 +279,13 @@
   Marktinformatie staat op de **Markt**: de **scout** en het **vakblad** (`MagazineCard`, net
   boven het marktrapport dat het ontgrendelt; na (de)abonneren herlaadt de Markt `/market`).
   *Mijn hok* toont boven de duiven enkel het compacte hokoverzicht + een link naar Inrichting: de
-  eigenaar wil zonder scrollen bij zijn duiven. Het hokoverzicht toont ook weduwschap en
+  eigenaar wil zonder scrollen bij zijn duiven. Het hokoverzicht toont ook de
   bescherming; duifpagina: kaart "Verzorging & verzekering" (`PigeonCareCard`), herkomst,
   vakblad-bandbreedtes bij andermans duif; Vluchten: 📡 voorspelling.
 - **Bots:** vers stro bij hygiëne ≤ 60 en dakventilatie zodra ze €5.000 boven hun reserve
   zitten (`maybeFitOutLoft`). Geen vaccins (die houden een duif 2 dagen aan de grond), geen
-  scout, weduwschap, verzekering of vakblad. Dit was een open vraag; het voorstel is gevolgd.
-- **Demo:** de demospeler start met €30.000 om alles te proberen; `DEMO_VERSION` = 2.
+  scout, verzekering of vakblad. Dit was een open vraag; het voorstel is gevolgd.
+- **Demo:** de demospeler start met €30.000 om alles te proberen; `DEMO_VERSION` = 4.
 - **Tests:** `tests/inrichting.test.mts` (alles hierboven), `tests/hygiene.test.mts`.
 
 ---
@@ -1441,7 +1413,6 @@ npx tsx tests/demo-build.test.mts         # (dev) prodbuild zonder demo, preview
 npx tsx tests/demo-world.test.mts         # (dev) de demowereld + de echte API op sql.js
 npx tsx tests/hygiene.test.mts            # (dev) hokhygiëne, stro, poetser, bodem ×0,4
 npx tsx tests/inrichting.test.mts         # (dev) ventilatie, ren, sperwer, vaccins, verzekering, scout, vakblad, weerstation, bots
-npx tsx tests/koppels.test.mts            # (dev) koppels: wennen, weigeren, aantrekking, ontkoppelen, geforceerd nest, weduwschap
 npx tsx tests/hokoverzicht.test.mts       # (dev) hokoverzicht: flying (in de lucht) vs. racing (ook gepland)
 ```
 
@@ -1468,9 +1439,11 @@ Alles in één keer (bash, vanuit de root):
 for f in tests/*.test.mts; do printf '%-26s ' "$(basename "$f")"; npx tsx "$f" >/dev/null 2>&1 && echo OK || echo FAIL; done
 ```
 
-**Stand van de suite (dev, hokinrichting-commit): 55 van de 56 groen** (`cpu-budget` en
-`demo-build` apart gedraaid; `live-speed` groen in 2 van 2 herhalingen). Bekende rode — controleer of een rode test hierin staat vóór je gaat
-zoeken:
+**Stand van de suite (dev, na het weghalen van de koppels): 57 van de 58 groen** (`cpu-budget`
+apart gedraaid; enkel `age-cup` rood, zie hieronder). `inrichting` hing af van het uur: een vlucht
+die 24–25 u later vertrekt, schoof tijdens het geteste uur het weerstationvenster in; de assertie
+kijkt nu enkel naar vluchten die al een voorspelling hadden (groen op alle 24 uren van de dag).
+Bekende rode — controleer of een rode test hierin staat vóór je gaat zoeken:
 - `age-cup` — **echt rood**, intussen drie asserties ("de cyclus is verankerd op het einde
   van het lopende seizoen", "er staan criteriumvluchten gepland (0)", "alle 4 klassen komen
   aan bod"), identiek op de boom vóór de hokinrichting. Nog te repareren.

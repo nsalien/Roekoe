@@ -2,7 +2,7 @@
  * De hokinrichting (⚠️ dev, nog niet live) — everything a loft can buy beyond
  * birds: equipment on the loft row (ventilatie, ren, roofvogelafweer, kunstlicht,
  * infrarood-nestbakken, reismanden, weerstation, vakblad), and per-bird care
- * (vaccins en kuren, verzekering, weduwschap). Hygiëne/stro/poetser live in
+ * (vaccins en kuren, verzekering). Hygiëne/stro/poetser live in
  * hygiene.ts; the scout in scout.ts.
  *
  * Rule of the proposal: buying nothing is the game as it was. Every effect is
@@ -17,21 +17,19 @@ import {
   INSURANCE,
   VACCINES,
   VACCINE_RENEW_SHARE,
-  WIDOW,
   irBoxPrice,
   levelPrice,
   type EquipmentKey,
   type LevelKey,
   type VaccineKey,
 } from '../config/gameConfig.js';
-import type { Database, Flight, Loft, Pigeon, PigeonCare } from '../schema.js';
+import type { Database, Loft, Pigeon, PigeonCare } from '../schema.js';
 import type { Store } from '../store.js';
 import { debtBlock } from './economy.js';
 import { effectScale, equipmentLevel, equipmentOf } from './hygiene.js';
 import { marketValue } from './market.js';
 import { ageMortality, isAway } from './pigeon.js';
 import { hashString, round1, seededRng } from './util.js';
-import { partnerOf } from './koppels.js';
 
 const DAY = 86400000;
 
@@ -396,69 +394,11 @@ export function insurancePayout(
   return pol.payout;
 }
 
-/** A sold bird leaves her policy and her weduwschap with the old loft. */
+/** A sold bird leaves her policy with the old loft. */
 export function clearOwnerCare(p: Pigeon): void {
   if (!p.care) return;
   p.care.insurance = undefined;
-  p.care.widow = undefined;
   tidy(p);
-}
-
-// --- weduwschap ---------------------------------------------------------------
-
-/**
- * Switch weduwschap on or off for a doffer. He needs a PARTNER (a koppel, see
- * koppels.ts) and an apart hok — his woonhok, where she joins him before a race.
- */
-export function setWidow(store: Store, userId: string, dofferId: string, on: boolean): string | null {
-  return store.mutate((db) => {
-    const doffer = db.pigeons.find((p) => p.id === dofferId && p.ownerId === userId);
-    if (!doffer) return 'Duif niet gevonden';
-    if (!on) {
-      if (doffer.care) doffer.care.widow = undefined;
-      tidy(doffer);
-      return null;
-    }
-    if (doffer.sex !== 'doffer') return 'Enkel een doffer kan op weduwschap';
-    if (!partnerOf(db, doffer)) return 'Hij heeft nog geen partner — vorm eerst een koppel op de pagina Kweek';
-    if (!doffer.compartment) return 'Een weduwnaar heeft een apart hok nodig (zijn woonhok)';
-    careOf(doffer).widow = true;
-    return null;
-  });
-}
-
-/** Is this bird home for the lossing on `day`: not lost and not flying anything that day? */
-function homeFor(db: Database, p: Pigeon, day: string, startMs: number): boolean {
-  if (isAway(p, startMs)) return false;
-  return !db.flights.some((f) => f.startAt.slice(0, 10) === day && f.entries.some((e) => e.pigeonId === p.id));
-}
-
-/**
- * How strongly weduwschap works for this doffer on a lossing on `day` (YYYY-MM-DD):
- *   0 — not at all (off, no partner, no apart hok, she is not home, or a nest runs);
- *   1 — his partner waits at home (not flying that day, not lost, not in the infirmary);
- *   2 — his partner AND at least one of their young are home.
- */
-export function widowLevelOn(db: Database, doffer: Pigeon, day: string, atMs: number): 0 | 1 | 2 {
-  if (!doffer.care?.widow || doffer.sex !== 'doffer' || !doffer.compartment) return 0;
-  const partner = partnerOf(db, doffer);
-  if (!partner || partner.inInfirmary) return 0;
-  if (!homeFor(db, partner, day, atMs)) return 0;
-  const broods = db.breedingPairs.some((bp) => [bp.sireId, bp.damId].some((x) => x === doffer.id || x === partner.id));
-  if (broods) return 0;
-  const youngHome = db.pigeons.some((y) =>
-    y.ownerId === doffer.ownerId && y.sireId === doffer.id && y.damId === partner.id && homeFor(db, y, day, atMs));
-  return youngHome ? 2 : 1;
-}
-
-/** Weduwschap for this doffer on this flight (see widowLevelOn). */
-export function widowLevel(db: Database, doffer: Pigeon, flight: Flight, startMs: number): 0 | 1 | 2 {
-  return widowLevelOn(db, doffer, flight.startAt.slice(0, 10), startMs);
-}
-
-/** The same verdict for today — what the screens show. */
-export function widowLevelNow(db: Database, doffer: Pigeon, nowMs: number = Date.now()): 0 | 1 | 2 {
-  return widowLevelOn(db, doffer, new Date(nowMs).toISOString().slice(0, 10), nowMs);
 }
 
 // --- what a flight sees -------------------------------------------------------
@@ -466,34 +406,16 @@ export function widowLevelNow(db: Database, doffer: Pigeon, nowMs: number = Date
 export interface EntryMods {
   energyMult: number; // reismanden
   healthMult: number; // reismanden
-  widow: 0 | 1 | 2; // weduwschap (see widowLevel)
 }
 
 /** The hokinrichting's effect on one bird's flight, frozen at the lossing. */
-export function entryMods(db: Database, p: Pigeon, flight: Flight, startMs: number): EntryMods {
+export function entryMods(db: Database, p: Pigeon): EntryMods {
   const loft = loftOf(db, p.ownerId);
   const s = loft ? effectScale(loft, 'baskets') : 0;
   return {
     energyMult: 1 - (1 - EQUIPMENT.baskets.energyMult) * s,
     healthMult: 1 - (1 - EQUIPMENT.baskets.healthMult) * s,
-    widow: flight.practice ? 0 : widowLevel(db, p, flight, startMs),
   };
-}
-
-/**
- * After the lossing: each widower pays his €10 and his partner loses a little
- * energie. Called once, right after the flight went live (tickFlights).
- */
-export function settleWidowhood(db: Database, flight: Flight): void {
-  for (const s of flight.sim) {
-    if (!s.widow) continue;
-    const doffer = db.pigeons.find((p) => p.id === s.pigeonId);
-    const loft = loftOf(db, s.ownerId);
-    if (!doffer || !loft) continue;
-    loft.money -= WIDOW.feePerFlight;
-    const partner = partnerOf(db, doffer);
-    if (partner) partner.form = round1(Math.max(0, partner.form - WIDOW.duivinEnergyLoss));
-  }
 }
 
 // --- vakblad ------------------------------------------------------------------

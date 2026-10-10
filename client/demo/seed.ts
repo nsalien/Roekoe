@@ -14,7 +14,6 @@ import { generatePigeon } from '../../core/game/pigeon.js';
 import { applyAilment, randomDisease } from '../../core/game/health.js';
 import { nameKey, namesInUse } from '../../core/game/names.js';
 import { computeLeaderboard } from '../../core/presenters.js';
-import { brusselsDayNumber } from '../../core/game/koppels.js';
 import type { DemoD1 } from './d1';
 
 export const DEMO_USER_ID = 'usr_demo';
@@ -89,15 +88,11 @@ export async function createDemoWorld(d1: DemoD1): Promise<void> {
     mine().slice(0, DEMO_COMPARTMENTS).forEach((p) => (p.compartment = true));
   });
 
-  // 3. One koppel on the nest (a koppel first, then the nest through the real engine call).
+  // 3. One pair on the nest, through the real engine call.
   const birds = store.data.pigeons.filter((p) => p.ownerId === user.id && !p.compartment);
   const sire = birds.find((p) => p.sex === 'doffer');
   const dam = birds.find((p) => p.sex === 'duivin');
-  if (sire && dam) {
-    const iso = new Date().toISOString();
-    loft.equipment = { ...loft.equipment!, couples: [{ dofferId: sire.id, duivinId: dam.id, status: 'koppel', startedAt: iso, since: iso }] };
-    startBreeding(store, user.id, sire.id, dam.id);
-  }
+  if (sire && dam) startBreeding(store, user.id, sire.id, dam.id);
 
   // 4. One sick bird, resting in the infirmary.
   store.mutate((w) => {
@@ -106,16 +101,6 @@ export async function createDemoWorld(d1: DemoD1): Promise<void> {
     if (patient) {
       applyAilment(patient, randomDisease(w.world.currentWeek, 60));
       patient.inInfirmary = true;
-    }
-    // Two free birds in the main loft that drew together on their own: the
-    // "koppel bevestigen?" offer on the Kweek page.
-    const taken = new Set([...w.breedingPairs.flatMap((bp) => [bp.sireId, bp.damId]), patient?.id]);
-    const freeBirds = w.pigeons.filter((p) => p.ownerId === user.id && !p.compartment && !p.inInfirmary && !taken.has(p.id));
-    const d = freeBirds.find((p) => p.sex === 'doffer');
-    const h = freeBirds.find((p) => p.sex === 'duivin');
-    if (d && h) {
-      const day = brusselsDayNumber(Date.now());
-      loft.equipment = { ...loft.equipment!, attractions: [{ dofferId: d.id, duivinId: h.id, day, expiresDay: day + 3 }] };
     }
     w.world.leaderboard = JSON.stringify(computeLeaderboard(w));
   });

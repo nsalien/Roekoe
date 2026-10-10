@@ -195,7 +195,7 @@ const STEPS: Step[] = [
   {
     route: '/kweek', selector: '[data-tour="breed"]',
     title: '🥚 Kweken',
-    body: 'Start een nest met een doffer + duivin (beide energie ≥ 20). Hoe hoger hun energie én libido, hoe sneller een jong komt. Een vast koppel vorm je bovenaan deze pagina. Zorg voor vrije plaats in je hok.',
+    body: 'Start een nest met een doffer + duivin (beide energie ≥ 20). Hoe hoger hun energie én libido, hoe sneller een jong komt. Zorg voor vrije plaats in je hok.',
   },
   {
     route: '/ziekenboeg', selector: '[data-tour="infirmary"]',

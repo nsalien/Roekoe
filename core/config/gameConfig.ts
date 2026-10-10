@@ -129,9 +129,6 @@ export const EQUIPMENT = {
   baskets: { label: 'Betere reismanden', price: 1000, energyMult: 0.97, healthMult: 0.95 },
   weatherStation: { label: 'Weerstation', price: 1500, forecastHours: 24, refreshHours: 6, finalHours: 2 },
   magazine: { label: 'Vakblad', price: 0, daily: 6, bandHalfWidth: 6, reportDays: 28 },
-  // A koppel's own box, apart from the apart hokken: two birds, so twice an apart
-  // hok's price (same ladder), and recovery at `recoveryShare` of an apart hok's.
-  partnerhok: { label: 'Partnerhok', priceFactor: 2, maxBoxes: 3, recoveryShare: 0.5 },
 } as const;
 export type EquipmentKey = 'ventilation' | 'run' | 'raptorGuard' | 'light' | 'baskets' | 'weatherStation' | 'magazine';
 /**
@@ -140,7 +137,7 @@ export type EquipmentKey = 'ventilation' | 'run' | 'raptorGuard' | 'light' | 'ba
  * price — and makes the item work `effectScale` times as hard as level 1 (×1,5,
  * ×1,8, then double). Ever dearer for ever less: something for a loft with money
  * to spare, never a must. Only items whose effect is a NUMBER have levels; the
- * roofvogelafweer, weerstation, partnerhok (per stuk) and vakblad do not.
+ * roofvogelafweer, weerstation and vakblad do not.
  */
 export const EQUIPMENT_LEVELS = {
   keys: ['ventilation', 'run', 'light', 'irBoxes', 'baskets'] as const,
@@ -153,10 +150,6 @@ export type LevelKey = (typeof EQUIPMENT_LEVELS.keys)[number];
 export function levelPrice(key: LevelKey, level: number): number {
   const base = key === 'irBoxes' ? EQUIPMENT.irBoxes.priceFirstTwo : EQUIPMENT[key].price;
   return base * Math.pow(EQUIPMENT_LEVELS.priceGrowth, level - 1);
-}
-/** What the next partnerhok costs: twice an apart hok at the same count (€1.600, €2.400, €3.200). */
-export function partnerhokPrice(owned: number): number {
-  return EQUIPMENT.partnerhok.priceFactor * compartmentCost(owned);
 }
 /** What the next infrarood-nestbak costs: the first purchase is two boxes. */
 export function irBoxPrice(owned: number): number {
@@ -220,42 +213,6 @@ export const SCOUT = {
 } as const;
 export type ScoutTier = keyof typeof SCOUT.tiers;
 export type ScoutMarket = keyof typeof SCOUT.markets;
-
-/**
- * Weduwschap (⚠️ dev): a doffer flies home harder when his PARTNER waits (see
- * COUPLES) — and harder still when their young are home too. The two levels
- * replace FLIGHT_DYNAMICS' big-day (0,10) and off-day (0,07) chances.
- */
-export const WIDOW = {
-  feePerFlight: 10,
-  base: { bigDayChance: 0.14, offDayChance: 0.05 }, // partner thuis
-  withYoung: { bigDayChance: 0.17, offDayChance: 0.04 }, // partner + hun jongen thuis
-  duivinEnergyLoss: 3,
-} as const;
-
-/**
- * Koppels (⚠️ dev). A doffer and a duivin become partners in one of two ways:
- *  - the player lets them WENNEN: they must sit together (both in the main loft,
- *    or together in a partnerhok); after a random 1..maxDays they accept each
- *    other — or refuse (refusal chance falls with their libido);
- *  - they find each other: now and then two free birds in the main loft draw
- *    together on their own (a notification); confirm it and they are a koppel at
- *    once, no wennen.
- * Breaking a koppel — on purpose, or by making one of them breed with another
- * bird — halves both partners' libido.
- */
-export const COUPLES = {
-  wennenMaxDays: 7, // in the main loft: accepted (or refused) after 1..7 days
-  partnerhokMaxDays: 4, // in a partnerhok: 1..4 days
-  refuseMax: 0.4, // refusal chance = refuseMax − avgLibido / refuseLibidoDivisor, at least refuseMin
-  refuseMin: 0.1,
-  refuseLibidoDivisor: 250, // libido 50 → 20 %, 75 → 10 %, 25 → 30 %
-  partnerhokRefuseMult: 0.5,
-  breakLibidoMult: 0.5, // ontkoppelen (or forced breeding): libido −50 % for both partners
-  attractionChancePerDay: 0.12, // per loft with at least one free duo sitting together
-  attractionDays: 3, // how long the offer stays open
-  maxOpenAttractions: 2,
-} as const;
 
 /**
  * Duivenverzekering (⚠️ dev). Pays `payoutRate` of the market value at signing

@@ -6,7 +6,7 @@
 
 import type { Database, Flight, Loft, Notification, Pigeon, RaceLogEntry, ScoutMission, Trade } from './schema.js';
 import type { PigeonLogs } from './d1.js';
-import { AGE_CUP, AUCTION, BREED_RARITY, CITY_COORDS, COACH, DEBT, coachSalaryFor, nextCoachBand, ageCategoryDef, ageCategoryFor, compartmentCost, COUPLES, EQUIPMENT, EQUIPMENT_LEVELS, cleanerWage, partnerhokPrice, hygieneIllnessMult, irBoxPrice, SCOUT, VACCINES, type VaccineKey, quirkById, strawCost, RELAY, REST_CURE, TRADE_HISTORY_DAYS, TRAINING } from './config/gameConfig.js';
+import { AGE_CUP, AUCTION, BREED_RARITY, CITY_COORDS, COACH, DEBT, coachSalaryFor, nextCoachBand, ageCategoryDef, ageCategoryFor, compartmentCost, EQUIPMENT, EQUIPMENT_LEVELS, cleanerWage, hygieneIllnessMult, irBoxPrice, SCOUT, VACCINES, type VaccineKey, quirkById, strawCost, RELAY, REST_CURE, TRADE_HISTORY_DAYS, TRAINING } from './config/gameConfig.js';
 import {
   ageInWeeks,
   breedInfo,
@@ -41,8 +41,7 @@ import {
 } from './game/newcomer.js';
 import { coveredInInfirmary, idleCareStaff } from './game/health.js';
 import { equipmentLevel, equipmentOf, hygieneDecay } from './game/hygiene.js';
-import { insuranceCost, insurancePremium, insuranceQuote, irBoxesInUse, magazineRanges, readsMagazine, widowLevelNow } from './game/inrichting.js';
-import { coupleOf, partnerhokInUse, partnerOf } from './game/koppels.js';
+import { insuranceCost, insurancePremium, insuranceQuote, irBoxesInUse, magazineRanges, readsMagazine } from './game/inrichting.js';
 import { scoutStatus } from './game/scout.js';
 import { marketValue, valuePigeon } from './game/market.js';
 import { flightCancelled, flightCommentary, liveSnapshot, pigeonAirborne, pigeonCommittedToFlight } from './game/flight.js';
@@ -146,7 +145,7 @@ export function pigeonDTO(db: Database, p: Pigeon, viewerId?: string, viewerIsAd
     coachSalary: revealed ? coachSalaryFor(talent(p)) : null,
     coachNextBand: revealed ? nextCoachBand(talent(p)) : null,
     ration: revealed ? (p.ration ?? 'normal') : 'normal',
-    // Hokinrichting: vaccins, quarantaine, verzekering, weduwschap (owner only),
+    // Hokinrichting: vaccins, quarantaine, verzekering (owner only),
     // and the vakblad's bands on someone else's bird.
     care: publiclyRevealed && p.ownerId === viewerId ? careDTO(db, p) : null,
     origin: p.care?.origin ?? null,
@@ -279,13 +278,11 @@ export function broodYoungDTO(p: Pigeon) {
   };
 }
 
-/** The owner's view of a bird's care (vaccins, quarantaine, verzekering, weduwschap). */
+/** The owner's view of a bird's care (vaccins, quarantaine, verzekering). */
 function careDTO(db: Database, p: Pigeon) {
   const c = p.care ?? {};
   const nowMs = Date.now();
   const future = (iso?: string) => (iso && Date.parse(iso) > nowMs ? iso : null);
-  const partner = partnerOf(db, p);
-  const couple = coupleOf(db.lofts.find((l) => l.userId === p.ownerId), p.id);
   return {
     vaccines: Object.entries(c.vaccines ?? {})
       .filter(([, until]) => Date.parse(until) > nowMs)
@@ -296,17 +293,6 @@ function careDTO(db: Database, p: Pigeon) {
       ? { payout: c.insurance.payout, since: c.insurance.since, premium: insurancePremium(p, db.world.currentWeek, c.insurance.payout) }
       : null,
     insuranceQuote: c.insurance ? null : insuranceQuote(db, p),
-    // Koppels: her partner, or the duif she is wennen with (no outcome, no end day).
-    partner: partner ? { id: partner.id, name: partner.name, since: couple?.since ?? null } : null,
-    wennenWith: couple?.status === 'wennen'
-      ? (() => {
-          const otherId = couple.dofferId === p.id ? couple.duivinId : couple.dofferId;
-          const other = db.pigeons.find((x) => x.id === otherId);
-          return other ? { id: other.id, name: other.name } : null;
-        })()
-      : null,
-    // Weduwschap: switched on, and how it stands today (0 off/not possible, 1 partner, 2 partner + young).
-    widow: { on: !!c.widow, level: widowLevelNow(db, p) },
   };
 }
 
@@ -438,28 +424,6 @@ export function loftDTO(db: Database, loft: Loft) {
         scout: scoutDTO(db, eq.scout, Date.now()),
         // Once per season: has this season's scout already gone out?
         scoutUsed: eq.scoutSeason === db.world.seasonYear,
-        partnerhokken: eq.partnerhokken ?? 0,
-        partnerhokInUse: partnerhokInUse(loft),
-        partnerhokNextPrice: (eq.partnerhokken ?? 0) >= EQUIPMENT.partnerhok.maxBoxes ? null : partnerhokPrice(eq.partnerhokken ?? 0),
-        // Koppels and pairs still wennen. The day they decide and whether they
-        // refuse stay on the server: the player only sees how long it has been.
-        couples: (eq.couples ?? []).map((c) => {
-          const d = pigeons.find((x) => x.id === c.dofferId);
-          const h = pigeons.find((x) => x.id === c.duivinId);
-          return {
-            dofferId: c.dofferId, dofferName: d?.name ?? '?',
-            duivinId: c.duivinId, duivinName: h?.name ?? '?',
-            status: c.status,
-            since: c.since ?? null,
-            day: Math.floor((Date.now() - Date.parse(c.startedAt)) / 86400000) + 1,
-            maxDays: c.status === 'wennen' ? (c.partnerhok ? COUPLES.partnerhokMaxDays : COUPLES.wennenMaxDays) : null,
-            partnerhok: !!c.partnerhok,
-          };
-        }),
-        attractions: (eq.attractions ?? []).map((a) => ({
-          dofferId: a.dofferId, dofferName: pigeons.find((x) => x.id === a.dofferId)?.name ?? '?',
-          duivinId: a.duivinId, duivinName: pigeons.find((x) => x.id === a.duivinId)?.name ?? '?',
-        })),
       };
     })(),
     // Breeding pairs, so the loft view can put each pair in its own nest box.

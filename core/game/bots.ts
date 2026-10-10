@@ -435,8 +435,8 @@ export function botDailyActions(db: Database, loft: Loft, pigeons: Pigeon[], now
 /**
  * Hokinrichting (⚠️ dev) — what a bot buys, per the proposal: fresh straw when
  * the meter runs low, and dakventilatie once it has money to spare. No vaccins
- * (they ground a bird for two days, which bots do not plan around), no scout,
- * weduwschap or verzekering.
+ * (they ground a bird for two days, which bots do not plan around), no scout
+ * or verzekering.
  */
 function maybeFitOutLoft(loft: Loft, nowMs: number): void {
   const eq = equipmentOf(loft);

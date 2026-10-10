@@ -66,8 +66,7 @@ import {
 import type { CupStanding, Database, Flight, FlightResult, Loft, Pigeon, RaceLogEntry } from '../schema.js';
 import { emptySponsorState, emptyStats } from '../schema.js';
 import { tickHygiene } from './hygiene.js';
-import { entryMods, insuranceCost, insurancePayout, irBoxEffect, settleWidowhood, tickHawk, tickMagazine } from './inrichting.js';
-import { tickCouples } from './koppels.js';
+import { entryMods, insuranceCost, insurancePayout, irBoxEffect, tickHawk, tickMagazine } from './inrichting.js';
 import { newId } from '../store.js';
 import { applyDayOfCare, dailyRunningCost } from './economy.js';
 import { coachBill, newNewcomerPerks, tickNewcomerExpiry, winningsMultiplier } from './newcomer.js';
@@ -871,7 +870,7 @@ export function tickFlights(
       for (const e of flight.entries) {
         const pigeon = db.pigeons.find((p) => p.id === e.pigeonId);
         if (!pigeon) continue;
-        entries.push({ pigeon, ownerName: ownerName(db, pigeon.ownerId), mods: entryMods(db, pigeon, flight, startMs) });
+        entries.push({ pigeon, ownerName: ownerName(db, pigeon.ownerId), mods: entryMods(db, pigeon) });
       }
       // A competition flight needs at least two different breeders — otherwise it
       // is called off and everyone's entry fee is refunded. Training flights
@@ -906,7 +905,6 @@ export function tickFlights(
         continue;
       }
       startLiveFlight(flight, entries, flight.week, weatherByFlight?.get(flight.id));
-      settleWidowhood(db, flight); // weduwschap: €10 per doffer, a little energie off his duivin
     }
 
     if (flight.status === 'live' && !Number.isNaN(startMs)) {
@@ -3021,8 +3019,6 @@ export function tickDailyCare(db: Database, nowMs: number): void {
       tickHygiene(loft, db.pigeons.filter((p) => p.ownerId === loft.userId), dayMidnight);
       // De sperwer boven een ren zonder roofvogelafweer (hokinrichting).
       tickHawk(db, loft, db.pigeons.filter((p) => p.ownerId === loft.userId), dayNo, livePigeonIds);
-      // Koppels: reveal the wennen that decide today, maybe two birds find each other.
-      tickCouples(db, loft, db.pigeons.filter((p) => p.ownerId === loft.userId), dayNo, nowMs);
       // AFTER the day's billing, because that is what can push a till into the
       // red in the first place: coaches off on day one, then a forced auction
       // every DEBT.graceDays for as long as it lasts (see game/debt.ts).

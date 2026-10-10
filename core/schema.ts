@@ -191,7 +191,7 @@ export interface Pigeon {
    *  schedule.ts). Shown on Mijn hok only when that is still her owner. */
   earnings?: number;
   earningsOwner?: string | null;
-  /** Hokinrichting: vaccins, quarantaine, verzekering, weduwschap (column `care`). */
+  /** Hokinrichting: vaccins, quarantaine, verzekering (column `care`). */
   care?: PigeonCare;
   seasonPracticeGain?: number; // score gained from practice flights this season (excluded from the ranking)
   /**
@@ -351,37 +351,8 @@ export interface LoftEquipment {
   scout?: ScoutMission | null;
   /** The season (World.seasonYear) the scout last went out — once per season. */
   scoutSeason?: number;
-  /** Partnerhokken bought: a box where two birds sit together to wennen. */
-  partnerhokken?: number;
-  /** Koppels and pairs still getting used to each other (see koppels.ts). */
-  couples?: Couple[];
-  /** Free birds that drew together on their own, waiting for the player's yes. */
-  attractions?: Attraction[];
   /** Niveaus (EQUIPMENT_LEVELS): absent = level 1 for whatever is bought. */
   levels?: Partial<Record<'ventilation' | 'run' | 'light' | 'irBoxes' | 'baskets', number>>;
-}
-
-/** A koppel, or a doffer and a duivin still getting used to each other (COUPLES). */
-export interface Couple {
-  dofferId: string;
-  duivinId: string;
-  status: 'wennen' | 'koppel';
-  startedAt: string; // ISO: when the wennen began (or the koppel was confirmed)
-  since?: string; // ISO: when they became a koppel
-  /** wennen: the Brussels day number on which the outcome is known. Never sent to the client. */
-  resolveDay?: number;
-  /** wennen: rolled at the start — do they refuse each other? Never sent to the client. */
-  refuses?: boolean;
-  /** wennen in a partnerhok (together even if he keeps an apart hok). */
-  partnerhok?: boolean;
-}
-
-/** Two free birds that drew together on their own (COUPLES.attraction*). */
-export interface Attraction {
-  dofferId: string;
-  duivinId: string;
-  day: number; // Brussels day number it started
-  expiresDay: number;
 }
 
 /** A scout sent to a market abroad (EQUIPMENT/SCOUT in gameConfig). */
@@ -398,7 +369,7 @@ export interface ScoutMission {
 
 /**
  * Per-bird care from the hokinrichting (vaccins, quarantaine, verzekering,
- * weduwschap, herkomst). One JSON column on the pigeon row; absent = none.
+ * herkomst). One JSON column on the pigeon row; absent = none.
  */
 export interface PigeonCare {
   /** Vaccine/kuur id → valid until (ISO). See VACCINES in gameConfig. */
@@ -409,8 +380,6 @@ export interface PigeonCare {
   quarantineUntil?: string;
   /** Duivenverzekering: what is paid out on death, and since when. */
   insurance?: { payout: number; since: string };
-  /** Weduwschap (doffer only) is switched on; he flies home to his partner (COUPLES). */
-  widow?: boolean;
   /** Where she came from, when imported (e.g. "Import · Zuid-Afrika"). */
   origin?: string;
 }
@@ -696,8 +665,6 @@ export interface RelayLeg {
 
 /** A single pigeon's frozen performance, computed when a flight goes live. */
 export interface SimEntry {
-  /** Hokinrichting: weduwschap at the lossing — 1 partner home, 2 partner + young home. */
-  widow?: 1 | 2;
   /** Hokinrichting: reismanden — the flight costs this fraction of the usual health. */
   healthMult?: number;
   pigeonId: string;

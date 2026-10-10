@@ -92,7 +92,7 @@ export interface Pigeon {
   // players' birds these are null (see `revealed`). The general score (talent)
   // is always public.
   revealed: boolean;
-  /** Hokinrichting: vaccins, quarantaine, verzekering, weduwschap — own birds only. */
+  /** Hokinrichting: vaccins, quarantaine, verzekering — own birds only. */
   care?: PigeonCareView | null;
   /** Where she came from when imported by a scout. */
   origin?: string | null;
@@ -270,22 +270,6 @@ export interface LoftEquipment {
   lastHawkDay: number | null;
   scout: ScoutView | null;
   scoutUsed: boolean; // once per season
-  partnerhokken: number;
-  partnerhokInUse: number;
-  partnerhokNextPrice: number | null;
-  couples: CoupleView[];
-  attractions: { dofferId: string; dofferName: string; duivinId: string; duivinName: string }[];
-}
-
-/** A koppel, or a pair still wennen (the outcome and end day stay on the server). */
-export interface CoupleView {
-  dofferId: string; dofferName: string;
-  duivinId: string; duivinName: string;
-  status: 'wennen' | 'koppel';
-  since: string | null;
-  day: number; // which day since they started
-  maxDays: number | null; // wennen: they decide within this many days
-  partnerhok: boolean;
 }
 
 export interface ScoutView {
@@ -312,10 +296,6 @@ export interface PigeonCareView {
   quarantineUntil: string | null;
   insurance: { payout: number; since: string; premium: number } | null;
   insuranceQuote: { payout: number; premium: number } | null;
-  partner: { id: string; name: string; since: string | null } | null;
-  wennenWith: { id: string; name: string } | null;
-  /** Weduwschap: switched on, and today's level (0 not possible, 1 partner home, 2 partner + young home). */
-  widow: { on: boolean; level: 0 | 1 | 2 };
 }
 
 export interface InrichtingCatalogue {
@@ -334,8 +314,6 @@ export interface InrichtingCatalogue {
     markets: Record<string, { label: string; blurb: string }>;
     choiceHours: number; quarantineDays: number;
   };
-  widowFee: number;
-  couples: { wennenMaxDays: number; partnerhokMaxDays: number; breakLibidoMult: number };
   insurancePayoutRate: number;
 }
 

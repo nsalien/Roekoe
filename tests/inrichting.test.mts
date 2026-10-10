@@ -4,8 +4,8 @@
  * huisregel "niets kopen = het spel van vandaag":
  *
  *   ventilatie, ren + sperwer, roofvogelafweer, kunstlicht, infrarood,
- *   reismanden, weerstation, vakblad, vaccins/kuren, verzekering, weduwschap,
- *   scout, en wat de bots kopen.
+ *   reismanden, weerstation, vakblad, vaccins/kuren, verzekering, scout, en wat
+ *   de bots kopen.
  *
  * Run: npx tsx tests/inrichting.test.mts   (vanuit de repo-root)
  */
@@ -156,17 +156,13 @@ console.log('\n=== 4. Verzekering ===');
   ok(withIns.insurance === 1.23, 'premies staan in de Dagbalans');
 }
 
-console.log('\n=== 5. Weduwschap: zie koppels.test.mts ===');
-
 console.log('\n=== 6. Reismanden ===');
 {
   const { store, db, userId, birds } = world();
-  ensureFlightsScheduled(db, Date.now());
-  const f = db.flights.find((x) => x.status === 'scheduled' && !x.relay && !x.practice)!;
   const p = birds()[0];
-  const plain = entryMods(db, p, f, Date.parse(f.startAt));
+  const plain = entryMods(db, p);
   buyEquipment(store, userId, 'baskets');
-  const mods = entryMods(db, p, f, Date.parse(f.startAt));
+  const mods = entryMods(db, p);
   ok(plain.energyMult === 1 && mods.energyMult === EQUIPMENT.baskets.energyMult && mods.healthMult === EQUIPMENT.baskets.healthMult, 'energie ×0,97, gezondheid ×0,95');
 }
 
@@ -213,7 +209,7 @@ console.log('\n=== 7. Scout ===');
   ok(scoutStatus(s2, exp) === 'expired' && buyScouted(store, userId, 0, exp) !== null, 'na 48 u kiestijd verlopen');
   const sire = birds().find((p) => p.id !== imp.id)!;
   imp.sex = 'duivin'; sire.sex = 'doffer';
-  ok((startBreeding(store, userId, sire.id, imp.id) ?? '').includes('quarantaine'), 'in quarantaine: niet koppelen');
+  ok((startBreeding(store, userId, sire.id, imp.id) ?? '').includes('quarantaine'), 'in quarantaine: niet broeden');
 
   // Lege handen: brons zelden, goud vaak.
   const emptyShare = (tier: 'brons' | 'goud') => {
@@ -256,7 +252,11 @@ console.log('\n=== 9. Weerstation ===');
   const due = flightsNeedingForecast(db, now);
   ok(due.length > 0 && due.every((d) => d.atMs - now <= 24 * 3600000), `met station: de vluchten binnen 24 u (${due.length})`);
   applyFlightForecasts(db, new Map(due.map((d) => [d.flightId, randomWeather(d.atMs)])), now);
-  ok(flightsNeedingForecast(db, now + 3600000).length === 0 || due.some((d) => d.atMs - now <= 3 * 3600000), 'daarna pas na 6 u opnieuw (het laatste uur elk uur)');
+  // Only the flights that already have a forecast: one that starts 24–25 h from
+  // now enters the window during this hour and rightly gets its first one.
+  const dueIds = new Set(due.map((d) => d.flightId));
+  const again = flightsNeedingForecast(db, now + 3600000).filter((d) => dueIds.has(d.flightId));
+  ok(again.every((d) => d.atMs - now <= 3 * 3600000), `daarna pas na 6 u opnieuw (het laatste uur elk uur): ${again.length} binnen het uur`);
 }
 
 console.log('\n=== 10. Bots ===');
@@ -318,8 +318,7 @@ console.log('\n=== 12. Niveaus: elk niveau 3× duurder, het effect ×1,5 · ×1,
 
   buyEquipment(store, userId, 'baskets');
   upgradeEquipment(store, userId, 'baskets'); upgradeEquipment(store, userId, 'baskets');
-  const f = { id: 'f', practice: true, startAt: new Date().toISOString() } as unknown as Flight; // a practice flight: no weduwschap to weigh
-  const mods = entryMods(db, p, f, Date.now());
+  const mods = entryMods(db, p);
   ok(Math.abs(mods.energyMult - (1 - 0.03 * 1.8)) < 1e-9 && Math.abs(mods.healthMult - (1 - 0.05 * 1.8)) < 1e-9,
     `reismanden niveau 3: ×${mods.energyMult.toFixed(3)} energie, ×${mods.healthMult.toFixed(3)} gezondheid`);
 

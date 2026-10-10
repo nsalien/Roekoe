@@ -1464,19 +1464,6 @@ ademhalingskuur €8 (7 d, 60 %, libido −10).
 vertrekken met < 5 energie, een ziekte die nooit in de ziekenboeg lag, de eerste 7
 dagen. Vervalt bij verkoop.
 
-**Koppels:** een doffer en een duivin worden partners door te **wennen** — samen in het
-hoofdhok (niet apart, niet in de ziekenboeg) of samen in een **partnerhok** (€600 +
-€0,50/dag). Na 1–7 dagen (partnerhok 1–4) aanvaarden ze elkaar of weigeren ze; weigerkans
-`max(10 %, 40 % − gemiddeld libido / 250)`, in het partnerhok gehalveerd. Twee vrije duiven in
-het hoofdhok kunnen ook **zelf naar elkaar toe trekken** (~12 % kans per dag per hok); bevestig
-je dat binnen 3 dagen, dan zijn ze meteen een koppel. **Ontkoppelen** of een partner laten
-**broeden met een andere duif**: beide partners −50 % libido.
-
-**Weduwschap:** doffer **met een partner**, in een apart hok, €10 per vlucht. Partner thuis:
-grote dag 10 % → 14 %, slechte dag 7 % → 5 %. Partner + hun jongen thuis: 17 % / 4 %. Zij moet
-thuis zijn bij de lossing (niet zelf vliegen, niet weg, niet in de ziekenboeg), ze zitten niet
-op een nest; zij −3 energie per vlucht.
-
 **Scout:** één keer per seizoen. Brons/zilver/goud (€250/€500/€900, ★ 60–68/68–76/76–84,
 hoogstens 7/14/21 dagen weg). Terugkeerkans op dag d van maximaal N:
 `5 % + 95 % · ((d−1)/(N−1))^1,6` — brons 5 · 10 · 21 · 36 · 55 · 76 · 100 %. Met lege handen

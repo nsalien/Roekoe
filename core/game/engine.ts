@@ -65,7 +65,6 @@ import {
 } from './pigeon.js';
 import { clamp, randFloat, randInt, round1 } from './util.js';
 import { clearOwnerCare, grounded, inQuarantine } from './inrichting.js';
-import { breakForForcedBreeding, leavePartnerhok } from './koppels.js';
 
 export const NPC_OWNER_ID = 'npc_market';
 
@@ -461,8 +460,6 @@ export function setPigeonCompartment(store: Store, userId: string, pigeonId: str
     // Birds in the infirmary don't occupy a compartment slot, so don't count them.
     const used = db.pigeons.filter((p) => p.ownerId === userId && p.compartment && !p.inInfirmary).length;
     if (used >= (loft.compartments ?? 0)) return 'Geen vrij apart hok — bouw er eerst een bij';
-    // An apart hok and a partnerhok exclude each other: her koppel leaves the box.
-    leavePartnerhok(loft, pigeon.id);
     pigeon.compartment = true;
     progressMissions(db, loft, 'apart', 1);
     evaluateBadges(db, loft);
@@ -775,7 +772,7 @@ export function unlist(store: Store, userId: string, pigeonId: string): string |
  * sale — this does the transfer, not the rules.
  */
 export function settlePigeonSale(db: Database, buyer: Loft, pigeon: Pigeon): void {
-  // A policy and a weduwschap belong to the old owner's loft, not to the bird.
+  // A policy belongs to the old owner's loft, not to the bird.
   clearOwnerCare(pigeon);
   const price = pigeon.price ?? 0;
   const sellerId = pigeon.ownerId;
@@ -1021,9 +1018,6 @@ export function startBreeding(
     if (loft.pendingBroods?.some((b) => (b.origin ?? 'nest') === 'nest'))
       return 'Er wacht nog een nest op je keuze — beslis eerst welke jongen je houdt';
     if (loft.money < BREEDING.cost) return 'Niet genoeg geld voor een nest';
-    // Koppels (hokinrichting): breeding two birds that are not each other's partner
-    // breaks the koppel(s) they are in — both partners lose half their libido.
-    breakForForcedBreeding(db, loft, sireId, damId);
     loft.money -= BREEDING.cost;
     // Breeding costs the parents some energie.
     sire.form = round1(clamp(sire.form - 15, 0, 100));

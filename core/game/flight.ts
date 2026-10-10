@@ -15,7 +15,6 @@ import {
   ENERGIE_IMPACT,
   FLIGHT_DYNAMICS,
   FLIGHT_FATIGUE,
-  WIDOW,
   FLIGHT_RISK,
   INJURY,
   IMPROVE_WEIGHTING,
@@ -93,7 +92,7 @@ export interface Entry {
   pigeon: Pigeon;
   ownerName: string;
   /** Hokinrichting, frozen at the lossing (inrichting.entryMods). Omitted = none. */
-  mods?: { energyMult: number; healthMult: number; widow: 0 | 1 | 2 };
+  mods?: { energyMult: number; healthMult: number };
 }
 
 /**
@@ -256,8 +255,6 @@ function buildPaceProfile(
    *  social/loner on the second pass — where the neighbour condition held).
    *  Omitted = no trait effect at all (legacy callers). */
   traits?: TraitRun,
-  /** Weduwschap: 1 = his partner waits, 2 = partner + their young (WIDOW). 0 = none. */
-  widow: 0 | 1 | 2 = 0,
 ): {
   velocity: number; segMult: number[]; durationSeconds: number; dnfAtSeconds: number | null; dnfKind: SimEntry['dnfKind'];
   lost: SimEntry['lost']; strays: SimEntry['strays']; strayDays?: number;
@@ -275,10 +272,8 @@ function buildPaceProfile(
 
   // Form of the day: everyday swing, plus rarer great / off days for upsets.
   let dayFactor = 1 + (rng() * 2 - 1) * FD.dayNoise;
-  // Same draws either way, so weduwschap shifts the odds without reshuffling the race.
-  const odds = widow === 2 ? WIDOW.withYoung : widow === 1 ? WIDOW.base : { bigDayChance: FD.bigDayChance, offDayChance: FD.offDayChance };
-  if (rng() < odds.bigDayChance) dayFactor *= rf(FD.bigDayMin, FD.bigDayMax);
-  else if (rng() < odds.offDayChance) dayFactor *= rf(FD.offDayMin, FD.offDayMax);
+  if (rng() < FD.bigDayChance) dayFactor *= rf(FD.bigDayMin, FD.bigDayMax);
+  else if (rng() < FD.offDayChance) dayFactor *= rf(FD.offDayMin, FD.offDayMax);
 
   // Weather affects birds differently: rough weather (factor<1) hurts some more;
   // a tailwind (factor>1) helps some more.
@@ -619,7 +614,7 @@ export function startLiveFlight(flight: Flight, entries: Entry[], week: number, 
     weather: { along: w.along, rain: w.rain, tempC: w.tempC },
   };
   const build = (e: Entry, groupKm?: [number, number][]) =>
-    buildPaceProfile(flight.id, e.pigeon, flight.distanceKm, week, w.factor, !!flight.practice, field, { ...run, groupKm }, e.mods?.widow ?? 0);
+    buildPaceProfile(flight.id, e.pigeon, flight.distanceKm, week, w.factor, !!flight.practice, field, { ...run, groupKm });
   let profs = entries.map((e) => build(e));
   // Sociale duif / Eenzaat: where did she have company, measured on the field's
   // profiles WITHOUT this bonus — then rebuild only those birds with it. Same
@@ -971,7 +966,7 @@ function startLiveRelay(flight: Flight, entries: Entry[], week: number): void {
         const leg = flight.legs?.[legIndex - 1];
         const prof = buildPaceProfile(
           flight.id, e.pigeon, legKm, week, leg?.weatherFactor ?? 1, false, legFields.get(legIndex),
-          legRun(legIndex, offset, groupKm?.get(e.pigeon.id)), e.mods?.widow ?? 0,
+          legRun(legIndex, offset, groupKm?.get(e.pigeon.id)),
         );
         const planned = { e, legIndex, prof, offset };
         offset += prof.durationSeconds;
@@ -1154,9 +1149,8 @@ function routeEnergyCost(experience: number, km: number, jitter: number, frugal 
 }
 
 /** The hokinrichting fields a sim entry carries (only when they do something). */
-function modSimFields(e: Entry): Pick<SimEntry, 'widow' | 'healthMult'> {
-  const out: Pick<SimEntry, 'widow' | 'healthMult'> = {};
-  if (e.mods?.widow) out.widow = e.mods.widow;
+function modSimFields(e: Entry): Pick<SimEntry, 'healthMult'> {
+  const out: Pick<SimEntry, 'healthMult'> = {};
   if (e.mods && e.mods.healthMult !== 1) out.healthMult = e.mods.healthMult;
   return out;
 }
