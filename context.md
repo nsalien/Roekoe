@@ -83,7 +83,7 @@
   request doet (world-rij, `ensureSchema`, `seedWorld` = 8 bots, `advanceRealtime` = migraties +
   vluchtkalender), dan de demospeler (`usr_demo`, **beheerder**) via `createLoftForUser`:
   capaciteit 12, 2 aparte hokken (2 duiven erin), 10 willekeurige duiven (2 vrije plaatsen),
-  €8000, één dokter, één koppel via `startBreeding`, één zieke duif (`applyAilment`) in de
+  **altijd minstens €100.000** (zie hieronder), één dokter, één koppel via `startBreeding`, één zieke duif (`applyAilment`) in de
   ziekenboeg. De token tekent de demo zelf (vaste, niet-geheime sleutel).
 - **Tijd:** de banner heeft **+1 uur / +6 uur / +1 dag**. `client/demo/clock.ts` verschuift
   `Date.now()` én `new Date()` voor de hele pagina (de motor draait in dezelfde pagina, dus
@@ -293,7 +293,10 @@
 - **Bots:** vers stro bij hygiëne ≤ 60 en dakventilatie zodra ze €5.000 boven hun reserve
   zitten (`maybeFitOutLoft`). Geen vaccins (die houden een duif 2 dagen aan de grond), geen
   scout, verzekering of vakblad. Dit was een open vraag; het voorstel is gevolgd.
-- **Demo:** de demospeler start met €30.000 om alles te proberen; `DEMO_VERSION` = 4.
+- **Demo:** de demospeler heeft **altijd minstens €100.000** (wens van de eigenaar): de seed geeft
+  `DEMO_MONEY`, en `topUpDemoMoney` (client/demo/seed.ts) vult bij **elke start** van de demo aan tot
+  dat bedrag — ook na +1 uur/+6 uur/+1 dag en "Demo opnieuw" (die herladen de pagina). Binnen een
+  bezoek zie je wat je uitgeeft; meer dan €100.000 (prijzengeld) blijft staan. `DEMO_VERSION` = 4.
 - **Tests:** `tests/inrichting.test.mts` (alles hierboven), `tests/hygiene.test.mts`.
 
 ---

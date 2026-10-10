@@ -23,7 +23,7 @@ import { D1Store } from '../../core/d1.js';
 import { advanceRealtime } from '../../core/game/schedule.js';
 import { computeLeaderboard } from '../../core/presenters.js';
 import { DemoD1 } from './d1';
-import { createDemoWorld, DEMO_USER_ID, DEMO_USERNAME } from './seed';
+import { createDemoWorld, DEMO_USER_ID, DEMO_USERNAME, topUpDemoMoney } from './seed';
 import { advanceClock, installDemoClock, resetClock } from './clock';
 import { mountBanner } from './banner';
 
@@ -158,6 +158,7 @@ export async function bootDemo(): Promise<void> {
   installFetchRouter();
   await openWorld();
   await catchUp();
+  if (d1) await topUpDemoMoney(d1); // always at least €100.000 when the demo starts
   await saveNow();
   const token = await signToken({ sub: DEMO_USER_ID, username: DEMO_USERNAME }, DEMO_JWT_SECRET, 60 * 60 * 24 * 365);
   localStorage.setItem(TOKEN_KEY, token);

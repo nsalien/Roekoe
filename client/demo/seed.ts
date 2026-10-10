@@ -18,6 +18,8 @@ import type { DemoD1 } from './d1';
 
 export const DEMO_USER_ID = 'usr_demo';
 export const DEMO_USERNAME = 'demo';
+/** The owner's wish: the demo account always has at least this much (see topUpDemoMoney). */
+export const DEMO_MONEY = 100_000;
 
 const DEMO_CAPACITY = 12;
 const DEMO_COMPARTMENTS = 2;
@@ -64,7 +66,7 @@ export async function createDemoWorld(d1: DemoD1): Promise<void> {
   store.mutate((w) => {
     loft.capacity = DEMO_CAPACITY;
     loft.compartments = DEMO_COMPARTMENTS;
-    loft.money = 30000; // enough to try the whole hokinrichting
+    loft.money = DEMO_MONEY;
     loft.doctors = 1;
     // Straw strewn six days ago: the meter is low, so fresh straw shows its effect.
     loft.equipment = { hygiene: 58, lastStrawAt: new Date(Date.now() - 6 * 86400000).toISOString(), cleaner: false };
@@ -104,5 +106,21 @@ export async function createDemoWorld(d1: DemoD1): Promise<void> {
     }
     w.world.leaderboard = JSON.stringify(computeLeaderboard(w));
   });
+  await store.persist();
+  // The nest above was paid through the real engine: start on exactly DEMO_MONEY.
+  await topUpDemoMoney(d1);
+}
+
+/**
+ * Top the demo account up to DEMO_MONEY. Runs on every start of the demo — also
+ * after "+1 uur/+6 uur/+1 dag" and "Demo opnieuw", which reload the page — so you
+ * never run dry while trying things; within one visit you still see what you
+ * spend. More than that (prize money) is left alone.
+ */
+export async function topUpDemoMoney(d1: DemoD1): Promise<void> {
+  const store = await D1Store.load(d1 as any, DEMO_USER_ID);
+  const loft = store.data.lofts.find((l) => l.userId === DEMO_USER_ID);
+  if (!loft || loft.money >= DEMO_MONEY) return;
+  loft.money = DEMO_MONEY;
   await store.persist();
 }
