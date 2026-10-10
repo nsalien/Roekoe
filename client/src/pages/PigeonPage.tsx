@@ -352,13 +352,13 @@ export function PigeonPage() {
                   <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
                     <input
                       type="number"
-                      min={1}
+                      min={p.minPrice ?? 1}
                       value={offerAmount || ''}
-                      placeholder="bedrag"
+                      placeholder={`vanaf ${p.minPrice ?? 1}`}
                       onChange={(e) => setOfferAmount(Number(e.target.value))}
                       style={{ maxWidth: 140 }}
                     />
-                    <button className="btn accent" disabled={busy || !(offerAmount > 0) || offerAmount > (state?.loft?.money ?? 0)}
+                    <button className="btn accent" disabled={busy || !(offerAmount > 0) || offerAmount < (p.minPrice ?? 0) || offerAmount > (state?.loft?.money ?? 0)}
                       onClick={() => run(() => api(`/pigeons/${p.id}/offer`, { method: 'POST', body: { amount: offerAmount } }), 'Bod uitgebracht! 🤝').then(() => setOfferAmount(0))}>
                       Bied <Money value={offerAmount || 0} />
                     </button>

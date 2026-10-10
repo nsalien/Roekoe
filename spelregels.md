@@ -1964,7 +1964,10 @@ mét het talent van die duif, en samen vormen die de prijslijst van de club.
   Op de duifpagina zie je hoe de prijs tot stand kwam: hoeveel procent markt, en op
   hoeveel verkopen.
 
-De waarde is een **richtprijs**: je mag je duif voor elk bedrag te koop zetten. Ze
+De waarde is een **richtprijs**: je mag je duif voor elk bedrag te koop zetten vanaf
+**1/5 van haar waarde** (een duif van €10.000 vanaf €2.000). Lager verkopen of bieden
+kan niet — ook niet als haar waarde intussen steeg: dan geldt 1/5 van de nieuwe
+waarde. Ze
 bepaalt wel het **startbod van een veiling** (30 % van de waarde, zodat er nog te
 bieden valt) en wat de gladde koopman voor je pronkstuk neerlegt.
 
@@ -1987,6 +1990,8 @@ daar wel meteen **uit de verkoop halen**.
 
 - Vul je **geen** ondergrens in, dan is je duif **enkel voor de marktprijs** te
   koop; bieden kan dan niet.
+- Marktprijs, ondergrens en elk bod liggen **minstens op 1/5 van de waarde** van de
+  duif (§9.0).
 - De ondergrens mag **niet boven** je marktprijs liggen — dan zou niemand ooit
   bieden, want kopen is dan goedkoper.
 - Een bod **op of boven** je marktprijs wordt geweigerd: dan koopt de bieder haar

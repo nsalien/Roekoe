@@ -1420,6 +1420,7 @@ npx tsx tests/sponsor-cap.test.mts        # max 6 sponsors, tier 4 ×0,5/dag (v5
 npx tsx tests/sunday-auction.test.mts     # twee zondagduiven, vensters, scoreband, 2-vrije-plaatsen-regel
 npx tsx tests/lokaal.test.mts             # Het Lokaal: laden/pagineren/poll+overlap, weghalen, opruimen, chat_last_at blijft staan
 npx tsx tests/market-memory.test.mts      # marktwaarde blijft staan tot een nieuwere verkoop; σ 6; venster 60
+npx tsx tests/market-floor.test.mts       # nooit onder 1/5 van de marktwaarde; Zulma en Freddy (€25) tellen niet mee
 npx tsx tests/demo-build.test.mts         # (dev) prodbuild zonder demo, previewbuild mét demo
 npx tsx tests/demo-world.test.mts         # (dev) de demowereld + de echte API op sql.js
 npx tsx tests/hygiene.test.mts            # (dev) hokhygiëne, stro, poetser, bodem ×0,4
@@ -1518,7 +1519,29 @@ Alles hieronder staat **live** op de deploy-branch. Data-migraties liepen door t
 > getrapt is. Nieuwste bovenaan. Voor "hoe werkt het spel nu" hoef je §8 niet te lezen;
 > daarvoor volstaan §2 t/m §7.
 
-**Marktwaarde houdt stand tot een nieuwere verkoop (nieuwste)**
+**Markt: nooit onder 1/5 van de marktwaarde; twee verkopen van €25 tellen niet mee (nieuwste)**
+- **Melding van de eigenaar (productie):** Roekoeloos verkocht *Zulma uit het Zolderhok* en
+  *Freddy de Fondkoning* aan Graanabolica voor **€25**, ver onder hun waarde, en dat trok elke
+  vergelijkbare duif omlaag (in `market-floor.test.mts` halveert één zo'n verkoop de waarde van een
+  duif van ~€13.000). Vraag: die twee mogen niet meetellen, en voortaan geen verkoop onder 1/5.
+- **De twee verkopen:** `IGNORED_TRADES` (gameConfig) + `countsForValuation` (market.ts) — de
+  waardering slaat ze over; match op naam, prijs én beide hokken (een duivennaam is uniek). Ze
+  blijven in de verkoopgeschiedenis staan. **Geen databankwijziging**: we kunnen niet in de live D1,
+  en dit is omkeerbaar. Na `observationDays` (60 d) vallen ze sowieso uit het venster; dan mag de
+  lijst weer leeg.
+- **De ondergrens:** `MIN_SALE_SHARE` 0,2 → `minSalePrice(db, p)` = ⌈waarde × 0,2⌉. Bewaakt in
+  `listForSale` (vraagprijs én "bieden vanaf"), `buyPigeon` (niet voor de NPC-markt; steeg haar
+  waarde sinds de listing, dan weigert de koop tot de verkoper duurder zet), `makeOffer`,
+  `respondOffer` (aanvaarden onder de grens kan niet, weigeren altijd) en de bots
+  (`maybeBuyFromMarket` slaat zo'n listing over; hun bod ligt al op 0,85–1,05 × de waarde).
+  Veilingen openen al hoger (zondag 30 %, gedwongen ≥ 25 %); het **opvangcentrum** (NPC, geen
+  speler die verkoopt) start zoals altijd op €25.
+- **UI:** `pigeonDTO.minPrice`; het verkoopformulier op *Mijn hok*, het bod op de *Markt*
+  (`ListingBid`, `BidCascade`) en op de duifpagina tonen de ondergrens en laten niets lagers door.
+- **Test:** `tests/market-floor.test.mts`. `bot-market` test 2 zet de botduif nu op precies 1/5
+  (spotgoedkoop maar toegelaten), zodat enkel de bot-check haar tegenhoudt, zoals bedoeld.
+
+**Marktwaarde houdt stand tot een nieuwere verkoop**
 - **Melding van de eigenaar:** na een dure verkoop schoten de waarden omhoog en zakten ze
   daarna dag na dag terug, terwijl die hogere prijs net de juiste was (een duif van score 80:
   €20.000 → €12.000 in een paar dagen).

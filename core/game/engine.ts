@@ -48,7 +48,7 @@ import { newNewcomerPerks } from './newcomer.js';
 import { careSlots, runHealthWeek } from './health.js';
 import { nameKey, namesInUse } from './names.js';
 import { voidBetsForWithdrawnPigeon } from './betting.js';
-import { noteMarketNews } from './market.js';
+import { minSalePrice, noteMarketNews } from './market.js';
 import { birdStillOut, flightClaimingDay, flightDay, pigeonAirborne, pigeonCommittedToFlight } from './flight.js';
 import {
   ageInWeeks,
@@ -722,6 +722,11 @@ export function listForSale(
       if (!(floor > 0)) return 'Ongeldige ondergrens om te bieden';
       if (floor > Math.round(price)) return 'De ondergrens om te bieden mag niet boven je marktprijs liggen';
     }
+    // Never under 1/5 of her market value (MIN_SALE_SHARE) — no dumping a bird for
+    // a few euro, which also dragged the value of every comparable bird down.
+    const min = minSalePrice(db, pigeon);
+    if (Math.round(price) < min) return `Onder 1/5 van haar marktwaarde verkopen kan niet: vraag minstens €${min}`;
+    if (floor != null && floor < min) return `"Bieden vanaf" kan niet onder 1/5 van haar marktwaarde: minstens €${min}`;
     if (isAway(pigeon)) return `${AWAY_MSG} — je kan haar pas verkopen als ze terug is`;
     // A pigeon that is currently racing or breeding cannot be sold.
     const racing = pigeonCommittedToFlight(db, pigeonId);
@@ -834,6 +839,10 @@ export function buyPigeon(store: Store, userId: string, pigeonId: string): strin
     const debt = debtBlock(buyer); if (debt) return debt;
     if (!pigeon.forSale || pigeon.price == null) return 'Deze duif is niet te koop';
     if (pigeon.ownerId === userId) return 'Dit is al jouw duif';
+    // Her value may have risen since she was listed: 1/5 of it still holds.
+    if (pigeon.ownerId !== NPC_OWNER_ID && pigeon.price < minSalePrice(db, pigeon)) {
+      return `De vraagprijs ligt intussen onder 1/5 van haar marktwaarde (€${minSalePrice(db, pigeon)}) — de verkoper moet haar duurder zetten`;
+    }
     if (buyer.money < pigeon.price) return 'Niet genoeg geld';
     const owned = db.pigeons.filter((p) => p.ownerId === userId).length;
     if (owned >= buyer.capacity) return 'Je hok zit vol';

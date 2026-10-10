@@ -27,7 +27,7 @@ import { emptyDatabase } from '../core/schema.js';
 import { seedWorld, createLoftForUser, listForSale, unlist } from '../core/game/engine.js';
 import { botDailyActions } from '../core/game/bots.js';
 import { talent, trainCeil } from '../core/game/pigeon.js';
-import { valuePigeon } from '../core/game/market.js';
+import { minSalePrice, valuePigeon } from '../core/game/market.js';
 import { BOT, TRAINING } from '../core/config/gameConfig.js';
 import type { Database, Loft, Pigeon, User } from '../core/schema.js';
 
@@ -143,7 +143,9 @@ console.log('\n2. Enkel van echte spelers');
   const otherBot = w.db.lofts.filter((l) => l.isBot)[1];
   const theirs = w.db.pigeons.filter((p) => p.ownerId === otherBot.userId)[0];
   theirs.forSale = true;
-  theirs.price = 100; // spotgoedkoop, dus enkel de bot-check kan het tegenhouden
+  // Spotgoedkoop maar toegelaten (precies 1/5 van haar waarde, MIN_SALE_SHARE),
+  // dus enkel de bot-check kan het tegenhouden.
+  theirs.price = minSalePrice(w.db, theirs);
   botDay(w);
   ok(theirs.ownerId === otherBot.userId, 'een bot koopt niets van een andere bot');
 }

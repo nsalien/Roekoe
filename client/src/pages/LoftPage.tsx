@@ -183,12 +183,13 @@ export function LoftPage() {
                 </label>
                 <span className="faint sm">
                   Wie de marktprijs betaalt, koopt haar meteen. Vul je een ondergrens in, dan mogen anderen
-                  vanaf dat bedrag een bod doen dat jij aanvaardt of weigert.
+                  vanaf dat bedrag een bod doen dat jij aanvaardt of weigert. Nooit onder 1/5 van haar waarde:
+                  minstens <Money value={p.minPrice ?? 0} />.
                 </span>
                 <div className="row" style={{ gap: 6 }}>
                   <button
                     className="btn sm"
-                    disabled={busy || price <= 0 || (minBid !== '' && Number(minBid) > price)}
+                    disabled={busy || price <= 0 || price < (p.minPrice ?? 0) || (minBid !== '' && (Number(minBid) > price || Number(minBid) < (p.minPrice ?? 0)))}
                     onClick={() => act(() => api('/market/list', { method: 'POST', body: { pigeonId: p.id, price, minBid: minBid === '' ? null : Number(minBid) } }), 'Te koop gezet').then(() => { setSellFor(null); setMinBid(''); })}
                   >
                     Bevestig
@@ -197,6 +198,9 @@ export function LoftPage() {
                 </div>
                 {minBid !== '' && Number(minBid) > price && (
                   <span className="notice err sm">De ondergrens mag niet boven je marktprijs liggen.</span>
+                )}
+                {(price < (p.minPrice ?? 0) || (minBid !== '' && Number(minBid) < (p.minPrice ?? 0))) && (
+                  <span className="notice err sm">Onder 1/5 van haar waarde kan niet: minstens <Money value={p.minPrice ?? 0} />.</span>
                 )}
               </div>
             ) : (

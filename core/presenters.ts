@@ -6,7 +6,7 @@
 
 import type { Database, Flight, Loft, Notification, Pigeon, RaceLogEntry, ScoutMission, Trade } from './schema.js';
 import type { PigeonLogs } from './d1.js';
-import { AGE_CUP, AUCTION, BREED_RARITY, CITY_COORDS, COACH, DEBT, coachSalaryFor, nextCoachBand, ageCategoryDef, ageCategoryFor, compartmentCost, EQUIPMENT, EQUIPMENT_LEVELS, cleanerWage, hygieneIllnessMult, irBoxPrice, SCOUT, VACCINES, type VaccineKey, quirkById, strawCost, RELAY, REST_CURE, TRADE_HISTORY_DAYS, TRAINING } from './config/gameConfig.js';
+import { AGE_CUP, AUCTION, BREED_RARITY, MIN_SALE_SHARE, CITY_COORDS, COACH, DEBT, coachSalaryFor, nextCoachBand, ageCategoryDef, ageCategoryFor, compartmentCost, EQUIPMENT, EQUIPMENT_LEVELS, cleanerWage, hygieneIllnessMult, irBoxPrice, SCOUT, VACCINES, type VaccineKey, quirkById, strawCost, RELAY, REST_CURE, TRADE_HISTORY_DAYS, TRAINING } from './config/gameConfig.js';
 import {
   ageInWeeks,
   breedInfo,
@@ -114,6 +114,8 @@ export function pigeonDTO(db: Database, p: Pigeon, viewerId?: string, viewerIsAd
       const v = valuePigeon(db, p, week);
       return {
         value: v.value,
+        // The lowest price she may change hands for (1/5 of her value, MIN_SALE_SHARE).
+        minPrice: Math.ceil(v.value * MIN_SALE_SHARE),
         valueModel: v.modelValue,
         valueMarket: v.marketValue,
         valueTrust: Math.round(v.trust * 100),

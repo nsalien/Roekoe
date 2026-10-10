@@ -45,7 +45,7 @@ import { equipmentOf } from './hygiene.js';
 // safe because both sides only ever call each other from inside a function, never
 // while the module is evaluating. `advance-throttle`/`age-cup` exercise the path.
 import { purgePigeon, settlePigeonSale } from './engine.js';
-import { valuePigeon } from './market.js';
+import { minSalePrice, valuePigeon } from './market.js';
 import { makeOffer } from './offers.js';
 import { ageInWeeks, breedingCooldownUntil, canRace, experienceGain, isAway, noteAttrChange, onRestCure, talent, trainCeil, trainingCost } from './pigeon.js';
 import { kinship } from './pedigree.js';
@@ -344,6 +344,7 @@ function maybeBuyFromMarket(db: Database, loft: Loft, pigeons: Pigeon[], nowMs: 
     if (p.price > budget) continue;
     if (talent(p) <= floor) continue;
     if (p.price > valuePigeon(db, p, db.world.currentWeek).value * BOT.marketMaxOverpay) continue;
+    if (p.price < minSalePrice(db, p)) continue; // under 1/5 of her value: not for sale (buyPigeon refuses it too)
     if (!best || talent(p) > talent(best)) best = p;
   }
   if (!best) {

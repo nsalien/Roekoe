@@ -36,8 +36,8 @@
  * self-correcting from the first sale onwards.
  */
 
-import type { Database, Pigeon } from '../schema.js';
-import { MARKET_VALUATION } from '../config/gameConfig.js';
+import type { Database, Pigeon, Trade } from '../schema.js';
+import { IGNORED_TRADES, MARKET_VALUATION, MIN_SALE_SHARE } from '../config/gameConfig.js';
 import { estimateValue, talent } from './pigeon.js';
 import { clamp } from './util.js';
 
@@ -98,6 +98,7 @@ function buildCurve(db: Database, nowMs: number): MarketCurve {
   const obs: { talent: number; price: number; recency: number; presence: number }[] = [];
   for (const trade of db.trades) {
     if (typeof trade.talent !== 'number' || trade.price <= 0) continue; // pre-market-data sale
+    if (!countsForValuation(trade)) continue; // set aside by the owner (IGNORED_TRADES)
     const atMs = Date.parse(trade.at);
     if (Number.isNaN(atMs)) continue;
     const ageDays = (nowMs - atMs) / 86400000;
@@ -194,6 +195,17 @@ export function valuePigeon(db: Database, pigeon: Pigeon, currentWeek: number, n
 /** Just the number, for the many call sites that don't care how it was derived. */
 export function marketValue(db: Database, pigeon: Pigeon, currentWeek: number): number {
   return valuePigeon(db, pigeon, currentWeek).value;
+}
+
+/** Does this sale feed the market value? Not when the owner set it aside (IGNORED_TRADES). */
+export function countsForValuation(trade: Trade): boolean {
+  return !IGNORED_TRADES.some((x) =>
+    x.pigeonName === trade.pigeonName && x.price === trade.price && x.sellerName === trade.sellerName && x.buyerName === trade.buyerName);
+}
+
+/** The lowest price this bird may change hands for: 1/5 of her market value (MIN_SALE_SHARE). */
+export function minSalePrice(db: Database, pigeon: Pigeon, currentWeek: number = db.world.currentWeek): number {
+  return Math.ceil(marketValue(db, pigeon, currentWeek) * MIN_SALE_SHARE);
 }
 
 /**
