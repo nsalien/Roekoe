@@ -85,7 +85,7 @@ export function CouplesCard({ loft, pigeons, cat, busy, act }: {
               ) : boxFree > 0 ? (
                 <button className="btn ghost sm" disabled={busy} onClick={moveIn}>In partnerhok</button>
               ) : eq.partnerhokken === 0 ? (
-                <Link to="/inrichting" className="faint" style={{ fontSize: '0.85rem' }}>partnerhok kopen →</Link>
+                <Link to="/inrichting#hokken" className="faint" style={{ fontSize: '0.85rem' }}>partnerhok kopen →</Link>
               ) : (
                 <span className="faint" style={{ fontSize: '0.85rem' }}>partnerhokken bezet</span>
               )}
@@ -125,7 +125,7 @@ export function CouplesCard({ loft, pigeons, cat, busy, act }: {
       </div>
       <label className="row" style={{ gap: 6, marginTop: 8, opacity: boxFree > 0 ? 1 : 0.6 }}>
         <input type="checkbox" checked={inBox && boxFree > 0} disabled={boxFree <= 0} onChange={(e) => setInBox(e.target.checked)} style={{ width: 'auto' }} />
-        <span>In het partnerhok <span className="faint">({boxFree > 0 ? `${boxFree} vrij` : <>geen vrij — <Link to="/inrichting">koop er een</Link></>})</span></span>
+        <span>In het partnerhok <span className="faint">({boxFree > 0 ? `${boxFree} vrij` : <>geen vrij — <Link to="/inrichting#hokken">koop er een</Link></>})</span></span>
       </label>
       {apart.length > 0 && !(inBox && boxFree > 0) && (
         <p className="notice err" style={{ margin: '8px 0 0' }}>

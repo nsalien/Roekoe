@@ -145,7 +145,7 @@
   wordt nu ×0,4. De legacy `runHealthWeek` (admin) is ongewijzigd.
 - **API:** `POST /api/loft/straw`, `POST /api/loft/cleaner {on}`. DTO: `loftDTO.equipment`
   (`hygiene, lastStrawAt, cleaner, strawCost, cleanerWage, illnessMult, decayPerDay`).
-- **UI:** kaart "Hokhygiëne" op de pagina Inrichting (waarde, effect, stro-knop, poetser
+- **UI:** blok "Hygiëne" op de pagina Inrichting (waarde, effect, stro-knop, poetser
   aan/uit) + wiki-sectie `#hygiene` + spelregels §5.2bis. Bots kopen (nog) niets: open vraag.
 
 ### Koppels (`core/game/koppels.ts`, `COUPLES` in gameConfig) — ⚠️ dev
@@ -283,20 +283,27 @@
   de catalogus. DTO: `loftDTO.equipment` (alle vlaggen + `scout`), `pigeonDTO.care` (enkel
   eigenaar), `.origin`, `.magazineRanges`, `flight.forecast`.
 - **UI (tekst):** een eigen pagina **Inrichting** (`/inrichting`, `pages/InrichtingPage.tsx`,
-  menu-item 🧰 na *Mijn hok*), **gegroepeerd op waarvoor iets dient** (wens van de eigenaar:
-  wat bij elkaar hoort, staat samen). Kaarten in `components/Inrichting.tsx`, elk item een
-  regel (`Line`/`EquipmentLine`; op de gsm staat de knop altijd onder de tekst):
-  1. 🏗️ **Bouwen & uitbreiden** (`BuildCard`, `data-tour="upgrades"` — de rondleiding wijst
-     erheen): hokcapaciteit, aparte hokken, partnerhok, ziekenboegbedden (zelfde
-     `/loft/infirmary/upgrade` als op de ziekenboegpagina, hier met bevestiging), buitenren en
-     roofvogelafweer (net boven de ren, "eerst een buitenren").
-  2. 🧹 **Hygiëne & klimaat** (`HygieneCard`): meter, vers stro, hokpoetser, dakventilatie
-     (droger stro → de meter zakt trager).
-  3. 💉 **Vaccins & kuren** (`VaccineCard`, hele hok).
-  4. 🥚 **Kweek** (`BreedingGearCard`): kunstlicht, infrarood nestbakken (+ verwijzing naar
-     *Kweek* en het partnerhok).
-  5. 🏁 **Vluchten** (`FlightGearCard`): betere reismanden, weerstation.
+  menu-item 🧰 na *Mijn hok*). **Vier inklapbare blokken** (de eigenaar vond de lange lijst
+  "veel en complex, een opsomming van random zaken"): dicht toont elk blok enkel zijn naam en
+  **in één regel hoe je ervoor staat**; je tikt er één open, **één tegelijk** (`Section` in
+  `components/Inrichting.tsx`; de keuze blijft per toestel bewaard in localStorage
+  `roekoe.inrichting.open`, in try/catch). Een link `/inrichting#hokken|hygiene|vaccins|uitrusting`
+  opent dat blok meteen (ook bij een hashwissel op de pagina zelf); *Kweek* linkt naar `#hokken`.
+  1. 🏠 **Plaatsen & hokken** (`RoomsSection`, `data-tour="upgrades"` — de rondleiding wijst
+     erheen) — dicht: "10/12 plaatsen · 2/2 apart · ziekenboeg 1/2 · partnerhok 1/1".
+     Hokcapaciteit, aparte hokken, partnerhok (koppel erin zet je op *Kweek*), ziekenboegbedden
+     (zelfde `/loft/infirmary/upgrade` als op de ziekenboegpagina, hier met bevestiging).
+  2. 🧹 **Hygiëne** (`HygieneSection`) — dicht: "58/100 proper" (+ "de poetser is aan het werk"
+     of "tijd voor vers stro" op ≤ 50). Meter, vers stro, hokpoetser.
+  3. 💉 **Vaccins & kuren** (`VaccineSection`, hele hok) — dicht: "Nog niets gegeven" of
+     "2 van de 6 middelen actief".
+  4. 🛠️ **Uitrusting** (`GearSection`) — dicht: "Nog niets gekocht" of "3 van de 7 gekocht".
+     Alles wat je één keer koopt en (meestal) tot niveau 4 opwaardeert: buitenren,
+     roofvogelafweer ("eerst een buitenren"), dakventilatie, kunstlicht, infrarood nestbakken,
+     betere reismanden, weerstation.
 
+  Elk item binnen een blok in de vaste vorm `Item` (zie de ontwerpregel hierboven); op de gsm
+  staat de knop onder de tekst. Gemeten op 390 px: dicht ~1.000 px hoog (de oude lijst ~2.900).
   Marktinformatie staat op de **Markt**: de **scout** en het **vakblad** (`MagazineCard`, net
   boven het marktrapport dat het ontgrendelt; na (de)abonneren herlaadt de Markt `/market`).
   *Mijn hok* toont boven de duiven enkel het compacte hokoverzicht + een link naar Inrichting: de
@@ -1184,8 +1191,8 @@ Entiteiten: `Pigeon`, `Loft`, `User`, `BreedingPair`, `PendingBrood`, `Flight` (
   **Rode-kassa-waarschuwing** bovenaan zodra `loft.money < 0`: één regel met het aantal dagen
   tot de volgende gedwongen veiling (`loft.debtAuctionInDays`) + link naar `/wiki#schuld`.
   Beheerder-kaart (admin): "Volgende week" + "Toon recente veilingen" (biedgeschiedenis).
-- `InrichtingPage` (`/inrichting`, ⚠️ dev) — uitbreidingen (capaciteit, aparte hokken), hokhygiëne,
-  hokinrichting en vaccins voor het hele hok; zie §0b. Op dev staan de uitbreidingen niet meer op *Mijn hok*.
+- `InrichtingPage` (`/inrichting`, ⚠️ dev) — vier inklapbare blokken: plaatsen & hokken, hygiëne,
+  vaccins & kuren (hele hok), uitrusting; zie §0b. Op dev staan de uitbreidingen niet meer op *Mijn hok*.
 - `LoftPage` (Mijn hok) — duivenlijst met per duif: onder de waarde **Opgebracht** (`pigeonDTO.earnings`:
   prijzengeld voor de HUIDIGE eigenaar; lopend totaal `Pigeon.earnings`/`earningsOwner`, opgeteld in
   `creditEarnings` bij de afronding, ×starterbonus zoals uitbetaald; met terugwerkende kracht

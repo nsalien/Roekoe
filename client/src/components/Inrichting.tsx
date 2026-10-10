@@ -1,12 +1,13 @@
 /**
- * Hokinrichting (⚠️ dev, nog niet live): de kaarten van de pagina Inrichting,
- * gegroepeerd op waarvoor iets dient — bouwen & uitbreiden, hygiëne & klimaat,
- * vaccins, kweek en vluchten — plus het vakblad en de scout op de Markt en de
- * verzorgingskaart op de pagina van een duif.
+ * Hokinrichting (⚠️ dev, nog niet live): de vier blokken van de pagina
+ * Inrichting — plaatsen & hokken, hygiëne, vaccins & kuren, uitrusting — plus
+ * het vakblad en de scout op de Markt en de verzorgingskaart op de pagina van
+ * een duif.
  *
- * Kort, op vraag van de eigenaar: per onderdeel één zin over wat het doet, geen
- * percentages. De exacte cijfers en formules staan in de wiki (#inrichting,
- * #hygiene); de pagina verwijst ernaar.
+ * Kort, op vraag van de eigenaar: elk blok toont dicht in één regel hoe je
+ * ervoor staat, open per onderdeel één zin over wat het doet, geen percentages.
+ * De exacte cijfers en formules staan in de wiki (#inrichting, #hygiene); de
+ * pagina verwijst ernaar.
  */
 
 import { useState } from 'react';
@@ -22,15 +23,6 @@ function Line({ label, children }: { label: React.ReactNode; children: React.Rea
     <div className="row" style={{ gap: 10, alignItems: 'center', flexWrap: 'wrap', justifyContent: 'space-between', padding: '6px 0', borderTop: '1px solid var(--border)' }}>
       <span style={{ flex: '1 1 240px', minWidth: 0 }}>{label}</span>
       <span className="row" style={{ gap: 6, flexWrap: 'wrap' }}>{children}</span>
-    </div>
-  );
-}
-
-function Card({ title, tour, children }: { title: string; tour?: string; children: React.ReactNode }) {
-  return (
-    <div className="card" style={{ marginBottom: 18 }} data-tour={tour}>
-      <h2 style={{ marginTop: 0 }}>{title}</h2>
-      {children}
     </div>
   );
 }
@@ -151,12 +143,43 @@ function EquipmentLine({ k, owned, needs, loft, cat, busy, act }: {
 }
 
 /**
- * Bouwen & uitbreiden: every room and structure you add to the loft, side by
- * side — plaatsen, aparte hokken, partnerhokken, ziekenboegbedden, the buitenren
- * and the net over it. None of it can be sold back, so each one asks first.
+ * One block of the Inrichting page: its name and, in one line, how you stand —
+ * tap it to open. Only one is open at a time (the page keeps that state), so the
+ * page reads as four lines instead of twenty items.
  */
-export function BuildCard({ loft, cat, upkeepBands, busy, act }: {
-  loft: Loft; cat: InrichtingCatalogue | null; upkeepBands: { upTo: number; perPigeon: number }[]; busy: boolean; act: Act;
+function Section({ icon, title, summary, open, onToggle, tour, children }: {
+  icon: string; title: string; summary: React.ReactNode; open: boolean; onToggle: () => void;
+  tour?: string; children: React.ReactNode;
+}) {
+  return (
+    <div className="card" data-tour={tour}>
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-expanded={open}
+        style={{ display: 'flex', alignItems: 'center', gap: 12, width: '100%', padding: 0, margin: 0, border: 0, background: 'none', color: 'inherit', font: 'inherit', textAlign: 'left', cursor: 'pointer' }}
+      >
+        <span aria-hidden style={{ fontSize: '1.5rem', lineHeight: 1 }}>{icon}</span>
+        <span style={{ flex: 1, minWidth: 0 }}>
+          <strong style={{ display: 'block', fontSize: '1.05rem' }}>{title}</strong>
+          <span className="faint" style={{ fontSize: '0.85rem' }}>{summary}</span>
+        </span>
+        <span aria-hidden className="faint" style={{ fontSize: '1.4rem', lineHeight: 1, transform: open ? 'rotate(90deg)' : 'none', transition: 'transform .15s' }}>›</span>
+      </button>
+      {open && <div style={{ marginTop: 10 }}>{children}</div>}
+    </div>
+  );
+}
+
+type SectionProps = { open: boolean; onToggle: () => void; busy: boolean; act: Act };
+
+/**
+ * Plaatsen & hokken: every room you add to the loft, each with how full it is —
+ * plaatsen, aparte hokken, partnerhokken, ziekenboegbedden. None of it can be
+ * sold back, so each one asks first.
+ */
+export function RoomsSection({ loft, cat, upkeepBands, busy, act, open, onToggle }: SectionProps & {
+  loft: Loft; cat: InrichtingCatalogue | null; upkeepBands: { upTo: number; perPigeon: number }[];
 }) {
   const eq = loft.equipment;
   // Daily upkeep rate the NEXT bird would fall into (bands are ascending; the
@@ -168,8 +191,16 @@ export function BuildCard({ loft, cat, upkeepBands, busy, act }: {
   const nextCap = loft.nextCapacity;
   const compartmentCost = loft.compartmentCost;
   const nextBeds = loft.nextInfirmary;
+  const summary = (
+    <>
+      <Usage used={loft.pigeonCount} total={loft.capacity} unit="plaatsen" />
+      {loft.compartments > 0 && <> · <Usage used={loft.compartmentsUsed} total={loft.compartments} unit="apart" /></>}
+      {' · '}ziekenboeg <Usage used={loft.infirmaryCount} total={loft.infirmaryCapacity} unit="" />
+      {eq && eq.partnerhokken > 0 && <> · partnerhok <Usage used={eq.partnerhokInUse} total={eq.partnerhokken} unit="" /></>}
+    </>
+  );
   return (
-    <Card title="🏗️ Bouwen & uitbreiden" tour="upgrades">
+    <Section icon="🏠" title="Plaatsen & hokken" summary={summary} open={open} onToggle={onToggle} tour="upgrades">
       {/* Upkeep rises per band: name what the next bird costs, so a bigger loft is never a hidden recurring cost. */}
       <Item
         icon="🏠"
@@ -248,22 +279,21 @@ export function BuildCard({ loft, cat, upkeepBands, busy, act }: {
           </button>
         ) : <span className="faint">maximum bereikt</span>}
       </Item>
-      {eq && cat && (
-        <>
-          <EquipmentLine k="run" owned={eq.run} loft={loft} cat={cat} busy={busy} act={act} />
-          <EquipmentLine k="raptorGuard" owned={eq.raptorGuard} needs={eq.run ? undefined : 'eerst een buitenren'} loft={loft} cat={cat} busy={busy} act={act} />
-        </>
-      )}
-    </Card>
+    </Section>
   );
 }
 
-/** Hygiëne & klimaat: the meter, fresh straw, the hokpoetser and the dakventilatie. */
-export function HygieneCard({ loft, cat, busy, act }: { loft: Loft; cat: InrichtingCatalogue | null; busy: boolean; act: Act }) {
+/** Hygiëne: the meter, fresh straw and the hokpoetser. */
+export function HygieneSection({ loft, busy, act, open, onToggle }: SectionProps & { loft: Loft }) {
   const eq = loft.equipment!;
   const h = Math.round(eq.hygiene);
+  const summary = (
+    <>
+      {h}/100 proper{eq.cleaner ? ' · de poetser is aan het werk' : h <= 50 ? ' · tijd voor vers stro' : ''}
+    </>
+  );
   return (
-    <Card title="🧹 Hygiëne & klimaat">
+    <Section icon="🧹" title="Hygiëne" summary={summary} open={open} onToggle={onToggle}>
       <Item
         name="Hokhygiëne"
         status={<strong style={{ fontVariantNumeric: 'tabular-nums' }}>{h}/100</strong>}
@@ -290,17 +320,74 @@ export function HygieneCard({ loft, cat, busy, act }: { loft: Loft; cat: Inricht
           {eq.cleaner ? 'Ontslaan' : 'Aannemen'} · <Money value={eq.cleanerWage} />/dag
         </button>
       </Item>
-      {cat && <EquipmentLine k="ventilation" owned={eq.ventilation} loft={loft} cat={cat} busy={busy} act={act} />}
-    </Card>
+    </Section>
   );
 }
 
-/** Kweek: what makes breeding go faster. Koppels and nests themselves are on the Kweek page. */
-export function BreedingGearCard({ loft, cat, busy, act }: { loft: Loft; cat: InrichtingCatalogue; busy: boolean; act: Act }) {
+/** "Hele hok": one vaccine or kuur for every bird at home who needs it. Per bird is on her page. */
+export function VaccineSection({ loft, pigeons, cat, busy, act, open, onToggle }: SectionProps & {
+  loft: Loft; pigeons: Pigeon[]; cat: InrichtingCatalogue;
+}) {
+  const now = Date.now();
+  const home = pigeons.filter((p) => !p.away);
+  const until = (p: Pigeon, key: string) => p.care?.vaccines.find((v) => v.key === key)?.until;
+  const covered = (key: string) => home.filter((p) => { const u = until(p, key); return !!u && Date.parse(u) > now; }).length;
+  // Who "Hele hok" treats: same rule as the server (vaccinateLoft / needsCourse).
+  const needs = (key: string, days: number) => home.filter((p) => {
+    const u = until(p, key);
+    return !u || Date.parse(u) - now < days * (cat.vaccineRenewShare ?? 0) * 86400000;
+  }).length;
+  const keys = Object.keys(cat.vaccines);
+  const active = keys.filter((k) => covered(k) > 0).length;
+  const summary = active === 0 ? 'Nog niets gegeven' : `${active} van de ${keys.length} middelen actief`;
+  return (
+    <Section icon="💉" title="Vaccins & kuren" summary={summary} open={open} onToggle={onToggle}>
+      <p className="faint" style={{ marginTop: 0, fontSize: '0.85rem' }}>
+        Elk middel beschermt tegen één ziekte. Een vaccin werkt lang, maar je duif mag 2 dagen niet vliegen; een kuur is kort.
+      </p>
+      {Object.entries(cat.vaccines).map(([key, v]) => {
+        const n = needs(key, v.days);
+        const cost = n * v.price;
+        return (
+          <Item
+            key={key}
+            name={v.label}
+            status={`${covered(key)}/${home.length} beschermd`}
+            what={`${v.disease} · ${v.days} dagen${v.libidoHit ? ' · verlaagt het libido' : ''}`}
+          >
+            {n > 0 ? (
+              <button className="btn sm ghost" disabled={busy || loft.money < cost} onClick={() => {
+                if (v.noFlyDays && !window.confirm(`${v.label} voor ${n} ${n === 1 ? 'duif' : 'duiven'} (${euro(cost)})? Ze mogen dan ${v.noFlyDays} dagen niet vliegen.`)) return;
+                act(() => api('/loft/vaccinate', { method: 'POST', body: { key } }), `${v.label}: ${n} ${n === 1 ? 'duif' : 'duiven'} behandeld`);
+              }}>
+                Hele hok ({n}) · <Money value={cost} />
+              </button>
+            ) : <span className="faint">{home.length === 0 ? 'niemand thuis' : 'iedereen beschermd'}</span>}
+          </Item>
+        );
+      })}
+    </Section>
+  );
+}
+
+/**
+ * Uitrusting: what you buy once and can then take up to level 4 — the ren (and
+ * the net over it), ventilatie, kunstlicht, infrarood, reismanden, weerstation.
+ */
+export function GearSection({ loft, cat, busy, act, open, onToggle }: SectionProps & { loft: Loft; cat: InrichtingCatalogue }) {
   const eq = loft.equipment!;
   const irInfo = eq.irBoxes > 0 ? levelInfo(cat, 'irBoxes', eq.levels?.irBoxes ?? 1) : null;
+  const owned = [eq.run, eq.raptorGuard, eq.ventilation, eq.light, eq.irBoxes > 0, eq.baskets, eq.weatherStation];
+  const have = owned.filter(Boolean).length;
+  const summary = have === 0 ? 'Nog niets gekocht' : `${have} van de ${owned.length} gekocht`;
   return (
-    <Card title="🥚 Kweek">
+    <Section icon="🛠️" title="Uitrusting" summary={summary} open={open} onToggle={onToggle}>
+      <p className="faint" style={{ marginTop: 0, fontSize: '0.85rem' }}>
+        Koop je één keer. Het meeste kan je daarna tot niveau 4 opwaarderen: elk niveau sterker, maar 3× duurder.
+      </p>
+      <EquipmentLine k="run" owned={eq.run} loft={loft} cat={cat} busy={busy} act={act} />
+      <EquipmentLine k="raptorGuard" owned={eq.raptorGuard} needs={eq.run ? undefined : 'eerst een buitenren'} loft={loft} cat={cat} busy={busy} act={act} />
+      <EquipmentLine k="ventilation" owned={eq.ventilation} loft={loft} cat={cat} busy={busy} act={act} />
       <EquipmentLine k="light" owned={eq.light} loft={loft} cat={cat} busy={busy} act={act} />
       <Item
         icon={ICON.irBoxes}
@@ -319,18 +406,9 @@ export function BreedingGearCard({ loft, cat, busy, act }: { loft: Loft; cat: In
           </button>
         ) : <span className="faint">alle bakken</span>}
       </Item>
-    </Card>
-  );
-}
-
-/** Vluchten: what you buy for the races themselves. */
-export function FlightGearCard({ loft, cat, busy, act }: { loft: Loft; cat: InrichtingCatalogue; busy: boolean; act: Act }) {
-  const eq = loft.equipment!;
-  return (
-    <Card title="🏁 Vluchten">
       <EquipmentLine k="baskets" owned={eq.baskets} loft={loft} cat={cat} busy={busy} act={act} />
       <EquipmentLine k="weatherStation" owned={eq.weatherStation} loft={loft} cat={cat} busy={busy} act={act} />
-    </Card>
+    </Section>
   );
 }
 
@@ -358,47 +436,6 @@ export function MagazineCard({ loft, cat, busy, act }: { loft: Loft; cat: Inrich
         </button>
       </div>
     </div>
-  );
-}
-
-/** "Hele hok": one vaccine or kuur for every bird at home who needs it. Per bird is on her page. */
-export function VaccineCard({ loft, pigeons, cat, busy, act }: { loft: Loft; pigeons: Pigeon[]; cat: InrichtingCatalogue; busy: boolean; act: Act }) {
-  const now = Date.now();
-  const home = pigeons.filter((p) => !p.away);
-  const until = (p: Pigeon, key: string) => p.care?.vaccines.find((v) => v.key === key)?.until;
-  const covered = (key: string) => home.filter((p) => { const u = until(p, key); return !!u && Date.parse(u) > now; }).length;
-  // Who "Hele hok" treats: same rule as the server (vaccinateLoft / needsCourse).
-  const needs = (key: string, days: number) => home.filter((p) => {
-    const u = until(p, key);
-    return !u || Date.parse(u) - now < days * (cat.vaccineRenewShare ?? 0) * 86400000;
-  }).length;
-  return (
-    <Card title="💉 Vaccins & kuren">
-      <p className="faint" style={{ marginTop: 0, fontSize: '0.85rem' }}>
-        Elk middel beschermt tegen één ziekte. Een vaccin werkt lang, maar je duif mag 2 dagen niet vliegen; een kuur is kort.
-      </p>
-      {Object.entries(cat.vaccines).map(([key, v]) => {
-        const n = needs(key, v.days);
-        const cost = n * v.price;
-        return (
-          <Item
-            key={key}
-            name={v.label}
-            status={`${covered(key)}/${home.length} beschermd`}
-            what={`${v.disease} · ${v.days} dagen${v.libidoHit ? ' · verlaagt het libido' : ''}`}
-          >
-            {n > 0 ? (
-              <button className="btn sm ghost" disabled={busy || loft.money < cost} onClick={() => {
-                if (v.noFlyDays && !window.confirm(`${v.label} voor ${n} ${n === 1 ? 'duif' : 'duiven'} (${euro(cost)})? Ze mogen dan ${v.noFlyDays} dagen niet vliegen.`)) return;
-                act(() => api('/loft/vaccinate', { method: 'POST', body: { key } }), `${v.label}: ${n} ${n === 1 ? 'duif' : 'duiven'} behandeld`);
-              }}>
-                Hele hok ({n}) · <Money value={cost} />
-              </button>
-            ) : <span className="faint">{home.length === 0 ? 'niemand thuis' : 'iedereen beschermd'}</span>}
-          </Item>
-        );
-      })}
-    </Card>
   );
 }
 

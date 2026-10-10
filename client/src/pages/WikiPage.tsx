@@ -1644,7 +1644,7 @@ export function WikiPage() {
 
       <Section id="inrichting" icon="🛠️" title="Hokinrichting, vaccins & diensten">
         <p className="muted" style={{ marginTop: 0 }}>
-          Alles hieronder koop je op de pagina <em>Inrichting</em> (bouwen &amp; uitbreiden, hygiëne &amp; klimaat, vaccins, kweek, vluchten) of op de pagina van een duif; de scout en het vakblad vind je op de <em>Markt</em>. <strong>Niets kopen = het spel zoals
+          Alles hieronder koop je op de pagina <em>Inrichting</em> (vier blokken: plaatsen &amp; hokken, hygiëne, vaccins &amp; kuren, uitrusting) of op de pagina van een duif; de scout en het vakblad vind je op de <em>Markt</em>. <strong>Niets kopen = het spel zoals
           vroeger.</strong> Elk onderdeel geeft maar een <strong>klein</strong> voordeel; pas alles samen maakt het verschil. Inrichting
           koop je <strong>één keer</strong>: enkel de hokpoetser, het vakblad en een verzekering kosten per dag (zie je <em>Dagbalans</em>).
           De pagina <em>Inrichting</em> zegt het kort; hier staan de <strong>exacte cijfers</strong> (niveau 1). Stro en de hokpoetser:
@@ -1654,13 +1654,13 @@ export function WikiPage() {
           head={['Wat', 'Prijs', 'Voordeel']}
           rows={[
             ['Apart hok', '€800, elk volgend +€400', 'voor de duif die erin zit: +60 % energieherstel, +40 % gezondheidsherstel, 50 % minder kans op ziekte'],
+            ['Partnerhok', '€1.600 · €2.400 · €3.200 (max. 3)', 'een koppel woont er samen: +30 % energieherstel, +20 % gezondheidsherstel, 25 % minder kans op ziekte · wennen 1–4 dagen i.p.v. 1–7, 50 % minder kans dat ze elkaar weigeren'],
             ['Ziekenboegbed', '€800 → €2.400', 'meer zieke duiven tegelijk in de ziekenboeg (zie Ziekenboeg)'],
-            ['Dakventilatie', '€1.200', '40 % minder kans op ornithose · de hygiëne zakt 25 % trager · +5 % gezondheidsherstel uit het voer'],
             ['Buitenren', '€2.500', '+6 i.p.v. +4 energie op elke 3e rustdag · libido +3 · zonder afweer ~1× per 40 dagen een sperwer: wie thuis rust −6 energie'],
             ['Roofvogelafweer', '€900', 'net + lokuil (vraagt een ren): geen sperwer in de ren, en de gebeurtenis "Sperwer in de buurt" is ongevaarlijk'],
+            ['Dakventilatie', '€1.200', '40 % minder kans op ornithose · de hygiëne zakt 25 % trager · +5 % gezondheidsherstel uit het voer'],
             ['Kunstlicht', '€700', 'libido +6 bij al je duiven: sneller een nest en meer broedsucces'],
             ['Infrarood nestbakken', '€1.600 voor 2, +€500 per bak', 'een nest komt 15 % sneller uit · +6 % kans op een tweeling · onder 10 °C +4 % slaagkans'],
-            ['Partnerhok', '€1.600 · €2.400 · €3.200 (max. 3)', 'een koppel woont er samen: +30 % energieherstel, +20 % gezondheidsherstel, 25 % minder kans op ziekte · wennen 1–4 dagen i.p.v. 1–7, 50 % minder kans dat ze elkaar weigeren'],
             ['Betere reismanden', '€1.000', 'elke vlucht 3 % minder energieverlies en 5 % minder gezondheidsverlies'],
             ['Weerstation', '€1.500', 'het weer bij de lossing al 24 u vooraf, om de 6 u bijgewerkt (het weer kan nog afwijken)'],
             ['Vakblad', '€6/dag, opzegbaar', 'bandbreedte i.p.v. enkel ★ bij andermans duif (op haar pagina en bij een privébod) · marktrapport over 28 dagen (onderaan de Markt) · elke maandag Het Duivenblad (in je meldingen)'],
@@ -1793,7 +1793,7 @@ export function WikiPage() {
           <li><strong>Een hok van 8 betaalt niets extra</strong> — de schijven raken alleen wie groter gaat.</li>
           <li><strong>Je ziet het per schijf terug</strong> in de <em>Dagbalans</em> op het Overzicht, naast je sponsorinkomsten.</li>
           <li><strong>Voer, aparte hokken en de ziekenboeg staan hier los van</strong> en worden apart aangerekend.</li>
-          <li>Op de uitbreidingskaart op de pagina <em>Inrichting</em> zie je de tarieven <strong>vóór</strong> je een uitbreiding koopt.</li>
+          <li>In het blok <em>Plaatsen &amp; hokken</em> op de pagina <em>Inrichting</em> zie je wat je volgende duif kost <strong>vóór</strong> je een uitbreiding koopt.</li>
         </ul>
         <p>
           <strong>Strategie:</strong> een groter hok verdient zichzelf alleen terug als je die
