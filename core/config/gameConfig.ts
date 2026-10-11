@@ -171,19 +171,21 @@ export function irBoxPrice(owned: number): number {
  * they are per disease and paid per disease.
  *
  * `price` is ONE fixed price per middel ("een vaccin is een vaccin" — de eigenaar),
- * chosen so that a middel is ALWAYS a little cheaper than letting the bird fall
- * ill: at most VACCINE_PRICING.share of the damage it spares a modest racing bird
- * (VACCINE_PRICING.refValue ~ ★70). A better bird gains more from the same price.
- * tests/vaccine-price.test.mts fails as soon as a price, or a change to
- * HEALING/HEALTH/INFIRMARY/ILLNESS, breaks that promise.
+ * in WHOLE euros ("geen kommagetallen"): VACCINE_PRICING.share of the damage it
+ * spares a modest racing bird (VACCINE_PRICING.refValue ~ ★70), rounded down,
+ * never below €1. So a vaccine is always a little cheaper than letting that bird
+ * fall ill, and a better bird gains more from the same price. The kuren are worth
+ * less than €1 to that bird and sit on the €1 floor: they pay off from ~★75
+ * (geel, cocci) and ~★85 (adem). tests/vaccine-price.test.mts fails as soon as a
+ * price, or a change to HEALING/HEALTH/INFIRMARY/ILLNESS, breaks that rule.
  */
 export const VACCINES = {
   pmv: { label: 'PMV-vaccin', disease: 'Paramyxovirose', kind: 'vaccin', price: 6, days: 91, protect: 0.8, noFlyDays: 2, libidoHit: 0 },
   pokken: { label: 'Pokkenvaccin', disease: 'Duivenpokken', kind: 'vaccin', price: 4, days: 91, protect: 0.8, noFlyDays: 2, libidoHit: 0 },
   salmonella: { label: 'Salmonellavaccin', disease: 'Salmonellose (paratyfus)', kind: 'vaccin', price: 2, days: 45, protect: 0.6, noFlyDays: 2, libidoHit: 0 },
-  geel: { label: 'Geelkuur', disease: 'Het Geel', kind: 'kuur', price: 0.5, days: 7, protect: 0.75, noFlyDays: 0, libidoHit: 0 },
-  cocci: { label: 'Coccidiosekuur', disease: 'Coccidiose', kind: 'kuur', price: 0.4, days: 10, protect: 0.75, noFlyDays: 0, libidoHit: 0 },
-  adem: { label: 'Ademhalingskuur', disease: 'Ornithose', kind: 'kuur', price: 0.2, days: 7, protect: 0.6, noFlyDays: 0, libidoHit: 10 },
+  geel: { label: 'Geelkuur', disease: 'Het Geel', kind: 'kuur', price: 1, days: 7, protect: 0.75, noFlyDays: 0, libidoHit: 0 },
+  cocci: { label: 'Coccidiosekuur', disease: 'Coccidiose', kind: 'kuur', price: 1, days: 10, protect: 0.75, noFlyDays: 0, libidoHit: 0 },
+  adem: { label: 'Ademhalingskuur', disease: 'Ornithose', kind: 'kuur', price: 1, days: 7, protect: 0.6, noFlyDays: 0, libidoHit: 10 },
 } as const;
 /**
  * The promise behind VACCINES.price: "een vaccin is altijd iets voordeliger dan

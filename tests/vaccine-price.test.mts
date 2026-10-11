@@ -12,8 +12,8 @@
  *     duurder voorstellen dan het is: het ziekteverloop wordt nagespeeld met
  *     tickHealing + applyDayOfCare (per kwartier / per middernacht), met en zonder dokter.
  *  2. Het risico is dat van runHealthDay (zelfde helper, nageteld).
- *  3. Elke vaste prijs houdt de belofte (en is geen weggeefprijs), en is dezelfde
- *     voor elke duif.
+ *  3. Elke vaste prijs volgt de regel: hele euro's, share × de schade bij refValue
+ *     naar beneden afgerond, nooit onder €1 — en is dezelfde voor elke duif.
  *  4. Vaccineren rekent precies die prijs aan, ook voor het hele hok.
  *
  * Dat het middel ook in een échte wedstrijdcontext meer opbrengt dan het kost
@@ -133,15 +133,20 @@ console.log('\n=== 2. Het risico in de prijs is dat van runHealthDay ===');
   ok(Math.abs(DISEASES.reduce((s, d) => s + diseaseShare(d.name, vorm), 0) - 1) < 1e-9, 'de aandelen tellen op tot 1');
 }
 
-console.log('\n=== 3. Eén vaste prijs per middel, altijd iets onder de schade die het bespaart ===');
+console.log('\n=== 3. Eén vaste prijs per middel, in hele euro\'s ===');
 {
   const P = VACCINE_PRICING;
   for (const k of Object.keys(VACCINES) as VaccineKey[]) {
     const v = VACCINES[k];
     const avoided = vaccineAvoidedDamage(k, P.refValue);
     const top = vaccineAvoidedDamage(k, 37000);
-    ok(v.price > 0 && v.price <= P.share * avoided && v.price >= 0.8 * P.share * avoided,
-      `${v.label} €${v.price}: bespaart een duif van ${euro(P.refValue)} gemiddeld €${avoided.toFixed(2)} (×${(avoided / v.price).toFixed(2)}), een topduif €${top.toFixed(2)} (×${(top / v.price).toFixed(1)})`);
+    const rule = Math.max(1, Math.floor(P.share * avoided));
+    // From which bird value it pays off (break-even), for the €1 floor.
+    let lo = 0, hi = 500000;
+    for (let i = 0; i < 60; i++) { const mid = (lo + hi) / 2; if (vaccineAvoidedDamage(k, mid) >= v.price) hi = mid; else lo = mid; }
+    ok(Number.isInteger(v.price) && v.price === rule,
+      `${v.label} €${v.price}: bespaart een duif van ${euro(P.refValue)} gemiddeld €${avoided.toFixed(2)} (×${(avoided / v.price).toFixed(2)}), een topduif €${top.toFixed(2)} (×${(top / v.price).toFixed(1)}) — loont vanaf ${euro(hi)}`);
+    if (rule > 1) ok(v.price <= P.share * avoided, `${v.label}: altijd iets voordeliger voor een duif van ${euro(P.refValue)}`);
   }
   const weak = (Object.keys(VACCINES) as VaccineKey[]).map((k) => (vaccineAvoidedDamage(k, 2000) / VACCINES[k].price).toFixed(2));
   console.log(`  (ter info: een zwakke duif van €2.000 haalt er ×${weak.join(' / ×')} uit — voor haar loont het niet altijd)`);

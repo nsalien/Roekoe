@@ -1458,12 +1458,13 @@ niveau 4); enkel de hokpoetser, het vakblad en een verzekering kosten per dag (D
 
 **Vaccins & kuren** (per ziekte, buiten de bodem ×0,4), elk met **één vaste prijs**:
 PMV €6 (91 d, 80 %), pokken €4 (91 d, 80 %), salmonella €2 (45 d, 60 %) — een vaccin =
-2 dagen niet vliegen; geelkuur €0,50 (7 d, 75 %), coccidiosekuur €0,40 (10 d, 75 %),
-ademhalingskuur €0,20 (7 d, 60 %, libido −10).
+2 dagen niet vliegen; geelkuur €1 (7 d, 75 %), coccidiosekuur €1 (10 d, 75 %),
+ademhalingskuur €1 (7 d, 60 %, libido −10). Alle prijzen zijn hele euro's.
 
-**Waarom die prijzen: een vaccin is altijd iets voordeliger dan een zieke duif.** Elke prijs
-ligt onder 80 % van de schade die het middel een gewone wedstrijdduif (★70, marktwaarde
-~€5.000, vluchtvorm 75) gemiddeld bespaart:
+**Waarom die prijzen: een vaccin is altijd iets voordeliger dan een zieke duif.** De prijs is
+80 % van de schade die het middel een gewone wedstrijdduif (★70, marktwaarde ~€5.000,
+vluchtvorm 75) gemiddeld bespaart, naar beneden afgerond op hele euro's, en nooit minder dan
+€1:
 ```
 schade die het bespaart = looptijd × kans per dag op díe ziekte × afweer × kost van één geval
 kost van één geval = de goedkoopste van ziekenboeg + medicatievoer met of zonder dokter:
@@ -1478,6 +1479,10 @@ Voor die duif van €5.000 brengt elk middel 1,3 à 1,5× zijn prijs op; een top
 haalt er 5 à 7× haar geld uit, en een duif die na elke vlucht dieper zakt dan vorm 75 nog
 meer. Voor een zwakke duif (minder dan ★70, zoals de meeste startduiven) loont het gemiddeld
 niet: ze verdient te weinig om veel te verliezen.
+
+De **kuren** zijn voor die duif van €5.000 minder dan €1 waard (kort, één ziekte) en kosten
+daarom het minimum van €1. Ze lonen vanaf een duif van ~€9.000 (★75, geelkuur), ~€11.000
+(★76, coccidiosekuur) en ~€28.000 (★85, ademhalingskuur).
 
 **Verzekering:** uitkering 60 % van de marktwaarde bij afsluiten; premie/dag =
 1,3 × uitkering × (0,04 % + ouderdomssterfte per dag). Niet gedekt: honger,

@@ -257,10 +257,13 @@
   bescherming; elke prijs ligt onder `share` (80 %) van de schade die het middel haar bespaart.
   ⚠️ **Voor een zwakkere duif (< ★70, zoals de meeste startduiven) loont het gemiddeld niet**
   (€2.000: 0,6–0,8×). Wil je dat anders, verlaag `refValue` — de prijzen zakken dan mee.
-- **Prijzen:** PMV €6 · pokken €4 · salmonella €2 · geel €0,50 · cocci €0,40 · adem €0,20 (waren
-  €60/€40/€75/€15/€25/€40). Een duif van €5.000 haalt er 1,3–1,5× haar geld uit, een topduif
-  (~€37.000) 5–7×, en een duif die na elke vlucht dieper zakt dan vorm 75 nog meer
-  (`vaccine-economics` §5: bij vorm 65 6–17×). `Money` toont centen nu met twee decimalen.
+- **Prijzen, in hele euro's** ("rond alles af naar boven, geen kommagetallen" — de eigenaar):
+  regel = `max(1, floor(share × schade bij refValue))`. PMV €6 · pokken €4 · salmonella €2 ·
+  geel €1 · cocci €1 · adem €1 (waren €60/€40/€75/€15/€25/€40). Een duif van €5.000 haalt uit een
+  vaccin 1,3–1,5× haar geld, een topduif (~€37.000) 5–7×, en een duif die na elke vlucht dieper
+  zakt dan vorm 75 nog meer. ⚠️ **De kuren zijn voor die duif minder dan €1 waard** (€0,29–0,64)
+  en zitten op de bodem van €1: ze lonen vanaf ~€8.700 (★75, geel), ~€10.800 (★76, cocci) en
+  ~€27.900 (★85, adem). `Money` toont een niet-geheel bedrag met twee decimalen (verzekeringspremie).
 - **De schade** (`vaccineAvoidedDamage(key, value)`, inrichting.ts) = looptijd × dagkans op die
   ziekte (dezelfde helpers als `runHealthDay`: `spontaneousIllnessPerDay` + `diseaseShare` in
   hygiene.ts; `runHealthDay` gebruikt de eerste nu ook) × afweer × `diseaseCaseCost(ernst, waarde)`.
@@ -273,14 +276,14 @@
   gemiddeld vorm 72, mediaan 74, maar hun gemiddelde ziekterisico hoort bij vorm 60–65 (het risico
   stijgt niet lineair, de dips na elke vlucht wegen zwaar).
 - **Gevolg om op te volgen:** vaccineren is goedkoop. Wie alles bijhoudt (kuren elke 7–10 dagen)
-  betaalt ~€0,30 per duif per dag en voorkomt zo'n 70 % van haar ziektes; de ziekenboeg krijgt
+  betaalt ~€3,80 per duif per week (vooral de kuren) en voorkomt zo'n 70 % van haar ziektes; de ziekenboeg krijgt
   minder werk, en **bots vaccineren niet** (die worden relatief vaker ziek).
-- **De bewaker:** `tests/vaccine-price.test.mts` (23 controles, ~5 s) faalt zodra een prijs, of
-  een wijziging aan HEALING/HEALTH/INFIRMARY/ILLNESS, de belofte breekt: `diseaseCaseCost` nooit
+- **De bewaker:** `tests/vaccine-price.test.mts` (26 controles, ~5 s) faalt zodra een prijs, of
+  een wijziging aan HEALING/HEALTH/INFIRMARY/ILLNESS, de regel breekt: `diseaseCaseCost` nooit
   duurder dan het echte ziekteverloop (tickHealing + applyDayOfCare per kwartier/middernacht, met
-  en zonder dokter) en hooguit 20 % voorzichtiger; het risico = runHealthDay; elke prijs ≤ 80 % van
-  de schade voor de duif van €5.000 en ≥ 80 % daarvan (geen weggeefprijs); dezelfde prijs voor een
-  gewone en een topduif; hele hok = aantal × prijs.
+  en zonder dokter) en hooguit 20 % voorzichtiger; het risico = runHealthDay; elke prijs = de regel
+  hierboven (hele euro's, vaccins ≤ 80 % van de schade voor de duif van €5.000), met per middel
+  vanaf welke duif het loont; dezelfde prijs voor een gewone en een topduif; hele hok = aantal × prijs.
 
 ### Vaccins: wat een kuur waard is (`tests/vaccine-economics.mts`, diagnose)
 - **Methode, alles met de echte code:** opbrengst per start uit echte vluchten
