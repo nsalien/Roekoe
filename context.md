@@ -23,12 +23,13 @@ en het **zoekertje naar boven** (€50, 12 uur bovenaan). Scout, koppels, partne
 waren al van Dev gehaald.
 
 ## Dev terugzetten (precies zoals hij was)
-Nagekeken: de revert geeft exact `bc8c415`.
+Draai álle commits sinds `bc8c415` terug (de pauzecommit en de documentatie erna). Nagekeken:
+dat geeft exact `bc8c415`, en de laatste revert heeft geen skip-vlag, dus Cloudflare bouwt.
 
     git fetch origin claude/demo-hokinrichting
     git checkout claude/demo-hokinrichting
     git reset --hard origin/claude/demo-hokinrichting
-    git revert --no-edit b21060f
+    git revert --no-edit bc8c415..HEAD
     git push origin claude/demo-hokinrichting      # Cloudflare bouwt de demo-preview opnieuw
 
 Het demohok van de eigenaar staat nog in de browser (localStorage op het preview-adres) en is er
