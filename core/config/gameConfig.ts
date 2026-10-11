@@ -165,21 +165,56 @@ export function irBoxPrice(owned: number): number {
 
 /**
  * Vaccins en kuren (⚠️ dev). Each works on ONE disease: a protected bird that
- * falls ill with exactly that disease fends it off with `protect`. Vaccines are
- * dearer, last long and ground the bird for `noFlyDays`; kuren are cheaper and
- * short — for when something is going round. `days` in real days (a duivenjaar =
- * 52 gameweken = 91 echte dagen). They sit OUTSIDE the ×0,4 floor: they are per
- * disease and paid per disease. Prices ×5 (were €3–€15, next to a €300 rustkuur
- * and a €57/dag dokter): protecting a whole loft is now a choice, not a reflex —
- * worth it for a valuable bird, debatable for a cheap one.
+ * falls ill with exactly that disease fends it off with `protect`. Vaccines last
+ * long and ground the bird for `noFlyDays`; kuren are short. `days` in real days
+ * (a duivenjaar = 52 gameweken = 91 echte dagen). They sit OUTSIDE the ×0,4 floor:
+ * they are per disease and paid per disease. No fixed price: see VACCINE_PRICING.
  */
 export const VACCINES = {
-  pmv: { label: 'PMV-vaccin', disease: 'Paramyxovirose', kind: 'vaccin', price: 60, days: 91, protect: 0.8, noFlyDays: 2, libidoHit: 0 },
-  pokken: { label: 'Pokkenvaccin', disease: 'Duivenpokken', kind: 'vaccin', price: 40, days: 91, protect: 0.8, noFlyDays: 2, libidoHit: 0 },
-  salmonella: { label: 'Salmonellavaccin', disease: 'Salmonellose (paratyfus)', kind: 'vaccin', price: 75, days: 45, protect: 0.6, noFlyDays: 2, libidoHit: 0 },
-  geel: { label: 'Geelkuur', disease: 'Het Geel', kind: 'kuur', price: 15, days: 7, protect: 0.75, noFlyDays: 0, libidoHit: 0 },
-  cocci: { label: 'Coccidiosekuur', disease: 'Coccidiose', kind: 'kuur', price: 25, days: 10, protect: 0.75, noFlyDays: 0, libidoHit: 0 },
-  adem: { label: 'Ademhalingskuur', disease: 'Ornithose', kind: 'kuur', price: 40, days: 7, protect: 0.6, noFlyDays: 0, libidoHit: 10 },
+  pmv: { label: 'PMV-vaccin', disease: 'Paramyxovirose', kind: 'vaccin', days: 91, protect: 0.8, noFlyDays: 2, libidoHit: 0 },
+  pokken: { label: 'Pokkenvaccin', disease: 'Duivenpokken', kind: 'vaccin', days: 91, protect: 0.8, noFlyDays: 2, libidoHit: 0 },
+  salmonella: { label: 'Salmonellavaccin', disease: 'Salmonellose (paratyfus)', kind: 'vaccin', days: 45, protect: 0.6, noFlyDays: 2, libidoHit: 0 },
+  geel: { label: 'Geelkuur', disease: 'Het Geel', kind: 'kuur', days: 7, protect: 0.75, noFlyDays: 0, libidoHit: 0 },
+  cocci: { label: 'Coccidiosekuur', disease: 'Coccidiose', kind: 'kuur', days: 10, protect: 0.75, noFlyDays: 0, libidoHit: 0 },
+  adem: { label: 'Ademhalingskuur', disease: 'Ornithose', kind: 'kuur', days: 7, protect: 0.6, noFlyDays: 0, libidoHit: 10 },
+} as const;
+/**
+ * What a vaccin or kuur costs — per BIRD, never a fixed price (wens van de
+ * eigenaar: "een vaccin moet altijd iets voordeliger zijn dan een duif die
+ * effectief ziek wordt — een investering in de duif").
+ *
+ *   prijs = share × (ziektes die het middel voorkomt) × (wat één geval kost)
+ *
+ * - "voorkomt": de kans dat DEZE duif die ziekte krijgt over de looptijd, op
+ *   vluchtvorm `refVorm` en met haar eigen bescherming (apart hok, IJzeren gestel,
+ *   hygiëne, dakventilatie bij ornithose), × `protect`. Besmetting telt niet mee.
+ * - "één geval" (`diseaseCaseCost`, inrichting.ts): de goedkoopste van ziekenboeg
+ *   + medicatievoer mét of zonder dokter — zorgkost + de starts die ze mist + de
+ *   sterftekans in de ziekenboeg, de laatste twee × haar marktwaarde. Afgeleid uit
+ *   HEALING/HEALTH/INFIRMARY, dus het schuift mee als die veranderen.
+ * Elk stuk is aan de voorzichtige kant gekozen, zodat het middel bij elke duif die
+ * meevliegt méér oplevert dan het kost. Nagemeten met de echte motor:
+ * tests/vaccine-economics.mts (diagnose) en tests/vaccine-price.test.mts.
+ */
+export const VACCINE_PRICING = {
+  /** De prijs is dit deel van de schade die het middel gemiddeld voorkomt. */
+  share: 0.8,
+  /** Gerekend op een duif in goede wedstrijdvorm. Gemeten op duiven die meevliegen
+   *  (bots, 6 weken): gemiddeld vorm 72, mediaan 74; hun gemiddelde ziekterisico hoort
+   *  bij vorm 60–65 (de dips na elke vlucht wegen zwaar, het risico loopt niet
+   *  lineair). Op 75 rekenen = voorzichtig: wie gewoon meevliegt, wint er nog meer. */
+  refVorm: 75,
+  /** Wat een duif per start opbrengt, als deel van haar marktwaarde. Gemeten in een
+   *  veld van 24: 1,3 % (topduif) tot 1,6 % (gewone duif) — de lage kant. */
+  startValueShare: 0.013,
+  /** Starten is energie-begrensd: Herstelvoer bij ervaring 50 geeft ~7,5 energie per
+   *  dag, een start kost er gemiddeld ~32 (week-mix). Wat een zieke duif niet binnenkrijgt,
+   *  wordt nooit gevlogen. */
+  energyPerDay: 7.5,
+  energyPerStart: 32,
+  /** Na een ernstige ziekte vliegt ze nog een tijd trager tot haar gezondheid terug is
+   *  (gemeten: ~een halve start aan prijzengeld). */
+  slowStarts: { licht: 0, matig: 0, ernstig: 0.5 } as Record<Severity, number>,
 } as const;
 export type VaccineKey = keyof typeof VACCINES;
 /** "Hele hok" skips a bird that is still protected for more than this share of

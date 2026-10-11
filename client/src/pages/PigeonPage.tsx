@@ -18,6 +18,8 @@ interface PigeonDetail {
   pedigree: AncestorNode | null;
   family: FamilyTree | null;
   history: RaceHistoryRow[];
+  /** Own bird only: what each vaccin/kuur costs for her (per bird — see the wiki). */
+  vaccinePrices?: Record<string, number> | null;
 }
 
 export function PigeonPage() {
@@ -489,7 +491,7 @@ export function PigeonPage() {
           )}
 
           {mine && p.care && state?.inrichting && (
-            <PigeonCareCard p={p} cat={state.inrichting} busy={busy} run={run} />
+            <PigeonCareCard p={p} prices={data.vaccinePrices ?? null} cat={state.inrichting} busy={busy} run={run} />
           )}
 
           <div className="card">

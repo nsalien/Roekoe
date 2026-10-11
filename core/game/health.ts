@@ -30,7 +30,7 @@ import { newId } from '../store.js';
 import { ageInWeeks, ageMortality, conditionScore, isAway, noteAttrChange } from './pigeon.js';
 import { awardBadge, evaluateBadges } from './badges.js';
 import { clamp, pick, pickWith, round1 } from './util.js';
-import { equipmentOf, illnessChance } from './hygiene.js';
+import { equipmentOf, illnessChance, spontaneousIllnessPerDay } from './hygiene.js';
 import { fendsOff, insurancePayout } from './inrichting.js';
 
 export interface HealthEvent {
@@ -305,7 +305,7 @@ export function runHealthDay(db: Database, week: number, nowMs: number = Date.no
       // shape still carries a small weekly risk — no loft is sterile.
       const condition = conditionScore(p);
       const frailty = Math.pow(clamp((100 - condition) / 100, 0, 1), ILLNESS.curve);
-      const spontaneous = weeklyToDaily(ILLNESS.floor + ILLNESS.max * frailty);
+      const spontaneous = spontaneousIllnessPerDay(condition);
       // Contagion rides on the same frailty, but never drops to nothing: a fit bird
       // sharing a loft with a sick one can still catch it.
       const susceptibility = ILLNESS.contagionFloor + (1 - ILLNESS.contagionFloor) * frailty;

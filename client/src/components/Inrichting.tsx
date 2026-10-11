@@ -9,7 +9,7 @@
  * pagina verwijst ernaar.
  */
 
-import { useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../api/client';
 import { Money } from './ui';
@@ -387,11 +387,15 @@ export function VaccineSection({ loft, pigeons, cat, busy, act, open, onToggle }
   const home = pigeons.filter((p) => !p.away);
   const until = (p: Pigeon, key: string) => p.care?.vaccines.find((v) => v.key === key)?.until;
   const covered = (key: string) => home.filter((p) => { const u = until(p, key); return !!u && Date.parse(u) > now; }).length;
-  // Who "Hele hok" treats: same rule as the server (vaccinateLoft / needsCourse).
-  const needs = (key: string, days: number) => home.filter((p) => {
-    const u = until(p, key);
-    return !u || Date.parse(u) - now < days * (cat.vaccineRenewShare ?? 0) * 86400000;
-  }).length;
+  // "Hele hok": who needs it and what their own prices add up to (prices are per
+  // bird), worked out by the server — fetched when the block opens, not on /state.
+  const [quotes, setQuotes] = useState<Record<string, { count: number; cost: number }> | null>(null);
+  const loadQuotes = useCallback(() => {
+    api<{ quotes: Record<string, { count: number; cost: number }> }>('/loft/vaccines')
+      .then((r) => setQuotes(r.quotes))
+      .catch(() => setQuotes(null));
+  }, []);
+  useEffect(() => { if (open) loadQuotes(); }, [open, loadQuotes]);
   const keys = Object.keys(cat.vaccines);
   const active = keys.filter((k) => covered(k) > 0).length;
   const summary = active === 0 ? 'Nog niets gegeven' : `${active} van de ${keys.length} middelen actief`;
@@ -399,10 +403,12 @@ export function VaccineSection({ loft, pigeons, cat, busy, act, open, onToggle }
     <Section icon="💉" title="Vaccins & kuren" summary={summary} open={open} onToggle={onToggle}>
       <p className="faint" style={{ marginTop: 0, fontSize: '0.85rem' }}>
         Elk middel beschermt tegen één ziekte. Een vaccin werkt lang, maar je duif mag 2 dagen niet vliegen; een kuur is kort.
+        De prijs hangt af van wat je duif waard is, en ligt altijd iets onder de schade die het haar gemiddeld bespaart.
       </p>
       {Object.entries(cat.vaccines).map(([key, v]) => {
-        const n = needs(key, v.days);
-        const cost = n * v.price;
+        const q = quotes?.[key];
+        const n = q?.count ?? 0;
+        const cost = q?.cost ?? 0;
         return (
           <Item
             key={key}
@@ -410,10 +416,10 @@ export function VaccineSection({ loft, pigeons, cat, busy, act, open, onToggle }
             status={`${covered(key)}/${home.length} beschermd`}
             what={`${v.disease} · ${v.days} dagen${v.libidoHit ? ' · verlaagt het libido' : ''}`}
           >
-            {n > 0 ? (
+            {!quotes ? <span className="faint">…</span> : n > 0 ? (
               <button className="btn sm ghost" disabled={busy || loft.money < cost} onClick={() => {
                 if (v.noFlyDays && !window.confirm(`${v.label} voor ${n} ${n === 1 ? 'duif' : 'duiven'} (${euro(cost)})? Ze mogen dan ${v.noFlyDays} dagen niet vliegen.`)) return;
-                act(() => api('/loft/vaccinate', { method: 'POST', body: { key } }), `${v.label}: ${n} ${n === 1 ? 'duif' : 'duiven'} behandeld`);
+                act(async () => { await api('/loft/vaccinate', { method: 'POST', body: { key } }); loadQuotes(); }, `${v.label}: ${n} ${n === 1 ? 'duif' : 'duiven'} behandeld`);
               }}>
                 Hele hok ({n}) · <Money value={cost} />
               </button>
@@ -496,8 +502,8 @@ export function MagazineCard({ loft, cat, busy, act }: { loft: Loft; cat: Inrich
 }
 
 /** On her own page: entingskaart and verzekering. */
-export function PigeonCareCard({ p, cat, busy, run }: {
-  p: Pigeon; cat: InrichtingCatalogue; busy: boolean;
+export function PigeonCareCard({ p, prices, cat, busy, run }: {
+  p: Pigeon; prices: Record<string, number> | null; cat: InrichtingCatalogue; busy: boolean;
   run: (fn: () => Promise<unknown>, ok: string) => void;
 }) {
   const care = p.care!;
@@ -511,11 +517,11 @@ export function PigeonCareCard({ p, cat, busy, run }: {
         const has = care.vaccines.find((x) => x.key === key);
         return (
           <Line key={key} label={<>{v.label} <span className="faint">— {v.disease}{has ? ` · werkt tot ${day(has.until)}` : ''}</span></>}>
-            <button className={`btn sm ${has ? 'ghost' : ''}`} disabled={busy || p.away} onClick={() => {
+            <button className={`btn sm ${has ? 'ghost' : ''}`} disabled={busy || p.away || !prices} onClick={() => {
               if (v.noFlyDays && !window.confirm(`${v.label}? ${p.name} mag dan ${v.noFlyDays} dagen niet vliegen.`)) return;
               run(() => api(`/pigeons/${p.id}/vaccinate`, { method: 'POST', body: { key } }), `${v.label} gegeven`);
             }}>
-              {has ? 'Vernieuwen' : 'Geven'} · <Money value={v.price} />
+              {has ? 'Vernieuwen' : 'Geven'}{prices ? <> · <Money value={prices[key] ?? 0} /></> : null}
             </button>
           </Line>
         );

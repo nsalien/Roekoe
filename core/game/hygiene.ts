@@ -12,13 +12,13 @@
  * price) and disinfects: contagion between birds ×0,85.
  */
 
-import { EQUIPMENT, EQUIPMENT_LEVELS, HYGIENE, hygieneIllnessMult, strawCost, type LevelKey } from '../config/gameConfig.js';
+import { DISEASES, EQUIPMENT, EQUIPMENT_LEVELS, HYGIENE, ILLNESS, diseaseSeverityWeights, hygieneIllnessMult, strawCost, type LevelKey } from '../config/gameConfig.js';
 import type { Loft, LoftEquipment, Pigeon } from '../schema.js';
 import { defaultEquipment } from '../schema.js';
 import type { Store } from '../store.js';
 import { debtBlock } from './economy.js';
 import { isAway } from './pigeon.js';
-import { round1 } from './util.js';
+import { clamp, round1 } from './util.js';
 
 /** The loft's equipment, with defaults for a loft that never touched it. Read-only use. */
 export function equipmentOf(loft: Loft): LoftEquipment {
@@ -71,6 +71,27 @@ export function tickHygiene(loft: Loft, birds: Pigeon[], dayMs: number): number 
     return cost;
   }
   return 0;
+}
+
+/**
+ * The daily chance a bird at this vluchtvorm falls ill on its own — before
+ * hygiene, an apart hok or a kenmerk (see illnessChance). runHealthDay and the
+ * vaccine price both read it, so the price can never drift from the disease.
+ */
+export function spontaneousIllnessPerDay(condition: number): number {
+  const frailty = Math.pow(clamp((100 - condition) / 100, 0, 1), ILLNESS.curve);
+  const weekly = clamp(ILLNESS.floor + ILLNESS.max * frailty, 0, 1);
+  return 1 - Math.pow(1 - weekly, 1 / 7);
+}
+
+/** Of the illnesses a bird at this vluchtvorm catches, the share that is this
+ *  disease — the same split as health.randomDisease. */
+export function diseaseShare(diseaseName: string, condition: number): number {
+  const d = DISEASES.find((x) => x.name === diseaseName);
+  if (!d) return 0;
+  const w = diseaseSeverityWeights(condition);
+  const same = DISEASES.filter((x) => x.severity === d.severity).length;
+  return w[d.severity] / (w.licht + w.matig + w.ernstig) / Math.max(1, same);
 }
 
 /**

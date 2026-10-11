@@ -18,6 +18,7 @@ import { startLiveFlight, finalizeFlight, type Entry } from '../core/game/flight
 import { applyAilment, runHealthDay, tickHealing } from '../core/game/health.js';
 import { applyDayOfCare } from '../core/game/economy.js';
 import { estimateValue, talent } from '../core/game/pigeon.js';
+import { vaccinePrice } from '../core/game/inrichting.js';
 import {
   DISEASES, FLIGHT_TIERS, HEALING, HEALTH, ILLNESS, INFIRMARY, VACCINES, diseaseSeverityWeights,
   type VaccineKey,
@@ -194,11 +195,12 @@ function caseCost(key: string, idx: number, diseaseName: string, care: Care, tri
     let d = 0, dead = false, survive = 1, spent = 0;
     while (p.ailment && d < 60) {
       d += 1;
-      // Expected mortality, exactly: the daily chance runHealthDay uses (no counting noise).
-      const table = p.inInfirmary ? HEALTH.ailmentMortalityInfirmary : HEALTH.ailmentMortalityOutside;
-      survive *= Math.pow(1 - table[tmpl.severity], 1 / 7);
       const now = t0 + d * DAY;
       tickHealing(db, now);
+      // Expected mortality, exactly: the daily chance runHealthDay uses (no counting
+      // noise), on the midnights she is still ill.
+      const table = p.inInfirmary ? HEALTH.ailmentMortalityInfirmary : HEALTH.ailmentMortalityOutside;
+      if (p.ailment) survive *= Math.pow(1 - table[tmpl.severity], 1 / 7);
       const covered = new Set(p.inInfirmary && loft.doctors > 0 && p.ailment ? [p.id] : []);
       if (p.ailment) spent += (loft.doctors * INFIRMARY.doctorSalary) + (p.inInfirmary ? INFIRMARY.medicatedFoodPerBird : 0);
       applyDayOfCare(loft, [p], new Set(), covered);
@@ -270,4 +272,27 @@ for (const v of [50, 65, 80]) {
     console.log(`    ${vac.label.padEnd(18)} ${euro(vac.price).padStart(5)} · ${vac.days} d · ${(casesPrevented * 100).toFixed(2)} gevallen vermeden per 100 · waard ${row} (top/goed/gewoon)`);
     void key;
   }
+}
+
+// ---------------------------------------------------------------------------
+// 5. De prijs per duif (vaccinePrice) tegenover wat het middel haar oplevert
+// ---------------------------------------------------------------------------
+console.log('\n=== 5. Prijs per duif (vaccinePrice) vs. wat het middel oplevert (gesimuleerd) ===');
+{
+  const loft = { userId: 'u', isBot: false, equipment: undefined } as unknown as Loft;
+  const db = { lofts: [loft], pigeons: [], trades: [], world: { currentWeek: WEEK } } as unknown as Database;
+  const vorms = [60, 65, 70, 75, 80];
+  let worst = Infinity;
+  for (const a of ARCHETYPES) {
+    const p = bird('v', tOf(a.idx), { ownerId: 'u' });
+    console.log(`  ${a.label} (waarde ~${euro(estimateValue(p, WEEK))}):`);
+    for (const [key, vac] of Object.entries(VACCINES) as [VaccineKey, (typeof VACCINES)[VaccineKey]][]) {
+      const price = vaccinePrice(db, loft, p, key);
+      const worth = vorms.map((v) => incidenceFormula(v)[vac.disease] * vac.days * vac.protect * best[a.key][sevOf(vac.disease)]);
+      const ratio = worth.map((w) => w / price);
+      worst = Math.min(worst, ratio[vorms.indexOf(75)]);
+      console.log(`    ${vac.label.padEnd(18)} prijs ${euro(price).padStart(5)}${price < 10 ? ` (${price.toFixed(2)})` : ''} · oplevert ×prijs bij vorm ${vorms.map((v, i) => `${v}: ${ratio[i].toFixed(1)}`).join(' · ')}`);
+    }
+  }
+  console.log(`  → slechtste verhouding bij vorm 75 (de rekenvorm): ×${worst.toFixed(2)} (> 1 = het middel brengt meer op dan het kost)`);
 }

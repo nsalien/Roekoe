@@ -10,13 +10,21 @@
  */
 
 import {
+  COMPARTMENT,
+  DISEASES,
   EQUIPMENT,
   EQUIPMENT_LEVELS,
+  HEALING,
+  HEALTH,
+  INFIRMARY,
   REST_BONUS,
+  TRAITS,
   cleanerWage,
   INSURANCE,
   VACCINES,
+  VACCINE_PRICING,
   VACCINE_RENEW_SHARE,
+  type Severity,
   irBoxPrice,
   levelPrice,
   type EquipmentKey,
@@ -26,7 +34,7 @@ import {
 import type { Database, Loft, Pigeon, PigeonCare } from '../schema.js';
 import type { Store } from '../store.js';
 import { debtBlock } from './economy.js';
-import { effectScale, equipmentLevel, equipmentOf } from './hygiene.js';
+import { diseaseShare, effectScale, equipmentLevel, equipmentOf, illnessChance, spontaneousIllnessPerDay } from './hygiene.js';
 import { marketValue } from './market.js';
 import { ageMortality, isAway } from './pigeon.js';
 import { hashString, round1, seededRng } from './util.js';
@@ -334,6 +342,110 @@ export function needsCourse(p: Pigeon, key: VaccineKey, nowMs: number): boolean 
   return Date.parse(until) - nowMs < VACCINES[key].days * VACCINE_RENEW_SHARE * DAY;
 }
 
+// --- wat een middel kost: een investering in de duif (VACCINE_PRICING) --------
+
+/**
+ * What ONE case of a disease of this severity costs the owner of a bird worth
+ * `value`, cared for the cheaper way: ziekenboeg + medicatievoer, with or without
+ * a doctor. Care cost, plus — as a share of her value — the starts she misses (a
+ * sick bird takes in no energie, or half with a doctor, and racing is energy-bound)
+ * and the chance she dies in the ziekenboeg. Derived from HEALING/HEALTH/INFIRMARY.
+ * Each option is `care + value × k`; the coefficients only depend on the config,
+ * so they are worked out once.
+ */
+export function diseaseCaseCost(severity: Severity, value: number): number {
+  const [doctor, boeg] = caseCoefficients()[severity];
+  return Math.min(doctor.care + value * doctor.k, boeg.care + value * boeg.k);
+}
+
+let caseCoef: Record<Severity, { care: number; k: number }[]> | null = null;
+function caseCoefficients(): Record<Severity, { care: number; k: number }[]> {
+  if (caseCoef) return caseCoef;
+  const P = VACCINE_PRICING;
+  const boeg = HEALING.infirmarySpeed * HEALING.medicatedSpeed;
+  const option = (severity: Severity, withDoctor: boolean) => {
+    const days = HEALING.baseHoursOutside[severity] / 24 / (withDoctor ? boeg * HEALING.doctorSpeed : boeg);
+    // A disease breaks out at midnight (runHealthDay) and heals in real time; care,
+    // feed and the death roll all fall on the midnights she is still ill: whole days.
+    const nights = Math.floor(days);
+    const care = nights * (INFIRMARY.medicatedFoodPerBird + (withDoctor ? INFIRMARY.doctorSalary : 0));
+    const energyMissed = nights * P.energyPerDay * (withDoctor ? 1 - INFIRMARY.energyRecoveryFactor : 1)
+      + HEALTH.onsetHealthHit[severity] * 0.5; // applyAilment: energie −hit/2
+    const starts = energyMissed / P.energyPerStart + P.slowStarts[severity];
+    const death = 1 - Math.pow(1 - HEALTH.ailmentMortalityInfirmary[severity], nights / 7);
+    return { care, k: death + starts * P.startValueShare };
+  };
+  const both = (s: Severity) => [option(s, true), option(s, false)];
+  caseCoef = { licht: both('licht'), matig: both('matig'), ernstig: both('ernstig') };
+  return caseCoef;
+}
+
+/** Per middel: its disease's share of illness at refVorm, its severity, ornithose or not. Config-only, worked out once. */
+let middelInfo: Record<VaccineKey, { share: number; severity: Severity; ornithose: boolean } | null> | null = null;
+function middelen() {
+  if (middelInfo) return middelInfo;
+  middelInfo = Object.fromEntries((Object.keys(VACCINES) as VaccineKey[]).map((k) => {
+    const d = DISEASES.find((x) => x.name === VACCINES[k].disease);
+    return [k, d ? { share: diseaseShare(d.name, VACCINE_PRICING.refVorm), severity: d.severity, ornithose: d.name === 'Ornithose' } : null];
+  })) as Record<VaccineKey, { share: number; severity: Severity; ornithose: boolean } | null>;
+  return middelInfo;
+}
+
+/** What a bird's prices rest on, worked out once per bird (on /state this runs for every own bird). */
+interface PriceBasis { value: number; dailyIll: number; ventShare: number }
+
+function priceBasis(db: Database, loft: Loft, p: Pigeon): PriceBasis {
+  const eq = equipmentOf(loft);
+  return {
+    value: marketValue(db, p, db.world.currentWeek),
+    // Her own chance to fall ill, with her own protection (same call as runHealthDay).
+    dailyIll: illnessChance({
+      spontaneous: spontaneousIllnessPerDay(VACCINE_PRICING.refVorm),
+      fromOthers: 0,
+      hygiene: eq.hygiene,
+      cleaner: !!eq.cleaner,
+      compartmentMult: p.compartment ? 1 - COMPARTMENT.diseaseReduction : 1,
+      traitMult: p.trait === 'sturdy' ? TRAITS.sturdyIllnessMult : 1,
+    }),
+    // Dakventilatie fends ornithose off first (fendsOff), so a kuur only adds on top.
+    ventShare: eq.ventilation ? (1 - EQUIPMENT.ventilation.ornithoseMult) * effectScale(loft, 'ventilation') : 0,
+  };
+}
+
+function avoidedWith(b: PriceBasis, key: VaccineKey): number {
+  const v = VACCINES[key];
+  const m = middelen()[key];
+  if (!m) return 0;
+  const vent = m.ornithose ? b.ventShare : 0;
+  return v.days * b.dailyIll * m.share * (1 - vent) * v.protect * diseaseCaseCost(m.severity, b.value);
+}
+
+function priceWith(b: PriceBasis, key: VaccineKey): number {
+  const price = VACCINE_PRICING.share * avoidedWith(b, key);
+  // Cents below €10 (a kuur for a modest bird is worth little), whole euros above.
+  return price >= 10 ? Math.round(price) : Math.max(0.01, Math.round(price * 100) / 100);
+}
+
+/** The damage a middel spares THIS bird over its course, on average (no contagion counted). */
+export function vaccineAvoidedDamage(db: Database, loft: Loft, p: Pigeon, key: VaccineKey): number {
+  return avoidedWith(priceBasis(db, loft, p), key);
+}
+
+/** What this middel costs for THIS bird: always a bit less than the damage it spares her. */
+export function vaccinePrice(db: Database, loft: Loft, p: Pigeon, key: VaccineKey): number {
+  return priceWith(priceBasis(db, loft, p), key);
+}
+
+/** Every middel's price for this bird (her care card and the "hele hok" total). */
+export function vaccinePrices(db: Database, loft: Loft, p: Pigeon): Record<VaccineKey, number> {
+  const b = priceBasis(db, loft, p);
+  return Object.fromEntries(
+    (Object.keys(VACCINES) as VaccineKey[]).map((k) => [k, priceWith(b, k)]),
+  ) as Record<VaccineKey, number>;
+}
+
+const euroLabel = (n: number) => `€${n.toLocaleString('nl-BE', { maximumFractionDigits: 2 })}`;
+
 /** Give one bird a vaccine or kuur. */
 export function vaccinate(store: Store, userId: string, pigeonId: string, key: VaccineKey, nowMs: number = Date.now()): string | null {
   return store.mutate((db) => {
@@ -344,11 +456,35 @@ export function vaccinate(store: Store, userId: string, pigeonId: string, key: V
     if (!v) return 'Onbekend middel';
     const debt = debtBlock(loft); if (debt) return debt;
     if (isAway(p)) return 'Deze duif is nog niet thuis';
-    if (loft.money < v.price) return `Niet genoeg geld voor ${v.label.toLowerCase()}`;
-    loft.money -= v.price;
+    const price = vaccinePrice(db, loft, p, key);
+    if (loft.money < price) return `Niet genoeg geld voor ${v.label.toLowerCase()} (${euroLabel(price)})`;
+    loft.money -= price;
     applyVaccine(p, key, nowMs);
     return null;
   });
+}
+
+/**
+ * What "Hele hok" would do right now: the birds at home that need this middel
+ * (not still well covered — renewing her is a choice on her own page) and what
+ * their own prices add up to. vaccinateLoft charges exactly this.
+ */
+export function vaccineLoftQuote(db: Database, loft: Loft, key: VaccineKey, nowMs: number = Date.now()): { birds: Pigeon[]; cost: number } {
+  const birds = db.pigeons.filter((p) => p.ownerId === loft.userId && !isAway(p) && needsCourse(p, key, nowMs));
+  const cost = Math.round(birds.reduce((sum, p) => sum + vaccinePrice(db, loft, p, key), 0) * 100) / 100;
+  return { birds, cost };
+}
+
+/** Every middel's "hele hok" count and cost, for the Inrichting page (fetched when the block opens). */
+export function vaccineLoftQuotes(db: Database, loft: Loft, nowMs: number = Date.now()): Record<VaccineKey, { count: number; cost: number }> {
+  // Each bird's prices once (same rule and same rounding as vaccineLoftQuote).
+  const home = db.pigeons.filter((p) => p.ownerId === loft.userId && !isAway(p));
+  const prices = new Map(home.map((p) => [p.id, vaccinePrices(db, loft, p)]));
+  return Object.fromEntries((Object.keys(VACCINES) as VaccineKey[]).map((k) => {
+    const birds = home.filter((p) => needsCourse(p, k, nowMs));
+    const cost = Math.round(birds.reduce((sum, p) => sum + prices.get(p.id)![k], 0) * 100) / 100;
+    return [k, { count: birds.length, cost }];
+  })) as Record<VaccineKey, { count: number; cost: number }>;
 }
 
 /** "Hele hok": the same middel for every bird at home. Returns an error or a summary. */
@@ -361,10 +497,9 @@ export function vaccinateLoft(store: Store, userId: string, key: VaccineKey, now
     const home = db.pigeons.filter((p) => p.ownerId === userId && !isAway(p));
     if (home.length === 0) return { error: 'Geen duiven thuis', count: 0 };
     // Skip who is still well covered: renewing her is a choice on her own page.
-    const birds = home.filter((p) => needsCourse(p, key, nowMs));
+    const { birds, cost } = vaccineLoftQuote(db, loft, key, nowMs);
     if (birds.length === 0) return { error: `Al je duiven thuis zijn nog beschermd met ${v.label.toLowerCase()}`, count: 0 };
-    const cost = birds.length * v.price;
-    if (loft.money < cost) return { error: `Niet genoeg geld (€${cost} voor ${birds.length} duiven)`, count: 0 };
+    if (loft.money < cost) return { error: `Niet genoeg geld (${euroLabel(cost)} voor ${birds.length} duiven)`, count: 0 };
     loft.money -= cost;
     for (const p of birds) applyVaccine(p, key, nowMs);
     return { error: null, count: birds.length };

@@ -1456,10 +1456,34 @@ niveau 4); enkel de hokpoetser, het vakblad en een verzekering kosten per dag (D
 | Weerstation | €1.500 | — | voorspelling vanaf 24 u vóór de lossing |
 | Vakblad | — | €6 | bandbreedtes (±6) bij andermans duif; marktrapport 28 dagen; maandag Het Duivenblad |
 
-**Vaccins & kuren** (per ziekte, buiten de bodem ×0,4): PMV €60 (91 d, 80 %),
-pokken €40 (91 d, 80 %), salmonella €75 (45 d, 60 %) — een vaccin = 2 dagen niet
-vliegen; geelkuur €15 (7 d, 75 %), coccidiosekuur €25 (10 d, 75 %),
-ademhalingskuur €40 (7 d, 60 %, libido −10).
+**Vaccins & kuren** (per ziekte, buiten de bodem ×0,4): PMV (91 d, 80 %), pokken
+(91 d, 80 %), salmonella (45 d, 60 %) — een vaccin = 2 dagen niet vliegen; geelkuur
+(7 d, 75 %), coccidiosekuur (10 d, 75 %), ademhalingskuur (7 d, 60 %, libido −10).
+
+**Wat een middel kost — altijd iets minder dan wat het je duif bespaart.** Er is geen
+vaste prijs; elke duif heeft haar eigen prijs:
+```
+prijs  = 0,8 × vermeden gevallen × kost van één geval
+vermeden gevallen = looptijd × kans per dag dat ze díe ziekte krijgt × afweer
+                    (op vluchtvorm 75, met haar eigen bescherming: apart hok,
+                     IJzeren gestel, hygiëne, dakventilatie bij ornithose)
+kost van één geval = de goedkoopste van ziekenboeg + medicatievoer met of zonder dokter:
+                    zorg + marktwaarde × (sterftekans + gemiste starts × 1,3 %)
+```
+Gemiste starts: starten is energie-begrensd (~7,5 energie per dag op Herstelvoer, ~32 per
+start); een zieke duif krijgt geen energie binnen (met dokter de helft) en verliest bij het
+uitbreken ook nog energie. Na een ernstige ziekte komt er een halve start bij, omdat ze trager
+vliegt tot haar gezondheid terug is. Eén start brengt gemiddeld ~1,3 % van haar marktwaarde op.
+
+| Duif (marktwaarde) | PMV | Pokken | Salmonella | Een kuur |
+|---|---|---|---|---|
+| topduif (~€37.000) | €30 | €17 | €11 | €1–2 |
+| goede duif (~€24.000) | €21 | €13 | €8 | ~€1 |
+| gewone duif (~€9.000) | €12 | €7 | €4 | minder dan €1 |
+
+Op vluchtvorm 75 levert een middel minstens 1,3× zijn prijs op; een duif die gewoon
+meevliegt (die zakt na elke vlucht dieper) haalt er 2 à 4× haar geld uit. Een duif die
+amper vliegt en altijd rond vorm 80 of hoger zit, haalt er iets minder uit dan ze betaalt.
 
 **Verzekering:** uitkering 60 % van de marktwaarde bij afsluiten; premie/dag =
 1,3 × uitkering × (0,04 % + ouderdomssterfte per dag). Niet gedekt: honger,
