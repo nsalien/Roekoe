@@ -64,7 +64,7 @@ import {
   trainingCost,
 } from './pigeon.js';
 import { clamp, randFloat, randInt, round1 } from './util.js';
-import { clearOwnerCare, grounded, inQuarantine } from './inrichting.js';
+import { clearOwnerCare, grounded } from './inrichting.js';
 
 export const NPC_OWNER_ID = 'npc_market';
 
@@ -1008,7 +1008,6 @@ export function startBreeding(
     if (sire.inInfirmary || dam.inInfirmary) return 'Een duif in de ziekenboeg kan niet broeden';
     if (onRestCure(sire) || onRestCure(dam)) return 'Een duif op rustkuur kan niet broeden';
     if (isAway(sire) || isAway(dam)) return 'Een duif die nog niet thuis is van haar vlucht kan niet broeden';
-    if (inQuarantine(sire) || inQuarantine(dam)) return 'Een geïmporteerde duif in quarantaine kan nog niet broeden';
     // Rest between clutches, per bird (BREEDING.cooldownDays). Named so the
     // player knows WHICH of the two is not ready and for how long.
     for (const parent of [sire, dam]) {

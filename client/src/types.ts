@@ -92,10 +92,8 @@ export interface Pigeon {
   // players' birds these are null (see `revealed`). The general score (talent)
   // is always public.
   revealed: boolean;
-  /** Hokinrichting: vaccins, quarantaine, verzekering — own birds only. */
+  /** Hokinrichting: vaccins, verzekering — own birds only. */
   care?: PigeonCareView | null;
-  /** Where she came from when imported by a scout. */
-  origin?: string | null;
   /** Vakblad: someone else's bird as bands instead of hidden values. */
   magazineRanges?: Record<'speed' | 'endurance' | 'orientation', [number, number]> | null;
   speed: number | null;
@@ -270,32 +268,12 @@ export interface LoftEquipment {
   weatherStation: boolean;
   magazine: boolean;
   lastHawkDay: number | null;
-  scout: ScoutView | null;
-  scoutUsed: boolean; // once per season
-}
-
-export interface ScoutView {
-  status: 'away' | 'report' | 'expired';
-  market: string;
-  tier: string;
-  sentAt: string;
-  readyAt: string | null; // hidden while he is away
-  day: number; // which day of the trip it is
-  maxDays: number | null;
-  expiresAt: string | null;
-  offers: {
-    index: number; name: string; sex: Sex; ageWeeks: number; talent: number;
-    speed: number; endurance: number; orientation: number;
-    capsEstimate: { speed: number; endurance: number; orientation: number };
-    trait: PigeonTrait | null; price: number; marketValue: number;
-  }[];
 }
 
 /** The owner's view of a bird's care (hokinrichting). */
 export interface PigeonCareView {
   vaccines: { key: string; label: string; until: string }[];
   noFlyUntil: string | null;
-  quarantineUntil: string | null;
   insurance: { payout: number; since: string; premium: number } | null;
   insuranceQuote: { payout: number; premium: number } | null;
 }
@@ -313,11 +291,6 @@ export interface InrichtingCatalogue {
   vaccines: Record<string, { label: string; disease: string; kind: 'vaccin' | 'kuur'; price: number; days: number; protect: number; noFlyDays: number; libidoHit: number }>;
   /** "Hele hok" skips a bird with more than this share of her course left. */
   vaccineRenewShare: number;
-  scout: {
-    tiers: Record<string, { label: string; wage: number; scoreMin: number; scoreMax: number; maxDays: number; emptyChance: number }>;
-    markets: Record<string, { label: string; blurb: string }>;
-    choiceHours: number; quarantineDays: number;
-  };
   insurancePayoutRate: number;
 }
 

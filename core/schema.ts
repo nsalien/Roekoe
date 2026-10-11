@@ -191,7 +191,7 @@ export interface Pigeon {
    *  schedule.ts). Shown on Mijn hok only when that is still her owner. */
   earnings?: number;
   earningsOwner?: string | null;
-  /** Hokinrichting: vaccins, quarantaine, verzekering (column `care`). */
+  /** Hokinrichting: vaccins, verzekering (column `care`). */
   care?: PigeonCare;
   seasonPracticeGain?: number; // score gained from practice flights this season (excluded from the ranking)
   /**
@@ -347,41 +347,20 @@ export interface LoftEquipment {
   magazine?: boolean; // vakblad-abonnement
   /** Day number (Brussels) the last sperwerschrik in the ren happened — stable notification id. */
   lastHawkDay?: number;
-  /** A scout abroad, or his report waiting for a choice (see scout.ts). */
-  scout?: ScoutMission | null;
-  /** The season (World.seasonYear) the scout last went out — once per season. */
-  scoutSeason?: number;
   /** Niveaus (EQUIPMENT_LEVELS): absent = level 1 for whatever is bought. */
   levels?: Partial<Record<'ventilation' | 'run' | 'light' | 'irBoxes' | 'baskets', number>>;
 }
 
-/** A scout sent to a market abroad (EQUIPMENT/SCOUT in gameConfig). */
-export interface ScoutMission {
-  market: string; // SCOUT.markets key
-  tier: string; // SCOUT.tiers key
-  sentAt: string;
-  /** When he is back. Rolled at departure and NOT shown while he is away. */
-  readyAt: string;
-  expiresAt: string; // 48 h after readyAt
-  /** The birds he found (empty = he came back empty-handed). Rolled when he leaves, shown from readyAt. */
-  offers: { pigeon: Pigeon; price: number; capsEstimate: { speed: number; endurance: number; orientation: number } }[];
-}
-
 /**
- * Per-bird care from the hokinrichting (vaccins, quarantaine, verzekering,
- * herkomst). One JSON column on the pigeon row; absent = none.
+ * Per-bird care from the hokinrichting (vaccins, verzekering). One JSON column on the pigeon row; absent = none.
  */
 export interface PigeonCare {
   /** Vaccine/kuur id → valid until (ISO). See VACCINES in gameConfig. */
   vaccines?: Record<string, string>;
   /** May not fly before this (a fresh vaccine). */
   noFlyUntil?: string;
-  /** Import quarantine: no flying, no pairing before this. */
-  quarantineUntil?: string;
   /** Duivenverzekering: what is paid out on death, and since when. */
   insurance?: { payout: number; since: string };
-  /** Where she came from, when imported (e.g. "Import · Zuid-Afrika"). */
-  origin?: string;
 }
 
 /**

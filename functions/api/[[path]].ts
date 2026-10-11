@@ -50,7 +50,6 @@ import {
   COACH,
   EQUIPMENT,
   INSURANCE,
-  SCOUT,
   VACCINES,
   VACCINE_RENEW_SHARE,
   FEED_RATIONS,
@@ -111,7 +110,6 @@ import { advanceRealtime, applyFlightForecasts, applyRelayForecasts, flightsAwai
 import { pigeonSeasonRankings } from '../../core/game/season.js';
 import { buyStraw, setCleaner } from '../../core/game/hygiene.js';
 import { buyEquipment, buyIrBox, inrichtingEffects, inrichtingLevels, magazineReport, setInsurance, upgradeEquipment, vaccinate, vaccinateLoft } from '../../core/game/inrichting.js';
-import { buyScouted, dismissScout, sendScout } from '../../core/game/scout.js';
 import { spendAttribute, spendExperience } from '../../core/game/newcomer.js';
 import { velocityBreakdown, weightsForDistance } from '../../core/game/flight.js';
 import { ageInWeeks } from '../../core/game/pigeon.js';
@@ -532,7 +530,6 @@ app.get('/state', (c) => {
       effects: INRICHTING_EFFECTS,
       vaccines: VACCINES,
       vaccineRenewShare: VACCINE_RENEW_SHARE,
-      scout: { tiers: SCOUT.tiers, markets: SCOUT.markets, choiceHours: SCOUT.choiceHours, quarantineDays: SCOUT.quarantineDays },
       insurancePayoutRate: INSURANCE.payoutRate,
     },
     infirmary: INFIRMARY,
@@ -832,7 +829,7 @@ app.post('/loft/cleaner', async (c) => {
   return err ? c.json({ error: err }, 400) : c.json({ ok: true });
 });
 
-// Hokinrichting (⚠️ dev): equipment, vaccins, verzekering, scout.
+// Hokinrichting (⚠️ dev): equipment, vaccins, verzekering.
 const ok = (err: string | null) => (err ? { error: err } : { ok: true });
 
 app.post('/loft/equipment', async (c) => {
@@ -890,32 +887,6 @@ app.post('/pigeons/:id/insurance', async (c) => {
   const body = await c.req.json().catch(() => ({}));
   const store = c.get('store');
   const err = setInsurance(store, user.id, c.req.param('id'), !!body.on);
-  await store.persist();
-  return c.json(ok(err), err ? 400 : 200);
-});
-
-app.post('/scout/send', async (c) => {
-  const user = requireUser(c);
-  const body = await c.req.json().catch(() => ({}));
-  const store = c.get('store');
-  const err = sendScout(store, user.id, String(body.market ?? ''), String(body.tier ?? ''));
-  await store.persist();
-  return c.json(ok(err), err ? 400 : 200);
-});
-
-app.post('/scout/buy', async (c) => {
-  const user = requireUser(c);
-  const body = await c.req.json().catch(() => ({}));
-  const store = c.get('store');
-  const err = buyScouted(store, user.id, Number(body.index));
-  await store.persist();
-  return c.json(ok(err), err ? 400 : 200);
-});
-
-app.post('/scout/dismiss', async (c) => {
-  const user = requireUser(c);
-  const store = c.get('store');
-  const err = dismissScout(store, user.id);
   await store.persist();
   return c.json(ok(err), err ? 400 : 200);
 });

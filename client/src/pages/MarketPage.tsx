@@ -5,7 +5,7 @@ import { Link } from 'react-router-dom';
 import { api } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
 import { useGame } from '../game/GameContext';
-import { MagazineCard, ScoutCard } from '../components/Inrichting';
+import { MagazineCard } from '../components/Inrichting';
 import { markMarketSeen } from '../game/marketSeen';
 import { useVisiblePoll } from '../game/useVisiblePoll';
 import { BreedBadge, Money, PigeonStats, Spinner, TraitBadge, countdownTo, useToast } from '../components/ui';
@@ -41,7 +41,7 @@ export function MarketPage() {
   const [report, setReport] = useState<MarketReport | null>(null);
   const [auctions, setAuctions] = useState<AuctionInfo[]>([]);
   const [busy, setBusy] = useState(false);
-  async function scoutAct(fn: () => Promise<unknown>, ok?: string) {
+  async function magazineAct(fn: () => Promise<unknown>, ok?: string) {
     setBusy(true);
     try {
       await fn();
@@ -301,18 +301,11 @@ export function MarketPage() {
         onWithdraw={(id) => offerAct(() => api(`/offers/${id}/withdraw`, { method: 'POST' }), 'Bod ingetrokken')}
       />
 
-      {/* Scout op buitenlandse markten (hokinrichting). */}
-      {state?.loft?.equipment && state.inrichting && (
-        <div style={{ marginTop: 26 }}>
-          <ScoutCard loft={state.loft} cat={state.inrichting} busy={busy} act={scoutAct} />
-        </div>
-      )}
-
       {/* Vakblad (hokinrichting): abonneren hier, bij het marktrapport dat het
           ontgrendelt. Daarna de markt herladen: het rapport en de bandbreedtes
           bij een privébod komen uit /market. */}
       {state?.loft?.equipment && state.inrichting && (
-        <MagazineCard loft={state.loft} cat={state.inrichting} busy={busy} act={(fn, ok) => scoutAct(async () => { await fn(); await load(); }, ok)} />
+        <MagazineCard loft={state.loft} cat={state.inrichting} busy={busy} act={(fn, ok) => magazineAct(async () => { await fn(); await load(); }, ok)} />
       )}
       {/* Het marktrapport, enkel voor abonnees. */}
       {report && (

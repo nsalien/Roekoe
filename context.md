@@ -70,21 +70,21 @@
 - **Enkel op dev** (`claude/demo-hokinrichting`): de demomodus (de preview is een demo die nooit met
   de server praat, het demoaccount heeft altijd minstens €100.000), het hokoverzicht, de pagina
   **Inrichting** (vier inklapbare blokken; hygiëne + poetser per schijf €10–€75; vaccins & kuren;
-  uitrusting met niveaus 1–4 en een ⓘ per onderdeel; verzekering, vakblad, weerstation, scout) en
-  **Marktwaarde v2** (hieronder). **Weggehaald van dev:** koppels, partnerhok, weduwschap.
+  uitrusting met niveaus 1–4 en een ⓘ per onderdeel; verzekering, vakblad, weerstation) en
+  **Marktwaarde v2** (hieronder). **Weggehaald van dev:** koppels, partnerhok, weduwschap, en
+  (11 okt) de **scout** — zie *Scout — voorlopig weggehaald*.
 - **Wacht op een beslissing van de eigenaar:**
   1. **Marktwaarde v2 naar productie?** Eerst testen in de demo (⚠️ schema-stap `trades.quality`
      achteraan *productie's* SCHEMA_STEPS zetten, zie hieronder).
-  2. **Vaccinprijzen.** Analyse (met de echte ziektecode): bij vorm 65 besparen ze per middel
-     PMV €25–81, pokken €20–52, salmonella €10–31, geel €3–7, coccidiose €2–6, ademhaling €1–3
-     (gewone → topduif) tegen prijzen van €60/€40/€75/€15/€25/€40 — de kuren lonen nooit. Voorstel:
-     PMV €30, pokken €20, salmonella €15, de drie kuren €3. ⚠️ Besmetting trekt nu een
-     *willekeurige* ziekte, niet die van de zieke hokgenoot, dus "een kuur als er iets rondgaat"
-     werkt niet; voorstel: besmetting per ziekte.
-  3. **De scout:** blijft hij op dev (hij rekent met de nieuwe marktwaarde × 1,4–1,7), of gaat hij
-     voorlopig weg? Een eigen prijsbodem voor de scout is uitgesteld tot de marktwaarde klopt.
-  4. Moeten de **opvangcentrum-veilingen** (start €25, NPC) buiten de marktwaarde blijven?
-  5. Moeten de **scoutregio's** duidelijker van elkaar verschillen?
+  2. **Vaccinprijzen.** Opnieuw doorgerekend op 11 okt, nu mét wat een zieke duif niet opbrengt
+     (`tests/vaccine-economics.mts`, zie *Vaccins: wat een kuur waard is* hieronder). Bij vluchtvorm
+     65 is één kuur waard (top / goede / gewone duif): PMV €95/€69/€39 · pokken €48/€36/€21 ·
+     salmonella €35/€26/€14 · geel €6/€5/€3 · cocci €5/€4/€2 · adem €3/€2/€1, tegen prijzen van
+     €60/€40/€75/€15/€25/€40. Voorstel: PMV €60 (blijft), pokken €30, salmonella €20, kuren €3 —
+     zodat een vaccin loont voor een waardevolle duif en niet voor een gewone. ⚠️ Besmetting trekt
+     een *willekeurige* ziekte, niet die van de zieke hokgenoot, dus "een kuur als er iets
+     rondgaat" werkt niet; voorstel: besmetting per ziekte.
+  3. Moeten de **opvangcentrum-veilingen** (start €25, NPC) buiten de marktwaarde blijven?
 
 ### Demomodus (preview-builds)
 - **Wanneer:** Cloudflare Pages zet `CF_PAGES_BRANCH` tijdens de build. Is die **niet**
@@ -142,7 +142,7 @@
   - *Bescherming:* 💉 ingeënt/gekuurd en 🛡️ verzekerd, elk op een regel.
 - **Thuis / niet thuis** (`awayStatus`): niet thuis is enkel wie 🧭 de weg kwijt is, ✈️ nu
   vliegt of 🏥 in de ziekenboeg ligt, elk op een eigen regel. Op het nest,
-  op rustkuur, in quarantaine of ingeschreven voor een latere vlucht = **thuis**.
+  op rustkuur of ingeschreven voor een latere vlucht = **thuis**.
   "Vliegt" komt uit de nieuwe `pigeonDTO.flying` (`live && pigeonAirborne`): smaller dan
   `racing`, dat ook geldt voor een vlucht die nog moet beginnen; de scan loopt enkel voor een
   duif op een lopende vlucht. **Test:** `tests/hokoverzicht.test.mts`.
@@ -197,7 +197,8 @@
 ### Marktwaarde v2 — correct en stabiel (⚠️ dev, nog niet live)
 - **Vraag van de eigenaar:** "ik wil kunnen baseren op marktwaarde, maar daarvoor moet die eerst
   correct worden bepaald" — en niet meer fluctueren. Een ★80 werd op ~€14.000 geschat terwijl
-  spelers €20–25.000 betalen. De scout blijft voorlopig zoals hij is (hij rekent met de waarde).
+  spelers €20–25.000 betalen. De scout (die met de waarde rekende) is van dev gehaald tot de
+  waarde vaststaat — zie *Scout — voorlopig weggehaald*.
 - **Oorzaken (gemeten):** (1) de schatting was aan de top veel te laag: `(t/50)^2.2 × 800` gaf een
   gewone ★80 €2.600; (2) één verkoop telde voor 2/3, het model hield altijd 15 % en de marktfactor
   was begrensd op ×8 → één verkoop van €20.000 gaf €14.680, vier gaven €18.000 (de grens);
@@ -237,13 +238,47 @@
   vraag van de eigenaar **volledig teruggedraaid**: "niet goed gedaan". `FEED_RATIONS`, de bots en
   de wiki staan weer zoals live. Begin daar niet opnieuw aan zonder een nieuw voorstel.
 
-### De rest van de hokinrichting (`core/game/inrichting.ts`, `core/game/scout.ts`)
+### Scout — voorlopig weggehaald (11 okt)
+- **Op vraag van de eigenaar volledig van dev gehaald** tot vaststaat dat de marktwaarde (v2)
+  juist bepaald wordt: zijn prijs was marktwaarde × 1,4–1,7 (China × 1,8–2,2), dus een scheve
+  waarde gaf meteen een scheve scout. Weg: `core/game/scout.ts`, `SCOUT`, `ScoutMission`,
+  `Loft.equipment.scout`/`scoutSeason`, de quarantaine (`PigeonCare.quarantineUntil`,
+  `inQuarantine` in `startBreeding`, het quarantainedeel van `grounded`/`groundedByCare`), de
+  herkomst (`PigeonCare.origin`, `pigeonDTO.origin`, 🌍 op de duifpagina), `/scout/*`,
+  `ScoutCard` op de Markt, de wikiparagraaf en de scouttests in `inrichting.test.mts`.
+- **Terughalen?** De laatste versie mét scout is commit `264f93f`. Een bewaarde demo met een
+  lopende scout of een importduif werkt gewoon door: de velden worden genegeerd (geen
+  `DEMO_VERSION`-bump nodig). De open vraag over duidelijker verschillende scoutregio's is
+  daarmee ook geparkeerd.
+
+### Vaccins: wat een kuur waard is (`tests/vaccine-economics.mts`, diagnose)
+- **Methode, alles met de echte code:** opbrengst per start uit echte vluchten
+  (`startLiveFlight` + `finalizeFlight`, veld van 24 van ★60 tot ★84, weekmix 3 regio · 3 nat ·
+  2 intl, na inschrijfgeld) bij gezondheid 95/85/75/65/55; kans per ziekte uit `runHealthDay`
+  (klopt met de formule; `fendsOff` weert ~80 % af); kost per geval door het ziekteverloop dag per
+  dag te volgen (`tickHealing` + `applyDayOfCare` + `runHealthDay`, Herstelvoer, ziekenboeg +
+  medicatievoer, met of zonder dokter — de goedkoopste telt). Starten is **energie-begrensd**
+  (~7,5 energie/dag op Herstelvoer, ~32 per start → 1,6 starts/week): wat een zieke duif aan
+  energie mist, wordt nooit meer gevlogen.
+- **Opbrengst:** topduif (★84) ~€480 per start / €112 per dag, goede (★80) €331 / €77, gewone
+  (★73) €148 / €35. Op gezondheid 65 nog maar ~35–40 % daarvan.
+- **Kost van één geval** (top / goede / gewone duif): licht ~€300 / €230 / €140 · matig ~€740 /
+  €570 / €330 · ernstig ~€2.000 / €1.470 / €820. Bij een ernstig geval van een topduif: dokter +
+  medicatie €315, gemiste starts ~€670, trager tot de gezondheid terug is ~€250, sterftekans
+  2 % × €37.000 = ~€780. ⚠️ De dokter is dus het kleinste deel; het gemiste geld en het
+  sterfterisico wegen het zwaarst.
+- **Aannames:** de zieke duif staat binnen de dag in de ziekenboeg (besmetting telt niet mee),
+  er is een bed vrij, geen seizoenspunten of sponsorpremies in de opbrengst (dus aan de lage
+  kant), en de 2 dagen niet vliegen na een vaccin kosten niets als je ze op rustdagen legt
+  (energie blijft binnenkomen).
+
+### De rest van de hokinrichting (`core/game/inrichting.ts`)
 - **Config** in gameConfig: `EQUIPMENT` (ventilatie, ren, roofvogelafweer, kunstlicht,
-  infrarood, reismanden, weerstation, vakblad), `VACCINES`, `SCOUT`, `INSURANCE`,
+  infrarood, reismanden, weerstation, vakblad), `VACCINES`, `INSURANCE`,
   plus `BOT.strawBelowHygiene`/`ventilationReserve`.
 - **Opslag:** alles van het hok in `Loft.equipment` (zelfde JSON-kolom als de hygiëne, incl.
-  `scout` en `lastHawkDay`). Per duif één nieuwe JSON-kolom **`care`** (`PigeonCare`: vaccins,
-  `noFlyUntil`, `quarantineUntil`, `insurance`, `origin`), `''` als leeg. Op de vlucht
+  `lastHawkDay`). Per duif één nieuwe JSON-kolom **`care`** (`PigeonCare`: vaccins,
+  `noFlyUntil`, `insurance`), `''` als leeg. Op de vlucht
   een kolom **`forecast`**. `Ailment.boeg` onthoudt of ze in de ziekenboeg lag. Drie nieuwe
   stappen achteraan `SCHEMA_STEPS`. Pigeons blijven 1 rij per multi-row statement (53 kolommen).
 - **Dagkost:** `equipmentCostLines` + `insuranceCost` → `dailyRunningCostBreakdown.equipment`
@@ -298,14 +333,6 @@
   - verzekering: `insurancePayout` op elke sterfteplek (ziekte/ouderdom in health.ts, vlucht en
     honger in schedule.ts, sperwer in events.ts); premie = 1,3 × uitkering × (0,04 % +
     `ageMortality`·4/7); `clearOwnerCare` bij elke eigendomswissel (engine/auction/offers);
-  - scout: **één keer per seizoen** (`equipment.scoutSeason` = `world.seasonYear`). Bij vertrek
-    wordt álles gerold (geen tick nodig, geen onenigheid tussen verzoeken): de terugkeerdag
-    (`rollReturnDay`, kans per dag `returnChance` = 5 % + 95 %·((d−1)/(N−1))^1,6, N = 7/14/21
-    voor brons/zilver/goud; gemiddeld ~4 / ~6 / ~7 dagen), lege handen (`emptyChance`
-    10/25/40 %) en de duiven. `readyAt` gaat **niet** naar de client zolang hij weg is (enkel
-    "dag X van hoogstens N"). Prijs = marktwaarde × 1,4–1,7 (China 1,8–2,2), dus altijd boven de
-    marktwaarde, hoe die ook beweegt. Kopen vraagt een vrije plaats; quarantaine blokkeert
-    vliegen en koppelen (`inQuarantine` in startBreeding);
   - vakblad: `pigeonDTO.magazineRanges` (geseed, bevat altijd de echte waarde) — getoond op de
     duifpagina van andermans duif **én bij een privébod op de Markt** (BidCascade); `/market.report`
     (`magazineReport`, onderaan de Markt), `tickMagazine` op de maandag-dagovergang (stabiele id per
@@ -316,10 +343,9 @@
     middleware naast de estafettevoorspellingen — **enkel als een hok een station heeft**;
     `withForecast` in de API toont het enkel aan stationhouders.
 - **API:** `POST /loft/equipment {key, on}`, `/loft/irbox`, `/loft/vaccinate {key}`,
-  `/pigeons/:id/vaccinate {key}`, `/pigeons/:id/insurance {on}`,
-  `/scout/send {market, tier}`, `/scout/buy {index}`, `/scout/dismiss`. `/state.inrichting` =
-  de catalogus. DTO: `loftDTO.equipment` (alle vlaggen + `scout`), `pigeonDTO.care` (enkel
-  eigenaar), `.origin`, `.magazineRanges`, `flight.forecast`.
+  `/pigeons/:id/vaccinate {key}`, `/pigeons/:id/insurance {on}`. `/state.inrichting` =
+  de catalogus. DTO: `loftDTO.equipment` (alle vlaggen), `pigeonDTO.care` (enkel
+  eigenaar), `.magazineRanges`, `flight.forecast`.
 - **UI (tekst):** een eigen pagina **Inrichting** (`/inrichting`, `pages/InrichtingPage.tsx`,
   menu-item 🧰 na *Mijn hok*). **Vier inklapbare blokken** (de eigenaar vond de lange lijst
   "veel en complex, een opsomming van random zaken"): dicht toont elk blok enkel zijn naam en
@@ -349,15 +375,15 @@
 
   Elk item binnen een blok in de vaste vorm `Item` (zie de ontwerpregel hierboven); op de gsm
   staat de knop onder de tekst. Gemeten op 390 px: dicht ~1.000 px hoog (de oude lijst ~2.900).
-  Marktinformatie staat op de **Markt**: de **scout** en het **vakblad** (`MagazineCard`, net
+  Marktinformatie staat op de **Markt**: het **vakblad** (`MagazineCard`, net
   boven het marktrapport dat het ontgrendelt; na (de)abonneren herlaadt de Markt `/market`).
   *Mijn hok* toont boven de duiven enkel het compacte hokoverzicht + een link naar Inrichting: de
   eigenaar wil zonder scrollen bij zijn duiven. Het hokoverzicht toont ook de
-  bescherming; duifpagina: kaart "Verzorging & verzekering" (`PigeonCareCard`), herkomst,
+  bescherming; duifpagina: kaart "Verzorging & verzekering" (`PigeonCareCard`),
   vakblad-bandbreedtes bij andermans duif; Vluchten: 📡 voorspelling.
 - **Bots:** vers stro bij hygiëne ≤ 60 en dakventilatie zodra ze €5.000 boven hun reserve
   zitten (`maybeFitOutLoft`). Geen vaccins (die houden een duif 2 dagen aan de grond), geen
-  scout, verzekering of vakblad. Dit was een open vraag; het voorstel is gevolgd.
+  verzekering of vakblad. Dit was een open vraag; het voorstel is gevolgd.
 - **Demo:** de demospeler heeft **altijd minstens €100.000** (wens van de eigenaar): de seed geeft
   `DEMO_MONEY`, en `topUpDemoMoney` (client/demo/seed.ts) vult bij **elke start** van de demo aan tot
   dat bedrag — ook na +1 uur/+6 uur/+1 dag en "Demo opnieuw" (die herladen de pagina). Binnen een
@@ -1489,7 +1515,7 @@ npx tsx tests/market-floor.test.mts       # nooit onder 1/5 van de marktwaarde; 
 npx tsx tests/demo-build.test.mts         # (dev) prodbuild zonder demo, previewbuild mét demo
 npx tsx tests/demo-world.test.mts         # (dev) de demowereld + de echte API op sql.js
 npx tsx tests/hygiene.test.mts            # (dev) hokhygiëne, stro, poetser, bodem ×0,4
-npx tsx tests/inrichting.test.mts         # (dev) ventilatie, ren, sperwer, vaccins, verzekering, scout, vakblad, weerstation, bots
+npx tsx tests/inrichting.test.mts         # (dev) ventilatie, ren, sperwer, vaccins, verzekering, vakblad, weerstation, bots
 npx tsx tests/hokoverzicht.test.mts       # (dev) hokoverzicht: flying (in de lucht) vs. racing (ook gepland)
 ```
 
@@ -1542,7 +1568,8 @@ eerst), `npx tsx tests/limits-report.mts` (queries/rijen per verzoek) en
 `npx tsx tests/cpu-pigeons.mts` (**marginale** CPU per duif — de helling, niet de
 absolute waarde, want lokaal draait SQLite synchroon in hetzelfde proces).
 Ook handig: `BREAKDOWN=1 npx tsx tests/query-budget.test.mts` splitst het duurste
-verzoek uit per statement.
+verzoek uit per statement. Op dev: `npx tsx tests/vaccine-economics.mts` (~1 min) rekent uit
+wat een vaccin of kuur waard is tegenover wat een ziekte kost (§0b).
 
 ### Git + deploy (zie §0: productie enkel op vraag)
 1. Ontwikkel + commit op de **dev-branch uit §0**; push met

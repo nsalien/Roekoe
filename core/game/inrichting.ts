@@ -3,7 +3,7 @@
  * birds: equipment on the loft row (ventilatie, ren, roofvogelafweer, kunstlicht,
  * infrarood-nestbakken, reismanden, weerstation, vakblad), and per-bird care
  * (vaccins en kuren, verzekering). Hygiëne/stro/poetser live in
- * hygiene.ts; the scout in scout.ts.
+ * hygiene.ts.
  *
  * Rule of the proposal: buying nothing is the game as it was. Every effect is
  * small next to an apart hok or a kenmerk, and almost everything costs per day.
@@ -308,18 +308,11 @@ export function tickHawk(db: Database, loft: Loft, owned: Pigeon[], dayNo: numbe
 
 // --- vaccins en kuren ---------------------------------------------------------
 
-/** Can't fly right now: a fresh vaccine, or import quarantine. */
+/** Can't fly right now: a fresh vaccine. */
 export function grounded(p: Pigeon, nowMs: number = Date.now()): string | null {
-  const q = p.care?.quarantineUntil ? Date.parse(p.care.quarantineUntil) : NaN;
-  if (q > nowMs) return 'Deze duif zit nog in quarantaine na haar import';
   const v = p.care?.noFlyUntil ? Date.parse(p.care.noFlyUntil) : NaN;
   if (v > nowMs) return 'Deze duif is net ingeënt en mag nog niet vliegen';
   return null;
-}
-
-/** In import quarantine: no pairing either. */
-export function inQuarantine(p: Pigeon, nowMs: number = Date.now()): boolean {
-  return !!p.care?.quarantineUntil && Date.parse(p.care.quarantineUntil) > nowMs;
 }
 
 function applyVaccine(p: Pigeon, key: VaccineKey, nowMs: number): void {

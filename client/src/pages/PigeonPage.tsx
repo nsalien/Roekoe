@@ -215,7 +215,6 @@ export function PigeonPage() {
               🛠️ Je ziet deze eigenschappen als <strong>beheerder</strong> — gewone spelers zien enkel ★ talent.
             </p>
           )}
-          {p.origin && <p className="faint" style={{ margin: '0 0 8px' }}>🌍 {p.origin}</p>}
           {p.revealed ? (
             <PigeonStats pigeon={p} />
           ) : p.magazineRanges ? (

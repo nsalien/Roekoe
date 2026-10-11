@@ -188,40 +188,6 @@ export type VaccineKey = keyof typeof VACCINES;
 export const VACCINE_RENEW_SHARE = 0.25;
 
 /**
- * Scout op buitenlandse markten (⚠️ dev). Once per season. He is away for an
- * uncertain time: on day d of a trip of at most `maxDays` the chance that he
- * comes home that day is firstDayChance + (1 − firstDayChance)·((d−1)/(maxDays−1))^returnCurve
- * — brons 5 %, 10 %, 21 %, 36 %, 55 %, 76 %, 100 %. He may come back empty-handed
- * (`emptyChance`: the better the birds, the thinner the supply); otherwise with
- * three birds of the market's speciality, to buy one or none within 48 h. The
- * wage is gone either way. Imports sit 5 days in quarantine.
- */
-export const SCOUT = {
-  firstDayChance: 0.05,
-  returnCurve: 1.6,
-  choiceHours: 48,
-  offers: 3,
-  quarantineDays: 5,
-  traitChance: 0.5,
-  capsEstimateNoise: 3,
-  tiers: {
-    brons: { label: 'Brons', wage: 250, scoreMin: 60, scoreMax: 68, maxDays: 7, emptyChance: 0.1 },
-    zilver: { label: 'Zilver', wage: 500, scoreMin: 68, scoreMax: 76, maxDays: 14, emptyChance: 0.25 },
-    goud: { label: 'Goud', wage: 900, scoreMin: 76, scoreMax: 84, maxDays: 21, emptyChance: 0.4 },
-  },
-  markets: {
-    taiwan: { label: 'Taiwan', blurb: 'korte zeevluchten', boost: 'speed', scoreBonus: 0, priceMin: 1.4, priceMax: 1.7 },
-    zuidafrika: { label: 'Zuid-Afrika', blurb: 'de Million Dollar-race', boost: 'endurance', scoreBonus: 0, priceMin: 1.4, priceMax: 1.7 },
-    vs: { label: 'Verenigde Staten', blurb: 'grote afstanden over land', boost: 'orientation', scoreBonus: 0, priceMin: 1.4, priceMax: 1.7 },
-    china: { label: 'China', blurb: 'de duurste markt', boost: null, scoreBonus: 4, priceMin: 1.8, priceMax: 2.2 },
-  },
-  /** How much higher the market's speciality gene cap rolls. */
-  geneBoost: 6,
-} as const;
-export type ScoutTier = keyof typeof SCOUT.tiers;
-export type ScoutMarket = keyof typeof SCOUT.markets;
-
-/**
  * Duivenverzekering (⚠️ dev). Pays `payoutRate` of the market value at signing
  * when she dies of a covered cause. Premium per day = loading × payout × her
  * chance to die that day (a base for illness/flight + old age).

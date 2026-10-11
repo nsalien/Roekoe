@@ -13,7 +13,7 @@ import type { Loft, Pigeon } from '../types';
 /**
  * Why a bird is not home, or null when she is. Only three things take her out
  * of the loft: she is in the air, in the ziekenboeg, or lost on the way back.
- * On the nest, on a rustkuur, in quarantaine or entered for a later race: home.
+ * On the nest, on a rustkuur or entered for a later race: home.
  */
 export function awayStatus(p: Pigeon): { icon: string; label: string } | null {
   if (p.away) return { icon: '🧭', label: 'de weg kwijt' };

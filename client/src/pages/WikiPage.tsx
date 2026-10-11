@@ -1620,7 +1620,7 @@ export function WikiPage() {
 
       <Section id="inrichting" icon="🛠️" title="Hokinrichting, vaccins & diensten">
         <p className="muted" style={{ marginTop: 0 }}>
-          Alles hieronder koop je op de pagina <em>Inrichting</em> (vier blokken: plaatsen &amp; hokken, hygiëne, vaccins &amp; kuren, uitrusting) of op de pagina van een duif; de scout en het vakblad vind je op de <em>Markt</em>. <strong>Niets kopen = het spel zoals
+          Alles hieronder koop je op de pagina <em>Inrichting</em> (vier blokken: plaatsen &amp; hokken, hygiëne, vaccins &amp; kuren, uitrusting) of op de pagina van een duif; het vakblad vind je op de <em>Markt</em>. <strong>Niets kopen = het spel zoals
           vroeger.</strong> Elk onderdeel geeft maar een <strong>klein</strong> voordeel; pas alles samen maakt het verschil. Inrichting
           koop je <strong>één keer</strong>: enkel de hokpoetser, het vakblad en een verzekering kosten per dag (zie je <em>Dagbalans</em>).
           De pagina <em>Inrichting</em> zegt het kort; hier staan de <strong>exacte cijfers</strong> (niveau 1). Stro en de hokpoetser:
@@ -1695,14 +1695,6 @@ export function WikiPage() {
           <li>Verkoop je haar, dan vervalt de verzekering.</li>
         </ul>
 
-        <h3 style={{ marginBottom: 4 }}>Scout op buitenlandse markten</h3>
-        <ul>
-          <li>Je stuurt een scout naar een markt, <strong>één keer per seizoen</strong>. Je weet niet wanneer hij terugkomt: dag 1 is er 5 % kans, en elke dag wordt die kans groter tot 100 % op de laatste dag (brons: 5 · 10 · 21 · 36 · 55 · 76 · 100 %).</li>
-          <li>Budget: brons ★ 60–68 (€250, 1–7 dagen), zilver ★ 68–76 (€500, 1–14 dagen), goud ★ 76–84 (€900, 1–21 dagen).</li>
-          <li>Hoe beter de duiven die hij zoekt, hoe kleiner het aanbod: hij komt <strong>met lege handen</strong> terug in 10 % (brons), 25 % (zilver) of 40 % (goud) van de gevallen. Anders brengt hij drie duiven mee; je koopt er één of geen binnen 48 u. Het scoutloon krijg je nooit terug.</li>
-          <li>Taiwan: gen-cap snelheid hoger · Zuid-Afrika: conditie · Verenigde Staten: oriëntatie · China: score +4. Prijs ×1,4–1,7 van de marktwaarde (China ×1,8–2,2).</li>
-          <li>Je ziet alle eigenschappen; de gen-caps zijn een schatting (±3). Kenmerkkans 50 %. Je hebt een vrije plaats nodig, en een importduif zit <strong>5 dagen in quarantaine</strong> (niet vliegen, niet broeden). Eén opdracht tegelijk.</li>
-        </ul>
         <p className="faint" style={{ fontSize: '0.85rem' }}>Bots kopen vers stro en dakventilatie, verder niets.</p>
       </Section>
 

@@ -1,8 +1,7 @@
 /**
  * Hokinrichting (⚠️ dev, nog niet live): de vier blokken van de pagina
  * Inrichting — plaatsen & hokken, hygiëne, vaccins & kuren, uitrusting — plus
- * het vakblad en de scout op de Markt en de verzorgingskaart op de pagina van
- * een duif.
+ * het vakblad op de Markt en de verzorgingskaart op de pagina van een duif.
  *
  * Kort, op vraag van de eigenaar: elk blok toont dicht in één regel hoe je
  * ervoor staat, open per onderdeel één zin over wat het doet, geen percentages.
@@ -496,86 +495,6 @@ export function MagazineCard({ loft, cat, busy, act }: { loft: Loft; cat: Inrich
   );
 }
 
-export function ScoutCard({ loft, cat, busy, act }: { loft: Loft; cat: InrichtingCatalogue; busy: boolean; act: Act }) {
-  const scout = loft.equipment!.scout;
-  const [market, setMarket] = useState(Object.keys(cat.scout.markets)[0]);
-  const [tier, setTier] = useState(Object.keys(cat.scout.tiers)[0]);
-  const free = loft.capacity - loft.pigeonCount;
-  const when = (iso: string) => new Date(iso).toLocaleString('nl-BE', { weekday: 'short', hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Brussels' });
-  return (
-    <div className="card" style={{ marginBottom: 18 }}>
-      <h2 style={{ marginTop: 0 }}>🔭 Scout op buitenlandse markten</h2>
-      {scout?.status === 'away' && (
-        <p style={{ margin: 0 }}>
-          Je scout is in <strong>{scout.market}</strong> ({scout.tier}) · dag {scout.day}
-          {scout.maxDays ? <> van hoogstens {scout.maxDays}</> : null}. Elke dag wordt de kans groter dat hij terugkomt.
-        </p>
-      )}
-      {scout?.status === 'report' && (
-        <>
-          <p style={{ marginTop: 0 }}>
-            Scoutrapport · <strong>{scout.market}</strong> · {scout.tier}
-            {scout.offers.length > 0 && <> · kiezen tot {when(scout.expiresAt!)} · {free} vrije {free === 1 ? 'plaats' : 'plaatsen'}</>}
-          </p>
-          {scout.offers.length === 0 && (
-            <p className="muted">Je scout kwam met lege handen terug: er was niets te koop dat aan je budget beantwoordde.</p>
-          )}
-          {scout.offers.map((o) => (
-            <Line key={o.index} label={
-              <span>
-                <strong>{o.name}</strong> {o.sex === 'doffer' ? '♂' : '♀'} ★ {o.talent}
-                {o.trait && <> · ✨ {o.trait.name}</>}
-                <br />
-                <span className="faint" style={{ fontSize: '0.85rem' }}>
-                  snelheid {o.speed} · conditie {o.endurance} · oriëntatie {o.orientation} · gen-caps ±{o.capsEstimate.speed}/{o.capsEstimate.endurance}/{o.capsEstimate.orientation} · markt <Money value={o.marketValue} />
-                </span>
-              </span>
-            }>
-              <button className="btn sm" disabled={busy || free <= 0 || loft.money < o.price} onClick={() => {
-                if (!window.confirm(`${o.name} kopen voor ${euro(o.price)}? Ze zit eerst ${cat.scout.quarantineDays} dagen in quarantaine.`)) return;
-                act(() => api('/scout/buy', { method: 'POST', body: { index: o.index } }), `${o.name} komt naar je hok`);
-              }}>
-                Kopen · <Money value={o.price} />
-              </button>
-            </Line>
-          ))}
-          <div style={{ marginTop: 8 }}>
-            <button className="btn ghost sm" disabled={busy} onClick={() => act(() => api('/scout/dismiss', { method: 'POST' }), 'Rapport gesloten')}>
-              {scout.offers.length === 0 ? 'Rapport sluiten' : 'Niets kopen'}
-            </button>
-          </div>
-        </>
-      )}
-      {(!scout || scout.status === 'expired') && loft.equipment!.scoutUsed && (
-        <p className="muted" style={{ margin: 0 }}>
-          {scout?.status === 'expired' && 'Het rapport is verlopen. '}Je scout ging dit seizoen al op pad — volgend seizoen kan het weer.
-        </p>
-      )}
-      {(!scout || scout.status === 'expired') && !loft.equipment!.scoutUsed && (
-        <>
-          <p className="faint" style={{ marginTop: 0, fontSize: '0.85rem' }}>
-            Eén keer per seizoen. Hij blijft 1 dag tot {cat.scout.tiers[tier].maxDays} dagen weg en kan met lege handen
-            terugkomen ({Math.round(cat.scout.tiers[tier].emptyChance * 100)} %). Anders koop je één duif of geen; het
-            scoutloon krijg je niet terug. <Link to="/wiki#inrichting">Meer info →</Link>
-          </p>
-          <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
-            <select value={market} onChange={(e) => setMarket(e.target.value)} style={{ width: 'auto', maxWidth: '100%', minWidth: 0 }}>
-              {Object.entries(cat.scout.markets).map(([k, m]) => <option key={k} value={k}>{m.label} — {m.blurb}</option>)}
-            </select>
-            <select value={tier} onChange={(e) => setTier(e.target.value)} style={{ width: 'auto', maxWidth: '100%', minWidth: 0 }}>
-              {Object.entries(cat.scout.tiers).map(([k, t]) => <option key={k} value={k}>{t.label} · ★ {t.scoreMin}–{t.scoreMax} · €{t.wage}</option>)}
-            </select>
-            <button className="btn sm" disabled={busy || loft.money < cat.scout.tiers[tier].wage} onClick={() =>
-              act(() => api('/scout/send', { method: 'POST', body: { market, tier } }), 'Je scout is vertrokken ✈️')}>
-              Scout sturen · <Money value={cat.scout.tiers[tier].wage} />
-            </button>
-          </div>
-        </>
-      )}
-    </div>
-  );
-}
-
 /** On her own page: entingskaart and verzekering. */
 export function PigeonCareCard({ p, cat, busy, run }: {
   p: Pigeon; cat: InrichtingCatalogue; busy: boolean;
@@ -586,7 +505,6 @@ export function PigeonCareCard({ p, cat, busy, run }: {
   return (
     <div className="card">
       <h2>💉 Verzorging &amp; verzekering</h2>
-      {care.quarantineUntil && <p className="notice" style={{ marginTop: 0 }}>📦 In quarantaine tot {day(care.quarantineUntil)}: niet vliegen, niet broeden.</p>}
       {care.noFlyUntil && <p className="notice" style={{ marginTop: 0 }}>💉 Net ingeënt: mag vliegen vanaf {day(care.noFlyUntil)}.</p>}
       <strong>Entingskaart</strong>
       {Object.entries(cat.vaccines).map(([key, v]) => {

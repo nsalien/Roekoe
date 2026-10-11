@@ -1442,35 +1442,29 @@ verval/dag    = 8 · (duiven thuis / capaciteit) · (1,5 met een zieke duif buit
   op ziekte **nooit kleiner dan ×0,4** van wat ze zonder al die dingen zou zijn.
 
 ### 5.2ter Hokinrichting, vaccins & diensten — ⚠️ dev, nog niet live
-Niets kopen = het spel van vroeger. Dagkosten staan in de Dagbalans.
+Niets kopen = het spel van vroeger. Uitrusting koop je **één keer** (en waardeer je op tot
+niveau 4); enkel de hokpoetser, het vakblad en een verzekering kosten per dag (Dagbalans).
 
 | Wat | Aankoop | Per dag | Effect |
 |---|---|---|---|
-| Dakventilatie | €1.200 | €0,50 | ornithose ×0,6; gezondheidsherstel uit voer +5 %; hygiëne zakt 25 % trager |
-| Buitenren | €2.500 | €2 | rustbonus +6 i.p.v. +4; libido-doel +3; zonder afweer gemiddeld 1× per 40 dagen een sperwer: wie thuis rust −6 energie |
+| Dakventilatie | €1.200 | — | ornithose ×0,6; gezondheidsherstel uit voer +5 %; hygiëne zakt 25 % trager |
+| Buitenren | €2.500 | — | rustbonus +6 i.p.v. +4; libido-doel +3; zonder afweer gemiddeld 1× per 40 dagen een sperwer: wie thuis rust −6 energie |
 | Roofvogelafweer | €900 | — | vraagt een ren; geen sperwer in de ren; "Sperwer in de buurt" wordt ongevaarlijk |
-| Kunstlicht | €700 | €1,50 | libido-doel +6 |
-| Infrarood nestbakken | €1.600 voor 2, +€500/bak | €1,50 per bak in gebruik | uitkomen ×1,15 sneller, +6 pp tweelingkans, onder 10 °C +4 pp succes |
-| Betere reismanden | €1.000 | €0,50 | vlucht −3 % energie, −5 % gezondheid |
-| Weerstation | €1.500 | €1 | voorspelling vanaf 24 u vóór de lossing |
+| Kunstlicht | €700 | — | libido-doel +6 |
+| Infrarood nestbakken | €1.600 voor 2, +€500/bak | — | uitkomen ×1,15 sneller, +6 pp tweelingkans, onder 10 °C +4 pp succes |
+| Betere reismanden | €1.000 | — | vlucht −3 % energie, −5 % gezondheid |
+| Weerstation | €1.500 | — | voorspelling vanaf 24 u vóór de lossing |
 | Vakblad | — | €6 | bandbreedtes (±6) bij andermans duif; marktrapport 28 dagen; maandag Het Duivenblad |
 
-**Vaccins & kuren** (per ziekte, buiten de bodem ×0,4): PMV €12 (91 d, 80 %),
-pokken €8 (91 d, 80 %), salmonella €15 (45 d, 60 %) — een vaccin = 2 dagen niet
-vliegen; geelkuur €3 (7 d, 75 %), coccidiosekuur €5 (10 d, 75 %),
-ademhalingskuur €8 (7 d, 60 %, libido −10).
+**Vaccins & kuren** (per ziekte, buiten de bodem ×0,4): PMV €60 (91 d, 80 %),
+pokken €40 (91 d, 80 %), salmonella €75 (45 d, 60 %) — een vaccin = 2 dagen niet
+vliegen; geelkuur €15 (7 d, 75 %), coccidiosekuur €25 (10 d, 75 %),
+ademhalingskuur €40 (7 d, 60 %, libido −10).
 
 **Verzekering:** uitkering 60 % van de marktwaarde bij afsluiten; premie/dag =
 1,3 × uitkering × (0,04 % + ouderdomssterfte per dag). Niet gedekt: honger,
 vertrekken met < 5 energie, een ziekte die nooit in de ziekenboeg lag, de eerste 7
 dagen. Vervalt bij verkoop.
-
-**Scout:** één keer per seizoen. Brons/zilver/goud (€250/€500/€900, ★ 60–68/68–76/76–84,
-hoogstens 7/14/21 dagen weg). Terugkeerkans op dag d van maximaal N:
-`5 % + 95 % · ((d−1)/(N−1))^1,6` — brons 5 · 10 · 21 · 36 · 55 · 76 · 100 %. Met lege handen
-terug: 10 % / 25 % / 40 %. Taiwan (snelheid), Zuid-Afrika (conditie), VS (oriëntatie): die
-gen-cap +6, prijs ×1,4–1,7 van de marktwaarde; China: score +4, ×1,8–2,2. 48 u kiezen, één of
-geen; kenmerkkans 50 %; 5 dagen quarantaine.
 
 **Bots** kopen vers stro (meter ≤ 60) en dakventilatie, verder niets.
 

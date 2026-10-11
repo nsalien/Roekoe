@@ -2,9 +2,8 @@
  * Inrichting: alles wat je aan je hok koopt, op één pagina, zodat Mijn hok
  * over de duiven blijft gaan. Vier blokken, elk met in één regel hoe je ervoor
  * staat; je opent er één tegelijk (de eigenaar vond de lange lijst te veel):
- * plaatsen & hokken, hygiëne, vaccins & kuren, uitrusting. De scout en het
- * vakblad (marktinformatie) staan op de Markt; de verzekering op de pagina van
- * een duif.
+ * plaatsen & hokken, hygiëne, vaccins & kuren, uitrusting. Het vakblad
+ * (marktinformatie) staat op de Markt; de verzekering op de pagina van een duif.
  */
 
 import { useEffect, useState } from 'react';
@@ -81,7 +80,7 @@ export function InrichtingPage() {
           <VaccineSection {...shared} loft={loft} pigeons={state.pigeons} cat={cat} open={open === 'vaccins'} onToggle={toggle('vaccins')} />
           <GearSection {...shared} loft={loft} cat={cat} open={open === 'uitrusting'} onToggle={toggle('uitrusting')} />
           <p className="faint" style={{ fontSize: '0.8rem', marginTop: 14 }}>
-            De scout en het vakblad vind je op de <Link to="/markt">Markt</Link>, de verzekering op de pagina van een duif.
+            Het vakblad vind je op de <Link to="/markt">Markt</Link>, de verzekering op de pagina van een duif.
           </p>
         </>
       )}
