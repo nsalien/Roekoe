@@ -121,6 +121,8 @@ function transfer(db: Database, buyer: Loft, seller: Loft, pigeon: Pigeon, price
   pigeon.forSale = false;
   pigeon.price = null;
   pigeon.minBid = null;
+  pigeon.listedAt = null;
+  pigeon.boostedAt = null;
   db.trades.push({
     id: newId('trd'), pigeonId: pigeon.id, pigeonName: pigeon.name,
     sellerId: seller.userId, sellerName: seller.name, buyerId: buyer.userId, buyerName: buyer.name,

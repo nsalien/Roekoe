@@ -50,6 +50,7 @@ import {
   COACH,
   EQUIPMENT,
   INSURANCE,
+  MARKET_BOOST,
   VACCINES,
   VACCINE_RENEW_SHARE,
   FEED_RATIONS,
@@ -80,6 +81,7 @@ import {
   chooseEvent,
   enterFlight,
   giveUpFlight,
+  boostListing,
   listForSale,
   refuseSponsor,
   releasePigeon,
@@ -160,6 +162,7 @@ import {
   rankingRows,
   recentTrades,
 } from '../../core/presenters.js';
+import { boostEndsAt, featuredListingId } from '../../core/game/market.js';
 
 interface Env {
   DB: D1Database;
@@ -1072,10 +1075,17 @@ app.get('/market', (c) => {
   // Your own listings are included, so a seller sees his bird on the market like
   // everyone else does. The client shows them without buy/bid buttons, and
   // buyPigeon / makeOffer refuse your own bird anyway.
+  // "Zoekertje naar boven": the one boosted listing goes first, the rest by price.
+  const nowMs = Date.now();
+  const featuredId = featuredListingId(db, nowMs);
   const listings = db.pigeons
     .filter((p) => p.forSale)
-    .map((p) => pigeonDTO(db, p, user.id, user.isAdmin))
-    .sort((a, b) => (a.price ?? 0) - (b.price ?? 0));
+    .map((p) => ({
+      ...pigeonDTO(db, p, user.id, user.isAdmin),
+      featured: p.id === featuredId,
+      featuredUntil: p.id === featuredId ? new Date(boostEndsAt(p)).toISOString() : null,
+    }))
+    .sort((a, b) => Number(b.featured) - Number(a.featured) || (a.price ?? 0) - (b.price ?? 0));
   // Every other real player's pigeon that is NOT already listed — you can make a
   // private offer on these (see offers.ts). For-sale ones are in `listings`.
   const biddable = db.pigeons
@@ -1084,7 +1094,7 @@ app.get('/market', (c) => {
     .sort((a, b) => b.talent - a.talent);
   // Vakblad (hokinrichting): the market report, for subscribers only.
   const report = db.lofts.find((l) => l.userId === user.id)?.equipment?.magazine ? magazineReport(db, Date.now()) : null;
-  return c.json({ listings, biddable, trades: recentTrades(db, Date.now()), auctions: auctionsDTO(db, user.id), report });
+  return c.json({ listings, biddable, trades: recentTrades(db, Date.now()), auctions: auctionsDTO(db, user.id), report, boost: MARKET_BOOST });
 });
 
 app.post('/auction/bid', async (c) => {
@@ -1115,6 +1125,16 @@ app.post('/market/unlist', async (c) => {
   const body = await c.req.json().catch(() => ({}));
   const store = c.get('store');
   const err = unlist(store, user.id, String(body.pigeonId ?? ''));
+  await store.persist();
+  return err ? c.json({ error: err }, 400) : c.json({ ok: true });
+});
+
+// "Zoekertje naar boven": pay MARKET_BOOST.cost to put your own listing on top.
+app.post('/market/boost', async (c) => {
+  const user = requireUser(c);
+  const body = await c.req.json().catch(() => ({}));
+  const store = c.get('store');
+  const err = boostListing(store, user.id, String(body.pigeonId ?? ''));
   await store.persist();
   return err ? c.json({ error: err }, 400) : c.json({ ok: true });
 });

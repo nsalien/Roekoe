@@ -71,7 +71,8 @@
   de server praat, het demoaccount heeft altijd minstens €100.000), het hokoverzicht, de pagina
   **Inrichting** (vier inklapbare blokken; hygiëne + poetser per schijf €10–€75; vaccins & kuren;
   uitrusting met niveaus 1–4 en een ⓘ per onderdeel; verzekering, vakblad, weerstation) en
-  **Marktwaarde v2** (hieronder). **Weggehaald van dev:** koppels, partnerhok, weduwschap, en
+  **Marktwaarde v2** (hieronder) en (11 okt) het **zoekertje naar boven** (€50, 12 uur bovenaan,
+  zie *Zoekertje naar boven*). **Weggehaald van dev:** koppels, partnerhok, weduwschap, en
   (11 okt) de **scout** — zie *Scout — voorlopig weggehaald*.
 - **Wacht op een beslissing van de eigenaar:**
   1. **Marktwaarde v2 naar productie?** Eerst testen in de demo (⚠️ schema-stap `trades.quality`
@@ -305,6 +306,36 @@
   er is een bed vrij, geen seizoenspunten of sponsorpremies in de opbrengst (dus aan de lage
   kant), en de 2 dagen niet vliegen na een vaccin kosten niets als je ze op rustdagen legt
   (energie blijft binnenkomen).
+
+### Zoekertje naar boven (`MARKET_BOOST`, ⚠️ dev, 11 okt)
+- **Wens van de eigenaar:** op je eigen zoekertje een knop **"Zoekertje naar boven"** voor
+  **€50**; je zoekertje komt bovenaan de markt en blijft daar **12 uur**, tenzij iemand anders
+  intussen boost: dan zakt het jouwe terug naar zijn gewone plaats.
+- **Eén plek bovenaan, afgeleid — geen tick, geen schrijfwerk bij het pollen:** de duif krijgt
+  één tijdstip `Pigeon.boostedAt` (kolom `pigeons.boosted_at`). `featuredListingId(db, nowMs)`
+  (`core/game/market.ts`) kiest onder de te-koop-duiven met een boost die nog loopt
+  (`boostEndsAt` = `boostedAt` + `MARKET_BOOST.hours`) de **recentste**. Wie overboost wordt dus
+  niet "teruggezet": zijn boost is gewoon niet meer de recentste. Loopt de nieuwste af, dan
+  komt niemand bovenaan (een oudere boost eindigt altijd eerder).
+- **`boostListing`** (`engine.ts`, `POST /market/boost`): enkel je eigen te-koop-duif, geen bot,
+  niet in het rood (`debtBlock`), genoeg geld, en **niet opnieuw betalen zolang je al bovenaan
+  staat**. Wie overboost is, mag opnieuw betalen.
+- **Een boost hoort bij één zoekertje:** `unlist`, `settlePigeonSale`, `transfer` (aanvaard bod)
+  en de gedwongen veiling wissen `boostedAt`. `listForSale` op een duif die nog niet te koop
+  stond begint zonder boost; een **prijswijziging** (opnieuw `listForSale` terwijl ze te koop
+  staat) **behoudt** hem.
+- **`GET /market`:** elke listing krijgt `featured` + `featuredUntil`; de geboostte staat eerst,
+  de rest op prijs (oplopend). De respons draagt ook `boost: MARKET_BOOST` voor de knop.
+- **UI (`MarketPage`):** eigen zoekertje → knop "Zoekertje naar boven · €50" (bevestiging met
+  de 12 uur en het terugzakken) of, als het bovenaan staat, "📌 Staat bovenaan tot …";
+  andermans geboostte zoekertje → badge "📌 Bovenaan". Uitleg in de wiki (*Marktwaarde*) en
+  spelregels §9.1.
+- ⚠️ **Naar productie:** schema-stap `ALTER TABLE pigeons ADD COLUMN boosted_at TEXT` staat
+  achteraan dev's `SCHEMA_STEPS`; bij een cherry-pick **achteraan productie's lijst** zetten
+  (net als `trades.quality`). `PIGEON_COLUMNS`/`pigeonRow` dragen de kolom mee (kolomsmalle
+  diff, dus twee spelers die tegelijk boosten overschrijven elkaar niet).
+- **De bewaker:** `tests/market-boost.test.mts` (24 controles): kost en plek, recentste wint,
+  12 uur, de regels, gewist bij intrekken/verkoop/bod, en de rondrit door D1 (INSERT + UPDATE).
 
 ### De rest van de hokinrichting (`core/game/inrichting.ts`)
 - **Config** in gameConfig: `EQUIPMENT` (ventilatie, ren, roofvogelafweer, kunstlicht,
@@ -1415,7 +1446,8 @@ Entiteiten: `Pigeon`, `Loft`, `User`, `BreedingPair`, `PendingBrood`, `Flight` (
   `listings` bevat **ook je eigen te-koop-duiven**: de verkoper ziet zijn duif op de
   markt zoals iedereen, met een label "Jouw duif" en enkel een knop **Uit de verkoop
   halen** (geen koop- of biedknop). `buyPigeon`/`makeOffer` weigeren je eigen duif
-  sowieso ("Dit is al jouw duif").
+  sowieso ("Dit is al jouw duif"). (⚠️ dev) Daarboven de knop **Zoekertje naar boven**
+  (€50, 12 uur bovenaan; zie §0b *Zoekertje naar boven*); de lijst toont de geboostte eerst.
   Nav-badge op **Markt** = ontvangen biedingen; daarnaast een **stip** zodra er een duif
   te koop staat die deze speler nog niet zag (§8). De pagina zet die stip uit door bij
   het laden `markMarketSeen` te roepen met wat er op het scherm staat. De **verkoopgeschiedenis** onderaan toont
@@ -1551,6 +1583,7 @@ npx tsx tests/hygiene.test.mts            # (dev) hokhygiëne, stro, poetser, bo
 npx tsx tests/inrichting.test.mts         # (dev) ventilatie, ren, sperwer, vaccins, verzekering, vakblad, weerstation, bots
 npx tsx tests/hokoverzicht.test.mts       # (dev) hokoverzicht: flying (in de lucht) vs. racing (ook gepland)
 npx tsx tests/vaccine-price.test.mts      # (dev) wat een vaccin oplevert tegenover zijn vaste prijs
+npx tsx tests/market-boost.test.mts       # (dev) zoekertje naar boven: één plek bovenaan, 12 u, gewist bij verkoop
 ```
 
 > **Geen `tsx` beschikbaar?** (cloud-sessie waar de npm-registry geblokkeerd is: `npx tsx`

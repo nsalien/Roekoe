@@ -209,6 +209,7 @@ export function createForcedAuction(
   pigeon.price = null;
   pigeon.minBid = null;
   pigeon.listedAt = null;
+  pigeon.boostedAt = null;
   db.auctions.push({
     id: `auc_forced_${loft.userId}_${dayNumber}`,
     templateKey: key,

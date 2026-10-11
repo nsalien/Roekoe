@@ -118,6 +118,9 @@ export interface Pigeon {
   minBid: number | null;
   /** ISO time this bird went on the market (null when not listed). */
   listedAt?: string | null;
+  /** /market only: this listing holds the top spot ("zoekertje naar boven"), and until when. */
+  featured?: boolean;
+  featuredUntil?: string | null;
   price: number | null;
   sireId: string | null;
   damId: string | null;

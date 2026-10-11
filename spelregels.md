@@ -2036,6 +2036,15 @@ daar wel meteen **uit de verkoop halen**.
   ondergrens laat hij gewoon liggen. Je duif blijft ook de eerste dag na het te
   koop zetten alleen voor spelers (§17).
 
+**📌 Zoekertje naar boven.** Op de markt staan de zoekertjes op prijs, goedkoopste eerst. Op
+je eigen zoekertje staat een knop **Zoekertje naar boven** (€50): dan staat het **12 uur**
+helemaal bovenaan. Er is maar **één plek bovenaan** — haalt iemand anders daarna zijn
+zoekertje naar boven, dan neemt hij die plek over en zakt het jouwe terug naar zijn gewone
+plaats. Je kan dan opnieuw betalen. Zolang je bovenaan staat, betaal je niet nog eens.
+- De boost hoort bij dat ene zoekertje: haal je de duif uit de verkoop, of wordt ze verkocht
+  (ook via een aanvaard bod), dan is hij weg. Je **prijs aanpassen** mag zonder hem te verliezen.
+- Wie in het rood staat (§4.5) kan niet boosten. Bots boosten nooit.
+
 ### 9.1b Privé-biedingen (bieden op een duif die niet te koop staat)
 Je kan een **bod** uitbrengen op de duif van **een andere speler**, ook al staat
 die **niet te koop**. Dat kan op **twee plaatsen**: op de **Markt** onder

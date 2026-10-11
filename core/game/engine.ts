@@ -13,6 +13,7 @@ import {
   COACH,
   DEFAULT_BOT_COUNT,
   FEED_RATIONS,
+  MARKET_BOOST,
   FOOD_PRICE_PER_KG,
   FOOD_RESALE_RATE,
   INFIRMARY,
@@ -48,7 +49,7 @@ import { newNewcomerPerks } from './newcomer.js';
 import { careSlots, runHealthWeek } from './health.js';
 import { nameKey, namesInUse } from './names.js';
 import { voidBetsForWithdrawnPigeon } from './betting.js';
-import { minSalePrice, noteMarketNews, saleQuality } from './market.js';
+import { featuredListingId, minSalePrice, noteMarketNews, saleQuality } from './market.js';
 import { birdStillOut, flightClaimingDay, flightDay, pigeonAirborne, pigeonCommittedToFlight } from './flight.js';
 import {
   ageInWeeks,
@@ -733,6 +734,9 @@ export function listForSale(
     if (racing) return 'Deze duif staat ingeschreven voor een vlucht';
     const breeding = db.breedingPairs.some((bp) => bp.sireId === pigeonId || bp.damId === pigeonId);
     if (breeding) return 'Deze duif zit momenteel op een nest';
+    // A NEW listing starts without a boost; changing the price of a bird that is
+    // already up for sale keeps the one she has (it was paid for this listing).
+    if (!pigeon.forSale) pigeon.boostedAt = null;
     pigeon.forSale = true;
     pigeon.price = Math.round(price);
     // A bot sells at its asking price and never negotiates, so it never gets a
@@ -759,6 +763,28 @@ export function unlist(store: Store, userId: string, pigeonId: string): string |
     pigeon.price = null;
     pigeon.minBid = null;
     pigeon.listedAt = null;
+    pigeon.boostedAt = null;
+    return null;
+  });
+}
+
+/**
+ * "Zoekertje naar boven": pay MARKET_BOOST.cost to put your listing at the top of
+ * the market for MARKET_BOOST.hours — until someone else boosts theirs, which
+ * takes the spot (see market.featuredListingId).
+ */
+export function boostListing(store: Store, userId: string, pigeonId: string, nowMs: number = Date.now()): string | null {
+  return store.mutate((db) => {
+    const loft = db.lofts.find((l) => l.userId === userId);
+    const pigeon = db.pigeons.find((p) => p.id === pigeonId && p.ownerId === userId);
+    if (!loft || !pigeon) return 'Duif niet gevonden';
+    if (!pigeon.forSale) return 'Deze duif staat niet te koop';
+    if (loft.isBot) return 'Bots halen hun zoekertje niet naar boven';
+    const debt = debtBlock(loft); if (debt) return debt;
+    if (featuredListingId(db, nowMs) === pigeon.id) return 'Je zoekertje staat al bovenaan';
+    if (loft.money < MARKET_BOOST.cost) return `Niet genoeg geld: een zoekertje naar boven kost €${MARKET_BOOST.cost}`;
+    loft.money -= MARKET_BOOST.cost;
+    pigeon.boostedAt = new Date(nowMs).toISOString();
     return null;
   });
 }
@@ -791,6 +817,7 @@ export function settlePigeonSale(db: Database, buyer: Loft, pigeon: Pigeon): voi
   pigeon.price = null;
   pigeon.minBid = null;
   pigeon.listedAt = null;
+  pigeon.boostedAt = null;
   // Any pending bids on her lapse — she has moved. Since a listing can now carry
   // a "bieden vanaf", a bird can be bid on AND bought outright at the same time,
   // so this is reachable in a way it never was before: without it the bidder

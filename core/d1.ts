@@ -185,6 +185,7 @@ function rowToPigeon(r: any): Pigeon {
     cureUntil: r.cure_until ?? null,
     listedAt: r.listed_at ?? null,
     minBid: r.min_bid ?? null,
+    boostedAt: r.boosted_at ?? null,
     lastRaceAt: r.last_race_at ?? null,
     lastRestCureAt: r.last_rest_cure_at ?? null,
     lastBredAt: r.last_bred_at ?? null,
@@ -387,7 +388,7 @@ const PIGEON_COLUMNS = [
   'season_start_score', 'season_practice_gain', 'trained_at', 'genes', 'decline_rate',
   'care_assigned', 'last_race_at', 'last_race_practice', 'last_rest_cure_at', 'away_until',
   'cup', 'titles', 'listed_at', 'min_bid', 'last_bred_at', 'sire_name', 'dam_name', 'quirk',
-  'trait', 'earnings', 'earnings_owner', 'care',
+  'trait', 'earnings', 'earnings_owner', 'care', 'boosted_at',
 ];
 
 /**
@@ -434,6 +435,7 @@ function pigeonRow(p: Pigeon): unknown[] {
     p.earningsOwner ?? null,
     // '' for a bird without any care, so its column-narrowed UPDATE skips it.
     p.care && Object.keys(p.care).length ? JSON.stringify(p.care) : '',
+    p.boostedAt ?? null,
   ];
 }
 
@@ -1746,6 +1748,10 @@ export const SCHEMA_STEPS: string[] = [
   // append this step at the END of production's list (it does not have the three
   // hokinrichting steps above); dev has no database of its own, only demos.
   'ALTER TABLE trades ADD COLUMN quality REAL',
+
+  // "Zoekertje naar boven" (⚠️ dev): when a listing was last boosted (Pigeon.boostedAt).
+  // ⚠️ Going to production: append at the END of production's list, like the step above.
+  'ALTER TABLE pigeons ADD COLUMN boosted_at TEXT',
 ];
 
 /**

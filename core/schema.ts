@@ -113,6 +113,14 @@ export interface Pigeon {
    * the market.
    */
   minBid?: number | null;
+  /**
+   * "Zoekertje naar boven" (MARKET_BOOST): when the seller last paid to put this
+   * listing at the top of the market. The listing with the most recent boost
+   * younger than MARKET_BOOST.hours is the one on top (market.featuredListingId),
+   * so a newer boost by anyone pushes this one back down. Cleared whenever the
+   * bird leaves the market.
+   */
+  boostedAt?: string | null;
   createdAtWeek: number;
   // Health status.
   ailment: Ailment | null; // current disease/injury, or null if healthy

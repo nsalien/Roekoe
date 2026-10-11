@@ -2325,6 +2325,17 @@ export const IGNORED_TRADES: readonly { pigeonName: string; price: number; selle
 export const TRADE_HISTORY_DAYS = 7;
 
 /**
+ * "Zoekertje naar boven" (⚠️ dev): a seller pays `cost` to put his listing at the
+ * top of the market for `hours`. There is ONE top spot: the most recent boost
+ * holds it, so as soon as someone else boosts, the earlier one drops back to its
+ * normal place (wens van de eigenaar). Derived from Pigeon.boostedAt — no tick.
+ */
+export const MARKET_BOOST = {
+  cost: 50,
+  hours: 12,
+} as const;
+
+/**
  * Real-time recovery from an illness/injury. Progress runs continuously (see
  * tickHealing): `baseHoursOutside` is how long full recovery takes for a bird
  * just resting in the loft; the infirmary + staff coverage + medicated feed each

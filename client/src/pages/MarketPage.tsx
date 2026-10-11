@@ -8,7 +8,7 @@ import { useGame } from '../game/GameContext';
 import { MagazineCard } from '../components/Inrichting';
 import { markMarketSeen } from '../game/marketSeen';
 import { useVisiblePoll } from '../game/useVisiblePoll';
-import { BreedBadge, Money, PigeonStats, Spinner, TraitBadge, countdownTo, useToast } from '../components/ui';
+import { BreedBadge, Money, PigeonStats, Spinner, TraitBadge, countdownTo, timeUntilOrClock, useToast } from '../components/ui';
 import { PigeonCard } from '../components/PigeonCard';
 import { PigeonAvatar } from '../components/PigeonAvatar';
 import type { AuctionInfo, OfferView, Pigeon, Trade } from '../types';
@@ -41,6 +41,8 @@ export function MarketPage() {
   const [report, setReport] = useState<MarketReport | null>(null);
   const [auctions, setAuctions] = useState<AuctionInfo[]>([]);
   const [busy, setBusy] = useState(false);
+  // "Zoekertje naar boven": what it costs and how long it holds the top spot.
+  const [boost, setBoost] = useState<{ cost: number; hours: number } | null>(null);
   async function magazineAct(fn: () => Promise<unknown>, ok?: string) {
     setBusy(true);
     try {
@@ -55,8 +57,9 @@ export function MarketPage() {
   }
 
   const load = useCallback(async () => {
-    const res = await api<{ listings: Pigeon[]; biddable: Pigeon[]; trades: Trade[]; auctions: AuctionInfo[]; report?: MarketReport | null }>('/market');
+    const res = await api<{ listings: Pigeon[]; biddable: Pigeon[]; trades: Trade[]; auctions: AuctionInfo[]; report?: MarketReport | null; boost?: { cost: number; hours: number } }>('/market');
     setReport(res.report ?? null);
+    setBoost(res.boost ?? null);
     setListings(res.listings);
     setBiddable(res.biddable ?? []);
     setTrades(res.trades ?? []);
@@ -94,6 +97,22 @@ export function MarketPage() {
     try {
       await api('/market/unlist', { method: 'POST', body: { pigeonId: p.id } });
       toast.show(`${p.name} staat niet meer te koop.`, 'ok');
+      await load();
+      await refresh();
+    } catch (e) {
+      toast.show(e instanceof Error ? e.message : 'Mislukt', 'err');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function boostOwn(p: Pigeon) {
+    if (!boost) return;
+    if (!window.confirm(`${p.name} bovenaan de markt zetten voor €${boost.cost}?\n\nJe zoekertje blijft ${boost.hours} uur bovenaan — tot iemand anders zijn zoekertje naar boven haalt. Dan zakt het van je terug naar zijn gewone plaats.`)) return;
+    setBusy(true);
+    try {
+      await api('/market/boost', { method: 'POST', body: { pigeonId: p.id } });
+      toast.show(`${p.name} staat bovenaan de markt 📌`, 'ok');
       await load();
       await refresh();
     } catch (e) {
@@ -251,6 +270,15 @@ export function MarketPage() {
                   🏷️ Jouw duif · te koop voor <Money value={p.price ?? 0} />
                   {p.minBid != null && <> · bieden vanaf <Money value={p.minBid} /></>}
                 </div>
+                {p.featured ? (
+                  <div className="badge" style={{ background: 'var(--good-soft)', color: 'var(--good)', marginBottom: 6 }}>
+                    📌 Staat bovenaan{p.featuredUntil ? ` tot ${timeUntilOrClock(p.featuredUntil)}` : ''}
+                  </div>
+                ) : boost && (
+                  <button className="btn accent block" style={{ marginBottom: 6 }} disabled={busy || money < boost.cost} onClick={() => boostOwn(p)}>
+                    Zoekertje naar boven · <Money value={boost.cost} />
+                  </button>
+                )}
                 <button className="btn secondary block" disabled={busy} onClick={() => unlistOwn(p)}>
                   Uit de verkoop halen
                 </button>
@@ -259,6 +287,9 @@ export function MarketPage() {
           }
           return (
             <PigeonCard key={p.id} pigeon={p} showOwner showBreed showcase avatarSize={104}>
+              {p.featured && (
+                <div className="badge" style={{ background: 'var(--gold-soft)', marginBottom: 6 }}>📌 Bovenaan</div>
+              )}
               {headStart && (
                 <div
                   className="badge"

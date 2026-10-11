@@ -1837,6 +1837,14 @@ export function WikiPage() {
           Wil je de prijzen zien bewegen? Kijk naar de <strong>verkoopgeschiedenis</strong> op de markt:
           dat is letterlijk de data waarop de schattingen draaien.
         </p>
+        <h3 style={{ marginBottom: 4 }}>📌 Zoekertje naar boven</h3>
+        <p className="muted" style={{ marginTop: 0 }}>
+          Staat je duif te koop, dan kan je je zoekertje voor <strong>€50</strong> bovenaan de markt zetten. Het blijft
+          daar <strong>12 uur</strong> — tot iemand anders zijn zoekertje naar boven haalt: er is maar één plek
+          bovenaan, en de laatste die betaalt krijgt ze. Het jouwe zakt dan terug naar zijn gewone plaats (de rest
+          staat op prijs, goedkoopste eerst). Haal je je duif uit de verkoop of wordt ze verkocht, dan is de boost
+          weg; je prijs aanpassen mag zonder ze te verliezen.
+        </p>
       </Section>
 
       <Section id="afscheid" icon="👋" title="Afscheid nemen van een duif">
