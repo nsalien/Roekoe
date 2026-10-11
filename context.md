@@ -22,6 +22,28 @@ terug te zetten:
 en het **zoekertje naar boven** (€50, 12 uur bovenaan). Scout, koppels, partnerhok en weduwschap
 waren al van Dev gehaald.
 
+## Live gezet op 11 okt (lees dit eerst)
+Op vraag van de eigenaar staat het grootste deel van Dev sinds 11 okt **live**, als één commit op
+prod: **`4a0c3ad`** ("Hokinrichting, hokoverzicht, zoekertje naar boven en besmetting per ziekte
+live"). Dat is `bc8c415` **zonder** Marktwaarde v2 (`ac31a45`, eigenaar: "nog niet") en **zonder**
+de demomodus, plus wat Dev zelf niet heeft:
+- **Besmetting per ziekte** (een zieke hokgenoot geeft haar eigen ziekte door, met een eigen kans
+  per ziekte; daarna weert een vaccin/kuur tegen díe ziekte af; `tests/contagion.test.mts`);
+- de **aankondiging** (bel via migratie v61 in `core/game/news.ts`, rondleiding
+  `INRICHTING_NEWS_STEPS`, wikisectie `#nieuw`; `tests/inrichting-news.test.mts`);
+- opgeruimde "⚠️ dev"-labels en vaccinteksten in euro's (de ★ kwamen uit v2).
+
+**Op Dev en nergens anders:** Marktwaarde v2 en de demomodus. De volledige uitleg staat in de
+`context.md` op prod (§0b). ⚠️ Schema: prod heeft `boosted_at` als laatste stap; Dev heeft
+`trades.quality` ervóór — gaat v2 live, dan `trades.quality` **achteraan prod's lijst**.
+
+**Dev weer aanzetten:** niet de revert hieronder gebruiken en dan prod mergen (v2 en de revert
+ervan botsen). Eenvoudiger: Dev **herstarten vanaf prod** en daarop `ac31a45` (v2) en de demo
+(`client/demo/`, de Vite-plugin in `client/vite.config.ts`, sql.js in `client/package.json`,
+`tests/demo-*.test.mts`, alles uit `bc8c415`) terugzetten; `DEMO_VERSION` verhogen.
+
+De secties hieronder ("Dev terugzetten", "Dev naar productie") zijn van vóór 11 okt.
+
 ## Dev terugzetten (precies zoals hij was)
 Draai álle commits sinds `bc8c415` terug (de pauzecommit en de documentatie erna). Nagekeken:
 dat geeft exact `bc8c415`, en de laatste revert heeft geen skip-vlag, dus Cloudflare bouwt.
@@ -38,7 +60,7 @@ meteen terug. Na de revert is dit bestand weer de volledige `context.md`.
 **Nieuwe ontwikkeling** terwijl Dev gepauzeerd is: eerst Dev terugzetten, tenzij de eigenaar
 iets anders zegt.
 
-## Dev naar productie (de features zoals ze nu zijn)
+## Dev naar productie (de features zoals ze nu zijn) — ⚠️ achterhaald sinds 11 okt, zie hierboven
 Enkel op uitdrukkelijke vraag van de eigenaar. Dev hoeft daarvoor niet eerst terug aan.
 
 1. **Waarom geen gewone merge:** prod (`claude/roekoe-game-website-jwa0vo`, laatst `973bffc`) heeft
