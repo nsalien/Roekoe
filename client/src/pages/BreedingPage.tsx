@@ -62,7 +62,7 @@ export function BreedingPage() {
     setBusy(true);
     try {
       await api(`/breeding/${pairId}/stop`, { method: 'POST' });
-      toast.show('Koppel gestopt — de duiven kunnen weer vliegen.', 'ok');
+      toast.show('Nest gestopt — de duiven kunnen weer vliegen.', 'ok');
       await loadPairs();
       await refresh();
     } catch (e) {
@@ -78,12 +78,12 @@ export function BreedingPage() {
     // bird you keep for months, so one stray click should not be enough.
     if (kin && !window.confirm(
       `${sire?.name} en ${dam?.name} zijn ${KIN_LABEL[kin] ?? 'familie'}.\n\n` +
-      'Het jong krijgt lagere genetische plafonds en waarschijnlijk een afwijking. Toch koppelen?',
+      'Het jong krijgt lagere genetische plafonds en waarschijnlijk een afwijking. Toch broeden?',
     )) return;
     setBusy(true);
     try {
       await api('/breeding', { method: 'POST', body: { sireId, damId } });
-      toast.show('Koppel gevormd! Wanneer de jongen komen, is een verrassing. 🥚', 'ok');
+      toast.show('Nest gestart! Wanneer de jongen komen, is een verrassing. 🥚', 'ok');
       setSireId('');
       setDamId('');
       await loadPairs();
@@ -113,7 +113,7 @@ export function BreedingPage() {
 
       <div className="grid cols-2">
         <div className="card" data-tour="breed">
-          <h2>Nieuw koppel</h2>
+          <h2>Nest starten</h2>
           {/* Two sentences: what it costs and what drives the odds. The rest
               (overerving, genen, uitkomsttijd) staat in de wiki. */}
           <p className="muted" style={{ marginBottom: 4 }}>
@@ -189,7 +189,7 @@ export function BreedingPage() {
 
           {blockingNests.length > 0 && (
             <p className="muted" style={{ fontSize: '0.85rem' }}>
-              Er wacht nog een nest op je keuze — beslis daar eerst over voor je opnieuw koppelt.
+              Er wacht nog een nest op je keuze — beslis daar eerst over voor je een nieuw nest start.
             </p>
           )}
           <button
@@ -197,13 +197,13 @@ export function BreedingPage() {
             disabled={busy || !sireId || !damId || blockingNests.length > 0}
             onClick={start}
           >
-            {kin ? 'Toch koppelen' : 'Koppelen'} · <Money value={BREED_COST} />
+            {kin ? 'Toch broeden' : 'Nest starten'} · <Money value={BREED_COST} />
           </button>
         </div>
 
         <div className="card">
           <h2>Broedsels onderweg</h2>
-          {pairs.length === 0 && <p className="muted">Geen koppels aan het broeden.</p>}
+          {pairs.length === 0 && <p className="muted">Geen nesten.</p>}
           <div className="stack">
             {pairs.map((pair) => (
               <div key={pair.id} className="card" style={{ boxShadow: 'none', background: 'var(--surface-2)' }}>

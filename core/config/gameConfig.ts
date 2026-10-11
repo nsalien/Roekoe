@@ -90,6 +90,171 @@ export const COMPARTMENT = {
   healthRecoveryBonus: 0.4, // up to +40% health recovery at full coverage
   diseaseReduction: 0.5, // up to −50% disease onset at full coverage
 } as const;
+/**
+ * Hokhygiëne & vers stro (hokinrichting). A meter 0–100
+ * on the loft (`Loft.equipment.hygiene`). Above `neutral` it lowers the chance
+ * to fall ill, up to ×(1 − maxReduction) at 100; at or below `neutral` it does
+ * nothing, which is the game as it was. It drops once a day on the dagovergang.
+ */
+export const HYGIENE = {
+  neutral: 50, // a loft that never bought straw sits here: no effect
+  maxReduction: 0.2, // ×0,8 at hygiene 100
+  strawPricePerBale: 18,
+  strawPlacesPerBale: 8, // one bale per 8 places of capacity
+  dailyDecay: 8, // per day in a FULL loft, scaled by occupancy
+  sickDecayMult: 1.5, // +50 % with a sick bird outside the infirmary
+  // The hokpoetser's day wage per band of birds (the owner's table): up to 8
+  // duiven €10, up to 12 €15, 14 €20, 16 €30, 18 €45, 20 €75 — a full loft is a
+  // lot more work. The last band also covers anything beyond it.
+  cleanerWageBands: [
+    { upTo: 8, wage: 10 },
+    { upTo: 12, wage: 15 },
+    { upTo: 14, wage: 20 },
+    { upTo: 16, wage: 30 },
+    { upTo: 18, wage: 45 },
+    { upTo: 20, wage: 75 },
+  ],
+  cleanerRefreshBelow: 70, // the hokpoetser strews fresh straw below this
+  cleanerContagionMult: 0.85, // and disinfects: contagion between birds ×0,85
+  /** All disease factors together (hygiëne, apart hok, kenmerk, poetser) never below this. */
+  illnessFactorFloor: 0.4,
+} as const;
+/**
+ * De rest van de hokinrichting. Each item has its own,
+ * deliberately SMALL effect — it is all of them together that adds up to a real
+ * edge. One-off purchases: the running costs of €0,50–€2 a day were dropped (the
+ * owner: barely worth the bookkeeping). Only what is a subscription or a person
+ * runs per day: the vakblad here, the hokpoetser in HYGIENE. Nothing bought = the
+ * game as it was. Stored on Loft.equipment.
+ */
+export const EQUIPMENT = {
+  ventilation: { label: 'Dakventilatie', price: 1200, ornithoseMult: 0.6, healthRecoveryBonus: 0.05, hygieneDecayMult: 0.75 },
+  run: { label: 'Buitenren', price: 2500, restBonusEnergy: 6, libidoTarget: 3, hawkChancePerDay: 1 / 40, hawkEnergyLoss: 6 },
+  raptorGuard: { label: 'Roofvogelafweer', price: 900 },
+  light: { label: 'Kunstlicht', price: 700, libidoTarget: 6 },
+  irBoxes: { label: 'Infrarood nestbakken', priceFirstTwo: 1600, pricePerExtra: 500, hatchSpeed: 1.15, twinBonus: 0.06, coldSuccessBonus: 0.04, coldBelowC: 10, maxBoxes: 6 },
+  baskets: { label: 'Betere reismanden', price: 1000, energyMult: 0.97, healthMult: 0.95 },
+  weatherStation: { label: 'Weerstation', price: 1500, forecastHours: 24, refreshHours: 6, finalHours: 2 },
+  magazine: { label: 'Vakblad', price: 0, daily: 6, bandHalfWidth: 6, reportDays: 28 },
+} as const;
+export type EquipmentKey = 'ventilation' | 'run' | 'raptorGuard' | 'light' | 'baskets' | 'weatherStation' | 'magazine';
+/**
+ * Niveaus op de hokinrichting. The first purchase is level 1. Every next
+ * level costs `priceGrowth` times the one before — 1×, 3×, 9×, 27× the first
+ * price — and makes the item work `effectScale` times as hard as level 1 (×1,5,
+ * ×1,8, then double). Ever dearer for ever less: something for a loft with money
+ * to spare, never a must. Only items whose effect is a NUMBER have levels; the
+ * roofvogelafweer, weerstation and vakblad do not.
+ */
+export const EQUIPMENT_LEVELS = {
+  keys: ['ventilation', 'run', 'light', 'irBoxes', 'baskets'] as const,
+  maxLevel: 4,
+  priceGrowth: 3,
+  effectScale: [1, 1.5, 1.8, 2] as readonly number[],
+};
+export type LevelKey = (typeof EQUIPMENT_LEVELS.keys)[number];
+/** The price of `level` of an item (level 1 = the first purchase; infrarood: its first two boxes). */
+export function levelPrice(key: LevelKey, level: number): number {
+  const base = key === 'irBoxes' ? EQUIPMENT.irBoxes.priceFirstTwo : EQUIPMENT[key].price;
+  return base * Math.pow(EQUIPMENT_LEVELS.priceGrowth, level - 1);
+}
+/** What the next infrarood-nestbak costs: the first purchase is two boxes. */
+export function irBoxPrice(owned: number): number {
+  return owned === 0 ? EQUIPMENT.irBoxes.priceFirstTwo : EQUIPMENT.irBoxes.pricePerExtra;
+}
+
+/**
+ * Vaccins en kuren. Each works on ONE disease: a protected bird that
+ * falls ill with exactly that disease fends it off with `protect`. Vaccines last
+ * long and ground the bird for `noFlyDays`; kuren are short. `days` in real days
+ * (a duivenjaar = 52 gameweken = 91 echte dagen). They sit OUTSIDE the ×0,4 floor:
+ * they are per disease and paid per disease.
+ *
+ * `price` is ONE fixed price per middel, in whole euros, SET BY THE OWNER (11 okt):
+ * PMV €10, pokken €8, salmonella €6, de kuren €5. What a middel is worth to a bird
+ * (VACCINE_PRICING, vaccineAvoidedDamage) grows with her value: at vluchtvorm 75 the
+ * vaccines pay off from ~€6.400 (PMV), ~€8.600 (pokken) and ~€11.400 (salmonella),
+ * at a racer's vorm 65 from ~€2.500–4.400. ⚠️ The kuren at €5 pay off for no
+ * realistic bird (a topduif gets 0,45–0,8× back): a 7–10-day course against one
+ * disease simply prevents little. tests/vaccine-price.test.mts reports it per middel.
+ */
+export const VACCINES = {
+  pmv: { label: 'PMV-vaccin', disease: 'Paramyxovirose', kind: 'vaccin', price: 10, days: 91, protect: 0.8, noFlyDays: 2, libidoHit: 0 },
+  pokken: { label: 'Pokkenvaccin', disease: 'Duivenpokken', kind: 'vaccin', price: 8, days: 91, protect: 0.8, noFlyDays: 2, libidoHit: 0 },
+  salmonella: { label: 'Salmonellavaccin', disease: 'Salmonellose (paratyfus)', kind: 'vaccin', price: 6, days: 45, protect: 0.6, noFlyDays: 2, libidoHit: 0 },
+  geel: { label: 'Geelkuur', disease: 'Het Geel', kind: 'kuur', price: 5, days: 7, protect: 0.75, noFlyDays: 0, libidoHit: 0 },
+  cocci: { label: 'Coccidiosekuur', disease: 'Coccidiose', kind: 'kuur', price: 5, days: 10, protect: 0.75, noFlyDays: 0, libidoHit: 0 },
+  adem: { label: 'Ademhalingskuur', disease: 'Ornithose', kind: 'kuur', price: 5, days: 7, protect: 0.6, noFlyDays: 0, libidoHit: 10 },
+} as const;
+/**
+ * The yardstick for VACCINES.price: what a middel spares a bird on average,
+ *
+ *   (gevallen die het middel voorkomt) × (wat één geval kost)
+ *
+ * on vluchtvorm `refVorm`, without extra protection (vaccineAvoidedDamage).
+ * Not a price formula — the owner sets the prices — but what
+ * tests/vaccine-price.test.mts and tests/vaccine-economics.mts measure them by.
+ * - "voorkomt": de kans op die ziekte over de looptijd (dezelfde helpers als
+ *   runHealthDay) × `protect`. Besmetting telt niet mee.
+ * - "één geval" (`diseaseCaseCost`, inrichting.ts): de goedkoopste van ziekenboeg
+ *   + medicatievoer mét of zonder dokter — zorgkost + de starts die ze mist + de
+ *   sterftekans, de laatste twee × haar marktwaarde. Afgeleid uit HEALING/HEALTH/
+ *   INFIRMARY. Every piece is on the careful side; a better bird gains more.
+ * Measured with the real engine: tests/vaccine-economics.mts (diagnose).
+ */
+export const VACCINE_PRICING = {
+  /** Gerekend op een duif in goede wedstrijdvorm. Gemeten op duiven die meevliegen
+   *  (bots, 6 weken): gemiddeld vorm 72, mediaan 74; hun gemiddelde ziekterisico hoort
+   *  bij vorm 60–65 (de dips na elke vlucht wegen zwaar, het risico loopt niet
+   *  lineair). Op 75 rekenen = voorzichtig: wie gewoon meevliegt, wint er nog meer. */
+  refVorm: 75,
+  /** Wat een duif per start opbrengt, als deel van haar marktwaarde. Gemeten in een
+   *  veld van 24: 1,3 % (topduif) tot 1,6 % (gewone duif) — de lage kant. */
+  startValueShare: 0.013,
+  /** Starten is energie-begrensd: Herstelvoer bij ervaring 50 geeft ~7,5 energie per
+   *  dag, een start kost er gemiddeld ~32 (week-mix). Wat een zieke duif niet binnenkrijgt,
+   *  wordt nooit gevlogen. */
+  energyPerDay: 7.5,
+  energyPerStart: 32,
+  /** Na een ernstige ziekte vliegt ze nog een tijd trager tot haar gezondheid terug is
+   *  (gemeten: ~een halve start aan prijzengeld). */
+  slowStarts: { licht: 0, matig: 0, ernstig: 0.5 } as Record<Severity, number>,
+} as const;
+export type VaccineKey = keyof typeof VACCINES;
+/** "Hele hok" skips a bird that is still protected for more than this share of
+ *  the course (PMV: more than ~23 of its 91 days left) — at these prices a
+ *  whole-loft round should not charge again for birds that are fine. */
+export const VACCINE_RENEW_SHARE = 0.25;
+
+/**
+ * Duivenverzekering. Pays `payoutRate` of the market value at signing
+ * when she dies of a covered cause. Premium per day = loading × payout × her
+ * chance to die that day (a base for illness/flight + old age).
+ */
+export const INSURANCE = {
+  payoutRate: 0.6,
+  loading: 1.3,
+  baseDailyDeath: 0.0004, // 0,04 % per day: illness and flight deaths
+  waitingDays: 7,
+  minStartEnergy: 5, // leaving with less than this is not covered
+} as const;
+
+/** What one load of fresh straw costs for a loft of this capacity. */
+export function strawCost(capacity: number): number {
+  return HYGIENE.strawPricePerBale * Math.max(1, Math.ceil(capacity / HYGIENE.strawPlacesPerBale));
+}
+/** The hokpoetser's wage per day for a loft with this many birds (HYGIENE.cleanerWageBands). */
+export function cleanerWage(pigeonCount: number): number {
+  const bands = HYGIENE.cleanerWageBands;
+  return (bands.find((b) => pigeonCount <= b.upTo) ?? bands[bands.length - 1]).wage;
+}
+/** The disease multiplier of a hygiene level (1 at or below neutral, 0,8 at 100). */
+export function hygieneIllnessMult(hygiene: number): number {
+  const h = Math.max(0, Math.min(100, hygiene));
+  if (h <= HYGIENE.neutral) return 1;
+  return 1 - HYGIENE.maxReduction * ((h - HYGIENE.neutral) / (100 - HYGIENE.neutral));
+}
+
 /** Price of the next compartment given how many you already own. */
 export function compartmentCost(owned: number): number {
   return COMPARTMENT.baseCost + owned * COMPARTMENT.stepCost;
@@ -1259,6 +1424,8 @@ export const BOT = {
    * possible fix and exactly what a player with that bank would do.
    */
   goodFeedFrom: 2500,
+  strawBelowHygiene: 60, // hokinrichting (dev): fresh straw at or below this
+  ventilationReserve: 5000, // …and dakventilatie once this much above `reserve`
   /** A bot rests a bird rather than racing it when its gezondheid is under this. */
   minHealthRace: 45,
 
@@ -2001,16 +2168,27 @@ export interface AilmentTemplate {
    *    still come home hurt.
    */
   cause?: 'overbelasting' | 'pech';
+  /**
+   * How contagious a DISEASE is: a factor on HEALTH.contagionPerSource (1 = that
+   * base chance). A sick loft mate passes on ITS OWN disease at this rate, so what
+   * goes round the loft is what the sick bird has (see health.runHealthDay).
+   * Undefined = 1; injuries are never contagious.
+   */
+  contagion?: number;
 }
 
-/** Diseases a pigeon can catch (contagious if not isolated in the infirmary). */
+/**
+ * Diseases a pigeon can catch (contagious if not isolated in the infirmary).
+ * `contagion` per disease was chosen by the owner (Paramyxovirose spreads most,
+ * Salmonellose least); the wiki (#ziekte) and spelregels §5.1 list the same factors.
+ */
 export const DISEASES: AilmentTemplate[] = [
-  { name: 'Het Geel', severity: 'licht', description: 'Trichomonaden: gele belslag in de keel, de duif eet moeizaam.' },
-  { name: 'Duivenpokken', severity: 'matig', description: 'Wratige bultjes op snavel en poten door een virus.' },
-  { name: 'Ornithose', severity: 'matig', description: 'Luchtweginfectie: loopneus, piepende adem en tranende ogen.' },
-  { name: 'Coccidiose', severity: 'matig', description: 'Darmparasiet: waterige groene mest en sloomheid.' },
-  { name: 'Paramyxovirose', severity: 'ernstig', description: 'Virus met draaihals en verlamming. Zeer besmettelijk en gevaarlijk.' },
-  { name: 'Salmonellose (paratyfus)', severity: 'ernstig', description: 'Bacterie die gewrichten en organen aantast; kan dodelijk zijn.' },
+  { name: 'Het Geel', severity: 'licht', contagion: 1.2, description: 'Trichomonaden: gele belslag in de keel, de duif eet moeizaam.' },
+  { name: 'Duivenpokken', severity: 'matig', contagion: 0.7, description: 'Wratige bultjes op snavel en poten door een virus.' },
+  { name: 'Ornithose', severity: 'matig', contagion: 1.3, description: 'Luchtweginfectie: loopneus, piepende adem en tranende ogen.' },
+  { name: 'Coccidiose', severity: 'matig', contagion: 1.0, description: 'Darmparasiet: waterige groene mest en sloomheid.' },
+  { name: 'Paramyxovirose', severity: 'ernstig', contagion: 1.5, description: 'Virus met draaihals en verlamming. Zeer besmettelijk en gevaarlijk.' },
+  { name: 'Salmonellose (paratyfus)', severity: 'ernstig', contagion: 0.6, description: 'Bacterie die gewrichten en organen aantast; kan dodelijk zijn.' },
 ];
 
 /** Injuries a pigeon can pick up (mostly during flights). Not contagious. */
@@ -2125,6 +2303,17 @@ export const IGNORED_TRADES: readonly { pigeonName: string; price: number; selle
 export const TRADE_HISTORY_DAYS = 7;
 
 /**
+ * "Zoekertje naar boven": a seller pays `cost` to put his listing at the
+ * top of the market for `hours`. There is ONE top spot: the most recent boost
+ * holds it, so as soon as someone else boosts, the earlier one drops back to its
+ * normal place (wens van de eigenaar). Derived from Pigeon.boostedAt — no tick.
+ */
+export const MARKET_BOOST = {
+  cost: 50,
+  hours: 12,
+} as const;
+
+/**
  * Real-time recovery from an illness/injury. Progress runs continuously (see
  * tickHealing): `baseHoursOutside` is how long full recovery takes for a bird
  * just resting in the loft; the infirmary + staff coverage + medicated feed each
@@ -2176,7 +2365,11 @@ export const HEALTH = {
   physioBonus: 0.28,
   /** Recovery chance is capped here so nothing is ever guaranteed. */
   recoverCap: 0.92,
-  /** Per-source weekly infection chance, scaled by (1.2 - targetHealth/100). */
+  /**
+   * Per-source weekly infection chance for a disease with `contagion` 1 (see
+   * DISEASES: each disease scales it by its own factor), × the target's
+   * susceptibility (ILLNESS.contagionFloor … 1) in runHealthDay.
+   */
   contagionPerSource: 0.3,
   /** Weekly chance a bird falls ill on its own, scaled by how frail it is. */
   spontaneousIllness: 0.1,

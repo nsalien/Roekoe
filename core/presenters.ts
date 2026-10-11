@@ -6,7 +6,7 @@
 
 import type { Database, Flight, Loft, Notification, Pigeon, RaceLogEntry, Trade } from './schema.js';
 import type { PigeonLogs } from './d1.js';
-import { AGE_CUP, AUCTION, BREED_RARITY, MIN_SALE_SHARE, CITY_COORDS, COACH, DEBT, coachSalaryFor, nextCoachBand, ageCategoryDef, ageCategoryFor, compartmentCost, quirkById, RELAY, REST_CURE, TRADE_HISTORY_DAYS, TRAINING } from './config/gameConfig.js';
+import { AGE_CUP, AUCTION, BREED_RARITY, MIN_SALE_SHARE, CITY_COORDS, COACH, DEBT, coachSalaryFor, nextCoachBand, ageCategoryDef, ageCategoryFor, compartmentCost, EQUIPMENT, EQUIPMENT_LEVELS, cleanerWage, hygieneIllnessMult, irBoxPrice, VACCINES, type VaccineKey, quirkById, strawCost, RELAY, REST_CURE, TRADE_HISTORY_DAYS, TRAINING } from './config/gameConfig.js';
 import {
   ageInWeeks,
   breedInfo,
@@ -40,8 +40,10 @@ import {
   winningsMultiplier,
 } from './game/newcomer.js';
 import { coveredInInfirmary, idleCareStaff } from './game/health.js';
-import { valuePigeon } from './game/market.js';
-import { flightCancelled, flightCommentary, liveSnapshot, pigeonCommittedToFlight } from './game/flight.js';
+import { equipmentLevel, equipmentOf, hygieneDecay } from './game/hygiene.js';
+import { insuranceCost, insurancePremium, insuranceQuote, irBoxesInUse, magazineRanges, readsMagazine } from './game/inrichting.js';
+import { marketValue, valuePigeon } from './game/market.js';
+import { flightCancelled, flightCommentary, liveSnapshot, pigeonAirborne, pigeonCommittedToFlight } from './game/flight.js';
 import { relayEntryTeams, relayLegKm } from './game/relay.js';
 import { BADGES, levelForXp } from './game/badges.js';
 import { round1 } from './game/util.js';
@@ -144,6 +146,10 @@ export function pigeonDTO(db: Database, p: Pigeon, viewerId?: string, viewerIsAd
     coachSalary: revealed ? coachSalaryFor(talent(p)) : null,
     coachNextBand: revealed ? nextCoachBand(talent(p)) : null,
     ration: revealed ? (p.ration ?? 'normal') : 'normal',
+    // Hokinrichting: vaccins, verzekering (owner only),
+    // and the vakblad's bands on someone else's bird.
+    care: publiclyRevealed && p.ownerId === viewerId ? careDTO(db, p) : null,
+    magazineRanges: !revealed && readsMagazine(db, viewerId) ? magazineRanges(p) : null,
     // A bird in the infirmary keeps its compartment flag internally (to reclaim the
     // slot on the way out) but is shown as not-in-a-compartment while isolated.
     compartment: revealed ? (!!p.compartment && !p.inInfirmary) : false,
@@ -206,6 +212,10 @@ export function pigeonDTO(db: Database, p: Pigeon, viewerId?: string, viewerIsAd
     // Only true while the bird is genuinely tied up: one that already crossed the
     // line is free again, even though its flight runs on for the stragglers.
     racing: pigeonCommittedToFlight(db, p.id),
+    // In the air right now (the hokoverzicht's "niet thuis"): narrower than
+    // `racing`, which also holds for a bird merely entered for a race still to
+    // come. The scan only runs for a bird on a live flight.
+    flying: live && pigeonAirborne(db, p.id),
     breeding: revealed && db.breedingPairs.some((bp) => bp.sireId === p.id || bp.damId === p.id),
     dailyCare,
     // GENETICS (own birds only): the per-skill ceilings for the red cap markers,
@@ -268,6 +278,23 @@ export function broodYoungDTO(p: Pigeon) {
   };
 }
 
+/** The owner's view of a bird's care (vaccins, verzekering). */
+function careDTO(db: Database, p: Pigeon) {
+  const c = p.care ?? {};
+  const nowMs = Date.now();
+  const future = (iso?: string) => (iso && Date.parse(iso) > nowMs ? iso : null);
+  return {
+    vaccines: Object.entries(c.vaccines ?? {})
+      .filter(([, until]) => Date.parse(until) > nowMs)
+      .map(([key, until]) => ({ key, label: VACCINES[key as VaccineKey]?.label ?? key, until })),
+    noFlyUntil: future(c.noFlyUntil),
+    insurance: c.insurance
+      ? { payout: c.insurance.payout, since: c.insurance.since, premium: insurancePremium(p, db.world.currentWeek, c.insurance.payout) }
+      : null,
+    insuranceQuote: c.insurance ? null : insuranceQuote(db, p),
+  };
+}
+
 export function loftDTO(db: Database, loft: Loft) {
   const pigeons = db.pigeons.filter((p) => p.ownerId === loft.userId);
   const infirmary = pigeons.filter((p) => p.inInfirmary);
@@ -322,12 +349,47 @@ export function loftDTO(db: Database, loft: Loft) {
       // Staff being paid with nothing of their kind to treat. The bill is
       // unchanged; the Dagbalans just says so out loud.
       idleCareStaff(loft, pigeons),
+      {
+        pairs: db.breedingPairs.filter((bp) => bp.ownerId === loft.userId).length,
+        insurance: insuranceCost(pigeons, db.world.currentWeek),
+      },
     ),
     // The weekly rest-cure lock is gone (any bird may go on a cure), but the field
     // stays so an older, still-open tab keeps rendering. Always null now.
     restCureAvailableAt: null as string | null,
     // Starter package (null for everyone who registered before it shipped).
     newcomer: newcomerDTO(loft),
+    // Hokinrichting: the hygiene meter and the hokpoetser.
+    equipment: (() => {
+      const eq = equipmentOf(loft);
+      const pairs = db.breedingPairs.filter((bp) => bp.ownerId === loft.userId).length;
+      return {
+        hygiene: eq.hygiene,
+        lastStrawAt: eq.lastStrawAt,
+        cleaner: eq.cleaner,
+        strawCost: strawCost(loft.capacity),
+        cleanerWage: cleanerWage(pigeons.length),
+        illnessMult: round1(hygieneIllnessMult(eq.hygiene) * 100) / 100,
+        decayPerDay: round1(hygieneDecay(loft, pigeons)),
+        ventilation: !!eq.ventilation,
+        run: !!eq.run,
+        raptorGuard: !!eq.raptorGuard,
+        light: !!eq.light,
+        irBoxes: eq.irBoxes ?? 0,
+        irInUse: irBoxesInUse(loft, pairs),
+        irNextPrice: (eq.irBoxes ?? 0) >= EQUIPMENT.irBoxes.maxBoxes ? null : irBoxPrice(eq.irBoxes ?? 0),
+        baskets: !!eq.baskets,
+        // Niveaus: 0 = not bought, 1..EQUIPMENT_LEVELS.maxLevel.
+        levels: Object.fromEntries(EQUIPMENT_LEVELS.keys.map((k) => [k, equipmentLevel(loft, k)])),
+        weatherStation: !!eq.weatherStation,
+        magazine: !!eq.magazine,
+        lastHawkDay: eq.lastHawkDay ?? null,
+      };
+    })(),
+    // Breeding pairs, so the loft view can put each pair in its own nest box.
+    nests: db.breedingPairs
+      .filter((bp) => bp.ownerId === loft.userId)
+      .map((bp) => ({ id: bp.id, sireId: bp.sireId, damId: bp.damId })),
     // The prizes of the MOST RECENT prijsuitreiking, so the client can hold a
     // little ceremony for them once (see PrizeCeremony). Only the last season's
     // awards, so this stays a handful of rows on the hottest route in the game —

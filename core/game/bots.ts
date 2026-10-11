@@ -23,6 +23,8 @@
 
 import {
   BOT,
+  EQUIPMENT,
+  strawCost,
   BREEDING,
   FEED_RATIONS,
   INFIRMARY,
@@ -36,6 +38,7 @@ import type { FeedRationKey } from '../config/gameConfig.js';
 import type { Database, Flight, Loft, Pigeon } from '../schema.js';
 import { newId } from '../store.js';
 import { expectedFlightEnergyCost, pigeonCommittedToFlight } from './flight.js';
+import { equipmentOf } from './hygiene.js';
 // The sale itself and the "bird leaves the world" cleanup live in engine.ts, so a
 // bot's purchase is literally the same transaction as a player's. engine.ts also
 // imports from here (botTakeWeeklyActions), which makes this a module cycle —
@@ -427,6 +430,26 @@ export function botDailyActions(db: Database, loft: Loft, pigeons: Pigeon[], now
   // is genuinely free to spend. Reads `pigeons` before the purchase, which is
   // fine — the new bird needs no care until tomorrow's tick.
   maybeBuyFromMarket(db, loft, pigeons, nowMs);
+  maybeFitOutLoft(loft, nowMs);
+}
+
+/**
+ * Hokinrichting — what a bot buys, per the proposal: fresh straw when
+ * the meter runs low, and dakventilatie once it has money to spare. No vaccins
+ * (they ground a bird for two days, which bots do not plan around), no
+ * verzekering.
+ */
+function maybeFitOutLoft(loft: Loft, nowMs: number): void {
+  const eq = equipmentOf(loft);
+  if (!eq.ventilation && loft.money > BOT.reserve + BOT.ventilationReserve) {
+    loft.money -= EQUIPMENT.ventilation.price;
+    loft.equipment = { ...eq, ventilation: true };
+  }
+  const now = equipmentOf(loft);
+  if (now.hygiene <= BOT.strawBelowHygiene && loft.money > BOT.reserve) {
+    loft.money -= strawCost(loft.capacity);
+    loft.equipment = { ...now, hygiene: 100, lastStrawAt: new Date(nowMs).toISOString() };
+  }
 }
 
 /**

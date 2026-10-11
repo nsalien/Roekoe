@@ -15,7 +15,7 @@
 
 | Rol | Branch | Doel |
 |-----|--------|------|
-| **Dev** | `claude/demo-hokinrichting` | Alle ontwikkeling/commits komen hier **eerst**. ⚠️ Bevat de demomodus + hokinrichting (§0b van `context.md` op die branch) die **nog niet live** staan: niet cherry-picken zonder akkoord van de eigenaar. |
+| **Dev** | `claude/demo-hokinrichting` | Alle ontwikkeling/commits komen hier **eerst**. ⏸️ **Gepauzeerd sinds 11 okt** (enkel een pauzepagina; hoe je hem terugzet staat in de `context.md` óp die branch). Van dev staat sinds 11 okt alles live **behalve Marktwaarde v2 en de demomodus** (§0b). |
 | **Prod** | `claude/roekoe-game-website-jwa0vo` | Elke commit wordt hierheen **gecherry-pickt**; deze branch triggert de **Cloudflare Pages**-deploy naar productie. |
 
 > Vorige dev-branches (niet meer gebruiken): `ccr-9c78dbf3-rdb1ea`, `claude/hallo-nno7pb`, `claude/hallo-r1wgvn`, `claude/hallo-ca55co`, `claude/hallo-qz9tmx`, `claude/hallo-fsp9nx`, `claude/hallo-mzjn0e`, `claude/hallo-su75jy`, `claude/hallo-rkr49f`, `claude/hallo-pvwabx`,
@@ -27,21 +27,30 @@
 > de prod-branch hierboven verandert nooit.
 
 **Workflow per wijziging (zie §7 voor de exacte commando's):**
-1. Commit op **dev** (zie de tabel hierboven) + push.
-2. `git checkout` **prod** → `git cherry-pick <commit>` → push naar prod
-   (`claude/roekoe-game-website-jwa0vo`) → Cloudflare bouwt.
+1. Commit op **dev** (zie de tabel hierboven) + push. De eigenaar test in de **demo-preview**
+   van die branch (§0b).
+2. **Enkel als de eigenaar het uitdrukkelijk vraagt** ("zet dit op productie"):
+   `git checkout` **prod** → `git cherry-pick <commit>` → push naar prod
+   (`claude/roekoe-game-website-jwa0vo`) → Cloudflare bouwt. Nooit uit jezelf, en nooit de
+   dev-only onderdelen van §0b mee.
 3. Terug naar **dev**.
 
 > Als een sessie een andere ontwikkelbranch opgeeft, geldt **deze** tabel. Ontwikkel
 > nooit rechtstreeks op prod behalve voor de cherry-pick-stap.
+
+> **11 okt 2026 (uitzondering, op vraag van de eigenaar):** met Dev gepauzeerd ging de
+> hokinrichting & co live als **één commit op prod**, samengesteld uit dev (`bc8c415` zonder
+> Marktwaarde v2 en zonder demo) plus de besmetting per ziekte en de aankondiging. Dev heeft
+> die laatste twee (en de doc-aanpassingen) dus **niet**: zie §0b *Dev weer aanzetten*.
 
 ### Overige vaste afspraken
 
 1. **Update dit `context.md` direct** bij élke aanpassing die je doet — voeg de
    nieuwe context/feature toe of pas de betrokken sectie aan, in dezelfde commit
    als de wijziging. Dit bestand moet altijd de actuele waarheid zijn.
-2. **Deploy direct naar productie** zodra je een aanpassing hebt gedaan (zie §7
-   voor de exacte flow). Niet wachten tot de speler erom vraagt.
+2. **Productie enkel op vraag van de eigenaar.** Werk en push op dev; de eigenaar test in
+   de demo-preview en zegt zelf wanneer iets live mag (dan de flow van §7). Vroeger stond hier
+   "deploy direct" — dat geldt niet meer sinds de dev-branch met de demomodus bestaat.
 3. Verifieer altijd met typecheck + build (§7) vóór je commit + deployt.
 4. **Tekstbudget in de UI.** Een scherm toont enkel wat de beslissing van dít moment
    stuurt (kost, opbrengst voor déze duif, harde beperking). Mechaniek, kansen,
@@ -49,6 +58,416 @@
    in het scherm een link **"Meer info over … →"** naar `/wiki#<sectie>`. Blokken tekst
    in het spel worden niet gelezen. Zet **getallen bij voorkeur enkel in de wiki**, zodat
    er één plek is om met `gameConfig.ts` te synchroniseren.
+
+---
+
+## 0b. Hokinrichting & co — LIVE sinds 11 okt 2026 (Marktwaarde v2 + demomodus enkel op dev)
+
+> Gebouwd op dev (`claude/demo-hokinrichting`) en daar door de eigenaar uitgeprobeerd in de
+> demo. Op **11 okt** op zijn vraag live gezet: het **hokoverzicht**, de pagina **Inrichting**
+> met alles wat erbij hoort (hygiëne + poetser, vaccins & kuren, uitrusting met niveaus,
+> verzekering, vakblad, weerstation), het **zoekertje naar boven** en de **besmetting per ziekte**.
+> **Niet** mee: **Marktwaarde v2** (eigenaar: "nog niet") en de **demomodus** (geen spelersfeature).
+> Het voorstel (met alle getallen en de sketch) staat in de artifact "Roekoe Hokinrichting".
+
+### Stand van zaken (11 okt 2026) — lees dit eerst
+- **Live op productie** (`claude/roekoe-game-website-jwa0vo`): alles in §0b behalve de twee
+  blokken met **ENKEL OP DEV** (*Demomodus*, *Marktwaarde v2*). De marktwaarde op prod is die van
+  *Marktwaarde houdt stand* + *nooit onder 1/5* (§8). Spelers kregen een bel (migratie **v61**,
+  `core/game/news.ts`), een rondleiding (`INRICHTING_NEWS_STEPS` in `Tour.tsx`, sleutel
+  `roekoe.newsSeen.inrichting.<id>`) en een wikisectie **#nieuw** ("Nieuw: inrichting & meer").
+- **Enkel op dev** (gepauzeerd): **Marktwaarde v2** (`ac31a45`) en de **demomodus**. Weggehaald
+  van dev en dus nergens: koppels, partnerhok, weduwschap, de scout, het nieuwe voer.
+- **Schema:** prod's `SCHEMA_STEPS` kregen 4 stappen achteraan: `lofts.equipment`,
+  `pigeons.care`, `flights.forecast`, `pigeons.boosted_at`. ⚠️ Dev heeft `trades.quality` (v2)
+  **tussen** `flights.forecast` en `pigeons.boosted_at`. Gaat v2 live: `trades.quality`
+  **achteraan prod's lijst** (dev heeft geen eigen databank, zijn volgorde mag je gelijktrekken).
+- **Wacht op een beslissing van de eigenaar:**
+  1. **Marktwaarde v2 naar productie?** (11 okt: nog niet.)
+  2. Moeten de **opvangcentrum-veilingen** (start €25, NPC) buiten de marktwaarde blijven?
+  (Beslist op 11 okt: **besmetting per ziekte**, zie §8.)
+- **Dev weer aanzetten:** dev mist de besmetting per ziekte, de aankondiging, het opruimen van
+  de "⚠️ dev"-labels en de vaccinteksten zonder ★ (die kwamen uit v2). Het eenvoudigst: **dev
+  herstarten vanaf prod** en daarop `ac31a45` (v2) en de demo (`client/demo/`, de Vite-plugin,
+  sql.js, `tests/demo-*.test.mts`, uit `bc8c415`) terugzetten — niet prod in dev mergen (v2 en de
+  revert ervan botsen in 9 bestanden). Werk dan de branchtabel in §0 bij.
+
+### Demomodus (preview-builds) — ⚠️ ENKEL OP DEV, niet op productie
+- **Niet mee naar productie (11 okt):** op prod bestaan `client/demo/`, de Vite-plugin, sql.js en
+  de demotests niet. ⚠️ Een preview-build van een branch die van prod vertrekt is dus een
+  **gewone** build mét Functions — en de Preview-omgeving kan aan de live `roekoe-db` hangen.
+  Push zo'n branch met `[CF-Pages-Skip]` in de commitboodschap als je geen preview wil.
+- **Wanneer:** Cloudflare Pages zet `CF_PAGES_BRANCH` tijdens de build. Is die **niet**
+  `claude/roekoe-game-website-jwa0vo`, dan bouwt de client als demo (`client/vite.config.ts`).
+  `ROEKOE_DEMO=1` forceert het lokaal. Zonder `CF_PAGES_BRANCH` (lokaal, `wrangler pages dev`)
+  is het een gewone build. Preview-adres: `https://<branch>.<projectnaam>.pages.dev`
+  (slashes in de branchnaam worden streepjes; exact te zien onder *Deployments*).
+- **Hoe het de productie ongemoeid laat:** de demo-build verandert **enkel het instappunt** in
+  `index.html` (`/src/main.tsx` → `/demo/entry.ts`, via een Vite-plugin met `order: 'pre'`).
+  Geen enkel bestand onder `client/src` weet van de demo. Een productiebuild is daardoor
+  **byte-identiek** aan die van vóór de demomodus (zo geverifieerd), en
+  `tests/demo-build.test.mts` bewaakt het: geen wasm, geen demotekst in de prodbundel.
+- **Nooit naar de server:** `client/demo/index.ts` vervangt `window.fetch` vóór de app start.
+  Een verzoek naar `/api` wordt **in de pagina** beantwoord en verlaat ze nooit; een verzoek naar
+  een ander domein wordt geweigerd (het Open-Meteo-weer valt dan terug op een willekeurige
+  hemel). Cruciaal: de Preview-omgeving van het Pages-project kan aan de live `roekoe-db`
+  gekoppeld zijn. Raak de Cloudflare-instellingen niet aan.
+- **De echte API in de browser:** de demo draait **dezelfde Hono-app** (`onRequest` uit
+  `functions/api/[[path]].ts`, ongewijzigd) op een D1-nabootsing over **sql.js** (SQLite in
+  wasm, `client/demo/d1.ts`; zelfde idee als de `fakeD1` in de tests). Dus ook Het Lokaal,
+  De Stem en de logboeken werken, gewoon lokaal. Verzoeken lopen één voor één (zoals één Worker).
+- **Klaargezette wereld** (`client/demo/seed.ts`): eerst wat productie bij de allereerste
+  request doet (world-rij, `ensureSchema`, `seedWorld` = 8 bots, `advanceRealtime` = migraties +
+  vluchtkalender), dan de demospeler (`usr_demo`, **beheerder**) via `createLoftForUser`:
+  capaciteit 12, 2 aparte hokken (2 duiven erin), 10 willekeurige duiven (2 vrije plaatsen),
+  **altijd minstens €100.000** (zie hieronder), één dokter, één koppel via `startBreeding`, één zieke duif (`applyAilment`) in de
+  ziekenboeg. De token tekent de demo zelf (vaste, niet-geheime sleutel).
+- **Tijd:** de banner heeft **+1 uur / +6 uur / +1 dag**. `client/demo/clock.ts` verschuift
+  `Date.now()` én `new Date()` voor de hele pagina (de motor draait in dezelfde pagina, dus
+  motor en UI zijn het eens); de verschuiving blijft bewaard. De gewone beheerknoppen
+  (volgende week, vlucht beëindigen) werken ook.
+- **Bewaren:** de sql.js-databank gaat na elk verzoek (gedebounced) **gzip + base64** in
+  `localStorage` (`roekoe.demo.db`, ~25 kB bij de start). **"Demo opnieuw"** wist ze + de
+  klokverschuiving. Verandert de seed of het schema zo dat oude demo's stuk gaan, verhoog dan
+  `DEMO_VERSION` in `client/demo/index.ts`.
+- **Typecheck:** `client/demo` valt buiten `client/tsconfig.json` (anders zou de prodbuild de
+  demo meechecken) en heeft een eigen `client/demo/tsconfig.json`; `npm run typecheck` draait
+  hem mee (`typecheck:demo`). sql.js staat als devDependency in `client/package.json`.
+- **Tests:** `tests/demo-build.test.mts` (prod vs. preview vs. lokaal bouwen) en
+  `tests/demo-world.test.mts` (de seed + de API op sql.js in Node).
+
+### Hokoverzicht bovenaan *Mijn hok* (`client/src/components/LoftView.tsx`)
+- **Tekstueel, bewust.** Er was eerst een getekend hokaanzicht (zitbakjes, deurtjes, dag/nacht);
+  de eigenaar vond dat het op niets trok, dus het is vervangen door een kaart met regels.
+  **Maak het niet opnieuw grafisch zonder het te vragen.**
+- **Eén duif of broedkoppel per regel, altijd de volledige naam** (wens van de eigenaar). Het
+  pictogram hangt vooraan (`Line`), zodat een lange naam die op de gsm omloopt herkenbaar één
+  regel blijft; de grijze toelichting springt als geheel naar de volgende regel.
+  - *Plaatsen:* "10 van 12 bezet · 2 vrij →" (markt), daaronder "8 thuis".
+  - *Aparte hokken:* elke naam op een eigen regel, daaronder "N vrij" + keuzelijst "Zet apart…"
+    (bestaande `/pigeons/:id/compartment`).
+  - *Broeden* (was "Nest"): elk broedkoppel op een regel (of "niemand · naar de kweek →").
+  - *Ziekenboeg:* "1 van de 2 bedden bezet", daaronder per patiënt 🦠/🩹 naam + aandoening,
+    % hersteld (+ "wacht op verzorging" als geen dokter/kinesist haar behandelt).
+  - *Bescherming:* 💉 ingeënt/gekuurd en 🛡️ verzekerd, elk op een regel.
+- **Thuis / niet thuis** (`awayStatus`): niet thuis is enkel wie 🧭 de weg kwijt is, ✈️ nu
+  vliegt of 🏥 in de ziekenboeg ligt, elk op een eigen regel. Op het nest,
+  op rustkuur of ingeschreven voor een latere vlucht = **thuis**.
+  "Vliegt" komt uit de nieuwe `pigeonDTO.flying` (`live && pigeonAirborne`): smaller dan
+  `racing`, dat ook geldt voor een vlucht die nog moet beginnen; de scan loopt enkel voor een
+  duif op een lopende vlucht. **Test:** `tests/hokoverzicht.test.mts`.
+- Puur weergave van `/state`, geen eigen verzoek. Eén serveraanvulling: `loftDTO.nests`
+  (`{id, sireId, damId}` per broedkoppel), uit de al geladen `breedingPairs`, geen query.
+
+### Hokhygiëne, vers stro & hokpoetser (`core/game/hygiene.ts`, `HYGIENE` in gameConfig)
+- **Opslag:** `Loft.equipment` = JSON-kolom `equipment` op de loft-rij (achteraan
+  `SCHEMA_STEPS`), `{ hygiene, lastStrawAt, cleaner }`. Afwezig = nooit aangeraakt = hygiëne
+  50, niets ingehuurd. `loftRow` schrijft `''` zolang ze afwezig is, dus een onaangeroerd hok
+  (alle bots!) wordt niet herschreven. Bedoeld om later de rest van de inrichting (ventilatie,
+  ren, …) in dezelfde blob te zetten — geen nieuwe tabel, geen extra query.
+- **Regels:** vers stro `strawCost(capacity)` = €18 per 8 plaatsen → meter 100. Boven 50
+  ziektekans ×`hygieneIllnessMult` = 1 − 0,2·(h−50)/50; op/onder 50 ×1. Verval op de
+  **dagovergang** in `tickDailyCare` (`tickHygiene`, ná de dagafrekening): 8 × bezetting
+  (thuis/capaciteit), ×1,5 met een zieke duif (ziekte, geen kwetsuur) buiten de boeg. Nooit
+  per verzoek, dus `idle-writes` blijft groen.
+- **Poetser:** `cleanerWage(aantal duiven)` per schijf (`HYGIENE.cleanerWageBands`, tabel van de
+  eigenaar): t/m 8 duiven €10, 12 €15, 14 €20, 16 €30, 18 €45, 20 €75 (de laatste schijf geldt ook
+  daarboven). Telt alle eigen duiven, net als de Dagbalans. Zit als lijn
+  `cleaner` in `dailyRunningCostBreakdown.equipment` (`equipmentCostLines(loft, pigeonCount)`) →
+  vanzelf in de Dagbalans en in wat `tickDailyCare` afrekent. Onder 70 koopt `tickHygiene` een
+  lading stro aan de gewone prijs (eenmalige uitgave, níet in de Dagbalans). Besmetting ×0,85.
+- **Ziektekans:** `runHealthDay` gebruikt nu `illnessChance(...)`: hygiëne × apart hok ×
+  IJzeren gestel × (poetser op de besmetting), met als **bodem ×0,4** van de kans zonder al die
+  factoren. ⚠️ Gevolg voor wie het al had: apart hok (×0,5) + IJzeren gestel (×0,7) = ×0,35
+  wordt nu ×0,4. De legacy `runHealthWeek` (admin) is ongewijzigd.
+- **API:** `POST /api/loft/straw`, `POST /api/loft/cleaner {on}`. DTO: `loftDTO.equipment`
+  (`hygiene, lastStrawAt, cleaner, strawCost, cleanerWage, illnessMult, decayPerDay`).
+- **UI:** blok "Hygiëne" op de pagina Inrichting (waarde, effect, stro-knop, poetser
+  aan/uit) + wiki-sectie `#hygiene` + spelregels §5.2bis. Bots kopen (nog) niets: open vraag.
+
+### Koppels, partnerhok en weduwschap — voorlopig weggehaald
+- **Op vraag van de eigenaar volledig van dev gehaald** (10 okt): partners (wennen, aantrekking,
+  ontkoppelen, geforceerd nest), het **partnerhok** en het **weduwschap**. **Broeden werkt zoals op
+  productie:** elke doffer met elke duivin, zonder partnerband en zonder libidoverlies. Wat dev wel
+  houdt: de kweekteksten zeggen "nest/broeden" i.p.v. "koppelen", en de rij in het hokoverzicht
+  heet **"Broeden"** (was "Nest").
+- **Wat weg is:** `core/game/koppels.ts`, `COUPLES`, `WIDOW`, `EQUIPMENT.partnerhok` +
+  `partnerhokPrice`, `Loft.equipment.couples/attractions/partnerhokken`, `PigeonCare.widow`,
+  `SimEntry.widow` en `Entry.mods.widow` (de dagvorm in `buildPaceProfile` is weer die van
+  productie), `settleWidowhood`, `tickCouples`, `partnerhokBirds` (de partnerhokbonus op herstel en
+  ziekte), `/couples/*`, `/loft/partnerhok`, `/pigeons/:id/widow`, `components/Koppels.tsx`, de
+  partner- en weduwschapblokken op de duifpagina, de wikisectie `#koppels` en
+  `tests/koppels.test.mts`. `entryMods(db, p)` neemt geen vlucht meer mee (enkel reismanden).
+- **Terughalen?** De laatste versie mét alles is commit `70d3209` (koppels kwamen in `e12c28c`,
+  het partnerhok als woonhok in `cc1281c`). Het weduwschap vloog op de partner: zonder koppels
+  heeft het eerst een nieuw ontwerp nodig.
+- **Demo:** `DEMO_VERSION` = 4, zodat een bewaarde demo met koppels opnieuw opgebouwd wordt; het
+  broedende duo in de demo is gewoon een nest (`startBreeding`), zonder aantrekking.
+
+### Marktwaarde v2 — correct en stabiel (⚠️ ENKEL OP DEV, niet live: eigenaar 11 okt "nog niet")
+- **Vraag van de eigenaar:** "ik wil kunnen baseren op marktwaarde, maar daarvoor moet die eerst
+  correct worden bepaald" — en niet meer fluctueren. Een ★80 werd op ~€14.000 geschat terwijl
+  spelers €20–25.000 betalen. De scout (die met de waarde rekende) is van dev gehaald tot de
+  waarde vaststaat — zie *Scout — voorlopig weggehaald*.
+- **Oorzaken (gemeten):** (1) de schatting was aan de top veel te laag: `(t/50)^2.2 × 800` gaf een
+  gewone ★80 €2.600; (2) één verkoop telde voor 2/3, het model hield altijd 15 % en de marktfactor
+  was begrensd op ×8 → één verkoop van €20.000 gaf €14.680, vier gaven €18.000 (de grens);
+  (3) **dubbeltelling**: een verkoop werd gemeten t.o.v. een *gemiddelde* duif van dat talent, en
+  daarna nog eens vermenigvuldigd met de genen/ervaring van de getaxeerde duif — een goede duif
+  verkocht aan haar schatting maakte de hele band ~40 % duurder.
+- **Fix:**
+  1. **`talentCurve(t)`** (pigeon.ts, `VALUE_CURVE`): `800 × (t/50)^2.2 × (1 + 0,01375 × max(0, t−60)²)`
+     — ×6,5 bij ★80. Zowel `estimateValue` als `reference` in market.ts gebruiken hem. Gewone duif
+     (genen 82, ervaring 30): ★70 €4.600 · ★75 €9.200 · ★80 €16.800 · ★85 €28.400 · ★90 €44.800;
+     goede (genen 90, ervaring 60) ~1,5×. ★60 en lager ongewijzigd.
+  2. **`Trade.quality`** = `estimateValue ÷ talentCurve` bij de verkoop (`saleQuality`, gezet in
+     `settlePigeonSale`, `offers.transfer` en de veilinghamer). Een verkoop zegt
+     `prijs ÷ (curve × quality)`, per verkoop begrensd op **0,5–2** (`minFactor/maxFactor`: in de demo
+     zette één oude "verkoop" van €7.000 voor een ★55 elke ★55 45 % hoger toen de grens nog 0,2–5 was;
+     blijft de markt buiten die band betalen, herijk dan `VALUE_CURVE`). Oude
+     verkopen zonder quality rekenen met `legacyQuality` 1,15. Nieuwe kolom `trades.quality`:
+     ⚠️ **SCHEMA_STEPS**: de stap staat achteraan dev (na de 3 hokinrichtingsstappen); bij een
+     cherry-pick naar productie zet je hem achteraan *productie's* lijst (dev heeft geen eigen
+     databank, enkel demo's, dus de volgorde op dev mag nadien gelijkgetrokken worden).
+  3. **Robuust gemiddelde:** `robustLogMean` = Huber in log-ruimte, gestart op de gewogen mediaan;
+     een verkoop verder dan **×1,5** (`outlierBand`) van de consensus trekt niet harder dan een
+     verkoop op die rand. Log-ruimte: 2× en ½× heffen elkaar op.
+  4. **`trustWeight` 1,5 → 3**: één verkoop verschuift een derde, ~drie verkopen 85 % (`maxTrust`).
+- **Gemeten (`tests/market-memory.test.mts`, herschreven):** zonder verkopen = schatting; verkopen
+  aan hun schatting (goede of gewone) veranderen niets; één verkoop aan 2× → ×1,33; drie aan 1,3×
+  → ×1,26; twee normale + één uitschieter aan 3× → ×1,26 (was ×1,49); de prijs blijft staan (dag
+  1 = dag 40), vervaagt op het einde, is na 60 dagen weg; monotoon.
+- **Gevolgen:** alles wat op de waarde steunt schuift mee (verzekering, veilingstart 30 %, 1/5-grens,
+  schuldveiling, wat bots willen betalen). Bots geven hoogstens de helft van hun vrije kas uit,
+  dus een topduif van €25.000+ kopen ze zelden. Testfixtures aangepast: `market-bidding` (duif ★60
+  i.p.v. ★75, anders lagen €3.000–€4.000 onder 1/5), `bot-bidding` (koopje ★75 i.p.v. ★85),
+  `bot-market` (bot krijgt €400.000 om te winkelen). `DEMO_VERSION` 5.
+
+### Voer: ongewijzigd
+- Een eerste poging met acht voersoorten (Herstel enkel na een vlucht, Sport, Fond, …) is op
+  vraag van de eigenaar **volledig teruggedraaid**: "niet goed gedaan". `FEED_RATIONS`, de bots en
+  de wiki staan weer zoals live. Begin daar niet opnieuw aan zonder een nieuw voorstel.
+
+### Scout — voorlopig weggehaald (11 okt)
+- **Op vraag van de eigenaar volledig van dev gehaald** tot vaststaat dat de marktwaarde (v2)
+  juist bepaald wordt: zijn prijs was marktwaarde × 1,4–1,7 (China × 1,8–2,2), dus een scheve
+  waarde gaf meteen een scheve scout. Weg: `core/game/scout.ts`, `SCOUT`, `ScoutMission`,
+  `Loft.equipment.scout`/`scoutSeason`, de quarantaine (`PigeonCare.quarantineUntil`,
+  `inQuarantine` in `startBreeding`, het quarantainedeel van `grounded`/`groundedByCare`), de
+  herkomst (`PigeonCare.origin`, `pigeonDTO.origin`, 🌍 op de duifpagina), `/scout/*`,
+  `ScoutCard` op de Markt, de wikiparagraaf en de scouttests in `inrichting.test.mts`.
+- **Terughalen?** De laatste versie mét scout is commit `264f93f`. Een bewaarde demo met een
+  lopende scout of een importduif werkt gewoon door: de velden worden genegeerd (geen
+  `DEMO_VERSION`-bump nodig). De open vraag over duidelijker verschillende scoutregio's is
+  daarmee ook geparkeerd.
+
+### Vaccins: één vaste prijs per middel, gekozen door de eigenaar (`VACCINES.price`, 11 okt)
+- **Prijzen:** PMV €10 · pokken €8 · salmonella €6 · geel/cocci/adem €5 — hele euro's, voor elke
+  duif dezelfde ("een vaccin is een vaccin, en de prijs is de prijs"). Zo gekozen door de eigenaar.
+- **Hoe het zo gelopen is (11 okt, in één sessie):** eerst gemeten dat de oude prijzen
+  (€60/€40/€75/€15/€25/€40) amper loonden → wens "een vaccin moet altijd iets voordeliger zijn
+  dan een zieke duif, een investering in de duif" → een prijs **per duif** (commit `bfcb207`),
+  afgewezen ("niet logisch, een vaccin is een vaccin") → één prijs, 80 % van de schade bij een
+  duif van €5.000 (€6/€4/€2 en kuren €0,20–0,50), → afgerond op hele euro's (kuren €1) → deze
+  prijzen. Herbegin daar niet aan zonder de eigenaar.
+- **Wat ze opleveren** (`vaccineAvoidedDamage`, vorm 75): de vaccins lonen vanaf een duif met een
+  marktwaarde van ~€6.400 (PMV), ~€8.600 (pokken) en ~€11.400 (salmonella); een topduif
+  (~€37.000) haalt 2,3–3,8× terug; op vorm 65 (een duif die gewoon meevliegt) lonen ze al vanaf
+  ~€2.500–4.400. ⚠️ **De kuren aan €5 lonen voor geen realistische duif** (topduif 0,24–0,47× op
+  vorm 75, ~0,5–0,8× op vorm 65): een kuur van een week tegen één ziekte voorkomt te weinig.
+  Sinds 11 okt geldt **besmetting per ziekte** (§8): een kuur loont wél wanneer die ziekte in het
+  hok rondgaat en je de zieke duif niet kan afzonderen. `vaccineAvoidedDamage` rekent besmetting
+  bewust nog altijd niet mee (de meetlat voor gewone omstandigheden). Op dev noemden wiki en
+  spelregels er ook de ★ bij (★72/★75/★77): die kwamen uit Marktwaarde v2 en zijn op prod weg.
+- **De schade** (`vaccineAvoidedDamage(key, value)`, inrichting.ts) = looptijd × dagkans op die
+  ziekte (dezelfde helpers als `runHealthDay`: `spontaneousIllnessPerDay` + `diseaseShare` in
+  hygiene.ts; `runHealthDay` gebruikt de eerste nu ook) × afweer × `diseaseCaseCost(ernst, waarde)`.
+  `diseaseCaseCost` is afgeleid uit HEALING/HEALTH/INFIRMARY: de goedkoopste van ziekenboeg +
+  medicatievoer met of zonder dokter — zorg, sterftekans en gemiste starts **per middernacht** dat
+  ze nog ziek is (een ziekte breekt om middernacht uit; zorg, voer en de sterfteworp vallen op de
+  nachten erna), gemiste starts × `startValueShare` (1,3 % van de marktwaarde per start), + een
+  halve start trager na een ernstig geval. Besmetting telt niet mee. Knoppen in `VACCINE_PRICING`
+  (de meetlat, géén prijsformule).
+- **`refVorm` 75 is de voorzichtige keuze.** Gemeten op duiven die meevliegen (bots, 6 weken):
+  gemiddeld vorm 72, mediaan 74, maar hun gemiddelde ziekterisico hoort bij vorm 60–65 (het risico
+  stijgt niet lineair, de dips na elke vlucht wegen zwaar).
+- **Kost voor een speler die alles bijhoudt:** de drie vaccins samen ~€2,30 per duif per week; mét
+  alle kuren (elke 7–10 dagen) ~€16. **Bots vaccineren niet.** `Money` toont een niet-geheel bedrag
+  met twee decimalen (verzekeringspremie).
+- **De bewaker:** `tests/vaccine-price.test.mts` (26 controles, ~5 s): `diseaseCaseCost` nooit
+  duurder dan het echte ziekteverloop (tickHealing + applyDayOfCare per kwartier/middernacht, met
+  en zonder dokter) en hooguit 20 % voorzichtiger; het risico = runHealthDay; elke prijs een heel
+  bedrag, elk vaccin loont voor een goede wedstrijdduif (★80) — faalt dus als een prijs of een
+  wijziging aan HEALING/HEALTH/INFIRMARY/ILLNESS dat breekt — met per middel vanaf welke duif het
+  loont; dezelfde prijs voor een gewone en een topduif; hele hok = aantal × prijs.
+
+### Vaccins: wat een kuur waard is (`tests/vaccine-economics.mts`, diagnose)
+- **Methode, alles met de echte code:** opbrengst per start uit echte vluchten
+  (`startLiveFlight` + `finalizeFlight`, veld van 24 van ★60 tot ★84, weekmix 3 regio · 3 nat ·
+  2 intl, na inschrijfgeld) bij gezondheid 95/85/75/65/55; kans per ziekte uit `runHealthDay`
+  (klopt met de formule; `fendsOff` weert ~80 % af); kost per geval door het ziekteverloop dag per
+  dag te volgen (`tickHealing` + `applyDayOfCare` + `runHealthDay`, Herstelvoer, ziekenboeg +
+  medicatievoer, met of zonder dokter — de goedkoopste telt). Starten is **energie-begrensd**
+  (~7,5 energie/dag op Herstelvoer, ~32 per start → 1,6 starts/week): wat een zieke duif aan
+  energie mist, wordt nooit meer gevlogen.
+- **Opbrengst:** topduif (★84) ~€480 per start / €112 per dag, goede (★80) €331 / €77, gewone
+  (★73) €148 / €35. Op gezondheid 65 nog maar ~35–40 % daarvan.
+- **Kost van één geval** (top / goede / gewone duif): licht ~€300 / €230 / €140 · matig ~€720 /
+  €550 / €320 · ernstig ~€1.900 / €1.390 / €780. Bij een ernstig geval van een topduif: dokter +
+  medicatie €315, gemiste starts ~€670, trager tot de gezondheid terug is ~€250, sterftekans
+  1,8 % × €37.000 = ~€660. ⚠️ De dokter is dus het kleinste deel; het gemiste geld en het
+  sterfterisico wegen het zwaarst.
+- **Aannames:** de zieke duif staat binnen de dag in de ziekenboeg (besmetting telt niet mee),
+  er is een bed vrij, geen seizoenspunten of sponsorpremies in de opbrengst (dus aan de lage
+  kant), en de 2 dagen niet vliegen na een vaccin kosten niets als je ze op rustdagen legt
+  (energie blijft binnenkomen).
+
+### Zoekertje naar boven (`MARKET_BOOST`, live sinds 11 okt)
+- **Wens van de eigenaar:** op je eigen zoekertje een knop **"Zoekertje naar boven"** voor
+  **€50**; je zoekertje komt bovenaan de markt en blijft daar **12 uur**, tenzij iemand anders
+  intussen boost: dan zakt het jouwe terug naar zijn gewone plaats.
+- **Eén plek bovenaan, afgeleid — geen tick, geen schrijfwerk bij het pollen:** de duif krijgt
+  één tijdstip `Pigeon.boostedAt` (kolom `pigeons.boosted_at`). `featuredListingId(db, nowMs)`
+  (`core/game/market.ts`) kiest onder de te-koop-duiven met een boost die nog loopt
+  (`boostEndsAt` = `boostedAt` + `MARKET_BOOST.hours`) de **recentste**. Wie overboost wordt dus
+  niet "teruggezet": zijn boost is gewoon niet meer de recentste. Loopt de nieuwste af, dan
+  komt niemand bovenaan (een oudere boost eindigt altijd eerder).
+- **`boostListing`** (`engine.ts`, `POST /market/boost`): enkel je eigen te-koop-duif, geen bot,
+  niet in het rood (`debtBlock`), genoeg geld, en **niet opnieuw betalen zolang je al bovenaan
+  staat**. Wie overboost is, mag opnieuw betalen.
+- **Een boost hoort bij één zoekertje:** `unlist`, `settlePigeonSale`, `transfer` (aanvaard bod)
+  en de gedwongen veiling wissen `boostedAt`. `listForSale` op een duif die nog niet te koop
+  stond begint zonder boost; een **prijswijziging** (opnieuw `listForSale` terwijl ze te koop
+  staat) **behoudt** hem.
+- **`GET /market`:** elke listing krijgt `featured` + `featuredUntil`; de geboostte staat eerst,
+  de rest op prijs (oplopend). De respons draagt ook `boost: MARKET_BOOST` voor de knop.
+- **UI (`MarketPage`):** eigen zoekertje → knop "Zoekertje naar boven · €50" (bevestiging met
+  de 12 uur en het terugzakken) of, als het bovenaan staat, "📌 Staat bovenaan tot …";
+  andermans geboostte zoekertje → badge "📌 Bovenaan". Uitleg in de wiki (*Marktwaarde*) en
+  spelregels §9.1.
+- **Schema:** stap `ALTER TABLE pigeons ADD COLUMN boosted_at TEXT` staat achteraan prod's
+  `SCHEMA_STEPS` (op dev staat `trades.quality` ervoor, zie *Stand van zaken*).
+  `PIGEON_COLUMNS`/`pigeonRow` dragen de kolom mee (kolomsmalle
+  diff, dus twee spelers die tegelijk boosten overschrijven elkaar niet).
+- **De bewaker:** `tests/market-boost.test.mts` (24 controles): kost en plek, recentste wint,
+  12 uur, de regels, gewist bij intrekken/verkoop/bod, en de rondrit door D1 (INSERT + UPDATE).
+
+### De rest van de hokinrichting (`core/game/inrichting.ts`)
+- **Config** in gameConfig: `EQUIPMENT` (ventilatie, ren, roofvogelafweer, kunstlicht,
+  infrarood, reismanden, weerstation, vakblad), `VACCINES`, `INSURANCE`,
+  plus `BOT.strawBelowHygiene`/`ventilationReserve`.
+- **Opslag:** alles van het hok in `Loft.equipment` (zelfde JSON-kolom als de hygiëne, incl.
+  `lastHawkDay`). Per duif één nieuwe JSON-kolom **`care`** (`PigeonCare`: vaccins,
+  `noFlyUntil`, `insurance`), `''` als leeg. Op de vlucht
+  een kolom **`forecast`**. `Ailment.boeg` onthoudt of ze in de ziekenboeg lag. Drie nieuwe
+  stappen achteraan `SCHEMA_STEPS`. Pigeons blijven 1 rij per multi-row statement (53 kolommen).
+- **Dagkost:** `equipmentCostLines` + `insuranceCost` → `dailyRunningCostBreakdown.equipment`
+  (lijnen), `.equipmentTotal`, `.insurance`; zelfde bron voor Dagbalans en `tickDailyCare`.
+  Het oude veld `cleaner` is vervangen door een lijn `key: 'cleaner'`. **Inrichting is
+  eenmalig** (de eigenaar: €0,50–€2/dag is de moeite niet): enkel de **hokpoetser** (€10–€75 per schijf) en
+  het **vakblad** (€6, abonnement) staan nog in `equipmentCostLines`; de verzekeringspremie
+  komt erbij. De premie is soms centen — `loft.money` mag fractioneel worden, de DTO rondt af.
+- **Ontwerpregel (eigenaar):** elk onderdeel geeft maar een **klein** voordeel; pas alles samen
+  is het een echt verschil. **Op de pagina kort en zonder cijfers** (de eigenaar vond de lange
+  teksten met percentages te veel): één zin per onderdeel (`WHAT` in `components/Inrichting.tsx`)
+  en bovenaan een link naar de wiki. **Vaste vorm per onderdeel** (`Item`): regel 1 = naam +
+  wat je ervan hebt ("Aparte hokken: 2/2 in gebruik", "Dakventilatie: niveau 2/4"), regel 2 =
+  de beschrijving, de knop ernaast. Tellers met een maximum (`Usage`: plaatsen, aparte hokken,
+  ziekenboeg, infrarood) zijn **groen zolang er plaats vrij is, rood als alles
+  bezet is**; 0 gekocht = "nog geen". **De exacte cijfers en de formules staan in de wiki**
+  (#inrichting: tabel niveau 1 incl. apart hok en ziekenboegbed, niveautabel, formules; #hygiene).
+  ⚠️ Die wikitabellen zijn met de hand geschreven: pas ze mee aan als je `EQUIPMENT`,
+  `EQUIPMENT_LEVELS`, `VACCINES`, `COMPARTMENT` of `HYGIENE` wijzigt.
+- **Niveaus** (`EQUIPMENT_LEVELS`): ventilatie, buitenren, kunstlicht, infrarood en reismanden
+  gaan na de aankoop (= niveau 1) tot **niveau 4**. Prijs `levelPrice` = eerste prijs ×
+  3^(niveau−1) (1×, 3×, 9×, 27×; infrarood rekent met de eerste 2 bakken), effect ×
+  `effectScale` [1; 1,5; 1,8; 2]. Opslag: `Loft.equipment.levels` (afwezig = niveau 1 voor wat
+  gekocht is). `equipmentLevel`/`effectScale` (hygiene.ts) voeden elk effect: `fendsOff`,
+  `feedHealthMult`, `hygieneDecay`, `restBonusEnergy` (basis + extra × schaal),
+  `libidoTargetBonus`, `entryMods` (reismanden), `irBoxEffect` (tickBreedingHatch). API
+  `POST /loft/equipment/upgrade {key}` → `upgradeEquipment`; DTO `equipment.levels`; catalogus
+  `inrichting.levels` = `{max, scale, prices}` uit `inrichtingLevels()`. De pagina toont een
+  badge "niveau n/4", de knop "Niveau n+1 · €…" en (groen) **wat het volgende niveau oplevert
+  t.o.v. nu**: "↑ Niveau 3: ornithose −60 % → −72 %" — het hoofdeffect per onderdeel uit
+  `inrichtingLevels().gain` (`GAIN` in inrichting.ts: ornithose, energie na een rustdag, libido,
+  sneller uit, energieverlies per vlucht); de andere effecten groeien evenveel mee. Bots waarderen
+  niet op.
+- **Vaccinprijzen:** één vaste prijs per middel (zie *Vaccins: één vaste prijs*). "Hele hok" (`vaccinateLoft`) slaat wie nog meer dan
+  `VACCINE_RENEW_SHARE` (25 %) van haar kuur heeft over (`needsCourse`); de client rekent met
+  dezelfde regel (`inrichting.vaccineRenewShare`). Per duif hernieuwen kan altijd.
+- **Effecten en waar ze zitten:**
+  - ventilatie: `fendsOff` (ornithose), `feedHealthMult` (applyDayOfCare/projectDailyCare),
+    `hygieneDecay` ×0,75;
+  - ren: `restBonusEnergy`, `libidoTargetBonus`; sperwer `tickHawk` in tickDailyCare (geseed op
+    hok+dag, stabiele melding-id), niet bij `raptorGuard`; afweer maakt de event `poacher`
+    ongevaarlijk (events.ts);
+  - kunstlicht: `libidoTargetBonus`;
+  - infrarood: `tickBreedingHatch` (eerste `irBoxes` koppels per hok, op id) → gemiddelde ÷1,15
+    en `breed(..., bonus)` (tweeling, succes onder 10 °C via `monthTemperature`);
+  - reismanden: `Entry.mods` → `routeEnergyCost(..., mult)` en `SimEntry.healthMult` in finalize
+    (solo én estafette);
+  - vaccins/kuren: `fendsOff` in `runHealthDay` na de ziektetrekking (buiten de bodem ×0,4);
+    vaccin → `care.noFlyUntil`; `canRace` kijkt naar `groundedByCare` (pigeon.ts), `enterFlight`
+    geeft de reden (`grounded`);
+  - verzekering: `insurancePayout` op elke sterfteplek (ziekte/ouderdom in health.ts, vlucht en
+    honger in schedule.ts, sperwer in events.ts); premie = 1,3 × uitkering × (0,04 % +
+    `ageMortality`·4/7); `clearOwnerCare` bij elke eigendomswissel (engine/auction/offers);
+  - vakblad: `pigeonDTO.magazineRanges` (geseed, bevat altijd de echte waarde) — getoond op de
+    duifpagina van andermans duif **én bij een privébod op de Markt** (BidCascade); `/market.report`
+    (`magazineReport`, onderaan de Markt), `tickMagazine` op de maandag-dagovergang (stabiele id per
+    lezer+dag). De vakbladkaart zegt een abonnee waar hij het ziet. ⚠️ In de demo zijn er geen
+    andere mensen (privébod onmogelijk) en weinig verkopen: daar zie je vooral de bandbreedtes
+    op de pagina's van botduiven (via de ranglijst) en Het Duivenblad op maandag.
+  - weerstation: `flightsNeedingForecast`/`applyFlightForecasts` (schedule.ts), opgehaald in de
+    middleware naast de estafettevoorspellingen — **enkel als een hok een station heeft**;
+    `withForecast` in de API toont het enkel aan stationhouders.
+- **API:** `POST /loft/equipment {key, on}`, `/loft/irbox`, `/loft/vaccinate {key}`,
+  `/pigeons/:id/vaccinate {key}`, `/pigeons/:id/insurance {on}`. `/state.inrichting` =
+  de catalogus. DTO: `loftDTO.equipment` (alle vlaggen), `pigeonDTO.care` (enkel
+  eigenaar), `.magazineRanges`, `flight.forecast`.
+- **UI (tekst):** een eigen pagina **Inrichting** (`/inrichting`, `pages/InrichtingPage.tsx`,
+  menu-item 🧰 na *Mijn hok*). **Vier inklapbare blokken** (de eigenaar vond de lange lijst
+  "veel en complex, een opsomming van random zaken"): dicht toont elk blok enkel zijn naam en
+  **in één regel hoe je ervoor staat**; je tikt er één open, **één tegelijk** (`Section` in
+  `components/Inrichting.tsx`; de keuze blijft per toestel bewaard in localStorage
+  `roekoe.inrichting.open`, in try/catch). Een link `/inrichting#hokken|hygiene|vaccins|uitrusting`
+  opent dat blok meteen (ook bij een hashwissel op de pagina zelf).
+  1. 🏠 **Plaatsen & hokken** (`RoomsSection`, `data-tour="upgrades"` — de rondleiding wijst
+     erheen) — dicht: drie regels, altijd alle drie (wens van de eigenaar): "Plaatsen: 10/12",
+     "Apart: 2/2", "Ziekenboeg: 1/2" (`Usage`; 0 aparte hokken = "nog geen").
+     Hokcapaciteit, aparte hokken, ziekenboegbedden
+     (zelfde `/loft/infirmary/upgrade` als op de ziekenboegpagina, hier met bevestiging).
+  2. 🧹 **Hygiëne** (`HygieneSection`) — dicht: "58/100 proper" (+ "de poetser is aan het werk"
+     of "tijd voor vers stro" op ≤ 50). Meter, vers stro, hokpoetser.
+  3. 💉 **Vaccins & kuren** (`VaccineSection`, hele hok) — dicht: "Nog niets gegeven" of
+     "2 van de 6 middelen actief".
+  4. 🛠️ **Uitrusting** (`GearSection`) — dicht: "Nog niets gekocht" of "3 van de 7 gekocht".
+     Alles wat je één keer koopt en (meestal) tot niveau 4 opwaardeert: buitenren,
+     roofvogelafweer ("eerst een buitenren"), dakventilatie, kunstlicht, infrarood nestbakken,
+     betere reismanden, weerstation. **Elk onderdeel heeft een ⓘ** (`InfoToggle` in `Item`): tik
+     erop en er klapt een tabelletje open (`EffectInfo`) met **elk effect nu en na aankoop** (niet
+     gekocht: "Nu" vs "Na aankoop"; gekocht: "Nu (niveau n)" vs "Niveau n+1"; op niveau 4 enkel
+     "Nu" + "Dit is het hoogste niveau"). De cijfers komen van de server: `inrichtingEffects()`
+     (inrichting.ts, zelfde formules als de effecten zelf) → `/state.inrichting.effects`
+     (`{label, none, values[]}` per onderdeel; `values[i]` = niveau i+1, `none` = zonder). Zo
+     blijft de pagina kort en staan de exacte cijfers één tik verder.
+
+  Elk item binnen een blok in de vaste vorm `Item` (zie de ontwerpregel hierboven); op de gsm
+  staat de knop onder de tekst. Gemeten op 390 px: dicht ~1.000 px hoog (de oude lijst ~2.900).
+  Marktinformatie staat op de **Markt**: het **vakblad** (`MagazineCard`, net
+  boven het marktrapport dat het ontgrendelt; na (de)abonneren herlaadt de Markt `/market`).
+  *Mijn hok* toont boven de duiven enkel het compacte hokoverzicht + een link naar Inrichting: de
+  eigenaar wil zonder scrollen bij zijn duiven. Het hokoverzicht toont ook de
+  bescherming; duifpagina: kaart "Verzorging & verzekering" (`PigeonCareCard`),
+  vakblad-bandbreedtes bij andermans duif; Vluchten: 📡 voorspelling.
+- **Bots:** vers stro bij hygiëne ≤ 60 en dakventilatie zodra ze €5.000 boven hun reserve
+  zitten (`maybeFitOutLoft`). Geen vaccins (die houden een duif 2 dagen aan de grond), geen
+  verzekering of vakblad. Dit was een open vraag; het voorstel is gevolgd.
+- **Demo (enkel dev):** de demospeler heeft **altijd minstens €100.000** (wens van de eigenaar): de seed geeft
+  `DEMO_MONEY`, en `topUpDemoMoney` (client/demo/seed.ts) vult bij **elke start** van de demo aan tot
+  dat bedrag — ook na +1 uur/+6 uur/+1 dag en "Demo opnieuw" (die herladen de pagina). Binnen een
+  bezoek zie je wat je uitgeeft; meer dan €100.000 (prijzengeld) blijft staan. `DEMO_VERSION` = 5.
+- **Tests:** `tests/inrichting.test.mts` (alles hierboven), `tests/hygiene.test.mts`.
 
 ---
 
@@ -161,7 +580,7 @@ krijgen.**
 `core/game/schedule.ts` → `advanceRealtime(db, nowMs, weatherByFlight)` roept in
 volgorde:
 1. `runDataMigrations(db)` — eenmalige datafixes, **gated op `world.dataVersion`**
-   (staat nu op **60** — v60 = de aankondigingsbel van Het Lokaal; nieuwe migratie = nieuw `if ((db.world.dataVersion ?? 0) < N)`
+   (staat nu op **61** — v61 = de aankondigingsbel van de hokinrichting & co (`core/game/news.ts`), v60 = die van Het Lokaal; nieuwe migratie = nieuw `if ((db.world.dataVersion ?? 0) < N)`
    blok + `db.world.dataVersion = N`). De oudere migraties hebben hun werk gedaan en
    zijn enkel nog van belang als **patroon** — zie §8, kop *Eenmalige migraties*.
 2. `ensureFlightsScheduled(db, nowMs)` — plant vluchten volgens `REAL_SCHEDULE`.
@@ -721,7 +1140,11 @@ Entiteiten: `Pigeon`, `Loft`, `User`, `BreedingPair`, `PendingBrood`, `Flight` (
   gameConfig, gebruikt door `randomDisease(week, health)`): vroeger trok hij **uniform** uit de 6
   ziektes → 33% meteen ernstig. Nu gezondheid ≥80 → licht 55 / matig 33 / ernstig 12%, en bij
   gezondheid 30 → 40/34/**26**%. Het gewicht van een ernstniveau wordt verdeeld over de ziektes
-  binnen dat niveau, zodat een nieuwe ziekte de mix niet stiekem verschuift.
+  binnen dat niveau, zodat een nieuwe ziekte de mix niet stiekem verschuift. Dat geldt enkel nog
+  voor **spontane** ziekte: bij besmetting krijgt een duif de ziekte van de bron.
+- **Besmetting per ziekte** (`DISEASES[].contagion`, factor op `contagionPerSource`): paramyxo ×1,5,
+  ornithose ×1,3, geel ×1,2, coccidiose ×1, pokken ×0,7, salmonella ×0,6. Zie §8 (*Besmetting per
+  ziekte*).
 - **Ziekte/impact (`HEALTH`)** — `runHealthDay` draait nu **real-time** per dag
   (zie tick 4). Nieuw: `ailmentHealthDrainPerDay` licht 0,6 / matig 1,5 / ernstig
   2,5 gezondheid/dag zolang de duif aan een aandoening lijdt, `×ailmentDrainOutsideFactor`
@@ -897,6 +1320,8 @@ Entiteiten: `Pigeon`, `Loft`, `User`, `BreedingPair`, `PendingBrood`, `Flight` (
   **Rode-kassa-waarschuwing** bovenaan zodra `loft.money < 0`: één regel met het aantal dagen
   tot de volgende gedwongen veiling (`loft.debtAuctionInDays`) + link naar `/wiki#schuld`.
   Beheerder-kaart (admin): "Volgende week" + "Toon recente veilingen" (biedgeschiedenis).
+- `InrichtingPage` (`/inrichting`) — vier inklapbare blokken: plaatsen & hokken, hygiëne,
+  vaccins & kuren (hele hok), uitrusting; zie §0b. Op dev staan de uitbreidingen niet meer op *Mijn hok*.
 - `LoftPage` (Mijn hok) — duivenlijst met per duif: onder de waarde **Opgebracht** (`pigeonDTO.earnings`:
   prijzengeld voor de HUIDIGE eigenaar; lopend totaal `Pigeon.earnings`/`earningsOwner`, opgeteld in
   `creditEarnings` bij de afronding, ×starterbonus zoals uitbetaald; met terugwerkende kracht
@@ -1038,7 +1463,8 @@ Entiteiten: `Pigeon`, `Loft`, `User`, `BreedingPair`, `PendingBrood`, `Flight` (
   `listings` bevat **ook je eigen te-koop-duiven**: de verkoper ziet zijn duif op de
   markt zoals iedereen, met een label "Jouw duif" en enkel een knop **Uit de verkoop
   halen** (geen koop- of biedknop). `buyPigeon`/`makeOffer` weigeren je eigen duif
-  sowieso ("Dit is al jouw duif").
+  sowieso ("Dit is al jouw duif"). Daarboven de knop **Zoekertje naar boven**
+  (€50, 12 uur bovenaan; zie §0b *Zoekertje naar boven*); de lijst toont de geboostte eerst.
   Nav-badge op **Markt** = ontvangen biedingen; daarnaast een **stip** zodra er een duif
   te koop staat die deze speler nog niet zag (§8). De pagina zet die stip uit door bij
   het laden `markMarketSeen` te roepen met wat er op het scherm staat. De **verkoopgeschiedenis** onderaan toont
@@ -1168,6 +1594,13 @@ npx tsx tests/sunday-auction.test.mts     # twee zondagduiven, vensters, scoreba
 npx tsx tests/lokaal.test.mts             # Het Lokaal: laden/pagineren/poll+overlap, weghalen, opruimen, chat_last_at blijft staan
 npx tsx tests/market-memory.test.mts      # marktwaarde blijft staan tot een nieuwere verkoop; σ 6; venster 60
 npx tsx tests/market-floor.test.mts       # nooit onder 1/5 van de marktwaarde; Zulma en Freddy (€25) tellen niet mee
+npx tsx tests/hygiene.test.mts            # hokhygiëne, stro, poetser, bodem ×0,4
+npx tsx tests/inrichting.test.mts         # ventilatie, ren, sperwer, vaccins, verzekering, vakblad, weerstation, bots
+npx tsx tests/hokoverzicht.test.mts       # hokoverzicht: flying (in de lucht) vs. racing (ook gepland)
+npx tsx tests/vaccine-price.test.mts      # wat een vaccin oplevert tegenover zijn vaste prijs
+npx tsx tests/market-boost.test.mts       # zoekertje naar boven: één plek bovenaan, 12 u, gewist bij verkoop
+npx tsx tests/contagion.test.mts          # besmetting per ziekte: de eigen ziekte van de bron, eigen kans
+npx tsx tests/inrichting-news.test.mts    # v61: één aankondigingsbel per echte speler, stabiele id
 ```
 
 > **Geen `tsx` beschikbaar?** (cloud-sessie waar de npm-registry geblokkeerd is: `npx tsx`
@@ -1193,11 +1626,14 @@ Alles in één keer (bash, vanuit de root):
 for f in tests/*.test.mts; do printf '%-26s ' "$(basename "$f")"; npx tsx "$f" >/dev/null 2>&1 && echo OK || echo FAIL; done
 ```
 
-**Stand van de suite: 42 van de 43 groen** (gemeten bij de Stem-commit; `cpu-budget`
-apart gedraaid). Bekende rode — controleer of een rode test hierin staat vóór je gaat
-zoeken:
-- `age-cup` — **echt rood**, één assertie ("de cyclus is verankerd op het einde van het
-  lopende seizoen"); de overige 68 controles zijn groen. Nog te repareren.
+**Stand van de suite (dev, na het weghalen van de koppels): 57 van de 58 groen** (`cpu-budget`
+apart gedraaid; enkel `age-cup` rood, zie hieronder). `inrichting` hing af van het uur: een vlucht
+die 24–25 u later vertrekt, schoof tijdens het geteste uur het weerstationvenster in; de assertie
+kijkt nu enkel naar vluchten die al een voorspelling hadden (groen op alle 24 uren van de dag).
+Bekende rode — controleer of een rode test hierin staat vóór je gaat zoeken:
+- `age-cup` — **echt rood**, intussen drie asserties ("de cyclus is verankerd op het einde
+  van het lopende seizoen", "er staan criteriumvluchten gepland (0)", "alle 4 klassen komen
+  aan bod"), identiek op de boom vóór de hokinrichting. Nog te repareren.
 - `cpu-budget` — **rood op een belaste machine**: de koude odds-meting schiet over haar
   budget (gemeten 6,3–8,4 ms over 3 runs op de ongewijzigde boom). Draai hem apart, niet
   naast een andere testrun; los gedraaid is hij groen (3,0 / 4,4 ms).
@@ -1216,12 +1652,14 @@ eerst), `npx tsx tests/limits-report.mts` (queries/rijen per verzoek) en
 `npx tsx tests/cpu-pigeons.mts` (**marginale** CPU per duif — de helling, niet de
 absolute waarde, want lokaal draait SQLite synchroon in hetzelfde proces).
 Ook handig: `BREAKDOWN=1 npx tsx tests/query-budget.test.mts` splitst het duurste
-verzoek uit per statement.
+verzoek uit per statement. Op dev: `npx tsx tests/vaccine-economics.mts` (~1 min) rekent uit
+wat een vaccin of kuur waard is tegenover wat een ziekte kost (§0b).
 
-### Git + deploy (ALTIJD, zie §0)
+### Git + deploy (zie §0: productie enkel op vraag)
 1. Ontwikkel + commit op de **dev-branch uit §0**; push met
    `git push -u origin <dev-branch>` (retry met backoff).
-2. **Deploy meteen naar productie** door de commit op de deploy-branch te zetten:
+2. **Naar productie — enkel als de eigenaar het vraagt** (zie §0), door de commit op de
+   deploy-branch te zetten:
    ```bash
    git fetch origin claude/roekoe-game-website-jwa0vo
    git checkout claude/roekoe-game-website-jwa0vo
@@ -1258,7 +1696,37 @@ Alles hieronder staat **live** op de deploy-branch. Data-migraties liepen door t
 > getrapt is. Nieuwste bovenaan. Voor "hoe werkt het spel nu" hoef je §8 niet te lezen;
 > daarvoor volstaan §2 t/m §7.
 
-**Markt: nooit onder 1/5 van de marktwaarde; twee verkopen van €25 tellen niet mee (nieuwste)**
+**Besmetting per ziekte (nieuwste)**
+- **Beslissing van de eigenaar (11 okt):** "Besmetting wordt per ziekte bepaald. De ene heeft grotere
+  kans dan de andere." Vroeger was elke ziekte even besmettelijk (`contagionPerSource` 0,3/week per
+  bron), en wie besmet raakte kreeg een **willekeurige** ziekte (`randomDisease`, gewogen op háár
+  vorm) — niet die van de zieke hokgenoot.
+- **Nu:** een zieke hokgenoot buiten de ziekenboeg geeft **haar eigen ziekte** door, met een factor
+  per ziekte op `contagionPerSource`: `DISEASES[].contagion` (gameConfig; factoren door de eigenaar
+  gekozen): Paramyxovirose ×1,5 · Ornithose ×1,3 · Het Geel ×1,2 · Coccidiose ×1 · Duivenpokken
+  ×0,7 · Salmonellose ×0,6. Een onbekende naam (oude data) rekent met ×1.
+- **Code (`health.ts`):** `contagionByDisease(sick, susceptibility)` geeft per ziekte die rondgaat de
+  dagkans (twee hokgenoten met dezelfde ziekte = twee bronnen; verschillende ziektes elk apart).
+  `runHealthDay` combineert die met de spontane kans via `illnessChance` (hygiëne, poetser, apart
+  hok, IJzeren gestel, bodem ×0,4), en kiest bij ziek worden **welke**: elke ziekte die rondgaat
+  weegt haar kans (× de poetser-ontsmetting) tegen de spontane kans; spontaan = `randomDisease`
+  zoals vroeger. Daarna weert `fendsOff` (vaccin/kuur/ventilatie) **díe** ziekte af — zo werkt een
+  kuur tegen wat er rondgaat. De melding zegt "Ze liep het op bij een zieke hokgenoot." De legacy
+  `runHealthWeek` (admin) is ongewijzigd.
+- **Gevolgen:** de ernst-tabel (`DISEASE_SEVERITY`) geldt enkel nog voor **spontane** ziekte: een
+  fitte duif kan van een hokgenoot gewoon paramyxo oplopen. Gemiddeld over hoe vaak elke ziekte
+  voorkomt (Het Geel, de meest voorkomende, is ×1,2) is er **~10 % meer besmetting** dan vroeger.
+  Kans per week per hokgenoot, per bron: vorm 75 → 3,5 % (salmonella) tot 9,9 % (paramyxo); vorm
+  45 → 6,7 % tot 18,5 % (oud: 6,1 % en 11,6 %). Wiki `#ziekte` en spelregels §5.2 tonen die tabel
+  (met de hand: pas ze mee aan als je `contagion`, `contagionPerSource` of `ILLNESS` wijzigt). De
+  tabel "Besmetting binnen een week" in de wiki is van vóór deze wijziging (gemiddelde).
+- **Test:** `tests/contagion.test.mts` (21 controles, ~3 s, geseed): volgorde van de factoren,
+  Coccidiose (×1) = exact de oude kans, gemeten kans per ziekte = de formule, wie besmet raakt
+  krijgt de ziekte van de bron, de ziekenboeg besmet niemand, zonder bron niets veranderd.
+- ⚠️ **Dev** (`claude/demo-hokinrichting`, gepauzeerd) heeft dit **niet** (zie §0b *Dev weer
+  aanzetten*). Live gegaan samen met de hokinrichting (11 okt).
+
+**Markt: nooit onder 1/5 van de marktwaarde; twee verkopen van €25 tellen niet mee**
 - **Melding van de eigenaar (productie):** Roekoeloos verkocht *Zulma uit het Zolderhok* en
   *Freddy de Fondkoning* aan Graanabolica voor **€25**, ver onder hun waarde, en dat trok elke
   vergelijkbare duif omlaag (in `market-floor.test.mts` halveert één zo'n verkoop de waarde van een
@@ -1280,7 +1748,7 @@ Alles hieronder staat **live** op de deploy-branch. Data-migraties liepen door t
 - **Test:** `tests/market-floor.test.mts`. `bot-market` test 2 zet de botduif nu op precies 1/5
   (spotgoedkoop maar toegelaten), zodat enkel de bot-check haar tegenhoudt, zoals bedoeld.
 
-**Marktwaarde houdt stand tot een nieuwere verkoop**
+**Marktwaarde houdt stand tot een nieuwere verkoop** (⚠️ op dev vervangen door *Marktwaarde v2*, §0b)
 - **Melding van de eigenaar:** na een dure verkoop schoten de waarden omhoog en zakten ze
   daarna dag na dag terug, terwijl die hogere prijs net de juiste was (een duif van score 80:
   €20.000 → €12.000 in een paar dagen).
@@ -5025,5 +5493,7 @@ Wat nog echt open staat, staat hieronder.
 3. `core/schema.ts` = datamodel (let op `form`=energie, `endurance`=conditie).
 4. `advanceRealtime` in `core/game/schedule.ts` = wat er elk verzoek gebeurt (§2).
 5. Endpoints in `functions/api/[[path]].ts`; UI in `client/src/pages/`.
-6. Verifieer met de typecheck/build-commando's (§7), **update context.md**, commit,
-   en **deploy meteen naar productie** (§0/§7).
+6. Verifieer met de typecheck/build-commando's (§7), **update context.md**, commit en push
+   op de **dev-branch** (§0). Naar productie enkel als de eigenaar dat vraagt.
+7. Begin bij **§0b → "Stand van zaken"**: wat er op dev staat, wat live is, en welke
+   beslissingen nog openstaan.

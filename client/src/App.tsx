@@ -8,6 +8,7 @@ import { Layout } from './components/Layout';
 import { LoginPage } from './pages/LoginPage';
 import { DashboardPage } from './pages/DashboardPage';
 import { LoftPage } from './pages/LoftPage';
+import { InrichtingPage } from './pages/InrichtingPage';
 import { PigeonPage } from './pages/PigeonPage';
 import { MarketPage } from './pages/MarketPage';
 import { BreedingPage } from './pages/BreedingPage';
@@ -41,6 +42,7 @@ export function App() {
       <Route element={<Layout />}>
         <Route index element={<DashboardPage />} />
         <Route path="/hok" element={<LoftPage />} />
+        <Route path="/inrichting" element={<InrichtingPage />} />
         <Route path="/duif/:id" element={<PigeonPage />} />
         <Route path="/markt" element={<MarketPage />} />
         <Route path="/kweek" element={<BreedingPage />} />

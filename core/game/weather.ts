@@ -35,6 +35,11 @@ const BELGIAN_MONTH_TEMP = [3, 4, 7, 10, 14, 17, 19, 18, 15, 11, 7, 4];
 
 /** A plausible temperature for a moment without network: the Belgian monthly
  *  average ± 3 °C. */
+/** The usual Belgian temperature for the month of `atMs` (no randomness). */
+export function monthTemperature(atMs: number = Date.now()): number {
+  return BELGIAN_MONTH_TEMP[new Date(atMs).getUTCMonth()];
+}
+
 export function fallbackTemperature(atMs: number = Date.now()): number {
   const month = new Date(atMs).getUTCMonth();
   return round1(BELGIAN_MONTH_TEMP[month] + (Math.random() * 6 - 3));

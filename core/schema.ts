@@ -37,6 +37,8 @@ export interface Ailment {
   // Real-time recovery bookkeeping (see tickHealing). All optional so older
   // saved ailments keep working; they ride in the ailment's JSON column.
   healed?: number; // recovery progress, 0..1
+  /** Spent time in the infirmary during this ailment (the verzekering asks). */
+  boeg?: boolean;
   lastTickMs?: number; // last time healing progressed
   lastUpdateMs?: number; // last doctor/physio status update
   updates?: number; // status-update counter (for stable notification ids)
@@ -111,6 +113,14 @@ export interface Pigeon {
    * the market.
    */
   minBid?: number | null;
+  /**
+   * "Zoekertje naar boven" (MARKET_BOOST): when the seller last paid to put this
+   * listing at the top of the market. The listing with the most recent boost
+   * younger than MARKET_BOOST.hours is the one on top (market.featuredListingId),
+   * so a newer boost by anyone pushes this one back down. Cleared whenever the
+   * bird leaves the market.
+   */
+  boostedAt?: string | null;
   createdAtWeek: number;
   // Health status.
   ailment: Ailment | null; // current disease/injury, or null if healthy
@@ -189,6 +199,8 @@ export interface Pigeon {
    *  schedule.ts). Shown on Mijn hok only when that is still her owner. */
   earnings?: number;
   earningsOwner?: string | null;
+  /** Hokinrichting: vaccins, verzekering (column `care`). */
+  care?: PigeonCare;
   seasonPracticeGain?: number; // score gained from practice flights this season (excluded from the ranking)
   /**
    * Leeftijdscriterium standings, PER age bracket (see AGE_CUP). A bird ages out
@@ -316,6 +328,47 @@ export interface Loft {
    * loft simply has them the moment the feature ships.
    */
   unlockedReactions?: string[];
+  /**
+   * Hokinrichting: one JSON column on the loft row, like
+   * `awards` — no table, no extra query. Absent = never touched = the game as it
+   * was (hygiene neutral, nothing hired). See HYGIENE in gameConfig.
+   */
+  equipment?: LoftEquipment;
+}
+
+export interface LoftEquipment {
+  /** Hokhygiëne 0–100. Drops once a day; fresh straw puts it at 100. */
+  hygiene: number;
+  /** When fresh straw was last strewn (ISO), or null: the floor is bare. */
+  lastStrawAt: string | null;
+  /** A hokpoetser is hired (€/day, keeps the straw fresh, disinfects). */
+  cleaner: boolean;
+  // The rest of the hokinrichting (see EQUIPMENT in gameConfig). All optional:
+  // absent = not bought.
+  ventilation?: boolean;
+  run?: boolean; // buitenren
+  raptorGuard?: boolean; // net over de ren + lokuil
+  light?: boolean; // kunstlicht
+  irBoxes?: number; // infrarood-nestbakken (0 = none)
+  baskets?: boolean; // betere reismanden
+  weatherStation?: boolean;
+  magazine?: boolean; // vakblad-abonnement
+  /** Day number (Brussels) the last sperwerschrik in the ren happened — stable notification id. */
+  lastHawkDay?: number;
+  /** Niveaus (EQUIPMENT_LEVELS): absent = level 1 for whatever is bought. */
+  levels?: Partial<Record<'ventilation' | 'run' | 'light' | 'irBoxes' | 'baskets', number>>;
+}
+
+/**
+ * Per-bird care from the hokinrichting (vaccins, verzekering). One JSON column on the pigeon row; absent = none.
+ */
+export interface PigeonCare {
+  /** Vaccine/kuur id → valid until (ISO). See VACCINES in gameConfig. */
+  vaccines?: Record<string, string>;
+  /** May not fly before this (a fresh vaccine). */
+  noFlyUntil?: string;
+  /** Duivenverzekering: what is paid out on death, and since when. */
+  insurance?: { payout: number; since: string };
 }
 
 /**
@@ -599,6 +652,8 @@ export interface RelayLeg {
 
 /** A single pigeon's frozen performance, computed when a flight goes live. */
 export interface SimEntry {
+  /** Hokinrichting: reismanden — the flight costs this fraction of the usual health. */
+  healthMult?: number;
   pigeonId: string;
   pigeonName: string;
   ownerId: string;
@@ -741,6 +796,8 @@ export interface Flight {
   sim: SimEntry[]; // frozen when the flight goes live
   weather: string;
   weatherFactor: number;
+  /** Weerstation: the forecast for the release, fetched from 24 h before the start. */
+  forecast?: { label: string; factor: number; rain: boolean; tempC: number; at: string } | null;
   /** Seizoen 3 (kenmerken): the release weather in detail — wind along the route
    *  (km/h, + = tailwind), rain, and the temperature at the release point. */
   weatherAlong?: number;
@@ -1063,6 +1120,11 @@ export interface Database {
 
 export function emptyFoodStock(): FoodStock {
   return { normal: 0, premium: 0, libido: 0, herstel: 0 };
+}
+
+/** The loft's hokinrichting as it stands today: everything off, hygiene neutral. */
+export function defaultEquipment(): LoftEquipment {
+  return { hygiene: 50, lastStrawAt: null, cleaner: false };
 }
 
 export function emptySponsorState(): SponsorState {

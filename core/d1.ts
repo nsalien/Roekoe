@@ -129,6 +129,7 @@ function rowToLoft(r: any): Loft {
     unlockedReactions: r.unlocked_reactions ? JSON.parse(r.unlocked_reactions) : [],
     debtDays: r.debt_days ?? 0,
     debtMisses: r.debt_misses ?? 0,
+    equipment: r.equipment ? JSON.parse(r.equipment) : undefined,
   };
 }
 
@@ -184,6 +185,7 @@ function rowToPigeon(r: any): Pigeon {
     cureUntil: r.cure_until ?? null,
     listedAt: r.listed_at ?? null,
     minBid: r.min_bid ?? null,
+    boostedAt: r.boosted_at ?? null,
     lastRaceAt: r.last_race_at ?? null,
     lastRestCureAt: r.last_rest_cure_at ?? null,
     lastBredAt: r.last_bred_at ?? null,
@@ -193,6 +195,7 @@ function rowToPigeon(r: any): Pigeon {
     trait: r.trait ?? null,
     earnings: r.earnings ?? 0,
     earningsOwner: r.earnings_owner ?? null,
+    care: r.care ? JSON.parse(r.care) : undefined,
     awayUntil: r.away_until ?? null,
     lastRaceWasPractice: !!r.last_race_practice,
     seasonPeakSpeed: r.season_peak_speed ?? 0,
@@ -244,6 +247,7 @@ function rowToFlight(r: any): Flight {
     tempC: r.temp_c ?? undefined,
     results: JSON.parse(r.results || '[]'),
     recap: r.recap ?? '',
+    forecast: r.forecast ? JSON.parse(r.forecast) : undefined,
     chat: r.chat ? JSON.parse(r.chat) : [],
     createdAt: r.created_at,
   };
@@ -383,7 +387,7 @@ const PIGEON_COLUMNS = [
   'season_start_score', 'season_practice_gain', 'trained_at', 'genes', 'decline_rate',
   'care_assigned', 'last_race_at', 'last_race_practice', 'last_rest_cure_at', 'away_until',
   'cup', 'titles', 'listed_at', 'min_bid', 'last_bred_at', 'sire_name', 'dam_name', 'quirk',
-  'trait', 'earnings', 'earnings_owner',
+  'trait', 'earnings', 'earnings_owner', 'care', 'boosted_at',
 ];
 
 /**
@@ -428,6 +432,9 @@ function pigeonRow(p: Pigeon): unknown[] {
     p.trait ?? null,
     p.earnings ?? 0,
     p.earningsOwner ?? null,
+    // '' for a bird without any care, so its column-narrowed UPDATE skips it.
+    p.care && Object.keys(p.care).length ? JSON.stringify(p.care) : '',
+    p.boostedAt ?? null,
   ];
 }
 
@@ -436,7 +443,7 @@ const LOFT_COLUMNS = [
   'season_points', 'total_wins', 'is_bot', 'infirmary_capacity', 'medicated_food', 'doctors',
   'physios', 'xp', 'level', 'stats', 'badges', 'missions', 'missions_day', 'streak',
   'pending_event', 'sponsorship', 'last_rest_cure', 'awards', 'pending_broods', 'newcomer',
-  'season_wins', 'unlocked_reactions', 'debt_days', 'debt_misses',
+  'season_wins', 'unlocked_reactions', 'debt_days', 'debt_misses', 'equipment',
 ];
 
 function loftRow(l: Loft): unknown[] {
@@ -462,6 +469,9 @@ function loftRow(l: Loft): unknown[] {
     // 0 for every solvent loft, so its column-narrowed UPDATE keeps skipping both.
     l.debtDays ?? 0,
     l.debtMisses ?? 0,
+    // '' for a loft that never touched its hokinrichting, so its column-narrowed
+    // UPDATE keeps skipping this column.
+    l.equipment ? JSON.stringify(l.equipment) : '',
   ];
 }
 
@@ -781,7 +791,7 @@ export class D1Store implements Store {
         'id', 'week', 'template_key', 'name', 'type', 'distance_km', 'entry_fee', 'from_city',
         'to_city', 'start_at', 'status', 'entries', 'sim', 'weather', 'weather_factor', 'results',
         'recap', 'created_at', 'practice', 'titan', 'relay', 'legs', 'age_cat', 'cup_sprint',
-        'chat', 'weather_along', 'weather_rain', 'temp_c',
+        'chat', 'weather_along', 'weather_rain', 'temp_c', 'forecast',
       ],
       keyColumn: 'id',
       row: (f) => [
@@ -794,6 +804,7 @@ export class D1Store implements Store {
         // keeps skipping the column.
         f.chat?.length ? JSON.stringify(f.chat) : '',
         f.weatherAlong ?? null, f.weatherRain == null ? null : b(f.weatherRain), f.tempC ?? null,
+        f.forecast ? JSON.stringify(f.forecast) : '',
       ],
       stmts,
     });
@@ -1512,7 +1523,7 @@ export const EARNINGS_BACKFILL_SQL = [
   '), 0)',
 ].join(' ');
 
-const SCHEMA_STEPS: string[] = [
+export const SCHEMA_STEPS: string[] = [
   // 0 — the progress counter itself, so tracking works from the very first run.
   'ALTER TABLE world ADD COLUMN schema_version INTEGER NOT NULL DEFAULT 0',
 
@@ -1722,6 +1733,17 @@ const SCHEMA_STEPS: string[] = [
   // newcomer-aware — recount again. Idempotent: it recomputes from the history,
   // which also holds every race credited live since.
   EARNINGS_BACKFILL_SQL,
+
+  // Hokinrichting: hygiëne, stro en poetser as one JSON
+  // blob on the loft row (Loft.equipment) — no table, no extra query.
+  "ALTER TABLE lofts ADD COLUMN equipment TEXT NOT NULL DEFAULT ''",
+  // Per-bird care (vaccins, verzekering) and the
+  // weerstation's forecast on the flight row — same rules: '' = untouched.
+  "ALTER TABLE pigeons ADD COLUMN care TEXT NOT NULL DEFAULT ''",
+  "ALTER TABLE flights ADD COLUMN forecast TEXT NOT NULL DEFAULT ''",
+
+  // "Zoekertje naar boven": when a listing was last boosted (Pigeon.boostedAt).
+  'ALTER TABLE pigeons ADD COLUMN boosted_at TEXT',
 ];
 
 /**

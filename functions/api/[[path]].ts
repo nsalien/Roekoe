@@ -35,7 +35,7 @@ import {
   setStemStatus,
   toggleStemVote,
 } from '../../core/d1.js';
-import type { User } from '../../core/schema.js';
+import type { Database, User } from '../../core/schema.js';
 import { hashPassword, verifyPassword, signToken, verifyToken } from '../../core/auth.js';
 import { newId } from '../../core/store.js';
 import {
@@ -48,6 +48,11 @@ import {
   BREEDING,
   failedBreedRefund,
   COACH,
+  EQUIPMENT,
+  INSURANCE,
+  MARKET_BOOST,
+  VACCINES,
+  VACCINE_RENEW_SHARE,
   FEED_RATIONS,
   FOOD_RESALE_RATE,
   GENE,
@@ -76,6 +81,7 @@ import {
   chooseEvent,
   enterFlight,
   giveUpFlight,
+  boostListing,
   listForSale,
   refuseSponsor,
   releasePigeon,
@@ -102,8 +108,10 @@ import {
   upgradeInfirmary,
   withdrawFlight,
 } from '../../core/game/engine.js';
-import { advanceRealtime, applyRelayForecasts, flightsAwaitingStart, relayLegsNeedingForecast, tickFlights } from '../../core/game/schedule.js';
+import { advanceRealtime, applyFlightForecasts, applyRelayForecasts, flightsAwaitingStart, flightsNeedingForecast, relayLegsNeedingForecast, tickFlights } from '../../core/game/schedule.js';
 import { pigeonSeasonRankings } from '../../core/game/season.js';
+import { buyStraw, setCleaner } from '../../core/game/hygiene.js';
+import { buyEquipment, buyIrBox, inrichtingEffects, inrichtingLevels, magazineReport, setInsurance, upgradeEquipment, vaccinate, vaccinateLoft } from '../../core/game/inrichting.js';
 import { spendAttribute, spendExperience } from '../../core/game/newcomer.js';
 import { velocityBreakdown, weightsForDistance } from '../../core/game/flight.js';
 import { ageInWeeks } from '../../core/game/pigeon.js';
@@ -154,6 +162,7 @@ import {
   rankingRows,
   recentTrades,
 } from '../../core/presenters.js';
+import { boostEndsAt, featuredListingId } from '../../core/game/market.js';
 
 interface Env {
   DB: D1Database;
@@ -178,6 +187,9 @@ let schemaReady = false;
  * costs no extra query: every ancestor still alive is in the loaded world.
  */
 const PEDIGREE_GENERATIONS = 3;
+/** Hokinrichting: niveaus and their prices, from the config — the same for every request. */
+const INRICHTING_LEVELS = inrichtingLevels();
+const INRICHTING_EFFECTS = inrichtingEffects();
 /** How far DOWN the family view goes: children, grandchildren, great-grandchildren. */
 const DESCENDANT_GENERATIONS = 3;
 
@@ -324,16 +336,21 @@ app.use('*', async (c, next) => {
     const due = flightsAwaitingStart(store.data, nowMs).filter((f) => !f.relay);
     // A relay freezes against its own per-leg forecasts, fetched alongside.
     const legs = relayLegsNeedingForecast(store.data, nowMs);
-    const [dueWeather, legWeather] = await Promise.all([
+    // Weerstation (hokinrichting): forecasts for flights within 24 h — only fetched
+    // while some loft owns a station.
+    const stationFlights = flightsNeedingForecast(store.data, nowMs);
+    const [dueWeather, legWeather, stationWeather] = await Promise.all([
       Promise.all(due.map(async (f) => [f.id, await fetchFlightWeather(f.fromCity, f.toCity)] as const)),
       Promise.all(
         legs.map(async (leg) =>
           [`${leg.flightId}:${leg.legIndex}`, await fetchLegForecast(leg.from, leg.to, leg.atMs)] as const,
         ),
       ),
+      Promise.all(stationFlights.map(async (sf) => [sf.flightId, await fetchLegForecast(sf.from, sf.to, sf.atMs)] as const)),
     ]);
     const weatherByFlight = new Map<string, WeatherResult>(dueWeather);
     if (legWeather.length > 0) applyRelayForecasts(store.data, new Map(legWeather), nowMs);
+    if (stationWeather.length > 0) applyFlightForecasts(store.data, new Map(stationWeather), nowMs);
     advanceRealtime(store.data, nowMs, weatherByFlight);
     // The full world is in memory and the engine just ran, so this is the one
     // moment the world-wide leaderboards can change AND can be computed
@@ -363,6 +380,19 @@ app.use('*', async (c, next) => {
   }
   await next();
 });
+
+/**
+ * Weerstation (hokinrichting): put the forecast on the upcoming flights, but only
+ * for a viewer who owns a station — everyone else sees the weather at the lossing.
+ */
+function withForecast<T extends { id: string }>(db: Database, userId: string, flights: T[]): (T & { forecast?: unknown })[] {
+  const has = !!db.lofts.find((l) => l.userId === userId)?.equipment?.weatherStation;
+  if (!has) return flights;
+  return flights.map((f) => {
+    const fc = db.flights.find((x) => x.id === f.id)?.forecast;
+    return fc ? { ...f, forecast: fc } : f;
+  });
+}
 
 function requireUser(c: any): User {
   const user = c.get('user');
@@ -475,7 +505,7 @@ app.get('/state', (c) => {
     isAdmin: user.isAdmin,
     loft: loft ? loftDTO(db, loft) : null,
     pigeons,
-    scheduledFlights: upcoming,
+    scheduledFlights: withForecast(db, user.id, upcoming),
     // Cached: computing these reads every pigeon in the world, which is exactly
     // what /state must not do. Refreshed whenever the engine runs (middleware).
     // Carries `rankings`, `pigeonRankings` and the criterium's `cupRankings`.
@@ -496,6 +526,15 @@ app.get('/state', (c) => {
       fondPrizes: AGE_CUP.fond.prizes,
     },
     feedRations: FEED_RATIONS,
+    // Hokinrichting: the catalogue the Mijn hok / duif screens price from.
+    inrichting: {
+      equipment: EQUIPMENT,
+      levels: INRICHTING_LEVELS,
+      effects: INRICHTING_EFFECTS,
+      vaccines: VACCINES,
+      vaccineRenewShare: VACCINE_RENEW_SHARE,
+      insurancePayoutRate: INSURANCE.payoutRate,
+    },
     infirmary: INFIRMARY,
     economy: {
       renameCost: RENAME_COST,
@@ -775,6 +814,86 @@ app.post('/loft/compartment', async (c) => {
   return err ? c.json({ error: err }, 400) : c.json({ ok: true });
 });
 
+// Hokinrichting: vers stro en de hokpoetser.
+app.post('/loft/straw', async (c) => {
+  const user = requireUser(c);
+  const store = c.get('store');
+  const err = buyStraw(store, user.id);
+  await store.persist();
+  return err ? c.json({ error: err }, 400) : c.json({ ok: true });
+});
+
+app.post('/loft/cleaner', async (c) => {
+  const user = requireUser(c);
+  const body = await c.req.json().catch(() => ({}));
+  const store = c.get('store');
+  const err = setCleaner(store, user.id, !!body.on);
+  await store.persist();
+  return err ? c.json({ error: err }, 400) : c.json({ ok: true });
+});
+
+// Hokinrichting: equipment, vaccins, verzekering.
+const ok = (err: string | null) => (err ? { error: err } : { ok: true });
+
+app.post('/loft/equipment', async (c) => {
+  const user = requireUser(c);
+  const body = await c.req.json().catch(() => ({}));
+  const key = String(body.key ?? '');
+  const keys = ['ventilation', 'run', 'raptorGuard', 'light', 'baskets', 'weatherStation', 'magazine'];
+  if (!keys.includes(key)) return c.json({ error: 'Onbekend onderdeel' }, 400);
+  const store = c.get('store');
+  const err = buyEquipment(store, user.id, key as any, body.on !== false);
+  await store.persist();
+  return c.json(ok(err), err ? 400 : 200);
+});
+
+// Niveaus (hokinrichting): one level up for an item that is already bought.
+app.post('/loft/equipment/upgrade', async (c) => {
+  const user = requireUser(c);
+  const body = await c.req.json().catch(() => ({}));
+  const store = c.get('store');
+  const err = upgradeEquipment(store, user.id, String(body.key ?? ''));
+  await store.persist();
+  return c.json(ok(err), err ? 400 : 200);
+});
+
+app.post('/loft/irbox', async (c) => {
+  const user = requireUser(c);
+  const store = c.get('store');
+  const err = buyIrBox(store, user.id);
+  await store.persist();
+  return c.json(ok(err), err ? 400 : 200);
+});
+
+app.post('/pigeons/:id/vaccinate', async (c) => {
+  const user = requireUser(c);
+  const body = await c.req.json().catch(() => ({}));
+  if (!(String(body.key) in VACCINES)) return c.json({ error: 'Onbekend middel' }, 400);
+  const store = c.get('store');
+  const err = vaccinate(store, user.id, c.req.param('id'), body.key);
+  await store.persist();
+  return c.json(ok(err), err ? 400 : 200);
+});
+
+app.post('/loft/vaccinate', async (c) => {
+  const user = requireUser(c);
+  const body = await c.req.json().catch(() => ({}));
+  if (!(String(body.key) in VACCINES)) return c.json({ error: 'Onbekend middel' }, 400);
+  const store = c.get('store');
+  const res = vaccinateLoft(store, user.id, body.key);
+  await store.persist();
+  return res.error ? c.json({ error: res.error }, 400) : c.json({ ok: true, count: res.count });
+});
+
+app.post('/pigeons/:id/insurance', async (c) => {
+  const user = requireUser(c);
+  const body = await c.req.json().catch(() => ({}));
+  const store = c.get('store');
+  const err = setInsurance(store, user.id, c.req.param('id'), !!body.on);
+  await store.persist();
+  return c.json(ok(err), err ? 400 : 200);
+});
+
 app.post('/loft/infirmary/upgrade', async (c) => {
   const user = requireUser(c);
   const store = c.get('store');
@@ -956,17 +1075,26 @@ app.get('/market', (c) => {
   // Your own listings are included, so a seller sees his bird on the market like
   // everyone else does. The client shows them without buy/bid buttons, and
   // buyPigeon / makeOffer refuse your own bird anyway.
+  // "Zoekertje naar boven": the one boosted listing goes first, the rest by price.
+  const nowMs = Date.now();
+  const featuredId = featuredListingId(db, nowMs);
   const listings = db.pigeons
     .filter((p) => p.forSale)
-    .map((p) => pigeonDTO(db, p, user.id, user.isAdmin))
-    .sort((a, b) => (a.price ?? 0) - (b.price ?? 0));
+    .map((p) => ({
+      ...pigeonDTO(db, p, user.id, user.isAdmin),
+      featured: p.id === featuredId,
+      featuredUntil: p.id === featuredId ? new Date(boostEndsAt(p)).toISOString() : null,
+    }))
+    .sort((a, b) => Number(b.featured) - Number(a.featured) || (a.price ?? 0) - (b.price ?? 0));
   // Every other real player's pigeon that is NOT already listed — you can make a
   // private offer on these (see offers.ts). For-sale ones are in `listings`.
   const biddable = db.pigeons
     .filter((p) => p.ownerId !== user.id && !botIds.has(p.ownerId) && !p.forSale)
     .map((p) => pigeonDTO(db, p, user.id, user.isAdmin))
     .sort((a, b) => b.talent - a.talent);
-  return c.json({ listings, biddable, trades: recentTrades(db, Date.now()), auctions: auctionsDTO(db, user.id) });
+  // Vakblad (hokinrichting): the market report, for subscribers only.
+  const report = db.lofts.find((l) => l.userId === user.id)?.equipment?.magazine ? magazineReport(db, Date.now()) : null;
+  return c.json({ listings, biddable, trades: recentTrades(db, Date.now()), auctions: auctionsDTO(db, user.id), report, boost: MARKET_BOOST });
 });
 
 app.post('/auction/bid', async (c) => {
@@ -997,6 +1125,16 @@ app.post('/market/unlist', async (c) => {
   const body = await c.req.json().catch(() => ({}));
   const store = c.get('store');
   const err = unlist(store, user.id, String(body.pigeonId ?? ''));
+  await store.persist();
+  return err ? c.json({ error: err }, 400) : c.json({ ok: true });
+});
+
+// "Zoekertje naar boven": pay MARKET_BOOST.cost to put your own listing on top.
+app.post('/market/boost', async (c) => {
+  const user = requireUser(c);
+  const body = await c.req.json().catch(() => ({}));
+  const store = c.get('store');
+  const err = boostListing(store, user.id, String(body.pigeonId ?? ''));
   await store.persist();
   return err ? c.json({ error: err }, 400) : c.json({ ok: true });
 });
@@ -1041,10 +1179,11 @@ app.post('/offers/:id/respond', async (c) => {
 app.get('/flights', (c) => {
   requireUser(c);
   const db = c.get('store').data;
-  const scheduled = db.flights
+  const user = c.get('user') as User;
+  const scheduled = withForecast(db, user.id, db.flights
     .filter((f) => f.status === 'scheduled')
     .sort((a, b) => a.startAt.localeCompare(b.startAt))
-    .map((f) => flightDTO(db, f));
+    .map((f) => flightDTO(db, f)));
   const live = db.flights
     .filter((f) => f.status === 'live')
     .sort((a, b) => a.startAt.localeCompare(b.startAt))

@@ -19,6 +19,7 @@ import {
   DISEASES,
   HEALING,
   HEALTH,
+  HYGIENE,
   ILLNESS,
   INFIRMARY,
   INJURIES,
@@ -30,6 +31,8 @@ import { newId } from '../store.js';
 import { ageInWeeks, ageMortality, conditionScore, isAway, noteAttrChange } from './pigeon.js';
 import { awardBadge, evaluateBadges } from './badges.js';
 import { clamp, pick, pickWith, round1 } from './util.js';
+import { equipmentOf, illnessChance, spontaneousIllnessPerDay } from './hygiene.js';
+import { fendsOff, insurancePayout } from './inrichting.js';
 
 export interface HealthEvent {
   pigeonId: string;
@@ -237,6 +240,34 @@ function weeklyToDaily(pWeek: number): number {
   return 1 - Math.pow(1 - clamp(pWeek, 0, 1), 1 / 7);
 }
 
+/** How contagious a disease is (DISEASES[].contagion; 1 for anything not listed). */
+export function diseaseContagion(name: string): number {
+  return DISEASES.find((d) => d.name === name)?.contagion ?? 1;
+}
+
+/**
+ * The daily chance a healthy bird catches each disease going round its loft.
+ * Every sick loft mate outside the infirmary passes on ITS OWN disease, at that
+ * disease's `contagion` factor on HEALTH.contagionPerSource, × the bird's
+ * susceptibility. Two loft mates with the same disease are two sources of it.
+ */
+export function contagionByDisease(
+  sick: Ailment[],
+  susceptibility: number,
+): { disease: AilmentTemplate; chance: number }[] {
+  const byName = new Map<string, { disease: AilmentTemplate; sources: number }>();
+  for (const a of sick) {
+    const known = byName.get(a.name);
+    if (known) { known.sources++; continue; }
+    const disease = DISEASES.find((d) => d.name === a.name) ?? { name: a.name, severity: a.severity, description: a.description };
+    byName.set(a.name, { disease, sources: 1 });
+  }
+  return [...byName.values()].map(({ disease, sources }) => {
+    const perSource = weeklyToDaily(HEALTH.contagionPerSource * diseaseContagion(disease.name)) * susceptibility;
+    return { disease, chance: 1 - Math.pow(1 - perSource, sources) };
+  });
+}
+
 /** Push a unique (non-idempotent) health notification for a one-off event. */
 function pushHealthNote(db: Database, userId: string, title: string, body: string): void {
   db.notifications.push({
@@ -252,7 +283,7 @@ function pushHealthNote(db: Database, userId: string, title: string, body: strin
  * ailments keep sapping health, and an untreated ailment can turn fatal.
  * (Old-age mortality is applied per game-week in runAgeMortality.)
  */
-export function runHealthDay(db: Database, week: number): void {
+export function runHealthDay(db: Database, week: number, nowMs: number = Date.now()): void {
   const humanIds = new Set(db.lofts.filter((l) => !l.isBot).map((l) => l.userId));
   const dead = new Set<string>();
 
@@ -264,6 +295,7 @@ export function runHealthDay(db: Database, week: number): void {
     // 1. An ongoing ailment keeps draining health (worse when left untreated).
     for (const p of birds) {
       if (!p.ailment) continue;
+      if (p.inInfirmary) p.ailment.boeg = true; // the verzekering asks whether she was cared for
       let drain = HEALTH.ailmentHealthDrainPerDay[p.ailment.severity];
       if (!p.inInfirmary) drain *= HEALTH.ailmentDrainOutsideFactor;
       p.health = round1(clamp(p.health - drain, 0, 100));
@@ -278,6 +310,7 @@ export function runHealthDay(db: Database, week: number): void {
       const pDeath = weeklyToDaily(table[p.ailment.severity]);
       if (pDeath > 0 && Math.random() < pDeath) {
         dead.add(p.id);
+        insurancePayout(db, p, p.ailment.name === 'Sperwerverwonding' ? 'sperwer' : 'ziekte', nowMs);
         if (p.ailment.name === 'Sperwerverwonding') awardBadge(db, loft, 'rip_sperwer');
         if (human) {
           pushHealthNote(
@@ -291,7 +324,8 @@ export function runHealthDay(db: Database, week: number): void {
     // 3. Contagion + spontaneous illness among the survivors. A bird that lost its
     //    way on a flight is not in the loft: it can neither infect nor be infected.
     const alive = birds.filter((p) => !dead.has(p.id) && !isAway(p));
-    const sources = alive.filter((p) => p.ailment?.kind === 'ziekte' && !p.inInfirmary).length;
+    const eq = equipmentOf(loft);
+    const sick = alive.filter((p) => p.ailment?.kind === 'ziekte' && !p.inInfirmary).map((p) => p.ailment!);
     for (const p of alive) {
       if (p.ailment || p.inInfirmary) continue; // already ailing, or safely isolated
       // Falling ill runs on the SAME conditie-score as a strain injury does (energie
@@ -300,23 +334,45 @@ export function runHealthDay(db: Database, week: number): void {
       // shape still carries a small weekly risk — no loft is sterile.
       const condition = conditionScore(p);
       const frailty = Math.pow(clamp((100 - condition) / 100, 0, 1), ILLNESS.curve);
-      const spontaneous = weeklyToDaily(ILLNESS.floor + ILLNESS.max * frailty);
+      const spontaneous = spontaneousIllnessPerDay(condition);
       // Contagion rides on the same frailty, but never drops to nothing: a fit bird
-      // sharing a loft with a sick one can still catch it.
+      // sharing a loft with a sick one can still catch it. Each sick loft mate
+      // passes on its own disease, at that disease's own rate.
       const susceptibility = ILLNESS.contagionFloor + (1 - ILLNESS.contagionFloor) * frailty;
-      const perSource = weeklyToDaily(HEALTH.contagionPerSource) * susceptibility;
-      const fromOthers = sources > 0 ? 1 - Math.pow(1 - perSource, sources) : 0;
+      const caught = sick.length > 0 ? contagionByDisease(sick, susceptibility) : [];
+      const fromOthers = 1 - caught.reduce((q, c) => q * (1 - c.chance), 1);
       const compartmentGuard = p.compartment ? 1 - COMPARTMENT.diseaseReduction : 1;
       // IJzeren gestel (seizoen 3): falls ill less often — contagion and spontaneous.
       const sturdy = p.trait === 'sturdy' ? TRAITS.sturdyIllnessMult : 1;
-      const chance = clamp(1 - (1 - fromOthers) * (1 - spontaneous), 0, 0.85) * compartmentGuard * sturdy;
+      // Hokhygiëne and the hokpoetser (hokinrichting) join in; all of these
+      // together never go below HYGIENE.illnessFactorFloor (see hygiene.ts).
+      const chance = illnessChance({
+        spontaneous, fromOthers, hygiene: eq.hygiene, cleaner: eq.cleaner,
+        compartmentMult: compartmentGuard, traitMult: sturdy,
+      });
       if (Math.random() < chance) {
-        const disease = randomDisease(week, condition);
+        // Which one: each disease going round weighs its own chance against falling
+        // ill on its own. Hygiene, apart hok and kenmerk scale both alike; the
+        // hokpoetser only trims the contagion, so it trims those weights too.
+        const trim = eq.cleaner ? HYGIENE.cleanerContagionMult : 1;
+        let r = Math.random() * (caught.reduce((s, c) => s + c.chance * trim, 0) + spontaneous);
+        const from = caught.find((c) => (r -= c.chance * trim) < 0);
+        const disease = from ? makeAilment('ziekte', from.disease, week) : randomDisease(week, condition);
+        // Hokinrichting: ventilatie, a vaccine or a kuur against exactly this disease.
+        if (fendsOff(loft, p, disease.name, nowMs)) {
+          if (human) {
+            pushHealthNote(
+              db, loft.userId, `💉 ${p.name} weerde ${disease.name.toLowerCase()} af`,
+              `${p.name} kwam in contact met ${disease.name.toLowerCase()}, maar haar bescherming hield stand.`,
+            );
+          }
+          continue;
+        }
         applyAilment(p, disease);
         if (human) {
           pushHealthNote(
             db, loft.userId, `🤒 ${p.name} is ziek geworden`,
-            `Diagnose: ${disease.name} (${disease.severity}). ${disease.description} Zet ze meteen in de ziekenboeg om besmetting te voorkomen en het herstel te versnellen.`,
+            `Diagnose: ${disease.name} (${disease.severity}). ${disease.description} ${from ? 'Ze liep het op bij een zieke hokgenoot. ' : ''}Zet ze meteen in de ziekenboeg om besmetting te voorkomen en het herstel te versnellen.`,
           );
         }
       }
@@ -347,6 +403,7 @@ export function runAgeMortality(db: Database, week: number): void {
       const pDeath = ageMortality(p, week);
       if (pDeath > 0 && Math.random() < clamp(pDeath, 0, 0.95)) {
         dead.add(p.id);
+        insurancePayout(db, p, 'ouderdom', Date.now());
         awardBadge(db, loft, 'vredig');
         if (humanIds.has(loft.userId)) {
           const years = Math.floor(ageInWeeks(p, week) / 52);

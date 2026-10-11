@@ -5,9 +5,10 @@ import { Link } from 'react-router-dom';
 import { api } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
 import { useGame } from '../game/GameContext';
+import { MagazineCard } from '../components/Inrichting';
 import { markMarketSeen } from '../game/marketSeen';
 import { useVisiblePoll } from '../game/useVisiblePoll';
-import { BreedBadge, Money, PigeonStats, Spinner, TraitBadge, countdownTo, useToast } from '../components/ui';
+import { BreedBadge, Money, PigeonStats, Spinner, TraitBadge, countdownTo, timeUntilOrClock, useToast } from '../components/ui';
 import { PigeonCard } from '../components/PigeonCard';
 import { PigeonAvatar } from '../components/PigeonAvatar';
 import type { AuctionInfo, OfferView, Pigeon, Trade } from '../types';
@@ -23,6 +24,13 @@ function ago(iso: string): string {
   return `${Math.floor(h / 24)} d geleden`;
 }
 
+/** Vakblad: what birds fetched per talent class, and every sale in the window. */
+interface MarketReport {
+  days: number;
+  classes: { label: string; count: number; avg: number; min: number; max: number }[];
+  sales: { pigeonName: string; price: number; at: string; talent: number | null; buyerName: string; sellerName: string }[];
+}
+
 export function MarketPage() {
   const { state, refresh } = useGame();
   const { user } = useAuth();
@@ -30,11 +38,28 @@ export function MarketPage() {
   const [listings, setListings] = useState<Pigeon[] | null>(null);
   const [biddable, setBiddable] = useState<Pigeon[]>([]);
   const [trades, setTrades] = useState<Trade[]>([]);
+  const [report, setReport] = useState<MarketReport | null>(null);
   const [auctions, setAuctions] = useState<AuctionInfo[]>([]);
   const [busy, setBusy] = useState(false);
+  // "Zoekertje naar boven": what it costs and how long it holds the top spot.
+  const [boost, setBoost] = useState<{ cost: number; hours: number } | null>(null);
+  async function magazineAct(fn: () => Promise<unknown>, ok?: string) {
+    setBusy(true);
+    try {
+      await fn();
+      await refresh();
+      if (ok) toast.show(ok, 'ok');
+    } catch (e) {
+      toast.show(e instanceof Error ? e.message : 'Mislukt', 'err');
+    } finally {
+      setBusy(false);
+    }
+  }
 
   const load = useCallback(async () => {
-    const res = await api<{ listings: Pigeon[]; biddable: Pigeon[]; trades: Trade[]; auctions: AuctionInfo[] }>('/market');
+    const res = await api<{ listings: Pigeon[]; biddable: Pigeon[]; trades: Trade[]; auctions: AuctionInfo[]; report?: MarketReport | null; boost?: { cost: number; hours: number } }>('/market');
+    setReport(res.report ?? null);
+    setBoost(res.boost ?? null);
     setListings(res.listings);
     setBiddable(res.biddable ?? []);
     setTrades(res.trades ?? []);
@@ -72,6 +97,22 @@ export function MarketPage() {
     try {
       await api('/market/unlist', { method: 'POST', body: { pigeonId: p.id } });
       toast.show(`${p.name} staat niet meer te koop.`, 'ok');
+      await load();
+      await refresh();
+    } catch (e) {
+      toast.show(e instanceof Error ? e.message : 'Mislukt', 'err');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function boostOwn(p: Pigeon) {
+    if (!boost) return;
+    if (!window.confirm(`${p.name} bovenaan de markt zetten voor €${boost.cost}?\n\nJe zoekertje blijft ${boost.hours} uur bovenaan — tot iemand anders zijn zoekertje naar boven haalt. Dan zakt het van je terug naar zijn gewone plaats.`)) return;
+    setBusy(true);
+    try {
+      await api('/market/boost', { method: 'POST', body: { pigeonId: p.id } });
+      toast.show(`${p.name} staat bovenaan de markt 📌`, 'ok');
       await load();
       await refresh();
     } catch (e) {
@@ -229,6 +270,15 @@ export function MarketPage() {
                   🏷️ Jouw duif · te koop voor <Money value={p.price ?? 0} />
                   {p.minBid != null && <> · bieden vanaf <Money value={p.minBid} /></>}
                 </div>
+                {p.featured ? (
+                  <div className="badge" style={{ background: 'var(--good-soft)', color: 'var(--good)', marginBottom: 6 }}>
+                    📌 Staat bovenaan{p.featuredUntil ? ` tot ${timeUntilOrClock(p.featuredUntil)}` : ''}
+                  </div>
+                ) : boost && (
+                  <button className="btn accent block" style={{ marginBottom: 6 }} disabled={busy || money < boost.cost} onClick={() => boostOwn(p)}>
+                    Zoekertje naar boven · <Money value={boost.cost} />
+                  </button>
+                )}
                 <button className="btn secondary block" disabled={busy} onClick={() => unlistOwn(p)}>
                   Uit de verkoop halen
                 </button>
@@ -237,6 +287,9 @@ export function MarketPage() {
           }
           return (
             <PigeonCard key={p.id} pigeon={p} showOwner showBreed showcase avatarSize={104}>
+              {p.featured && (
+                <div className="badge" style={{ background: 'var(--gold-soft)', marginBottom: 6 }}>📌 Bovenaan</div>
+              )}
               {headStart && (
                 <div
                   className="badge"
@@ -278,6 +331,46 @@ export function MarketPage() {
         onBid={(pigeonId, amount) => offerAct(() => api(`/pigeons/${pigeonId}/offer`, { method: 'POST', body: { amount } }), 'Bod uitgebracht! 🤝')}
         onWithdraw={(id) => offerAct(() => api(`/offers/${id}/withdraw`, { method: 'POST' }), 'Bod ingetrokken')}
       />
+
+      {/* Vakblad (hokinrichting): abonneren hier, bij het marktrapport dat het
+          ontgrendelt. Daarna de markt herladen: het rapport en de bandbreedtes
+          bij een privébod komen uit /market. */}
+      {state?.loft?.equipment && state.inrichting && (
+        <MagazineCard loft={state.loft} cat={state.inrichting} busy={busy} act={(fn, ok) => magazineAct(async () => { await fn(); await load(); }, ok)} />
+      )}
+      {/* Het marktrapport, enkel voor abonnees. */}
+      {report && (
+        <>
+          <div className="page-head" style={{ marginTop: 26 }}>
+            <h2>📰 Marktrapport</h2>
+            <span className="faint">laatste {report.days} dagen</span>
+          </div>
+          <div className="card">
+            {report.classes.length === 0 ? (
+              <p className="muted" style={{ margin: 0 }}>Nog geen verkopen om een prijs uit af te leiden.</p>
+            ) : (
+              <div className="stack" style={{ gap: 4 }}>
+                {report.classes.map((c) => (
+                  <div key={c.label} className="row" style={{ justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
+                    <span>{c.label} <span className="faint">· {c.count} verkocht</span></span>
+                    <span>gemiddeld <Money value={c.avg} /> <span className="faint">(<Money value={c.min} /> – <Money value={c.max} />)</span></span>
+                  </div>
+                ))}
+              </div>
+            )}
+            {report.sales.length > 0 && (
+              <details style={{ marginTop: 10 }}>
+                <summary className="faint">Alle {report.sales.length} verkopen</summary>
+                {report.sales.map((t, i) => (
+                  <div key={i} className="faint" style={{ fontSize: '0.85rem' }}>
+                    {new Date(t.at).toLocaleDateString('nl-BE')} · {t.pigeonName}{t.talent != null ? ` ★ ${t.talent}` : ''} · {t.sellerName} → {t.buyerName} · €{t.price.toLocaleString('nl-BE')}
+                  </div>
+                ))}
+              </details>
+            )}
+          </div>
+        </>
+      )}
 
       {/* Buy/sell history */}
       <div className="page-head" style={{ marginTop: 26 }}>
@@ -396,9 +489,18 @@ function BidCascade({
                 <strong style={{ fontSize: '1.05rem' }}>{selected.name}</strong>
               </Link>
               <div className="faint">★ talent {selected.talent} · {selected.sex} · {selected.ageWeeks} wk</div>
-              <div className="faint" style={{ fontSize: '0.82rem', marginTop: 2 }}>
-                🔒 Precieze eigenschappen onbekend — bekijk de <Link to="/ranglijst">ranglijst</Link> of vluchtresultaten.
-              </div>
+              {selected.magazineRanges ? (
+                // Vakblad: the bands instead of only the ★ — what the subscription is for.
+                <div className="faint" style={{ fontSize: '0.82rem', marginTop: 2 }}>
+                  📰 Vakblad: snelheid {selected.magazineRanges.speed[0]}–{selected.magazineRanges.speed[1]} · conditie{' '}
+                  {selected.magazineRanges.endurance[0]}–{selected.magazineRanges.endurance[1]} · oriëntatie{' '}
+                  {selected.magazineRanges.orientation[0]}–{selected.magazineRanges.orientation[1]}
+                </div>
+              ) : (
+                <div className="faint" style={{ fontSize: '0.82rem', marginTop: 2 }}>
+                  🔒 Precieze eigenschappen onbekend — bekijk de <Link to="/ranglijst">ranglijst</Link> of vluchtresultaten.
+                </div>
+              )}
             </div>
           </div>
 

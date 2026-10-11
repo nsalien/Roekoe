@@ -91,6 +91,8 @@ export function weightsForDistance(distanceKm: number) {
 export interface Entry {
   pigeon: Pigeon;
   ownerName: string;
+  /** Hokinrichting, frozen at the lossing (inrichting.entryMods). Omitted = none. */
+  mods?: { energyMult: number; healthMult: number };
 }
 
 /**
@@ -637,8 +639,9 @@ export function startLiveFlight(flight: Flight, entries: Entry[], week: number, 
     const flownKm = flight.distanceKm + (prof.lost?.detourKm ?? 0);
     const formCost = flight.practice
       ? PRACTICE.energyCost
-      : round1(routeEnergyCost(e.pigeon.experience, flownKm, randFloat(0, FLIGHT_FATIGUE.jitter), e.pigeon.trait === 'frugal'));
+      : round1(routeEnergyCost(e.pigeon.experience, flownKm, randFloat(0, FLIGHT_FATIGUE.jitter), e.pigeon.trait === 'frugal', e.mods?.energyMult ?? 1));
     return {
+      ...modSimFields(e),
       pigeonId: e.pigeon.id,
       pigeonName: e.pigeon.name,
       ownerId: e.pigeon.ownerId,
@@ -986,8 +989,9 @@ function startLiveRelay(flight: Flight, entries: Entry[], week: number): void {
   for (const team of plan) {
     for (const { e, legIndex, prof, offset } of team) {
       // Each bird pays only for its own leg — a third of the route.
-      const formCost = round1(routeEnergyCost(e.pigeon.experience, legKm, randFloat(0, FLIGHT_FATIGUE.jitter), e.pigeon.trait === 'frugal'));
+      const formCost = round1(routeEnergyCost(e.pigeon.experience, legKm, randFloat(0, FLIGHT_FATIGUE.jitter), e.pigeon.trait === 'frugal', e.mods?.energyMult ?? 1));
       sim.push({
+        ...modSimFields(e),
         pigeonId: e.pigeon.id,
         pigeonName: e.pigeon.name,
         ownerId: e.pigeon.ownerId,
@@ -1134,13 +1138,21 @@ function flightHealthCost(km: number, endEnergie: number, dnfExtra: number): num
  * roll (0..FLIGHT_FATIGUE.jitter). Ervaring lowers the drain around a pivot of 50;
  * `costMultiplier` scales the whole thing. See FLIGHT_FATIGUE.
  */
-function routeEnergyCost(experience: number, km: number, jitter: number, frugal = false): number {
+function routeEnergyCost(experience: number, km: number, jitter: number, frugal = false, mult = 1): number {
   const expRelief = 1 - (clamp(experience, 0, 100) / 100 - 0.5) * FLIGHT_FATIGUE.experienceReliefSpread;
   return (
     ((FLIGHT_FATIGUE.base + km / FLIGHT_FATIGUE.perKmDivisor) * expRelief + jitter) *
     FLIGHT_FATIGUE.costMultiplier *
-    (frugal ? TRAITS.frugalEnergyMult : 1) // Zuinige vlieger (seizoen 3)
+    (frugal ? TRAITS.frugalEnergyMult : 1) * // Zuinige vlieger (seizoen 3)
+    mult // hokinrichting: betere reismanden
   );
+}
+
+/** The hokinrichting fields a sim entry carries (only when they do something). */
+function modSimFields(e: Entry): Pick<SimEntry, 'healthMult'> {
+  const out: Pick<SimEntry, 'healthMult'> = {};
+  if (e.mods && e.mods.healthMult !== 1) out.healthMult = e.mods.healthMult;
+  return out;
 }
 
 /**
@@ -1430,7 +1442,7 @@ export function finalizeFlight(flight: Flight, pigeons: Pigeon[]): SimulatedFlig
     // more health it costs. This is what turns gezondheid into a resource you
     // manage over weeks instead of a number pinned at 100.
     const endEnergie = clamp((s.startForm ?? 100) - (s.formCost ?? 0), 0, 100);
-    const healthDelta = gaveUp ? 0 : -round1(flightHealthCost(flight.distanceKm, endEnergie, isDnf ? rf(4, 9) : 0));
+    const healthDelta = gaveUp ? 0 : -round1(flightHealthCost(flight.distanceKm, endEnergie, isDnf ? rf(4, 9) : 0) * (s.healthMult ?? 1));
     const pigeon = pigeons.find((p) => p.id === s.pigeonId);
     // Ervaring has diminishing returns: the same ride teaches a rookie far more
     // than a veteran (experienceGain scales the raw gain by the room left).
@@ -1628,7 +1640,7 @@ function finalizeRelayFlight(flight: Flight, pigeons: Pigeon[]): SimulatedFlight
       }
       const enduranceDelta = completed ? round1(0.3 + legKm / 500 + rf(0, 0.4)) : 0;
       const endEnergie = clamp((s.startForm ?? 100) - (s.formCost ?? 0), 0, 100);
-      const healthDelta = gaveUp ? 0 : -round1(flightHealthCost(legKm, endEnergie, completed ? 0 : rf(4, 9)));
+      const healthDelta = gaveUp ? 0 : -round1(flightHealthCost(legKm, endEnergie, completed ? 0 : rf(4, 9)) * (s.healthMult ?? 1));
       const pigeon = pigeons.find((p) => p.id === s.pigeonId);
       // Diminishing returns on ervaring — same curve as a solo race.
       const experienceDelta = round1(experienceGain(pigeon?.experience ?? 0, (completed ? 2 : 1) + legKm / 100));

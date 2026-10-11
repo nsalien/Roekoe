@@ -8,6 +8,7 @@ import { Money, Spinner, formatFlightTime, traitEntryHint, useToast } from '../c
 import { useAuth } from '../auth/AuthContext';
 import { buildDaysTaken, canEnter, entryCost } from '../game/flightEntry';
 import { PigeonCard } from '../components/PigeonCard';
+import { LoftView } from '../components/LoftView';
 import type { FeedRation, Flight, Loft, Pigeon } from '../types';
 
 type SortKey = 'talent' | 'speed' | 'endurance' | 'orientation' | 'form' | 'ageWeeks';
@@ -63,7 +64,10 @@ export function LoftPage() {
       <div className="page-head">
         <div>
           <h1>Mijn hok</h1>
-          <p className="muted">{state.loft?.pigeonCount} duiven · capaciteit {state.loft?.capacity}</p>
+          <p className="muted">
+            {state.loft?.pigeonCount} duiven · capaciteit {state.loft?.capacity} ·{' '}
+            <Link to="/inrichting">🧰 uitbreiden, stro, inrichting &amp; vaccins →</Link>
+          </p>
         </div>
         <label className="row" style={{ gap: 8, marginBottom: 0 }}>
           <span className="faint">Sorteer</span>
@@ -79,7 +83,12 @@ export function LoftPage() {
       </div>
 
       {state.loft && (
-        <LoftUpgrades loft={state.loft} busy={busy} act={act} upkeepBands={state.economy.upkeepBands ?? []} />
+        <LoftView
+          loft={state.loft}
+          pigeons={state.pigeons}
+          busy={busy}
+          onAssignCompartment={(id) => act(() => api(`/pigeons/${id}/compartment`, { method: 'POST', body: { on: true } }))}
+        />
       )}
 
       <div className="grid pigeons">
@@ -214,98 +223,6 @@ export function LoftPage() {
             )}
           </PigeonCard>
         ))}
-      </div>
-    </div>
-  );
-}
-
-function LoftUpgrades({
-  loft,
-  busy,
-  act,
-  upkeepBands,
-}: {
-  loft: Loft;
-  busy: boolean;
-  act: (fn: () => Promise<unknown>, ok?: string) => void;
-  upkeepBands: { upTo: number; perPigeon: number }[];
-}) {
-  // Daily upkeep rate the NEXT bird would fall into (bands are ascending; the
-  // last one also covers anything beyond it).
-  const nextBirdRate = upkeepBands.length
-    ? (upkeepBands.find((b) => loft.pigeonCount + 1 <= b.upTo) ?? upkeepBands[upkeepBands.length - 1]).perPigeon
-    : null;
-  // Both upgrades are irreversible, cost more than anything else a player buys,
-  // and sit one stray tap away on a phone — so each one asks first. Bound to a
-  // const so the narrowing survives into the click handler.
-  const nextCap = loft.nextCapacity;
-  const compartmentCost = loft.compartmentCost;
-  const euro = (n: number) => `€${n.toLocaleString('nl-NL')}`;
-  return (
-    <div className="card" style={{ marginBottom: 18 }} data-tour="upgrades">
-      <h2 style={{ marginTop: 0 }}>🏗️ Uitbreidingen</h2>
-      <div className="grid cols-2">
-        {/* Capacity */}
-        <div>
-          <strong>🏠 Hokcapaciteit</strong>
-          <div className="faint" style={{ margin: '2px 0 8px' }}>
-            Nu plaats voor <strong>{loft.capacity}</strong> duiven.
-          </div>
-          {nextCap ? (
-            <button
-              className="btn accent sm"
-              disabled={busy || loft.money < nextCap.price}
-              onClick={() => {
-                // Name the recurring cost too: the price is the visible half of
-                // this purchase, the higher daily upkeep is the half that bites later.
-                if (!window.confirm(
-                  `Ben je zeker dat je je hok wil uitbreiden naar ${nextCap.capacity} plaatsen voor ${euro(nextCap.price)}?\n\n`
-                  + `Dat bedrag gaat er meteen af.`
-                  + (nextBirdRate !== null ? ` Je volgende duif kost daarna €${nextBirdRate}/dag aan onderhoud.` : ''),
-                )) return;
-                act(() => api('/loft/capacity', { method: 'POST' }), 'Hok uitgebreid! 🏠');
-              }}
-            >
-              Naar {nextCap.capacity} · <Money value={nextCap.price} />
-            </button>
-          ) : (
-            <div className="faint">Maximale capaciteit bereikt.</div>
-          )}
-          {/* Upkeep rises per band. Keep it to the ONE number that matters here —
-              what the next bird costs — and send the reader to the wiki for the
-              full schedule, so a bigger loft is never a hidden recurring cost. */}
-          {nextBirdRate !== null && (
-            <div className="faint" style={{ marginTop: 8, fontSize: '0.8rem', lineHeight: 1.5 }}>
-              Je volgende duif kost <strong>€{nextBirdRate}/dag</strong> aan onderhoud.{' '}
-              <Link to="/wiki#hok">Hoe de schijven werken →</Link>
-            </div>
-          )}
-        </div>
-
-        {/* Compartments */}
-        <div>
-          <strong>🧱 Aparte hokken</strong>
-          <div className="faint" style={{ margin: '2px 0 8px' }}>
-            {loft.compartmentsUsed}/{loft.compartments} in gebruik. Kies per duif hieronder wie apart zit — beter energieherstel en minder ziekte.
-          </div>
-          {compartmentCost != null ? (
-            <button
-              className="btn sm"
-              disabled={busy || loft.money < compartmentCost}
-              onClick={() => {
-                if (!window.confirm(
-                  `Ben je zeker dat je een apart hok wil bijbouwen voor ${euro(compartmentCost)}?\n\n`
-                  + `Dat bedrag gaat er meteen af, en elk volgend apart hok wordt duurder.`,
-                )) return;
-                act(() => api('/loft/compartment', { method: 'POST' }), 'Apart hok gebouwd! 🧱');
-              }}
-            >
-              Bijbouwen · <Money value={compartmentCost} />
-            </button>
-          ) : (
-            <div className="faint">Elke plaats heeft al een apart hok.</div>
-          )}
-        </div>
       </div>
     </div>
   );

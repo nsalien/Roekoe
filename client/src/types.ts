@@ -92,6 +92,10 @@ export interface Pigeon {
   // players' birds these are null (see `revealed`). The general score (talent)
   // is always public.
   revealed: boolean;
+  /** Hokinrichting: vaccins, verzekering — own birds only. */
+  care?: PigeonCareView | null;
+  /** Vakblad: someone else's bird as bands instead of hidden values. */
+  magazineRanges?: Record<'speed' | 'endurance' | 'orientation', [number, number]> | null;
   speed: number | null;
   endurance: number | null;
   orientation: number | null;
@@ -114,6 +118,9 @@ export interface Pigeon {
   minBid: number | null;
   /** ISO time this bird went on the market (null when not listed). */
   listedAt?: string | null;
+  /** /market only: this listing holds the top spot ("zoekertje naar boven"), and until when. */
+  featured?: boolean;
+  featuredUntil?: string | null;
   price: number | null;
   sireId: string | null;
   damId: string | null;
@@ -147,6 +154,8 @@ export interface Pigeon {
   breedAvailableAt: string | null;
   trainAvailableAt: { speed: string | null; endurance: string | null; orientation: string | null };
   racing: boolean;
+  /** In the air right now (racing also counts a race still to come). */
+  flying: boolean;
   breeding: boolean;
   dailyCare: DailyCareProjection | null;
   // Genetics (own birds only; null for other players' birds).
@@ -235,6 +244,57 @@ export interface Loft {
   dailyCosts: DailyCostBreakdown;
   /** Starter package — null for every loft registered before it shipped. */
   newcomer: NewcomerState | null;
+  /** Hokinrichting: the hygiene meter and the hokpoetser. Absent on an older server. */
+  equipment?: LoftEquipment;
+  /** Breeding pairs (sire + dam), for the nest boxes in the loft view. */
+  nests?: { id: string; sireId: string; damId: string }[];
+}
+
+export interface LoftEquipment {
+  hygiene: number; // 0–100
+  lastStrawAt: string | null; // null = bare floor, never strewn
+  cleaner: boolean;
+  strawCost: number; // one load of fresh straw for this loft
+  cleanerWage: number; // the hokpoetser's daily wage
+  illnessMult: number; // what the meter does to the chance to fall ill (1 = nothing)
+  decayPerDay: number; // how much it drops tonight
+  ventilation: boolean;
+  run: boolean;
+  raptorGuard: boolean;
+  light: boolean;
+  irBoxes: number;
+  irInUse: number;
+  irNextPrice: number | null;
+  baskets: boolean;
+  /** Niveaus: 0 = not bought, else 1..max, for ventilation, run, light, irBoxes, baskets. */
+  levels?: Record<string, number>;
+  weatherStation: boolean;
+  magazine: boolean;
+  lastHawkDay: number | null;
+}
+
+/** The owner's view of a bird's care (hokinrichting). */
+export interface PigeonCareView {
+  vaccines: { key: string; label: string; until: string }[];
+  noFlyUntil: string | null;
+  insurance: { payout: number; since: string; premium: number } | null;
+  insuranceQuote: { payout: number; premium: number } | null;
+}
+
+export interface InrichtingCatalogue {
+  equipment: Record<string, { label: string; price?: number; daily?: number; priceFirstTwo?: number; pricePerExtra?: number; maxBoxes?: number }>;
+  /** Niveaus: up to `max`; level n works `scale[n−1]`× as hard as level 1 and costs `prices[key][n−1]`. */
+  levels?: {
+    max: number; scale: number[]; prices: Record<string, number[]>;
+    /** The main effect per level, e.g. { what: 'ornithose', values: ['−40 %', '−60 %', …] }. */
+    gain?: Record<string, { what: string; values: string[] }>;
+  };
+  /** Per item in Uitrusting, every effect: `values[i]` at level i+1 (one value without levels), `none` without the item. */
+  effects?: Record<string, { label: string; none: string; values: string[] }[]>;
+  vaccines: Record<string, { label: string; disease: string; kind: 'vaccin' | 'kuur'; price: number; days: number; protect: number; noFlyDays: number; libidoHit: number }>;
+  /** "Hele hok" skips a bird with more than this share of her course left. */
+  vaccineRenewShare: number;
+  insurancePayoutRate: number;
 }
 
 /** What is left of the starter package, and how long the timed perks still run. */
@@ -259,6 +319,11 @@ export interface DailyCostBreakdown {
   doctors: number;
   physios: number;
   medicatedFeed: number;
+  /** Hokinrichting: running cost per item (poetser, ventilatie, ren, …). Absent on an older server. */
+  equipment?: { key: string; label: string; amount: number }[];
+  equipmentTotal?: number;
+  /** Duivenverzekering: today's premiums together. */
+  insurance?: number;
   /** Staff being paid with nothing of their kind to treat, and what that costs.
    *  Already included in `doctors`/`physios`/`total` — a warning, not a discount. */
   idleDoctors?: number;
@@ -405,6 +470,8 @@ export interface Flight {
   cupSprint?: boolean;
   cupPrizes?: PrizeTable;
   weather: string;
+  /** Weerstation (hokinrichting): the forecast for the release, only for station owners. */
+  forecast?: { label: string; factor: number; rain: boolean; tempC: number; at: string } | null;
   /** Zonsopgang/-ondergang thuis op de dag van de lossing (niet bij afgelopen vluchten). */
   sun?: { rise: string | null; set: string | null };
   entryCount: number;
@@ -773,6 +840,8 @@ export interface GameState {
   ageCup?: AgeCupInfo;
   offers: { received: OfferView[]; sent: OfferView[] };
   feedRations: Record<FeedRation, FeedRationInfo>;
+  /** Hokinrichting catalogue (absent on an older server). */
+  inrichting?: InrichtingCatalogue;
   infirmary: InfirmaryConfig;
   economy: EconomyCosts;
   missions: DailyMission[];

@@ -152,12 +152,12 @@ const STEPS: Step[] = [
   {
     route: '/hok', selector: '[data-tour="compartment"]',
     title: '🧱 Apart hok',
-    body: 'Met deze knop zet je een duif in een apart hok: beter energieherstel en minder kans op ziekte. Je koopt aparte hokken bij Uitbreidingen.',
+    body: 'Met deze knop zet je een duif in een apart hok: beter energieherstel en minder kans op ziekte. Je koopt aparte hokken op de pagina Inrichting.',
   },
   {
-    route: '/hok', selector: '[data-tour="upgrades"]',
+    route: '/inrichting', selector: '[data-tour="upgrades"]',
     title: '🏠 Hok uitbreiden',
-    body: 'Hier vergroot je je hokcapaciteit (meer duiven) en koop je aparte hokken. Een duif verkopen doe je met de knop onderaan elke duif.',
+    body: 'Op de pagina Inrichting vergroot je je hokcapaciteit (meer duiven) en koop je aparte hokken, stro, inrichting en vaccins. Een duif verkopen doe je op Mijn hok, met de knop onderaan elke duif.',
   },
   {
     route: '/', selector: '[data-tour="missions"]',
@@ -195,7 +195,7 @@ const STEPS: Step[] = [
   {
     route: '/kweek', selector: '[data-tour="breed"]',
     title: '🥚 Kweken',
-    body: 'Koppel een doffer + duivin (beide energie ≥ 20). Hoe hoger hun energie én libido, hoe sneller een jong komt. Zorg voor vrije plaats in je hok.',
+    body: 'Start een nest met een doffer + duivin (beide energie ≥ 20). Hoe hoger hun energie én libido, hoe sneller een jong komt. Zorg voor vrije plaats in je hok.',
   },
   {
     route: '/ziekenboeg', selector: '[data-tour="infirmary"]',
@@ -814,6 +814,46 @@ export function season3NewsSteps(opts: {
  * voor zich, en de bel van migratie v60 vertelde al wat het is. Draait pas na
  * de seizoen 3-run (zie Layout), met een eigen sleutel `roekoe.newsSeen.lokaal`.
  */
+/**
+ * Aankondiging van de hokinrichting & co (oktober, seizoen 3): het hokoverzicht,
+ * de pagina Inrichting, het zoekertje naar boven en de besmetting per ziekte.
+ * De bel (migratie v61, core/game/news.ts) is de eerste helft. Getallen enkel
+ * waar ze de beslissing sturen; de rest staat in de wiki (#nieuw).
+ */
+export const INRICHTING_NEWS_STEPS: Step[] = [
+  {
+    route: '/hok', selector: '[data-tour="hokoverzicht"]',
+    title: '🕊️ Nieuw: het hokoverzicht',
+    body: 'Bovenaan Mijn hok zie je nu in één oogopslag waar elke duif zit: de vrije plaatsen, de aparte hokken, wie broedt, wie in de ziekenboeg ligt, wie beschermd is en wie niet thuis is.',
+  },
+  {
+    route: '/inrichting', selector: '[data-tour="inrichting"]',
+    title: '🧰 Nieuw: Inrichting',
+    body: (
+      <>
+        Alles wat je aan je hok koopt staat nu hier, in vier blokken: <strong>plaatsen &amp; hokken</strong>,{' '}
+        <strong>hygiëne</strong> (vers stro, hokpoetser), <strong>vaccins &amp; kuren</strong> en{' '}
+        <strong>uitrusting</strong> (dakventilatie, buitenren, weerstation, …). Tik een blok open; de ⓘ bij elk onderdeel
+        toont wat het doet.
+        <br />
+        <span className="faint" style={{ display: 'inline-block', marginTop: 4 }}>
+          Niets kopen = het spel zoals je het kende. De verzekering vind je op de pagina van een duif, het vakblad op de Markt.
+        </span>
+      </>
+    ),
+  },
+  {
+    route: '/markt', selector: '[data-tour="market"]',
+    title: '📌 Nieuw: zoekertje naar boven',
+    body: 'Staat je duif te koop? Met "Zoekertje naar boven" (€50) staat ze 12 uur bovenaan de Markt — tot iemand anders zijn zoekertje naar boven haalt, dan zakt het jouwe terug naar zijn gewone plaats.',
+  },
+  {
+    route: '/ziekenboeg', selector: '[data-tour="infirmary"]',
+    title: '🦠 Besmetting gaat nu per ziekte',
+    body: 'Een zieke duif buiten de ziekenboeg geeft haar eigen ziekte door aan haar hokgenoten, en de ene ziekte slaat makkelijker over dan de andere: paramyxo het snelst, salmonella het traagst. Zet een zieke duif dus meteen hier. Is de ziekenboeg vol, dan beschermt een kuur of vaccin tegen díe ziekte de rest.',
+  },
+];
+
 export const LOKAAL_NEWS_STEPS: Step[] = [
   {
     route: '/lokaal', selector: '[data-tour="lokaal"]',

@@ -37,7 +37,7 @@
  */
 
 import type { Database, Pigeon, Trade } from '../schema.js';
-import { IGNORED_TRADES, MARKET_VALUATION, MIN_SALE_SHARE } from '../config/gameConfig.js';
+import { IGNORED_TRADES, MARKET_BOOST, MARKET_VALUATION, MIN_SALE_SHARE } from '../config/gameConfig.js';
 import { estimateValue, talent } from './pigeon.js';
 import { clamp } from './util.js';
 
@@ -223,4 +223,26 @@ export function minSalePrice(db: Database, pigeon: Pigeon, currentWeek: number =
 export function noteMarketNews(db: Database, byUserId = '', nowMs = Date.now()): void {
   db.world.marketNewsAt = new Date(nowMs).toISOString();
   db.world.marketNewsBy = byUserId;
+}
+
+// --- "Zoekertje naar boven" (MARKET_BOOST) ------------------------------------
+
+/** Until when a boost holds the top spot (if nobody boosts after it). */
+export function boostEndsAt(p: Pigeon): number {
+  return p.boostedAt ? Date.parse(p.boostedAt) + MARKET_BOOST.hours * 3600000 : NaN;
+}
+
+/**
+ * The one listing on top of the market: the most recent boost that is still
+ * running. A newer boost by anyone takes the spot, so the earlier one drops back
+ * to its normal place — and after MARKET_BOOST.hours it drops back anyway.
+ * Derived from the listings themselves: no tick, no row written by a poll.
+ */
+export function featuredListingId(db: Database, nowMs: number = Date.now()): string | null {
+  let best: Pigeon | null = null;
+  for (const p of db.pigeons) {
+    if (!p.forSale || !p.boostedAt || !(boostEndsAt(p) > nowMs)) continue;
+    if (!best || Date.parse(p.boostedAt) > Date.parse(best.boostedAt!)) best = p;
+  }
+  return best?.id ?? null;
 }

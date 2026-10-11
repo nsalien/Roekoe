@@ -10,6 +10,7 @@
  * are surfaced in the Markt (not the bell), with a nav badge.
  */
 
+import { clearOwnerCare } from './inrichting.js';
 import type { Database, Loft, Pigeon, PigeonOffer } from '../schema.js';
 import { debtBlock } from './economy.js';
 import { newId } from '../store.js';
@@ -115,10 +116,13 @@ export function withdrawOffer(db: Database, userId: string, offerId: string): st
 function transfer(db: Database, buyer: Loft, seller: Loft, pigeon: Pigeon, price: number): void {
   buyer.money -= price;
   seller.money += price;
+  clearOwnerCare(pigeon);
   pigeon.ownerId = buyer.userId;
   pigeon.forSale = false;
   pigeon.price = null;
   pigeon.minBid = null;
+  pigeon.listedAt = null;
+  pigeon.boostedAt = null;
   db.trades.push({
     id: newId('trd'), pigeonId: pigeon.id, pigeonName: pigeon.name,
     sellerId: seller.userId, sellerName: seller.name, buyerId: buyer.userId, buyerName: buyer.name,

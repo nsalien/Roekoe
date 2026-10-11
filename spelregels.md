@@ -1222,6 +1222,7 @@ onkosten/dag = 22                                    (vast, ongeacht hokgrootte)
              + dagloon per gecoachte duif           (coach, volgens haar score — §13)
              + 57 · dokters + 50 · kinesisten        (ziekenboegstaf, §5)
              + 6  · duiven_in_boeg (met medicatievoer)
+             + hokinrichting en verzekeringspremies   (§5.2bis/§5.2ter)
 ```
 
 **Onderhoud per duif gaat in schijven — hoe groter je hok, hoe duurder elke
@@ -1363,6 +1364,7 @@ moment niet verlaten.
 ### 5.1 Aandoeningen
 **Ziektes (besmettelijk):** Het Geel (licht), Duivenpokken (matig), Ornithose
 (matig), Coccidiose (matig), Paramyxovirose (ernstig), Salmonellose (ernstig).
+Elke ziekte is anders besmettelijk (zie §5.2).
 **Kwetsuren (via vluchten)** komen in twee soorten (zie §3.2):
 - **Door overbelasting** — verrekte borstspier (licht), verstuikte vleugel
   (matig), borstbeenkneuzing (matig), botbreuk in de vleugel (ernstig). De kans
@@ -1404,9 +1406,25 @@ als bij mensen wordt een topfit beest af en toe eens ziek. En een **zieke duif
 die je niet isoleert besmet de rest**: een fitte hokgenoot vangt minder makkelijk
 iets op, maar is nooit immuun.
 
-**Hoe erg de ziekte is, hangt óók van die vluchtvorm af.** Een duif in goede doen
-sleept meestal iets lichts op; een verzwakte duif is degene die iets zwaars
-oploopt:
+**Besmetting gaat per ziekte.** Een zieke hokgenoot geeft **haar eigen ziekte**
+door, en de ene ziekte slaat makkelijker over dan de andere. Kans per week dat
+een hokgenoot het oploopt, per zieke duif buiten de ziekenboeg:
+
+| Ziekte | Besmettelijk | Vluchtvorm 75 | Vluchtvorm 45 |
+|---|---|---|---|
+| Paramyxovirose (ernstig) | ×1,5 | ≈ 10 % | ≈ 18 % |
+| Ornithose (matig) | ×1,3 | ≈ 8 % | ≈ 16 % |
+| Het Geel (licht) | ×1,2 | ≈ 7,5 % | ≈ 14 % |
+| Coccidiose (matig) | ×1 | ≈ 6 % | ≈ 12 % |
+| Duivenpokken (matig) | ×0,7 | ≈ 4 % | ≈ 8 % |
+| Salmonellose (ernstig) | ×0,6 | ≈ 3,5 % | ≈ 7 % |
+
+Twee zieke duiven met dezelfde ziekte zijn twee bronnen; twee verschillende
+ziektes gaan elk apart rond.
+
+**Hoe erg een spontane ziekte is, hangt óók van die vluchtvorm af.** Een duif in
+goede doen sleept meestal iets lichts op; een verzwakte duif is degene die iets
+zwaars oploopt (bij besmetting krijgt ze gewoon de ziekte van de bron):
 
 | Vluchtvorm | Licht | Matig | Ernstig |
 |---|---|---|---|
@@ -1421,6 +1439,75 @@ besmet. Een **apart hok** verlaagt de ziektekans eveneens fors.
 verzorgt kan **dodelijk** aflopen. Een ernstig letsel dat je z'n hele beloop
 buiten de ziekenboeg laat, heeft zo'n **~1 kans op 4** om de duif te kosten; in de
 ziekenboeg zakt dat tot **~2 %**. Lichte aandoeningen zijn nooit dodelijk.
+
+### 5.2bis Hokhygiëne & vers stro
+Je hok heeft een **hygiënemeter van 0 tot 100**. Vers stro zet hem op **100**.
+```
+stro          = €18 per baal, 1 baal per 8 plaatsen        (12 plaatsen = 2 balen = €36)
+ziektekans   ×= 1 − 0,2 · (hygiëne − 50) / 50   als hygiëne > 50    (×0,8 bij 100)
+             ×= 1                               als hygiëne ≤ 50    (zoals altijd)
+verval/dag    = 8 · (duiven thuis / capaciteit) · (1,5 met een zieke duif buiten de ziekenboeg)
+                · (0,75 met dakventilatie)
+```
+- De meter zakt **één keer per dag**, op de dagovergang. Een hok dat nooit stro
+  kocht, staat op 50 en merkt niets: niets kopen = het spel van vroeger.
+- **Hokpoetser:** per dag €10 t/m 8 duiven, €15 t/m 12, €20 t/m 14, €30 t/m 16,
+  €45 t/m 18 en €75 t/m 20 duiven (en meer); aannemen en ontslaan gratis. Zakt de meter onder
+  **70**, dan strooit hij vers stro (aan de gewone prijs). Hij ontsmet ook:
+  **besmetting tussen duiven ×0,85**.
+- **Bodem:** hygiëne, apart hok, poetser en IJzeren gestel samen maken de kans
+  op ziekte **nooit kleiner dan ×0,4** van wat ze zonder al die dingen zou zijn.
+
+### 5.2ter Hokinrichting, vaccins & diensten
+Niets kopen = het spel van vroeger. Uitrusting koop je **één keer** (en waardeer je op tot
+niveau 4); enkel de hokpoetser, het vakblad en een verzekering kosten per dag (Dagbalans).
+
+| Wat | Aankoop | Per dag | Effect |
+|---|---|---|---|
+| Dakventilatie | €1.200 | — | ornithose ×0,6; gezondheidsherstel uit voer +5 %; hygiëne zakt 25 % trager |
+| Buitenren | €2.500 | — | rustbonus +6 i.p.v. +4; libido-doel +3; zonder afweer gemiddeld 1× per 40 dagen een sperwer: wie thuis rust −6 energie |
+| Roofvogelafweer | €900 | — | vraagt een ren; geen sperwer in de ren; "Sperwer in de buurt" wordt ongevaarlijk |
+| Kunstlicht | €700 | — | libido-doel +6 |
+| Infrarood nestbakken | €1.600 voor 2, +€500/bak | — | uitkomen ×1,15 sneller, +6 pp tweelingkans, onder 10 °C +4 pp succes |
+| Betere reismanden | €1.000 | — | vlucht −3 % energie, −5 % gezondheid |
+| Weerstation | €1.500 | — | voorspelling vanaf 24 u vóór de lossing |
+| Vakblad | — | €6 | bandbreedtes (±6) bij andermans duif; marktrapport 28 dagen; maandag Het Duivenblad |
+
+**Vaccins & kuren** (per ziekte, buiten de bodem ×0,4), elk met **één vaste prijs**:
+PMV €10 (91 d, 80 %), pokken €8 (91 d, 80 %), salmonella €6 (45 d, 60 %) — een vaccin =
+2 dagen niet vliegen; geelkuur €5 (7 d, 75 %), coccidiosekuur €5 (10 d, 75 %),
+ademhalingskuur €5 (7 d, 60 %, libido −10).
+
+**Wanneer loont het?** Wat een middel je duif gemiddeld bespaart, groeit met wat ze waard is
+(gerekend op vluchtvorm 75):
+```
+schade die het bespaart = looptijd × kans per dag op díe ziekte × afweer × kost van één geval
+kost van één geval = de goedkoopste van ziekenboeg + medicatievoer met of zonder dokter:
+                     zorg + marktwaarde × (sterftekans + gemiste starts × 1,3 %)
+```
+Gemiste starts: starten is energie-begrensd (~7,5 energie per dag op Herstelvoer, ~32 per
+start); een zieke duif krijgt geen energie binnen (met dokter de helft) en verliest bij het
+uitbreken ook nog energie. Na een ernstige ziekte komt er een halve start bij, omdat ze trager
+vliegt tot haar gezondheid terug is. Eén start brengt gemiddeld ~1,3 % van haar marktwaarde op.
+
+| Middel | Loont vanaf een marktwaarde van | Topduif (~€37.000) haalt |
+|---|---|---|
+| PMV-vaccin €10 | ~€6.400 | 3,8× de prijs |
+| Pokkenvaccin €8 | ~€8.600 | 2,6× |
+| Salmonellavaccin €6 | ~€11.400 | 2,3× |
+| Geel-, coccidiose-, ademhalingskuur €5 | geen realistische duif | 0,2–0,5× |
+
+Een duif die na elke vlucht dieper zakt dan vorm 75 haalt er meer uit (op vorm 65 lonen de
+vaccins al vanaf ~€2.500–4.400). Een kuur van een week tegen één ziekte voorkomt gemiddeld te
+weinig om €5 waard te zijn — behalve als die ziekte in je hok rondgaat en je de zieke duif niet
+kan afzonderen (ziekenboeg vol): een zieke hokgenoot geeft haar eigen ziekte door (§5.2).
+
+**Verzekering:** uitkering 60 % van de marktwaarde bij afsluiten; premie/dag =
+1,3 × uitkering × (0,04 % + ouderdomssterfte per dag). Niet gedekt: honger,
+vertrekken met < 5 energie, een ziekte die nooit in de ziekenboeg lag, de eerste 7
+dagen. Vervalt bij verkoop.
+
+**Bots** kopen vers stro (meter ≤ 60) en dakventilatie, verder niets.
 
 ### 5.3 Herstel (in echte tijd)
 Herstel loopt **continu in echte tijd** (niet meer als wekelijkse kansworp). Een
@@ -1959,6 +2046,15 @@ daar wel meteen **uit de verkoop halen**.
   ondergrens laat hij gewoon liggen. Je duif blijft ook de eerste dag na het te
   koop zetten alleen voor spelers (§17).
 
+**📌 Zoekertje naar boven.** Op de markt staan de zoekertjes op prijs, goedkoopste eerst. Op
+je eigen zoekertje staat een knop **Zoekertje naar boven** (€50): dan staat het **12 uur**
+helemaal bovenaan. Er is maar **één plek bovenaan** — haalt iemand anders daarna zijn
+zoekertje naar boven, dan neemt hij die plek over en zakt het jouwe terug naar zijn gewone
+plaats. Je kan dan opnieuw betalen. Zolang je bovenaan staat, betaal je niet nog eens.
+- De boost hoort bij dat ene zoekertje: haal je de duif uit de verkoop, of wordt ze verkocht
+  (ook via een aanvaard bod), dan is hij weg. Je **prijs aanpassen** mag zonder hem te verliezen.
+- Wie in het rood staat (§4.5) kan niet boosten. Bots boosten nooit.
+
 ### 9.1b Privé-biedingen (bieden op een duif die niet te koop staat)
 Je kan een **bod** uitbrengen op de duif van **een andere speler**, ook al staat
 die **niet te koop**. Dat kan op **twee plaatsen**: op de **Markt** onder
@@ -2296,7 +2392,7 @@ Verdiend geld kan je investeren in je hok en je duiven (bij *Mijn hok*, de
   betekent meer inschrijvingen en dus een groter deel van de prijzenpot. Daarom
   is het bewust een **investering van lange adem**: de trap wordt steil, én elke
   extra duif kost je daarna méér onderhoud per dag (de schijven in §4.2). Op de
-  uitbreidingskaart in *Mijn hok* zie je die tarieven vóór je koopt.
+  uitbreidingskaart op de pagina *Inrichting* zie je die tarieven vóór je koopt.
 - **Aparte hokken.** Koop losse compartimenten zodat je duiven niet allemaal op
   elkaar zitten. Elk apart hok wordt los gekocht (telkens wat duurder), en je
   **kiest zelf welke duiven** er een krijgen (knop bij *Mijn hok*). Heb je minder aparte hokken dan duiven, dan zitten de rest gewoon

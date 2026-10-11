@@ -13,6 +13,7 @@ import {
   COACH,
   DEFAULT_BOT_COUNT,
   FEED_RATIONS,
+  MARKET_BOOST,
   FOOD_PRICE_PER_KG,
   FOOD_RESALE_RATE,
   INFIRMARY,
@@ -48,7 +49,7 @@ import { newNewcomerPerks } from './newcomer.js';
 import { careSlots, runHealthWeek } from './health.js';
 import { nameKey, namesInUse } from './names.js';
 import { voidBetsForWithdrawnPigeon } from './betting.js';
-import { minSalePrice, noteMarketNews } from './market.js';
+import { featuredListingId, minSalePrice, noteMarketNews } from './market.js';
 import { birdStillOut, flightClaimingDay, flightDay, pigeonAirborne, pigeonCommittedToFlight } from './flight.js';
 import {
   ageInWeeks,
@@ -64,6 +65,7 @@ import {
   trainingCost,
 } from './pigeon.js';
 import { clamp, randFloat, randInt, round1 } from './util.js';
+import { clearOwnerCare, grounded } from './inrichting.js';
 
 export const NPC_OWNER_ID = 'npc_market';
 
@@ -573,11 +575,13 @@ export function enterFlight(
     // and Wednesday is fine and is how you plan a week.
     if (pigeonAirborne(db, pigeonId, Date.now(), flight.id))
       return `${pigeon.name} is nog onderweg op een andere vlucht — wacht tot ze thuis is`;
+    const notYet = grounded(pigeon);
+    if (notYet) return notYet;
     if (!canRace(pigeon, db.world.currentWeek))
       return 'Deze duif is niet vluchtklaar (te jong, ziek, gewond of in de ziekenboeg)';
     if (pigeon.form < 1) return 'Deze duif is volledig uitgeput — laat ze eerst wat rusten';
     const breeding = db.breedingPairs.some((bp) => bp.sireId === pigeonId || bp.damId === pigeonId);
-    if (breeding) return 'Deze duif koppelt — stop eerst het broeden voordat ze weer kan vliegen';
+    if (breeding) return 'Deze duif zit op een nest — stop eerst het broeden voordat ze weer kan vliegen';
     { const debt = debtBlock(loft); if (debt) return debt; }
     if (flight.entries.some((e) => e.pigeonId === pigeonId)) return 'Duif is al ingeschreven';
     // The titanenwedstrijd allows only one bird per loft.
@@ -729,7 +733,10 @@ export function listForSale(
     const racing = pigeonCommittedToFlight(db, pigeonId);
     if (racing) return 'Deze duif staat ingeschreven voor een vlucht';
     const breeding = db.breedingPairs.some((bp) => bp.sireId === pigeonId || bp.damId === pigeonId);
-    if (breeding) return 'Deze duif koppelt momenteel';
+    if (breeding) return 'Deze duif zit momenteel op een nest';
+    // A NEW listing starts without a boost; changing the price of a bird that is
+    // already up for sale keeps the one she has (it was paid for this listing).
+    if (!pigeon.forSale) pigeon.boostedAt = null;
     pigeon.forSale = true;
     pigeon.price = Math.round(price);
     // A bot sells at its asking price and never negotiates, so it never gets a
@@ -756,6 +763,28 @@ export function unlist(store: Store, userId: string, pigeonId: string): string |
     pigeon.price = null;
     pigeon.minBid = null;
     pigeon.listedAt = null;
+    pigeon.boostedAt = null;
+    return null;
+  });
+}
+
+/**
+ * "Zoekertje naar boven": pay MARKET_BOOST.cost to put your listing at the top of
+ * the market for MARKET_BOOST.hours — until someone else boosts theirs, which
+ * takes the spot (see market.featuredListingId).
+ */
+export function boostListing(store: Store, userId: string, pigeonId: string, nowMs: number = Date.now()): string | null {
+  return store.mutate((db) => {
+    const loft = db.lofts.find((l) => l.userId === userId);
+    const pigeon = db.pigeons.find((p) => p.id === pigeonId && p.ownerId === userId);
+    if (!loft || !pigeon) return 'Duif niet gevonden';
+    if (!pigeon.forSale) return 'Deze duif staat niet te koop';
+    if (loft.isBot) return 'Bots halen hun zoekertje niet naar boven';
+    const debt = debtBlock(loft); if (debt) return debt;
+    if (featuredListingId(db, nowMs) === pigeon.id) return 'Je zoekertje staat al bovenaan';
+    if (loft.money < MARKET_BOOST.cost) return `Niet genoeg geld: een zoekertje naar boven kost €${MARKET_BOOST.cost}`;
+    loft.money -= MARKET_BOOST.cost;
+    pigeon.boostedAt = new Date(nowMs).toISOString();
     return null;
   });
 }
@@ -774,6 +803,8 @@ export function unlist(store: Store, userId: string, pigeonId: string): string |
  * sale — this does the transfer, not the rules.
  */
 export function settlePigeonSale(db: Database, buyer: Loft, pigeon: Pigeon): void {
+  // A policy belongs to the old owner's loft, not to the bird.
+  clearOwnerCare(pigeon);
   const price = pigeon.price ?? 0;
   const sellerId = pigeon.ownerId;
   const soldTalent = talent(pigeon); // read BEFORE the bird changes hands
@@ -785,6 +816,7 @@ export function settlePigeonSale(db: Database, buyer: Loft, pigeon: Pigeon): voi
   pigeon.price = null;
   pigeon.minBid = null;
   pigeon.listedAt = null;
+  pigeon.boostedAt = null;
   // Any pending bids on her lapse — she has moved. Since a listing can now carry
   // a "bieden vanaf", a bird can be bid on AND bought outright at the same time,
   // so this is reachable in a way it never was before: without it the bidder
@@ -856,7 +888,7 @@ function pigeonBusy(db: Database, pigeonId: string): string | null {
   const racing = pigeonCommittedToFlight(db, pigeonId);
   if (racing) return 'Deze duif staat ingeschreven voor een vlucht — schrijf ze eerst uit';
   const breeding = db.breedingPairs.some((bp) => bp.sireId === pigeonId || bp.damId === pigeonId);
-  if (breeding) return 'Deze duif koppelt momenteel — stop eerst het broeden';
+  if (breeding) return 'Deze duif zit momenteel op een nest — stop eerst het broeden';
   return null;
 }
 
@@ -997,10 +1029,10 @@ export function startBreeding(
         return `${parent.name} is nog te jong om te kweken (${weeks} van de ${BREEDING.minAgeWeeks} weken)`;
       }
     }
-    if (sire.ailment || dam.ailment) return 'Een zieke of gekwetste duif kan niet koppelen';
-    if (sire.inInfirmary || dam.inInfirmary) return 'Een duif in de ziekenboeg kan niet koppelen';
-    if (onRestCure(sire) || onRestCure(dam)) return 'Een duif op rustkuur kan niet koppelen';
-    if (isAway(sire) || isAway(dam)) return 'Een duif die nog niet thuis is van haar vlucht kan niet koppelen';
+    if (sire.ailment || dam.ailment) return 'Een zieke of gekwetste duif kan niet broeden';
+    if (sire.inInfirmary || dam.inInfirmary) return 'Een duif in de ziekenboeg kan niet broeden';
+    if (onRestCure(sire) || onRestCure(dam)) return 'Een duif op rustkuur kan niet broeden';
+    if (isAway(sire) || isAway(dam)) return 'Een duif die nog niet thuis is van haar vlucht kan niet broeden';
     // Rest between clutches, per bird (BREEDING.cooldownDays). Named so the
     // player knows WHICH of the two is not ready and for how long.
     for (const parent of [sire, dam]) {
@@ -1012,15 +1044,15 @@ export function startBreeding(
     const alreadyBreeding = db.breedingPairs.some(
       (bp) => bp.sireId === sireId || bp.damId === sireId || bp.sireId === damId || bp.damId === damId,
     );
-    if (alreadyBreeding) return 'Een van deze duiven koppelt al';
+    if (alreadyBreeding) return 'Een van deze duiven zit al op een nest';
     const racing = pigeonCommittedToFlight(db, sireId) || pigeonCommittedToFlight(db, damId);
-    if (racing) return 'Een ingeschreven duif kan niet koppelen — schrijf ze eerst uit voor een vlucht';
+    if (racing) return 'Een ingeschreven duif kan niet broeden — schrijf ze eerst uit voor een vlucht';
     // Only a real clutch blocks a new pair — the rule exists so nests do not pile
     // up. A bird an event handed over shares the waiting queue but has nothing to
     // do with breeding, so it must not lock the pairing form.
     if (loft.pendingBroods?.some((b) => (b.origin ?? 'nest') === 'nest'))
       return 'Er wacht nog een nest op je keuze — beslis eerst welke jongen je houdt';
-    if (loft.money < BREEDING.cost) return 'Niet genoeg geld om te koppelen';
+    if (loft.money < BREEDING.cost) return 'Niet genoeg geld voor een nest';
     loft.money -= BREEDING.cost;
     // Breeding costs the parents some energie.
     sire.form = round1(clamp(sire.form - 15, 0, 100));
@@ -1075,6 +1107,7 @@ export function setInfirmary(
     const racing = pigeonCommittedToFlight(db, pigeonId);
     if (racing) return 'Deze duif staat ingeschreven voor een vlucht';
     pigeon.inInfirmary = true;
+    if (pigeon.ailment) pigeon.ailment.boeg = true; // the verzekering asks
     // The bird KEEPS its compartment flag while isolated in the infirmary, but the
     // slot frees up in the meantime — compartmentsUsed and the assign-check both
     // ignore infirmary birds, and the rest-bonus is withheld — so another bird can

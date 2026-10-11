@@ -52,6 +52,8 @@ import {
   SPONSORS,
   sponsorPodiumBonus,
   STARTING_FOOD_STOCK,
+  EQUIPMENT,
+  CITY_COORDS,
   STARTING_LOFT_CAPACITY,
   STARTING_MONEY,
   STARTING_PIGEONS,
@@ -63,6 +65,8 @@ import {
 } from '../config/gameConfig.js';
 import type { CupStanding, Database, Flight, FlightResult, Loft, Pigeon, RaceLogEntry } from '../schema.js';
 import { emptySponsorState, emptyStats } from '../schema.js';
+import { tickHygiene } from './hygiene.js';
+import { entryMods, insuranceCost, insurancePayout, irBoxEffect, tickHawk, tickMagazine } from './inrichting.js';
 import { newId } from '../store.js';
 import { applyDayOfCare, dailyRunningCost } from './economy.js';
 import { coachBill, newNewcomerPerks, tickNewcomerExpiry, winningsMultiplier } from './newcomer.js';
@@ -105,6 +109,7 @@ import {
   type SimulatedFlight,
 } from './flight.js';
 import type { WeatherResult } from './weather.js';
+import { monthTemperature } from './weather.js';
 import { generatePigeonName, isLegacyName, isWrongGenderName, nameKey, namesInUse } from './names.js';
 import { breedingCooldownDaysLeft, breedingCooldownUntil, canRace, conditionScore, generatePigeon, isAway, noteAttrChange, rollBreed, rollGenes, talent } from './pigeon.js';
 import { NPC_OWNER_ID, ownerName } from './engine.js';
@@ -112,6 +117,7 @@ import { pickRelayRoute, relayEntryTeams, relayLegKm, relayTeamComplete } from '
 import { rollAnyTrait, rollTrait } from './traits.js';
 import { season3CoachNote, season3Welcome } from './season3.js';
 import { LOKAAL_INTRO } from './lokaal.js';
+import { INRICHTING_NEWS } from './news.js';
 import { bell, clamp, hashString, haversineKm, pick, randFloat, round1, seededRng } from './util.js';
 
 // --- Time-zone helpers -----------------------------------------------------
@@ -865,7 +871,7 @@ export function tickFlights(
       for (const e of flight.entries) {
         const pigeon = db.pigeons.find((p) => p.id === e.pigeonId);
         if (!pigeon) continue;
-        entries.push({ pigeon, ownerName: ownerName(db, pigeon.ownerId) });
+        entries.push({ pigeon, ownerName: ownerName(db, pigeon.ownerId), mods: entryMods(db, pigeon) });
       }
       // A competition flight needs at least two different breeders — otherwise it
       // is called off and everyone's entry fee is refunded. Training flights
@@ -921,6 +927,9 @@ export function tickFlights(
         }
         // Remove birds that died on the flight and clean up their references.
         for (const dead of sim.deaths) {
+          const deadBird = db.pigeons.find((p) => p.id === dead.pigeonId);
+          const simEntry = flight.sim.find((s) => s.pigeonId === dead.pigeonId);
+          if (deadBird) insurancePayout(db, deadBird, 'vlucht', nowMs, { startEnergy: simEntry?.startForm });
           db.pigeons = db.pigeons.filter((p) => p.id !== dead.pigeonId);
           db.breedingPairs = db.breedingPairs.filter((bp) => bp.sireId !== dead.pigeonId && bp.damId !== dead.pigeonId);
           for (const f of db.flights) {
@@ -2443,6 +2452,19 @@ export function runDataMigrations(db: Database): void {
     }
     db.world.dataVersion = 60;
   }
+
+  if ((db.world.dataVersion ?? 0) < 61) {
+    // Aankondiging: de hokinrichting (pagina Inrichting), het hokoverzicht, het
+    // zoekertje naar boven en de besmetting per ziekte gaan live. Zelfde vorm als
+    // v60: één bel per echte speler met een stabiele id (core/game/news.ts); de
+    // tweede helft is INRICHTING_NEWS_STEPS in Tour.tsx. Geen datafix nodig: een
+    // hok zonder inrichting staat op hygiëne 50 en merkt niets.
+    for (const loft of db.lofts) {
+      if (loft.isBot) continue;
+      pushNotification(db, loft.userId, 'info', INRICHTING_NEWS.title, INRICHTING_NEWS.body, null, INRICHTING_NEWS.id(loft.userId));
+    }
+    db.world.dataVersion = 61;
+  }
 }
 
 /**
@@ -2809,6 +2831,42 @@ export function applyRelayForecasts(db: Database, forecasts: Map<string, Weather
 }
 
 /**
+ * Weerstation (hokinrichting): regular flights within EQUIPMENT.weatherStation.
+ * forecastHours of their start whose forecast is stale — every refreshHours, and
+ * hourly in the last finalHours, like the relay. Nothing at all while no loft owns
+ * a station, so the game makes no extra outbound call for a feature nobody has.
+ */
+export function flightsNeedingForecast(db: Database, nowMs: number): { flightId: string; from: { lat: number; lon: number }; to: { lat: number; lon: number }; atMs: number }[] {
+  if (!db.lofts.some((l) => l.equipment?.weatherStation)) return [];
+  const W = EQUIPMENT.weatherStation;
+  const out: { flightId: string; from: { lat: number; lon: number }; to: { lat: number; lon: number }; atMs: number }[] = [];
+  for (const f of db.flights) {
+    if (f.status !== 'scheduled' || f.relay || !f.startAt) continue;
+    const startMs = Date.parse(f.startAt);
+    if (Number.isNaN(startMs) || startMs < nowMs || startMs - nowMs > W.forecastHours * 3600000) continue;
+    const from = CITY_COORDS[f.fromCity];
+    const to = CITY_COORDS[f.toCity];
+    if (!from || !to) continue;
+    const staleH = (startMs - nowMs) / 3600000 <= W.finalHours ? 1 : W.refreshHours;
+    const ageH = f.forecast?.at ? (nowMs - Date.parse(f.forecast.at)) / 3600000 : Infinity;
+    if (Number.isFinite(ageH) && ageH < staleH) continue;
+    out.push({ flightId: f.id, from, to, atMs: startMs });
+  }
+  return out;
+}
+
+/** Store refreshed weerstation forecasts, keyed by flight id. */
+export function applyFlightForecasts(db: Database, forecasts: Map<string, WeatherResult>, nowMs: number): void {
+  if (forecasts.size === 0) return;
+  const at = new Date(nowMs).toISOString();
+  for (const f of db.flights) {
+    const w = forecasts.get(f.id);
+    if (!w) continue;
+    f.forecast = { label: w.label, factor: w.factor, rain: !!w.rain, tempC: w.tempC ?? 0, at };
+  }
+}
+
+/**
  * Flights that are due to start right now and still need their real weather
  * fetched. The API middleware prefetches weather for these (async) before the
  * synchronous tick, so a live flight can be frozen against real conditions.
@@ -2912,6 +2970,8 @@ export function tickDailyCare(db: Database, nowMs: number): void {
       const coveredInfirmaryIds = coveredInInfirmary(loft, owned);
       const { deaths } = applyDayOfCare(loft, owned, livePigeonIds, coveredInfirmaryIds);
       for (const dead of deaths) {
+        const starved = db.pigeons.find((p) => p.id === dead.id);
+        if (starved) insurancePayout(db, starved, 'honger', nowMs);
         db.pigeons = db.pigeons.filter((p) => p.id !== dead.id);
         db.breedingPairs = db.breedingPairs.filter((bp) => bp.sireId !== dead.id && bp.damId !== dead.id);
         for (const f of db.flights) {
@@ -2934,7 +2994,9 @@ export function tickDailyCare(db: Database, nowMs: number): void {
         // Each coached bird pays the salary of its own score band; a newcomer's
         // free coach covers the most expensive one (see coachBill).
         const coaches = coachBill(loft, alive.filter((p) => p.coached), nowMs).total;
-        loft.money -= dailyRunningCost(loft, alive.length, coaches, infirmaryBirds);
+        const pairs = db.breedingPairs.filter((bp) => bp.ownerId === loft.userId).length;
+        const insurance = insuranceCost(alive, db.world.currentWeek);
+        loft.money -= dailyRunningCost(loft, alive.length, coaches, infirmaryBirds, { pairs, insurance });
         // Sponsors pay a DAILY stipend — same cadence as the running costs, so
         // the player's daily balance is a single honest number (no /7 rounding).
         const stipend = sponsorsPaused(loft) ? 0 : activeContracts(loft).reduce((s, c) => s + c.contract.dailyStipend, 0);
@@ -2966,6 +3028,11 @@ export function tickDailyCare(db: Database, nowMs: number): void {
           }
         }
       }
+      // Hokhygiëne drops once a day, and a hokpoetser strews fresh straw when it
+      // gets low (hokinrichting — a loft that never touched it is left alone).
+      tickHygiene(loft, db.pigeons.filter((p) => p.ownerId === loft.userId), dayMidnight);
+      // De sperwer boven een ren zonder roofvogelafweer (hokinrichting).
+      tickHawk(db, loft, db.pigeons.filter((p) => p.ownerId === loft.userId), dayNo, livePigeonIds);
       // AFTER the day's billing, because that is what can push a till into the
       // red in the first place: coaches off on day one, then a forced auction
       // every DEBT.graceDays for as long as it lasts (see game/debt.ts).
@@ -2983,7 +3050,9 @@ export function tickDailyCare(db: Database, nowMs: number): void {
   // Every loft has now had this day — close it out.
   // One real-time day of health for the whole world: birds actually fall ill,
   // ailments keep draining health, and an untreated ailment can turn fatal.
-  runHealthDay(db, db.world.currentWeek);
+  runHealthDay(db, db.world.currentWeek, nowMs);
+  // Het Duivenblad (vakblad, hokinrichting): a Monday note for every subscriber.
+  tickMagazine(db, localDayNumber(TIMEZONE, dayMidnight), nowMs);
   // A newcomer whose first season just ended is told so — their coach starts
   // costing money today and their winnings halve, and that must never be a
   // silent change. Fires exactly once (endNotified).
@@ -3136,6 +3205,16 @@ const broodNoteId = (pairId: string) => `ntf:brood:${pairId}`;
 export function tickBreedingHatch(db: Database, nowMs: number): void {
   const humanIds = new Set(db.lofts.filter((l) => !l.isBot).map((l) => l.userId));
   const hatched = new Set<string>();
+  // Which pairs sit in a heated nest box: per loft, its first `irBoxes` pairs.
+  // Pair id → what the infrarood above its nest does (its loft's level).
+  const heatedPairs = new Map<string, ReturnType<typeof irBoxEffect>>();
+  for (const loft of db.lofts) {
+    const boxes = loft.equipment?.irBoxes ?? 0;
+    if (boxes <= 0) continue;
+    const effect = irBoxEffect(loft);
+    db.breedingPairs.filter((bp) => bp.ownerId === loft.userId).sort((a, b) => (a.id < b.id ? -1 : 1))
+      .slice(0, boxes).forEach((bp) => heatedPairs.set(bp.id, effect));
+  }
   for (const bp of db.breedingPairs) {
     const checkedAt = bp.hatchAt ? Date.parse(bp.hatchAt) : NaN;
     if (Number.isNaN(checkedAt)) {
@@ -3170,8 +3249,10 @@ export function tickBreedingHatch(db: Database, nowMs: number): void {
       0,
       100,
     ) / 100;
+    const heated = heatedPairs.get(bp.id); // infrarood boven het nest (hokinrichting)
     const meanDays =
-      BREEDING.hatchMaxMeanDays - fertility * (BREEDING.hatchMaxMeanDays - BREEDING.hatchMinMeanDays);
+      (BREEDING.hatchMaxMeanDays - fertility * (BREEDING.hatchMaxMeanDays - BREEDING.hatchMinMeanDays)) /
+      (heated ? heated.hatchSpeed : 1);
     const lambdaPerHour = 1 / (meanDays * 24);
     const hatchNow = Math.random() < 1 - Math.exp(-lambdaPerHour * dtHours);
     if (!hatchNow) {
@@ -3183,7 +3264,11 @@ export function tickBreedingHatch(db: Database, nowMs: number): void {
     // Kinship is resolved HERE, at the hatch, not at pairing time: an ancestor may
     // have died in between, and the tree is only walkable through living birds.
     const kin = kinship(db, sire, dam);
-    const young = breed(sire, dam, bp.ownerId, db.world.currentWeek, namesInUse(db.pigeons), bp.id, kin);
+    const cold = monthTemperature(nowMs) < EQUIPMENT.irBoxes.coldBelowC;
+    const young = breed(
+      sire, dam, bp.ownerId, db.world.currentWeek, namesInUse(db.pigeons), bp.id, kin,
+      heated ? { twin: heated.twin, success: cold ? heated.coldSuccess : 0 } : {},
+    );
     if (young.length > 0) {
       // The rest is per BIRD and starts at the hatch, so it survives the pair
       // being dissolved and follows her if she is sold. Deliberately NOT set on

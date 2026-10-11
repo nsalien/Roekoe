@@ -12,6 +12,7 @@ import { useEffect } from 'react';
 import { Link } from 'react-router-dom';
 
 const SECTIONS = [
+  { id: 'nieuw', icon: '🧰', label: 'Nieuw: inrichting & meer' },
   { id: 'seizoen3', icon: '🎉', label: 'Nieuw in seizoen 3' },
   { id: 'starterspakket', icon: '🎁', label: 'Starterspakket' },
   { id: 'genen', icon: '🧬', label: 'Genen & training' },
@@ -36,6 +37,8 @@ const SECTIONS = [
   { id: 'inteelt', icon: '🌳', label: 'Stamboom & inteelt' },
   { id: 'ziekte', icon: '🤒', label: 'Ziekte' },
   { id: 'ziekenboeg', icon: '🏥', label: 'De ziekenboeg' },
+  { id: 'hygiene', icon: '🧹', label: 'Hokhygiëne & stro' },
+  { id: 'inrichting', icon: '🛠️', label: 'Hokinrichting, vaccins & diensten' },
   { id: 'sterfte', icon: '🕯️', label: 'Sterfte' },
   { id: 'kenmerken', icon: '✨', label: 'Kenmerken' },
   { id: 'rassen', icon: '🎨', label: 'Rassen' },
@@ -107,6 +110,63 @@ export function WikiPage() {
           ))}
         </div>
       </div>
+
+      <Section id="nieuw" icon="🧰" title="Nieuw: inrichting & meer">
+        <p className="muted" style={{ marginTop: 0 }}>
+          Wat er in oktober (seizoen 3) bijkwam en veranderde, op één plek. Deze sectie blijft staan als logboek.
+        </p>
+
+        <h3>🧰 De pagina Inrichting</h3>
+        <p>
+          Een nieuwe pagina in het menu met alles wat je aan je hok koopt, in vier blokken die je openklapt:{' '}
+          <strong>plaatsen &amp; hokken</strong>, <strong>hygiëne</strong> (vers stro en een hokpoetser),{' '}
+          <strong>vaccins &amp; kuren</strong> en <strong>uitrusting</strong> (dakventilatie, buitenren,
+          roofvogelafweer, kunstlicht, infrarood nestbakken, betere reismanden, weerstation). Elk onderdeel geeft een
+          klein voordeel; pas alles samen maakt een echt verschil. <strong>Niets kopen = het spel zoals je het
+          kende</strong>: een hok zonder stro staat op hygiëne 50 en merkt niets.
+        </p>
+        <ul>
+          <li>Hokcapaciteit en aparte hokken koop je nu op <em>Inrichting</em> in plaats van op <em>Mijn hok</em> (ziekenboegbedden kan het daar ook).</li>
+          <li>Uitrusting koop je één keer en waardeer je op tot niveau 4. Enkel de hokpoetser, het vakblad en de
+            verzekeringspremies kosten per dag; ze staan in je Dagbalans.</li>
+          <li>De <strong>verzekering</strong> sluit je af op de pagina van een duif, het <strong>vakblad</strong> vind je op de Markt.</li>
+          <li>Bots kopen vers stro en dakventilatie, verder niets.</li>
+        </ul>
+        <p><a href="#hygiene">Hygiëne &amp; de hokpoetser →</a> · <a href="#inrichting">Uitrusting, vaccins &amp; verzekering →</a></p>
+
+        <h3>🕊️ Het hokoverzicht</h3>
+        <p>
+          Bovenaan <em>Mijn hok</em> staat waar elke duif zit: de bezette en vrije plaatsen, de aparte hokken, wie
+          broedt, wie in de ziekenboeg ligt (en hoe ver ze hersteld is), wie beschermd is en wie niet thuis is (vliegt
+          of is de weg kwijt).
+        </p>
+
+        <h3>📌 Zoekertje naar boven</h3>
+        <p>
+          Op de Markt zet je je eigen zoekertje voor <strong>€50</strong> bovenaan. Het blijft <strong>12 uur</strong>{' '}
+          bovenaan, tenzij iemand anders intussen het zijne naar boven haalt: dan zakt het jouwe terug naar zijn gewone
+          plaats. Een prijswijziging houdt je plek; uit de verkoop halen of verkopen beëindigt ze.{' '}
+          <a href="#waarde">Meer over de Markt →</a>
+        </p>
+
+        <h3>🦠 Besmetting per ziekte</h3>
+        <p>
+          Een zieke duif buiten de ziekenboeg geeft nu <strong>haar eigen ziekte</strong> door aan haar hokgenoten
+          (vroeger kreeg een besmette duif een willekeurige ziekte), en de ene ziekte slaat veel makkelijker over dan de
+          andere: paramyxovirose het snelst, salmonellose het traagst. Zet een zieke duif dus meteen in de ziekenboeg;
+          lukt dat niet, dan beschermt een kuur of vaccin tegen díe ziekte de rest van je hok.{' '}
+          <a href="#ziekte">Kans per ziekte →</a>
+        </p>
+
+        <h3>⚖️ Wat er verandert zonder dat je iets koopt</h3>
+        <ul>
+          <li>De besmetting per ziekte hierboven.</li>
+          <li>Alle bescherming tegen ziekte samen (apart hok, hygiëne, hokpoetser, IJzeren gestel) maakt de kans nooit
+            kleiner dan <strong>×0,4</strong> van wat ze zonder zou zijn. Een duif met een apart hok én IJzeren gestel
+            zat op ×0,35; dat wordt ×0,4.</li>
+          <li>In de kweek heet het nu <em>nest</em> en <em>broeden</em> in plaats van <em>koppelen</em>; de werking is dezelfde.</li>
+        </ul>
+      </Section>
 
       <Section id="seizoen3" icon="🎉" title="Nieuw in seizoen 3">
         <p className="muted" style={{ marginTop: 0 }}>
@@ -1231,8 +1291,25 @@ export function WikiPage() {
           ]}
         />
         <p style={{ marginTop: 12 }}>
-          <strong>Hoe erg de ziekte is, hangt óók van de gezondheid af.</strong> Een duif in goede doen sleept meestal
-          iets lichts op; een verzwakte duif is degene die iets zwaars oploopt.
+          <strong>Besmetting gaat per ziekte.</strong> Een zieke hokgenoot geeft <em>haar eigen</em> ziekte door, en de
+          ene ziekte slaat veel makkelijker over dan de andere. Kans per week dat een hokgenoot het oploopt, per zieke
+          duif buiten de ziekenboeg, bij een vluchtvorm van 75 en van 45:
+        </p>
+        <MiniTable
+          head={['Ziekte', 'Ernst', 'Besmettelijk', 'Vorm 75', 'Vorm 45']}
+          rows={[
+            ['Paramyxovirose', 'ernstig', '×1,5', '9,9%', '18,5%'],
+            ['Ornithose', 'matig', '×1,3', '8,3%', '15,7%'],
+            ['Het Geel', 'licht', '×1,2', '7,5%', '14,3%'],
+            ['Coccidiose', 'matig', '×1', '6,1%', '11,6%'],
+            ['Duivenpokken', 'matig', '×0,7', '4,1%', '7,9%'],
+            ['Salmonellose', 'ernstig', '×0,6', '3,5%', '6,7%'],
+          ]}
+        />
+        <p style={{ marginTop: 12 }}>
+          <strong>Hoe erg een spontane ziekte is, hangt óók van de gezondheid af.</strong> Een duif in goede doen sleept
+          meestal iets lichts op; een verzwakte duif is degene die iets zwaars oploopt. Bij besmetting krijgt ze gewoon
+          de ziekte van de zieke hokgenoot — ook een fitte duif kan zo paramyxo oplopen.
         </p>
         <MiniTable
           head={['Gezondheid', 'Licht', 'Matig', 'Ernstig']}
@@ -1602,6 +1679,111 @@ export function WikiPage() {
         </p>
       </Section>
 
+      <Section id="hygiene" icon="🧹" title="Hokhygiëne, vers stro & de hokpoetser">
+        <p className="muted" style={{ marginTop: 0 }}>
+          Je hok heeft een <strong>hygiënemeter van 0 tot 100</strong>. Vers stro zet hem op 100. Je ziet en koopt het op de pagina{' '}
+          <em>Inrichting</em>.
+        </p>
+        <ul>
+          <li><strong>Boven 50 zakt de kans op ziekte</strong>, tot <strong>×0,8</strong> bij 100 (bij 75 is dat ×0,9). Op of onder 50 gebeurt er niets — zo was het altijd.</li>
+          <li><strong>Vers stro:</strong> €18 per baal, één baal per 8 plaatsen (een hok van 12 = 2 balen = €36).</li>
+          <li><strong>De meter zakt elke dagovergang</strong>: 8 punten in een vol hok, minder in een half leeg hok, 50 % sneller zolang er een zieke duif (ziekte, geen kwetsuur) tussen de anderen zit, en 25 % trager met dakventilatie.</li>
+          <li><strong>Hokpoetser:</strong> per dag €10 tot 8 duiven, €15 tot 12, €20 tot 14, €30 tot 16, €45 tot 18 en €75 tot 20 duiven: hoe meer duiven, hoe duurder. Aannemen en ontslaan is gratis. Zakt de meter onder 70, dan strooit hij vers stro (aan de gewone prijs). Hij ontsmet ook: besmetting tussen duiven ×0,85.</li>
+          <li><strong>Een bodem:</strong> hygiëne, een apart hok, de poetser en het kenmerk IJzeren gestel samen maken de kans op ziekte nooit kleiner dan <strong>×0,4</strong>. Vaccins tellen daar los bovenop.</li>
+        </ul>
+      </Section>
+
+      <Section id="inrichting" icon="🛠️" title="Hokinrichting, vaccins & diensten">
+        <p className="muted" style={{ marginTop: 0 }}>
+          Alles hieronder koop je op de pagina <em>Inrichting</em> (vier blokken: plaatsen &amp; hokken, hygiëne, vaccins &amp; kuren, uitrusting) of op de pagina van een duif; het vakblad vind je op de <em>Markt</em>. <strong>Niets kopen = het spel zoals
+          vroeger.</strong> Elk onderdeel geeft maar een <strong>klein</strong> voordeel; pas alles samen maakt het verschil. Inrichting
+          koop je <strong>één keer</strong>: enkel de hokpoetser, het vakblad en een verzekering kosten per dag (zie je <em>Dagbalans</em>).
+          De pagina <em>Inrichting</em> zegt het kort; hier staan de <strong>exacte cijfers</strong> (niveau 1). Stro en de hokpoetser:
+          zie <a href="#hygiene">Hokhygiëne</a>.
+        </p>
+        <MiniTable
+          head={['Wat', 'Prijs', 'Voordeel']}
+          rows={[
+            ['Apart hok', '€800, elk volgend +€400', 'voor de duif die erin zit: +60 % energieherstel, +40 % gezondheidsherstel, 50 % minder kans op ziekte'],
+            ['Ziekenboegbed', '€800 → €2.400', 'meer zieke duiven tegelijk in de ziekenboeg (zie Ziekenboeg)'],
+            ['Buitenren', '€2.500', '+6 i.p.v. +4 energie op elke 3e rustdag · libido +3 · zonder afweer ~1× per 40 dagen een sperwer: wie thuis rust −6 energie'],
+            ['Roofvogelafweer', '€900', 'net + lokuil (vraagt een ren): geen sperwer in de ren, en de gebeurtenis "Sperwer in de buurt" is ongevaarlijk'],
+            ['Dakventilatie', '€1.200', '40 % minder kans op ornithose · de hygiëne zakt 25 % trager · +5 % gezondheidsherstel uit het voer'],
+            ['Kunstlicht', '€700', 'libido +6 bij al je duiven: sneller een nest en meer broedsucces'],
+            ['Infrarood nestbakken', '€1.600 voor 2, +€500 per bak', 'een nest komt 15 % sneller uit · +6 % kans op een tweeling · onder 10 °C +4 % slaagkans'],
+            ['Betere reismanden', '€1.000', 'elke vlucht 3 % minder energieverlies en 5 % minder gezondheidsverlies'],
+            ['Weerstation', '€1.500', 'het weer bij de lossing al 24 u vooraf, om de 6 u bijgewerkt (het weer kan nog afwijken)'],
+            ['Vakblad', '€6/dag, opzegbaar', 'bandbreedte i.p.v. enkel ★ bij andermans duif (op haar pagina en bij een privébod) · marktrapport over 28 dagen (onderaan de Markt) · elke maandag Het Duivenblad (in je meldingen)'],
+          ]}
+        />
+
+        <h3 style={{ marginBottom: 4 }}>Niveaus</h3>
+        <p className="muted" style={{ marginTop: 0 }}>
+          Ventilatie, buitenren, kunstlicht, infrarood en reismanden kan je, eens gekocht, <strong>tot niveau 4</strong>{' '}
+          opwaarderen. Elk niveau kost <strong>3× zoveel</strong> als het vorige en werkt sterker: niveau 2 ×1,5, niveau 3 ×1,8,
+          niveau 4 <strong>dubbel</strong> zo sterk als niveau 1. Steeds duurder voor steeds minder: iets voor wie geld over heeft,
+          nooit een must. Roofvogelafweer, weerstation en vakblad hebben geen niveaus.
+        </p>
+        <ul>
+          <li><strong>Formule prijs:</strong> prijs niveau <em>n</em> = prijs niveau 1 × 3<sup><em>n</em>−1</sup> (×1, ×3, ×9, ×27).</li>
+          <li><strong>Formule effect:</strong> elk getal uit de tabel hierboven × 1 · 1,5 · 1,8 · 2 voor niveau 1 · 2 · 3 · 4.
+            Voorbeeld: ventilatie niveau 3 = 40 % × 1,8 = 72 % minder kans op ornithose.</li>
+          <li>Op de pagina <em>Inrichting</em> zie je bij elk niveau het <strong>hoofdeffect, nu en na de stap</strong>
+            (bv. "ornithose −60 % → −72 %"); de andere effecten van dat onderdeel groeien evenveel mee. Tik op de
+            <strong>ⓘ</strong> naast een onderdeel voor al zijn effecten, nu en na aankoop.</li>
+        </ul>
+        <MiniTable
+          head={['Onderdeel', 'Niveau 1', 'Niveau 2', 'Niveau 3', 'Niveau 4', 'Op niveau 4']}
+          rows={[
+            ['Dakventilatie', '€1.200', '€3.600', '€10.800', '€32.400', '80 % minder ornithose · hygiëne zakt 50 % trager · +10 % herstel'],
+            ['Buitenren', '€2.500', '€7.500', '€22.500', '€67.500', '+8 i.p.v. +4 energie op elke 3e rustdag · libido +6'],
+            ['Kunstlicht', '€700', '€2.100', '€6.300', '€18.900', 'libido +12'],
+            ['Infrarood nestbakken', '€1.600', '€4.800', '€14.400', '€43.200', 'nest 30 % sneller uit · +12 % tweelingkans · onder 10 °C +8 % slaagkans'],
+            ['Betere reismanden', '€1.000', '€3.000', '€9.000', '€27.000', 'elke vlucht 6 % minder energie- en 10 % minder gezondheidsverlies'],
+          ]}
+        />
+
+        <h3 style={{ marginBottom: 4 }}>Vaccins &amp; kuren</h3>
+        <p className="muted" style={{ marginTop: 0 }}>
+          Elk middel werkt tegen één ziekte: wordt een beschermde duif ziek met precies die ziekte, dan weert ze het af
+          met de kans uit de tabel. Een vaccin houdt haar 2 dagen aan de grond; een kuur is kort, voor als er iets
+          rondgaat. Per duif op haar pagina, of het hele hok tegelijk op de pagina <em>Inrichting</em>: dat slaat duiven
+          over die nog meer dan een kwart van hun bescherming hebben.
+        </p>
+        <MiniTable
+          head={['Middel', 'Ziekte', 'Prijs', 'Werkt', 'Weert af', 'Bijwerking']}
+          rows={[
+            ['PMV-vaccin', 'Paramyxovirose', '€10', '91 dagen', '80 %', '2 dagen niet vliegen'],
+            ['Pokkenvaccin', 'Duivenpokken', '€8', '91 dagen', '80 %', '2 dagen niet vliegen'],
+            ['Salmonellavaccin', 'Salmonellose', '€6', '45 dagen', '60 %', '2 dagen niet vliegen'],
+            ['Geelkuur', 'Het Geel', '€5', '7 dagen', '75 %', '—'],
+            ['Coccidiosekuur', 'Coccidiose', '€5', '10 dagen', '75 %', '—'],
+            ['Ademhalingskuur', 'Ornithose', '€5', '7 dagen', '60 %', 'libido −10'],
+          ]}
+        />
+        <p className="muted">
+          <strong>Loont het?</strong> Hoe meer je duif waard is, hoe meer een middel haar bespaart: wat een ziekte echt
+          kost zijn de dagen in de ziekenboeg met dokter en medicatievoer, de vluchten die ze mist (een zieke duif krijgt
+          geen of maar halve energie binnen) en de kans dat ze sterft. Je betaalt ook als ze die ziekte anders nooit had
+          gekregen — het is een investering. Een <strong>vaccin</strong> loont gemiddeld vanaf een duif met een
+          marktwaarde van zo'n €6.400 (PMV), €8.600 (pokken) of €11.400 (salmonella); een topduif van €37.000 haalt er
+          2 à 4 keer haar geld uit, en een duif die na elke vlucht diep zakt nog meer. Een <strong>kuur</strong> is kort
+          en werkt tegen één ziekte: gemiddeld haal je er minder uit dan ze kost. Ze loont wél als die ziekte in je hok
+          rondgaat en je de zieke duif niet kan afzonderen (ziekenboeg vol): een zieke hokgenoot geeft haar eigen ziekte
+          door (zie <a href="#ziekte">Kans op ziekte</a>).
+        </p>
+
+        <h3 style={{ marginBottom: 4 }}>Verzekering</h3>
+        <ul>
+          <li>Per duif. Sterft ze, dan krijg je <strong>60 % van haar marktwaarde op het moment dat je afsloot</strong>.</li>
+          <li>Premie per dag = 1,3 × uitkering × de kans dat ze die dag sterft: spotgoedkoop voor een jonge duif, duur voor een oude. Gemiddeld betaal je 30 % meer dan je terugkrijgt — je koopt rust, geen winst.</li>
+          <li><strong>Gedekt:</strong> ziekte, ouderdom, de sperwer. <strong>Niet gedekt:</strong> honger, vertrekken met minder dan 5 energie, een ziekte die nooit in de ziekenboeg lag, vrijlaten of verkopen, en de eerste 7 dagen.</li>
+          <li>Verkoop je haar, dan vervalt de verzekering.</li>
+        </ul>
+
+        <p className="faint" style={{ fontSize: '0.85rem' }}>Bots kopen vers stro en dakventilatie, verder niets.</p>
+      </Section>
+
       <Section id="hok" icon="🏠" title="Hokcapaciteit & onderhoudskosten">
         <p className="muted" style={{ marginTop: 0 }}>
           Je hok bepaalt hoeveel duiven je kan houden — en dus hoeveel je er per week aan de
@@ -1657,7 +1839,7 @@ export function WikiPage() {
           <li><strong>Een hok van 8 betaalt niets extra</strong> — de schijven raken alleen wie groter gaat.</li>
           <li><strong>Je ziet het per schijf terug</strong> in de <em>Dagbalans</em> op het Overzicht, naast je sponsorinkomsten.</li>
           <li><strong>Voer, aparte hokken en de ziekenboeg staan hier los van</strong> en worden apart aangerekend.</li>
-          <li>Op de uitbreidingskaart in <em>Mijn hok</em> zie je de tarieven <strong>vóór</strong> je een uitbreiding koopt.</li>
+          <li>In het blok <em>Plaatsen &amp; hokken</em> op de pagina <em>Inrichting</em> zie je wat je volgende duif kost <strong>vóór</strong> je een uitbreiding koopt.</li>
         </ul>
         <p>
           <strong>Strategie:</strong> een groter hok verdient zichzelf alleen terug als je die
@@ -1720,6 +1902,14 @@ export function WikiPage() {
         <p className="faint" style={{ fontSize: '0.85rem' }}>
           Wil je de prijzen zien bewegen? Kijk naar de <strong>verkoopgeschiedenis</strong> op de markt:
           dat is letterlijk de data waarop de schattingen draaien.
+        </p>
+        <h3 style={{ marginBottom: 4 }}>📌 Zoekertje naar boven</h3>
+        <p className="muted" style={{ marginTop: 0 }}>
+          Staat je duif te koop, dan kan je je zoekertje voor <strong>€50</strong> bovenaan de markt zetten. Het blijft
+          daar <strong>12 uur</strong> — tot iemand anders zijn zoekertje naar boven haalt: er is maar één plek
+          bovenaan, en de laatste die betaalt krijgt ze. Het jouwe zakt dan terug naar zijn gewone plaats (de rest
+          staat op prijs, goedkoopste eerst). Haal je je duif uit de verkoop of wordt ze verkocht, dan is de boost
+          weg; je prijs aanpassen mag zonder ze te verliezen.
         </p>
       </Section>
 

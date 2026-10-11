@@ -224,7 +224,7 @@ export function NestChoice({
             {state?.economy && <Money value={state.economy.restaurantPayout} />}, maar elke andere duif verliest{' '}
             {state?.economy?.restaurantMoraleMin}–{state?.economy?.restaurantMoraleMax} energie.
           </p>
-          {spare.length === 0 && <p className="muted">Geen enkele duif is vrij — ze vliegen of koppelen allemaal.</p>}
+          {spare.length === 0 && <p className="muted">Geen enkele duif is vrij — ze vliegen of broeden allemaal.</p>}
           <div className="stack" style={{ gap: 6 }}>
             {spare.map((p) => (
               <div key={p.id} className="row" style={{ justifyContent: 'space-between', gap: 8 }}>

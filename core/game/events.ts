@@ -4,6 +4,7 @@
  * missions.ts) and resolved here.
  */
 
+import { insurancePayout } from './inrichting.js';
 import type { BroodOrigin, Database, EventCard, Loft, Pigeon } from '../schema.js';
 import { newId } from '../store.js';
 import { EVENTS } from '../config/gameConfig.js';
@@ -107,6 +108,14 @@ export function makeEvent(db: Database, loft: Loft, week: number): EventCard | n
       };
     }
     case 'poacher':
+      // Roofvogelafweer (hokinrichting): the nets already hang — nothing to pay, nothing to fear.
+      if (loft.equipment?.raptorGuard) {
+        return {
+          key: 'poacher', icon: '🦅', title: 'Sperwer in de buurt',
+          text: 'Er cirkelt een sperwer boven het dorp. Je netten hangen al en de lokuil houdt de wacht — je duiven zijn veilig.',
+          options: [{ label: 'Gerust' }, { label: 'Toch even kijken' }],
+        };
+      }
       return {
         key: 'poacher', icon: '🦅', title: 'Sperwer in de buurt',
         text: 'Er cirkelt een sperwer boven het dorp. Span je (dure) beschermnetten, of hoop je dat je duiven binnenblijven? Een aanval kan heel lelijk aflopen — tot een dode duif toe.',
@@ -365,6 +374,7 @@ export function resolveEvent(db: Database, loft: Loft, choice: number, week: num
       return `${p.name} kwam doodmoe terug — een week verspild.`;
     }
     case 'poacher': {
+      if (loft.equipment?.raptorGuard) return 'Je netten hingen al — de sperwer trok verder zonder iets te proberen.';
       if (choice === 0) {
         if (loft.money < 120) return 'Niet genoeg geld voor netten.';
         loft.money -= 120;
@@ -374,6 +384,7 @@ export function resolveEvent(db: Database, loft: Loft, choice: number, week: num
         const victim = pick(owned);
         if (Math.random() < 0.2) {
           const name = victim.name;
+          insurancePayout(db, victim, 'sperwer', Date.now());
           const vidx = db.pigeons.findIndex((p) => p.id === victim.id);
           if (vidx !== -1) db.pigeons.splice(vidx, 1);
           notify(db, loft, '🦅 Gegrepen', `De sperwer sloeg toe: ${name} is niet meer.`);
