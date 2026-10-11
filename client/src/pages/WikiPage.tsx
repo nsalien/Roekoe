@@ -1678,22 +1678,22 @@ export function WikiPage() {
         <MiniTable
           head={['Middel', 'Ziekte', 'Prijs', 'Werkt', 'Weert af', 'Bijwerking']}
           rows={[
-            ['PMV-vaccin', 'Paramyxovirose', '€6', '91 dagen', '80 %', '2 dagen niet vliegen'],
-            ['Pokkenvaccin', 'Duivenpokken', '€4', '91 dagen', '80 %', '2 dagen niet vliegen'],
-            ['Salmonellavaccin', 'Salmonellose', '€2', '45 dagen', '60 %', '2 dagen niet vliegen'],
-            ['Geelkuur', 'Het Geel', '€1', '7 dagen', '75 %', '—'],
-            ['Coccidiosekuur', 'Coccidiose', '€1', '10 dagen', '75 %', '—'],
-            ['Ademhalingskuur', 'Ornithose', '€1', '7 dagen', '60 %', 'libido −10'],
+            ['PMV-vaccin', 'Paramyxovirose', '€10', '91 dagen', '80 %', '2 dagen niet vliegen'],
+            ['Pokkenvaccin', 'Duivenpokken', '€8', '91 dagen', '80 %', '2 dagen niet vliegen'],
+            ['Salmonellavaccin', 'Salmonellose', '€6', '45 dagen', '60 %', '2 dagen niet vliegen'],
+            ['Geelkuur', 'Het Geel', '€5', '7 dagen', '75 %', '—'],
+            ['Coccidiosekuur', 'Coccidiose', '€5', '10 dagen', '75 %', '—'],
+            ['Ademhalingskuur', 'Ornithose', '€5', '7 dagen', '60 %', 'libido −10'],
           ]}
         />
         <p className="muted">
-          <strong>Loont het?</strong> Een vaccin wel: de prijs ligt onder de schade die het een gewone wedstrijdduif
-          (★70, zo'n €5.000) gemiddeld bespaart. Die schade is wat een ziekte echt kost: de dagen in de ziekenboeg met
-          dokter en medicatievoer, de vluchten die ze mist (een zieke duif krijgt geen of maar halve energie binnen) en
-          de kans dat ze sterft. Je betaalt ook als ze die ziekte anders nooit had gekregen — het is een investering. Hoe
-          beter je duif, hoe meer ze eruit haalt; voor een topduif is het 5 à 7 keer zijn geld waard. Voor een zwakke
-          duif (minder dan ★70) loont het gemiddeld niet. Een kuur is kort en werkt tegen één ziekte, dus ze is minder
-          waard: aan €1 loont ze vanaf een duif van ★75 (geel, coccidiose) of ★85 (ademhaling).
+          <strong>Loont het?</strong> Hoe meer je duif waard is, hoe meer een middel haar bespaart: wat een ziekte echt
+          kost zijn de dagen in de ziekenboeg met dokter en medicatievoer, de vluchten die ze mist (een zieke duif krijgt
+          geen of maar halve energie binnen) en de kans dat ze sterft. Je betaalt ook als ze die ziekte anders nooit had
+          gekregen — het is een investering. Een <strong>vaccin</strong> loont gemiddeld vanaf een duif van zo'n ★72
+          (PMV), ★75 (pokken) of ★77 (salmonella); een topduif haalt er 2 à 4 keer haar geld uit, en een duif die na elke
+          vlucht diep zakt nog meer. Een <strong>kuur</strong> is kort en werkt tegen één ziekte: gemiddeld haal je er
+          minder uit dan ze kost, ook bij een topduif.
         </p>
 
         <h3 style={{ marginBottom: 4 }}>Verzekering</h3>

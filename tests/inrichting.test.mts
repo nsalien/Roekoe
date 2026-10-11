@@ -97,7 +97,7 @@ console.log('\n=== 3. Vaccins en kuren ===');
   const { store, db, userId, loft, birds } = world();
   const p = birds()[0];
   const m = loft.money;
-  ok(vaccinate(store, userId, p.id, 'pmv', T0) === null && loft.money === m - VACCINES.pmv.price && VACCINES.pmv.price === 6, 'PMV-vaccin: €6, voor elke duif dezelfde prijs');
+  ok(vaccinate(store, userId, p.id, 'pmv', T0) === null && loft.money === m - VACCINES.pmv.price && VACCINES.pmv.price === 10, 'PMV-vaccin: €10, voor elke duif dezelfde prijs');
   ok(!!grounded(p, T0 + DAY) && !canRace(p, db.world.currentWeek) === !!grounded(p), 'na een vaccin 2 dagen aan de grond');
   ok(grounded(p, T0 + 2.1 * DAY) === null, '…daarna weer vrij');
   ok(fendsOff(loft, p, 'Paramyxovirose', T0 + 10 * DAY, () => 0.1), 'weert PMV af (kans 80 %)');

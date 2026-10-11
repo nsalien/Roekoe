@@ -170,32 +170,30 @@ export function irBoxPrice(owned: number): number {
  * (a duivenjaar = 52 gameweken = 91 echte dagen). They sit OUTSIDE the ×0,4 floor:
  * they are per disease and paid per disease.
  *
- * `price` is ONE fixed price per middel ("een vaccin is een vaccin" — de eigenaar),
- * in WHOLE euros ("geen kommagetallen"): VACCINE_PRICING.share of the damage it
- * spares a modest racing bird (VACCINE_PRICING.refValue ~ ★70), rounded down,
- * never below €1. So a vaccine is always a little cheaper than letting that bird
- * fall ill, and a better bird gains more from the same price. The kuren are worth
- * less than €1 to that bird and sit on the €1 floor: they pay off from ~★75
- * (geel, cocci) and ~★85 (adem). tests/vaccine-price.test.mts fails as soon as a
- * price, or a change to HEALING/HEALTH/INFIRMARY/ILLNESS, breaks that rule.
+ * `price` is ONE fixed price per middel, in whole euros, SET BY THE OWNER (11 okt):
+ * PMV €10, pokken €8, salmonella €6, de kuren €5. What a middel is worth to a bird
+ * (VACCINE_PRICING, vaccineAvoidedDamage) grows with her value: at vluchtvorm 75 the
+ * vaccines pay off from ~€6.400 (PMV), ~€8.600 (pokken) and ~€11.400 (salmonella),
+ * at a racer's vorm 65 from ~€2.500–4.400. ⚠️ The kuren at €5 pay off for no
+ * realistic bird (a topduif gets 0,45–0,8× back): a 7–10-day course against one
+ * disease simply prevents little. tests/vaccine-price.test.mts reports it per middel.
  */
 export const VACCINES = {
-  pmv: { label: 'PMV-vaccin', disease: 'Paramyxovirose', kind: 'vaccin', price: 6, days: 91, protect: 0.8, noFlyDays: 2, libidoHit: 0 },
-  pokken: { label: 'Pokkenvaccin', disease: 'Duivenpokken', kind: 'vaccin', price: 4, days: 91, protect: 0.8, noFlyDays: 2, libidoHit: 0 },
-  salmonella: { label: 'Salmonellavaccin', disease: 'Salmonellose (paratyfus)', kind: 'vaccin', price: 2, days: 45, protect: 0.6, noFlyDays: 2, libidoHit: 0 },
-  geel: { label: 'Geelkuur', disease: 'Het Geel', kind: 'kuur', price: 1, days: 7, protect: 0.75, noFlyDays: 0, libidoHit: 0 },
-  cocci: { label: 'Coccidiosekuur', disease: 'Coccidiose', kind: 'kuur', price: 1, days: 10, protect: 0.75, noFlyDays: 0, libidoHit: 0 },
-  adem: { label: 'Ademhalingskuur', disease: 'Ornithose', kind: 'kuur', price: 1, days: 7, protect: 0.6, noFlyDays: 0, libidoHit: 10 },
+  pmv: { label: 'PMV-vaccin', disease: 'Paramyxovirose', kind: 'vaccin', price: 10, days: 91, protect: 0.8, noFlyDays: 2, libidoHit: 0 },
+  pokken: { label: 'Pokkenvaccin', disease: 'Duivenpokken', kind: 'vaccin', price: 8, days: 91, protect: 0.8, noFlyDays: 2, libidoHit: 0 },
+  salmonella: { label: 'Salmonellavaccin', disease: 'Salmonellose (paratyfus)', kind: 'vaccin', price: 6, days: 45, protect: 0.6, noFlyDays: 2, libidoHit: 0 },
+  geel: { label: 'Geelkuur', disease: 'Het Geel', kind: 'kuur', price: 5, days: 7, protect: 0.75, noFlyDays: 0, libidoHit: 0 },
+  cocci: { label: 'Coccidiosekuur', disease: 'Coccidiose', kind: 'kuur', price: 5, days: 10, protect: 0.75, noFlyDays: 0, libidoHit: 0 },
+  adem: { label: 'Ademhalingskuur', disease: 'Ornithose', kind: 'kuur', price: 5, days: 7, protect: 0.6, noFlyDays: 0, libidoHit: 10 },
 } as const;
 /**
- * The promise behind VACCINES.price: "een vaccin is altijd iets voordeliger dan
- * een duif die effectief ziek wordt" (de eigenaar). Not a price formula — the
- * prices are fixed ("een vaccin is een vaccin") — but what
- * tests/vaccine-price.test.mts checks them against:
+ * The yardstick for VACCINES.price: what a middel spares a bird on average,
  *
- *   prijs ≤ share × (gevallen die het middel voorkomt) × (wat één geval kost)
+ *   (gevallen die het middel voorkomt) × (wat één geval kost)
  *
- * for a bird worth `refValue` on vluchtvorm `refVorm`, without extra protection.
+ * on vluchtvorm `refVorm`, without extra protection (vaccineAvoidedDamage).
+ * Not a price formula — the owner sets the prices — but what
+ * tests/vaccine-price.test.mts and tests/vaccine-economics.mts measure them by.
  * - "voorkomt": de kans op die ziekte over de looptijd (dezelfde helpers als
  *   runHealthDay) × `protect`. Besmetting telt niet mee.
  * - "één geval" (`diseaseCaseCost`, inrichting.ts): de goedkoopste van ziekenboeg
@@ -205,11 +203,6 @@ export const VACCINES = {
  * Measured with the real engine: tests/vaccine-economics.mts (diagnose).
  */
 export const VACCINE_PRICING = {
-  /** Een middel kost hoogstens dit deel van de schade die het voorkomt. */
-  share: 0.8,
-  /** De duif waarvoor het moet lonen: een bescheiden wedstrijdduif (★70 ≈ €4.600–5.000
-   *  marktwaarde). Wat meer waard is, haalt er meer uit; een zwakkere duif niet. */
-  refValue: 5000,
   /** Gerekend op een duif in goede wedstrijdvorm. Gemeten op duiven die meevliegen
    *  (bots, 6 weken): gemiddeld vorm 72, mediaan 74; hun gemiddelde ziekterisico hoort
    *  bij vorm 60–65 (de dips na elke vlucht wegen zwaar, het risico loopt niet

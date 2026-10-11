@@ -1,19 +1,17 @@
 /**
- * Regressietest: een vaccin of kuur is ALTIJD iets voordeliger dan een duif die
- * effectief ziek wordt — met ÉÉN vaste prijs per middel ("een vaccin is een
- * vaccin, de prijs is de prijs" — de eigenaar).
- *
- * De belofte (VACCINE_PRICING): prijs ≤ share × (gevallen die het middel voorkomt)
- * × (wat één geval kost), voor een bescheiden wedstrijdduif (refValue, ★70) op
- * vluchtvorm refVorm. Een betere duif haalt uit dezelfde prijs meer.
+ * Regressietest: wat een vaccin of kuur een duif oplevert, tegenover haar vaste
+ * prijs ("een vaccin is een vaccin, de prijs is de prijs"; de prijzen kiest de
+ * eigenaar). De meetlat (VACCINE_PRICING): (gevallen die het middel voorkomt) ×
+ * (wat één geval kost), op vluchtvorm refVorm. Een betere duif haalt meer uit
+ * dezelfde prijs.
  *
  * Wat deze test bewaakt:
  *  1. diseaseCaseCost is AFGELEID uit de echte zorgcode en mag een geval nooit
  *     duurder voorstellen dan het is: het ziekteverloop wordt nagespeeld met
  *     tickHealing + applyDayOfCare (per kwartier / per middernacht), met en zonder dokter.
  *  2. Het risico is dat van runHealthDay (zelfde helper, nageteld).
- *  3. Elke vaste prijs volgt de regel: hele euro's, share × de schade bij refValue
- *     naar beneden afgerond, nooit onder €1 — en is dezelfde voor elke duif.
+ *  3. Elke prijs is een heel bedrag; een vaccin loont voor een goede wedstrijdduif
+ *     (★80, ~€23.600). Per middel staat erbij vanaf welke duif het loont.
  *  4. Vaccineren rekent precies die prijs aan, ook voor het hele hok.
  *
  * Dat het middel ook in een échte wedstrijdcontext meer opbrengt dan het kost
@@ -135,18 +133,18 @@ console.log('\n=== 2. Het risico in de prijs is dat van runHealthDay ===');
 
 console.log('\n=== 3. Eén vaste prijs per middel, in hele euro\'s ===');
 {
-  const P = VACCINE_PRICING;
   for (const k of Object.keys(VACCINES) as VaccineKey[]) {
     const v = VACCINES[k];
-    const avoided = vaccineAvoidedDamage(k, P.refValue);
+    const common = vaccineAvoidedDamage(k, 5000);
+    const good = vaccineAvoidedDamage(k, 23600);
     const top = vaccineAvoidedDamage(k, 37000);
-    const rule = Math.max(1, Math.floor(P.share * avoided));
-    // From which bird value it pays off (break-even), for the €1 floor.
-    let lo = 0, hi = 500000;
-    for (let i = 0; i < 60; i++) { const mid = (lo + hi) / 2; if (vaccineAvoidedDamage(k, mid) >= v.price) hi = mid; else lo = mid; }
-    ok(Number.isInteger(v.price) && v.price === rule,
-      `${v.label} €${v.price}: bespaart een duif van ${euro(P.refValue)} gemiddeld €${avoided.toFixed(2)} (×${(avoided / v.price).toFixed(2)}), een topduif €${top.toFixed(2)} (×${(top / v.price).toFixed(1)}) — loont vanaf ${euro(hi)}`);
-    if (rule > 1) ok(v.price <= P.share * avoided, `${v.label}: altijd iets voordeliger voor een duif van ${euro(P.refValue)}`);
+    // From which bird value it pays off (break-even).
+    let lo = 0, hi = 2000000;
+    for (let i = 0; i < 70; i++) { const mid = (lo + hi) / 2; if (vaccineAvoidedDamage(k, mid) >= v.price) hi = mid; else lo = mid; }
+    const from = hi >= 1999999 ? 'nooit' : euro(hi);
+    ok(Number.isInteger(v.price) && v.price > 0,
+      `${v.label} €${v.price}: haalt ×${(common / v.price).toFixed(2)} (★70) · ×${(good / v.price).toFixed(2)} (★80) · ×${(top / v.price).toFixed(2)} (topduif) — loont vanaf ${from}`);
+    if (v.kind === 'vaccin') ok(good >= v.price, `${v.label}: loont voor een goede wedstrijdduif (★80)`);
   }
   const weak = (Object.keys(VACCINES) as VaccineKey[]).map((k) => (vaccineAvoidedDamage(k, 2000) / VACCINES[k].price).toFixed(2));
   console.log(`  (ter info: een zwakke duif van €2.000 haalt er ×${weak.join(' / ×')} uit — voor haar loont het niet altijd)`);
