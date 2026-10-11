@@ -78,7 +78,7 @@
      achteraan *productie's* SCHEMA_STEPS zetten, zie hieronder).
   2. **Besmetting per ziekte?** Besmetting trekt een *willekeurige* ziekte, niet die van de zieke
      hokgenoot, dus "een kuur als er iets rondgaat" werkt niet echt. Voorstel: besmetting per ziekte.
-     (De vaccinprijzen zelf zijn beslist: per duif, zie *Vaccins: een investering in de duif*.)
+     (De vaccinprijzen zelf zijn beslist: één vaste prijs, zie *Vaccins: één vaste prijs*.)
   3. Moeten de **opvangcentrum-veilingen** (start €25, NPC) buiten de marktwaarde blijven?
 
 ### Demomodus (preview-builds)
@@ -246,49 +246,41 @@
   `DEMO_VERSION`-bump nodig). De open vraag over duidelijker verschillende scoutregio's is
   daarmee ook geparkeerd.
 
-### Vaccins: een investering in de duif (`VACCINE_PRICING`, 11 okt)
-- **Wens van de eigenaar:** "een vaccin moet altijd iets voordeliger zijn, financieel, dan een duif
-  die effectief ziek wordt — een investering in de duif, ook al is niet zeker dat ze die ziekte
-  anders had gekregen." Met een vaste prijs kan dat niet: hetzelfde middel is voor een topduif
-  2,5× zoveel waard als voor een gewone (gemeten hieronder). De vaste prijzen (€60/€40/€75/€15/€25/€40)
-  zijn dus weg; **elke duif heeft haar eigen prijs**.
-- **Formule** (`vaccinePrice` in inrichting.ts): `share (0,8) × looptijd × dagkans dat ZIJ die ziekte
-  krijgt × afweer × diseaseCaseCost(ernst, marktwaarde)`. De dagkans is die van `runHealthDay` (zelfde
-  helpers `spontaneousIllnessPerDay` + `diseaseShare` in hygiene.ts; `runHealthDay` gebruikt de eerste
-  nu ook) op `refVorm` 75, door `illnessChance` met haar eigen bescherming (apart hok, IJzeren gestel,
-  hygiëne; dakventilatie haalt ornithose er eerst af). Besmetting telt niet mee. `diseaseCaseCost`
-  is afgeleid uit HEALING/HEALTH/INFIRMARY: de goedkoopste van ziekenboeg + medicatievoer met of
-  zonder dokter, met zorg, sterftekans en gemiste starts **per middernacht** dat ze nog ziek is (een
-  ziekte breekt om middernacht uit; zorg, voer en de sterfteworp vallen op de nachten erna).
-  Gemiste starts × `startValueShare` (1,3 % van de marktwaarde per start) + een halve start trager
-  na een ernstig geval. Onder €10 in centen, daarboven hele euro's.
+### Vaccins: één vaste prijs, altijd iets voordeliger dan een zieke duif (`VACCINES.price`, 11 okt)
+- **Twee wensen van de eigenaar:** (1) "een vaccin moet altijd iets voordeliger zijn, financieel,
+  dan een duif die effectief ziek wordt — een investering in de duif, ook al is niet zeker dat ze
+  die ziekte anders had gekregen"; (2) "een vaccin is een vaccin, en de prijs is de prijs". Een
+  tussenversie gaf elke duif een eigen prijs (commit `bfcb207`); dat is op (2) teruggedraaid.
+- **Hoe beide samengaan:** hetzelfde middel is voor een topduif ~2,5× zoveel waard als voor een
+  gewone, dus één prijs kan maar "altijd voordelig" zijn vanaf een bepaalde duif. Die duif is
+  `VACCINE_PRICING.refValue` = **€5.000 (★70)**, op vluchtvorm `refVorm` 75, zonder extra
+  bescherming; elke prijs ligt onder `share` (80 %) van de schade die het middel haar bespaart.
+  ⚠️ **Voor een zwakkere duif (< ★70, zoals de meeste startduiven) loont het gemiddeld niet**
+  (€2.000: 0,6–0,8×). Wil je dat anders, verlaag `refValue` — de prijzen zakken dan mee.
+- **Prijzen:** PMV €6 · pokken €4 · salmonella €2 · geel €0,50 · cocci €0,40 · adem €0,20 (waren
+  €60/€40/€75/€15/€25/€40). Een duif van €5.000 haalt er 1,3–1,5× haar geld uit, een topduif
+  (~€37.000) 5–7×, en een duif die na elke vlucht dieper zakt dan vorm 75 nog meer
+  (`vaccine-economics` §5: bij vorm 65 6–17×). `Money` toont centen nu met twee decimalen.
+- **De schade** (`vaccineAvoidedDamage(key, value)`, inrichting.ts) = looptijd × dagkans op die
+  ziekte (dezelfde helpers als `runHealthDay`: `spontaneousIllnessPerDay` + `diseaseShare` in
+  hygiene.ts; `runHealthDay` gebruikt de eerste nu ook) × afweer × `diseaseCaseCost(ernst, waarde)`.
+  `diseaseCaseCost` is afgeleid uit HEALING/HEALTH/INFIRMARY: de goedkoopste van ziekenboeg +
+  medicatievoer met of zonder dokter — zorg, sterftekans en gemiste starts **per middernacht** dat
+  ze nog ziek is (een ziekte breekt om middernacht uit; zorg, voer en de sterfteworp vallen op de
+  nachten erna), gemiste starts × `startValueShare` (1,3 % van de marktwaarde per start), + een
+  halve start trager na een ernstig geval. Besmetting telt niet mee.
 - **`refVorm` 75 is de voorzichtige keuze.** Gemeten op duiven die meevliegen (bots, 6 weken):
   gemiddeld vorm 72, mediaan 74, maar hun gemiddelde ziekterisico hoort bij vorm 60–65 (het risico
-  stijgt niet lineair, de dips na elke vlucht wegen zwaar). Resultaat (`vaccine-economics` §5): bij
-  vorm 75 levert elk middel ≥ 1,33× zijn prijs op, bij 65 ~3×, bij 60 ~4×; enkel een duif die
-  constant rond 80+ zit (amper vliegt) haalt er ~0,9× uit. Wil je het krapper, verlaag `refVorm`.
-- **Prijzen** (marktwaarde ~€37.000 / €24.000 / €9.000): PMV €30 / €21 / €12 · pokken €17 / €13 / €7
-  · salmonella €11 / €8 / €4 · kuren €0,40–€1,90. Een startduif betaalt ~€2 voor PMV.
-- **Gevolg om op te volgen:** vaccineren is nu voor iedereen goedkoop; een speler die alles bijhoudt
-  (kuren elke 7–10 dagen) zit op ~€1,3 per dag voor een topduif en voorkomt zo'n 70 % van zijn
-  ziektes. De ziekenboeg krijgt dan minder werk, en **bots vaccineren niet** (die worden dus
-  relatief vaker ziek).
-- **Waar de prijzen zitten — ⚠️ bewust NIET op `/state`.** De eerste versie zette ze in
-  `pigeonDTO.care`: dat kostte koud ~2 ms extra voor een hok van 20 (mediaan 7,0 tegen 5,1 ms,
-  vers proces) op de route die elke open tab pollt — productie is ~1,9× trager, de limiet 10 ms.
-  Nu: `GET /pigeons/:id` stuurt `vaccinePrices` mee (enkel eigen duif; de duifpagina wordt
-  geopend, niet gepolld), en `GET /loft/vaccines` geeft per middel de *Hele hok*-offerte
-  (`vaccineLoftQuotes`: aantal + som van hun eigen prijzen), opgehaald wanneer het blok Vaccins
-  op *Inrichting* opengaat. `vaccinateLoft` rekent exact `vaccineLoftQuote` aan. Gemeten na:
-  `/state` koud weer op het niveau van vóór de wijziging. Per duif rekent `priceBasis` de
-  marktwaarde en haar ziekterisico één keer; de aandelen per ziekte en de kostcoëfficiënten
-  per ernst hangen enkel van de config af en worden één keer berekend (warm 0,125 ms voor 20
-  duiven × 6 middelen).
-- **Tests:** `tests/vaccine-price.test.mts` (33 controles, ~5 s): `diseaseCaseCost` nooit duurder dan
-  het echte ziekteverloop (tickHealing + applyDayOfCare per kwartier/middernacht, met en zonder
-  dokter) en hooguit 20 % voorzichtiger; het risico = runHealthDay; prijs < vermeden schade;
-  goedkoper bij apart hok/IJzeren gestel/hygiëne/ventilatie; wat getoond wordt is wat er afgaat
-  (duifpagina én *Hele hok*); en `/state` draagt geen prijzen.
+  stijgt niet lineair, de dips na elke vlucht wegen zwaar).
+- **Gevolg om op te volgen:** vaccineren is goedkoop. Wie alles bijhoudt (kuren elke 7–10 dagen)
+  betaalt ~€0,30 per duif per dag en voorkomt zo'n 70 % van haar ziektes; de ziekenboeg krijgt
+  minder werk, en **bots vaccineren niet** (die worden relatief vaker ziek).
+- **De bewaker:** `tests/vaccine-price.test.mts` (23 controles, ~5 s) faalt zodra een prijs, of
+  een wijziging aan HEALING/HEALTH/INFIRMARY/ILLNESS, de belofte breekt: `diseaseCaseCost` nooit
+  duurder dan het echte ziekteverloop (tickHealing + applyDayOfCare per kwartier/middernacht, met
+  en zonder dokter) en hooguit 20 % voorzichtiger; het risico = runHealthDay; elke prijs ≤ 80 % van
+  de schade voor de duif van €5.000 en ≥ 80 % daarvan (geen weggeefprijs); dezelfde prijs voor een
+  gewone en een topduif; hele hok = aantal × prijs.
 
 ### Vaccins: wat een kuur waard is (`tests/vaccine-economics.mts`, diagnose)
 - **Methode, alles met de echte code:** opbrengst per start uit echte vluchten
@@ -351,8 +343,7 @@
   `inrichtingLevels().gain` (`GAIN` in inrichting.ts: ornithose, energie na een rustdag, libido,
   sneller uit, energieverlies per vlucht); de andere effecten groeien evenveel mee. Bots waarderen
   niet op.
-- **Vaccinprijs per duif** (zie *Vaccins: een investering in de duif*; de vaste prijzen ×5 van
-  daarvoor zijn weg). "Hele hok" (`vaccinateLoft`) slaat wie nog meer dan
+- **Vaccinprijzen:** één vaste prijs per middel (zie *Vaccins: één vaste prijs*). "Hele hok" (`vaccinateLoft`) slaat wie nog meer dan
   `VACCINE_RENEW_SHARE` (25 %) van haar kuur heeft over (`needsCourse`); de client rekent met
   dezelfde regel (`inrichting.vaccineRenewShare`). Per duif hernieuwen kan altijd.
 - **Effecten en waar ze zitten:**
@@ -381,7 +372,7 @@
   - weerstation: `flightsNeedingForecast`/`applyFlightForecasts` (schedule.ts), opgehaald in de
     middleware naast de estafettevoorspellingen — **enkel als een hok een station heeft**;
     `withForecast` in de API toont het enkel aan stationhouders.
-- **API:** `POST /loft/equipment {key, on}`, `/loft/irbox`, `/loft/vaccinate {key}`, `GET /loft/vaccines`,
+- **API:** `POST /loft/equipment {key, on}`, `/loft/irbox`, `/loft/vaccinate {key}`,
   `/pigeons/:id/vaccinate {key}`, `/pigeons/:id/insurance {on}`. `/state.inrichting` =
   de catalogus. DTO: `loftDTO.equipment` (alle vlaggen), `pigeonDTO.care` (enkel
   eigenaar), `.magazineRanges`, `flight.forecast`.
@@ -1556,7 +1547,7 @@ npx tsx tests/demo-world.test.mts         # (dev) de demowereld + de echte API o
 npx tsx tests/hygiene.test.mts            # (dev) hokhygiëne, stro, poetser, bodem ×0,4
 npx tsx tests/inrichting.test.mts         # (dev) ventilatie, ren, sperwer, vaccins, verzekering, vakblad, weerstation, bots
 npx tsx tests/hokoverzicht.test.mts       # (dev) hokoverzicht: flying (in de lucht) vs. racing (ook gepland)
-npx tsx tests/vaccine-price.test.mts      # (dev) een vaccin kost altijd minder dan de schade die het bespaart
+npx tsx tests/vaccine-price.test.mts      # (dev) de vaste vaccinprijs blijft onder de schade die het bespaart
 ```
 
 > **Geen `tsx` beschikbaar?** (cloud-sessie waar de npm-registry geblokkeerd is: `npx tsx`

@@ -7,7 +7,7 @@ import type { Pigeon, Sex } from '../types';
 export function Money({ value }: { value: number }) {
   return (
     <span className="money">
-      <span className="coin">◎</span> {value.toLocaleString('nl-NL')}
+      <span className="coin">◎</span> {value.toLocaleString('nl-NL', Number.isInteger(value) ? {} : { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
     </span>
   );
 }

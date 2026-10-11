@@ -16,7 +16,7 @@ import { createLoftForUser, enterFlight, seedWorld, startBreeding } from '../cor
 import { applyFlightForecasts, ensureFlightsScheduled, flightsNeedingForecast, tickDailyCare } from '../core/game/schedule.js';
 import {
   buyEquipment, buyIrBox, entryMods, fendsOff, grounded, insurancePayout, insurancePremium, insuranceQuote,
-  magazineRanges, setInsurance, tickHawk, tickMagazine, vaccinate, vaccinateLoft, vaccinePrice,
+  magazineRanges, setInsurance, tickHawk, tickMagazine, vaccinate, vaccinateLoft,
   libidoTargetBonus, restBonusEnergy, upgradeEquipment, inrichtingLevels, inrichtingEffects, feedHealthMult, irBoxEffect,
 } from '../core/game/inrichting.js';
 import { equipmentLevel, hygieneDecay } from '../core/game/hygiene.js';
@@ -97,9 +97,7 @@ console.log('\n=== 3. Vaccins en kuren ===');
   const { store, db, userId, loft, birds } = world();
   const p = birds()[0];
   const m = loft.money;
-  const pmvPrice = vaccinePrice(db, loft, p, 'pmv');
-  ok(vaccinate(store, userId, p.id, 'pmv', T0) === null && Math.abs(loft.money - (m - pmvPrice)) < 0.005 && pmvPrice > 0,
-    `PMV-vaccin: de prijs van déze duif (€${pmvPrice})`);
+  ok(vaccinate(store, userId, p.id, 'pmv', T0) === null && loft.money === m - VACCINES.pmv.price && VACCINES.pmv.price === 6, 'PMV-vaccin: €6, voor elke duif dezelfde prijs');
   ok(!!grounded(p, T0 + DAY) && !canRace(p, db.world.currentWeek) === !!grounded(p), 'na een vaccin 2 dagen aan de grond');
   ok(grounded(p, T0 + 2.1 * DAY) === null, '…daarna weer vrij');
   ok(fendsOff(loft, p, 'Paramyxovirose', T0 + 10 * DAY, () => 0.1), 'weert PMV af (kans 80 %)');
@@ -110,19 +108,17 @@ console.log('\n=== 3. Vaccins en kuren ===');
   vaccinate(store, userId, birds()[1].id, 'adem', T0);
   ok(Math.abs(birds()[1].libido - Math.max(0, lib - 10)) < 0.01 && grounded(birds()[1], T0 + 1) === null, 'ademhalingskuur: libido −10, mag wel vliegen');
   const m2 = loft.money;
-  const geelSum = Math.round(birds().reduce((sum, b) => sum + vaccinePrice(db, loft, b, 'geel'), 0) * 100) / 100;
   const res = vaccinateLoft(store, userId, 'geel', T0);
-  ok(res.error === null && res.count === birds().length && Math.abs(loft.money - (m2 - geelSum)) < 0.005,
-    `hele hok kuren: ${res.count} duiven, samen €${geelSum} (de som van hun eigen prijzen)`);
+  ok(res.error === null && res.count === birds().length && loft.money === m2 - res.count * VACCINES.geel.price,
+    `hele hok kuren: ${res.count} × €${VACCINES.geel.price}`);
   const again = vaccinateLoft(store, userId, 'geel', T0 + DAY);
   ok(again.error !== null && again.count === 0, 'een dag later: iedereen nog beschermd, niemand betaalt opnieuw');
   const late = vaccinateLoft(store, userId, 'geel', T0 + 6 * DAY);
   ok(late.error === null && late.count === birds().length, 'in het laatste kwart van de kuur mag hernieuwen');
   const m3 = loft.money;
-  const pmvAll = birds().reduce((sum, b) => sum + vaccinePrice(db, loft, b, 'pmv'), 0);
   vaccinate(store, userId, p.id, 'pmv', T0); // p already had it: renewing her own is fine
   const pmvRound = vaccinateLoft(store, userId, 'pmv', T0 + DAY);
-  ok(pmvRound.count === birds().length - 1 && Math.abs(loft.money - (m3 - pmvAll)) < 0.05,
+  ok(pmvRound.count === birds().length - 1 && loft.money === m3 - VACCINES.pmv.price * birds().length,
     `PMV voor het hele hok slaat de beschermde duif over (${pmvRound.count} van ${birds().length})`);
   ok(!fendsOff(loft, p, 'Ornithose', T0, () => 0.3), 'zonder ventilatie geen extra bescherming tegen ornithose');
   buyEquipment(store, userId, 'ventilation');

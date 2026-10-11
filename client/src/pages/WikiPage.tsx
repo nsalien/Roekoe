@@ -1676,36 +1676,23 @@ export function WikiPage() {
           over die nog meer dan een kwart van hun bescherming hebben.
         </p>
         <MiniTable
-          head={['Middel', 'Ziekte', 'Werkt', 'Weert af', 'Bijwerking']}
+          head={['Middel', 'Ziekte', 'Prijs', 'Werkt', 'Weert af', 'Bijwerking']}
           rows={[
-            ['PMV-vaccin', 'Paramyxovirose', '91 dagen', '80 %', '2 dagen niet vliegen'],
-            ['Pokkenvaccin', 'Duivenpokken', '91 dagen', '80 %', '2 dagen niet vliegen'],
-            ['Salmonellavaccin', 'Salmonellose', '45 dagen', '60 %', '2 dagen niet vliegen'],
-            ['Geelkuur', 'Het Geel', '7 dagen', '75 %', '—'],
-            ['Coccidiosekuur', 'Coccidiose', '10 dagen', '75 %', '—'],
-            ['Ademhalingskuur', 'Ornithose', '7 dagen', '60 %', 'libido −10'],
+            ['PMV-vaccin', 'Paramyxovirose', '€6', '91 dagen', '80 %', '2 dagen niet vliegen'],
+            ['Pokkenvaccin', 'Duivenpokken', '€4', '91 dagen', '80 %', '2 dagen niet vliegen'],
+            ['Salmonellavaccin', 'Salmonellose', '€2', '45 dagen', '60 %', '2 dagen niet vliegen'],
+            ['Geelkuur', 'Het Geel', '€0,50', '7 dagen', '75 %', '—'],
+            ['Coccidiosekuur', 'Coccidiose', '€0,40', '10 dagen', '75 %', '—'],
+            ['Ademhalingskuur', 'Ornithose', '€0,20', '7 dagen', '60 %', 'libido −10'],
           ]}
         />
         <p className="muted">
-          <strong>Wat kost het?</strong> Geen vaste prijs: een middel kost <strong>80 % van de schade die het je duif
-          gemiddeld bespaart</strong>. Die schade is wat een ziekte echt kost: de dagen in de ziekenboeg met dokter en
-          medicatievoer, de vluchten die ze mist (een zieke duif krijgt geen of maar halve energie binnen) en de kans dat
-          ze sterft. Hoe meer je duif waard is, hoe meer het middel kost — en hoe meer het oplevert. Je betaalt ook als ze
-          die ziekte anders nooit had gekregen: het is een investering, en gemiddeld wint ze erbij.
-        </p>
-        <MiniTable
-          head={['Duif (marktwaarde)', 'PMV', 'Pokken', 'Salmonella', 'Een kuur']}
-          rows={[
-            ['topduif (~€37.000)', '€30', '€17', '€11', '€1–2'],
-            ['goede duif (~€24.000)', '€21', '€13', '€8', '~€1'],
-            ['gewone duif (~€9.000)', '€12', '€7', '€4', 'minder dan €1'],
-          ]}
-        />
-        <p className="faint" style={{ fontSize: '0.85rem' }}>
-          Gerekend op een duif in goede wedstrijdvorm (vluchtvorm 75). Wie gewoon meevliegt zakt na elke vlucht dieper en
-          haalt er 2 à 4 keer zijn geld uit; een duif die amper vliegt en altijd fris is, heeft het minder nodig. Is ze al
-          minder vatbaar — een apart hok, <em>IJzeren gestel</em>, een proper hok, of dakventilatie tegen ornithose — dan
-          is het middel ook goedkoper. De prijs voor jouw duif staat op haar pagina.
+          <strong>Loont het?</strong> Ja: elke prijs ligt onder de schade die het middel een gewone wedstrijdduif
+          (★70, zo'n €5.000) gemiddeld bespaart. Die schade is wat een ziekte echt kost: de dagen in de ziekenboeg met
+          dokter en medicatievoer, de vluchten die ze mist (een zieke duif krijgt geen of maar halve energie binnen) en
+          de kans dat ze sterft. Je betaalt ook als ze die ziekte anders nooit had gekregen — het is een investering. Hoe
+          beter je duif, hoe meer ze eruit haalt; voor een topduif is het 5 à 7 keer zijn geld waard. Voor een zwakke
+          duif (minder dan ★70) loont het gemiddeld niet.
         </p>
 
         <h3 style={{ marginBottom: 4 }}>Verzekering</h3>

@@ -1,22 +1,20 @@
 /**
  * Regressietest: een vaccin of kuur is ALTIJD iets voordeliger dan een duif die
- * effectief ziek wordt (wens van de eigenaar — "een investering in de duif").
+ * effectief ziek wordt — met ÉÉN vaste prijs per middel ("een vaccin is een
+ * vaccin, de prijs is de prijs" — de eigenaar).
  *
- * De prijs is per duif (VACCINE_PRICING, inrichting.vaccinePrice):
- *   prijs = share × kans dat ze die ziekte krijgt (op refVorm, met haar eigen
- *           bescherming) × protect × wat één geval kost (diseaseCaseCost).
+ * De belofte (VACCINE_PRICING): prijs ≤ share × (gevallen die het middel voorkomt)
+ * × (wat één geval kost), voor een bescheiden wedstrijdduif (refValue, ★70) op
+ * vluchtvorm refVorm. Een betere duif haalt uit dezelfde prijs meer.
  *
  * Wat deze test bewaakt:
  *  1. diseaseCaseCost is AFGELEID uit de echte zorgcode en mag een geval nooit
- *     duurder voorstellen dan het is: het ziekteverloop wordt dag per dag nagespeeld
- *     met tickHealing + applyDayOfCare + runHealthDay, met en zonder dokter.
- *  2. Het risico in de prijs is dat van runHealthDay (zelfde helper, nageteld).
- *  3. De prijs ligt onder de vermeden schade, schuift mee met de waarde van de duif,
- *     en zakt waar haar risico al lager is (apart hok, IJzeren gestel, hygiëne,
- *     dakventilatie bij ornithose).
- *  4. Vaccineren rekent exact de prijs aan die de duifpagina toont (GET /pigeons/:id →
- *     vaccinePrices), en "Hele hok" exact de offerte van GET /loft/vaccines.
- *  5. /state (gepolld door elke open tab) rekent géén prijzen uit.
+ *     duurder voorstellen dan het is: het ziekteverloop wordt nagespeeld met
+ *     tickHealing + applyDayOfCare (per kwartier / per middernacht), met en zonder dokter.
+ *  2. Het risico is dat van runHealthDay (zelfde helper, nageteld).
+ *  3. Elke vaste prijs houdt de belofte (en is geen weggeefprijs), en is dezelfde
+ *     voor elke duif.
+ *  4. Vaccineren rekent precies die prijs aan, ook voor het hele hok.
  *
  * Dat het middel ook in een échte wedstrijdcontext meer opbrengt dan het kost
  * (opbrengst per start uit de racemotor) staat in tests/vaccine-economics.mts.
@@ -25,12 +23,11 @@
  */
 import { applyAilment, runHealthDay, tickHealing } from '../core/game/health.js';
 import { applyDayOfCare } from '../core/game/economy.js';
-import { diseaseCaseCost, vaccineAvoidedDamage, vaccinate, vaccinateLoft, vaccineLoftQuote, vaccineLoftQuotes, vaccinePrice, vaccinePrices } from '../core/game/inrichting.js';
+import { diseaseCaseCost, vaccineAvoidedDamage, vaccinate, vaccinateLoft } from '../core/game/inrichting.js';
 import { spontaneousIllnessPerDay, diseaseShare } from '../core/game/hygiene.js';
 import { MemoryStore } from '../core/store.js';
 import { emptyDatabase } from '../core/schema.js';
 import { createLoftForUser, seedWorld } from '../core/game/engine.js';
-import { pigeonDTO } from '../core/presenters.js';
 import { DISEASES, HEALTH, INFIRMARY, VACCINE_PRICING, VACCINES, type Severity, type VaccineKey } from '../core/config/gameConfig.js';
 import type { Ailment, Database, Loft, Pigeon, User } from '../core/schema.js';
 
@@ -136,34 +133,22 @@ console.log('\n=== 2. Het risico in de prijs is dat van runHealthDay ===');
   ok(Math.abs(DISEASES.reduce((s, d) => s + diseaseShare(d.name, vorm), 0) - 1) < 1e-9, 'de aandelen tellen op tot 1');
 }
 
-console.log('\n=== 3. De prijs: onder de vermeden schade, en per duif ===');
+console.log('\n=== 3. Eén vaste prijs per middel, altijd iets onder de schade die het bespaart ===');
 {
-  const loft = { userId: 'u', isBot: false } as unknown as Loft;
-  const db = { lofts: [loft], pigeons: [], trades: [], world: { currentWeek: WEEK } } as unknown as Database;
-  const keys = Object.keys(VACCINES) as VaccineKey[];
-  const cheap = bird('cheap', { speed: 62, endurance: 62, orientation: 62 });
-  const star = bird('star', { speed: 84, endurance: 84, orientation: 84 });
-  for (const k of keys) {
-    const price = vaccinePrice(db, loft, star, k);
-    const avoided = vaccineAvoidedDamage(db, loft, star, k);
-    ok(price > 0 && price < avoided && price >= avoided * VACCINE_PRICING.share * 0.95,
-      `${VACCINES[k].label}: €${price} voor een topduif, bespaart haar gemiddeld €${avoided.toFixed(2)}`);
+  const P = VACCINE_PRICING;
+  for (const k of Object.keys(VACCINES) as VaccineKey[]) {
+    const v = VACCINES[k];
+    const avoided = vaccineAvoidedDamage(k, P.refValue);
+    const top = vaccineAvoidedDamage(k, 37000);
+    ok(v.price > 0 && v.price <= P.share * avoided && v.price >= 0.8 * P.share * avoided,
+      `${v.label} €${v.price}: bespaart een duif van ${euro(P.refValue)} gemiddeld €${avoided.toFixed(2)} (×${(avoided / v.price).toFixed(2)}), een topduif €${top.toFixed(2)} (×${(top / v.price).toFixed(1)})`);
   }
-  ok(keys.every((k) => vaccinePrice(db, loft, star, k) > vaccinePrice(db, loft, cheap, k)), 'een topduif betaalt meer dan een gewone duif — voor elk middel');
-  const apart = bird('apart', { speed: 84, endurance: 84, orientation: 84, compartment: true });
-  ok(vaccinePrice(db, loft, apart, 'pmv') < vaccinePrice(db, loft, star, 'pmv') * 0.6, 'in een apart hok is ze al minder vatbaar: goedkoper');
-  const sturdy = bird('sturdy', { speed: 84, endurance: 84, orientation: 84, trait: 'sturdy' } as Partial<Pigeon>);
-  ok(vaccinePrice(db, loft, sturdy, 'pmv') < vaccinePrice(db, loft, star, 'pmv'), 'IJzeren gestel: goedkoper');
-  const clean = { userId: 'u', isBot: false, equipment: { hygiene: 100 } } as unknown as Loft;
-  ok(vaccinePrice(db, clean, star, 'pmv') < vaccinePrice(db, loft, star, 'pmv'), 'een proper hok (hygiëne 100): goedkoper');
-  const vent = { userId: 'u', isBot: false, equipment: { ventilation: true } } as unknown as Loft;
-  ok(vaccinePrice(db, vent, star, 'adem') < vaccinePrice(db, loft, star, 'adem') && vaccinePrice(db, vent, star, 'pmv') === vaccinePrice(db, loft, star, 'pmv'),
-    'dakventilatie weert ornithose al af: de ademhalingskuur wordt goedkoper, PMV niet');
-  ok(vaccinePrice(db, loft, star, 'pmv') >= 10 && Number.isInteger(vaccinePrice(db, loft, star, 'pmv')), 'vanaf €10 hele euro’s');
-  ok(vaccinePrice(db, loft, cheap, 'adem') < 10 && Math.round(vaccinePrice(db, loft, cheap, 'adem') * 100) === vaccinePrice(db, loft, cheap, 'adem') * 100, 'daaronder in centen');
+  const weak = (Object.keys(VACCINES) as VaccineKey[]).map((k) => (vaccineAvoidedDamage(k, 2000) / VACCINES[k].price).toFixed(2));
+  console.log(`  (ter info: een zwakke duif van €2.000 haalt er ×${weak.join(' / ×')} uit — voor haar loont het niet altijd)`);
+  ok(vaccineAvoidedDamage('pmv', 20000) > vaccineAvoidedDamage('pmv', 5000), 'hoe meer je duif waard is, hoe meer hetzelfde middel oplevert');
 }
 
-console.log('\n=== 4. Vaccineren rekent de prijs aan die getoond wordt ===');
+console.log('\n=== 4. Vaccineren rekent de vaste prijs aan — voor elke duif dezelfde ===');
 {
   const store = new MemoryStore(emptyDatabase());
   seedWorld(store);
@@ -173,33 +158,20 @@ console.log('\n=== 4. Vaccineren rekent de prijs aan die getoond wordt ===');
   const db = store.data;
   const loft = db.lofts.find((l) => l.userId === user.id)!;
   loft.money = 50000;
-  const p = db.pigeons.find((x) => x.ownerId === user.id)!;
-  const shown = vaccinePrices(db, loft, p).pokken; // wat GET /pigeons/:id meestuurt
-  const before = loft.money;
-  ok(vaccinate(store, user.id, p.id, 'pokken') === null && Math.abs(before - loft.money - shown) < 0.005,
-    `de duifpagina toont €${shown}, er gaat precies dat af`);
-  ok(Object.keys(vaccinePrices(db, loft, p)).length === Object.keys(VACCINES).length, 'een prijs voor elk middel');
-  const quote = vaccineLoftQuote(db, loft, 'pmv');
-  const listed = vaccineLoftQuotes(db, loft).pmv;
-  const mid = loft.money;
-  const res = vaccinateLoft(store, user.id, 'pmv');
-  ok(res.error === null && res.count === quote.birds.length && Math.abs(mid - loft.money - quote.cost) < 0.005,
-    `hele hok: de offerte (${quote.birds.length} duiven, €${quote.cost}) is precies wat er afgaat`);
-  ok(listed.count === quote.birds.length && listed.cost === quote.cost, 'de Inrichting-pagina (GET /loft/vaccines) toont diezelfde offerte');
-  ok(vaccineLoftQuote(db, loft, 'pmv').birds.length === 0, 'daarna staat er voor PMV niemand meer op de offerte');
-}
-
-console.log('\n=== 5. /state rekent geen prijzen uit ===');
-{
-  const store = new MemoryStore(emptyDatabase());
-  seedWorld(store);
-  const user: User = { id: 'usr_st', username: 'st', passwordHash: 'x', isAdmin: false, isBot: false, createdAt: new Date().toISOString() };
-  store.mutate((db) => db.users.push(user));
-  createLoftForUser(store, user, 'Hok ST');
-  const db = store.data;
-  const p = db.pigeons.find((x) => x.ownerId === user.id)!;
-  const care = pigeonDTO(db, p, user.id).care as Record<string, unknown> | null;
-  ok(!!care && !('prices' in care), 'de eigen duif op /state draagt geen prijzen — die kosten CPU op de drukste route');
+  const [a, b] = db.pigeons.filter((x) => x.ownerId === user.id);
+  b.speed = b.endurance = b.orientation = 88; // a much better bird: same price
+  let before = loft.money;
+  vaccinate(store, user.id, a.id, 'pokken');
+  const paidA = before - loft.money;
+  before = loft.money;
+  vaccinate(store, user.id, b.id, 'pokken');
+  const paidB = before - loft.money;
+  ok(paidA === VACCINES.pokken.price && paidB === VACCINES.pokken.price, `pokken: €${paidA} en €${paidB} — de prijs is de prijs`);
+  const home = db.pigeons.filter((x) => x.ownerId === user.id).length;
+  before = loft.money;
+  const res = vaccinateLoft(store, user.id, 'geel');
+  ok(res.error === null && res.count === home && Math.abs(before - loft.money - home * VACCINES.geel.price) < 0.005,
+    `hele hok: ${home} × €${VACCINES.geel.price}`);
 }
 
 console.log(`\n${fail === 0 ? 'alles groen' : `${fail} ROOD`} (${pass} van ${pass + fail})`);

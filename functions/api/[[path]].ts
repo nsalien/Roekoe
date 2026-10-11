@@ -109,7 +109,7 @@ import {
 import { advanceRealtime, applyFlightForecasts, applyRelayForecasts, flightsAwaitingStart, flightsNeedingForecast, relayLegsNeedingForecast, tickFlights } from '../../core/game/schedule.js';
 import { pigeonSeasonRankings } from '../../core/game/season.js';
 import { buyStraw, setCleaner } from '../../core/game/hygiene.js';
-import { buyEquipment, buyIrBox, inrichtingEffects, inrichtingLevels, magazineReport, setInsurance, upgradeEquipment, vaccinate, vaccinateLoft, vaccineLoftQuotes, vaccinePrices } from '../../core/game/inrichting.js';
+import { buyEquipment, buyIrBox, inrichtingEffects, inrichtingLevels, magazineReport, setInsurance, upgradeEquipment, vaccinate, vaccinateLoft } from '../../core/game/inrichting.js';
 import { spendAttribute, spendExperience } from '../../core/game/newcomer.js';
 import { velocityBreakdown, weightsForDistance } from '../../core/game/flight.js';
 import { ageInWeeks } from '../../core/game/pigeon.js';
@@ -706,12 +706,6 @@ app.get('/pigeons/:id', async (c) => {
     // parse megabytes — see core/d1.ts::PIGEON_SELECT). One extra query, on a
     // route the player opens on purpose rather than polls.
     history: pigeonRaceHistory((await loadPigeonLogs(c.env.DB, [p.id])).get(p.id)?.race ?? []),
-    // Hokinrichting: what each vaccin/kuur costs for THIS bird (VACCINE_PRICING). Here and
-    // not in pigeonDTO, so /state — polled by every open tab — never prices a whole loft.
-    vaccinePrices: (() => {
-      const loft = p.ownerId === user.id ? db.lofts.find((l) => l.userId === user.id) : null;
-      return loft ? vaccinePrices(db, loft, p) : null;
-    })(),
   });
 });
 
@@ -876,16 +870,6 @@ app.post('/pigeons/:id/vaccinate', async (c) => {
   const err = vaccinate(store, user.id, c.req.param('id'), body.key);
   await store.persist();
   return c.json(ok(err), err ? 400 : 200);
-});
-
-// "Hele hok" per middel: how many birds and what their own prices add up to. Fetched
-// when the Vaccins block opens, never polled (prices are per bird — see VACCINE_PRICING).
-app.get('/loft/vaccines', (c) => {
-  const user = requireUser(c);
-  const db = c.get('store').data;
-  const loft = db.lofts.find((l) => l.userId === user.id);
-  if (!loft) return c.json({ error: 'Geen hok gevonden' }, 404);
-  return c.json({ quotes: vaccineLoftQuotes(db, loft) });
 });
 
 app.post('/loft/vaccinate', async (c) => {

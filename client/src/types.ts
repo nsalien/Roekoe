@@ -288,7 +288,7 @@ export interface InrichtingCatalogue {
   };
   /** Per item in Uitrusting, every effect: `values[i]` at level i+1 (one value without levels), `none` without the item. */
   effects?: Record<string, { label: string; none: string; values: string[] }[]>;
-  vaccines: Record<string, { label: string; disease: string; kind: 'vaccin' | 'kuur'; days: number; protect: number; noFlyDays: number; libidoHit: number }>;
+  vaccines: Record<string, { label: string; disease: string; kind: 'vaccin' | 'kuur'; price: number; days: number; protect: number; noFlyDays: number; libidoHit: number }>;
   /** "Hele hok" skips a bird with more than this share of her course left. */
   vaccineRenewShare: number;
   insurancePayoutRate: number;

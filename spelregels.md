@@ -1456,34 +1456,28 @@ niveau 4); enkel de hokpoetser, het vakblad en een verzekering kosten per dag (D
 | Weerstation | €1.500 | — | voorspelling vanaf 24 u vóór de lossing |
 | Vakblad | — | €6 | bandbreedtes (±6) bij andermans duif; marktrapport 28 dagen; maandag Het Duivenblad |
 
-**Vaccins & kuren** (per ziekte, buiten de bodem ×0,4): PMV (91 d, 80 %), pokken
-(91 d, 80 %), salmonella (45 d, 60 %) — een vaccin = 2 dagen niet vliegen; geelkuur
-(7 d, 75 %), coccidiosekuur (10 d, 75 %), ademhalingskuur (7 d, 60 %, libido −10).
+**Vaccins & kuren** (per ziekte, buiten de bodem ×0,4), elk met **één vaste prijs**:
+PMV €6 (91 d, 80 %), pokken €4 (91 d, 80 %), salmonella €2 (45 d, 60 %) — een vaccin =
+2 dagen niet vliegen; geelkuur €0,50 (7 d, 75 %), coccidiosekuur €0,40 (10 d, 75 %),
+ademhalingskuur €0,20 (7 d, 60 %, libido −10).
 
-**Wat een middel kost — altijd iets minder dan wat het je duif bespaart.** Er is geen
-vaste prijs; elke duif heeft haar eigen prijs:
+**Waarom die prijzen: een vaccin is altijd iets voordeliger dan een zieke duif.** Elke prijs
+ligt onder 80 % van de schade die het middel een gewone wedstrijdduif (★70, marktwaarde
+~€5.000, vluchtvorm 75) gemiddeld bespaart:
 ```
-prijs  = 0,8 × vermeden gevallen × kost van één geval
-vermeden gevallen = looptijd × kans per dag dat ze díe ziekte krijgt × afweer
-                    (op vluchtvorm 75, met haar eigen bescherming: apart hok,
-                     IJzeren gestel, hygiëne, dakventilatie bij ornithose)
+schade die het bespaart = looptijd × kans per dag op díe ziekte × afweer × kost van één geval
 kost van één geval = de goedkoopste van ziekenboeg + medicatievoer met of zonder dokter:
-                    zorg + marktwaarde × (sterftekans + gemiste starts × 1,3 %)
+                     zorg + marktwaarde × (sterftekans + gemiste starts × 1,3 %)
 ```
 Gemiste starts: starten is energie-begrensd (~7,5 energie per dag op Herstelvoer, ~32 per
 start); een zieke duif krijgt geen energie binnen (met dokter de helft) en verliest bij het
 uitbreken ook nog energie. Na een ernstige ziekte komt er een halve start bij, omdat ze trager
 vliegt tot haar gezondheid terug is. Eén start brengt gemiddeld ~1,3 % van haar marktwaarde op.
 
-| Duif (marktwaarde) | PMV | Pokken | Salmonella | Een kuur |
-|---|---|---|---|---|
-| topduif (~€37.000) | €30 | €17 | €11 | €1–2 |
-| goede duif (~€24.000) | €21 | €13 | €8 | ~€1 |
-| gewone duif (~€9.000) | €12 | €7 | €4 | minder dan €1 |
-
-Op vluchtvorm 75 levert een middel minstens 1,3× zijn prijs op; een duif die gewoon
-meevliegt (die zakt na elke vlucht dieper) haalt er 2 à 4× haar geld uit. Een duif die
-amper vliegt en altijd rond vorm 80 of hoger zit, haalt er iets minder uit dan ze betaalt.
+Voor die duif van €5.000 brengt elk middel 1,3 à 1,5× zijn prijs op; een topduif (~€37.000)
+haalt er 5 à 7× haar geld uit, en een duif die na elke vlucht dieper zakt dan vorm 75 nog
+meer. Voor een zwakke duif (minder dan ★70, zoals de meeste startduiven) loont het gemiddeld
+niet: ze verdient te weinig om veel te verliezen.
 
 **Verzekering:** uitkering 60 % van de marktwaarde bij afsluiten; premie/dag =
 1,3 × uitkering × (0,04 % + ouderdomssterfte per dag). Niet gedekt: honger,

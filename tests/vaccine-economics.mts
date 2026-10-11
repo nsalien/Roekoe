@@ -18,7 +18,6 @@ import { startLiveFlight, finalizeFlight, type Entry } from '../core/game/flight
 import { applyAilment, runHealthDay, tickHealing } from '../core/game/health.js';
 import { applyDayOfCare } from '../core/game/economy.js';
 import { estimateValue, talent } from '../core/game/pigeon.js';
-import { vaccinePrice } from '../core/game/inrichting.js';
 import {
   DISEASES, FLIGHT_TIERS, HEALING, HEALTH, ILLNESS, INFIRMARY, VACCINES, diseaseSeverityWeights,
   type VaccineKey,
@@ -275,24 +274,17 @@ for (const v of [50, 65, 80]) {
 }
 
 // ---------------------------------------------------------------------------
-// 5. De prijs per duif (vaccinePrice) tegenover wat het middel haar oplevert
+// 5. De vaste prijs tegenover wat het middel elke duif oplevert
 // ---------------------------------------------------------------------------
-console.log('\n=== 5. Prijs per duif (vaccinePrice) vs. wat het middel oplevert (gesimuleerd) ===');
+console.log('\n=== 5. Vaste prijs (VACCINES.price) vs. wat het middel oplevert (gesimuleerd) ===');
 {
-  const loft = { userId: 'u', isBot: false, equipment: undefined } as unknown as Loft;
-  const db = { lofts: [loft], pigeons: [], trades: [], world: { currentWeek: WEEK } } as unknown as Database;
   const vorms = [60, 65, 70, 75, 80];
-  let worst = Infinity;
   for (const a of ARCHETYPES) {
-    const p = bird('v', tOf(a.idx), { ownerId: 'u' });
-    console.log(`  ${a.label} (waarde ~${euro(estimateValue(p, WEEK))}):`);
+    console.log(`  ${a.label} (waarde ~${euro(estimateValue(bird('v', tOf(a.idx)), WEEK))}):`);
     for (const [key, vac] of Object.entries(VACCINES) as [VaccineKey, (typeof VACCINES)[VaccineKey]][]) {
-      const price = vaccinePrice(db, loft, p, key);
       const worth = vorms.map((v) => incidenceFormula(v)[vac.disease] * vac.days * vac.protect * best[a.key][sevOf(vac.disease)]);
-      const ratio = worth.map((w) => w / price);
-      worst = Math.min(worst, ratio[vorms.indexOf(75)]);
-      console.log(`    ${vac.label.padEnd(18)} prijs ${euro(price).padStart(5)}${price < 10 ? ` (${price.toFixed(2)})` : ''} · oplevert ×prijs bij vorm ${vorms.map((v, i) => `${v}: ${ratio[i].toFixed(1)}`).join(' · ')}`);
+      console.log(`    ${vac.label.padEnd(18)} €${vac.price} · oplevert ×prijs bij vorm ${vorms.map((v, i) => `${v}: ${(worth[i] / vac.price).toFixed(1)}`).join(' · ')}`);
+      void key;
     }
   }
-  console.log(`  → slechtste verhouding bij vorm 75 (de rekenvorm): ×${worst.toFixed(2)} (> 1 = het middel brengt meer op dan het kost)`);
 }
