@@ -27,9 +27,12 @@
 > de prod-branch hierboven verandert nooit.
 
 **Workflow per wijziging (zie §7 voor de exacte commando's):**
-1. Commit op **dev** (zie de tabel hierboven) + push.
-2. `git checkout` **prod** → `git cherry-pick <commit>` → push naar prod
-   (`claude/roekoe-game-website-jwa0vo`) → Cloudflare bouwt.
+1. Commit op **dev** (zie de tabel hierboven) + push. De eigenaar test in de **demo-preview**
+   van die branch (§0b).
+2. **Enkel als de eigenaar het uitdrukkelijk vraagt** ("zet dit op productie"):
+   `git checkout` **prod** → `git cherry-pick <commit>` → push naar prod
+   (`claude/roekoe-game-website-jwa0vo`) → Cloudflare bouwt. Nooit uit jezelf, en nooit de
+   dev-only onderdelen van §0b mee.
 3. Terug naar **dev**.
 
 > Als een sessie een andere ontwikkelbranch opgeeft, geldt **deze** tabel. Ontwikkel
@@ -40,8 +43,9 @@
 1. **Update dit `context.md` direct** bij élke aanpassing die je doet — voeg de
    nieuwe context/feature toe of pas de betrokken sectie aan, in dezelfde commit
    als de wijziging. Dit bestand moet altijd de actuele waarheid zijn.
-2. **Deploy direct naar productie** zodra je een aanpassing hebt gedaan (zie §7
-   voor de exacte flow). Niet wachten tot de speler erom vraagt.
+2. **Productie enkel op vraag van de eigenaar.** Werk en push op dev; de eigenaar test in
+   de demo-preview en zegt zelf wanneer iets live mag (dan de flow van §7). Vroeger stond hier
+   "deploy direct" — dat geldt niet meer sinds de dev-branch met de demomodus bestaat.
 3. Verifieer altijd met typecheck + build (§7) vóór je commit + deployt.
 4. **Tekstbudget in de UI.** Een scherm toont enkel wat de beslissing van dít moment
    stuurt (kost, opbrengst voor déze duif, harde beperking). Mechaniek, kansen,
@@ -58,6 +62,29 @@
 > zonder dat ze live staan**. **Niet cherry-picken naar prod en niet live deployen** tot de
 > eigenaar na het testen beslist. Het voorstel (met alle getallen en de sketch) staat in de
 > artifact "Roekoe Hokinrichting".
+
+### Stand van zaken (bijgewerkt 11 okt 2026) — lees dit eerst
+- **Live op productie** (`claude/roekoe-game-website-jwa0vo`, laatst `973bffc`): alles van vóór de
+  dev-branch, plus *Marktwaarde houdt stand* (`ef48798`) en *nooit onder 1/5 van de marktwaarde;
+  de verkopen van Zulma en Freddy (€25) tellen niet mee* (`973bffc`). Zie §8 (nieuwste blokken).
+- **Enkel op dev** (`claude/demo-hokinrichting`): de demomodus (de preview is een demo die nooit met
+  de server praat, het demoaccount heeft altijd minstens €100.000), het hokoverzicht, de pagina
+  **Inrichting** (vier inklapbare blokken; hygiëne + poetser per schijf €10–€75; vaccins & kuren;
+  uitrusting met niveaus 1–4 en een ⓘ per onderdeel; verzekering, vakblad, weerstation, scout) en
+  **Marktwaarde v2** (hieronder). **Weggehaald van dev:** koppels, partnerhok, weduwschap.
+- **Wacht op een beslissing van de eigenaar:**
+  1. **Marktwaarde v2 naar productie?** Eerst testen in de demo (⚠️ schema-stap `trades.quality`
+     achteraan *productie's* SCHEMA_STEPS zetten, zie hieronder).
+  2. **Vaccinprijzen.** Analyse (met de echte ziektecode): bij vorm 65 besparen ze per middel
+     PMV €25–81, pokken €20–52, salmonella €10–31, geel €3–7, coccidiose €2–6, ademhaling €1–3
+     (gewone → topduif) tegen prijzen van €60/€40/€75/€15/€25/€40 — de kuren lonen nooit. Voorstel:
+     PMV €30, pokken €20, salmonella €15, de drie kuren €3. ⚠️ Besmetting trekt nu een
+     *willekeurige* ziekte, niet die van de zieke hokgenoot, dus "een kuur als er iets rondgaat"
+     werkt niet; voorstel: besmetting per ziekte.
+  3. **De scout:** blijft hij op dev (hij rekent met de nieuwe marktwaarde × 1,4–1,7), of gaat hij
+     voorlopig weg? Een eigen prijsbodem voor de scout is uitgesteld tot de marktwaarde klopt.
+  4. Moeten de **opvangcentrum-veilingen** (start €25, NPC) buiten de marktwaarde blijven?
+  5. Moeten de **scoutregio's** duidelijker van elkaar verschillen?
 
 ### Demomodus (preview-builds)
 - **Wanneer:** Cloudflare Pages zet `CF_PAGES_BRANCH` tijdens de build. Is die **niet**
@@ -1517,10 +1544,11 @@ absolute waarde, want lokaal draait SQLite synchroon in hetzelfde proces).
 Ook handig: `BREAKDOWN=1 npx tsx tests/query-budget.test.mts` splitst het duurste
 verzoek uit per statement.
 
-### Git + deploy (ALTIJD, zie §0)
+### Git + deploy (zie §0: productie enkel op vraag)
 1. Ontwikkel + commit op de **dev-branch uit §0**; push met
    `git push -u origin <dev-branch>` (retry met backoff).
-2. **Deploy meteen naar productie** door de commit op de deploy-branch te zetten:
+2. **Naar productie — enkel als de eigenaar het vraagt** (zie §0), door de commit op de
+   deploy-branch te zetten:
    ```bash
    git fetch origin claude/roekoe-game-website-jwa0vo
    git checkout claude/roekoe-game-website-jwa0vo
@@ -5324,5 +5352,7 @@ Wat nog echt open staat, staat hieronder.
 3. `core/schema.ts` = datamodel (let op `form`=energie, `endurance`=conditie).
 4. `advanceRealtime` in `core/game/schedule.ts` = wat er elk verzoek gebeurt (§2).
 5. Endpoints in `functions/api/[[path]].ts`; UI in `client/src/pages/`.
-6. Verifieer met de typecheck/build-commando's (§7), **update context.md**, commit,
-   en **deploy meteen naar productie** (§0/§7).
+6. Verifieer met de typecheck/build-commando's (§7), **update context.md**, commit en push
+   op de **dev-branch** (§0). Naar productie enkel als de eigenaar dat vraagt.
+7. Begin bij **§0b → "Stand van zaken"**: wat er op dev staat, wat live is, en welke
+   beslissingen nog openstaan.
