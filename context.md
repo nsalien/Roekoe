@@ -15,7 +15,7 @@
 
 | Rol | Branch | Doel |
 |-----|--------|------|
-| **Dev** | `claude/breeding-other-player-pigeons-7314iz` | Alle ontwikkeling/commits komen hier **eerst**. Sinds **12 okt** herstart vanaf prod (`4a0c3ad`) + de demomodus + Marktwaarde v2 (§0b). De eigenaar test in de demo-preview van deze branch. |
+| **Dev** | `claude/breeding-other-player-pigeons-7314iz` | Alle ontwikkeling/commits komen hier **eerst**. Sinds **12 okt** herstart vanaf prod (`4a0c3ad`) + de demomodus + Marktwaarde v2 (§0b). De eigenaar test in de demo-preview van deze branch: **https://claude-breeding-other-player.roekoe.pages.dev** (het oude adres `claude-demo-hokinrichting.roekoe.pages.dev` toont nog de pauzepagina). |
 | **Prod** | `claude/roekoe-game-website-jwa0vo` | Elke commit wordt hierheen **gecherry-pickt**; deze branch triggert de **Cloudflare Pages**-deploy naar productie. |
 
 > Vorige dev-branches (niet meer gebruiken): `ccr-9c78dbf3-rdb1ea`, `claude/hallo-nno7pb`, `claude/hallo-r1wgvn`, `claude/hallo-ca55co`, `claude/hallo-qz9tmx`, `claude/hallo-fsp9nx`, `claude/hallo-mzjn0e`, `claude/hallo-su75jy`, `claude/hallo-rkr49f`, `claude/hallo-pvwabx`,
@@ -183,8 +183,11 @@
 - **Wanneer:** Cloudflare Pages zet `CF_PAGES_BRANCH` tijdens de build. Is die **niet**
   `claude/roekoe-game-website-jwa0vo`, dan bouwt de client als demo (`client/vite.config.ts`).
   `ROEKOE_DEMO=1` forceert het lokaal. Zonder `CF_PAGES_BRANCH` (lokaal, `wrangler pages dev`)
-  is het een gewone build. Preview-adres: `https://<branch>.<projectnaam>.pages.dev`
-  (slashes in de branchnaam worden streepjes; exact te zien onder *Deployments*).
+  is het een gewone build. Preview-adres: `https://<branch>.roekoe.pages.dev` — slashes en
+  andere tekens worden streepjes en ⚠️ **Cloudflare kapt het af op 28 tekens**
+  (`claude/breeding-other-player-pigeons-7314iz` → `claude-breeding-other-player`). Het juiste
+  adres staat ook in de check "Cloudflare Pages" op de commit in GitHub (`/commits/<sha>/check-runs`,
+  "Branch Preview URL").
 - **Hoe het de productie ongemoeid laat:** de demo-build verandert **enkel het instappunt** in
   `index.html` (`/src/main.tsx` → `/demo/entry.ts`, via een Vite-plugin met `order: 'pre'`).
   Geen enkel bestand onder `client/src` weet van de demo. Een productiebuild is daardoor
