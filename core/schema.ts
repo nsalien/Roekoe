@@ -578,6 +578,12 @@ export interface StudListing {
    * is negotiated. Absent on a listing from before this existed = 'fee'.
    */
   wants?: StudWants;
+  /**
+   * Bots that already answered this offer with a proposal of their own — each
+   * bot does so once per offer (stud.botsProposeTo), also when the player turned
+   * it down. Cleared when the owner switches between the young and the fee.
+   */
+  asked?: string[];
   at: string;
 }
 

@@ -1907,7 +1907,8 @@ uitkomen **kan even duren** — geen vaste tijd, sneller bij hoog libido en veel
 energie — en er is **geen garantie op jongen**: een worp kan leeg uitkomen.
 
 - **Alle jongen gaan naar dezelfde speler** — een tweeling ook. Zit zijn hok vol,
-  dan wacht het nest op zijn keuze (§7.1).
+  dan gaan ze niet verloren: het nest wacht bij *Kweek* op zijn keuze en hij kan
+  **eerst plaats maken** (§7.1). De vergoeding wordt wel meteen betaald.
 - **De vergoeding wordt betaald op het moment dat de jongen er zijn.** Staat de
   betaler dan in het rood, dan zakt hij verder (§4.5).
 - **Lege worp:** er wordt geen vergoeding betaald, en **elk** krijgt **€500**
@@ -2813,10 +2814,21 @@ niet sneller aanvullen dan jij. Hij koppelt bovendien **nooit twee verwanten**
 **Samen kweken met een bot** (§7.4). Elke bot met een duif van minstens ★55 biedt
 zijn best gegende duif aan om mee te kweken, vraagt een partner van hoogstens 10
 punten lager (afgerond op 5) met minstens 30 energie en 30 libido, en houdt die
-duif thuis van de vluchten en van zijn eigen nesten. Een bot kiest altijd **de
-vergoeding**: de jongen zijn voor jou, voor ongeveer 8 % van de marktwaarde van
-zijn duif (minstens €250, afgerond op €50). Bied je dat, dan gaat hij meteen
-akkoord; bied je minder, dan antwoordt hij met dat bedrag.
+duif thuis van de vluchten en van zijn eigen nesten. Heeft hij minstens 2 plaatsen
+en het geld over, dan wil hij **de jongen**, anders **de vergoeding**.
+
+Bied jij een duif aan, dan stellen **tot drie bots** met een passende duif (andere
+sekse, vrij, geen familie, voldoet aan je eisen) meteen hun duif voor — elke bot één
+keer per aanbod, ook als je hem weigert. Een bot antwoordt altijd meteen:
+
+| Wie krijgt de jongen? | Wat de bot wil |
+|---|---|
+| jij | ±8 % van de marktwaarde van zijn duif (minstens €250, per €50) |
+| de bot | hij biedt eerst ¼ van wat zo'n jong bij de geboorte waard is, en betaalt hoogstens de helft |
+
+Valt jouw bedrag daarbuiten, dan antwoordt hij met zijn eigen bedrag; daarbinnen
+gaat hij meteen akkoord. Een bot die de jongen zou krijgen maar geen plaats of geld
+meer heeft, weigert.
 
 **Ze kiezen hun duiven met verstand.** Een bot zet een duif enkel in als ze de
 route ook echt aankan (genoeg energie voor de afstand) en niet als haar

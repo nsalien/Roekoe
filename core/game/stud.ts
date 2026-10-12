@@ -29,7 +29,7 @@
  * read.
  */
 
-import { BREEDING, STUD } from '../config/gameConfig.js';
+import { BOT, BREEDING, STUD } from '../config/gameConfig.js';
 import type { Database, Loft, Pigeon, StudDeal, StudListing, StudWants } from '../schema.js';
 import { newId } from '../store.js';
 import { evaluateBadges } from './badges.js';
@@ -279,10 +279,18 @@ export function setStudListing(
   const c = cleanCriteria(criteria);
   if (typeof c === 'string') return c;
   const before = activeListing(p);
-  p.stud = { by: userId, ...c, at: before?.at ?? new Date(nowMs).toISOString() };
-  if (before && wantsOf(before) !== c.wants && db.studDeals) {
+  const switched = !!before && wantsOf(before) !== c.wants;
+  p.stud = {
+    by: userId, ...c,
+    // The bots answer again once the owner wants the other side of the deal.
+    asked: switched ? [] : before?.asked ?? [],
+    at: before?.at ?? new Date(nowMs).toISOString(),
+  };
+  if (switched && db.studDeals) {
     dropDealsWith(db, [p.id], `${nameOf(db, userId)} wil voor ${p.name} nu ${c.wants === 'young' ? 'zelf de jongen' : 'de vergoeding'}`);
   }
+  // The bots that have a fitting bird answer right away (botsProposeTo).
+  if (db.studDeals) botsProposeTo(db, p, nowMs);
   return null;
 }
 
@@ -433,6 +441,9 @@ export function acceptStud(db: Database, userId: string, dealId: string, nowMs: 
     return deal.youngTo === userId
       ? 'Er wacht nog een nest op je keuze — beslis eerst welke jongen je houdt'
       : `${keeper.name} moet eerst nog beslissen over een nest dat op een keuze wacht`;
+  // A bot drops young it has no perch for (tickBreedingHatch), so it does not
+  // take a nest it cannot house.
+  if (keeper.isBot && !botHasRoom(db, keeper)) return `${keeper.name} heeft geen plaats meer voor de jongen`;
   for (const l of [keeper, partner]) {
     const debt = debtBlock(l);
     if (debt) return l.userId === userId ? debt : `${l.name} staat in het rood en kan nu niet kweken`;
@@ -480,34 +491,150 @@ export function botStudFee(db: Database, p: Pigeon): number {
   return Math.round(raw / 50) * 50;
 }
 
+const round50 = (v: number) => Math.round(v / 50) * 50;
+
 /**
- * A bot answers on the spot. Its bird is put up for the fee (the player keeps the
- * young): an amount of at least its asking fee is accepted (or, if its bird cannot
- * go on a nest right now, handed back so the player can start once she can); a
- * lower one gets its asking fee as the answer.
+ * What a bot pays for young it keeps: it opens with STUD.botBidShare of what such
+ * a youngster is worth at birth and goes up to STUD.botMaxBidShare.
+ */
+export function botYoungBid(youngValue: number): { offer: number; max: number } {
+  return { offer: round50(youngValue * STUD.botBidShare), max: round50(youngValue * STUD.botMaxBidShare) };
+}
+
+/** Can this bot house another clutch? Same rule as its own nests (bots.maybeBreed). */
+function botHasRoom(db: Database, loft: Loft, perches = 1): boolean {
+  const owned = db.pigeons.filter((p) => p.ownerId === loft.userId).length;
+  const pairs = db.breedingPairs.filter((bp) => bp.ownerId === loft.userId).length;
+  return owned + pairs + perches <= loft.capacity;
+}
+
+/** Can this bot pay for a samen-kweken nest (and `fee` on top) without touching its reserve? */
+function botCanPay(loft: Loft, fee = 0): boolean {
+  return loft.money - BOT.breedReserve >= STUD.cost + fee;
+}
+
+/** What the bot settles for in this deal: [accept when the amount is …, the amount it answers with]. */
+function botTerms(db: Database, deal: StudDeal, bot: string): { ok: (fee: number) => boolean; answer: number } | null {
+  const stud = db.pigeons.find((p) => p.id === deal.studId);
+  const mate = db.pigeons.find((p) => p.id === deal.mateId);
+  if (!stud || !mate) return null;
+  if (deal.youngTo === bot) {
+    // The bot keeps the young and pays: up to its maximum bid.
+    const { max } = botYoungBid(studYoung(db, stud, mate).value);
+    return { ok: (fee) => fee <= max, answer: max };
+  }
+  // The player keeps the young and pays the bot: at least its asking fee.
+  const ask = botStudFee(db, bot === deal.studOwnerId ? stud : mate);
+  return { ok: (fee) => fee >= ask, answer: ask };
+}
+
+/**
+ * A bot answers on the spot, in either role. When it is paid (the player keeps
+ * the young) it wants at least its asking fee; when it keeps the young it pays at
+ * most its maximum bid. Terms it likes are accepted — or, if a bird cannot go on
+ * a nest right now, handed back so the player can start once she can; anything
+ * else gets its own amount as the answer. A bot that would keep the young but has
+ * no perch or money left for them declines.
  */
 function botAnswer(db: Database, deal: StudDeal, nowMs: number): void {
   const bot = deal.turn;
   const human = otherSide(deal, bot);
-  const botBird = db.pigeons.find((p) => p.id === (bot === deal.studOwnerId ? deal.studId : deal.mateId));
-  if (!botBird) return;
-  const ask = botStudFee(db, botBird);
-  if (deal.youngTo === human && deal.fee >= ask) {
+  const loft = loftOf(db, bot);
+  const terms = botTerms(db, deal, bot);
+  if (!loft || !terms) return;
+  if (deal.youngTo === bot && (!botHasRoom(db, loft) || !botCanPay(loft, Math.min(deal.fee, terms.answer)))) {
+    closeStud(db, bot, deal.id);
+    return;
+  }
+  if (terms.ok(deal.fee)) {
     if (!acceptStud(db, bot, deal.id, nowMs)) return;
     deal.turn = human; // agreed, but not now: the player starts it when both birds can
     deal.updatedAt = new Date(nowMs).toISOString();
     return;
   }
-  // A bot never wants to pay for young; it only lists for the fee, so this is the
-  // only other answer it has.
-  if (deal.youngTo === human) deal.fee = ask;
+  deal.fee = terms.answer;
   deal.turn = human;
   deal.updatedAt = new Date(nowMs).toISOString();
 }
 
 /**
- * A bot keeps one bird up for samen kweken, for the fee: its best-gened adult of
- * at least STUD.botMinScore, asking a partner up to STUD.botScoreMargin below her. It
+ * The bots answer a player's bird with their own: a bot whose bird on offer is of
+ * the other sex, healthy, free today, not family and good enough for what the
+ * player asks, proposes — once per offer (`StudListing.asked`), at most
+ * STUD.botMaxProposals bots per offer, the best expected young first. It offers
+ * its asking fee when the player keeps the young, and its opening bid when the
+ * player wants the fee (it needs a free perch and the money for that).
+ * Runs when a player puts a bird up and whenever the Kweek page is opened.
+ * Returns whether anything changed.
+ */
+export function botsProposeTo(db: Database, stud: Pigeon, nowMs: number = Date.now()): boolean {
+  const listing = activeListing(stud);
+  const owner = loftOf(db, stud.ownerId);
+  if (!listing || !owner || owner.isBot || offerBlock(db, stud, nowMs)) return false;
+  const deals = dealsOf(db);
+  const asked = new Set(listing.asked ?? []);
+  let open = deals.filter((d) => d.studId === stud.id && loftOf(db, d.mateOwnerId)?.isBot).length;
+  const wantsFee = wantsOf(listing) === 'fee';
+  const options = db.lofts
+    .filter((l) => l.isBot && !asked.has(l.userId))
+    .map((l) => {
+      const bird = db.pigeons.find((p) => p.ownerId === l.userId && activeListing(p) && p.sex !== stud.sex);
+      if (!bird || breedBlock(db, bird, nowMs) || offerBlock(db, bird, nowMs) || criteriaGap(listing, bird)) return null;
+      const [sire, dam] = sireAndDam(stud, bird);
+      if (kinship(db, sire, dam)) return null; // bots never breed with family
+      if (deals.some((d) => d.studId === stud.id && d.mateId === bird.id)) return null;
+      const young = studYoung(db, stud, bird);
+      const fee = wantsFee ? botYoungBid(young.value).offer : botStudFee(db, bird);
+      if (wantsFee ? !botHasRoom(db, l) || !botCanPay(l, fee) : !botCanPay(l)) return null;
+      return { loft: l, bird, fee, score: young.score };
+    })
+    .filter((x): x is NonNullable<typeof x> => !!x)
+    .sort((a, b) => b.score - a.score);
+  let changed = false;
+  for (const o of options) {
+    if (open >= STUD.botMaxProposals) break;
+    const now = new Date(nowMs).toISOString();
+    const deal: StudDeal = {
+      id: newId('stud'),
+      studId: stud.id, studOwnerId: stud.ownerId,
+      mateId: o.bird.id, mateOwnerId: o.loft.userId,
+      youngTo: keeperFor(listing, stud.ownerId, o.loft.userId),
+      fee: o.fee,
+      turn: stud.ownerId,
+      createdAt: now,
+      updatedAt: now,
+    };
+    deals.push(deal);
+    asked.add(o.loft.userId);
+    open++;
+    changed = true;
+    notify(
+      db, stud.ownerId, `🤝 Kweekvoorstel voor ${stud.name}`,
+      `${o.loft.name} stelt ${o.bird.name} (★${Math.round(talent(o.bird))}) voor als partner van ${stud.name} — ` +
+        `het jong scoort naar schatting ★${Math.round(o.score)}: ${termsLine(db, deal, stud.ownerId)}. ` +
+        'Antwoord bij Kweek → Samen kweken.',
+    );
+  }
+  if (changed) stud.stud = { ...listing, asked: [...asked] };
+  return changed;
+}
+
+/** Let the bots answer every bird a player has on offer (see botsProposeTo). */
+export function botsAnswerListings(db: Database, nowMs: number = Date.now()): boolean {
+  if (!db.studDeals) return false;
+  pruneStudDeals(db);
+  let changed = false;
+  for (const p of db.pigeons) {
+    if (activeListing(p) && botsProposeTo(db, p, nowMs)) changed = true;
+  }
+  return changed;
+}
+
+/**
+ * A bot keeps one bird up for samen kweken: its best-gened adult of at least
+ * STUD.botMinScore, asking a partner up to STUD.botScoreMargin below her. It
+ * wants the young when it has STUD.botYoungFreePerches perches to spare and the
+ * money, else the fee. The same bird is the one it offers to players' birds. It
  * keeps her home from the flights and from its own nests (bots.ts), so a player
  * who comes to an agreement finds her free. Runs on the daily tick; writes only
  * when the listing changes.
@@ -526,7 +653,7 @@ export function botOfferStud(db: Database, loft: Loft, pigeons: Pigeon[], nowMs:
     minScore: Math.max(0, Math.floor((talent(pick) - STUD.botScoreMargin) / 5) * 5),
     minEnergy: STUD.botMinEnergy,
     minLibido: STUD.botMinLibido,
-    wants: 'fee', // a bot wants the money; the player keeps the young
+    wants: botHasRoom(db, loft, STUD.botYoungFreePerches) && botCanPay(loft) ? 'young' : 'fee',
     at: new Date(nowMs).toISOString(),
   };
 }

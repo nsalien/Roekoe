@@ -9,7 +9,7 @@ import { LOKAAL_SEEN_EVENT, hasLokaalNews, lokaalSeenAt } from '../game/lokaalSe
 import { api } from '../api/client';
 import { useToast } from './ui';
 import { NotificationsBell } from './NotificationsBell';
-import { INRICHTING_NEWS_STEPS, LOKAAL_NEWS_STEPS, Tour, season3NewsSteps } from './Tour';
+import { INRICHTING_NEWS_STEPS, LOKAAL_NEWS_STEPS, Tour, season3NewsSteps, studNewsSteps } from './Tour';
 import { PrizeCeremony } from './PrizeCeremony';
 
 interface NavItem { to: string; label: string; short: string; icon: string; end?: boolean }
@@ -129,6 +129,7 @@ export function Layout() {
     if (newsKey) { try { localStorage.setItem(newsKey, '1'); } catch { /* private mode */ } }
     if (user?.id) { try { localStorage.setItem(`roekoe.newsSeen.lokaal.${user.id}`, '1'); } catch { /* private mode */ } }
     if (user?.id) { try { localStorage.setItem(`roekoe.newsSeen.inrichting.${user.id}`, '1'); } catch { /* private mode */ } }
+    if (user?.id) { try { localStorage.setItem(`roekoe.newsSeen.samen.${user.id}`, '1'); } catch { /* private mode */ } }
     setShowTour(false);
   }
 
@@ -200,10 +201,35 @@ export function Layout() {
     } catch { /* private mode: treat as seen */ }
     if (!seen && !earlierPending) setShowInrichtingNews(true);
   }, [inrichtingNewsKey, lokaalNewsKey, newsKey, state?.loft, state?.world?.newsAt, showTour, showNews, showLokaalNews, lokaalNewsDone]);
+  const [inrichtingNewsDone, setInrichtingNewsDone] = useState(false);
   function closeInrichtingNews() {
     if (inrichtingNewsKey) { try { localStorage.setItem(inrichtingNewsKey, '1'); } catch { /* private mode */ } }
     setShowInrichtingNews(false);
+    setInrichtingNewsDone(true);
   }
+
+  // Aankondiging van SAMEN KWEKEN + de vergeten melding over vaccins en verzekering
+  // per duif (twee spotlights, eigen sleutel). Zelfde regel: pas als de vorige
+  // aankondigingen gezien zijn, nooit twee runs op één bezoek. Bellen: migratie v62.
+  const samenNewsKey = user?.id ? `roekoe.newsSeen.samen.${user.id}` : null;
+  const [showSamenNews, setShowSamenNews] = useState(false);
+  useEffect(() => {
+    if (!samenNewsKey || !state?.loft || showTour || showNews || showLokaalNews || showInrichtingNews || lokaalNewsDone || inrichtingNewsDone) return;
+    let seen = true;
+    let earlierPending = false;
+    try {
+      seen = !!localStorage.getItem(samenNewsKey);
+      earlierPending = (!!inrichtingNewsKey && !localStorage.getItem(inrichtingNewsKey))
+        || (!!lokaalNewsKey && !localStorage.getItem(lokaalNewsKey))
+        || (!!newsKey && !!state.world?.newsAt && !localStorage.getItem(newsKey));
+    } catch { /* private mode: treat as seen */ }
+    if (!seen && !earlierPending) setShowSamenNews(true);
+  }, [samenNewsKey, inrichtingNewsKey, lokaalNewsKey, newsKey, state?.loft, state?.world?.newsAt, showTour, showNews, showLokaalNews, showInrichtingNews, lokaalNewsDone, inrichtingNewsDone]);
+  function closeSamenNews() {
+    if (samenNewsKey) { try { localStorage.setItem(samenNewsKey, '1'); } catch { /* private mode */ } }
+    setShowSamenNews(false);
+  }
+  const samenNewsSteps = studNewsSteps(state?.pigeons?.[0]?.id ?? null);
 
   // Prijsuitreiking: de prizes of the season that just ended, one screen each.
   // No server state — `loft.ceremony` carries the last season's awards and this
@@ -371,7 +397,10 @@ export function Layout() {
       {showInrichtingNews && !showLokaalNews && !showNews && !showTour && !showCeremony && (
         <Tour steps={INRICHTING_NEWS_STEPS} onClose={closeInrichtingNews} />
       )}
-      {state?.pendingEvent && !showTour && !showNews && !showLokaalNews && !showInrichtingNews && !showCeremony && <EventModal />}
+      {showSamenNews && !showInrichtingNews && !showLokaalNews && !showNews && !showTour && !showCeremony && (
+        <Tour steps={samenNewsSteps} onClose={closeSamenNews} />
+      )}
+      {state?.pendingEvent && !showTour && !showNews && !showLokaalNews && !showInrichtingNews && !showSamenNews && !showCeremony && <EventModal />}
     </div>
   );
 }

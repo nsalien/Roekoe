@@ -101,7 +101,7 @@
   pauzecommits: de boom is die van de herstart, de oude commits (`bc8c415`, `70d3209`, `264f93f`, …)
   blijven via de tweede ouder bereikbaar. De pauzepagina is daarmee weg.
 
-### Kweken met andermans duif ("Samen kweken") — ⚠️ ENKEL OP DEV (12 okt)
+### Kweken met andermans duif ("Samen kweken") — LIVE sinds 12 okt
 - **Vraag van de eigenaar** (De Stem, *"Broeden met de duif van een andere speler"*, spelleiding 19
   sep): twee spelers kweken met elkaars duiven; de ene krijgt het jong (een tweeling ook), de
   andere een vergoeding die ze samen afspreken. Onder het **Kweek**-menu. Een speler zet een duif
@@ -203,7 +203,7 @@
   (in productie gebeurt het aanbieden op de dagovergang en blijft ze daarna thuis); vindt geen enkele
   demoduif een vrije botduif, dan zakken de eisen van de eerste tot wat de beste demoduif heeft.
   `DEMO_VERSION` 6. `demo-world` controleert dat er zo'n botduif is.
-- **Test:** `tests/samen-kweken.test.mts` (87 controles, node:sqlite + de echte API, los van de
+- **Test:** `tests/samen-kweken.test.mts` (~100 controles, node:sqlite + de echte API, los van de
   demo zodat hij ook op prod draait; ook de keuze jongen/vergoeding, de geschatte score bij kandidaat,
   onderhandeling en bel, de marktwaarde, ziek/ingeschreven weigeren, niet inschrijven zolang
   aangeboden of voorgesteld, en de schatting tegen 4.000 echte worpen): bot antwoordt met zijn prijs en gaat akkoord, €1.000 elk,
@@ -211,8 +211,39 @@
   tegenvoorstel, zelfde voorwaarden geweigerd), lege worp (€500 elk, geen vergoeding, vaste bel-id),
   stoppen door de partner, weigeren/intrekken/niet meer aanbieden/verkocht, infrarood, en de opslag
   (een gewoon verzoek laadt `stud_deals` niet en wist ze dus ook niet).
-- **Nog niet gedaan (bij het live zetten):** een aankondiging (bel + rondleiding), en de status van
-  het idee op De Stem ("In het spel") — dat zet de beheerder zelf.
+- **Vierde ronde (eigenaar, 12 okt): bots doen volop mee, vol hok, live + communicatie.**
+  - **Bots stellen zelf voor** (`botsProposeTo`): biedt een speler een duif aan, dan stelt elke bot
+    wiens aangeboden duif past (andere sekse, vrij (`breedBlock`), gezond/niet ingeschreven
+    (`offerBlock`), voldoet aan de eisen, géén familie) zijn duif voor — **hoogstens
+    `STUD.botMaxProposals` (3)** per aanbod, beste verwachte jong eerst, **elke bot één keer per
+    aanbod** (`StudListing.asked`, ook na een weigering; leeg gemaakt als de eigenaar wisselt tussen
+    jongen en vergoeding). Een bot stelt enkel zijn eigen aangeboden duif voor: die houdt hij al thuis
+    van vluchten en eigen nesten, dus een akkoord loopt nooit vast op een inschrijving (bots schrijven
+    in buiten de Kweek-routes, waar de onderhandelingen niet geladen zijn). Draait bij
+    `setStudListing` en bij **`GET /breeding`** (`botsAnswerListings`; die GET schrijft dan, enkel als er
+    iets veranderde).
+  - **Bots in beide rollen** (`botAnswer` via `botTerms`): krijgt de speler de jongen, dan wil de bot
+    minstens `botStudFee`; krijgt de bot de jongen, dan biedt hij `botYoungBid(waarde jong).offer` (25 %)
+    en betaalt hij hoogstens `.max` (50 %) — `STUD.botBidShare`/`botMaxBidShare`. Daarbinnen akkoord,
+    anders zijn eigen bedrag. Een bot die de jongen zou krijgen zonder plaats (`botHasRoom`: zelfde regel
+    als `maybeBreed`) of geld (`botCanPay`, boven `BOT.breedReserve`) weigert; `acceptStud` weigert ook
+    een bot-ontvanger zonder plaats (een bot gooit overtallige jongen weg). **Een bot wil zelf de jongen**
+    van zijn eigen aanbod als hij `STUD.botYoungFreePerches` (2) plaatsen en het geld over heeft
+    (`botOfferStud`), anders de vergoeding. De API stuurt `askFee` enkel voor een bot die de vergoeding
+    wil, en per kandidaat `botBid` (zijn maximum) voor een bot die de jongen wil.
+  - **Vol hok:** werkte al (`tickBreedingHatch` houdt het nest vast in `pendingBroods`, de speler kiest
+    en kan eerst plaats maken via `NestChoice`). Het keuzescherm staat nu **boven beide tabs** van Kweek,
+    en een onderhandeling waarbij jij de jongen krijgt zegt het als je hok vol zit. De test laat een
+    samen-kweken-nest in een vol hok uitkomen, maakt plaats en houdt de jongen.
+  - **Aankondiging (migratie v62, `core/game/news.ts`):** twee bellen per echte speler — `STUD_NEWS`
+    (`ntf:news:samenkweken:<id>`) en `CARE_NEWS` (`ntf:news:verzorgingperduif:<id>`: vaccins/kuren en een
+    verzekering kan je ook **per duif** nemen, op haar pagina — dat stond niet in de aankondiging van 11
+    okt). De bots bieden in v62 meteen een duif aan. Rondleiding `studNewsSteps(pigeonId)` in Tour.tsx
+    (Kweek-tabs `[data-tour="samen-kweken"]` → de kaart `[data-tour="pigeon-care"]` op de pagina van je
+    eerste duif), sleutel `roekoe.newsSeen.samen.<id>`, pas na de vorige aankondigingen (Layout).
+    Wiki **#nieuw** heet nu "Nieuw: samen kweken, inrichting & meer" met twee nieuwe blokken bovenaan.
+    Test: `tests/samen-kweken-news.test.mts`.
+  - **Nog te doen door de beheerder:** het idee op De Stem op "In het spel" zetten.
 
 ### Demomodus (preview-builds) — ⚠️ ENKEL OP DEV, niet op productie
 - **Niet mee naar productie (11 okt):** op prod bestaan `client/demo/`, de Vite-plugin, sql.js en
@@ -705,7 +736,7 @@ krijgen.**
 `core/game/schedule.ts` → `advanceRealtime(db, nowMs, weatherByFlight)` roept in
 volgorde:
 1. `runDataMigrations(db)` — eenmalige datafixes, **gated op `world.dataVersion`**
-   (staat nu op **61** — v61 = de aankondigingsbel van de hokinrichting & co (`core/game/news.ts`), v60 = die van Het Lokaal; nieuwe migratie = nieuw `if ((db.world.dataVersion ?? 0) < N)`
+   (staat nu op **62** — v62 = de bellen van samen kweken en van vaccins/verzekering per duif + de bots bieden een duif aan, v61 = de aankondigingsbel van de hokinrichting & co (`core/game/news.ts`), v60 = die van Het Lokaal; nieuwe migratie = nieuw `if ((db.world.dataVersion ?? 0) < N)`
    blok + `db.world.dataVersion = N`). De oudere migraties hebben hun werk gedaan en
    zijn enkel nog van belang als **patroon** — zie §8, kop *Eenmalige migraties*.
 2. `ensureFlightsScheduled(db, nowMs)` — plant vluchten volgens `REAL_SCHEDULE`.
@@ -1736,6 +1767,7 @@ npx tsx tests/market-boost.test.mts       # zoekertje naar boven: één plek bov
 npx tsx tests/contagion.test.mts          # besmetting per ziekte: de eigen ziekte van de bron, eigen kans
 npx tsx tests/inrichting-news.test.mts    # v61: één aankondigingsbel per echte speler, stabiele id
 npx tsx tests/samen-kweken.test.mts       # kweken met andermans duif: bot, onderhandelen, vergoeding, lege worp, opslag
+npx tsx tests/samen-kweken-news.test.mts  # v62: twee bellen per echte speler, stabiele id, bots bieden aan
 ```
 
 > **Geen `tsx` beschikbaar?** (cloud-sessie waar de npm-registry geblokkeerd is: `npx tsx`

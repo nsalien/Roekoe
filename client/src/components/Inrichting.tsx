@@ -503,7 +503,7 @@ export function PigeonCareCard({ p, cat, busy, run }: {
   const care = p.care!;
   const day = (iso: string) => new Date(iso).toLocaleDateString('nl-BE', { day: 'numeric', month: 'short', timeZone: 'Europe/Brussels' });
   return (
-    <div className="card">
+    <div className="card" data-tour="pigeon-care">
       <h2>💉 Verzorging &amp; verzekering</h2>
       {care.noFlyUntil && <p className="notice" style={{ marginTop: 0 }}>💉 Net ingeënt: mag vliegen vanaf {day(care.noFlyUntil)}.</p>}
       <strong>Entingskaart</strong>

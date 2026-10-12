@@ -113,11 +113,13 @@ function wantsLine(wants: StudWants, mine: boolean): string {
 function DealCard({
   deal,
   cost,
+  freeSpace,
   busy,
   run,
 }: {
   deal: StudDealView;
   cost: number;
+  freeSpace: number;
   busy: boolean;
   run: Run;
 }) {
@@ -143,6 +145,11 @@ function DealCard({
         <TermsLine youngToMe={deal.youngToMe} fee={deal.fee} other={deal.otherName} />
       </p>
       <YoungScore score={deal.youngScore} value={deal.youngValue} kin={deal.kin} />
+      {deal.youngToMe && freeSpace <= 0 && (
+        <p className="muted" style={{ margin: '0 0 6px', fontSize: '0.85rem' }}>
+          🏠 Je hok zit vol. Komen er jongen, dan wachten ze bij Kweek tot je kiest welke je houdt — je kan dan eerst plaats maken.
+        </p>
+      )}
       {deal.myTurn ? (
         countering ? (
           <FeeForm
@@ -251,10 +258,16 @@ function ListingCard({
               {listing.ownerName} laat de jongen aan jou voor <Money value={listing.askFee} />.
             </p>
           )}
+          {chosen?.botBid != null && (
+            <p className="faint" style={{ margin: 0, fontSize: '0.85rem' }}>
+              {listing.ownerName} betaalt hoogstens <Money value={chosen.botBid} /> voor de jongen van dit koppel.
+            </p>
+          )}
           <FeeForm
+            key={mateId}
             other={listing.ownerName}
             youngToMe={youngToMe}
-            initial={listing.askFee ?? 0}
+            initial={listing.askFee ?? chosen?.botBid ?? 0}
             submitLabel="Voorstel sturen"
             busy={busy || !mateId}
             onSubmit={(fee) =>
@@ -365,10 +378,13 @@ function OfferOwn({
 export function SamenKweken({
   view,
   myPigeons,
+  freeSpace,
   onChanged,
 }: {
   view: StudView;
   myPigeons: Pigeon[];
+  /** Free perches in my loft right now — a full loft gets a word on the deals that bring me young. */
+  freeSpace: number;
   onChanged: () => Promise<void>;
 }) {
   const toast = useToast();
@@ -406,7 +422,7 @@ export function SamenKweken({
           <h2>Onderhandelingen</h2>
           <div className="stack">
             {view.deals.map((d) => (
-              <DealCard key={d.id} deal={d} cost={view.cost} busy={busy} run={run} />
+              <DealCard key={d.id} deal={d} cost={view.cost} freeSpace={freeSpace} busy={busy} run={run} />
             ))}
           </div>
         </div>

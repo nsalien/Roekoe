@@ -36,7 +36,7 @@ ok(bells.length === humans.length, `één bel per echte speler (${bells.length} 
 ok(humans.every((l) => bells.some((n) => n.userId === l.userId && n.id === INRICHTING_NEWS.id(l.userId))), 'stabiele id per speler');
 const bots = new Set(db.lofts.filter((l) => l.isBot).map((l) => l.userId));
 ok(bots.size > 0 && bells.every((n) => !bots.has(n.userId)), 'geen bel voor bots');
-ok(db.world.dataVersion === 61, 'dataVersion staat op 61');
+ok((db.world.dataVersion ?? 0) >= 61, 'dataVersion staat op 61 (of een latere migratie)');
 
 db.world.dataVersion = 60;
 runDataMigrations(db);

@@ -1202,6 +1202,20 @@ export const STUD = {
   botFeeShare: 0.08,
   /** …but never less than this, rounded to €50. */
   botMinFee: 250,
+  /**
+   * When a bot keeps the young, it pays a share of what such a youngster is worth
+   * at birth (stud.studYoung): it opens with `botBidShare` and goes up to
+   * `botMaxBidShare`, never further.
+   */
+  botBidShare: 0.25,
+  botMaxBidShare: 0.5,
+  /** At most this many bots answer one player's bird with a proposal of their own. */
+  botMaxProposals: 3,
+  /**
+   * A bot wants the young of its own bird (instead of the fee) when it has this
+   * many perches to spare and can pay the cost on top of BOT.breedReserve.
+   */
+  botYoungFreePerches: 2,
 } as const;
 
 /** What EACH player gets back when a samen-kweken clutch hatches empty — same share as an own nest. */

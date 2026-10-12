@@ -12,7 +12,7 @@ import { useEffect } from 'react';
 import { Link } from 'react-router-dom';
 
 const SECTIONS = [
-  { id: 'nieuw', icon: '🧰', label: 'Nieuw: inrichting & meer' },
+  { id: 'nieuw', icon: '🧰', label: 'Nieuw: samen kweken, inrichting & meer' },
   { id: 'seizoen3', icon: '🎉', label: 'Nieuw in seizoen 3' },
   { id: 'starterspakket', icon: '🎁', label: 'Starterspakket' },
   { id: 'genen', icon: '🧬', label: 'Genen & training' },
@@ -112,9 +112,30 @@ export function WikiPage() {
         </div>
       </div>
 
-      <Section id="nieuw" icon="🧰" title="Nieuw: inrichting & meer">
+      <Section id="nieuw" icon="🧰" title="Nieuw: samen kweken, inrichting & meer">
         <p className="muted" style={{ marginTop: 0 }}>
           Wat er in oktober (seizoen 3) bijkwam en veranderde, op één plek. Deze sectie blijft staan als logboek.
+        </p>
+
+        <h3>🤝 Samen kweken (12 oktober)</h3>
+        <p>
+          Kweek met de duif van een <strong>andere speler</strong> — ook van de computermelkers — zonder dat er een duif
+          van eigenaar verandert. Bij <em>Kweek → Samen kweken</em> bied je een gezonde duif aan en kies je meteen of je
+          <strong> de jongen</strong> wil of <strong>de vergoeding</strong>, plus wat een partner minstens moet hebben.
+          Wie een duif voorstelt, ziet de <strong>geschatte score en marktwaarde van het jong</strong>; daarna spreken jullie
+          enkel het bedrag af. Bij een akkoord betaalt elk <strong>€1.000</strong> en start het nest — zoals elk nest kan
+          het even duren en is een jong niet gegarandeerd. Een aangeboden of voorgestelde duif blijft thuis.
+          De computermelkers bieden zelf een duif aan en stellen hun duif ook voor bij die van jou.{' '}
+          <a href="#samen-kweken">Alles over samen kweken →</a>
+        </p>
+
+        <h3>💉 Vaccins en verzekering per duif</h3>
+        <p>
+          Dit stond niet in de aankondiging van 11 oktober: je hoeft niet altijd het hele hok te behandelen. Op de pagina
+          van <strong>elke duif</strong> staat de kaart <em>Verzorging &amp; verzekering</em>. Daar geef je haar apart een
+          <strong> vaccin of kuur</strong> (na een vaccin mag ze 2 dagen niet vliegen, een kuur houdt haar niet aan de grond)
+          en <strong>verzeker</strong> je haar: sterft ze, dan krijg je een deel van haar marktwaarde terug. De premie
+          betaal je per dag en staat in je Dagbalans. <a href="#inrichting">Wanneer de verzekering uitbetaalt →</a>
         </p>
 
         <h3>🧰 De pagina Inrichting</h3>
@@ -1275,9 +1296,19 @@ export function WikiPage() {
           <li>Gaat een duif op een nest, wordt ze verkocht of niet meer aangeboden, dan vervallen de andere voorstellen
             waar ze in zat.</li>
         </ul>
-        <p><strong>Computermelkers</strong> bieden elk hun best gegende duif aan (vanaf ★55), houden die thuis van de vluchten
-          en van hun eigen nesten, en kiezen altijd <strong>de vergoeding</strong>: de jongen zijn voor jou, voor ongeveer
-          8 % van de marktwaarde van hun duif (minstens €250). Bied je minder, dan antwoorden ze met dat bedrag.</p>
+        <p><strong>Computermelkers</strong> doen volop mee. Elke bot biedt zijn best gegende duif aan (vanaf ★55) en houdt die
+          thuis van de vluchten en van zijn eigen nesten. Heeft hij plaats en geld over, dan wil hij <strong>de
+          jongen</strong>, anders <strong>de vergoeding</strong>. Bied je zelf een duif aan, dan stellen tot drie bots met een
+          passende duif meteen hun duif voor (elke bot één keer per aanbod). Een bot antwoordt altijd meteen:</p>
+        <ul>
+          <li>krijg <strong>jij</strong> de jongen, dan vraagt hij ongeveer 8 % van de marktwaarde van zijn duif (minstens
+            €250);</li>
+          <li>krijgt <strong>de bot</strong> de jongen, dan biedt hij eerst een kwart van wat zo'n jong bij de geboorte waard
+            is en betaalt hij hoogstens de helft;</li>
+          <li>valt jouw bedrag daarbuiten, dan antwoordt hij met zijn eigen bedrag; daarbinnen gaat hij meteen akkoord.</li>
+        </ul>
+        <p><strong>Zit je hok vol</strong> wanneer de jongen uitkomen, dan gaan ze niet verloren: ze wachten bij <em>Kweek</em>
+          tot je kiest welke je houdt, en je kan eerst plaats maken (zie <a href="#broeden">Kweken &amp; broeden</a>).</p>
       </Section>
 
       <Section id="inteelt" icon="🌳" title="Stamboom & inteelt">

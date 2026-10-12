@@ -854,6 +854,51 @@ export const INRICHTING_NEWS_STEPS: Step[] = [
   },
 ];
 
+/**
+ * Aankondiging van SAMEN KWEKEN (12 okt), plus wat de aankondiging van 11 okt
+ * vergat: vaccins en de verzekering per duif. De bellen (migratie v62,
+ * core/game/news.ts) zijn de eerste helft. De tweede stap opent de pagina van een
+ * eigen duif (de eerste uit het hok), want daar staat de kaart.
+ */
+export function studNewsSteps(pigeonId: string | null): Step[] {
+  const steps: Step[] = [
+    {
+      route: '/kweek', selector: '[data-tour="samen-kweken"]',
+      title: '🤝 Nieuw: samen kweken',
+      body: (
+        <>
+          Kweek met de duif van een <strong>andere speler</strong> — ook van de computermelkers. Bied een duif aan en kies
+          of je <strong>de jongen</strong> wil of <strong>de vergoeding</strong>, of stel zelf een duif voor: je ziet meteen
+          de geschatte score en waarde van het jong. Jullie spreken enkel het bedrag af; bij een akkoord betaalt elk
+          €1.000 en start het nest.
+          <br />
+          <span className="faint" style={{ display: 'inline-block', marginTop: 4 }}>
+            Een aangeboden of voorgestelde duif blijft thuis. <Link to="/wiki#samen-kweken">Hoe het werkt →</Link>
+          </span>
+        </>
+      ),
+    },
+  ];
+  if (pigeonId) {
+    steps.push({
+      route: `/duif/${pigeonId}`, selector: '[data-tour="pigeon-care"]',
+      title: '💉 Ook per duif: vaccins & verzekering',
+      body: (
+        <>
+          Vergeten te melden bij de inrichting: op de pagina van <strong>elke duif</strong> geef je haar apart een
+          <strong> vaccin of kuur</strong>, en <strong>verzeker</strong> je haar. Sterft een verzekerde duif, dan krijg je een
+          deel van haar marktwaarde terug; de premie betaal je per dag.
+          <br />
+          <span className="faint" style={{ display: 'inline-block', marginTop: 4 }}>
+            Na een vaccin mag ze 2 dagen niet vliegen, een kuur houdt haar niet aan de grond.
+          </span>
+        </>
+      ),
+    });
+  }
+  return steps;
+}
+
 export const LOKAAL_NEWS_STEPS: Step[] = [
   {
     route: '/lokaal', selector: '[data-tour="lokaal"]',

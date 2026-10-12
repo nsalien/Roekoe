@@ -147,7 +147,9 @@ import { makeOffer, withdrawOffer, respondOffer, offersFor } from '../../core/ga
 import {
   acceptStud,
   activeListing,
+  botsAnswerListings,
   botStudFee,
+  botYoungBid,
   breedBlock,
   closeStud,
   counterStud,
@@ -1010,9 +1012,13 @@ app.post('/loft/infirmary/staff', async (c) => {
 });
 
 // --- Breeding --------------------------------------------------------------
-app.get('/breeding', (c) => {
+app.get('/breeding', async (c) => {
   const user = requireUser(c);
-  const db = c.get('store').data;
+  const store = c.get('store');
+  const db = store.data;
+  // Samen kweken: the bots answer the birds players put up (once per bot per
+  // offer, see stud.botsProposeTo). The one write this GET may do.
+  if (botsAnswerListings(db)) await store.persist();
   const pairs = db.breedingPairs
     // A samen-kweken nest belongs to both players (stud.ts).
     .filter((bp) => bp.ownerId === user.id || bp.deal?.partnerId === user.id)
@@ -1098,14 +1104,18 @@ function studView(db: Database, userId: string) {
         wants: wantsOf(l),
         // Why she could not go on a nest right now (resting, on a nest, entered…).
         busy: breedBlock(db, p),
-        // A bot says up front what it wants for the young (stud.botStudFee).
-        askFee: owner?.isBot ? botStudFee(db, p) : null,
+        // A bot that wants the fee says up front what it asks (stud.botStudFee).
+        askFee: owner?.isBot && wantsOf(l) === 'fee' ? botStudFee(db, p) : null,
         // Per bird of mine that may be offered: what the young are expected to score
         // (★), and whether the two are family — shown before anyone proposes.
         candidates: candidates.map((m) => {
           const [sire, dam] = p.sex === 'doffer' ? [p, m] : [m, p];
           const young = studYoung(db, p, m);
-          return { id: m.id, youngScore: young.score, youngValue: young.value, kin: kinship(db, sire, dam) };
+          return {
+            id: m.id, youngScore: young.score, youngValue: young.value, kin: kinship(db, sire, dam),
+            // A bot that wants the young says what it pays at most for this pair's.
+            botBid: owner?.isBot && wantsOf(l) === 'young' ? botYoungBid(young.value).max : null,
+          };
         }),
         // Of the others that meet the ask: how many are sick or entered for a flight.
         unfit: opposite.filter((m) => !criteriaGap(l, m) && offerBlock(db, m)).length,

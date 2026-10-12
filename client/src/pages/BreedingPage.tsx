@@ -120,20 +120,9 @@ export function BreedingPage() {
         <h1>Kweek</h1>
       </div>
 
-      <div className="chip-row" style={{ marginBottom: 14 }}>
-        <button className={`chip ${tab === 'eigen' ? 'active' : ''}`} onClick={() => setTab('eigen')}>🥚 Eigen nest</button>
-        <button className={`chip ${tab === 'samen' ? 'active' : ''}`} onClick={() => setTab('samen')}>
-          🤝 Samen kweken{myTurn > 0 && <span className="n">{myTurn}</span>}
-        </button>
-      </div>
-
-      {tab === 'samen' ? (
-        stud ? <SamenKweken view={stud} myPigeons={state.pigeons} onChanged={samenRefresh} /> : <Spinner />
-      ) : (
-      <>
-
-      {/* Waiting birds come first: a held clutch blocks new pairs, and anything
-          waiting here is a bird that is not in the loft yet. */}
+      {/* Waiting birds come first, above both tabs: a held clutch blocks new pairs,
+          and anything waiting here is a bird that is not in the loft yet — also the
+          young of a samen-kweken nest when the loft was full (make room first). */}
       {nests.length > 0 && (
         <div className="stack" style={{ marginBottom: 16 }}>
           {nests.map((nest) => (
@@ -141,6 +130,18 @@ export function BreedingPage() {
           ))}
         </div>
       )}
+
+      <div className="chip-row" style={{ marginBottom: 14 }} data-tour="samen-kweken">
+        <button className={`chip ${tab === 'eigen' ? 'active' : ''}`} onClick={() => setTab('eigen')}>🥚 Eigen nest</button>
+        <button className={`chip ${tab === 'samen' ? 'active' : ''}`} onClick={() => setTab('samen')}>
+          🤝 Samen kweken{myTurn > 0 && <span className="n">{myTurn}</span>}
+        </button>
+      </div>
+
+      {tab === 'samen' ? (
+        stud ? <SamenKweken view={stud} myPigeons={state.pigeons} freeSpace={freeSpace} onChanged={samenRefresh} /> : <Spinner />
+      ) : (
+      <>
 
       <div className="grid cols-2">
         <div className="card" data-tour="breed">
