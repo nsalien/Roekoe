@@ -84,13 +84,13 @@
   `roekoe.newsSeen.samen.<id>`), wiki **#nieuw**. Schema op prod: de drie stud-stappen staan
   achteraan, direct na `pigeons.boosted_at` (op dev zit `trades.quality` ertussen).
 - **Bots uit samen kweken, live op 12 okt** (op vraag van de eigenaar: "laat de bots toch niet meedoen
-  met broeden — ze gaan de duiven voor te lage prijs laten gaan"): cherry-pick van dev `bc65e0b`.
+  met broeden — ze gaan de duiven voor te lage prijs laten gaan"): `4e97271` = dev `bc65e0b` + `8e8d97a` (de bel eruit).
   Migratie **v63** wist het aanbod van de botduiven, zonder bel (eigenaar: "geen communicatie
   nodig"); oude voorstellen met een bot vallen weg zodra de Kweek-pagina ze leest, een lopend nest
   met een bot maakt het af (zie §0b, *Vijfde ronde*).
 - **Dev gepauzeerd op 12 okt** (`dea321f`, zelfde werkwijze als 11 okt; na de vijfde ronde opnieuw,
-  `3fbd58e`): beide dev-branches tonen een pauzepagina. Terugzetten: `git revert --no-edit
-  7d7b40b..HEAD` op de dev-branch en pushen.
+  nu `168dcab`): beide dev-branches tonen een pauzepagina. Terugzetten: `git revert --no-edit
+  8e8d97a..HEAD` op de dev-branch en pushen.
 - **Enkel op dev:** **Marktwaarde v2** en de **demomodus**. Weggehaald van dev en dus nergens:
   koppels, partnerhok, weduwschap, de scout, het nieuwe voer.
 - **Dev herstart op 12 okt** (gebouwd op `claude/breeding-other-player-pigeons-7314iz`, daarna ook
