@@ -207,7 +207,8 @@
 - **Demo (enkel dev):** de seed laat de bots hun duif aanbieden en haalt die van de geplande vluchten
   (in productie gebeurt het aanbieden op de dagovergang en blijft ze daarna thuis); vindt geen enkele
   demoduif een vrije botduif, dan zakken de eisen van de eerste tot wat de beste demoduif heeft.
-  `DEMO_VERSION` 6. `demo-world` controleert dat er zo'n botduif is.
+  `DEMO_VERSION` 7 (12 okt: de bots schrijven zich in de seed eerst uit en bieden dan aan; een bewaarde
+  demo wordt opnieuw opgebouwd). `demo-world` controleert dat er zo'n botduif is.
 - **Test:** `tests/samen-kweken.test.mts` (~100 controles, node:sqlite + de echte API, los van de
   demo zodat hij ook op prod draait; ook de keuze jongen/vergoeding, de geschatte score bij kandidaat,
   onderhandeling en bel, de marktwaarde, ziek/ingeschreven weigeren, niet inschrijven zolang
