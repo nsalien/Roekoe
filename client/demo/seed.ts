@@ -3,9 +3,8 @@
  * (exactly what a fresh production database gets), plus one loft for the demo
  * player, who is beheerder. That loft is set up to show off the loft view:
  * capacity 12 with 2 private compartments, a breeding pair on the nest, a
- * sick bird in the infirmary and six-day-old straw on the floor. The bots have
- * each put a bird up for samen kweken, and at least one of those is one the demo
- * player can answer right away.
+ * sick bird in the infirmary and six-day-old straw on the floor. (Samen kweken
+ * is between real players only, so the demo has nobody to breed with there.)
  */
 
 import { D1Store, ensureSchema } from '../../core/d1.js';
@@ -16,8 +15,6 @@ import { generatePigeon } from '../../core/game/pigeon.js';
 import { applyAilment, randomDisease } from '../../core/game/health.js';
 import { nameKey, namesInUse } from '../../core/game/names.js';
 import { computeLeaderboard } from '../../core/presenters.js';
-import { activeListing, botOfferStud, breedBlock, criteriaGap } from '../../core/game/stud.js';
-import { talent } from '../../core/game/pigeon.js';
 import type { DemoD1 } from './d1';
 
 export const DEMO_USER_ID = 'usr_demo';
@@ -111,37 +108,6 @@ export async function createDemoWorld(d1: DemoD1): Promise<void> {
     w.world.leaderboard = JSON.stringify(computeLeaderboard(w));
   });
 
-  // 5. Samen kweken: the bots put a bird up (in production they do it on the
-  //    daily tick, which a fresh demo has not seen yet). Then make sure one of
-  //    those is in reach: if none of the demo birds meets any bot's ask, the
-  //    first free bot bird asks no more than the demo's best free partner has.
-  store.mutate((w) => {
-    const now = Date.now();
-    // The bots entered their birds for the coming flights on the first run. A bird
-    // on offer may not be entered, so their entries come off first; the bots enter
-    // the rest again on the next requests (tickBotEntries), the listed bird stays home.
-    const botIds = new Set(w.lofts.filter((x) => x.isBot).map((x) => x.userId));
-    for (const f of w.flights) {
-      if (f.status === 'scheduled') f.entries = f.entries.filter((e) => !botIds.has(e.ownerId));
-    }
-    for (const l of w.lofts.filter((x) => x.isBot)) {
-      botOfferStud(w, l, w.pigeons.filter((p) => p.ownerId === l.userId), now);
-    }
-    const studs = w.pigeons.filter((p) => activeListing(p) && w.lofts.find((l) => l.userId === p.ownerId)?.isBot && !breedBlock(w, p, now));
-    const free = w.pigeons.filter((p) => p.ownerId === user.id && !breedBlock(w, p, now));
-    if (studs.some((s) => free.some((m) => m.sex !== s.sex && !criteriaGap(s.stud!, m)))) return;
-    for (const s of studs) {
-      const best = free.filter((m) => m.sex !== s.sex).sort((a, b) => talent(b) - talent(a))[0];
-      if (!best) continue;
-      s.stud = {
-        ...s.stud!,
-        minScore: Math.min(s.stud!.minScore, Math.floor(talent(best) / 5) * 5),
-        minEnergy: Math.min(s.stud!.minEnergy, Math.floor(best.form)),
-        minLibido: Math.min(s.stud!.minLibido, Math.floor(best.libido)),
-      };
-      return;
-    }
-  });
   await store.persist();
   // The nest above was paid through the real engine: start on exactly DEMO_MONEY.
   await topUpDemoMoney(d1);
