@@ -14,6 +14,7 @@ import { createDemoWorld, DEMO_MONEY, DEMO_USER_ID, DEMO_USERNAME, topUpDemoMone
 import { onRequest } from '../functions/api/[[path]].ts';
 import { D1Store } from '../core/d1.js';
 import { signToken } from '../core/auth.js';
+import { activeListing, breedBlock, criteriaGap } from '../core/game/stud.js';
 
 function assert(cond: boolean, msg: string) {
   if (!cond) { console.error(`  ✗ ${msg}`); process.exitCode = 1; }
@@ -42,6 +43,10 @@ assert(mine.filter((p) => p.compartment).length === 2, '2 duiven in een apart ho
 assert(w.breedingPairs.filter((bp) => bp.ownerId === DEMO_USER_ID).length === 1, 'één broedend koppel');
 const sick = mine.filter((p) => p.ailment && p.inInfirmary);
 assert(sick.length === 1, 'één zieke duif in de ziekenboeg');
+const bots = new Set(w.lofts.filter((l) => l.isBot).map((l) => l.userId));
+const studs = w.pigeons.filter((p) => bots.has(p.ownerId) && activeListing(p) && !breedBlock(w, p));
+assert(studs.some((s) => mine.some((m) => m.sex !== s.sex && !breedBlock(w, m) && !criteriaGap(s.stud!, m))),
+  `samen kweken: een vrije botduif die de demospeler meteen kan beantwoorden (${studs.length} vrij)`);
 
 console.log('\nDe echte API, in de pagina');
 const SECRET = 'roekoe-demo-niet-echt';
