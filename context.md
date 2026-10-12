@@ -15,7 +15,7 @@
 
 | Rol | Branch | Doel |
 |-----|--------|------|
-| **Dev** | `claude/breeding-other-player-pigeons-7314iz` | Alle ontwikkeling/commits komen hier **eerst**. Sinds **12 okt** herstart vanaf prod (`4a0c3ad`) + de demomodus + Marktwaarde v2 (§0b). De eigenaar test in de demo-preview van deze branch: **https://claude-breeding-other-player.roekoe.pages.dev** (het oude adres `claude-demo-hokinrichting.roekoe.pages.dev` toont nog de pauzepagina). |
+| **Dev** | `claude/demo-hokinrichting` | Alle ontwikkeling/commits komen hier **eerst**. Sinds **12 okt** weer aan: herstart vanaf prod (`4a0c3ad`) + de demomodus + Marktwaarde v2 (§0b), gebouwd op `claude/breeding-other-player-pigeons-7314iz` en op vraag van de eigenaar ook hierheen gepusht (samenvoegcommit, geen force-push: de oude dev-geschiedenis blijft bereikbaar). De eigenaar test in de demo-preview: **https://claude-demo-hokinrichting.roekoe.pages.dev** (die van de sessiebranch: `claude-breeding-other-player.roekoe.pages.dev`). |
 | **Prod** | `claude/roekoe-game-website-jwa0vo` | Elke commit wordt hierheen **gecherry-pickt**; deze branch triggert de **Cloudflare Pages**-deploy naar productie. |
 
 > Vorige dev-branches (niet meer gebruiken): `ccr-9c78dbf3-rdb1ea`, `claude/hallo-nno7pb`, `claude/hallo-r1wgvn`, `claude/hallo-ca55co`, `claude/hallo-qz9tmx`, `claude/hallo-fsp9nx`, `claude/hallo-mzjn0e`, `claude/hallo-su75jy`, `claude/hallo-rkr49f`, `claude/hallo-pvwabx`,
@@ -23,7 +23,7 @@
 > `claude/hallo-w97s85`, `claude/hallo-hrtwtv`,
 > `claude/prosper-postuum-tinne-race-j515f6`, `claude/hallo-v71l3e`,
 > `claude/duif-vorm-functie-s5fsaw`, `claude/context-spelregels-lsbm5a`, `claude/exciting-newton-xgvl6l`,
-> `claude/demo-hokinrichting` (gepauzeerd op 11 okt; vervangen door de herstart van 12 okt). Ontwikkelt een sessie op een nieuwe
+> `claude/breeding-other-player-pigeons-7314iz` (sessiebranch van de herstart en Samen kweken, 12 okt; zelfde stand als dev). Ontwikkelt een sessie op een nieuwe
 > `claude/…`- (of `ccr-…`-)branch, gebruik die dan als dev-branch en **werk deze tabel meteen bij** —
 > de prod-branch hierboven verandert nooit.
 
@@ -80,9 +80,9 @@
 - **Enkel op dev:** **Marktwaarde v2**, de **demomodus** en **Samen kweken** (kweken met
   andermans duif, 12 okt — zie de sectie hieronder). Weggehaald van dev en dus nergens: koppels, partnerhok,
   weduwschap, de scout, het nieuwe voer.
-- **Dev herstart op 12 okt** (`claude/breeding-other-player-pigeons-7314iz`), precies zoals
-  hieronder beschreven: vanaf prod `4a0c3ad`, de demo ongewijzigd uit `bc8c415`, en `ac31a45`
-  (v2) erop gecherry-pickt. De oude dev-branch `claude/demo-hokinrichting` blijft gepauzeerd.
+- **Dev herstart op 12 okt** (gebouwd op `claude/breeding-other-player-pigeons-7314iz`, daarna ook
+  op `claude/demo-hokinrichting`), precies zoals hieronder beschreven: vanaf prod `4a0c3ad`, de demo
+  ongewijzigd uit `bc8c415`, en `ac31a45` (v2) erop gecherry-pickt.
 - **Schema:** prod's `SCHEMA_STEPS` kregen 4 stappen achteraan: `lofts.equipment`,
   `pigeons.care`, `flights.forecast`, `pigeons.boosted_at`. Op dev staat `trades.quality` (v2)
   sinds de herstart **ná** `pigeons.boosted_at`, dus v2 kan in die volgorde live. Wat daarna
@@ -96,7 +96,10 @@
   (v2) en de demo (`client/demo/`, de Vite-plugin, sql.js, `tests/demo-*.test.mts`, uit
   `bc8c415`) terugzetten — niet prod in dev mergen (v2 en de revert ervan botsen in 9
   bestanden). De cherry-pick van `ac31a45` botste enkel op imports en de schemastap; de
-  v2-bestanden zijn daarna identiek aan `bc8c415`.
+  v2-bestanden zijn daarna identiek aan `bc8c415`. Op vraag van de eigenaar staat die stand ook op
+  `claude/demo-hokinrichting` (het vertrouwde preview-adres), als samenvoegcommit bovenop de
+  pauzecommits: de boom is die van de herstart, de oude commits (`bc8c415`, `70d3209`, `264f93f`, …)
+  blijven via de tweede ouder bereikbaar. De pauzepagina is daarmee weg.
 
 ### Kweken met andermans duif ("Samen kweken") — ⚠️ ENKEL OP DEV (12 okt)
 - **Vraag van de eigenaar** (De Stem, *"Broeden met de duif van een andere speler"*, spelleiding 19
@@ -1820,8 +1823,8 @@ Alles hieronder staat **live** op de deploy-branch. Data-migraties liepen door t
 - **Test:** `tests/contagion.test.mts` (21 controles, ~3 s, geseed): volgorde van de factoren,
   Coccidiose (×1) = exact de oude kans, gemeten kans per ziekte = de formule, wie besmet raakt
   krijgt de ziekte van de bron, de ziekenboeg besmet niemand, zonder bron niets veranderd.
-- ⚠️ **Dev** (`claude/demo-hokinrichting`, gepauzeerd) heeft dit **niet** (zie §0b *Dev weer
-  aanzetten*). Live gegaan samen met de hokinrichting (11 okt).
+- Live gegaan samen met de hokinrichting (11 okt). De herstarte dev (12 okt, vanaf prod) heeft het
+  ook; de gepauzeerde dev van vóór 12 okt had het niet.
 
 **Markt: nooit onder 1/5 van de marktwaarde; twee verkopen van €25 tellen niet mee**
 - **Melding van de eigenaar (productie):** Roekoeloos verkocht *Zulma uit het Zolderhok* en
