@@ -416,10 +416,14 @@ export function voidBetsForWithdrawnPigeon(db: Database, flight: Flight, pigeonI
  * A whole flight was called off (too few rivals): refund + cancel every open bet
  * on it. Used from the schedule so a cancelled flight never strands open bets.
  */
-export function refundFlightBets(db: Database, flight: Flight): void {
+export function refundFlightBets(db: Database, flight: Flight, message?: string): void {
   for (const b of db.bets) {
     if (b.status !== 'open' || b.flightId !== flight.id) continue;
-    refundBet(db, b, `${flight.name} is afgelast. Je inzet van €${b.stake} is terugbetaald.`);
+    // `message` may carry {stake}; the default is the called-off text.
+    const body = message
+      ? message.replace('{stake}', String(b.stake))
+      : `${flight.name} is afgelast. Je inzet van €${b.stake} is terugbetaald.`;
+    refundBet(db, b, body);
   }
 }
 
