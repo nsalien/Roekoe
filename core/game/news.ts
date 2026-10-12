@@ -38,8 +38,7 @@ export const INRICHTING_NEWS = {
 export const STUD_NEWS = {
   title: '🤝 Nieuw: samen kweken met de duif van een andere speler',
   body: [
-    'Je kan nu kweken met de duif van een andere speler — ook met die van de computermelkers. '
-      + 'Je vindt het bij Kweek → Samen kweken:',
+    'Je kan nu kweken met de duif van een andere speler. Je vindt het bij Kweek → Samen kweken:',
     '• Bied een gezonde duif aan en kies meteen of je de jongen wil of de vergoeding, en wat een partner minstens '
       + 'moet hebben (★, energie, libido).',
     '• Stel zelf een duif voor bij een aangeboden duif. Je ziet meteen de geschatte score van het jong en wat '

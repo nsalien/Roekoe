@@ -1,12 +1,13 @@
 /**
  * Samen kweken (core/game/stud.ts): breeding with another player's bird.
  *
- * Runs on a fresh world on node:sqlite (the bots, the flight calendar, one
- * player) and the real API, so the whole road is covered: a bot puts a bird up,
- * the player negotiates with it, the nest hatches and the fee changes hands. Then
- * a second human for the player-to-player rules, the empty clutch, stopping, the
- * infrarood that must not count, and the storage (the deals table is loaded only
- * on the Kweek routes, and an absent array must never delete its rows).
+ * Runs on a fresh world on node:sqlite (the bots, the flight calendar, the
+ * players) and the real API, so the whole road is covered: a player puts a bird
+ * up, another negotiates with them, the nest hatches (in a full loft) and the fee
+ * changes hands. Then the player-to-player rules, the empty clutch, stopping, the
+ * infrarood that must not count, the storage (the deals table is loaded only on
+ * the Kweek routes, and an absent array must never delete its rows), and that the
+ * bots stay out of it (the owner, 12 okt).
  *
  * Run from the repo root: npx tsx tests/samen-kweken.test.mts
  */
@@ -18,7 +19,8 @@ import { signToken } from '../core/auth.js';
 import { STUD, studFailedRefund } from '../core/config/gameConfig.js';
 import { createLoftForUser, releasePigeon, resolveBrood, seedWorld, stopBreeding } from '../core/game/engine.js';
 import { advanceRealtime, tickBreedingHatch } from '../core/game/schedule.js';
-import { acceptStud, activeListing, botOfferStud, botYoungBid, breedBlock, closeStud, counterStud, offerBlock, proposeStud, setStudListing, studYoung, studYoungScore } from '../core/game/stud.js';
+import { botDailyActions } from '../core/game/bots.js';
+import { acceptStud, activeListing, breedBlock, closeStud, counterStud, offerBlock, proposeStud, setStudListing, studYoungScore } from '../core/game/stud.js';
 import { breed, expectedYoungScore } from '../core/game/breeding.js';
 import { clearOwnerCare } from '../core/game/inrichting.js';
 import { generatePigeon, talent } from '../core/game/pigeon.js';
@@ -47,8 +49,9 @@ function fakeD1(): any {
   return { prepare, async exec(query: string) { sql.exec(query); }, async batch(stmts: any[]) { for (const st of stmts) await st.run(); }, _raw: sql };
 }
 
-// --- a fresh world: what production does first, then one player ---------------
+// --- a fresh world: what production does first, then the players --------------
 const ME = 'usr_demo';
+const P3 = 'usr_derde'; // the other player of the first rounds
 const d1 = fakeD1();
 d1._raw.exec(readFileSync('./migrations/0001_init.sql', 'utf8'));
 d1._raw.prepare('INSERT INTO world (id, current_week, season_year, seeded) VALUES (1, 1, 1, 0)').run();
@@ -63,29 +66,20 @@ for (let i = 0; i < 40 && !(await ensureSchema(d1)); i++);
   s.data.world.lastAdvance = new Date(nowMs).toISOString();
   await s.persist();
   s = await D1Store.load(d1, ME);
-  const user: User = { id: ME, username: 'demo', passwordHash: '!', isAdmin: false, isBot: false, createdAt: new Date().toISOString() };
-  s.mutate((w) => w.users.push(user));
-  const loft = createLoftForUser(s, user, 'Hok De Demo');
-  s.mutate((w) => {
+  for (const [id, name, hok] of [[ME, 'demo', 'Hok De Demo'], [P3, 'derde', 'Hok Drie']] as const) {
+    const user: User = { id, username: name, passwordHash: '!', isAdmin: false, isBot: false, createdAt: new Date().toISOString() };
+    s.mutate((w) => w.users.push(user));
+    const loft = createLoftForUser(s, user, hok);
     loft.money = 100_000;
     loft.capacity = 12;
-    for (const p of w.pigeons.filter((x) => x.ownerId === ME)) {
+  }
+  s.mutate((w) => {
+    for (const p of w.pigeons.filter((x) => x.ownerId === ME || x.ownerId === P3)) {
       p.birthWeek = w.world.currentWeek - 60; // old enough to breed
       p.speed = p.endurance = p.orientation = 70;
       p.form = 80;
       p.libido = 80;
     }
-    // The bots put a bird up (production: on the daily tick, after which they
-    // enter the rest again) and keep her home. Their entries from the first run
-    // come off first, or every good bird would be entered and none could be offered.
-    const botIds = new Set(w.lofts.filter((x) => x.isBot).map((x) => x.userId));
-    for (const f of w.flights) if (f.status === 'scheduled') f.entries = f.entries.filter((e) => !botIds.has(e.ownerId));
-    for (const l of w.lofts.filter((x) => x.isBot)) botOfferStud(w, l, w.pigeons.filter((p) => p.ownerId === l.userId), Date.now());
-    // The first rounds below are about a bot that wants the fee; the bots that
-    // want the young (and that answer players' birds) get their own round.
-    for (const p of w.pigeons) if (activeListing(p)) p.stud = { ...p.stud!, wants: 'fee' };
-    const listed = new Set(w.pigeons.filter((p) => activeListing(p)).map((p) => p.id));
-    for (const f of w.flights) if (f.status === 'scheduled') f.entries = f.entries.filter((e) => !listed.has(e.pigeonId));
   });
   await s.persist();
 }
@@ -106,6 +100,13 @@ async function call(path: string, method = 'GET', body?: unknown) {
 }
 const rows = (sql: string) => Number(Object.values(d1._raw.prepare(sql).get() ?? { n: 0 })[0]);
 const money = (w: Database, id: string) => w.lofts.find((l) => l.userId === id)!.money;
+/** Act as the other player, straight on the engine, and save it. */
+async function asP3<T>(fn: (w: Database) => T): Promise<T> {
+  const s = await D1Store.load(d1, P3, { studDeals: true });
+  const out = fn(s.data);
+  await s.persist();
+  return out;
+}
 
 /** A pair id whose clutch-count roll is fixed (breed() seeds it on the pair, see breeding-cooldown). */
 function pairIdWhere(want: (firstRoll: number) => boolean): string {
@@ -128,44 +129,40 @@ function hatchOnly(w: Database, pairId: string, nowMs: number) {
 }
 
 // ---------------------------------------------------------------------------
-console.log('\nDe bots bieden een duif aan');
-let view = (await call('/breeding')).json;
-const botListings = (view.stud?.listings ?? []).filter((l: any) => l.ownerIsBot);
-assert(botListings.length >= 1, `de bots bieden duiven aan (${botListings.length})`);
-assert(botListings.every((l: any) => l.askFee >= STUD.botMinFee && l.askFee % 50 === 0), 'elke bot zegt wat hij vraagt (veelvoud van €50, minstens het minimum)');
-const L = botListings.find((l: any) => !l.busy && l.candidates.length > 0);
-assert(!!L, 'minstens één botduif is vrij én binnen bereik van de speler');
-assert(L?.pigeon.revealed === true, 'een aangeboden duif is volledig te bekijken');
+console.log('\nEen speler biedt een duif aan');
 let w0 = (await D1Store.load(d1, ME)).data;
-const mate = w0.pigeons.find((p) => L.candidates.some((c: any) => c.id === p.id) && !breedBlock(w0, p))!;
-assert(!!mate, 'de speler heeft een vrije partner die aan de eisen voldoet');
-assert(L.wants === 'fee', 'een bot wil de vergoeding: de jongen zijn voor de speler');
+const mate = w0.pigeons.find((p) => p.ownerId === ME && !breedBlock(w0, p) && !offerBlock(w0, p))!;
+const studBird = w0.pigeons.find((p) => p.ownerId === P3 && p.sex !== mate.sex && !breedBlock(w0, p) && !offerBlock(w0, p))!;
+const studId = studBird.id;
+assert(await asP3((w) => setStudListing(w, P3, studId, { minScore: 60, minEnergy: 30, minLibido: 30, wants: 'fee' })) === null,
+  'Hok Drie biedt een duif aan en wil de vergoeding');
+let view = (await call('/breeding')).json;
+const L = view.stud.listings.find((l: any) => l.pigeon.id === studId);
+assert(!!L && !L.mine && L.wants === 'fee' && !L.busy, 'de speler ziet het aanbod, met wat de eigenaar wil');
+assert(L?.pigeon.revealed === true, 'een aangeboden duif is volledig te bekijken');
 const cand = L.candidates.find((c: any) => c.id === mate.id);
-assert(Math.abs(cand.youngScore - studYoungScore(w0, w0.pigeons.find((p) => p.id === L.pigeon.id)!, mate)) < 0.01 && cand.youngScore > 0,
-  `wie een duif voorstelt, ziet vooraf de geschatte score van het jong (★${cand.youngScore})`);
-const botId = L.pigeon.ownerId as string;
-const studId = L.pigeon.id as string;
+assert(!!cand && Math.abs(cand.youngScore - studYoungScore(w0, studBird, mate)) < 0.01 && cand.youngScore > 0,
+  `wie een duif voorstelt, ziet vooraf de geschatte score van het jong (★${cand?.youngScore})`);
+assert(cand?.youngValue >= 50, `…en de geschatte marktwaarde van zo'n jong bij de geboorte (€${cand?.youngValue})`);
 
 // ---------------------------------------------------------------------------
-console.log('\nOnderhandelen met een bot');
+console.log('\nOnderhandelen');
 let r = await call('/breeding/stud/propose', 'POST', { studId, mateId: mate.id, youngToMe: false, fee: 0 });
 assert(r.status === 200, 'voorstel zonder vergoeding (wie de jongen krijgt, kan je niet meer kiezen)');
 view = (await call('/breeding')).json;
 let deal = view.stud.deals[0];
-assert(view.stud.deals.length === 1 && deal.myTurn && deal.youngToMe && deal.fee === L.askFee,
-  `de bot antwoordt meteen met zijn prijs: de jongen voor jou, voor €${L.askFee}`);
-assert(deal.youngScore === cand.youngScore, 'de onderhandeling toont dezelfde geschatte score');
-assert(cand.youngValue >= 50 && deal.youngValue === cand.youngValue,
-  `…en de geschatte marktwaarde van zo'n jong bij de geboorte (€${cand.youngValue}), voor beide spelers`);
-r = await call(`/breeding/stud/${deal.id}/counter`, 'POST', { fee: deal.fee });
+assert(view.stud.deals.length === 1 && !deal.myTurn && deal.youngToMe && deal.fee === 0,
+  'de jongen zijn voor de speler (de eigenaar wil de vergoeding); nu is Hok Drie aan de beurt');
+assert(deal.youngScore === cand.youngScore && deal.youngValue === cand.youngValue, 'de onderhandeling toont dezelfde schatting');
+assert(await asP3((w) => counterStud(w, P3, deal.id, 250)) === null, 'Hok Drie vraagt €250');
+r = await call(`/breeding/stud/${deal.id}/counter`, 'POST', { fee: 250 });
 assert(r.status === 400, 'een tegenvoorstel met hetzelfde bedrag wordt geweigerd');
-r = await call(`/breeding/stud/${deal.id}/counter`, 'POST', { fee: Math.max(0, deal.fee - 50) });
-view = (await call('/breeding')).json;
-deal = view.stud.deals[0];
-assert(r.status === 200 && deal.myTurn && deal.fee === L.askFee, 'afdingen: de bot blijft bij zijn prijs');
+r = await call(`/breeding/stud/${deal.id}/counter`, 'POST', { fee: 200 });
+assert(r.status === 200, 'afdingen: €200');
+assert(await asP3((w) => counterStud(w, P3, deal.id, 250)) === null, 'Hok Drie blijft bij €250');
 const before = (await D1Store.load(d1, ME)).data;
 const myMoney0 = money(before, ME);
-const botMoney0 = money(before, botId);
+const p3Money0 = money(before, P3);
 const studForm0 = before.pigeons.find((p) => p.id === studId)!.form;
 r = await call(`/breeding/stud/${deal.id}/accept`, 'POST');
 assert(r.status === 200, `akkoord (${r.json.error ?? 'ok'})`);
@@ -173,13 +170,13 @@ view = (await call('/breeding')).json;
 let w = (await D1Store.load(d1, ME)).data;
 const pair = w.breedingPairs.find((bp) => bp.deal);
 assert(view.stud.deals.length === 0, 'de onderhandeling is afgesloten');
-assert(!!pair && pair.ownerId === ME && pair.deal!.partnerId === botId && pair.deal!.fee === L.askFee,
-  'het nest staat op naam van wie de jongen krijgt, met de bot als partner en de vergoeding');
-assert(money(w, ME) === myMoney0 - STUD.cost && money(w, botId) === botMoney0 - STUD.cost,
+assert(!!pair && pair.ownerId === ME && pair.deal!.partnerId === P3 && pair.deal!.fee === 250,
+  'het nest staat op naam van wie de jongen krijgt, met de partner en de vergoeding');
+assert(money(w, ME) === myMoney0 - STUD.cost && money(w, P3) === p3Money0 - STUD.cost,
   `elk betaalt €${STUD.cost} bij het akkoord; de vergoeding nog niet`);
-assert(Math.abs(w.pigeons.find((p) => p.id === studId)!.form - (studForm0 - 15)) < 0.11, 'de botduif verliest 15 energie');
+assert(Math.abs(w.pigeons.find((p) => p.id === studId)!.form - (studForm0 - 15)) < 0.11, 'de duif van de partner verliest 15 energie');
 const shown = view.pairs.find((p: any) => p.id === pair?.id);
-assert(shown?.deal?.youngToMe === true && shown?.deal?.partner === L.ownerName, 'het nest staat bij Kweek met de partner erbij');
+assert(shown?.deal?.youngToMe === true && shown?.deal?.partner === 'Hok Drie', 'het nest staat bij Kweek met de partner erbij');
 {
   // Like an own nest: it does not hatch on the spot, and a check within the
   // quarter hour does not even roll (BREEDING.hatchCheckMinutes).
@@ -189,9 +186,9 @@ assert(shown?.deal?.youngToMe === true && shown?.deal?.partner === L.ownerName, 
     'direct na het akkoord is er nog geen jong — het nest loopt als een gewoon nest');
 }
 const loftView = (await call('/state')).json.loft;
-assert(loftView.nests.some((n: any) => n.id === pair?.id && n.partner === L.ownerName), 'het hokoverzicht noemt de andere speler');
+assert(loftView.nests.some((n: any) => n.id === pair?.id && n.partner === 'Hok Drie'), 'het hokoverzicht noemt de andere speler');
 const stillListed = view.stud.listings.find((l: any) => l.pigeon.id === studId);
-assert(!!stillListed && /nest/.test(stillListed.busy ?? ''), 'de botduif blijft aangeboden, maar is nu bezet');
+assert(!!stillListed && /nest/.test(stillListed.busy ?? ''), 'de duif blijft aangeboden, maar is nu bezet');
 
 // ---------------------------------------------------------------------------
 console.log('\nHet nest komt uit: de vergoeding gaat over');
@@ -201,7 +198,7 @@ console.log('\nHet nest komt uit: de vergoeding gaat over');
   bp.id = PAIR_HATCHES;
   const nowMs = Date.now();
   const mine0 = money(s.data, ME);
-  const bot0 = money(s.data, botId);
+  const p30 = money(s.data, P3);
   // A full loft: the young must wait for the player's choice, like any nest.
   const myLoft = s.data.lofts.find((l) => l.userId === ME)!;
   const capacity0 = myLoft.capacity;
@@ -220,8 +217,7 @@ console.log('\nHet nest komt uit: de vergoeding gaat over');
   myLoft.capacity = capacity0;
   const young = s.data.pigeons.filter((p) => p.id.startsWith(`pig_brood_${PAIR_HATCHES}`));
   assert(young.length === born && young.every((y) => y.ownerId === ME), 'alle jongen gaan naar wie ze kreeg');
-  assert(money(s.data, ME) === mine0 - L.askFee && money(s.data, botId) === bot0 + L.askFee,
-    `de €${L.askFee} gaat bij de geboorte van de ene naar de andere`);
+  assert(money(s.data, ME) === mine0 - 250 && money(s.data, P3) === p30 + 250, 'de €250 gaat bij de geboorte van de ene naar de andere');
   assert(!s.data.breedingPairs.some((x) => x.id === PAIR_HATCHES), 'het nest is voorbij');
   assert(!!s.data.pigeons.find((p) => p.id === studId)?.lastBredAt && !!s.data.pigeons.find((p) => p.id === mate.id)?.lastBredAt,
     'beide ouders rusten daarna, ook de duif van de andere speler');
@@ -238,9 +234,6 @@ const P2 = 'usr_tweede';
   s.mutate((x) => {
     loft.money = 50_000;
     loft.capacity = 12;
-    // Player against player here: the bots take their birds off offer, so they do
-    // not answer P2's bird (that is the round "Bots stellen zelf voor" below).
-    for (const p of x.pigeons) if (x.lofts.find((l) => l.userId === p.ownerId)?.isBot) p.stud = null;
     for (const [owner, sex] of [[P2, 'doffer'], [P2, 'doffer'], [P2, 'duivin'], [ME, 'duivin'], [ME, 'duivin'], [ME, 'doffer']] as const) {
       const p = generatePigeon({ ownerId: owner, currentWeek: x.world.currentWeek, quality: 0.6, sex });
       p.birthWeek = x.world.currentWeek - 60;
@@ -424,90 +417,37 @@ console.log('\nOpslag');
 }
 
 // ---------------------------------------------------------------------------
-console.log('\nBots stellen zelf voor, en willen soms de jongen');
+console.log('\nBots doen niet mee');
 {
-  // Give the bots room and money, and make sure there is a free bot bird of each sex on offer.
-  let st = await D1Store.load(d1, ME, { studDeals: true });
+  const st = await D1Store.load(d1, ME, { studDeals: true });
   const x = st.data;
-  for (const l of x.lofts.filter((l) => l.isBot)) { l.capacity = 12; l.money = 60_000; }
-  for (const sex of ['doffer', 'duivin'] as const) {
-    if (x.pigeons.some((p) => p.sex === sex && activeListing(p) && x.lofts.find((l) => l.userId === p.ownerId)?.isBot && !breedBlock(x, p))) continue;
-    const bird = x.pigeons.find((p) => p.sex === sex && x.lofts.find((l) => l.userId === p.ownerId)?.isBot &&
-      !x.pigeons.some((q) => q.ownerId === p.ownerId && activeListing(q)) && !breedBlock(x, p) && !offerBlock(x, p));
-    if (bird) bird.stud = { by: bird.ownerId, minScore: 0, minEnergy: 0, minLibido: 0, wants: 'fee', at: new Date().toISOString() };
-  }
-  // The player's birds are in good shape (one hatched and was released above).
-  for (const p of x.pigeons.filter((p) => p.ownerId === ME)) { p.form = 80; p.libido = 80; }
+  const bots = x.lofts.filter((l) => l.isBot);
+  // Their daily round does not put a bird up any more.
+  for (const l of bots) botDailyActions(x, l, x.pigeons.filter((p) => p.ownerId === l.userId), Date.now());
+  assert(!x.pigeons.some((p) => activeListing(p) && bots.some((b) => b.userId === p.ownerId)), 'de dagelijkse ronde van de bots biedt niets aan');
+  // A bot cannot put a bird up (any of its birds: the refusal comes before her health or plans) …
+  const botBird = x.pigeons.find((p) => bots.some((b) => b.userId === p.ownerId))!;
+  assert(/Computermelkers/.test(setStudListing(x, botBird.ownerId, botBird.id, { minScore: 0, minEnergy: 0, minLibido: 0, wants: 'fee' }) ?? ''),
+    'een bot kan geen duif aanbieden');
+  // … and an offer left from before (as on production until v63) is not shown and cannot be answered.
+  botBird.stud = { by: botBird.ownerId, minScore: 0, minEnergy: 0, minLibido: 0, wants: 'fee', at: new Date().toISOString() };
+  const myBird = x.pigeons.find((p) => p.ownerId === ME && p.sex !== botBird.sex && !breedBlock(x, p) && !offerBlock(x, p) && !activeListing(p))!;
+  assert(/Computermelkers/.test(proposeStud(x, ME, botBird.id, myBird.id, 0) ?? ''), 'op een oud aanbod van een bot kan je niet voorstellen');
+  // A bird of mine on offer, and an old proposal of a bot to it (from before v63) in the table.
+  assert(setStudListing(x, ME, myBird.id, { minScore: 0, minEnergy: 0, minLibido: 0, wants: 'fee' }) === null, 'de speler biedt een duif aan');
+  const botMate = x.pigeons.find((p) => bots.some((b) => b.userId === p.ownerId) && p.sex !== myBird.sex)!;
+  x.studDeals!.push({
+    id: 'stud_oud_bot', studId: myBird.id, studOwnerId: ME, mateId: botMate.id, mateOwnerId: botMate.ownerId,
+    youngTo: botMate.ownerId, fee: 100, turn: ME, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
+  });
   await st.persist();
-
-  // 1. The player puts a bird up and wants the FEE: bots that fit answer at once, keeping the young.
-  const w3 = (await D1Store.load(d1, ME)).data;
-  const mine = w3.pigeons.find((p) => p.ownerId === ME && !activeListing(p) && !breedBlock(w3, p) && !offerBlock(w3, p) &&
-    w3.pigeons.some((b) => b.sex !== p.sex && activeListing(b) && w3.lofts.find((l) => l.userId === b.ownerId)?.isBot && !breedBlock(w3, b)))!;
-  assert(!!mine, 'de speler heeft een vrije duif waar een botduif bij past');
-  let r = await call('/breeding/stud/list', 'POST', { pigeonId: mine.id, minScore: 0, minEnergy: 0, minLibido: 0, wants: 'fee' });
-  let v = (await call('/breeding')).json.stud;
-  let botDeals = v.deals.filter((d: any) => d.role === 'stud' && d.stud.id === mine.id && d.otherIsBot);
-  assert(r.status === 200 && botDeals.length >= 1 && botDeals.length <= STUD.botMaxProposals,
-    `meteen ${botDeals.length} voorstel(len) van bots (hoogstens ${STUD.botMaxProposals})`);
-  const bd = botDeals[0];
-  assert(bd.myTurn && !bd.youngToMe && bd.fee === botYoungBid(bd.youngValue).offer,
-    `de bot wil de jongen en biedt ${STUD.botBidShare * 100} % van hun geschatte waarde (€${bd.fee} van €${bd.youngValue})`);
-  const max = botYoungBid(bd.youngValue).max;
-  r = await call(`/breeding/stud/${bd.id}/counter`, 'POST', { fee: max + 500 });
-  v = (await call('/breeding')).json.stud;
-  let again = v.deals.find((d: any) => d.id === bd.id);
-  assert(again?.myTurn && again.fee === max, `te veel gevraagd: de bot antwoordt met zijn maximum (€${max})`);
-  const botLoftId = w3.pigeons.find((p) => p.id === bd.mate.id)!.ownerId;
-  const before3 = (await D1Store.load(d1, ME)).data;
-  r = await call(`/breeding/stud/${bd.id}/counter`, 'POST', { fee: max - 50 >= 0 ? max - 50 : 0 });
-  const after3 = (await D1Store.load(d1, ME)).data;
-  const pair3 = after3.breedingPairs.find((b) => b.deal && (b.sireId === mine.id || b.damId === mine.id));
-  assert(!!pair3 && pair3.ownerId === botLoftId && pair3.deal!.partnerId === ME,
-    'binnen zijn maximum: de bot gaat meteen akkoord, het nest staat op naam van de bot');
-  assert(money(after3, botLoftId) === money(before3, botLoftId) - STUD.cost && money(after3, ME) === money(before3, ME) - STUD.cost,
-    'elk betaalt €1.000');
-  // Each bot answers an offer once, also after it was turned down.
-  const others = (await call('/breeding')).json.stud.deals.filter((d: any) => d.stud.id === mine.id);
-  assert(others.length === 0, 'de andere botvoorstellen vervallen nu de duif op een nest zit');
-  st = await D1Store.load(d1, ME, { studDeals: true });
-  const askedNow = activeListing(st.data.pigeons.find((p) => p.id === mine.id))?.asked ?? [];
-  assert(askedNow.includes(botLoftId), 'het aanbod onthoudt welke bots al antwoordden');
-
-  // 2. A bird the player puts up and wants the YOUNG for: the bot asks its fee.
-  const w4 = st.data;
-  const mine2 = w4.pigeons.find((p) => p.ownerId === ME && !activeListing(p) && !breedBlock(w4, p) && !offerBlock(w4, p) &&
-    w4.pigeons.some((b) => b.sex !== p.sex && activeListing(b) && w4.lofts.find((l) => l.userId === b.ownerId)?.isBot && !breedBlock(w4, b)));
-  if (mine2) {
-    assert(setStudListing(w4, ME, mine2.id, { minScore: 0, minEnergy: 0, minLibido: 0, wants: 'young' }) === null, 'een tweede duif, nu voor de jongen');
-    const d2 = w4.studDeals!.find((d) => d.studId === mine2.id && w4.lofts.find((l) => l.userId === d.mateOwnerId)?.isBot);
-    assert(!!d2 && d2.youngTo === ME && d2.fee >= STUD.botMinFee, `de bot stelt zijn duif voor en vraagt €${d2?.fee}`);
-    const n = w4.studDeals!.length;
-    setStudListing(w4, ME, mine2.id, { minScore: 0, minEnergy: 0, minLibido: 0, wants: 'young' });
-    assert(w4.studDeals!.length === n, 'opnieuw opslaan: dezelfde bots stellen niet nog eens voor');
-    await st.persist();
-  } else {
-    console.log('  (geen tweede passende duif in deze wereld — dat stuk overgeslagen)');
-  }
-
-  // 3. A bot that WANTS the young of its own bird: the player asks a fee, the bot pays at most its maximum.
-  st = await D1Store.load(d1, ME, { studDeals: true });
-  const y = st.data;
-  const botStud = y.pigeons.find((p) => activeListing(p) && y.lofts.find((l) => l.userId === p.ownerId)?.isBot && !breedBlock(y, p) &&
-    y.pigeons.some((m) => m.ownerId === ME && m.sex !== p.sex && !breedBlock(y, m) && !offerBlock(y, m) && !activeListing(m)));
-  if (botStud) {
-    botStud.stud = { ...botStud.stud!, wants: 'young', minScore: 0, minEnergy: 0, minLibido: 0 };
-    const myBird = y.pigeons.find((m) => m.ownerId === ME && m.sex !== botStud.sex && !breedBlock(y, m) && !offerBlock(y, m) && !activeListing(m))!;
-    const bid = botYoungBid(studYoung(y, botStud, myBird).value);
-    assert(proposeStud(y, ME, botStud.id, myBird.id, bid.max + 1000) === null, 'de speler vraagt te veel voor de jongen');
-    const d3 = y.studDeals!.find((d) => d.studId === botStud.id && d.mateId === myBird.id)!;
-    assert(d3.youngTo === botStud.ownerId && d3.turn === ME && d3.fee === bid.max, `de bot wil de jongen en antwoordt met zijn maximum (€${bid.max})`);
-    assert(acceptStud(y, ME, d3.id) === null && y.breedingPairs.some((b) => b.ownerId === botStud.ownerId && b.deal?.partnerId === ME),
-      'de speler gaat akkoord: de jongen zijn voor de bot, de vergoeding voor de speler');
-    await st.persist();
-  } else {
-    console.log('  (geen vrije botduif meer in deze wereld — dat stuk overgeslagen)');
-  }
+  const v = (await call('/breeding')).json.stud;
+  assert(!v.listings.some((l: any) => l.pigeon.id === botBird.id), 'het oude bot-aanbod staat niet bij de aangeboden duiven');
+  assert(!v.deals.some((d: any) => d.id === 'stud_oud_bot'), 'een oud voorstel van een bot verdwijnt bij het lezen');
+  const r2 = await call('/breeding/stud/stud_oud_bot/accept', 'POST');
+  assert(r2.status === 400, 'en aanvaarden kan niet meer');
+  assert(!v.deals.some((d: any) => d.stud.id === myBird.id), 'geen enkele bot stelt nog iets voor bij de duif van de speler');
+  await call('/breeding/stud/unlist', 'POST', { pigeonId: myBird.id });
 }
 
 // ---------------------------------------------------------------------------

@@ -119,7 +119,6 @@ import { rollAnyTrait, rollTrait } from './traits.js';
 import { season3CoachNote, season3Welcome } from './season3.js';
 import { LOKAAL_INTRO } from './lokaal.js';
 import { CARE_NEWS, INRICHTING_NEWS, STUD_NEWS } from './news.js';
-import { botOfferStud } from './stud.js';
 import { bell, clamp, hashString, haversineKm, pick, randFloat, round1, seededRng } from './util.js';
 
 // --- Time-zone helpers -----------------------------------------------------
@@ -2472,19 +2471,27 @@ export function runDataMigrations(db: Database): void {
     // Aankondiging: SAMEN KWEKEN (core/game/stud.ts) gaat live, plus wat bij v61
     // vergeten werd: vaccins/kuren en een verzekering kan je ook per duif nemen (op
     // haar eigen pagina). Twee bellen per echte speler, elk met een stabiele id
-    // (core/game/news.ts); de tweede helft is studNewsSteps in Tour.tsx. De bots
-    // bieden meteen een duif aan (anders pas op hun volgende dagovergang), zodat er
-    // bij de aankondiging al iets te zien is; een bot met al zijn goede duiven
-    // ingeschreven wacht tot de dagovergang (botOfferStud slaat die over).
+    // (core/game/news.ts); de tweede helft is studNewsSteps in Tour.tsx. (Tot v63
+    // lieten de bots hier ook meteen een duif aanbieden — zie daar.)
     for (const loft of db.lofts) {
-      if (loft.isBot) {
-        botOfferStud(db, loft, db.pigeons.filter((p) => p.ownerId === loft.userId), Date.now());
-        continue;
-      }
+      if (loft.isBot) continue;
       pushNotification(db, loft.userId, 'info', STUD_NEWS.title, STUD_NEWS.body, null, STUD_NEWS.id(loft.userId));
       pushNotification(db, loft.userId, 'info', CARE_NEWS.title, CARE_NEWS.body, null, CARE_NEWS.id(loft.userId));
     }
     db.world.dataVersion = 62;
+  }
+
+  if ((db.world.dataVersion ?? 0) < 63) {
+    // De eigenaar (12 okt): "laat de bots toch niet meedoen met broeden — ze gaan
+    // de duiven voor te lage prijs laten gaan." Wis wat de bots aanboden (v62 en hun
+    // dagovergang). Hun lopende onderhandelingen staan in stud_deals, buiten de
+    // wereldload: pruneStudDeals laat ze vallen zodra de Kweek-pagina ze leest. Een
+    // nest dat al met een bot loopt, maakt het gewoon af — daar is al voor betaald.
+    // Geen bel: de eigenaar wil hier geen communicatie over (12 okt).
+    for (const p of db.pigeons) {
+      if (p.stud && db.lofts.find((l) => l.userId === p.ownerId)?.isBot) p.stud = null;
+    }
+    db.world.dataVersion = 63;
   }
 }
 

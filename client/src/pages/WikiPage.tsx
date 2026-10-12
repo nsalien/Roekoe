@@ -119,13 +119,13 @@ export function WikiPage() {
 
         <h3>🤝 Samen kweken (12 oktober)</h3>
         <p>
-          Kweek met de duif van een <strong>andere speler</strong> — ook van de computermelkers — zonder dat er een duif
+          Kweek met de duif van een <strong>andere speler</strong>, zonder dat er een duif
           van eigenaar verandert. Bij <em>Kweek → Samen kweken</em> bied je een gezonde duif aan en kies je meteen of je
           <strong> de jongen</strong> wil of <strong>de vergoeding</strong>, plus wat een partner minstens moet hebben.
           Wie een duif voorstelt, ziet de <strong>geschatte score en marktwaarde van het jong</strong>; daarna spreken jullie
           enkel het bedrag af. Bij een akkoord betaalt elk <strong>€1.000</strong> en start het nest — zoals elk nest kan
           het even duren en is een jong niet gegarandeerd. Een aangeboden of voorgestelde duif blijft thuis.
-          De computermelkers bieden zelf een duif aan en stellen hun duif ook voor bij die van jou.{' '}
+          Enkel tussen echte spelers: de computermelkers doen niet mee.{' '}
           <a href="#samen-kweken">Alles over samen kweken →</a>
         </p>
 
@@ -1296,17 +1296,8 @@ export function WikiPage() {
           <li>Gaat een duif op een nest, wordt ze verkocht of niet meer aangeboden, dan vervallen de andere voorstellen
             waar ze in zat.</li>
         </ul>
-        <p><strong>Computermelkers</strong> doen volop mee. Elke bot biedt zijn best gegende duif aan (vanaf ★55) en houdt die
-          thuis van de vluchten en van zijn eigen nesten. Heeft hij plaats en geld over, dan wil hij <strong>de
-          jongen</strong>, anders <strong>de vergoeding</strong>. Bied je zelf een duif aan, dan stellen tot drie bots met een
-          passende duif meteen hun duif voor (elke bot één keer per aanbod). Een bot antwoordt altijd meteen:</p>
-        <ul>
-          <li>krijg <strong>jij</strong> de jongen, dan vraagt hij ongeveer 8 % van de marktwaarde van zijn duif (minstens
-            €250);</li>
-          <li>krijgt <strong>de bot</strong> de jongen, dan biedt hij eerst een kwart van wat zo'n jong bij de geboorte waard
-            is en betaalt hij hoogstens de helft;</li>
-          <li>valt jouw bedrag daarbuiten, dan antwoordt hij met zijn eigen bedrag; daarbinnen gaat hij meteen akkoord.</li>
-        </ul>
+        <p><strong>Enkel echte spelers.</strong> De computermelkers doen niet mee: ze bieden geen duif aan en stellen er
+          geen voor.</p>
         <p><strong>Zit je hok vol</strong> wanneer de jongen uitkomen, dan gaan ze niet verloren: ze wachten bij <em>Kweek</em>
           tot je kiest welke je houdt, en je kan eerst plaats maken (zie <a href="#broeden">Kweken &amp; broeden</a>).</p>
       </Section>
