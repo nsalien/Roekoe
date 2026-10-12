@@ -15,7 +15,7 @@
 
 | Rol | Branch | Doel |
 |-----|--------|------|
-| **Dev** | `claude/demo-hokinrichting` | Alle ontwikkeling/commits komen hier **eerst**. Sinds **12 okt** weer aan: herstart vanaf prod (`4a0c3ad`) + de demomodus + Marktwaarde v2 (§0b), gebouwd op `claude/breeding-other-player-pigeons-7314iz` en op vraag van de eigenaar ook hierheen gepusht (samenvoegcommit, geen force-push: de oude dev-geschiedenis blijft bereikbaar). De eigenaar test in de demo-preview: **https://claude-demo-hokinrichting.roekoe.pages.dev** (die van de sessiebranch: `claude-breeding-other-player.roekoe.pages.dev`). |
+| **Dev** | `claude/demo-hokinrichting` | Alle ontwikkeling/commits komen hier **eerst**. ⏸️ **Gepauzeerd sinds 12 okt** (tweede keer, op vraag van de eigenaar; pauzecommit `dea321f`, enkel een pauzepagina). De volledige Dev-stand is `6be40c3` (herstart vanaf prod + demo + Marktwaarde v2 + samen kweken); hoe je hem terugzet staat in de `context.md` óp die branch. Ook `claude/breeding-other-player-pigeons-7314iz` (zelfde commits) is gepauzeerd. Van dev staat alles live **behalve Marktwaarde v2 en de demomodus**. |
 | **Prod** | `claude/roekoe-game-website-jwa0vo` | Elke commit wordt hierheen **gecherry-pickt**; deze branch triggert de **Cloudflare Pages**-deploy naar productie. |
 
 > Vorige dev-branches (niet meer gebruiken): `ccr-9c78dbf3-rdb1ea`, `claude/hallo-nno7pb`, `claude/hallo-r1wgvn`, `claude/hallo-ca55co`, `claude/hallo-qz9tmx`, `claude/hallo-fsp9nx`, `claude/hallo-mzjn0e`, `claude/hallo-su75jy`, `claude/hallo-rkr49f`, `claude/hallo-pvwabx`,
@@ -83,6 +83,8 @@
   (twee bellen: samen kweken + vaccins/verzekering per duif), rondleiding `studNewsSteps` (sleutel
   `roekoe.newsSeen.samen.<id>`), wiki **#nieuw**. Schema op prod: de drie stud-stappen staan
   achteraan, direct na `pigeons.boosted_at` (op dev zit `trades.quality` ertussen).
+- **Dev gepauzeerd op 12 okt** (`dea321f`, zelfde werkwijze als 11 okt): beide dev-branches tonen een
+  pauzepagina. Terugzetten: `git revert --no-edit 6be40c3..HEAD` op de dev-branch en pushen.
 - **Enkel op dev:** **Marktwaarde v2** en de **demomodus**. Weggehaald van dev en dus nergens:
   koppels, partnerhok, weduwschap, de scout, het nieuwe voer.
 - **Dev herstart op 12 okt** (gebouwd op `claude/breeding-other-player-pigeons-7314iz`, daarna ook
