@@ -77,7 +77,7 @@
   *Marktwaarde houdt stand* + *nooit onder 1/5* (§8). Spelers kregen een bel (migratie **v61**,
   `core/game/news.ts`), een rondleiding (`INRICHTING_NEWS_STEPS` in `Tour.tsx`, sleutel
   `roekoe.newsSeen.inrichting.<id>`) en een wikisectie **#nieuw** ("Nieuw: inrichting & meer").
-- **Samen kweken live op 12 okt** (op vraag van de eigenaar), als **één commit op prod** ("Samen
+- **Samen kweken live op 12 okt** (op vraag van de eigenaar), als **één commit op prod** (`ffb04b7`, "Samen
   kweken live"), samengesteld uit de vier feature-commits van dev (`cbe8fcc`, `9b567c9`, `8167ff4`,
   `abee7be`) — zonder de demo-commits en zonder Marktwaarde v2. Aankondiging: migratie **v62**
   (twee bellen: samen kweken + vaccins/verzekering per duif), rondleiding `studNewsSteps` (sleutel
@@ -207,7 +207,8 @@
 - **Demo (enkel dev):** de seed laat de bots hun duif aanbieden en haalt die van de geplande vluchten
   (in productie gebeurt het aanbieden op de dagovergang en blijft ze daarna thuis); vindt geen enkele
   demoduif een vrije botduif, dan zakken de eisen van de eerste tot wat de beste demoduif heeft.
-  `DEMO_VERSION` 6. `demo-world` controleert dat er zo'n botduif is.
+  `DEMO_VERSION` 7 (12 okt: de bots schrijven zich in de seed eerst uit en bieden dan aan; een bewaarde
+  demo wordt opnieuw opgebouwd). `demo-world` controleert dat er zo'n botduif is.
 - **Test:** `tests/samen-kweken.test.mts` (~100 controles, node:sqlite + de echte API, los van de
   demo zodat hij ook op prod draait; ook de keuze jongen/vergoeding, de geschatte score bij kandidaat,
   onderhandeling en bel, de marktwaarde, ziek/ingeschreven weigeren, niet inschrijven zolang
