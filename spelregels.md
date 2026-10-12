@@ -1848,15 +1848,21 @@ minstens moet hebben:
 | Energie | ⚡ van de partner, bij het voorstel én bij het akkoord |
 | Libido | ❤ van de partner, bij het voorstel én bij het akkoord |
 
-Aanbieden is **gratis**, en je duif blijft gewoon vliegen tot je met iemand
-akkoord gaat. Een aangeboden duif is — net als een duif te koop — voor iedereen
-**volledig te bekijken**. Je kan de eisen altijd aanpassen of je duif weer
-weghalen; lopende voorstellen voor haar vervallen dan.
+Aanbieden is **gratis**. Een aangeboden duif is — net als een duif te koop —
+voor iedereen **volledig te bekijken**. Je kan de eisen altijd aanpassen of je
+duif weer weghalen; lopende voorstellen voor haar vervallen dan.
+
+**Gezond en thuis.** Een duif om mee te kweken mag **niet ziek of gekwetst** zijn
+(en niet in de ziekenboeg liggen) en **niet ingeschreven** staan voor een vlucht —
+om ze aan te bieden én om ze voor te stellen. Zolang ze aangeboden of voorgesteld
+is, kan je haar **niet inschrijven**: haal haar eerst uit het aanbod of trek het
+voorstel in.
 
 **2. Voorstellen.** Een andere speler kiest een eigen duif van het andere
 geslacht die aan je eisen voldoet, en stelt een **bedrag** voor (dat mag ook €0
-zijn). Bij het kiezen ziet hij per duif de **geschatte score van het jong**. Wie
-een voorstel doet, toont zijn duif volledig aan de andere speler.
+zijn). Bij het kiezen ziet hij per duif de **geschatte score van het jong** en,
+daaronder, de **geschatte marktwaarde** van zo'n jong. Wie een voorstel doet,
+toont zijn duif volledig aan de andere speler.
 
 **De geschatte score van het jong** is wat zo'n koppel gemiddeld oplevert, met
 dezelfde overerving als elk nest (§7, §7bis):
@@ -1870,6 +1876,10 @@ Eén jong valt een paar punten hoger of lager uit. Twee ouders vlak onder hun
 plafonds geven dus een jong dat iets lager uitkomt dan hun gemiddelde, en
 familie flink lager. Beide spelers zien deze schatting: wie voorstelt, en wie
 het voorstel krijgt (ook in de melding).
+
+**De geschatte marktwaarde** is wat het spel (§9.0) een **pasgeboren** duif met
+die score, die gen-caps en dat ras waard vindt op de dag dat ze uitkomt. Ze groeit
+daarna mee met de duif.
 
 **3. Onderhandelen.** Enkel over het bedrag. Wie aan de beurt is, kan
 **akkoord** gaan, een **tegenvoorstel** doen (een ander bedrag) of het voorstel
@@ -1892,8 +1902,9 @@ gaat altijd akkoord met wat de **ander** het laatst voorstelde.
 - Gaat een van de twee duiven op een nest, dan vervallen de andere voorstellen
   waar ze in zat.
 
-**5. Het nest.** Het nest loopt zoals elk ander nest (§7): de kans op jongen en
-het uitkomen hangen af van het libido en de energie van beide ouders.
+**5. Het nest.** Het nest loopt **precies zoals een gewoon nest** (§7): het
+uitkomen **kan even duren** — geen vaste tijd, sneller bij hoog libido en veel
+energie — en er is **geen garantie op jongen**: een worp kan leeg uitkomen.
 
 - **Alle jongen gaan naar dezelfde speler** — een tweeling ook. Zit zijn hok vol,
   dan wacht het nest op zijn keuze (§7.1).

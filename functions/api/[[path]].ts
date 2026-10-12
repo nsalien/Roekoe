@@ -154,8 +154,9 @@ import {
   criteriaGap,
   proposeStud,
   pruneStudDeals,
+  offerBlock,
   setStudListing,
-  studYoungScore,
+  studYoung,
   wantsOf,
 } from '../../core/game/stud.js';
 import type { BetKind } from '../../core/schema.js';
@@ -302,8 +303,11 @@ app.use('*', async (c, next) => {
   // the engine — see core/d1.ts.
   const narrowable = readOnlyPath(path);
   // Samen kweken: the open negotiations are read only where they are used (the
-  // Kweek page and its actions), so no other request pays a query for them.
-  const studDeals = path === '/api/breeding' || path.startsWith('/api/breeding/');
+  // Kweek page and its actions, and entering a bird for a flight — a bird offered
+  // to breed may not be entered), so no other request pays a query for them.
+  const studDeals =
+    path === '/api/breeding' || path.startsWith('/api/breeding/') ||
+    (c.req.method === 'POST' && /^\/api\/flights\/[^/]+\/enter$/.test(path));
   let store = await D1Store.load(c.env.DB, payload?.sub, {
     narrowWhenIdle: narrowable && (c.req.method === 'GET' || c.req.method === 'HEAD'),
     nowMs,
@@ -1080,10 +1084,10 @@ function studView(db: Database, userId: string) {
       const l = activeListing(p)!;
       const owner = db.lofts.find((x) => x.userId === p.ownerId);
       const isMine = p.ownerId === userId;
-      // My birds that could be offered to her: the other sex, old enough, and
-      // meeting what her owner asks. The rest of the opposite sex is "too weak".
+      // My birds that could be offered to her: the other sex, old enough, healthy,
+      // not entered for a flight (offerBlock), and meeting what her owner asks.
       const opposite = isMine ? [] : mine.filter((m) => m.sex !== p.sex && ageInWeeks(m, week) >= BREEDING.minAgeWeeks);
-      const candidates = opposite.filter((m) => !criteriaGap(l, m));
+      const candidates = opposite.filter((m) => !criteriaGap(l, m) && !offerBlock(db, m));
       return {
         pigeon: pigeonDTO(db, p, userId),
         ownerName: ownerName(db, p.ownerId),
@@ -1100,9 +1104,13 @@ function studView(db: Database, userId: string) {
         // (★), and whether the two are family — shown before anyone proposes.
         candidates: candidates.map((m) => {
           const [sire, dam] = p.sex === 'doffer' ? [p, m] : [m, p];
-          return { id: m.id, youngScore: studYoungScore(db, p, m), kin: kinship(db, sire, dam) };
+          const young = studYoung(db, p, m);
+          return { id: m.id, youngScore: young.score, youngValue: young.value, kin: kinship(db, sire, dam) };
         }),
-        shortfall: opposite.length - candidates.length,
+        // Of the others that meet the ask: how many are sick or entered for a flight.
+        unfit: opposite.filter((m) => !criteriaGap(l, m) && offerBlock(db, m)).length,
+        // …and how many simply fall short of it.
+        shortfall: opposite.filter((m) => criteriaGap(l, m)).length,
       };
     })
     // Others first, and among them the birds that are free right now.
@@ -1128,8 +1136,11 @@ function studView(db: Database, userId: string) {
         fee: d.fee,
         myTurn,
         kin: kinship(db, sire, dam),
-        // What the young are expected to score — both players see it.
-        youngScore: studYoungScore(db, stud, mate),
+        // What the young are expected to score and be worth at birth — both players see it.
+        ...(() => {
+          const young = studYoung(db, stud, mate);
+          return { youngScore: young.score, youngValue: young.value };
+        })(),
         // On your turn: would accepting work right now? So the button does not lie.
         blocked: myTurn ? (criteriaGap(l, mate) ?? breedBlock(db, stud) ?? breedBlock(db, mate)) : null,
         updatedAt: d.updatedAt,

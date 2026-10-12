@@ -126,6 +126,20 @@
   worpen: gewoon koppel, vlak onder de plafonds en volle broer × zus komen tot op 0,1 uit. ⚠️ De kaart
   *Eigen nest* toont nog het oude, simpele "verwacht talent ≈ (★vader + ★moeder)/2" — niet gevraagd
   om aan te passen; dat zit vlak onder de plafonds enkele punten en bij inteelt ~15 punten te hoog.
+- **Derde ronde (eigenaar, 12 okt):** (1) een duif om mee te kweken **mag niet ziek zijn** en (2) **niet
+  ingeschreven** voor een vlucht wanneer ze aangeboden of voorgesteld wordt — `offerBlock` (stud.ts:
+  aandoening, ziekenboeg, `pigeonCommittedToFlight`) in `setStudListing` (enkel bij een nieuw aanbod)
+  en `proposeStud`; de kandidatenlijst laat zulke duiven weg (`listings[].unfit` telt ze), het
+  aanbiedformulier toont ze uitgeschakeld. **Omgekeerd**: zolang ze aangeboden of voorgesteld is, kan
+  ze niet ingeschreven worden — `studFlightBlock` in `enterFlight`; daarvoor laadt **`POST
+  /api/flights/:id/enter`** nu ook `stud_deals` (+1 query op die ene route) en verbergt
+  `client/game/flightEntry.ts::canEnter` een aangeboden duif. Bots bieden enkel een gezonde,
+  niet-ingeschreven duif aan. (3) **Onder de geschatte score de geschatte marktwaarde** van het jong:
+  `studYoung(db, a, b)` → `{score, value}`; `value` = `marketValue` van een virtuele **pasgeboren** duif
+  met de verwachte vaardigheden en gen-caps (`breeding.expectedYoung`), het geërfde ras, geen
+  kenmerk. In `candidates[].youngValue`, `deals[].youngValue` en de bel. (4) Het nest **loopt als een
+  gewoon nest** (dat deed het al: `tickBreedingHatch`, zelfde kans en timing, lege worp mogelijk); nu
+  ook zo gezegd in de toast, wiki en spelregels, en de test controleert dat het niet meteen uitkomt.
 - **Zelf beslist (niet gevraagd, de eigenaar kan het omdraaien):**
   1. De **vergoeding wordt pas betaald als de jongen er zijn** (in `tickBreedingHatch`, van wie de
      jongen krijgt naar de partner). Geen escrow: een nest kan op veel plekken stil verdwijnen
@@ -178,7 +192,8 @@
   staat in *Broedsels onderweg* met partner, verdeling en vergoeding, en vraagt een bevestiging bij
   Stop) en **🤝 Samen kweken** (`components/SamenKweken.tsx`; `/kweek#samen` opent die tab; de tab
   telt de voorstellen waar jij aan de beurt bent): bovenaan de **onderhandelingen** (met "🐣 Het jong
-  scoort naar schatting ★…" en enkel een bedrag als tegenvoorstel), dan **zelf een duif aanbieden**
+  scoort naar schatting ★…", daaronder "Geschatte marktwaarde bij de geboorte: €…", en enkel een
+  bedrag als tegenvoorstel), dan **zelf een duif aanbieden**
   (verplichte keuze 🐣 De jongen / 💶 De vergoeding + de drie eisen), dan de **aangeboden duiven** als
   `PigeonCard` zoals op de markt (vrije eerst) met "zoekt ★45+ · ⚡30+ · ❤30+", wat de eigenaar wil
   ("Wil de vergoeding — de jongen zijn voor jou") en "Stel een duif voor" (keuzelijst met "→ jong ★62"
@@ -188,9 +203,10 @@
   (in productie gebeurt het aanbieden op de dagovergang en blijft ze daarna thuis); vindt geen enkele
   demoduif een vrije botduif, dan zakken de eisen van de eerste tot wat de beste demoduif heeft.
   `DEMO_VERSION` 6. `demo-world` controleert dat er zo'n botduif is.
-- **Test:** `tests/samen-kweken.test.mts` (77 controles, node:sqlite + de echte API, los van de
+- **Test:** `tests/samen-kweken.test.mts` (87 controles, node:sqlite + de echte API, los van de
   demo zodat hij ook op prod draait; ook de keuze jongen/vergoeding, de geschatte score bij kandidaat,
-  onderhandeling en bel, en de schatting tegen 4.000 echte worpen): bot antwoordt met zijn prijs en gaat akkoord, €1.000 elk,
+  onderhandeling en bel, de marktwaarde, ziek/ingeschreven weigeren, niet inschrijven zolang
+  aangeboden of voorgesteld, en de schatting tegen 4.000 echte worpen): bot antwoordt met zijn prijs en gaat akkoord, €1.000 elk,
   jongen + vergoeding bij de geboorte, beide ouders rusten, speler-tegen-speler (eisen, beurten,
   tegenvoorstel, zelfde voorwaarden geweigerd), lege worp (€500 elk, geen vergoeding, vaste bel-id),
   stoppen door de partner, weigeren/intrekken/niet meer aanbieden/verkocht, infrarood, en de opslag

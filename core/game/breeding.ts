@@ -22,7 +22,7 @@ import { clamp, hashString, randFloat, round1, seededRng } from './util.js';
  * are the same breed; two different breeds produce a `mixed` (Gemengd) bird.
  * (A mixed parent bred with anything but another identical mixed → mixed again.)
  */
-function inheritBreed(sire: Pigeon, dam: Pigeon): string {
+export function inheritBreed(sire: Pigeon, dam: Pigeon): string {
   const s = sire.breed ?? DEFAULT_BREED_ID;
   const d = dam.breed ?? DEFAULT_BREED_ID;
   return s === d ? s : MIXED_BREED_ID;
@@ -43,32 +43,49 @@ function inheritGeneCap(a: number, b: number): number {
   return Math.round(clamp(avg + randFloat(-GENE.mutation, GENE.mutation), GENE.floor, GENE.ceil));
 }
 
+/** The average youngster of a pair: her three skills, her gene caps and her algemene score (★). */
+export interface ExpectedYoung {
+  speed: number;
+  endurance: number;
+  orientation: number;
+  genes: PigeonGenes;
+  score: number;
+}
+
 /**
- * What the young of these two score on average (algemene score, ★) — the same
- * inheritance as `breed`, averaged instead of rolled: per skill the mean of the
- * parents ± BREEDING.mutation, capped at the youngster's own gene cap (the mean
- * of the parents' caps ± GENE.mutation, lowered by inteelt). A 24×24 grid over
- * the two uniform draws, so it is exact enough and the same on every call.
- * Only an estimate of the clutch's MEAN: one youngster lands a few points either
- * side of it.
+ * What the young of these two are like on average — the same inheritance as
+ * `breed`, averaged instead of rolled: per skill the mean of the parents ±
+ * BREEDING.mutation, capped at the youngster's own gene cap (the mean of the
+ * parents' caps ± GENE.mutation, lowered by inteelt). A 24×24 grid over the two
+ * uniform draws, so it is exact enough and the same on every call. Only the
+ * clutch's MEAN: one youngster lands a few points either side of it.
  */
-export function expectedYoungScore(sire: Pigeon, dam: Pigeon, kin?: KinshipDegree | null): number {
+export function expectedYoung(sire: Pigeon, dam: Pigeon, kin?: KinshipDegree | null): ExpectedYoung {
   const N = 24;
   const step = (i: number) => (2 * (i + 0.5)) / N - 1; // -1..1, evenly spread
   const penalty = kin ? INBREEDING.geneCapPenalty[kin] : 0;
-  let total = 0;
+  const out = { genes: {} as PigeonGenes } as ExpectedYoung;
   for (const attr of ['speed', 'endurance', 'orientation'] as const) {
     const mean = (sire[attr] + dam[attr]) / 2;
     const capMean = (geneCap(sire, attr) + geneCap(dam, attr)) / 2;
     let sum = 0;
+    let caps = 0;
     for (let i = 0; i < N; i++) {
       const raw = Math.round(clamp(capMean + GENE.mutation * step(i), GENE.floor, GENE.ceil));
       const cap = penalty ? Math.max(INBREEDING.minGeneCap, raw - penalty) : raw;
+      caps += cap;
       for (let j = 0; j < N; j++) sum += clamp(mean + BREEDING.mutation * step(j), 5, cap);
     }
-    total += sum / (N * N);
+    out[attr] = round1(sum / (N * N));
+    out.genes[attr] = Math.round(caps / N);
   }
-  return round1(total / 3);
+  out.score = round1((out.speed + out.endurance + out.orientation) / 3);
+  return out;
+}
+
+/** What the young of these two score on average (algemene score, ★) — see `expectedYoung`. */
+export function expectedYoungScore(sire: Pigeon, dam: Pigeon, kin?: KinshipDegree | null): number {
+  return expectedYoung(sire, dam, kin).score;
 }
 
 export function canBreed(sire: Pigeon, dam: Pigeon, currentWeek: number): string | null {

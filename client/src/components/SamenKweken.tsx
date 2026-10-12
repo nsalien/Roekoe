@@ -45,12 +45,18 @@ function TermsLine({ youngToMe, fee, other }: { youngToMe: boolean; fee: number;
   );
 }
 
-/** "🐣 Het jong scoort naar schatting ★62" — what both players see before they agree. */
-function YoungScore({ score, kin }: { score: number; kin: KinshipDegree | null }) {
+/**
+ * "🐣 Het jong scoort naar schatting ★62" and, under it, what such a youngster is
+ * worth on the market at birth — what both players see before they agree.
+ */
+function YoungScore({ score, value, kin }: { score: number; value: number; kin: KinshipDegree | null }) {
   return (
     <>
-      <p style={{ margin: '0 0 6px' }}>
+      <p style={{ margin: '0 0 2px' }}>
         🐣 Het jong scoort naar schatting <strong>★{Math.round(score)}</strong>
+      </p>
+      <p className="muted" style={{ margin: '0 0 6px', fontSize: '0.9rem' }}>
+        Geschatte marktwaarde bij de geboorte: <Money value={value} />
       </p>
       {kin && (
         <p className="muted" style={{ margin: '0 0 6px', fontSize: '0.85rem' }}>
@@ -136,7 +142,7 @@ function DealCard({
       <p style={{ margin: '8px 0 6px' }}>
         <TermsLine youngToMe={deal.youngToMe} fee={deal.fee} other={deal.otherName} />
       </p>
-      <YoungScore score={deal.youngScore} kin={deal.kin} />
+      <YoungScore score={deal.youngScore} value={deal.youngValue} kin={deal.kin} />
       {deal.myTurn ? (
         countering ? (
           <FeeForm
@@ -157,7 +163,7 @@ function DealCard({
               <button
                 className="btn"
                 disabled={busy || !!deal.blocked}
-                onClick={() => run(`/breeding/stud/${deal.id}/accept`, {}, 'Akkoord! Het nest is gestart. 🥚')}
+                onClick={() => run(`/breeding/stud/${deal.id}/accept`, {}, 'Akkoord! Het nest is gestart — wanneer (en óf) er jongen komen, is een verrassing. 🥚')}
               >
                 Akkoord · <Money value={cost} />
               </button>
@@ -195,12 +201,12 @@ function ListingCard({
 }) {
   const [open, setOpen] = useState(false);
   const p = listing.pigeon;
-  // Free birds first: one on a nest, resting or entered can be offered, but the
+  // Free birds first: one on a nest or still resting can be offered, but the
   // agreement only goes through once she is free (the deal says so on your turn).
+  // Sick or entered birds are not in the list at all (the server leaves them out).
   const tied = (m: Pigeon) =>
     m.breeding ? ' · 🥚 op een nest'
-      : m.breedAvailableAt && Date.parse(m.breedAvailableAt) > Date.now() ? ' · 🪺 rust nog'
-      : m.racing ? ' · 🏁 ingeschreven' : '';
+      : m.breedAvailableAt && Date.parse(m.breedAvailableAt) > Date.now() ? ' · 🪺 rust nog' : '';
   const estimate = new Map(listing.candidates.map((c) => [c.id, c]));
   const candidates = myPigeons
     .filter((m) => estimate.has(m.id))
@@ -239,7 +245,7 @@ function ListingCard({
               ))}
             </select>
           </div>
-          {chosen && <YoungScore score={chosen.youngScore} kin={chosen.kin} />}
+          {chosen && <YoungScore score={chosen.youngScore} value={chosen.youngValue} kin={chosen.kin} />}
           {listing.askFee != null && (
             <p className="faint" style={{ margin: 0, fontSize: '0.85rem' }}>
               {listing.ownerName} laat de jongen aan jou voor <Money value={listing.askFee} />.
@@ -261,9 +267,11 @@ function ListingCard({
         <button className="btn block" disabled={busy} onClick={() => setOpen(true)}>Stel een duif voor</button>
       ) : (
         <p className="faint" style={{ margin: 0, fontSize: '0.85rem' }}>
-          {listing.shortfall > 0
-            ? `Geen van je ${p.sex === 'doffer' ? 'duivinnen' : 'doffers'} haalt wat ${listing.ownerName} vraagt.`
-            : `Je hebt geen ${p.sex === 'doffer' ? 'duivin' : 'doffer'} die oud genoeg is.`}
+          {listing.unfit > 0
+            ? `Je ${p.sex === 'doffer' ? 'duivinnen' : 'doffers'} die in aanmerking komen, zijn ziek of ingeschreven voor een vlucht.`
+            : listing.shortfall > 0
+              ? `Geen van je ${p.sex === 'doffer' ? 'duivinnen' : 'doffers'} haalt wat ${listing.ownerName} vraagt.`
+              : `Je hebt geen ${p.sex === 'doffer' ? 'duivin' : 'doffer'} die oud genoeg is.`}
         </p>
       )}
     </PigeonCard>
@@ -305,16 +313,22 @@ function OfferOwn({
     <div className="card">
       <h2>Zelf een duif aanbieden</h2>
       <p className="muted" style={{ marginTop: 0 }}>
-        Gratis, en ze blijft gewoon vliegen tot je met iemand akkoord gaat. Jij kiest of je de jongen wil of de vergoeding,
-        en wat een partner minstens moet hebben.
+        Gratis. Een aangeboden duif moet gezond zijn en blijft thuis: ze kan niet ingeschreven worden zolang ze
+        aangeboden is. Jij kiest of je de jongen wil of de vergoeding, en wat een partner minstens moet hebben.
       </p>
       <div className="field">
         <label>Duif</label>
         <select value={selected} onChange={(e) => setSelected(e.target.value)}>
           <option value="">— kies een duif —</option>
-          {adults.map((p) => (
-            <option key={p.id} value={p.id}>{p.stud ? '🤝 ' : ''}{p.name} ({p.sex} · ★{p.talent})</option>
-          ))}
+          {adults.map((p) => {
+            // A sick or entered bird cannot be put up (a listed one can still be edited).
+            const why = p.stud ? '' : p.ailment || p.inInfirmary ? ' — ziek' : p.racing ? ' — ingeschreven' : '';
+            return (
+              <option key={p.id} value={p.id} disabled={!!why}>
+                {p.stud ? '🤝 ' : ''}{p.name} ({p.sex} · ★{p.talent}){why}
+              </option>
+            );
+          })}
         </select>
       </div>
       {bird && (

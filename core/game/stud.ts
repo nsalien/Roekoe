@@ -33,7 +33,7 @@ import { BREEDING, STUD } from '../config/gameConfig.js';
 import type { Database, Loft, Pigeon, StudDeal, StudListing, StudWants } from '../schema.js';
 import { newId } from '../store.js';
 import { evaluateBadges } from './badges.js';
-import { expectedYoungScore } from './breeding.js';
+import { expectedYoung, inheritBreed } from './breeding.js';
 import { kinship } from './pedigree.js';
 import { debtBlock } from './economy.js';
 import { pigeonCommittedToFlight } from './flight.js';
@@ -63,12 +63,65 @@ function sireAndDam(a: Pigeon, b: Pigeon): [Pigeon, Pigeon] {
 }
 
 /**
- * What the young of these two are expected to score (★), inteelt included — what
- * both players see before they agree (breeding.expectedYoungScore).
+ * What the young of these two are expected to score (★), inteelt included, and
+ * what such a youngster is worth on the market the day she hatches — what both
+ * players see before they agree. The value is the game's own valuation
+ * (`marketValue`) of the average youngster (breeding.expectedYoung): her skills
+ * and gene caps, a newborn, the breed she inherits, no kenmerk.
  */
-export function studYoungScore(db: Database, a: Pigeon, b: Pigeon): number {
+export function studYoung(db: Database, a: Pigeon, b: Pigeon): { score: number; value: number } {
   const [sire, dam] = sireAndDam(a, b);
-  return expectedYoungScore(sire, dam, kinship(db, sire, dam));
+  const y = expectedYoung(sire, dam, kinship(db, sire, dam));
+  const week = db.world.currentWeek;
+  const young: Pigeon = {
+    ...dam,
+    id: `young:${sire.id}:${dam.id}`,
+    speed: y.speed,
+    endurance: y.endurance,
+    orientation: y.orientation,
+    genes: y.genes,
+    experience: 0,
+    birthWeek: week,
+    createdAtWeek: week,
+    breed: inheritBreed(sire, dam),
+    trait: null,
+    quirk: null,
+    sireId: sire.id,
+    damId: dam.id,
+  };
+  return { score: y.score, value: marketValue(db, young, week) };
+}
+
+/** Just the expected score (★) — see `studYoung`. */
+export function studYoungScore(db: Database, a: Pigeon, b: Pigeon): number {
+  return studYoung(db, a, b).score;
+}
+
+/**
+ * Why this bird cannot be put up or offered for samen kweken right now, or null.
+ * The owner's rule: a bird for breeding is not sick, and is not entered for a
+ * flight — and she stays off the flights while she is on offer (enterFlight).
+ */
+export function offerBlock(db: Database, p: Pigeon, nowMs: number = Date.now()): string | null {
+  if (p.ailment) return `${p.name} is ${p.ailment.kind === 'kwetsuur' ? 'gekwetst' : 'ziek'} — een duif om mee te kweken moet gezond zijn`;
+  if (p.inInfirmary) return `${p.name} ligt in de ziekenboeg — een duif om mee te kweken moet gezond zijn`;
+  if (pigeonCommittedToFlight(db, p.id, nowMs)) return `${p.name} staat ingeschreven voor een vlucht — schrijf haar eerst uit`;
+  return null;
+}
+
+/**
+ * Why this bird may not be entered for a flight: she is put up for samen kweken,
+ * or offered to someone else's bird in an open negotiation. The second only when
+ * the negotiations were loaded (the entry route asks for them, see the middleware).
+ */
+export function studFlightBlock(db: Database, p: Pigeon): string | null {
+  if (activeListing(p)) return `${p.name} wordt aangeboden om mee te kweken — haal haar eerst uit het aanbod (Kweek → Samen kweken)`;
+  if (db.studDeals) {
+    pruneStudDeals(db);
+    if (db.studDeals.some((d) => d.mateId === p.id))
+      return `${p.name} is voorgesteld om mee te kweken — trek dat voorstel eerst in (Kweek → Samen kweken)`;
+  }
+  return null;
 }
 
 function onNest(db: Database, pigeonId: string): boolean {
@@ -217,6 +270,12 @@ export function setStudListing(
   }
   const weeks = ageInWeeks(p, db.world.currentWeek);
   if (weeks < BREEDING.minAgeWeeks) return `${p.name} is nog te jong om te kweken (${weeks} van de ${BREEDING.minAgeWeeks} weken)`;
+  // Only for a NEW offer: changing what you ask of an existing one stays possible
+  // (she cannot have been entered since — enterFlight refuses her).
+  if (!activeListing(p)) {
+    const blocked = offerBlock(db, p, nowMs);
+    if (blocked) return blocked;
+  }
   const c = cleanCriteria(criteria);
   if (typeof c === 'string') return c;
   const before = activeListing(p);
@@ -260,6 +319,8 @@ export function proposeStud(
   if (mate.sex === stud.sex) return `${stud.name} is een ${stud.sex} — kies een ${stud.sex === 'doffer' ? 'duivin' : 'doffer'}`;
   const weeks = ageInWeeks(mate, db.world.currentWeek);
   if (weeks < BREEDING.minAgeWeeks) return `${mate.name} is nog te jong om te kweken (${weeks} van de ${BREEDING.minAgeWeeks} weken)`;
+  const unfit = offerBlock(db, mate, nowMs);
+  if (unfit) return unfit;
   const gap = criteriaGap(listing, mate);
   if (gap) return gap;
   const loft = loftOf(db, userId);
@@ -284,10 +345,11 @@ export function proposeStud(
     updatedAt: now,
   };
   deals.push(deal);
+  const young = studYoung(db, stud, mate);
   notify(
     db, stud.ownerId, `🤝 Kweekvoorstel voor ${stud.name}`,
     `${loft.name} stelt ${mate.name} (★${Math.round(talent(mate))}) voor als partner van ${stud.name} — ` +
-      `het jong scoort naar schatting ★${Math.round(studYoungScore(db, stud, mate))}: ` +
+      `het jong scoort naar schatting ★${Math.round(young.score)} (marktwaarde ±€${young.value}): ` +
       `${termsLine(db, deal, stud.ownerId)}. Antwoord bij Kweek → Samen kweken.`,
   );
   if (loftOf(db, stud.ownerId)?.isBot) botAnswer(db, deal, nowMs);
@@ -454,7 +516,8 @@ export function botOfferStud(db: Database, loft: Loft, pigeons: Pigeon[], nowMs:
   if (pigeons.some((p) => activeListing(p))) return;
   const genes = (p: Pigeon) => ((p.genes?.speed ?? 0) + (p.genes?.endurance ?? 0) + (p.genes?.orientation ?? 0)) / 3;
   const pick = pigeons
-    .filter((p) => ageInWeeks(p, db.world.currentWeek) >= BREEDING.minAgeWeeks && talent(p) >= STUD.botMinScore)
+    // Same rule as a player: healthy and not entered for a flight.
+    .filter((p) => ageInWeeks(p, db.world.currentWeek) >= BREEDING.minAgeWeeks && talent(p) >= STUD.botMinScore && !offerBlock(db, p, nowMs))
     // Prefer a bird that is free today, so a player can start without waiting.
     .sort((a, b) => Number(!!breedBlock(db, a, nowMs)) - Number(!!breedBlock(db, b, nowMs)) || genes(b) - genes(a) || talent(b) - talent(a))[0];
   if (!pick) return;

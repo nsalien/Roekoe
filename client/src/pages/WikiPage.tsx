@@ -1236,9 +1236,13 @@ export function WikiPage() {
         <p><strong>Aanbieden.</strong> Zet een duif <em>beschikbaar</em> en kies meteen <strong>wat je wil: de jongen
           (dan betaal jij de vergoeding) of de vergoeding (dan gaan de jongen naar je partner)</strong>. Kies ook wat een
           partner minstens moet hebben: een <strong>algemene score (★)</strong>, <strong>energie</strong> en
-          <strong> libido</strong>. Aanbieden is gratis en je duif blijft gewoon vliegen tot je met iemand akkoord gaat.
-          Een aangeboden duif is, net als een duif te koop, voor iedereen <strong>volledig te bekijken</strong>. Kies je
-          later toch de andere kant (jongen ↔ vergoeding), dan vervallen de lopende voorstellen.</p>
+          <strong> libido</strong>. Aanbieden is gratis. Een aangeboden duif is, net als een duif te koop, voor iedereen
+          <strong> volledig te bekijken</strong>. Kies je later toch de andere kant (jongen ↔ vergoeding), dan vervallen de
+          lopende voorstellen.</p>
+        <p><strong>Gezond en thuis.</strong> Een duif om mee te kweken mag <strong>niet ziek of gekwetst</strong> zijn en
+          <strong> niet ingeschreven</strong> staan voor een vlucht — niet om ze aan te bieden en niet om ze voor te stellen.
+          Zolang ze aangeboden of voorgesteld is, kan je haar ook <strong>niet inschrijven</strong>: haal haar eerst uit het
+          aanbod of trek het voorstel in.</p>
         <p><strong>Voorstellen en onderhandelen.</strong> Een andere speler stelt een eigen duif van het andere geslacht
           voor die aan je eisen voldoet, met een <strong>bedrag</strong>. Wie de jongen krijgt, ligt al vast — er wordt
           enkel over het bedrag onderhandeld. Wie aan de beurt is, gaat <strong>akkoord</strong>, doet een
@@ -1247,13 +1251,17 @@ export function WikiPage() {
         <p><strong>De geschatte score van het jong</strong> zien beide spelers: wie een duif kiest om voor te stellen,
           en wie het voorstel krijgt. Het is het <strong>gemiddelde</strong> wat zo'n koppel oplevert: per vaardigheid
           het gemiddelde van de ouders ± toeval, begrensd door de <a href="#genen">gen-caps</a> die het jong erft (en
-          lager bij <a href="#inteelt">inteelt</a>). Eén jong valt een paar punten hoger of lager uit.</p>
+          lager bij <a href="#inteelt">inteelt</a>). Eén jong valt een paar punten hoger of lager uit. Eronder staat de
+          <strong> geschatte marktwaarde</strong> van zo'n jong op de dag dat het uitkomt: de gewone waardering van het spel
+          (<a href="#waarde">marktwaarde</a>) voor een pasgeboren duif met die score, die gen-caps en dat ras.</p>
         <ul>
           <li><strong>Akkoord = meteen broeden.</strong> Beide duiven moeten op dat moment kunnen broeden (zelfde regels
             als een eigen nest: oud genoeg, 20 energie, gezond, niet ingeschreven, niet aan het uitrusten) en de partner
             moet nog altijd aan de eisen voldoen — energie en libido bewegen elke dag.</li>
           <li><strong>Het kost elk €1.000</strong>, betaald bij het akkoord (een eigen nest kost €750, maar daarvoor moeten
             twee van je eigen duiven van de vluchten weg; hier maar één). Beide duiven verliezen 15 energie.</li>
+          <li><strong>Het nest loopt als een gewoon nest:</strong> uitkomen kan even duren (geen vaste tijd, sneller bij
+            hoog libido en veel energie), en <strong>jongen zijn niet gegarandeerd</strong> — een worp kan leeg uitkomen.</li>
           <li><strong>Alle jongen gaan naar dezelfde speler</strong> — een tweeling ook.</li>
           <li><strong>De vergoeding wordt pas betaald wanneer de jongen er zijn.</strong> Wie de jongen krijgt, moet ze
             bij het akkoord wel kunnen betalen.</li>

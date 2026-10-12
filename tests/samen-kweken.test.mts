@@ -18,7 +18,7 @@ import { signToken } from '../core/auth.js';
 import { STUD, studFailedRefund } from '../core/config/gameConfig.js';
 import { createLoftForUser, seedWorld, stopBreeding } from '../core/game/engine.js';
 import { advanceRealtime, tickBreedingHatch } from '../core/game/schedule.js';
-import { acceptStud, activeListing, botOfferStud, breedBlock, closeStud, counterStud, proposeStud, setStudListing, studYoungScore } from '../core/game/stud.js';
+import { acceptStud, activeListing, botOfferStud, breedBlock, closeStud, counterStud, offerBlock, proposeStud, setStudListing, studYoungScore } from '../core/game/stud.js';
 import { breed, expectedYoungScore } from '../core/game/breeding.js';
 import { clearOwnerCare } from '../core/game/inrichting.js';
 import { generatePigeon, talent } from '../core/game/pigeon.js';
@@ -148,6 +148,8 @@ let deal = view.stud.deals[0];
 assert(view.stud.deals.length === 1 && deal.myTurn && deal.youngToMe && deal.fee === L.askFee,
   `de bot antwoordt meteen met zijn prijs: de jongen voor jou, voor €${L.askFee}`);
 assert(deal.youngScore === cand.youngScore, 'de onderhandeling toont dezelfde geschatte score');
+assert(cand.youngValue >= 50 && deal.youngValue === cand.youngValue,
+  `…en de geschatte marktwaarde van zo'n jong bij de geboorte (€${cand.youngValue}), voor beide spelers`);
 r = await call(`/breeding/stud/${deal.id}/counter`, 'POST', { fee: deal.fee });
 assert(r.status === 400, 'een tegenvoorstel met hetzelfde bedrag wordt geweigerd');
 r = await call(`/breeding/stud/${deal.id}/counter`, 'POST', { fee: Math.max(0, deal.fee - 50) });
@@ -171,6 +173,14 @@ assert(money(w, ME) === myMoney0 - STUD.cost && money(w, botId) === botMoney0 - 
 assert(Math.abs(w.pigeons.find((p) => p.id === studId)!.form - (studForm0 - 15)) < 0.11, 'de botduif verliest 15 energie');
 const shown = view.pairs.find((p: any) => p.id === pair?.id);
 assert(shown?.deal?.youngToMe === true && shown?.deal?.partner === L.ownerName, 'het nest staat bij Kweek met de partner erbij');
+{
+  // Like an own nest: it does not hatch on the spot, and a check within the
+  // quarter hour does not even roll (BREEDING.hatchCheckMinutes).
+  const s = await D1Store.load(d1, ME);
+  tickBreedingHatch(s.data, Date.now() + 5 * 60000);
+  assert(s.data.breedingPairs.some((bp) => bp.id === pair!.id) && !s.data.pigeons.some((p) => p.id.startsWith(`pig_brood_${pair!.id}`)),
+    'direct na het akkoord is er nog geen jong — het nest loopt als een gewoon nest');
+}
 const loftView = (await call('/state')).json.loft;
 assert(loftView.nests.some((n: any) => n.id === pair?.id && n.partner === L.ownerName), 'het hokoverzicht noemt de andere speler');
 const stillListed = view.stud.listings.find((l: any) => l.pigeon.id === studId);
@@ -235,6 +245,24 @@ assert(!!p2doffer && !!myDuivin, 'twee spelers met een vrije doffer en duivin');
     'de tweede speler biedt zijn doffer aan en wil zelf de jongen');
   const mineDuivin = x.pigeons.find((p) => p.id === myDuivin.id)!;
   assert(/score/.test(proposeStud(x, ME, p2doffer.id, myDuivin.id, 300) ?? ''), 'een duif die de score niet haalt, mag niet voorgesteld worden');
+  // Sick or injured: not to be put up, not to be offered.
+  const sickDoffer = x.pigeons.find((p) => p.ownerId === P2 && p.sex === 'doffer' && p.id !== p2doffer.id)!;
+  sickDoffer.ailment = { kind: 'ziekte', name: 'Ornithose', severity: 'licht', weeksLeft: 1 } as any;
+  assert(/ziek/.test(setStudListing(x, P2, sickDoffer.id, { minScore: 0, minEnergy: 0, minLibido: 0, wants: 'fee' }) ?? ''),
+    'een zieke duif kan niet aangeboden worden');
+  sickDoffer.ailment = null;
+  mineDuivin.ailment = { kind: 'kwetsuur', name: 'Spierscheur', severity: 'licht', weeksLeft: 1 } as any;
+  setStudListing(x, P2, p2doffer.id, { minScore: 0, minEnergy: 0, minLibido: 0, wants: 'young' });
+  assert(/gekwetst/.test(proposeStud(x, ME, p2doffer.id, myDuivin.id, 300) ?? ''), 'een gekwetste duif kan niet voorgesteld worden');
+  mineDuivin.ailment = null;
+  // Entered for a flight: not to be put up, not to be offered.
+  const flight = x.flights.find((f) => f.status === 'scheduled')!;
+  flight.entries.push({ pigeonId: sickDoffer.id, ownerId: P2 } as any);
+  assert(/ingeschreven/.test(setStudListing(x, P2, sickDoffer.id, { minScore: 0, minEnergy: 0, minLibido: 0, wants: 'fee' }) ?? ''),
+    'een ingeschreven duif kan niet aangeboden worden');
+  flight.entries.push({ pigeonId: mineDuivin.id, ownerId: ME } as any);
+  assert(/ingeschreven/.test(proposeStud(x, ME, p2doffer.id, myDuivin.id, 300) ?? ''), 'een ingeschreven duif kan niet voorgesteld worden');
+  flight.entries = flight.entries.filter((e) => e.pigeonId !== sickDoffer.id && e.pigeonId !== mineDuivin.id);
   setStudListing(x, P2, p2doffer.id, { minScore: Math.floor(talent(mineDuivin)), minEnergy: 20, minLibido: 0, wants: 'young' });
   assert(/eigen/.test(proposeStud(x, P2, p2doffer.id, p2doffer.id, 0) ?? ''), 'je eigen duif kan je niet beantwoorden');
   assert(/kies een duivin/.test(proposeStud(x, ME, p2doffer.id, myDoffer.id, 0) ?? ''), 'twee doffers kan niet');
@@ -341,7 +369,10 @@ console.log('\nOpslag');
   const count = rows('SELECT COUNT(*) FROM stud_deals');
   const s = await D1Store.load(d1, P2, { studDeals: true });
   setStudListing(s.data, P2, p2doffer.id, { minScore: 0, minEnergy: 0, minLibido: 0, wants: 'fee' });
-  const other = s.data.pigeons.find((p: Pigeon) => p.ownerId === ME && p.sex === 'duivin' && p.id !== myDuivin.id)!;
+  // A grown, healthy duivin that is free — not the youngster that hatched above.
+  const other = s.data.pigeons.find((p: Pigeon) =>
+    p.ownerId === ME && p.sex === 'duivin' && p.id !== myDuivin.id && !p.id.startsWith('pig_brood_') &&
+    !breedBlock(s.data, p) && !offerBlock(s.data, p))!;
   assert(proposeStud(s.data, ME, p2doffer.id, other.id, 50) === null, 'een open voorstel');
   await s.persist();
   assert(rows('SELECT COUNT(*) FROM stud_deals') === count + 1, 'staat als rij in stud_deals');
@@ -354,6 +385,20 @@ console.log('\nOpslag');
   assert(listed >= 2, `het aanbod staat op de duif zelf (${listed} duiven)`);
   const st = (await call('/state')).json;
   assert(st.pigeons.every((p: any) => 'stud' in p), '/state kent het aanbod per duif');
+
+  console.log('\nAangeboden of voorgesteld = thuis: niet inschrijven');
+  const w2 = (await D1Store.load(d1, ME)).data;
+  const flight = w2.flights.find((f) => f.status === 'scheduled' && !f.relay && !f.titan)!;
+  let r2 = await call(`/flights/${flight.id}/enter`, 'POST', { pigeonId: other.id });
+  assert(r2.status === 400 && /voorgesteld/.test(r2.json.error ?? ''), `een voorgestelde duif kan niet ingeschreven worden ("${r2.json.error}")`);
+  const free = w2.pigeons.find((p: Pigeon) => p.ownerId === ME && !activeListing(p) && !breedBlock(w2, p) && p.id !== other.id)!;
+  r2 = await call('/breeding/stud/list', 'POST', { pigeonId: free.id, minScore: 0, minEnergy: 0, minLibido: 0, wants: 'fee' });
+  assert(r2.status === 200, 'de speler biedt zelf een duif aan');
+  r2 = await call(`/flights/${flight.id}/enter`, 'POST', { pigeonId: free.id });
+  assert(r2.status === 400 && /aangeboden/.test(r2.json.error ?? ''), `een aangeboden duif kan niet ingeschreven worden ("${r2.json.error}")`);
+  r2 = await call('/breeding/stud/unlist', 'POST', { pigeonId: free.id });
+  r2 = await call(`/flights/${flight.id}/enter`, 'POST', { pigeonId: free.id });
+  assert(!/aangeboden|voorgesteld/.test(r2.json.error ?? ''), `uit het aanbod gehaald: het kweken houdt haar niet meer tegen (${r2.status})`);
 }
 
 // ---------------------------------------------------------------------------

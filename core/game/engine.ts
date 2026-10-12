@@ -66,6 +66,7 @@ import {
 } from './pigeon.js';
 import { clamp, randFloat, randInt, round1 } from './util.js';
 import { clearOwnerCare, grounded } from './inrichting.js';
+import { studFlightBlock } from './stud.js';
 
 export const NPC_OWNER_ID = 'npc_market';
 
@@ -597,6 +598,8 @@ export function enterFlight(
     if (pigeon.form < 1) return 'Deze duif is volledig uitgeput — laat ze eerst wat rusten';
     const breeding = db.breedingPairs.some((bp) => bp.sireId === pigeonId || bp.damId === pigeonId);
     if (breeding) return 'Deze duif zit op een nest — stop eerst het broeden voordat ze weer kan vliegen';
+    // Samen kweken: a bird on offer to breed stays off the flights (stud.ts).
+    { const stud = studFlightBlock(db, pigeon); if (stud) return stud; }
     { const debt = debtBlock(loft); if (debt) return debt; }
     if (flight.entries.some((e) => e.pigeonId === pigeonId)) return 'Duif is al ingeschreven';
     // The titanenwedstrijd allows only one bird per loft.

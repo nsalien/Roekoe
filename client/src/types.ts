@@ -985,8 +985,11 @@ export interface StudListingView {
   busy: string | null;
   /** What a bot asks for the young; null for a player. */
   askFee: number | null;
-  /** MY birds that meet the criteria (other sex, old enough), with what the young would score. */
-  candidates: { id: string; youngScore: number; kin: KinshipDegree | null }[];
+  /** MY birds that may be offered (other sex, old enough, healthy, not entered, meeting the ask),
+   *  with what the young would score and be worth at birth. */
+  candidates: { id: string; youngScore: number; youngValue: number; kin: KinshipDegree | null }[];
+  /** My birds that meet the ask but are sick or entered for a flight. */
+  unfit: number;
   /** My birds of the other sex that fall short. */
   shortfall: number;
 }
@@ -1004,8 +1007,9 @@ export interface StudDealView {
   fee: number;
   myTurn: boolean;
   kin: KinshipDegree | null;
-  /** What the young are expected to score (★). */
+  /** What the young are expected to score (★), and what such a youngster is worth at birth. */
   youngScore: number;
+  youngValue: number;
   /** On my turn: why accepting would fail right now, or null. */
   blocked: string | null;
   updatedAt: string;
