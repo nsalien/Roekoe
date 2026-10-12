@@ -52,12 +52,25 @@ export interface ExpectedYoung {
   score: number;
 }
 
+/** Mean of clamp(X, lo, hi) for X uniform on [a, b] — exact, so no inner grid is needed. */
+function clampedUniformMean(a: number, b: number, lo: number, hi: number): number {
+  const w = b - a;
+  if (w <= 0) return clamp(a, lo, hi);
+  const below = Math.max(0, Math.min(b, lo) - a); // the part that lands on `lo`
+  const above = Math.max(0, b - Math.max(a, hi)); // the part that lands on `hi`
+  const from = Math.max(a, lo);
+  const to = Math.min(b, hi);
+  const middle = to > from ? (to * to - from * from) / 2 : 0;
+  return (lo * below + hi * above + middle) / w;
+}
+
 /**
  * What the young of these two are like on average — the same inheritance as
  * `breed`, averaged instead of rolled: per skill the mean of the parents ±
  * BREEDING.mutation, capped at the youngster's own gene cap (the mean of the
- * parents' caps ± GENE.mutation, lowered by inteelt). A 24×24 grid over the two
- * uniform draws, so it is exact enough and the same on every call. Only the
+ * parents' caps ± GENE.mutation, lowered by inteelt). The skill draw is averaged
+ * exactly (`clampedUniformMean`), the cap draw over 24 even steps — cheap enough
+ * for every candidate on the Kweek page, and the same on every call. Only the
  * clutch's MEAN: one youngster lands a few points either side of it.
  */
 export function expectedYoung(sire: Pigeon, dam: Pigeon, kin?: KinshipDegree | null): ExpectedYoung {
@@ -74,9 +87,9 @@ export function expectedYoung(sire: Pigeon, dam: Pigeon, kin?: KinshipDegree | n
       const raw = Math.round(clamp(capMean + GENE.mutation * step(i), GENE.floor, GENE.ceil));
       const cap = penalty ? Math.max(INBREEDING.minGeneCap, raw - penalty) : raw;
       caps += cap;
-      for (let j = 0; j < N; j++) sum += clamp(mean + BREEDING.mutation * step(j), 5, cap);
+      sum += clampedUniformMean(mean - BREEDING.mutation, mean + BREEDING.mutation, 5, cap);
     }
-    out[attr] = round1(sum / (N * N));
+    out[attr] = round1(sum / N);
     out.genes[attr] = Math.round(caps / N);
   }
   out.score = round1((out.speed + out.endurance + out.orientation) / 3);
