@@ -43,7 +43,7 @@ import { coveredInInfirmary, idleCareStaff } from './game/health.js';
 import { equipmentLevel, equipmentOf, hygieneDecay } from './game/hygiene.js';
 import { insuranceCost, insurancePremium, insuranceQuote, irBoxesInUse, magazineRanges, readsMagazine } from './game/inrichting.js';
 import { marketValue, valuePigeon } from './game/market.js';
-import { activeListing } from './game/stud.js';
+import { activeListing, wantsOf } from './game/stud.js';
 import { flightCancelled, flightCommentary, liveSnapshot, pigeonAirborne, pigeonCommittedToFlight } from './game/flight.js';
 import { relayEntryTeams, relayLegKm } from './game/relay.js';
 import { BADGES, levelForXp } from './game/badges.js';
@@ -182,7 +182,7 @@ export function pigeonDTO(db: Database, p: Pigeon, viewerId?: string, viewerIsAd
     // on the market, a rival sees it on the entry list.
     trait: traitDTO(p.trait),
     // Samen kweken: what her owner asks of a partner — public, like a price on the market.
-    stud: stud ? { minScore: stud.minScore, minEnergy: stud.minEnergy, minLibido: stud.minLibido } : null,
+    stud: stud ? { minScore: stud.minScore, minEnergy: stud.minEnergy, minLibido: stud.minLibido, wants: wantsOf(stud) } : null,
     // Rest between clutches, per bird (BREEDING.cooldownDays); null = may breed now.
     breedAvailableAt: (() => {
       if (!revealed) return null;

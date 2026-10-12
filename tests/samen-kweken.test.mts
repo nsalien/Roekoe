@@ -18,7 +18,8 @@ import { signToken } from '../core/auth.js';
 import { STUD, studFailedRefund } from '../core/config/gameConfig.js';
 import { createLoftForUser, seedWorld, stopBreeding } from '../core/game/engine.js';
 import { advanceRealtime, tickBreedingHatch } from '../core/game/schedule.js';
-import { acceptStud, activeListing, botOfferStud, breedBlock, closeStud, counterStud, proposeStud, setStudListing } from '../core/game/stud.js';
+import { acceptStud, activeListing, botOfferStud, breedBlock, closeStud, counterStud, proposeStud, setStudListing, studYoungScore } from '../core/game/stud.js';
+import { breed, expectedYoungScore } from '../core/game/breeding.js';
 import { clearOwnerCare } from '../core/game/inrichting.js';
 import { generatePigeon, talent } from '../core/game/pigeon.js';
 import { hashString, seededRng } from '../core/game/util.js';
@@ -129,22 +130,27 @@ const L = botListings.find((l: any) => !l.busy && l.candidates.length > 0);
 assert(!!L, 'minstens één botduif is vrij én binnen bereik van de speler');
 assert(L?.pigeon.revealed === true, 'een aangeboden duif is volledig te bekijken');
 let w0 = (await D1Store.load(d1, ME)).data;
-const mate = w0.pigeons.find((p) => L.candidates.includes(p.id) && !breedBlock(w0, p))!;
+const mate = w0.pigeons.find((p) => L.candidates.some((c: any) => c.id === p.id) && !breedBlock(w0, p))!;
 assert(!!mate, 'de speler heeft een vrije partner die aan de eisen voldoet');
+assert(L.wants === 'fee', 'een bot wil de vergoeding: de jongen zijn voor de speler');
+const cand = L.candidates.find((c: any) => c.id === mate.id);
+assert(Math.abs(cand.youngScore - studYoungScore(w0, w0.pigeons.find((p) => p.id === L.pigeon.id)!, mate)) < 0.01 && cand.youngScore > 0,
+  `wie een duif voorstelt, ziet vooraf de geschatte score van het jong (★${cand.youngScore})`);
 const botId = L.pigeon.ownerId as string;
 const studId = L.pigeon.id as string;
 
 // ---------------------------------------------------------------------------
 console.log('\nOnderhandelen met een bot');
 let r = await call('/breeding/stud/propose', 'POST', { studId, mateId: mate.id, youngToMe: false, fee: 0 });
-assert(r.status === 200, 'voorstel: jongen naar de bot, zonder vergoeding');
+assert(r.status === 200, 'voorstel zonder vergoeding (wie de jongen krijgt, kan je niet meer kiezen)');
 view = (await call('/breeding')).json;
 let deal = view.stud.deals[0];
 assert(view.stud.deals.length === 1 && deal.myTurn && deal.youngToMe && deal.fee === L.askFee,
-  `de bot antwoordt meteen: de jongen voor jou, voor €${L.askFee}`);
-r = await call(`/breeding/stud/${deal.id}/counter`, 'POST', { youngToMe: true, fee: deal.fee });
-assert(r.status === 400, 'een tegenvoorstel met dezelfde voorwaarden wordt geweigerd');
-r = await call(`/breeding/stud/${deal.id}/counter`, 'POST', { youngToMe: true, fee: Math.max(0, deal.fee - 50) });
+  `de bot antwoordt meteen met zijn prijs: de jongen voor jou, voor €${L.askFee}`);
+assert(deal.youngScore === cand.youngScore, 'de onderhandeling toont dezelfde geschatte score');
+r = await call(`/breeding/stud/${deal.id}/counter`, 'POST', { fee: deal.fee });
+assert(r.status === 400, 'een tegenvoorstel met hetzelfde bedrag wordt geweigerd');
+r = await call(`/breeding/stud/${deal.id}/counter`, 'POST', { fee: Math.max(0, deal.fee - 50) });
 view = (await call('/breeding')).json;
 deal = view.stud.deals[0];
 assert(r.status === 200 && deal.myTurn && deal.fee === L.askFee, 'afdingen: de bot blijft bij zijn prijs');
@@ -222,28 +228,34 @@ assert(!!p2doffer && !!myDuivin, 'twee spelers met een vrije doffer en duivin');
 {
   const s = await D1Store.load(d1, P2, { studDeals: true });
   const x = s.data;
-  assert(setStudListing(x, P2, p2doffer.id, { minScore: 101, minEnergy: 0, minLibido: 0 }) !== null, 'een eis boven 100 kan niet');
-  assert(setStudListing(x, P2, p2doffer.id, { minScore: Math.floor(talent(myDuivin)) + 1, minEnergy: 0, minLibido: 0 }) === null, 'de tweede speler biedt zijn doffer aan');
+  assert(/jongen wil of de vergoeding/.test(setStudListing(x, P2, p2doffer.id, { minScore: 0, minEnergy: 0, minLibido: 0 } as any) ?? ''),
+    'aanbieden zonder te kiezen tussen de jongen en de vergoeding kan niet');
+  assert(setStudListing(x, P2, p2doffer.id, { minScore: 101, minEnergy: 0, minLibido: 0, wants: 'young' }) !== null, 'een eis boven 100 kan niet');
+  assert(setStudListing(x, P2, p2doffer.id, { minScore: Math.floor(talent(myDuivin)) + 1, minEnergy: 0, minLibido: 0, wants: 'young' }) === null,
+    'de tweede speler biedt zijn doffer aan en wil zelf de jongen');
   const mineDuivin = x.pigeons.find((p) => p.id === myDuivin.id)!;
-  assert(/score/.test(proposeStud(x, ME, p2doffer.id, myDuivin.id, true, 300) ?? ''), 'een duif die de score niet haalt, mag niet voorgesteld worden');
-  setStudListing(x, P2, p2doffer.id, { minScore: Math.floor(talent(mineDuivin)), minEnergy: 20, minLibido: 0 });
-  assert(/eigen/.test(proposeStud(x, P2, p2doffer.id, p2doffer.id, true, 0) ?? ''), 'je eigen duif kan je niet beantwoorden');
-  assert(/kies een duivin/.test(proposeStud(x, ME, p2doffer.id, myDoffer.id, true, 0) ?? ''), 'twee doffers kan niet');
-  assert(proposeStud(x, ME, p2doffer.id, myDuivin.id, true, 300) === null, 'voorstel: jongen naar mij, ik betaal €300');
+  assert(/score/.test(proposeStud(x, ME, p2doffer.id, myDuivin.id, 300) ?? ''), 'een duif die de score niet haalt, mag niet voorgesteld worden');
+  setStudListing(x, P2, p2doffer.id, { minScore: Math.floor(talent(mineDuivin)), minEnergy: 20, minLibido: 0, wants: 'young' });
+  assert(/eigen/.test(proposeStud(x, P2, p2doffer.id, p2doffer.id, 0) ?? ''), 'je eigen duif kan je niet beantwoorden');
+  assert(/kies een duivin/.test(proposeStud(x, ME, p2doffer.id, myDoffer.id, 0) ?? ''), 'twee doffers kan niet');
+  assert(proposeStud(x, ME, p2doffer.id, myDuivin.id, 500) === null, 'voorstel: hij betaalt mij €500');
   const d = x.studDeals!.find((dd) => dd.studId === p2doffer.id)!;
+  assert(d.youngTo === P2, 'de jongen gaan naar wie ze bij het aanbieden koos');
   assert(d.turn === P2, 'de eigenaar van de aangeboden duif is aan de beurt');
-  assert(x.notifications.some((n) => n.userId === P2 && /Kweekvoorstel/.test(n.title)), 'hij krijgt er een bel van');
+  const est = Math.round(studYoungScore(x, x.pigeons.find((p) => p.id === p2doffer.id)!, mineDuivin));
+  assert(x.notifications.some((n) => n.userId === P2 && /Kweekvoorstel/.test(n.title) && n.body.includes(`naar schatting ★${est}`)),
+    `hij krijgt er een bel van, met de geschatte score van het jong (★${est})`);
   assert(/wacht/.test(acceptStud(x, ME, d.id) ?? ''), 'je eigen voorstel aanvaarden kan niet: je wacht op de ander');
-  assert(counterStud(x, P2, d.id, true, 500) === null, 'tegenvoorstel: jongen naar hem, hij betaalt €500');
-  assert(d.turn === ME && d.youngTo === P2 && d.fee === 500, 'nu is de demospeler aan de beurt');
-  assert(/wacht/.test(counterStud(x, P2, d.id, true, 0) ?? ''), 'twee keer na elkaar bieden kan niet');
+  assert(counterStud(x, P2, d.id, 300) === null, 'tegenvoorstel: €300');
+  assert(d.turn === ME && d.youngTo === P2 && d.fee === 300, 'nu is de demospeler aan de beurt; enkel het bedrag veranderde');
+  assert(/wacht/.test(counterStud(x, P2, d.id, 250) ?? ''), 'twee keer na elkaar bieden kan niet');
   await s.persist();
 }
 {
   // The next request loads the deal back from the table.
   const s = await D1Store.load(d1, ME, { studDeals: true });
   const x = s.data;
-  assert(x.studDeals?.length === 1 && x.studDeals[0].fee === 500, 'de onderhandeling staat in de databank');
+  assert(x.studDeals?.length === 1 && x.studDeals[0].fee === 300, 'de onderhandeling staat in de databank');
   const p2Money = money(x, P2);
   const myMoney = money(x, ME);
   assert(acceptStud(x, ME, x.studDeals[0].id) === null, 'de demospeler gaat akkoord');
@@ -257,7 +269,7 @@ assert(!!p2doffer && !!myDuivin, 'twee spelers met een vrije doffer en duivin');
   hatchOnly(x, PAIR_EMPTY, Date.now());
   assert(!x.pigeons.some((p) => p.id.startsWith(`pig_brood_${PAIR_EMPTY}`)), 'geen jongen');
   assert(money(x, P2) === p2Money - STUD.cost + studFailedRefund() && money(x, ME) === myMoney - STUD.cost + studFailedRefund(),
-    `elk krijgt €${studFailedRefund()} terug, en de €500 vergoeding blijft liggen`);
+    `elk krijgt €${studFailedRefund()} terug, en de €300 vergoeding blijft liggen`);
   assert(x.notifications.some((n) => n.userId === ME && n.id === `ntf:brood:${PAIR_EMPTY}:partner`), 'de partner krijgt een eigen bel, met een vast id');
   assert(!x.pigeons.find((p) => p.id === myDuivin.id)?.lastBredAt, 'een lege worp legt geen rust op');
   await s.persist();
@@ -269,7 +281,7 @@ console.log('\nStoppen, intrekken en vervallen');
   const s = await D1Store.load(d1, ME, { studDeals: true });
   const x = s.data;
   // A fresh deal, accepted by the owner of the doffer this time.
-  assert(proposeStud(x, ME, p2doffer.id, myDuivin.id, false, 0) === null, 'nieuw voorstel');
+  assert(proposeStud(x, ME, p2doffer.id, myDuivin.id, 0) === null, 'nieuw voorstel');
   const d = x.studDeals![0];
   assert(acceptStud(x, P2, d.id) === null, 'akkoord');
   const bp = x.breedingPairs.find((b) => b.deal && b.ownerId === P2)!;
@@ -280,20 +292,28 @@ console.log('\nStoppen, intrekken en vervallen');
   assert(x.notifications.some((n) => n.userId === P2 && /gestopt/.test(n.title)), 'de andere speler hoort het');
 
   // Withdrawing / declining.
-  assert(proposeStud(x, ME, p2doffer.id, myDuivin.id, true, 100) === null, 'weer een voorstel');
+  assert(proposeStud(x, ME, p2doffer.id, myDuivin.id, 100) === null, 'weer een voorstel');
   assert(closeStud(x, P2, x.studDeals![0].id) === null && x.studDeals!.length === 0, 'geweigerd: weg');
+  // Changing your mind about the young ends what was being negotiated about them.
+  assert(proposeStud(x, ME, p2doffer.id, myDuivin.id, 100) === null, 'nog een voorstel');
+  const notes0 = x.notifications.filter((n) => n.userId === ME && /vervallen/.test(n.title)).length;
+  assert(setStudListing(x, P2, p2doffer.id, { minScore: 0, minEnergy: 0, minLibido: 0, wants: 'young' }) === null && x.studDeals!.length === 1,
+    'enkel de eisen aanpassen laat het voorstel staan');
+  assert(setStudListing(x, P2, p2doffer.id, { minScore: 0, minEnergy: 0, minLibido: 0, wants: 'fee' }) === null && x.studDeals!.length === 0,
+    'nu toch de vergoeding willen: het voorstel vervalt');
+  assert(x.notifications.filter((n) => n.userId === ME && /vervallen/.test(n.title)).length === notes0 + 1, '…en de voorsteller hoort het');
+  assert(proposeStud(x, ME, p2doffer.id, myDuivin.id, 100) === null && x.studDeals![0].youngTo === ME, 'een nieuw voorstel: nu gaan de jongen naar mij');
   // Unlisting ends what is still open, and tells the proposer.
-  assert(proposeStud(x, ME, p2doffer.id, myDuivin.id, true, 100) === null, 'en nog eens');
   assert(setStudListing(x, P2, p2doffer.id, null) === null && x.studDeals!.length === 0, 'niet meer aangeboden: de voorstellen vervallen');
   assert(x.notifications.some((n) => n.userId === ME && /vervallen/.test(n.title)), 'de voorsteller krijgt een bel');
   // A sale voids the listing: the new owner did not put her up.
-  setStudListing(x, P2, p2doffer.id, { minScore: 0, minEnergy: 0, minLibido: 0 });
-  assert(proposeStud(x, ME, p2doffer.id, myDuivin.id, true, 100) === null, 'voorstel op de weer aangeboden doffer');
+  setStudListing(x, P2, p2doffer.id, { minScore: 0, minEnergy: 0, minLibido: 0, wants: 'fee' });
+  assert(proposeStud(x, ME, p2doffer.id, myDuivin.id, 100) === null, 'voorstel op de weer aangeboden doffer');
   const doffer = x.pigeons.find((p) => p.id === p2doffer.id)!;
   clearOwnerCare(doffer);
   doffer.ownerId = 'usr_iemand_anders';
   assert(!activeListing(doffer), 'verkocht: niet meer aangeboden');
-  assert(/niet \(meer\)/.test(proposeStud(x, ME, p2doffer.id, myDuivin.id, true, 0) ?? '') && x.studDeals!.length === 0,
+  assert(/niet \(meer\)/.test(proposeStud(x, ME, p2doffer.id, myDuivin.id, 0) ?? '') && x.studDeals!.length === 0,
     'en het lopende voorstel valt weg');
   doffer.ownerId = P2;
   await s.persist();
@@ -304,8 +324,8 @@ console.log('\nInfrarood telt niet');
 {
   const s = await D1Store.load(d1, ME, { studDeals: true });
   const x = s.data;
-  setStudListing(x, P2, p2doffer.id, { minScore: 0, minEnergy: 0, minLibido: 0 });
-  proposeStud(x, ME, p2doffer.id, myDuivin.id, true, 0);
+  setStudListing(x, P2, p2doffer.id, { minScore: 0, minEnergy: 0, minLibido: 0, wants: 'fee' });
+  proposeStud(x, ME, p2doffer.id, myDuivin.id, 0);
   acceptStud(x, P2, x.studDeals![0].id);
   const loft = x.lofts.find((l) => l.userId === ME)!;
   loft.equipment = { ...(loft.equipment ?? { hygiene: 50, lastStrawAt: null, cleaner: false }), irBoxes: 2 };
@@ -320,9 +340,9 @@ console.log('\nOpslag');
 {
   const count = rows('SELECT COUNT(*) FROM stud_deals');
   const s = await D1Store.load(d1, P2, { studDeals: true });
-  setStudListing(s.data, P2, p2doffer.id, { minScore: 0, minEnergy: 0, minLibido: 0 });
+  setStudListing(s.data, P2, p2doffer.id, { minScore: 0, minEnergy: 0, minLibido: 0, wants: 'fee' });
   const other = s.data.pigeons.find((p: Pigeon) => p.ownerId === ME && p.sex === 'duivin' && p.id !== myDuivin.id)!;
-  assert(proposeStud(s.data, ME, p2doffer.id, other.id, true, 50) === null, 'een open voorstel');
+  assert(proposeStud(s.data, ME, p2doffer.id, other.id, 50) === null, 'een open voorstel');
   await s.persist();
   assert(rows('SELECT COUNT(*) FROM stud_deals') === count + 1, 'staat als rij in stud_deals');
   const plain = await D1Store.load(d1, P2);
@@ -334,4 +354,34 @@ console.log('\nOpslag');
   assert(listed >= 2, `het aanbod staat op de duif zelf (${listed} duiven)`);
   const st = (await call('/state')).json;
   assert(st.pigeons.every((p: any) => 'stud' in p), '/state kent het aanbod per duif');
+}
+
+// ---------------------------------------------------------------------------
+console.log('\nDe geschatte score klopt met wat er echt uitkomt');
+{
+  /** The mean ★ of many real clutches (breed, unseeded) against the estimate. */
+  function measured(sire: Pigeon, dam: Pigeon, kin: any = null, n = 4000): number {
+    let sum = 0, count = 0;
+    while (count < n) {
+      for (const y of breed(sire, dam, 'x', 100, undefined, undefined, kin)) { sum += talent(y); count++; }
+    }
+    return sum / count;
+  }
+  const make = (sex: 'doffer' | 'duivin', skill: number, gene: number): Pigeon => {
+    const p = generatePigeon({ ownerId: 'x', currentWeek: 100, quality: 0.5, sex });
+    p.speed = skill; p.endurance = skill - 4; p.orientation = skill + 3;
+    p.genes = { speed: gene, endurance: gene + 2, orientation: gene - 2 };
+    p.libido = 90; p.form = 90;
+    return p;
+  };
+  const cases: [string, Pigeon, Pigeon, any][] = [
+    ['gewoon koppel (★60 × ★66)', make('doffer', 60, 88), make('duivin', 66, 84), null],
+    ['vlak onder de plafonds (★83 × ★86)', make('doffer', 83, 85), make('duivin', 86, 87), null],
+    ['volle broer en zus (plafonds −18)', make('doffer', 80, 84), make('duivin', 78, 82), 'volle'],
+  ];
+  for (const [label, sire, dam, kin] of cases) {
+    const est = expectedYoungScore(sire, dam, kin);
+    const got = measured(sire, dam, kin);
+    assert(Math.abs(est - got) < 0.6, `${label}: geschat ★${est.toFixed(1)}, gemeten ★${got.toFixed(1)}`);
+  }
 }

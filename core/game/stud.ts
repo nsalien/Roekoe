@@ -1,13 +1,15 @@
 /**
  * Samen kweken — De Stem: "Broeden met de duif van een andere speler".
  *
- * One player puts a bird up ("beschikbaar om mee te kweken") and says what a
- * partner must at least have: an algemene score (★), energie and libido. Another
- * player offers one of their own birds that meets it, and the two negotiate WHO
- * KEEPS THE YOUNG (a twin included — both go to the same loft) and what that
- * player pays the other. Each side may accept the terms the other side set last,
- * or answer with their own. The moment one of them accepts, the two birds go on
- * the nest and EACH player pays STUD.cost.
+ * One player puts a bird up ("beschikbaar om mee te kweken"), says what a
+ * partner must at least have — an algemene score (★), energie and libido — and
+ * decides right there whether they want THE YOUNG (a twin included, both go to
+ * the same loft) or THE FEE. Another player offers one of their own birds that
+ * meets it, and both see what the young are expected to score; then they
+ * negotiate only the amount the one who keeps the young pays the other. Each
+ * side may accept the amount the other side set last, or answer with their own.
+ * The moment one of them accepts, the two birds go on the nest and EACH player
+ * pays STUD.cost.
  *
  * What is different from an own nest, and why:
  *  - The pair belongs to whoever keeps the young (`BreedingPair.ownerId`); the
@@ -28,9 +30,11 @@
  */
 
 import { BREEDING, STUD } from '../config/gameConfig.js';
-import type { Database, Loft, Pigeon, StudDeal, StudListing } from '../schema.js';
+import type { Database, Loft, Pigeon, StudDeal, StudListing, StudWants } from '../schema.js';
 import { newId } from '../store.js';
 import { evaluateBadges } from './badges.js';
+import { expectedYoungScore } from './breeding.js';
+import { kinship } from './pedigree.js';
 import { debtBlock } from './economy.js';
 import { pigeonCommittedToFlight } from './flight.js';
 import { marketValue } from './market.js';
@@ -41,6 +45,30 @@ import { clamp, round1 } from './util.js';
 /** Her offer to breed, if it still stands (a listing by a previous owner is void). */
 export function activeListing(p: Pigeon | undefined | null): StudListing | null {
   return p?.stud && p.stud.by === p.ownerId ? p.stud : null;
+}
+
+/** What the owner of a listed bird wants: the young or the fee (older listings: the fee). */
+export function wantsOf(listing: StudListing): StudWants {
+  return listing.wants ?? 'fee';
+}
+
+/** Who keeps the young under this listing: its owner when they want the young, else the partner. */
+function keeperFor(listing: StudListing, studOwnerId: string, mateOwnerId: string): string {
+  return wantsOf(listing) === 'young' ? studOwnerId : mateOwnerId;
+}
+
+/** The two as a pair: [doffer, duivin]. */
+function sireAndDam(a: Pigeon, b: Pigeon): [Pigeon, Pigeon] {
+  return a.sex === 'doffer' ? [a, b] : [b, a];
+}
+
+/**
+ * What the young of these two are expected to score (★), inteelt included — what
+ * both players see before they agree (breeding.expectedYoungScore).
+ */
+export function studYoungScore(db: Database, a: Pigeon, b: Pigeon): number {
+  const [sire, dam] = sireAndDam(a, b);
+  return expectedYoungScore(sire, dam, kinship(db, sire, dam));
 }
 
 function onNest(db: Database, pigeonId: string): boolean {
@@ -114,18 +142,20 @@ function termsLine(db: Database, deal: StudDeal, viewer: string): string {
 }
 
 /**
- * Drop every negotiation that no longer holds: a bird gone or sold, or the
- * listed bird no longer on offer. Silent — the bird is simply not there any more.
+ * Drop every negotiation that no longer holds: a bird gone or sold, the listed
+ * bird no longer on offer, or its owner now wanting the other side of the deal.
+ * Silent — what it was about is simply not there any more.
  */
 export function pruneStudDeals(db: Database): void {
   if (!db.studDeals) return;
   db.studDeals = db.studDeals.filter((d) => {
     const stud = db.pigeons.find((p) => p.id === d.studId);
     const mate = db.pigeons.find((p) => p.id === d.mateId);
+    const listing = activeListing(stud);
     return (
-      !!stud && !!mate &&
+      !!stud && !!mate && !!listing &&
       stud.ownerId === d.studOwnerId && mate.ownerId === d.mateOwnerId &&
-      !!activeListing(stud)
+      d.youngTo === keeperFor(listing, d.studOwnerId, d.mateOwnerId)
     );
   });
 }
@@ -152,18 +182,23 @@ export interface StudCriteria {
   minScore: number;
   minEnergy: number;
   minLibido: number;
+  /** Decided up front: the young or the fee. */
+  wants: StudWants;
 }
 
 function cleanCriteria(c: StudCriteria): StudCriteria | string {
   const vals = [c.minScore, c.minEnergy, c.minLibido].map((v) => Math.round(Number(v)));
   if (vals.some((v) => !Number.isFinite(v) || v < 0 || v > 100)) return 'Elke minimumwaarde ligt tussen 0 en 100';
-  return { minScore: vals[0], minEnergy: vals[1], minLibido: vals[2] };
+  if (c.wants !== 'young' && c.wants !== 'fee') return 'Kies of je de jongen wil of de vergoeding';
+  return { minScore: vals[0], minEnergy: vals[1], minLibido: vals[2], wants: c.wants };
 }
 
 /**
- * Put one of your birds up for samen kweken (or change what you ask of a
- * partner). Free, and she keeps flying: only an agreement puts her on a nest.
- * `criteria = null` takes her off again — the open negotiations about her end.
+ * Put one of your birds up for samen kweken (or change what you ask). Free, and
+ * she keeps flying: only an agreement puts her on a nest. The owner decides here
+ * whether they want the young or the fee; changing that ends the negotiations
+ * about her, since they were about the other side. `criteria = null` takes her
+ * off again — the open negotiations about her end too.
  */
 export function setStudListing(
   db: Database,
@@ -184,7 +219,11 @@ export function setStudListing(
   if (weeks < BREEDING.minAgeWeeks) return `${p.name} is nog te jong om te kweken (${weeks} van de ${BREEDING.minAgeWeeks} weken)`;
   const c = cleanCriteria(criteria);
   if (typeof c === 'string') return c;
-  p.stud = { by: userId, ...c, at: activeListing(p)?.at ?? new Date(nowMs).toISOString() };
+  const before = activeListing(p);
+  p.stud = { by: userId, ...c, at: before?.at ?? new Date(nowMs).toISOString() };
+  if (before && wantsOf(before) !== c.wants && db.studDeals) {
+    dropDealsWith(db, [p.id], `${nameOf(db, userId)} wil voor ${p.name} nu ${c.wants === 'young' ? 'zelf de jongen' : 'de vergoeding'}`);
+  }
   return null;
 }
 
@@ -198,15 +237,15 @@ function cleanFee(fee: number): number | string {
 }
 
 /**
- * Offer one of your birds to a bird that was put up, with your terms: who keeps
- * the young and what they pay the other. The owner of the listed bird answers.
+ * Offer one of your birds to a bird that was put up, with the amount you propose.
+ * Who keeps the young is not up for discussion: the owner of the listed bird
+ * decided that when they put her up. They answer.
  */
 export function proposeStud(
   db: Database,
   userId: string,
   studId: string,
   mateId: string,
-  youngToMe: boolean,
   fee: number,
   nowMs: number = Date.now(),
 ): string | null {
@@ -238,7 +277,7 @@ export function proposeStud(
     id: newId('stud'),
     studId, studOwnerId: stud.ownerId,
     mateId, mateOwnerId: userId,
-    youngTo: youngToMe ? userId : stud.ownerId,
+    youngTo: keeperFor(listing, stud.ownerId, userId),
     fee: f,
     turn: stud.ownerId,
     createdAt: now,
@@ -247,19 +286,19 @@ export function proposeStud(
   deals.push(deal);
   notify(
     db, stud.ownerId, `🤝 Kweekvoorstel voor ${stud.name}`,
-    `${loft.name} stelt ${mate.name} (★${Math.round(talent(mate))}) voor als partner van ${stud.name}: ` +
+    `${loft.name} stelt ${mate.name} (★${Math.round(talent(mate))}) voor als partner van ${stud.name} — ` +
+      `het jong scoort naar schatting ★${Math.round(studYoungScore(db, stud, mate))}: ` +
       `${termsLine(db, deal, stud.ownerId)}. Antwoord bij Kweek → Samen kweken.`,
   );
   if (loftOf(db, stud.ownerId)?.isBot) botAnswer(db, deal, nowMs);
   return null;
 }
 
-/** Answer with your own terms. Only when it is your turn: the other side set the current ones. */
+/** Answer with your own amount. Only when it is your turn: the other side set the current one. */
 export function counterStud(
   db: Database,
   userId: string,
   dealId: string,
-  youngToMe: boolean,
   fee: number,
   nowMs: number = Date.now(),
 ): string | null {
@@ -270,9 +309,7 @@ export function counterStud(
   if (deal.turn !== userId) return `Je wacht nog op het antwoord van ${nameOf(db, other)}`;
   const f = cleanFee(fee);
   if (typeof f === 'string') return f;
-  const youngTo = youngToMe ? userId : other;
-  if (youngTo === deal.youngTo && f === deal.fee) return 'Dat zijn dezelfde voorwaarden — aanvaard ze dan gewoon';
-  deal.youngTo = youngTo;
+  if (f === deal.fee) return 'Dat is hetzelfde bedrag — aanvaard het dan gewoon';
   deal.fee = f;
   deal.turn = other;
   deal.updatedAt = new Date(nowMs).toISOString();
@@ -347,8 +384,7 @@ export function acceptStud(db: Database, userId: string, dealId: string, nowMs: 
 
   for (const l of [keeper, partner]) l.money -= STUD.cost;
   for (const bird of [stud, mate]) bird.form = round1(clamp(bird.form - 15, 0, 100));
-  const sire = stud.sex === 'doffer' ? stud : mate;
-  const dam = stud.sex === 'doffer' ? mate : stud;
+  const [sire, dam] = sireAndDam(stud, mate);
   db.breedingPairs.push({
     id: newId('brd'),
     ownerId: keeper.userId,
@@ -383,10 +419,10 @@ export function botStudFee(db: Database, p: Pigeon): number {
 }
 
 /**
- * A bot answers on the spot. It never wants the young — it wants the fee: terms
- * that give the young to the player for at least its asking fee are accepted
- * (or, if its bird cannot go on a nest right now, handed back so the player can
- * start once she can); anything else gets that offer as its answer.
+ * A bot answers on the spot. Its bird is put up for the fee (the player keeps the
+ * young): an amount of at least its asking fee is accepted (or, if its bird cannot
+ * go on a nest right now, handed back so the player can start once she can); a
+ * lower one gets its asking fee as the answer.
  */
 function botAnswer(db: Database, deal: StudDeal, nowMs: number): void {
   const bot = deal.turn;
@@ -400,15 +436,16 @@ function botAnswer(db: Database, deal: StudDeal, nowMs: number): void {
     deal.updatedAt = new Date(nowMs).toISOString();
     return;
   }
-  deal.youngTo = human;
-  deal.fee = ask;
+  // A bot never wants to pay for young; it only lists for the fee, so this is the
+  // only other answer it has.
+  if (deal.youngTo === human) deal.fee = ask;
   deal.turn = human;
   deal.updatedAt = new Date(nowMs).toISOString();
 }
 
 /**
- * A bot keeps one bird up for samen kweken: its best-gened adult of at least
- * STUD.botMinScore, asking a partner up to STUD.botScoreMargin below her. It
+ * A bot keeps one bird up for samen kweken, for the fee: its best-gened adult of
+ * at least STUD.botMinScore, asking a partner up to STUD.botScoreMargin below her. It
  * keeps her home from the flights and from its own nests (bots.ts), so a player
  * who comes to an agreement finds her free. Runs on the daily tick; writes only
  * when the listing changes.
@@ -426,6 +463,7 @@ export function botOfferStud(db: Database, loft: Loft, pigeons: Pigeon[], nowMs:
     minScore: Math.max(0, Math.floor((talent(pick) - STUD.botScoreMargin) / 5) * 5),
     minEnergy: STUD.botMinEnergy,
     minLibido: STUD.botMinLibido,
+    wants: 'fee', // a bot wants the money; the player keeps the young
     at: new Date(nowMs).toISOString(),
   };
 }

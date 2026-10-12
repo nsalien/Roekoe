@@ -43,6 +43,34 @@ function inheritGeneCap(a: number, b: number): number {
   return Math.round(clamp(avg + randFloat(-GENE.mutation, GENE.mutation), GENE.floor, GENE.ceil));
 }
 
+/**
+ * What the young of these two score on average (algemene score, ★) — the same
+ * inheritance as `breed`, averaged instead of rolled: per skill the mean of the
+ * parents ± BREEDING.mutation, capped at the youngster's own gene cap (the mean
+ * of the parents' caps ± GENE.mutation, lowered by inteelt). A 24×24 grid over
+ * the two uniform draws, so it is exact enough and the same on every call.
+ * Only an estimate of the clutch's MEAN: one youngster lands a few points either
+ * side of it.
+ */
+export function expectedYoungScore(sire: Pigeon, dam: Pigeon, kin?: KinshipDegree | null): number {
+  const N = 24;
+  const step = (i: number) => (2 * (i + 0.5)) / N - 1; // -1..1, evenly spread
+  const penalty = kin ? INBREEDING.geneCapPenalty[kin] : 0;
+  let total = 0;
+  for (const attr of ['speed', 'endurance', 'orientation'] as const) {
+    const mean = (sire[attr] + dam[attr]) / 2;
+    const capMean = (geneCap(sire, attr) + geneCap(dam, attr)) / 2;
+    let sum = 0;
+    for (let i = 0; i < N; i++) {
+      const raw = Math.round(clamp(capMean + GENE.mutation * step(i), GENE.floor, GENE.ceil));
+      const cap = penalty ? Math.max(INBREEDING.minGeneCap, raw - penalty) : raw;
+      for (let j = 0; j < N; j++) sum += clamp(mean + BREEDING.mutation * step(j), 5, cap);
+    }
+    total += sum / (N * N);
+  }
+  return round1(total / 3);
+}
+
 export function canBreed(sire: Pigeon, dam: Pigeon, currentWeek: number): string | null {
   if (sire.sex !== 'doffer') return 'De eerste ouder moet een doffer zijn';
   if (dam.sex !== 'duivin') return 'De tweede ouder moet een duivin zijn';

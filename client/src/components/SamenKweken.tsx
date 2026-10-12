@@ -12,7 +12,7 @@ import { api } from '../api/client';
 import { Money, useToast } from './ui';
 import { PigeonAvatar } from './PigeonAvatar';
 import { PigeonCard } from './PigeonCard';
-import type { KinshipDegree, Pigeon, StudCriteria, StudDealView, StudListingView, StudView } from '../types';
+import type { KinshipDegree, Pigeon, StudCriteria, StudDealView, StudListingView, StudView, StudWants } from '../types';
 
 /** POST an action; resolves to whether it worked (a failure is already shown as a toast). */
 type Run = (path: string, body: unknown, ok: string) => Promise<boolean>;
@@ -45,9 +45,29 @@ function TermsLine({ youngToMe, fee, other }: { youngToMe: boolean; fee: number;
   );
 }
 
-/** Who keeps the young + the fee: the two things the players negotiate. */
-function TermsForm({
+/** "🐣 Het jong scoort naar schatting ★62" — what both players see before they agree. */
+function YoungScore({ score, kin }: { score: number; kin: KinshipDegree | null }) {
+  return (
+    <>
+      <p style={{ margin: '0 0 6px' }}>
+        🐣 Het jong scoort naar schatting <strong>★{Math.round(score)}</strong>
+      </p>
+      {kin && (
+        <p className="muted" style={{ margin: '0 0 6px', fontSize: '0.85rem' }}>
+          ⚠️ Deze twee zijn {KIN_LABEL[kin]} — het jong krijgt lagere plafonds en wellicht een afwijking.
+        </p>
+      )}
+    </>
+  );
+}
+
+/**
+ * The amount: the only thing the players negotiate. Who keeps the young was
+ * decided by the owner of the listed bird when they put her up.
+ */
+function FeeForm({
   other,
+  youngToMe,
   initial,
   submitLabel,
   busy,
@@ -55,38 +75,33 @@ function TermsForm({
   onCancel,
 }: {
   other: string;
-  initial: { youngToMe: boolean; fee: number };
+  youngToMe: boolean;
+  initial: number;
   submitLabel: string;
   busy: boolean;
-  onSubmit: (youngToMe: boolean, fee: number) => void;
+  onSubmit: (fee: number) => void;
   onCancel?: () => void;
 }) {
-  const [youngToMe, setYoungToMe] = useState(initial.youngToMe);
-  const [fee, setFee] = useState(String(initial.fee));
+  const [fee, setFee] = useState(String(initial));
   const feeNum = Math.max(0, Math.round(Number(fee) || 0));
   return (
     <div className="stack" style={{ gap: 8 }}>
-      <div className="field" style={{ margin: 0 }}>
-        <label>De jongen gaan naar</label>
-        <div className="chip-row" role="radiogroup" aria-label="Wie krijgt de jongen?">
-          <button type="button" className={`chip ${youngToMe ? 'active' : ''}`} onClick={() => setYoungToMe(true)}>
-            mij
-          </button>
-          <button type="button" className={`chip ${!youngToMe ? 'active' : ''}`} onClick={() => setYoungToMe(false)}>
-            {other}
-          </button>
-        </div>
-      </div>
       <div className="field" style={{ margin: 0 }}>
         <label>{youngToMe ? `Ik betaal ${other}` : `${other} betaalt mij`} (€, bij de geboorte)</label>
         <input type="number" min={0} step={50} inputMode="numeric" value={fee} onChange={(e) => setFee(e.target.value)} />
       </div>
       <div className="row" style={{ gap: 8 }}>
-        <button className="btn" disabled={busy} onClick={() => onSubmit(youngToMe, feeNum)}>{submitLabel}</button>
+        <button className="btn" disabled={busy} onClick={() => onSubmit(feeNum)}>{submitLabel}</button>
         {onCancel && <button className="btn ghost" disabled={busy} onClick={onCancel}>Annuleren</button>}
       </div>
     </div>
   );
+}
+
+/** What the owner of a listed bird wants, from the point of view of someone looking at it. */
+function wantsLine(wants: StudWants, mine: boolean): string {
+  if (mine) return wants === 'young' ? 'Jij houdt de jongen en betaalt de vergoeding' : 'Jij krijgt de vergoeding, de jongen gaan naar je partner';
+  return wants === 'young' ? 'Wil zelf de jongen — jij krijgt de vergoeding' : 'Wil de vergoeding — de jongen zijn voor jou';
 }
 
 function DealCard({
@@ -121,20 +136,17 @@ function DealCard({
       <p style={{ margin: '8px 0 6px' }}>
         <TermsLine youngToMe={deal.youngToMe} fee={deal.fee} other={deal.otherName} />
       </p>
-      {deal.kin && (
-        <p className="muted" style={{ margin: '0 0 6px', fontSize: '0.85rem' }}>
-          ⚠️ Deze twee zijn {KIN_LABEL[deal.kin]} — het jong krijgt lagere plafonds en wellicht een afwijking.
-        </p>
-      )}
+      <YoungScore score={deal.youngScore} kin={deal.kin} />
       {deal.myTurn ? (
         countering ? (
-          <TermsForm
+          <FeeForm
             other={deal.otherName}
-            initial={{ youngToMe: deal.youngToMe, fee: deal.fee }}
+            youngToMe={deal.youngToMe}
+            initial={deal.fee}
             submitLabel="Tegenvoorstel sturen"
             busy={busy}
-            onSubmit={(youngToMe, fee) =>
-              run(`/breeding/stud/${deal.id}/counter`, { youngToMe, fee }, 'Tegenvoorstel verstuurd.').then((ok) => ok && setCountering(false))
+            onSubmit={(fee) =>
+              run(`/breeding/stud/${deal.id}/counter`, { fee }, 'Tegenvoorstel verstuurd.').then((ok) => ok && setCountering(false))
             }
             onCancel={() => setCountering(false)}
           />
@@ -189,15 +201,20 @@ function ListingCard({
     m.breeding ? ' · 🥚 op een nest'
       : m.breedAvailableAt && Date.parse(m.breedAvailableAt) > Date.now() ? ' · 🪺 rust nog'
       : m.racing ? ' · 🏁 ingeschreven' : '';
+  const estimate = new Map(listing.candidates.map((c) => [c.id, c]));
   const candidates = myPigeons
-    .filter((m) => listing.candidates.includes(m.id))
-    .sort((a, b) => Number(!!tied(a)) - Number(!!tied(b)) || b.talent - a.talent);
+    .filter((m) => estimate.has(m.id))
+    .sort((a, b) => Number(!!tied(a)) - Number(!!tied(b)) || estimate.get(b.id)!.youngScore - estimate.get(a.id)!.youngScore);
   const [mateId, setMateId] = useState(candidates[0]?.id ?? '');
+  const chosen = estimate.get(mateId);
+  // The owner decided up front: if they want the fee, the young are mine.
+  const youngToMe = listing.wants === 'fee';
   return (
     <PigeonCard pigeon={p} showOwner showBreed showcase avatarSize={104}>
       <div className="badge" style={{ background: 'var(--brand-soft)', color: 'var(--brand-ink)', marginBottom: 6 }}>
         🤝 {listing.mine ? 'Jouw duif · ' : ''}zoekt {criteriaLine(listing.criteria)}
       </div>
+      <div style={{ marginBottom: 6, fontSize: '0.9rem' }}>{wantsLine(listing.wants, listing.mine)}</div>
       {listing.busy && <div className="faint" style={{ marginBottom: 6, fontSize: '0.85rem' }}>Nu niet vrij: {listing.busy}.</div>}
       {listing.mine ? (
         <div className="row" style={{ gap: 8 }}>
@@ -216,22 +233,26 @@ function ListingCard({
             <label>Jouw {p.sex === 'doffer' ? 'duivin' : 'doffer'}</label>
             <select value={mateId} onChange={(e) => setMateId(e.target.value)}>
               {candidates.map((m) => (
-                <option key={m.id} value={m.id}>{m.name} (★{m.talent} · ❤{Math.round(m.libido ?? 0)} · ⚡{Math.round(m.form ?? 0)}){tied(m)}</option>
+                <option key={m.id} value={m.id}>
+                  {m.name} (★{m.talent} · ❤{Math.round(m.libido ?? 0)} · ⚡{Math.round(m.form ?? 0)}) → jong ★{Math.round(estimate.get(m.id)!.youngScore)}{tied(m)}
+                </option>
               ))}
             </select>
           </div>
+          {chosen && <YoungScore score={chosen.youngScore} kin={chosen.kin} />}
           {listing.askFee != null && (
             <p className="faint" style={{ margin: 0, fontSize: '0.85rem' }}>
               {listing.ownerName} laat de jongen aan jou voor <Money value={listing.askFee} />.
             </p>
           )}
-          <TermsForm
+          <FeeForm
             other={listing.ownerName}
-            initial={{ youngToMe: true, fee: listing.askFee ?? 0 }}
+            youngToMe={youngToMe}
+            initial={listing.askFee ?? 0}
             submitLabel="Voorstel sturen"
             busy={busy || !mateId}
-            onSubmit={(youngToMe, fee) =>
-              run('/breeding/stud/propose', { studId: p.id, mateId, youngToMe, fee }, 'Voorstel verstuurd.').then((ok) => ok && setOpen(false))
+            onSubmit={(fee) =>
+              run('/breeding/stud/propose', { studId: p.id, mateId, fee }, 'Voorstel verstuurd.').then((ok) => ok && setOpen(false))
             }
             onCancel={() => setOpen(false)}
           />
@@ -266,10 +287,12 @@ function OfferOwn({
   const MIN_BREED_WEEKS = 8; // BREEDING.minAgeWeeks
   const adults = myPigeons.filter((p) => p.ageWeeks >= MIN_BREED_WEEKS);
   const bird = adults.find((p) => p.id === selected);
+  // A new offer starts without a choice between the young and the fee: the owner
+  // has to make it, it decides what the whole negotiation is about.
   const defaults = (p?: Pigeon): StudCriteria =>
     p?.stud ?? { minScore: p ? Math.max(0, Math.floor((p.talent - 10) / 5) * 5) : 50, minEnergy: 30, minLibido: 30 };
   const [crit, setCrit] = useState<StudCriteria>(defaults(bird));
-  const num = (key: keyof StudCriteria, label: string) => (
+  const num = (key: 'minScore' | 'minEnergy' | 'minLibido', label: string) => (
     <div className="field" style={{ margin: 0, flex: '1 1 90px', minWidth: 0 }}>
       <label>{label}</label>
       <input
@@ -282,7 +305,8 @@ function OfferOwn({
     <div className="card">
       <h2>Zelf een duif aanbieden</h2>
       <p className="muted" style={{ marginTop: 0 }}>
-        Gratis, en ze blijft gewoon vliegen tot je met iemand akkoord gaat. Jij bepaalt wat een partner minstens moet hebben.
+        Gratis, en ze blijft gewoon vliegen tot je met iemand akkoord gaat. Jij kiest of je de jongen wil of de vergoeding,
+        en wat een partner minstens moet hebben.
       </p>
       <div className="field">
         <label>Duif</label>
@@ -295,6 +319,17 @@ function OfferOwn({
       </div>
       {bird && (
         <>
+          <div className="field">
+            <label>Wat wil jij?</label>
+            <div className="chip-row" role="radiogroup" aria-label="De jongen of de vergoeding?">
+              <button type="button" className={`chip ${crit.wants === 'young' ? 'active' : ''}`} onClick={() => setCrit({ ...crit, wants: 'young' })}>
+                🐣 De jongen
+              </button>
+              <button type="button" className={`chip ${crit.wants === 'fee' ? 'active' : ''}`} onClick={() => setCrit({ ...crit, wants: 'fee' })}>
+                💶 De vergoeding
+              </button>
+            </div>
+          </div>
           <div className="row" style={{ gap: 8, flexWrap: 'wrap', marginBottom: 10 }}>
             {num('minScore', 'Partner min. ★')}
             {num('minEnergy', 'Min. ⚡ energie')}
@@ -302,7 +337,7 @@ function OfferOwn({
           </div>
           <button
             className="btn block"
-            disabled={busy}
+            disabled={busy || !crit.wants}
             onClick={() => run('/breeding/stud/list', { pigeonId: bird.id, ...crit }, `${bird.name} wordt aangeboden. 🤝`)}
           >
             {bird.stud ? 'Bijwerken' : 'Aanbieden'}
@@ -348,8 +383,8 @@ export function SamenKweken({
   return (
     <div className="stack" style={{ gap: 16 }}>
       <p className="muted" style={{ margin: 0 }}>
-        Kweek met de duif van een andere speler. Jullie spreken af wie de jongen krijgt en wat die betaalt; bij een akkoord
-        betaalt elk <Money value={view.cost} />. <Link to="/wiki#samen-kweken">Hoe het werkt →</Link>
+        Kweek met de duif van een andere speler. Wie een duif aanbiedt, kiest of hij de jongen wil of de vergoeding; samen
+        spreken jullie het bedrag af. Bij een akkoord betaalt elk <Money value={view.cost} />. <Link to="/wiki#samen-kweken">Hoe het werkt →</Link>
       </p>
 
       {view.deals.length > 0 && (

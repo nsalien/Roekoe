@@ -572,8 +572,16 @@ export interface StudListing {
   /** Lowest energie (`form`) and libido a partner must have — checked again at the agreement. */
   minEnergy: number;
   minLibido: number;
+  /**
+   * What the owner wants out of it, decided when she is put up: the young (and
+   * pays the fee) or the fee (and the partner keeps the young). Only the amount
+   * is negotiated. Absent on a listing from before this existed = 'fee'.
+   */
+  wants?: StudWants;
   at: string;
 }
+
+export type StudWants = 'young' | 'fee';
 
 /**
  * Samen kweken: an open negotiation between the owner of a bird that was put up

@@ -1233,15 +1233,21 @@ export function WikiPage() {
           Kweek met de duif van een andere speler, zonder dat er een duif van eigenaar verandert. Eén van jullie krijgt
           de jongen, de andere een vergoeding die jullie samen afspreken. Je vindt het bij <em>Kweek → Samen kweken</em>.
         </p>
-        <p><strong>Aanbieden.</strong> Zet een duif <em>beschikbaar</em> en kies wat een partner minstens moet hebben:
-          een <strong>algemene score (★)</strong>, <strong>energie</strong> en <strong>libido</strong>. Aanbieden is
-          gratis en je duif blijft gewoon vliegen tot je met iemand akkoord gaat. Een aangeboden duif is, net als een
-          duif te koop, voor iedereen <strong>volledig te bekijken</strong>.</p>
+        <p><strong>Aanbieden.</strong> Zet een duif <em>beschikbaar</em> en kies meteen <strong>wat je wil: de jongen
+          (dan betaal jij de vergoeding) of de vergoeding (dan gaan de jongen naar je partner)</strong>. Kies ook wat een
+          partner minstens moet hebben: een <strong>algemene score (★)</strong>, <strong>energie</strong> en
+          <strong> libido</strong>. Aanbieden is gratis en je duif blijft gewoon vliegen tot je met iemand akkoord gaat.
+          Een aangeboden duif is, net als een duif te koop, voor iedereen <strong>volledig te bekijken</strong>. Kies je
+          later toch de andere kant (jongen ↔ vergoeding), dan vervallen de lopende voorstellen.</p>
         <p><strong>Voorstellen en onderhandelen.</strong> Een andere speler stelt een eigen duif van het andere geslacht
-          voor die aan je eisen voldoet, met zijn voorwaarden: <strong>wie krijgt de jongen</strong> en <strong>hoeveel
-          betaalt die aan de ander</strong>. Wie aan de beurt is, gaat <strong>akkoord</strong>, doet een
-          <strong> tegenvoorstel</strong> of weigert. Zo gaat het heen en weer tot iemand akkoord gaat. Wie een voorstel
-          doet, toont zijn duif volledig aan de andere speler.</p>
+          voor die aan je eisen voldoet, met een <strong>bedrag</strong>. Wie de jongen krijgt, ligt al vast — er wordt
+          enkel over het bedrag onderhandeld. Wie aan de beurt is, gaat <strong>akkoord</strong>, doet een
+          <strong> tegenvoorstel</strong> (een ander bedrag) of weigert. Zo gaat het heen en weer tot iemand akkoord
+          gaat. Wie een voorstel doet, toont zijn duif volledig aan de andere speler.</p>
+        <p><strong>De geschatte score van het jong</strong> zien beide spelers: wie een duif kiest om voor te stellen,
+          en wie het voorstel krijgt. Het is het <strong>gemiddelde</strong> wat zo'n koppel oplevert: per vaardigheid
+          het gemiddelde van de ouders ± toeval, begrensd door de <a href="#genen">gen-caps</a> die het jong erft (en
+          lager bij <a href="#inteelt">inteelt</a>). Eén jong valt een paar punten hoger of lager uit.</p>
         <ul>
           <li><strong>Akkoord = meteen broeden.</strong> Beide duiven moeten op dat moment kunnen broeden (zelfde regels
             als een eigen nest: oud genoeg, 20 energie, gezond, niet ingeschreven, niet aan het uitrusten) en de partner
@@ -1262,8 +1268,8 @@ export function WikiPage() {
             waar ze in zat.</li>
         </ul>
         <p><strong>Computermelkers</strong> bieden elk hun best gegende duif aan (vanaf ★55), houden die thuis van de vluchten
-          en van hun eigen nesten, en willen zelf geen jongen: ze laten de jongen aan jou voor een vergoeding van ongeveer
-          8 % van de marktwaarde van hun duif (minstens €250). Vraag je minder, dan antwoorden ze met dat bedrag.</p>
+          en van hun eigen nesten, en kiezen altijd <strong>de vergoeding</strong>: de jongen zijn voor jou, voor ongeveer
+          8 % van de marktwaarde van hun duif (minstens €250). Bied je minder, dan antwoorden ze met dat bedrag.</p>
       </Section>
 
       <Section id="inteelt" icon="🌳" title="Stamboom & inteelt">

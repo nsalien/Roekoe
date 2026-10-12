@@ -111,6 +111,21 @@
   betaalt **elk €1.000** (`STUD.cost`; eigen nest €750, maar daar gaan twee duiven van de vluchten).
   **Broedvoordelen uit de eigen uitrusting tellen niet mee.** "Zorg dat een bot al een duif
   aanbiedt zodat ik kan testen."
+- **Tweede ronde (eigenaar, 12 okt):** (1) wie een duif aanbiedt, **kiest meteen of hij de jongen
+  wil of de vergoeding** (`StudListing.wants`: `'young'` | `'fee'`, verplicht bij het aanbieden;
+  ontbrekend op een oud aanbod = `'fee'`). Er wordt daarna **enkel over het bedrag** onderhandeld:
+  `proposeStud(db, user, studId, mateId, fee)` / `counterStud(db, user, dealId, fee)`, `youngTo`
+  volgt uit het aanbod (`keeperFor`). Een andere `wants` kiezen laat de lopende voorstellen vervallen
+  (met bel); `pruneStudDeals` ruimt ook een voorstel op waarvan `youngTo` niet meer klopt.
+  (2) **Wie een duif voorstelt, ziet de geschatte score van het jong** — per kandidaat in de keuzelijst
+  (`listings[].candidates[] = {id, youngScore, kin}`), en (3) **wie het voorstel krijgt ook**: op de
+  kaart (`deals[].youngScore`) en in de bel ("het jong scoort naar schatting ★61").
+  De schatting is `expectedYoungScore(sire, dam, kin)` in **breeding.ts**: dezelfde overerving als
+  `breed`, uitgemiddeld i.p.v. geworpen (raster 24×24 over de mutatie van de vaardigheid ±8 en van de
+  gen-cap ±6, begrensd op de gen-cap van het jong, inteeltstraf mee). Gemeten tegen 4.000 echte
+  worpen: gewoon koppel, vlak onder de plafonds en volle broer × zus komen tot op 0,1 uit. ⚠️ De kaart
+  *Eigen nest* toont nog het oude, simpele "verwacht talent ≈ (★vader + ★moeder)/2" — niet gevraagd
+  om aan te passen; dat zit vlak onder de plafonds enkele punten en bij inteelt ~15 punten te hoog.
 - **Zelf beslist (niet gevraagd, de eigenaar kan het omdraaien):**
   1. De **vergoeding wordt pas betaald als de jongen er zijn** (in `tickBreedingHatch`, van wie de
      jongen krijgt naar de partner). Geen escrow: een nest kan op veel plekken stil verdwijnen
@@ -123,20 +138,21 @@
      iets terug, geen vergoeding, de ander krijgt een bel. Sterft een ouder: idem, zonder bel.
   4. "Uitrusting telt niet" = het **infrarood**: dat is het enige stuk dat op het nest zelf werkt.
      Kunstlicht/ren werken op het libido van de duif zelf en blijven dus meetellen.
-  5. **Onderhandelen = om beurten**: wie aan de beurt is (`turn`) gaat akkoord met wat de ánder het
-     laatst voorstelde, doet een tegenvoorstel of weigert/trekt in. Max. `STUD.maxOpenProposals` (10)
+  5. **Onderhandelen = om beurten**, sinds de tweede ronde enkel over het bedrag: wie aan de beurt is
+     (`turn`) gaat akkoord met het bedrag dat de ánder het laatst voorstelde, doet een tegenvoorstel
+     (ander bedrag; hetzelfde bedrag wordt geweigerd) of weigert/trekt in. Max. `STUD.maxOpenProposals` (10)
      open voorstellen per speler, vergoeding hoogstens `STUD.maxFee`.
   6. Een **aangeboden duif is volledig zichtbaar** (`publiclyRevealed` in `pigeonDTO`, zoals te koop),
      en in een onderhandeling zien beide spelers beide duiven volledig.
   7. **Bots** (`botOfferStud` in `botDailyActions`): elke bot met een duif van ★`botMinScore` (55)+
      biedt zijn best gegende volwassen duif aan (voorkeur: nu vrij), vraagt een partner van
-     ★(talent − 10, afgerond op 5), ⚡30, ❤30, en **houdt die duif thuis** van vluchten
-     (`botRaceCandidates`) en eigen nesten (`canBreed`). Een bot wil nooit de jongen: hij antwoordt
-     meteen (`botAnswer`) — "jongen naar jou voor `botStudFee`" (8 % van de marktwaarde, min. €250,
-     per €50) — en gaat zelf akkoord als het voorstel dat al is (kan zijn duif niet meteen, dan legt
-     hij de beurt terug bij de speler).
+     ★(talent − 10, afgerond op 5), ⚡30, ❤30, **`wants: 'fee'`**, en **houdt die duif thuis** van
+     vluchten (`botRaceCandidates`) en eigen nesten (`canBreed`). Hij antwoordt meteen (`botAnswer`):
+     een bedrag van minstens `botStudFee` (8 % van de marktwaarde, min. €250, per €50) aanvaardt hij
+     (kan zijn duif niet meteen, dan legt hij de beurt terug bij de speler), een lager bedrag krijgt
+     `botStudFee` als tegenvoorstel.
 - **Opslag (geen extra query op gewone verzoeken):**
-  - het aanbod op de duif: **`Pigeon.stud`** (`StudListing {by, minScore, minEnergy, minLibido, at}`,
+  - het aanbod op de duif: **`Pigeon.stud`** (`StudListing {by, minScore, minEnergy, minLibido, wants, at}`,
     kolom `pigeons.stud`, `''` = niet aangeboden). Een aanbod met `by ≠ ownerId` is ongeldig
     (`activeListing`); `clearOwnerCare` wist het bij elke eigendomswissel.
   - de onderhandelingen: tabel **`stud_deals`** (`StudDeal`), **enkel geladen op `/api/breeding*`**
@@ -161,16 +177,20 @@
 - **UI:** Kweek kreeg twee tabs (`chip-row`): **🥚 Eigen nest** (zoals voorheen; een samen-kweken-nest
   staat in *Broedsels onderweg* met partner, verdeling en vergoeding, en vraagt een bevestiging bij
   Stop) en **🤝 Samen kweken** (`components/SamenKweken.tsx`; `/kweek#samen` opent die tab; de tab
-  telt de voorstellen waar jij aan de beurt bent): bovenaan de **onderhandelingen**, dan **zelf een
-  duif aanbieden**, dan de **aangeboden duiven** als `PigeonCard` zoals op de markt (vrije eerst) met
-  "zoekt ★45+ · ⚡30+ · ❤30+" en "Stel een duif voor". Het hokoverzicht zet "🤝 met <hok>" bij zo'n
+  telt de voorstellen waar jij aan de beurt bent): bovenaan de **onderhandelingen** (met "🐣 Het jong
+  scoort naar schatting ★…" en enkel een bedrag als tegenvoorstel), dan **zelf een duif aanbieden**
+  (verplichte keuze 🐣 De jongen / 💶 De vergoeding + de drie eisen), dan de **aangeboden duiven** als
+  `PigeonCard` zoals op de markt (vrije eerst) met "zoekt ★45+ · ⚡30+ · ❤30+", wat de eigenaar wil
+  ("Wil de vergoeding — de jongen zijn voor jou") en "Stel een duif voor" (keuzelijst met "→ jong ★62"
+  per duif, de schatting + inteeltwaarschuwing van de gekozen duif, en het bedrag). Het hokoverzicht zet "🤝 met <hok>" bij zo'n
   nest; `PigeonCard` toont 🤝 bij een aangeboden duif. Wiki `#samen-kweken`, spelregels **§7.4** + §17.
 - **Demo (enkel dev):** de seed laat de bots hun duif aanbieden en haalt die van de geplande vluchten
   (in productie gebeurt het aanbieden op de dagovergang en blijft ze daarna thuis); vindt geen enkele
   demoduif een vrije botduif, dan zakken de eisen van de eerste tot wat de beste demoduif heeft.
   `DEMO_VERSION` 6. `demo-world` controleert dat er zo'n botduif is.
-- **Test:** `tests/samen-kweken.test.mts` (65 controles, node:sqlite + de echte API, los van de
-  demo zodat hij ook op prod draait): bot antwoordt met zijn prijs en gaat akkoord, €1.000 elk,
+- **Test:** `tests/samen-kweken.test.mts` (77 controles, node:sqlite + de echte API, los van de
+  demo zodat hij ook op prod draait; ook de keuze jongen/vergoeding, de geschatte score bij kandidaat,
+  onderhandeling en bel, en de schatting tegen 4.000 echte worpen): bot antwoordt met zijn prijs en gaat akkoord, €1.000 elk,
   jongen + vergoeding bij de geboorte, beide ouders rusten, speler-tegen-speler (eisen, beurten,
   tegenvoorstel, zelfde voorwaarden geweigerd), lege worp (€500 elk, geen vergoeding, vaste bel-id),
   stoppen door de partner, weigeren/intrekken/niet meer aanbieden/verkocht, infrarood, en de opslag

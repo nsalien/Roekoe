@@ -155,6 +155,8 @@ import {
   proposeStud,
   pruneStudDeals,
   setStudListing,
+  studYoungScore,
+  wantsOf,
 } from '../../core/game/stud.js';
 import type { BetKind } from '../../core/schema.js';
 import { refreshDailyMissions } from '../../core/game/missions.js';
@@ -1088,11 +1090,18 @@ function studView(db: Database, userId: string) {
         ownerIsBot: !!owner?.isBot,
         mine: isMine,
         criteria: { minScore: l.minScore, minEnergy: l.minEnergy, minLibido: l.minLibido },
+        // Decided by the owner when she was put up: they keep the young, or take the fee.
+        wants: wantsOf(l),
         // Why she could not go on a nest right now (resting, on a nest, entered…).
         busy: breedBlock(db, p),
         // A bot says up front what it wants for the young (stud.botStudFee).
         askFee: owner?.isBot ? botStudFee(db, p) : null,
-        candidates: candidates.map((m) => m.id),
+        // Per bird of mine that may be offered: what the young are expected to score
+        // (★), and whether the two are family — shown before anyone proposes.
+        candidates: candidates.map((m) => {
+          const [sire, dam] = p.sex === 'doffer' ? [p, m] : [m, p];
+          return { id: m.id, youngScore: studYoungScore(db, p, m), kin: kinship(db, sire, dam) };
+        }),
         shortfall: opposite.length - candidates.length,
       };
     })
@@ -1119,6 +1128,8 @@ function studView(db: Database, userId: string) {
         fee: d.fee,
         myTurn,
         kin: kinship(db, sire, dam),
+        // What the young are expected to score — both players see it.
+        youngScore: studYoungScore(db, stud, mate),
         // On your turn: would accepting work right now? So the button does not lie.
         blocked: myTurn ? (criteriaGap(l, mate) ?? breedBlock(db, stud) ?? breedBlock(db, mate)) : null,
         updatedAt: d.updatedAt,
@@ -1142,6 +1153,7 @@ app.post('/breeding/stud/list', async (c) => {
   const err = store.mutate((db) =>
     setStudListing(db, user.id, String(body.pigeonId ?? ''), {
       minScore: Number(body.minScore), minEnergy: Number(body.minEnergy), minLibido: Number(body.minLibido),
+      wants: body.wants,
     }),
   );
   await store.persist();
@@ -1162,7 +1174,7 @@ app.post('/breeding/stud/propose', async (c) => {
   const body = await c.req.json().catch(() => ({}));
   const store = c.get('store');
   const err = store.mutate((db) =>
-    proposeStud(db, user.id, String(body.studId ?? ''), String(body.mateId ?? ''), !!body.youngToMe, Number(body.fee)),
+    proposeStud(db, user.id, String(body.studId ?? ''), String(body.mateId ?? ''), Number(body.fee)),
   );
   await store.persist();
   return err ? c.json({ error: err }, 400) : c.json({ ok: true });
@@ -1172,7 +1184,7 @@ app.post('/breeding/stud/:id/counter', async (c) => {
   const user = requireUser(c);
   const body = await c.req.json().catch(() => ({}));
   const store = c.get('store');
-  const err = store.mutate((db) => counterStud(db, user.id, c.req.param('id'), !!body.youngToMe, Number(body.fee)));
+  const err = store.mutate((db) => counterStud(db, user.id, c.req.param('id'), Number(body.fee)));
   await store.persist();
   return err ? c.json({ error: err }, 400) : c.json({ ok: true });
 });

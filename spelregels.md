@@ -1832,8 +1832,15 @@ Je kan ook kweken met de duif van een andere speler, zonder dat er een duif van
 eigenaar verandert. Eén van jullie krijgt de jongen, de andere een vergoeding die
 jullie samen afspreken. Alles gebeurt bij **Kweek → Samen kweken**.
 
-**1. Aanbieden.** Zet een eigen duif (minstens 8 weken oud) *beschikbaar* en kies
-wat een partner minstens moet hebben:
+**1. Aanbieden.** Zet een eigen duif (minstens 8 weken oud) *beschikbaar*. Je
+kiest meteen **wat je wil**:
+
+- **de jongen** — dan gaan alle jongen naar jou en betaal jij de vergoeding;
+- **de vergoeding** — dan gaan de jongen naar je partner en betaalt die jou.
+
+Daarover wordt niet meer onderhandeld. Kies je later toch de andere kant, dan
+vervallen de lopende voorstellen voor die duif. Je kiest ook wat een partner
+minstens moet hebben:
 
 | Eis | Wat telt |
 |---|---|
@@ -1847,12 +1854,25 @@ akkoord gaat. Een aangeboden duif is — net als een duif te koop — voor ieder
 weghalen; lopende voorstellen voor haar vervallen dan.
 
 **2. Voorstellen.** Een andere speler kiest een eigen duif van het andere
-geslacht die aan je eisen voldoet, en doet een voorstel: **wie krijgt de jongen**
-en **hoeveel betaalt die aan de ander** (dat mag ook €0 zijn). Wie een voorstel
-doet, toont zijn duif volledig aan de andere speler.
+geslacht die aan je eisen voldoet, en stelt een **bedrag** voor (dat mag ook €0
+zijn). Bij het kiezen ziet hij per duif de **geschatte score van het jong**. Wie
+een voorstel doet, toont zijn duif volledig aan de andere speler.
 
-**3. Onderhandelen.** Wie aan de beurt is, kan **akkoord** gaan, een
-**tegenvoorstel** doen (andere verdeling of ander bedrag) of het voorstel
+**De geschatte score van het jong** is wat zo'n koppel gemiddeld oplevert, met
+dezelfde overerving als elk nest (§7, §7bis):
+```
+per vaardigheid:  gemiddelde van de ouders ± 8,
+                  begrensd door de gen-cap van het jong
+                  (gemiddelde van de ouders ± 6, lager bij inteelt, §7.3)
+geschatte score = gemiddelde van snelheid, conditie en oriëntatie
+```
+Eén jong valt een paar punten hoger of lager uit. Twee ouders vlak onder hun
+plafonds geven dus een jong dat iets lager uitkomt dan hun gemiddelde, en
+familie flink lager. Beide spelers zien deze schatting: wie voorstelt, en wie
+het voorstel krijgt (ook in de melding).
+
+**3. Onderhandelen.** Enkel over het bedrag. Wie aan de beurt is, kan
+**akkoord** gaan, een **tegenvoorstel** doen (een ander bedrag) of het voorstel
 **weigeren / intrekken**. Zo gaat het heen en weer, tot iemand akkoord gaat. Je
 gaat altijd akkoord met wat de **ander** het laatst voorstelde.
 
@@ -1896,9 +1916,10 @@ het uitkomen hangen af van het libido en de energie van beide ouders.
 | Lege worp | krijgt €500 terug | krijgt €500 terug |
 | Nest gestopt / ouder sterft | niets terug | niets terug |
 
-> **Voorbeeld.** Jan biedt zijn doffer (★80) aan en vraagt een partner van ★70
-> met minstens 40 energie en 40 libido. An stelt haar duivin (★72) voor: "de
-> jongen naar mij, ik betaal €1.500". Jan antwoordt: "€2.000". An gaat akkoord.
+> **Voorbeeld.** Jan biedt zijn doffer (★80) aan, kiest **de vergoeding** en
+> vraagt een partner van ★70 met minstens 40 energie en 40 libido. An ziet dat
+> het jong met haar duivin (★72) naar schatting ★75 scoort, en stelt €1.500
+> voor. Jan antwoordt: "€2.000". An gaat akkoord.
 > Ze betalen elk €1.000 en het nest start. Er komt een tweeling: beide jongen gaan
 > naar An, en op dat moment gaat €2.000 van An naar Jan.
 
@@ -2781,10 +2802,10 @@ niet sneller aanvullen dan jij. Hij koppelt bovendien **nooit twee verwanten**
 **Samen kweken met een bot** (§7.4). Elke bot met een duif van minstens ★55 biedt
 zijn best gegende duif aan om mee te kweken, vraagt een partner van hoogstens 10
 punten lager (afgerond op 5) met minstens 30 energie en 30 libido, en houdt die
-duif thuis van de vluchten en van zijn eigen nesten. Een bot wil zelf geen jongen:
-hij laat ze aan jou voor ongeveer 8 % van de marktwaarde van zijn duif (minstens
-€250, afgerond op €50). Bied je dat, dan gaat hij meteen akkoord; bied je iets
-anders, dan antwoordt hij met dat voorstel.
+duif thuis van de vluchten en van zijn eigen nesten. Een bot kiest altijd **de
+vergoeding**: de jongen zijn voor jou, voor ongeveer 8 % van de marktwaarde van
+zijn duif (minstens €250, afgerond op €50). Bied je dat, dan gaat hij meteen
+akkoord; bied je minder, dan antwoordt hij met dat bedrag.
 
 **Ze kiezen hun duiven met verstand.** Een bot zet een duif enkel in als ze de
 route ook echt aankan (genoeg energie voor de afstand) en niet als haar

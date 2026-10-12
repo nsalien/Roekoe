@@ -961,11 +961,15 @@ export interface BreedingPair {
   deal?: { partner: string; youngToMe: boolean; fee: number } | null;
 }
 
-/** Samen kweken: what the owner asks of a partner (algemene score, energie, libido). */
+/** Samen kweken: what the owner of a listed bird wants out of it, decided when she is put up. */
+export type StudWants = 'young' | 'fee';
+
+/** Samen kweken: what the owner asks of a partner (algemene score, energie, libido) and wants. */
 export interface StudCriteria {
   minScore: number;
   minEnergy: number;
   minLibido: number;
+  wants?: StudWants;
 }
 
 /** A bird that is put up for samen kweken. */
@@ -975,12 +979,14 @@ export interface StudListingView {
   ownerIsBot: boolean;
   mine: boolean;
   criteria: StudCriteria;
+  /** The owner keeps the young ('young') or takes the fee ('fee'). */
+  wants: StudWants;
   /** Why she could not go on a nest right now, or null. */
   busy: string | null;
   /** What a bot asks for the young; null for a player. */
   askFee: number | null;
-  /** Ids of MY birds that meet the criteria (other sex, old enough). */
-  candidates: string[];
+  /** MY birds that meet the criteria (other sex, old enough), with what the young would score. */
+  candidates: { id: string; youngScore: number; kin: KinshipDegree | null }[];
   /** My birds of the other sex that fall short. */
   shortfall: number;
 }
@@ -998,6 +1004,8 @@ export interface StudDealView {
   fee: number;
   myTurn: boolean;
   kin: KinshipDegree | null;
+  /** What the young are expected to score (★). */
+  youngScore: number;
   /** On my turn: why accepting would fail right now, or null. */
   blocked: string | null;
   updatedAt: string;
