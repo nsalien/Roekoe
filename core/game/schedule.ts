@@ -25,6 +25,7 @@ import {
   BOT_LOFT_NAMES,
   BREEDING,
   failedBreedRefund,
+  studFailedRefund,
   DEFAULT_BOT_COUNT,
   FEED_RATIONS,
   FLIGHT_FATIGUE,
@@ -117,7 +118,8 @@ import { pickRelayRoute, relayEntryTeams, relayLegKm, relayTeamComplete } from '
 import { rollAnyTrait, rollTrait } from './traits.js';
 import { season3CoachNote, season3Welcome } from './season3.js';
 import { LOKAAL_INTRO } from './lokaal.js';
-import { INRICHTING_NEWS } from './news.js';
+import { CARE_NEWS, INRICHTING_NEWS, STUD_NEWS } from './news.js';
+import { botOfferStud } from './stud.js';
 import { bell, clamp, hashString, haversineKm, pick, randFloat, round1, seededRng } from './util.js';
 
 // --- Time-zone helpers -----------------------------------------------------
@@ -2465,6 +2467,25 @@ export function runDataMigrations(db: Database): void {
     }
     db.world.dataVersion = 61;
   }
+
+  if ((db.world.dataVersion ?? 0) < 62) {
+    // Aankondiging: SAMEN KWEKEN (core/game/stud.ts) gaat live, plus wat bij v61
+    // vergeten werd: vaccins/kuren en een verzekering kan je ook per duif nemen (op
+    // haar eigen pagina). Twee bellen per echte speler, elk met een stabiele id
+    // (core/game/news.ts); de tweede helft is studNewsSteps in Tour.tsx. De bots
+    // bieden meteen een duif aan (anders pas op hun volgende dagovergang), zodat er
+    // bij de aankondiging al iets te zien is; een bot met al zijn goede duiven
+    // ingeschreven wacht tot de dagovergang (botOfferStud slaat die over).
+    for (const loft of db.lofts) {
+      if (loft.isBot) {
+        botOfferStud(db, loft, db.pigeons.filter((p) => p.ownerId === loft.userId), Date.now());
+        continue;
+      }
+      pushNotification(db, loft.userId, 'info', STUD_NEWS.title, STUD_NEWS.body, null, STUD_NEWS.id(loft.userId));
+      pushNotification(db, loft.userId, 'info', CARE_NEWS.title, CARE_NEWS.body, null, CARE_NEWS.id(loft.userId));
+    }
+    db.world.dataVersion = 62;
+  }
 }
 
 /**
@@ -3212,7 +3233,9 @@ export function tickBreedingHatch(db: Database, nowMs: number): void {
     const boxes = loft.equipment?.irBoxes ?? 0;
     if (boxes <= 0) continue;
     const effect = irBoxEffect(loft);
-    db.breedingPairs.filter((bp) => bp.ownerId === loft.userId).sort((a, b) => (a.id < b.id ? -1 : 1))
+    // A samen-kweken nest never sits under it: the owner's wish is that breeding
+    // gear in your own loft does not count for that kind of breeding (stud.ts).
+    db.breedingPairs.filter((bp) => bp.ownerId === loft.userId && !bp.deal).sort((a, b) => (a.id < b.id ? -1 : 1))
       .slice(0, boxes).forEach((bp) => heatedPairs.set(bp.id, effect));
   }
   for (const bp of db.breedingPairs) {
@@ -3300,7 +3323,34 @@ export function tickBreedingHatch(db: Database, nowMs: number): void {
     // see an empty clutch or neither does. And a request that never touched
     // `money` leaves that column alone in the column-narrow diff, so the one
     // that did refund is not overwritten.
-    if (young.length === 0 && loft) loft.money += failedBreedRefund();
+    // Samen kweken (stud.ts): each of the two players gets the same share of THEIR
+    // fee back on an empty clutch, and the agreed fee only changes hands when there
+    // are young. Absolute writes on two different loft rows, so a double resolve
+    // settles on one payment like the refund above.
+    const deal = bp.deal ?? null;
+    const partner = deal ? db.lofts.find((l) => l.userId === deal.partnerId) : undefined;
+    const refund = deal ? studFailedRefund() : failedBreedRefund();
+    if (young.length === 0) {
+      if (loft) loft.money += refund;
+      if (partner) partner.money += refund;
+    } else if (deal && deal.fee > 0 && loft && partner) {
+      loft.money -= deal.fee;
+      partner.money += deal.fee;
+    }
+    if (partner && humanIds.has(partner.userId)) {
+      const keeperName = loft?.name ?? 'de andere speler';
+      pushNotification(
+        db, partner.userId, 'info',
+        young.length === 0 ? '🥚 Samen kweken: geen jongen' : `🐣 Samen kweken: ${young.length === 1 ? 'een jong' : `${young.length} jongen`} geboren`,
+        young.length === 0
+          ? `${sire.name} × ${dam.name} leverde geen jongen op. Je krijgt €${refund} terug; er wordt geen vergoeding betaald.`
+          : `${sire.name} × ${dam.name} bracht ${young.length === 1 ? 'een jong' : `${young.length} jongen`} voort voor ${keeperName}.` +
+            (deal!.fee > 0 ? ` Je ontving de afgesproken €${deal!.fee}.` : ''),
+        null,
+        `${broodNoteId(bp.id)}:partner`,
+      );
+    }
+    const feeLine = deal && deal.fee > 0 && young.length > 0 ? ` Je betaalde de afgesproken €${deal.fee} aan ${partner?.name ?? 'de andere speler'}.` : '';
 
     // The clutch does not fit. A human owner decides which young to keep — the
     // whole clutch is held (not the first `space` of it), so the choice is really
@@ -3321,7 +3371,7 @@ export function tickBreedingHatch(db: Database, nowMs: number): void {
         db, loft.userId, 'info',
         `🐣 ${young.length === 1 ? 'Een jong' : `${young.length} jongen`} geboren — je hok zit vol`,
         `${sire.name} × ${dam.name} bracht ${young.length === 1 ? 'een jong' : `${young.length} jongen`} voort, maar er is geen plaats. ` +
-          'Kies bij Kweek welke je houdt — maak eerst plaats door een duif vrij te laten of te verkopen.',
+          'Kies bij Kweek welke je houdt — maak eerst plaats door een duif vrij te laten of te verkopen.' + feeLine,
         null,
         broodNoteId(bp.id),
       );
@@ -3340,7 +3390,7 @@ export function tickBreedingHatch(db: Database, nowMs: number): void {
         pushNotification(
           db, loft.userId, 'info',
           `🐣 ${admitted.length === 1 ? 'Een jong' : `${admitted.length} jongen`} geboren!`,
-          `${sire.name} × ${dam.name} bracht ${names} voort. Welkom in het hok!`,
+          `${sire.name} × ${dam.name} bracht ${names} voort. Welkom in het hok!` + feeLine,
           null,
           broodNoteId(bp.id),
         );
@@ -3348,7 +3398,7 @@ export function tickBreedingHatch(db: Database, nowMs: number): void {
         pushNotification(
           db, loft.userId, 'info',
           '🥚 Koppel zonder resultaat',
-          `${sire.name} × ${dam.name} leverde geen jongen op. Je krijgt €${failedBreedRefund()} van het koppelgeld terug. ` +
+          `${sire.name} × ${dam.name} leverde geen jongen op. Je krijgt €${refund} van het koppelgeld terug. ` +
             'Lage energie of libido, misschien volgende keer beter.',
           null,
           broodNoteId(bp.id),

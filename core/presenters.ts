@@ -43,6 +43,7 @@ import { coveredInInfirmary, idleCareStaff } from './game/health.js';
 import { equipmentLevel, equipmentOf, hygieneDecay } from './game/hygiene.js';
 import { insuranceCost, insurancePremium, insuranceQuote, irBoxesInUse, magazineRanges, readsMagazine } from './game/inrichting.js';
 import { marketValue, valuePigeon } from './game/market.js';
+import { activeListing, wantsOf } from './game/stud.js';
 import { flightCancelled, flightCommentary, liveSnapshot, pigeonAirborne, pigeonCommittedToFlight } from './game/flight.js';
 import { relayEntryTeams, relayLegKm } from './game/relay.js';
 import { BADGES, levelForXp } from './game/badges.js';
@@ -69,7 +70,10 @@ export function pigeonDTO(db: Database, p: Pigeon, viewerId?: string, viewerIsAd
   // anywhere, viewed by someone else (to make a private/direct offer), hides its
   // attributes.
   const onAuction = db.auctions.some((a) => a.status === 'open' && a.pigeonId === p.id);
-  const publiclyRevealed = viewerId === undefined || p.ownerId === viewerId || p.forSale || onAuction;
+  // A bird put up for samen kweken is on offer too: whoever wants to breed with
+  // her gets to see what the young would inherit.
+  const stud = activeListing(p);
+  const publiclyRevealed = viewerId === undefined || p.ownerId === viewerId || p.forSale || onAuction || !!stud;
   const revealed = publiclyRevealed || viewerIsAdmin;
   const live = db.flights.some((f) => f.status === 'live' && f.entries.some((e) => e.pigeonId === p.id));
   // Only an infirmary bird's energie recovery depends on staff coverage, so we
@@ -177,6 +181,8 @@ export function pigeonDTO(db: Database, p: Pigeon, viewerId?: string, viewerIsAd
     // Kenmerk (seizoen 3). PUBLIC like the breed and the quirk: a buyer sees it
     // on the market, a rival sees it on the entry list.
     trait: traitDTO(p.trait),
+    // Samen kweken: what her owner asks of a partner — public, like a price on the market.
+    stud: stud ? { minScore: stud.minScore, minEnergy: stud.minEnergy, minLibido: stud.minLibido, wants: wantsOf(stud) } : null,
     // Rest between clutches, per bird (BREEDING.cooldownDays); null = may breed now.
     breedAvailableAt: (() => {
       if (!revealed) return null;
@@ -350,7 +356,7 @@ export function loftDTO(db: Database, loft: Loft) {
       // unchanged; the Dagbalans just says so out loud.
       idleCareStaff(loft, pigeons),
       {
-        pairs: db.breedingPairs.filter((bp) => bp.ownerId === loft.userId).length,
+        pairs: db.breedingPairs.filter((bp) => bp.ownerId === loft.userId && !bp.deal).length,
         insurance: insuranceCost(pigeons, db.world.currentWeek),
       },
     ),
@@ -362,7 +368,8 @@ export function loftDTO(db: Database, loft: Loft) {
     // Hokinrichting: the hygiene meter and the hokpoetser.
     equipment: (() => {
       const eq = equipmentOf(loft);
-      const pairs = db.breedingPairs.filter((bp) => bp.ownerId === loft.userId).length;
+      // Samen-kweken nests never use the infrarood (stud.ts).
+      const pairs = db.breedingPairs.filter((bp) => bp.ownerId === loft.userId && !bp.deal).length;
       return {
         hygiene: eq.hygiene,
         lastStrawAt: eq.lastStrawAt,
@@ -387,9 +394,13 @@ export function loftDTO(db: Database, loft: Loft) {
       };
     })(),
     // Breeding pairs, so the loft view can put each pair in its own nest box.
+    // A samen-kweken nest shows in BOTH lofts, with the other player's name.
     nests: db.breedingPairs
-      .filter((bp) => bp.ownerId === loft.userId)
-      .map((bp) => ({ id: bp.id, sireId: bp.sireId, damId: bp.damId })),
+      .filter((bp) => bp.ownerId === loft.userId || bp.deal?.partnerId === loft.userId)
+      .map((bp) => ({
+        id: bp.id, sireId: bp.sireId, damId: bp.damId,
+        partner: bp.deal ? ownerName(db, bp.ownerId === loft.userId ? bp.deal.partnerId : bp.ownerId) : null,
+      })),
     // The prizes of the MOST RECENT prijsuitreiking, so the client can hold a
     // little ceremony for them once (see PrizeCeremony). Only the last season's
     // awards, so this stays a handful of rows on the hottest route in the game —

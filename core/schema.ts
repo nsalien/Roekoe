@@ -121,6 +121,12 @@ export interface Pigeon {
    * bird leaves the market.
    */
   boostedAt?: string | null;
+  /**
+   * Samen kweken: the owner put this bird up to breed with another player's bird
+   * (STUD, core/game/stud.ts). Null/absent = not on offer. A listing whose `by`
+   * is not her current owner is void — she changed hands since.
+   */
+  stud?: StudListing | null;
   createdAtWeek: number;
   // Health status.
   ailment: Ailment | null; // current disease/injury, or null if healthy
@@ -539,11 +545,73 @@ export interface User {
 /** A pending breeding pair that will hatch young after some weeks. */
 export interface BreedingPair {
   id: string;
+  /** Who keeps the young. For a samen-kweken pair one of the two birds is the partner's. */
   ownerId: string;
   sireId: string;
   damId: string;
   hatchAt: string; // ISO timestamp the young arrive (real time)
   createdAtWeek: number;
+  /** Set on a samen-kweken pair (core/game/stud.ts); absent on an own nest. */
+  deal?: PairDeal | null;
+}
+
+/** The agreement behind a samen-kweken pair: the pair's `ownerId` keeps the young and pays the fee. */
+export interface PairDeal {
+  /** The other player, whose bird is on this nest and who receives the fee. */
+  partnerId: string;
+  /** Paid by the owner to the partner once young hatch; nothing on an empty clutch. */
+  fee: number;
+}
+
+/** Samen kweken: what the owner asks of a partner for the bird she put up. */
+export interface StudListing {
+  /** The owner who put her up. */
+  by: string;
+  /** Lowest algemene score (★, `talent`) a partner may have. */
+  minScore: number;
+  /** Lowest energie (`form`) and libido a partner must have — checked again at the agreement. */
+  minEnergy: number;
+  minLibido: number;
+  /**
+   * What the owner wants out of it, decided when she is put up: the young (and
+   * pays the fee) or the fee (and the partner keeps the young). Only the amount
+   * is negotiated. Absent on a listing from before this existed = 'fee'.
+   */
+  wants?: StudWants;
+  /**
+   * Bots that already answered this offer with a proposal of their own — each
+   * bot does so once per offer (stud.botsProposeTo), also when the player turned
+   * it down. Cleared when the owner switches between the young and the fee.
+   */
+  asked?: string[];
+  at: string;
+}
+
+export type StudWants = 'young' | 'fee';
+
+/**
+ * Samen kweken: an open negotiation between the owner of a bird that was put up
+ * (`stud`) and a player who offered one of theirs (`mate`). Each side may
+ * accept the terms the OTHER side set last, or answer with their own.
+ *
+ * Its own table (`stud_deals`), and loaded ONLY on the Kweek routes — no other
+ * request needs it, so the rest of the game does not pay a query for it (see
+ * D1Store.load, `studDeals`). Because of that it is never cleaned up when a bird
+ * is sold or dies: whoever loads it prunes what no longer holds (stud.ts).
+ */
+export interface StudDeal {
+  id: string;
+  studId: string;
+  studOwnerId: string;
+  mateId: string;
+  mateOwnerId: string;
+  /** Who keeps the young (and pays the fee). Always one of the two owners. */
+  youngTo: string;
+  fee: number;
+  /** Whose answer it is: the other side set the terms now on the table. */
+  turn: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 /**
@@ -1104,6 +1172,12 @@ export interface Database {
   auctions: Auction[];
   bets: Bet[];
   offers: PigeonOffer[];
+  /**
+   * Samen kweken: open negotiations. Only present when the request loaded them
+   * (the Kweek routes, see D1Store.load); `undefined` everywhere else, and then
+   * nothing may assume there are none.
+   */
+  studDeals?: StudDeal[];
   /**
    * Ids whose rows in the tables OUTSIDE the world load must be deleted by
    * `persist` (see D1Store.persist). Purely transient — never loaded, never

@@ -515,8 +515,9 @@ export function insurancePayout(
   return pol.payout;
 }
 
-/** A sold bird leaves her policy with the old loft. */
+/** A sold bird leaves her policy with the old loft — and the offer to breed with her (samen kweken). */
 export function clearOwnerCare(p: Pigeon): void {
+  p.stud = null;
   if (!p.care) return;
   p.care.insurance = undefined;
   tidy(p);

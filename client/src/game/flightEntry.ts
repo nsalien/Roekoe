@@ -40,6 +40,9 @@ export function canEnter(
 ): boolean {
   if (f.status !== 'scheduled') return false;
   if (!p.canRace || p.racing || p.breeding || (p.form ?? 0) < 1) return false;
+  // Put up for samen kweken: she stays home (the server also refuses a bird that
+  // is offered in an open negotiation, which the client does not know about).
+  if (p.stud) return false;
   if (daysTaken.get(p.id)?.has(flightDay(f))) return false;
   // A leeftijdscriterium takes one age bracket only.
   if (f.ageCat && p.ageCat !== f.ageCat) return false;

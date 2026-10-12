@@ -1176,6 +1176,54 @@ export function failedBreedRefund(): number {
 }
 
 /**
+ * Samen kweken (De Stem: "Broeden met de duif van een andere speler"). One player
+ * puts a bird up ("beschikbaar om mee te kweken") with the minimum a partner must
+ * have; another offers one of theirs; the two agree on who keeps the young and
+ * what that player pays the other. See core/game/stud.ts.
+ */
+export const STUD = {
+  /**
+   * What EACH player pays the moment the deal is struck — more than an own nest
+   * (BREEDING.cost) because each of them only takes ONE bird off the flights
+   * instead of two (the owner's choice).
+   */
+  cost: 1000,
+  /** Highest agreed fee, a sanity bound (it is paid by whoever keeps the young). */
+  maxFee: 100_000,
+  /** Open negotiations one player may start at the same time — keeps the list sane. */
+  maxOpenProposals: 10,
+  /** Bots put one bird up when their best is at least this good (★). */
+  botMinScore: 55,
+  /** A bot asks for a partner this much below its own bird (★), in steps of 5. */
+  botScoreMargin: 10,
+  botMinEnergy: 30,
+  botMinLibido: 30,
+  /** A bot lets the young go and asks this share of its bird's market value as fee… */
+  botFeeShare: 0.08,
+  /** …but never less than this, rounded to €50. */
+  botMinFee: 250,
+  /**
+   * When a bot keeps the young, it pays a share of what such a youngster is worth
+   * at birth (stud.studYoung): it opens with `botBidShare` and goes up to
+   * `botMaxBidShare`, never further.
+   */
+  botBidShare: 0.25,
+  botMaxBidShare: 0.5,
+  /** At most this many bots answer one player's bird with a proposal of their own. */
+  botMaxProposals: 3,
+  /**
+   * A bot wants the young of its own bird (instead of the fee) when it has this
+   * many perches to spare and can pay the cost on top of BOT.breedReserve.
+   */
+  botYoungFreePerches: 2,
+} as const;
+
+/** What EACH player gets back when a samen-kweken clutch hatches empty — same share as an own nest. */
+export function studFailedRefund(): number {
+  return Math.round(STUD.cost * BREEDING.failedRefundRate);
+}
+
+/**
  * How closely two birds are related, worst first. `directe-lijn` is a parent with
  * its own child (or a grandparent with a grandchild); `volle` share both parents;
  * `half` share one; `familie` merely have a common ancestor somewhere up the tree.

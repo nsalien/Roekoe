@@ -81,9 +81,10 @@ export function LoftView({
   const home = pigeons.length - away.length;
   const patients = pigeons.filter((p) => p.inInfirmary);
   const beds = loft.infirmaryCapacity;
+  // A samen-kweken nest holds only one of our birds; the other player is named instead.
   const nests = (loft.nests ?? [])
-    .map((n) => [byId.get(n.sireId), byId.get(n.damId)].filter(Boolean) as Pigeon[])
-    .filter((pair) => pair.length > 0);
+    .map((n) => ({ birds: [byId.get(n.sireId), byId.get(n.damId)].filter(Boolean) as Pigeon[], partner: n.partner ?? null }))
+    .filter((n) => n.birds.length > 0);
   const canMoveIn = pigeons.filter((p) => !p.compartment && !p.inInfirmary && !p.away);
   const freeComps = loft.compartments - inComp.length;
   const insured = pigeons.filter((p) => p.care?.insurance).length;
@@ -125,9 +126,9 @@ export function LoftView({
       )}
       <Row label="Broeden">
         {nests.length > 0
-          ? nests.map((pair, i) => (
-              <Line key={i} icon="🥚">
-                {pair.map((p, j) => <span key={p.id}>{j > 0 && ' & '}<Name id={p.id} name={p.name} /></span>)}
+          ? nests.map((nest, i) => (
+              <Line key={i} icon="🥚" note={nest.partner ? `🤝 met ${nest.partner}` : undefined}>
+                {nest.birds.map((p, j) => <span key={p.id}>{j > 0 && ' & '}<Name id={p.id} name={p.name} /></span>)}
               </Line>
             ))
           : <div><span className="faint">niemand · </span><Link to="/kweek">naar de kweek →</Link></div>}

@@ -12,7 +12,7 @@ import { useEffect } from 'react';
 import { Link } from 'react-router-dom';
 
 const SECTIONS = [
-  { id: 'nieuw', icon: '🧰', label: 'Nieuw: inrichting & meer' },
+  { id: 'nieuw', icon: '🧰', label: 'Nieuw: samen kweken, inrichting & meer' },
   { id: 'seizoen3', icon: '🎉', label: 'Nieuw in seizoen 3' },
   { id: 'starterspakket', icon: '🎁', label: 'Starterspakket' },
   { id: 'genen', icon: '🧬', label: 'Genen & training' },
@@ -34,6 +34,7 @@ const SECTIONS = [
   { id: 'estafette', icon: '🔗', label: 'Estafettevlucht' },
   { id: 'criterium', icon: '🏆', label: 'Leeftijdscriterium' },
   { id: 'broeden', icon: '🥚', label: 'Kweken & broeden' },
+  { id: 'samen-kweken', icon: '🤝', label: 'Samen kweken' },
   { id: 'inteelt', icon: '🌳', label: 'Stamboom & inteelt' },
   { id: 'ziekte', icon: '🤒', label: 'Ziekte' },
   { id: 'ziekenboeg', icon: '🏥', label: 'De ziekenboeg' },
@@ -111,9 +112,30 @@ export function WikiPage() {
         </div>
       </div>
 
-      <Section id="nieuw" icon="🧰" title="Nieuw: inrichting & meer">
+      <Section id="nieuw" icon="🧰" title="Nieuw: samen kweken, inrichting & meer">
         <p className="muted" style={{ marginTop: 0 }}>
           Wat er in oktober (seizoen 3) bijkwam en veranderde, op één plek. Deze sectie blijft staan als logboek.
+        </p>
+
+        <h3>🤝 Samen kweken (12 oktober)</h3>
+        <p>
+          Kweek met de duif van een <strong>andere speler</strong> — ook van de computermelkers — zonder dat er een duif
+          van eigenaar verandert. Bij <em>Kweek → Samen kweken</em> bied je een gezonde duif aan en kies je meteen of je
+          <strong> de jongen</strong> wil of <strong>de vergoeding</strong>, plus wat een partner minstens moet hebben.
+          Wie een duif voorstelt, ziet de <strong>geschatte score en marktwaarde van het jong</strong>; daarna spreken jullie
+          enkel het bedrag af. Bij een akkoord betaalt elk <strong>€1.000</strong> en start het nest — zoals elk nest kan
+          het even duren en is een jong niet gegarandeerd. Een aangeboden of voorgestelde duif blijft thuis.
+          De computermelkers bieden zelf een duif aan en stellen hun duif ook voor bij die van jou.{' '}
+          <a href="#samen-kweken">Alles over samen kweken →</a>
+        </p>
+
+        <h3>💉 Vaccins en verzekering per duif</h3>
+        <p>
+          Dit stond niet in de aankondiging van 11 oktober: je hoeft niet altijd het hele hok te behandelen. Op de pagina
+          van <strong>elke duif</strong> staat de kaart <em>Verzorging &amp; verzekering</em>. Daar geef je haar apart een
+          <strong> vaccin of kuur</strong> (na een vaccin mag ze 2 dagen niet vliegen, een kuur houdt haar niet aan de grond)
+          en <strong>verzeker</strong> je haar: sterft ze, dan krijg je een deel van haar marktwaarde terug. De premie
+          betaal je per dag en staat in je Dagbalans. <a href="#inrichting">Wanneer de verzekering uitbetaalt →</a>
         </p>
 
         <h3>🧰 De pagina Inrichting</h3>
@@ -1225,6 +1247,68 @@ export function WikiPage() {
           hier tot je plaats maakt. Zo'n duif is <strong>geen nest</strong> — ze telt niet mee voor je kweekbadges en
           ze houdt het koppelformulier <strong>niet</strong> tegen.
         </p>
+      </Section>
+
+      <Section id="samen-kweken" icon="🤝" title="Samen kweken met andermans duif">
+        <p className="muted" style={{ marginTop: 0 }}>
+          Kweek met de duif van een andere speler, zonder dat er een duif van eigenaar verandert. Eén van jullie krijgt
+          de jongen, de andere een vergoeding die jullie samen afspreken. Je vindt het bij <em>Kweek → Samen kweken</em>.
+        </p>
+        <p><strong>Aanbieden.</strong> Zet een duif <em>beschikbaar</em> en kies meteen <strong>wat je wil: de jongen
+          (dan betaal jij de vergoeding) of de vergoeding (dan gaan de jongen naar je partner)</strong>. Kies ook wat een
+          partner minstens moet hebben: een <strong>algemene score (★)</strong>, <strong>energie</strong> en
+          <strong> libido</strong>. Aanbieden is gratis. Een aangeboden duif is, net als een duif te koop, voor iedereen
+          <strong> volledig te bekijken</strong>. Kies je later toch de andere kant (jongen ↔ vergoeding), dan vervallen de
+          lopende voorstellen.</p>
+        <p><strong>Gezond en thuis.</strong> Een duif om mee te kweken mag <strong>niet ziek of gekwetst</strong> zijn en
+          <strong> niet ingeschreven</strong> staan voor een vlucht — niet om ze aan te bieden en niet om ze voor te stellen.
+          Zolang ze aangeboden of voorgesteld is, kan je haar ook <strong>niet inschrijven</strong>: haal haar eerst uit het
+          aanbod of trek het voorstel in.</p>
+        <p><strong>Voorstellen en onderhandelen.</strong> Een andere speler stelt een eigen duif van het andere geslacht
+          voor die aan je eisen voldoet, met een <strong>bedrag</strong>. Wie de jongen krijgt, ligt al vast — er wordt
+          enkel over het bedrag onderhandeld. Wie aan de beurt is, gaat <strong>akkoord</strong>, doet een
+          <strong> tegenvoorstel</strong> (een ander bedrag) of weigert. Zo gaat het heen en weer tot iemand akkoord
+          gaat. Wie een voorstel doet, toont zijn duif volledig aan de andere speler.</p>
+        <p><strong>De geschatte score van het jong</strong> zien beide spelers: wie een duif kiest om voor te stellen,
+          en wie het voorstel krijgt. Het is het <strong>gemiddelde</strong> wat zo'n koppel oplevert: per vaardigheid
+          het gemiddelde van de ouders ± toeval, begrensd door de <a href="#genen">gen-caps</a> die het jong erft (en
+          lager bij <a href="#inteelt">inteelt</a>). Eén jong valt een paar punten hoger of lager uit. Eronder staat de
+          <strong> geschatte marktwaarde</strong> van zo'n jong op de dag dat het uitkomt: de gewone waardering van het spel
+          (<a href="#waarde">marktwaarde</a>) voor een pasgeboren duif met die score, die gen-caps en dat ras.</p>
+        <ul>
+          <li><strong>Akkoord = meteen broeden.</strong> Beide duiven moeten op dat moment kunnen broeden (zelfde regels
+            als een eigen nest: oud genoeg, 20 energie, gezond, niet ingeschreven, niet aan het uitrusten) en de partner
+            moet nog altijd aan de eisen voldoen — energie en libido bewegen elke dag.</li>
+          <li><strong>Het kost elk €1.000</strong>, betaald bij het akkoord (een eigen nest kost €750, maar daarvoor moeten
+            twee van je eigen duiven van de vluchten weg; hier maar één). Beide duiven verliezen 15 energie.</li>
+          <li><strong>Het nest loopt als een gewoon nest:</strong> uitkomen kan even duren (geen vaste tijd, sneller bij
+            hoog libido en veel energie), en <strong>jongen zijn niet gegarandeerd</strong> — een worp kan leeg uitkomen.</li>
+          <li><strong>Alle jongen gaan naar dezelfde speler</strong> — een tweeling ook.</li>
+          <li><strong>De vergoeding wordt pas betaald wanneer de jongen er zijn.</strong> Wie de jongen krijgt, moet ze
+            bij het akkoord wel kunnen betalen.</li>
+          <li><strong>Lege worp:</strong> geen vergoeding, en elk van jullie krijgt <strong>€500</strong> terug (de helft,
+            net als bij een eigen nest).</li>
+          <li><strong>Stoppen</strong> mag elk van beiden, zolang het nest loopt — dan krijgt niemand iets terug en wordt er
+            geen vergoeding betaald. Hetzelfde als een ouder sterft.</li>
+          <li><strong>Je eigen uitrusting telt niet mee:</strong> infrarood boven de nestbak doet niets voor dit nest.</li>
+          <li>Daarna <strong>rusten beide duiven 21 dagen</strong>, net als na een eigen nest. <a href="#inteelt">Inteelt</a>{' '}
+            geldt ook hier: zijn de twee familie, dan zie je dat bij de onderhandeling.</li>
+          <li>Gaat een duif op een nest, wordt ze verkocht of niet meer aangeboden, dan vervallen de andere voorstellen
+            waar ze in zat.</li>
+        </ul>
+        <p><strong>Computermelkers</strong> doen volop mee. Elke bot biedt zijn best gegende duif aan (vanaf ★55) en houdt die
+          thuis van de vluchten en van zijn eigen nesten. Heeft hij plaats en geld over, dan wil hij <strong>de
+          jongen</strong>, anders <strong>de vergoeding</strong>. Bied je zelf een duif aan, dan stellen tot drie bots met een
+          passende duif meteen hun duif voor (elke bot één keer per aanbod). Een bot antwoordt altijd meteen:</p>
+        <ul>
+          <li>krijg <strong>jij</strong> de jongen, dan vraagt hij ongeveer 8 % van de marktwaarde van zijn duif (minstens
+            €250);</li>
+          <li>krijgt <strong>de bot</strong> de jongen, dan biedt hij eerst een kwart van wat zo'n jong bij de geboorte waard
+            is en betaalt hij hoogstens de helft;</li>
+          <li>valt jouw bedrag daarbuiten, dan antwoordt hij met zijn eigen bedrag; daarbinnen gaat hij meteen akkoord.</li>
+        </ul>
+        <p><strong>Zit je hok vol</strong> wanneer de jongen uitkomen, dan gaan ze niet verloren: ze wachten bij <em>Kweek</em>
+          tot je kiest welke je houdt, en je kan eerst plaats maken (zie <a href="#broeden">Kweken &amp; broeden</a>).</p>
       </Section>
 
       <Section id="inteelt" icon="🌳" title="Stamboom & inteelt">

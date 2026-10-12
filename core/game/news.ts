@@ -7,7 +7,7 @@
  * en niet in de migratie, zodat de test hem kan lezen zonder de motor te draaien.
  */
 
-import { MARKET_BOOST } from '../config/gameConfig.js';
+import { INSURANCE, MARKET_BOOST, STUD, VACCINES, studFailedRefund } from '../config/gameConfig.js';
 
 export const INRICHTING_NEWS = {
   title: '🧰 Nieuw: je hok inrichten, en meer',
@@ -27,4 +27,51 @@ export const INRICHTING_NEWS = {
   ].join('\n'),
   /** Stabiel per speler: twee verzoeken die tegelijk migreren geven één bel. */
   id: (userId: string) => `ntf:news:inrichting:${userId}`,
+} as const;
+
+/**
+ * De bel van SAMEN KWEKEN (migratie v62 in schedule.ts, voor élke echte speler).
+ * De tweede helft van de aankondiging is studNewsSteps in client/src/components/Tour.tsx;
+ * de uitleg staat in de wiki (#samen-kweken). Bedragen uit STUD, zodat bel en spel
+ * niet uit elkaar kunnen lopen.
+ */
+export const STUD_NEWS = {
+  title: '🤝 Nieuw: samen kweken met de duif van een andere speler',
+  body: [
+    'Je kan nu kweken met de duif van een andere speler — ook met die van de computermelkers. '
+      + 'Je vindt het bij Kweek → Samen kweken:',
+    '• Bied een gezonde duif aan en kies meteen of je de jongen wil of de vergoeding, en wat een partner minstens '
+      + 'moet hebben (★, energie, libido).',
+    '• Stel zelf een duif voor bij een aangeboden duif. Je ziet meteen de geschatte score van het jong en wat '
+      + 'zo\'n jong waard is.',
+    `• Jullie onderhandelen enkel over het bedrag. Bij een akkoord betaalt elk €${STUD.cost} en start het nest — `
+      + 'zoals elk nest kan het even duren, en een jong is niet gegarandeerd.',
+    '• Wie de jongen krijgt, betaalt de vergoeding pas als ze er zijn (een tweeling gaat naar dezelfde speler). '
+      + `Blijft de worp leeg, dan krijgt elk €${studFailedRefund()} terug. Zit je hok vol, dan kies je zelf welke je houdt.`,
+    '• Een duif die aangeboden of voorgesteld is, blijft thuis: je kan haar niet inschrijven voor een vlucht.',
+    'Alles op een rij: Wiki → Samen kweken.',
+  ].join('\n'),
+  /** Stabiel per speler: twee verzoeken die tegelijk migreren geven één bel. */
+  id: (userId: string) => `ntf:news:samenkweken:${userId}`,
+} as const;
+
+const NO_FLY_DAYS = Math.max(...Object.values(VACCINES).map((v) => v.noFlyDays));
+
+/**
+ * De bel die bij de aankondiging van 11 okt (v61) ontbrak: vaccins en kuren kan je
+ * ook per duif geven, en een duif verzekeren doe je op haar eigen pagina. Ook via
+ * migratie v62, met een eigen id zodat het een aparte bel is.
+ */
+export const CARE_NEWS = {
+  title: '💉 Ook per duif: vaccins en een verzekering',
+  body: [
+    'Gisteren vergeten te melden: je hoeft niet altijd het hele hok te vaccineren. Op de pagina van elke duif '
+      + '(tik op haar naam) staat de kaart "Verzorging & verzekering":',
+    `• 💉 Geef één duif een vaccin of een kuur — bijvoorbeeld je beste duiven. Na een vaccin mag ze ${NO_FLY_DAYS} `
+      + 'dagen niet vliegen; een kuur houdt haar niet aan de grond.',
+    `• 🛡️ Verzeker een duif: sterft ze, dan krijg je ${Math.round(INSURANCE.payoutRate * 100)} % van haar marktwaarde. `
+      + `De premie betaal je per dag (ze staat in je Dagbalans) en de dekking start na ${INSURANCE.waitingDays} dagen.`,
+    'Wanneer de verzekering uitbetaalt en wat elk middel doet: Wiki → Hokinrichting, vaccins & diensten.',
+  ].join('\n'),
+  id: (userId: string) => `ntf:news:verzorgingperduif:${userId}`,
 } as const;

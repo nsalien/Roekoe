@@ -7,6 +7,7 @@ import { useGame } from '../game/GameContext';
 import { Money, Spinner, timeUntil, useToast } from '../components/ui';
 import { PigeonAvatar } from '../components/PigeonAvatar';
 import { NestChoice } from '../components/NestChoice';
+import { SamenKweken } from '../components/SamenKweken';
 import type { BreedingView } from '../types';
 
 export function BreedingPage() {
@@ -16,6 +17,14 @@ export function BreedingPage() {
   const [sireId, setSireId] = useState('');
   const [damId, setDamId] = useState('');
   const [busy, setBusy] = useState(false);
+  // Two tabs: your own nests, and samen kweken with another player's bird. A bell
+  // about a proposal links to /kweek#samen, so the hash opens that tab.
+  const [tab, setTab] = useState<'eigen' | 'samen'>(() => (window.location.hash === '#samen' ? 'samen' : 'eigen'));
+  useEffect(() => {
+    const onHash = () => window.location.hash === '#samen' && setTab('samen');
+    window.addEventListener('hashchange', onHash);
+    return () => window.removeEventListener('hashchange', onHash);
+  }, []);
 
   const loadPairs = useCallback(async () => {
     setView(await api<BreedingView>('/breeding'));
@@ -59,6 +68,9 @@ export function BreedingPage() {
   };
 
   async function stop(pairId: string) {
+    // A samen-kweken nest costs both players their fee; one tap should not end it.
+    const deal = pairs.find((p) => p.id === pairId)?.deal;
+    if (deal && !window.confirm(`Het nest met ${deal.partner} stoppen? Niemand krijgt iets terug en er wordt geen vergoeding betaald.`)) return;
     setBusy(true);
     try {
       await api(`/breeding/${pairId}/stop`, { method: 'POST' });
@@ -95,14 +107,22 @@ export function BreedingPage() {
     }
   }
 
+  const stud = view?.stud;
+  const myTurn = stud?.deals.filter((d) => d.myTurn).length ?? 0;
+  const samenRefresh = async () => {
+    await loadPairs();
+    await refresh();
+  };
+
   return (
     <div>
       <div className="page-head">
         <h1>Kweek</h1>
       </div>
 
-      {/* Waiting birds come first: a held clutch blocks new pairs, and anything
-          waiting here is a bird that is not in the loft yet. */}
+      {/* Waiting birds come first, above both tabs: a held clutch blocks new pairs,
+          and anything waiting here is a bird that is not in the loft yet — also the
+          young of a samen-kweken nest when the loft was full (make room first). */}
       {nests.length > 0 && (
         <div className="stack" style={{ marginBottom: 16 }}>
           {nests.map((nest) => (
@@ -110,6 +130,18 @@ export function BreedingPage() {
           ))}
         </div>
       )}
+
+      <div className="chip-row" style={{ marginBottom: 14 }} data-tour="samen-kweken">
+        <button className={`chip ${tab === 'eigen' ? 'active' : ''}`} onClick={() => setTab('eigen')}>🥚 Eigen nest</button>
+        <button className={`chip ${tab === 'samen' ? 'active' : ''}`} onClick={() => setTab('samen')}>
+          🤝 Samen kweken{myTurn > 0 && <span className="n">{myTurn}</span>}
+        </button>
+      </div>
+
+      {tab === 'samen' ? (
+        stud ? <SamenKweken view={stud} myPigeons={state.pigeons} freeSpace={freeSpace} onChanged={samenRefresh} /> : <Spinner />
+      ) : (
+      <>
 
       <div className="grid cols-2">
         <div className="card" data-tour="breed">
@@ -214,11 +246,19 @@ export function BreedingPage() {
                     <button className="btn ghost sm" disabled={busy} onClick={() => stop(pair.id)}>Stop</button>
                   </div>
                 </div>
+                {pair.deal && (
+                  <div className="faint" style={{ fontSize: '0.85rem', marginTop: 4 }}>
+                    🤝 Met {pair.deal.partner} · jongen naar {pair.deal.youngToMe ? 'jou' : pair.deal.partner}
+                    {pair.deal.fee > 0 && <> · {pair.deal.youngToMe ? 'jij betaalt' : 'jij krijgt'} <Money value={pair.deal.fee} /> bij de geboorte</>}
+                  </div>
+                )}
               </div>
             ))}
           </div>
         </div>
       </div>
+      </>
+      )}
     </div>
   );
 }

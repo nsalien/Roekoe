@@ -15,14 +15,15 @@
 
 | Rol | Branch | Doel |
 |-----|--------|------|
-| **Dev** | `claude/demo-hokinrichting` | Alle ontwikkeling/commits komen hier **eerst**. ⏸️ **Gepauzeerd sinds 11 okt** (enkel een pauzepagina; hoe je hem terugzet staat in de `context.md` óp die branch). Van dev staat sinds 11 okt alles live **behalve Marktwaarde v2 en de demomodus** (§0b). |
+| **Dev** | `claude/demo-hokinrichting` | Alle ontwikkeling/commits komen hier **eerst**. Sinds **12 okt** weer aan: herstart vanaf prod (`4a0c3ad`) + de demomodus + Marktwaarde v2 (§0b), gebouwd op `claude/breeding-other-player-pigeons-7314iz` en op vraag van de eigenaar ook hierheen gepusht (samenvoegcommit, geen force-push: de oude dev-geschiedenis blijft bereikbaar). De eigenaar test in de demo-preview: **https://claude-demo-hokinrichting.roekoe.pages.dev** (die van de sessiebranch: `claude-breeding-other-player.roekoe.pages.dev`). |
 | **Prod** | `claude/roekoe-game-website-jwa0vo` | Elke commit wordt hierheen **gecherry-pickt**; deze branch triggert de **Cloudflare Pages**-deploy naar productie. |
 
 > Vorige dev-branches (niet meer gebruiken): `ccr-9c78dbf3-rdb1ea`, `claude/hallo-nno7pb`, `claude/hallo-r1wgvn`, `claude/hallo-ca55co`, `claude/hallo-qz9tmx`, `claude/hallo-fsp9nx`, `claude/hallo-mzjn0e`, `claude/hallo-su75jy`, `claude/hallo-rkr49f`, `claude/hallo-pvwabx`,
 > `claude/context-spelregels-q2ywtx`, `claude/hallo-49m6hj`, `claude/hallo-xifh0c`,
 > `claude/hallo-w97s85`, `claude/hallo-hrtwtv`,
 > `claude/prosper-postuum-tinne-race-j515f6`, `claude/hallo-v71l3e`,
-> `claude/duif-vorm-functie-s5fsaw`, `claude/context-spelregels-lsbm5a`, `claude/exciting-newton-xgvl6l`. Ontwikkelt een sessie op een nieuwe
+> `claude/duif-vorm-functie-s5fsaw`, `claude/context-spelregels-lsbm5a`, `claude/exciting-newton-xgvl6l`,
+> `claude/breeding-other-player-pigeons-7314iz` (sessiebranch van de herstart en Samen kweken, 12 okt; zelfde stand als dev). Ontwikkelt een sessie op een nieuwe
 > `claude/…`- (of `ccr-…`-)branch, gebruik die dan als dev-branch en **werk deze tabel meteen bij** —
 > de prod-branch hierboven verandert nooit.
 
@@ -70,27 +71,184 @@
 > **Niet** mee: **Marktwaarde v2** (eigenaar: "nog niet") en de **demomodus** (geen spelersfeature).
 > Het voorstel (met alle getallen en de sketch) staat in de artifact "Roekoe Hokinrichting".
 
-### Stand van zaken (11 okt 2026) — lees dit eerst
+### Stand van zaken (12 okt 2026) — lees dit eerst
 - **Live op productie** (`claude/roekoe-game-website-jwa0vo`): alles in §0b behalve de twee
   blokken met **ENKEL OP DEV** (*Demomodus*, *Marktwaarde v2*). De marktwaarde op prod is die van
   *Marktwaarde houdt stand* + *nooit onder 1/5* (§8). Spelers kregen een bel (migratie **v61**,
   `core/game/news.ts`), een rondleiding (`INRICHTING_NEWS_STEPS` in `Tour.tsx`, sleutel
   `roekoe.newsSeen.inrichting.<id>`) en een wikisectie **#nieuw** ("Nieuw: inrichting & meer").
-- **Enkel op dev** (gepauzeerd): **Marktwaarde v2** (`ac31a45`) en de **demomodus**. Weggehaald
-  van dev en dus nergens: koppels, partnerhok, weduwschap, de scout, het nieuwe voer.
+- **Samen kweken live op 12 okt** (op vraag van de eigenaar), als **één commit op prod** ("Samen
+  kweken live"), samengesteld uit de vier feature-commits van dev (`cbe8fcc`, `9b567c9`, `8167ff4`,
+  `abee7be`) — zonder de demo-commits en zonder Marktwaarde v2. Aankondiging: migratie **v62**
+  (twee bellen: samen kweken + vaccins/verzekering per duif), rondleiding `studNewsSteps` (sleutel
+  `roekoe.newsSeen.samen.<id>`), wiki **#nieuw**. Schema op prod: de drie stud-stappen staan
+  achteraan, direct na `pigeons.boosted_at` (op dev zit `trades.quality` ertussen).
+- **Enkel op dev:** **Marktwaarde v2** en de **demomodus**. Weggehaald van dev en dus nergens:
+  koppels, partnerhok, weduwschap, de scout, het nieuwe voer.
+- **Dev herstart op 12 okt** (gebouwd op `claude/breeding-other-player-pigeons-7314iz`, daarna ook
+  op `claude/demo-hokinrichting`), precies zoals hieronder beschreven: vanaf prod `4a0c3ad`, de demo
+  ongewijzigd uit `bc8c415`, en `ac31a45` (v2) erop gecherry-pickt.
 - **Schema:** prod's `SCHEMA_STEPS` kregen 4 stappen achteraan: `lofts.equipment`,
-  `pigeons.care`, `flights.forecast`, `pigeons.boosted_at`. ⚠️ Dev heeft `trades.quality` (v2)
-  **tussen** `flights.forecast` en `pigeons.boosted_at`. Gaat v2 live: `trades.quality`
-  **achteraan prod's lijst** (dev heeft geen eigen databank, zijn volgorde mag je gelijktrekken).
+  `pigeons.care`, `flights.forecast`, `pigeons.boosted_at`. Op dev staat `trades.quality` (v2)
+  sinds de herstart **ná** `pigeons.boosted_at`, dus v2 kan in die volgorde live. Wat daarna
+  komt (kweken met andermans duif) staat er weer achter: zet bij een cherry-pick naar prod
+  enkel de stappen van wat je meeneemt achteraan prod's lijst.
 - **Wacht op een beslissing van de eigenaar:**
   1. **Marktwaarde v2 naar productie?** (11 okt: nog niet.)
   2. Moeten de **opvangcentrum-veilingen** (start €25, NPC) buiten de marktwaarde blijven?
   (Beslist op 11 okt: **besmetting per ziekte**, zie §8.)
-- **Dev weer aanzetten:** dev mist de besmetting per ziekte, de aankondiging, het opruimen van
-  de "⚠️ dev"-labels en de vaccinteksten zonder ★ (die kwamen uit v2). Het eenvoudigst: **dev
-  herstarten vanaf prod** en daarop `ac31a45` (v2) en de demo (`client/demo/`, de Vite-plugin,
-  sql.js, `tests/demo-*.test.mts`, uit `bc8c415`) terugzetten — niet prod in dev mergen (v2 en de
-  revert ervan botsen in 9 bestanden). Werk dan de branchtabel in §0 bij.
+- **Dev weer aanzetten (gedaan op 12 okt):** **dev herstarten vanaf prod** en daarop `ac31a45`
+  (v2) en de demo (`client/demo/`, de Vite-plugin, sql.js, `tests/demo-*.test.mts`, uit
+  `bc8c415`) terugzetten — niet prod in dev mergen (v2 en de revert ervan botsen in 9
+  bestanden). De cherry-pick van `ac31a45` botste enkel op imports en de schemastap; de
+  v2-bestanden zijn daarna identiek aan `bc8c415`. Op vraag van de eigenaar staat die stand ook op
+  `claude/demo-hokinrichting` (het vertrouwde preview-adres), als samenvoegcommit bovenop de
+  pauzecommits: de boom is die van de herstart, de oude commits (`bc8c415`, `70d3209`, `264f93f`, …)
+  blijven via de tweede ouder bereikbaar. De pauzepagina is daarmee weg.
+
+### Kweken met andermans duif ("Samen kweken") — LIVE sinds 12 okt
+- **Vraag van de eigenaar** (De Stem, *"Broeden met de duif van een andere speler"*, spelleiding 19
+  sep): twee spelers kweken met elkaars duiven; de ene krijgt het jong (een tweeling ook), de
+  andere een vergoeding die ze samen afspreken. Onder het **Kweek**-menu. Een speler zet een duif
+  *beschikbaar* met de **minimum algemene score (★)**, **energie** en **libido** van de partner;
+  anderen zien de aangeboden duiven zoals op de markt, stellen een eigen duif voor en onderhandelen
+  (wie krijgt de jongen + hoeveel) **vóór** het broeden. Bij een akkoord start het nest meteen en
+  betaalt **elk €1.000** (`STUD.cost`; eigen nest €750, maar daar gaan twee duiven van de vluchten).
+  **Broedvoordelen uit de eigen uitrusting tellen niet mee.** "Zorg dat een bot al een duif
+  aanbiedt zodat ik kan testen."
+- **Tweede ronde (eigenaar, 12 okt):** (1) wie een duif aanbiedt, **kiest meteen of hij de jongen
+  wil of de vergoeding** (`StudListing.wants`: `'young'` | `'fee'`, verplicht bij het aanbieden;
+  ontbrekend op een oud aanbod = `'fee'`). Er wordt daarna **enkel over het bedrag** onderhandeld:
+  `proposeStud(db, user, studId, mateId, fee)` / `counterStud(db, user, dealId, fee)`, `youngTo`
+  volgt uit het aanbod (`keeperFor`). Een andere `wants` kiezen laat de lopende voorstellen vervallen
+  (met bel); `pruneStudDeals` ruimt ook een voorstel op waarvan `youngTo` niet meer klopt.
+  (2) **Wie een duif voorstelt, ziet de geschatte score van het jong** — per kandidaat in de keuzelijst
+  (`listings[].candidates[] = {id, youngScore, kin}`), en (3) **wie het voorstel krijgt ook**: op de
+  kaart (`deals[].youngScore`) en in de bel ("het jong scoort naar schatting ★61").
+  De schatting is `expectedYoungScore(sire, dam, kin)` in **breeding.ts**: dezelfde overerving als
+  `breed`, uitgemiddeld i.p.v. geworpen (raster 24×24 over de mutatie van de vaardigheid ±8 en van de
+  gen-cap ±6, begrensd op de gen-cap van het jong, inteeltstraf mee). Gemeten tegen 4.000 echte
+  worpen: gewoon koppel, vlak onder de plafonds en volle broer × zus komen tot op 0,1 uit. ⚠️ De kaart
+  *Eigen nest* toont nog het oude, simpele "verwacht talent ≈ (★vader + ★moeder)/2" — niet gevraagd
+  om aan te passen; dat zit vlak onder de plafonds enkele punten en bij inteelt ~15 punten te hoog.
+- **Derde ronde (eigenaar, 12 okt):** (1) een duif om mee te kweken **mag niet ziek zijn** en (2) **niet
+  ingeschreven** voor een vlucht wanneer ze aangeboden of voorgesteld wordt — `offerBlock` (stud.ts:
+  aandoening, ziekenboeg, `pigeonCommittedToFlight`) in `setStudListing` (enkel bij een nieuw aanbod)
+  en `proposeStud`; de kandidatenlijst laat zulke duiven weg (`listings[].unfit` telt ze), het
+  aanbiedformulier toont ze uitgeschakeld. **Omgekeerd**: zolang ze aangeboden of voorgesteld is, kan
+  ze niet ingeschreven worden — `studFlightBlock` in `enterFlight`; daarvoor laadt **`POST
+  /api/flights/:id/enter`** nu ook `stud_deals` (+1 query op die ene route) en verbergt
+  `client/game/flightEntry.ts::canEnter` een aangeboden duif. Bots bieden enkel een gezonde,
+  niet-ingeschreven duif aan. (3) **Onder de geschatte score de geschatte marktwaarde** van het jong:
+  `studYoung(db, a, b)` → `{score, value}`; `value` = `marketValue` van een virtuele **pasgeboren** duif
+  met de verwachte vaardigheden en gen-caps (`breeding.expectedYoung`), het geërfde ras, geen
+  kenmerk. In `candidates[].youngValue`, `deals[].youngValue` en de bel. (4) Het nest **loopt als een
+  gewoon nest** (dat deed het al: `tickBreedingHatch`, zelfde kans en timing, lege worp mogelijk); nu
+  ook zo gezegd in de toast, wiki en spelregels, en de test controleert dat het niet meteen uitkomt.
+- **Zelf beslist (niet gevraagd, de eigenaar kan het omdraaien):**
+  1. De **vergoeding wordt pas betaald als de jongen er zijn** (in `tickBreedingHatch`, van wie de
+     jongen krijgt naar de partner). Geen escrow: een nest kan op veel plekken stil verdwijnen
+     (sterfte filtert `db.breedingPairs` in health.ts/schedule.ts), en geld in een vervallen nest
+     zou dan verloren gaan. Wie de jongen krijgt moet het bedrag wél hebben bij het akkoord; staat
+     hij bij de geboorte in het rood, dan zakt hij verder (§4.5 spelregels).
+  2. **Lege worp:** geen vergoeding, en **elk** krijgt €500 terug (`studFailedRefund()` =
+     `STUD.cost × BREEDING.failedRefundRate`), zoals bij een eigen nest.
+  3. **Stoppen mag elk van beiden** (`stopBreeding` aanvaardt nu ook `deal.partnerId`): niemand krijgt
+     iets terug, geen vergoeding, de ander krijgt een bel. Sterft een ouder: idem, zonder bel.
+  4. "Uitrusting telt niet" = het **infrarood**: dat is het enige stuk dat op het nest zelf werkt.
+     Kunstlicht/ren werken op het libido van de duif zelf en blijven dus meetellen.
+  5. **Onderhandelen = om beurten**, sinds de tweede ronde enkel over het bedrag: wie aan de beurt is
+     (`turn`) gaat akkoord met het bedrag dat de ánder het laatst voorstelde, doet een tegenvoorstel
+     (ander bedrag; hetzelfde bedrag wordt geweigerd) of weigert/trekt in. Max. `STUD.maxOpenProposals` (10)
+     open voorstellen per speler, vergoeding hoogstens `STUD.maxFee`.
+  6. Een **aangeboden duif is volledig zichtbaar** (`publiclyRevealed` in `pigeonDTO`, zoals te koop),
+     en in een onderhandeling zien beide spelers beide duiven volledig.
+  7. **Bots** (`botOfferStud` in `botDailyActions`): elke bot met een duif van ★`botMinScore` (55)+
+     biedt zijn best gegende volwassen duif aan (voorkeur: nu vrij), vraagt een partner van
+     ★(talent − 10, afgerond op 5), ⚡30, ❤30, **`wants: 'fee'`**, en **houdt die duif thuis** van
+     vluchten (`botRaceCandidates`) en eigen nesten (`canBreed`). Hij antwoordt meteen (`botAnswer`):
+     een bedrag van minstens `botStudFee` (8 % van de marktwaarde, min. €250, per €50) aanvaardt hij
+     (kan zijn duif niet meteen, dan legt hij de beurt terug bij de speler), een lager bedrag krijgt
+     `botStudFee` als tegenvoorstel.
+- **Opslag (geen extra query op gewone verzoeken):**
+  - het aanbod op de duif: **`Pigeon.stud`** (`StudListing {by, minScore, minEnergy, minLibido, wants, at}`,
+    kolom `pigeons.stud`, `''` = niet aangeboden). Een aanbod met `by ≠ ownerId` is ongeldig
+    (`activeListing`); `clearOwnerCare` wist het bij elke eigendomswissel.
+  - de onderhandelingen: tabel **`stud_deals`** (`StudDeal`), **enkel geladen op `/api/breeding*`**
+    (`LoadOptions.studDeals`, gezet in de middleware). Op elk ander verzoek is `db.studDeals`
+    `undefined` en schrijft `persist` er niets van (de snapshot bestaat dan niet — een afwezige
+    array mag nooit "alles gewist" betekenen). Omdat niets anders ze ziet, ruimt niemand ze op bij
+    een verkoop of sterfte: `pruneStudDeals` laat ze vallen zodra ze gelezen worden.
+    `purgeRemovedPlayers` wist ze bij het verwijderen van een speler.
+  - het lopende nest: **`BreedingPair.deal`** (`{partnerId, fee}`, kolom `breeding_pairs.deal`).
+    `ownerId` = wie de jongen krijgt (en betaalt). Alles wat vraagt "zit deze duif op een nest?"
+    kijkt naar de duif, dus de duif van de partner is gewoon bezet. `loftDTO.nests` en `GET
+    /breeding.pairs` tonen het nest bij beide spelers (met `partner`).
+  - **Schema:** 3 stappen achteraan `SCHEMA_STEPS` (na `trades.quality`): `pigeons.stud`,
+    `breeding_pairs.deal`, `CREATE TABLE stud_deals`. Naar prod zonder v2: deze drie achteraan
+    prod's lijst.
+- **Code:** `core/game/stud.ts` (alle regels: `setStudListing`, `proposeStud`, `counterStud`,
+  `acceptStud`, `closeStud`, `pruneStudDeals`, `breedBlock`, `criteriaGap`, bots), hatch in
+  `schedule.ts::tickBreedingHatch` (vergoeding, €500 elk, bel voor de partner met vaste id
+  `ntf:brood:<pairId>:partner`, infrarood enkel voor `!bp.deal`), `STUD` + `studFailedRefund` in
+  gameConfig. API: `GET /breeding` → `stud {cost, failRefund, maxFee, listings, deals}`; `POST
+  /breeding/stud/list|unlist|propose`, `/breeding/stud/:id/counter|accept|close`.
+- **UI:** Kweek kreeg twee tabs (`chip-row`): **🥚 Eigen nest** (zoals voorheen; een samen-kweken-nest
+  staat in *Broedsels onderweg* met partner, verdeling en vergoeding, en vraagt een bevestiging bij
+  Stop) en **🤝 Samen kweken** (`components/SamenKweken.tsx`; `/kweek#samen` opent die tab; de tab
+  telt de voorstellen waar jij aan de beurt bent): bovenaan de **onderhandelingen** (met "🐣 Het jong
+  scoort naar schatting ★…", daaronder "Geschatte marktwaarde bij de geboorte: €…", en enkel een
+  bedrag als tegenvoorstel), dan **zelf een duif aanbieden**
+  (verplichte keuze 🐣 De jongen / 💶 De vergoeding + de drie eisen), dan de **aangeboden duiven** als
+  `PigeonCard` zoals op de markt (vrije eerst) met "zoekt ★45+ · ⚡30+ · ❤30+", wat de eigenaar wil
+  ("Wil de vergoeding — de jongen zijn voor jou") en "Stel een duif voor" (keuzelijst met "→ jong ★62"
+  per duif, de schatting + inteeltwaarschuwing van de gekozen duif, en het bedrag). Het hokoverzicht zet "🤝 met <hok>" bij zo'n
+  nest; `PigeonCard` toont 🤝 bij een aangeboden duif. Wiki `#samen-kweken`, spelregels **§7.4** + §17.
+- **Demo (enkel dev):** de seed laat de bots hun duif aanbieden en haalt die van de geplande vluchten
+  (in productie gebeurt het aanbieden op de dagovergang en blijft ze daarna thuis); vindt geen enkele
+  demoduif een vrije botduif, dan zakken de eisen van de eerste tot wat de beste demoduif heeft.
+  `DEMO_VERSION` 6. `demo-world` controleert dat er zo'n botduif is.
+- **Test:** `tests/samen-kweken.test.mts` (~100 controles, node:sqlite + de echte API, los van de
+  demo zodat hij ook op prod draait; ook de keuze jongen/vergoeding, de geschatte score bij kandidaat,
+  onderhandeling en bel, de marktwaarde, ziek/ingeschreven weigeren, niet inschrijven zolang
+  aangeboden of voorgesteld, en de schatting tegen 4.000 echte worpen): bot antwoordt met zijn prijs en gaat akkoord, €1.000 elk,
+  jongen + vergoeding bij de geboorte, beide ouders rusten, speler-tegen-speler (eisen, beurten,
+  tegenvoorstel, zelfde voorwaarden geweigerd), lege worp (€500 elk, geen vergoeding, vaste bel-id),
+  stoppen door de partner, weigeren/intrekken/niet meer aanbieden/verkocht, infrarood, en de opslag
+  (een gewoon verzoek laadt `stud_deals` niet en wist ze dus ook niet).
+- **Vierde ronde (eigenaar, 12 okt): bots doen volop mee, vol hok, live + communicatie.**
+  - **Bots stellen zelf voor** (`botsProposeTo`): biedt een speler een duif aan, dan stelt elke bot
+    wiens aangeboden duif past (andere sekse, vrij (`breedBlock`), gezond/niet ingeschreven
+    (`offerBlock`), voldoet aan de eisen, géén familie) zijn duif voor — **hoogstens
+    `STUD.botMaxProposals` (3)** per aanbod, beste verwachte jong eerst, **elke bot één keer per
+    aanbod** (`StudListing.asked`, ook na een weigering; leeg gemaakt als de eigenaar wisselt tussen
+    jongen en vergoeding). Een bot stelt enkel zijn eigen aangeboden duif voor: die houdt hij al thuis
+    van vluchten en eigen nesten, dus een akkoord loopt nooit vast op een inschrijving (bots schrijven
+    in buiten de Kweek-routes, waar de onderhandelingen niet geladen zijn). Draait bij
+    `setStudListing` en bij **`GET /breeding`** (`botsAnswerListings`; die GET schrijft dan, enkel als er
+    iets veranderde).
+  - **Bots in beide rollen** (`botAnswer` via `botTerms`): krijgt de speler de jongen, dan wil de bot
+    minstens `botStudFee`; krijgt de bot de jongen, dan biedt hij `botYoungBid(waarde jong).offer` (25 %)
+    en betaalt hij hoogstens `.max` (50 %) — `STUD.botBidShare`/`botMaxBidShare`. Daarbinnen akkoord,
+    anders zijn eigen bedrag. Een bot die de jongen zou krijgen zonder plaats (`botHasRoom`: zelfde regel
+    als `maybeBreed`) of geld (`botCanPay`, boven `BOT.breedReserve`) weigert; `acceptStud` weigert ook
+    een bot-ontvanger zonder plaats (een bot gooit overtallige jongen weg). **Een bot wil zelf de jongen**
+    van zijn eigen aanbod als hij `STUD.botYoungFreePerches` (2) plaatsen en het geld over heeft
+    (`botOfferStud`), anders de vergoeding. De API stuurt `askFee` enkel voor een bot die de vergoeding
+    wil, en per kandidaat `botBid` (zijn maximum) voor een bot die de jongen wil.
+  - **Vol hok:** werkte al (`tickBreedingHatch` houdt het nest vast in `pendingBroods`, de speler kiest
+    en kan eerst plaats maken via `NestChoice`). Het keuzescherm staat nu **boven beide tabs** van Kweek,
+    en een onderhandeling waarbij jij de jongen krijgt zegt het als je hok vol zit. De test laat een
+    samen-kweken-nest in een vol hok uitkomen, maakt plaats en houdt de jongen.
+  - **Aankondiging (migratie v62, `core/game/news.ts`):** twee bellen per echte speler — `STUD_NEWS`
+    (`ntf:news:samenkweken:<id>`) en `CARE_NEWS` (`ntf:news:verzorgingperduif:<id>`: vaccins/kuren en een
+    verzekering kan je ook **per duif** nemen, op haar pagina — dat stond niet in de aankondiging van 11
+    okt). De bots bieden in v62 meteen een duif aan. Rondleiding `studNewsSteps(pigeonId)` in Tour.tsx
+    (Kweek-tabs `[data-tour="samen-kweken"]` → de kaart `[data-tour="pigeon-care"]` op de pagina van je
+    eerste duif), sleutel `roekoe.newsSeen.samen.<id>`, pas na de vorige aankondigingen (Layout).
+    Wiki **#nieuw** heet nu "Nieuw: samen kweken, inrichting & meer" met twee nieuwe blokken bovenaan.
+    Test: `tests/samen-kweken-news.test.mts`.
+  - **Nog te doen door de beheerder:** het idee op De Stem op "In het spel" zetten.
 
 ### Demomodus (preview-builds) — ⚠️ ENKEL OP DEV, niet op productie
 - **Niet mee naar productie (11 okt):** op prod bestaan `client/demo/`, de Vite-plugin, sql.js en
@@ -100,8 +258,11 @@
 - **Wanneer:** Cloudflare Pages zet `CF_PAGES_BRANCH` tijdens de build. Is die **niet**
   `claude/roekoe-game-website-jwa0vo`, dan bouwt de client als demo (`client/vite.config.ts`).
   `ROEKOE_DEMO=1` forceert het lokaal. Zonder `CF_PAGES_BRANCH` (lokaal, `wrangler pages dev`)
-  is het een gewone build. Preview-adres: `https://<branch>.<projectnaam>.pages.dev`
-  (slashes in de branchnaam worden streepjes; exact te zien onder *Deployments*).
+  is het een gewone build. Preview-adres: `https://<branch>.roekoe.pages.dev` — slashes en
+  andere tekens worden streepjes en ⚠️ **Cloudflare kapt het af op 28 tekens**
+  (`claude/breeding-other-player-pigeons-7314iz` → `claude-breeding-other-player`). Het juiste
+  adres staat ook in de check "Cloudflare Pages" op de commit in GitHub (`/commits/<sha>/check-runs`,
+  "Branch Preview URL").
 - **Hoe het de productie ongemoeid laat:** de demo-build verandert **enkel het instappunt** in
   `index.html` (`/src/main.tsx` → `/demo/entry.ts`, via een Vite-plugin met `order: 'pre'`).
   Geen enkel bestand onder `client/src` weet van de demo. Een productiebuild is daardoor
@@ -580,7 +741,7 @@ krijgen.**
 `core/game/schedule.ts` → `advanceRealtime(db, nowMs, weatherByFlight)` roept in
 volgorde:
 1. `runDataMigrations(db)` — eenmalige datafixes, **gated op `world.dataVersion`**
-   (staat nu op **61** — v61 = de aankondigingsbel van de hokinrichting & co (`core/game/news.ts`), v60 = die van Het Lokaal; nieuwe migratie = nieuw `if ((db.world.dataVersion ?? 0) < N)`
+   (staat nu op **62** — v62 = de bellen van samen kweken en van vaccins/verzekering per duif + de bots bieden een duif aan, v61 = de aankondigingsbel van de hokinrichting & co (`core/game/news.ts`), v60 = die van Het Lokaal; nieuwe migratie = nieuw `if ((db.world.dataVersion ?? 0) < N)`
    blok + `db.world.dataVersion = N`). De oudere migraties hebben hun werk gedaan en
    zijn enkel nog van belang als **patroon** — zie §8, kop *Eenmalige migraties*.
 2. `ensureFlightsScheduled(db, nowMs)` — plant vluchten volgens `REAL_SCHEDULE`.
@@ -938,6 +1099,10 @@ Entiteiten: `Pigeon`, `Loft`, `User`, `BreedingPair`, `PendingBrood`, `Flight` (
   `updates?` — voor real-time herstel + 12u-statusupdates.
 - `PlayerStats.bets` / `betsWon` / `broods` — voor nieuwe badges/missies.
 
+**Samen kweken (dev, zie §0b):** `Pigeon.stud` (kolom `stud`, het aanbod), `BreedingPair.deal`
+(kolom `deal`, de afspraak op een lopend nest) en de tabel `stud_deals` (de onderhandelingen,
+`Database.studDeals` — **enkel geladen op `/api/breeding*`**, anders `undefined`).
+
 **Aparte D1-tabellen:**
 - `auction_bids (auction_id, user_id, name, amount, at)` — bron van waarheid voor
   veilingbiedingen (in `a.bids` geladen; de oude JSON-kolom is enkel fallback).
@@ -1104,6 +1269,9 @@ Entiteiten: `Pigeon`, `Loft`, `User`, `BreedingPair`, `PendingBrood`, `Flight` (
   duiven worden niet meer weggestreept. Enkel `gaveUp`/`dnfAtSeconds` = DNF.
 - **Kweekleeftijd:** `BREEDING.minAgeWeeks` **8** — even oud als de vluchtleeftijd, maar een
   eigen knop. Inteelt: zie `INBREEDING` + `PIGEON_QUIRKS` en §8.
+- **Samen kweken (`STUD`, dev):** `cost` **1000** per speler bij het akkoord, `maxFee` 100.000,
+  `maxOpenProposals` 10; bots: `botMinScore` 55, `botScoreMargin` 10, `botMinEnergy`/`botMinLibido`
+  30, `botFeeShare` 0,08, `botMinFee` 250. Lege worp: `studFailedRefund()` = €500 elk.
 - **Kweken (`BREEDING`):** ouders minstens **20** energie (`minParentForm`, was 40);
   meer energie+libido = sneller een jong. **`cost` 750** (was 200) en
   **`cooldownDays` 21** — het koppel gaat uiteen zodra het nest er is en beide ouders
@@ -1472,7 +1640,9 @@ Entiteiten: `Pigeon`, `Loft`, `User`, `BreedingPair`, `PendingBrood`, `Flight` (
 - `PigeonPage` bij andermans (niet-bot) duif: kaart **"Bied op deze duif"** (bod
   uitbrengen / lopend bod intrekken). Statbalken verborgen (`revealed:false`) →
   enkel ★talent + "eigenschappen onbekend"-melding.
-- `BreedingPage`: nieuw koppel + lopende broedsels, én bovenaan het **nest-keuzescherm**
+- `BreedingPage` (dev): twee tabs, **🥚 Eigen nest** (hieronder) en **🤝 Samen kweken**
+  (`components/SamenKweken.tsx`, zie §0b). Tab Eigen nest:
+  nieuw koppel + lopende broedsels, én bovenaan het **nest-keuzescherm**
   (`components/NestChoice.tsx`) zodra een worp op een keuze wacht. Dat scherm toont per
   jong de score **en de gen-caps** (daar gaat de keuze over), heeft een uitklapbaar
   *Maak plaats* met 🕊️/🍲 per volwassen duif, en blokkeert het koppelformulier zolang het
@@ -1601,6 +1771,8 @@ npx tsx tests/vaccine-price.test.mts      # wat een vaccin oplevert tegenover zi
 npx tsx tests/market-boost.test.mts       # zoekertje naar boven: één plek bovenaan, 12 u, gewist bij verkoop
 npx tsx tests/contagion.test.mts          # besmetting per ziekte: de eigen ziekte van de bron, eigen kans
 npx tsx tests/inrichting-news.test.mts    # v61: één aankondigingsbel per echte speler, stabiele id
+npx tsx tests/samen-kweken.test.mts       # kweken met andermans duif: bot, onderhandelen, vergoeding, lege worp, opslag
+npx tsx tests/samen-kweken-news.test.mts  # v62: twee bellen per echte speler, stabiele id, bots bieden aan
 ```
 
 > **Geen `tsx` beschikbaar?** (cloud-sessie waar de npm-registry geblokkeerd is: `npx tsx`
@@ -1626,7 +1798,8 @@ Alles in één keer (bash, vanuit de root):
 for f in tests/*.test.mts; do printf '%-26s ' "$(basename "$f")"; npx tsx "$f" >/dev/null 2>&1 && echo OK || echo FAIL; done
 ```
 
-**Stand van de suite (dev, na het weghalen van de koppels): 57 van de 58 groen** (`cpu-budget`
+**Stand van de suite (dev, 12 okt, na Samen kweken): alles groen behalve `age-cup`** (64 tests;
+`cpu-budget` en `demo-build` apart gedraaid, beide groen). Daarvoor: **(na het weghalen van de koppels) 57 van de 58 groen** (`cpu-budget`
 apart gedraaid; enkel `age-cup` rood, zie hieronder). `inrichting` hing af van het uur: een vlucht
 die 24–25 u later vertrekt, schoof tijdens het geteste uur het weerstationvenster in; de assertie
 kijkt nu enkel naar vluchten die al een voorspelling hadden (groen op alle 24 uren van de dag).
@@ -1723,8 +1896,8 @@ Alles hieronder staat **live** op de deploy-branch. Data-migraties liepen door t
 - **Test:** `tests/contagion.test.mts` (21 controles, ~3 s, geseed): volgorde van de factoren,
   Coccidiose (×1) = exact de oude kans, gemeten kans per ziekte = de formule, wie besmet raakt
   krijgt de ziekte van de bron, de ziekenboeg besmet niemand, zonder bron niets veranderd.
-- ⚠️ **Dev** (`claude/demo-hokinrichting`, gepauzeerd) heeft dit **niet** (zie §0b *Dev weer
-  aanzetten*). Live gegaan samen met de hokinrichting (11 okt).
+- Live gegaan samen met de hokinrichting (11 okt). De herstarte dev (12 okt, vanaf prod) heeft het
+  ook; de gepauzeerde dev van vóór 12 okt had het niet.
 
 **Markt: nooit onder 1/5 van de marktwaarde; twee verkopen van €25 tellen niet mee**
 - **Melding van de eigenaar (productie):** Roekoeloos verkocht *Zulma uit het Zolderhok* en

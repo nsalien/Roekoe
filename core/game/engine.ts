@@ -66,6 +66,7 @@ import {
 } from './pigeon.js';
 import { clamp, randFloat, randInt, round1 } from './util.js';
 import { clearOwnerCare, grounded } from './inrichting.js';
+import { studFlightBlock } from './stud.js';
 
 export const NPC_OWNER_ID = 'npc_market';
 
@@ -267,12 +268,27 @@ export function renameLoft(store: Store, userId: string, name: string): string |
   });
 }
 
-/** Cancel a breeding pair so the parents can race again (no refund). */
+/**
+ * Cancel a breeding pair so the parents can race again (no refund). A samen-kweken
+ * nest may be stopped by either player — it is their bird too — and then nobody
+ * gets anything back and no fee is paid (stud.ts); the other player is told.
+ */
 export function stopBreeding(store: Store, userId: string, pairId: string): string | null {
   return store.mutate((db) => {
-    const idx = db.breedingPairs.findIndex((bp) => bp.id === pairId && bp.ownerId === userId);
+    const idx = db.breedingPairs.findIndex(
+      (bp) => bp.id === pairId && (bp.ownerId === userId || bp.deal?.partnerId === userId),
+    );
     if (idx === -1) return 'Koppel niet gevonden';
-    db.breedingPairs.splice(idx, 1);
+    const [bp] = db.breedingPairs.splice(idx, 1);
+    if (bp.deal) {
+      const other = bp.ownerId === userId ? bp.deal.partnerId : bp.ownerId;
+      const otherLoft = db.lofts.find((l) => l.userId === other);
+      if (otherLoft && !otherLoft.isBot) {
+        const sire = db.pigeons.find((p) => p.id === bp.sireId)?.name ?? '?';
+        const dam = db.pigeons.find((p) => p.id === bp.damId)?.name ?? '?';
+        notify(db, other, 'info', '🤝 Samen kweken gestopt', `${ownerName(db, userId)} stopte het nest ${sire} × ${dam}. Niemand krijgt iets terug en er wordt geen vergoeding betaald.`);
+      }
+    }
     return null;
   });
 }
@@ -582,6 +598,8 @@ export function enterFlight(
     if (pigeon.form < 1) return 'Deze duif is volledig uitgeput — laat ze eerst wat rusten';
     const breeding = db.breedingPairs.some((bp) => bp.sireId === pigeonId || bp.damId === pigeonId);
     if (breeding) return 'Deze duif zit op een nest — stop eerst het broeden voordat ze weer kan vliegen';
+    // Samen kweken: a bird on offer to breed stays off the flights (stud.ts).
+    { const stud = studFlightBlock(db, pigeon); if (stud) return stud; }
     { const debt = debtBlock(loft); if (debt) return debt; }
     if (flight.entries.some((e) => e.pigeonId === pigeonId)) return 'Duif is al ingeschreven';
     // The titanenwedstrijd allows only one bird per loft.

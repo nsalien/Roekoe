@@ -152,6 +152,8 @@ export interface Pigeon {
   restCureAvailableAt: string | null;
   /** When this bird may raise another clutch (rest between nests), or null if now. */
   breedAvailableAt: string | null;
+  /** Samen kweken: put up by her owner, with what a partner must have. Null = not on offer. */
+  stud?: StudCriteria | null;
   trainAvailableAt: { speed: string | null; endurance: string | null; orientation: string | null };
   racing: boolean;
   /** In the air right now (racing also counts a race still to come). */
@@ -247,7 +249,7 @@ export interface Loft {
   /** Hokinrichting: the hygiene meter and the hokpoetser. Absent on an older server. */
   equipment?: LoftEquipment;
   /** Breeding pairs (sire + dam), for the nest boxes in the loft view. */
-  nests?: { id: string; sireId: string; damId: string }[];
+  nests?: { id: string; sireId: string; damId: string; partner?: string | null }[];
 }
 
 export interface LoftEquipment {
@@ -955,6 +957,70 @@ export interface BreedingPair {
   sire: string;
   dam: string;
   hatchAt: string;
+  /** Samen kweken: the other player, who keeps the young, and the agreed fee. Null = own nest. */
+  deal?: { partner: string; youngToMe: boolean; fee: number } | null;
+}
+
+/** Samen kweken: what the owner of a listed bird wants out of it, decided when she is put up. */
+export type StudWants = 'young' | 'fee';
+
+/** Samen kweken: what the owner asks of a partner (algemene score, energie, libido) and wants. */
+export interface StudCriteria {
+  minScore: number;
+  minEnergy: number;
+  minLibido: number;
+  wants?: StudWants;
+}
+
+/** A bird that is put up for samen kweken. */
+export interface StudListingView {
+  pigeon: Pigeon;
+  ownerName: string;
+  ownerIsBot: boolean;
+  mine: boolean;
+  criteria: StudCriteria;
+  /** The owner keeps the young ('young') or takes the fee ('fee'). */
+  wants: StudWants;
+  /** Why she could not go on a nest right now, or null. */
+  busy: string | null;
+  /** What a bot that wants the fee asks; null for a player or a bot that wants the young. */
+  askFee: number | null;
+  /** MY birds that may be offered (other sex, old enough, healthy, not entered, meeting the ask),
+   *  with what the young would score and be worth at birth. */
+  candidates: { id: string; youngScore: number; youngValue: number; kin: KinshipDegree | null; botBid: number | null }[];
+  /** My birds that meet the ask but are sick or entered for a flight. */
+  unfit: number;
+  /** My birds of the other sex that fall short. */
+  shortfall: number;
+}
+
+/** An open negotiation I am in. */
+export interface StudDealView {
+  id: string;
+  /** 'stud' = my bird was put up; 'mate' = I offered mine. */
+  role: 'stud' | 'mate';
+  stud: Pigeon;
+  mate: Pigeon;
+  otherName: string;
+  otherIsBot: boolean;
+  youngToMe: boolean;
+  fee: number;
+  myTurn: boolean;
+  kin: KinshipDegree | null;
+  /** What the young are expected to score (★), and what such a youngster is worth at birth. */
+  youngScore: number;
+  youngValue: number;
+  /** On my turn: why accepting would fail right now, or null. */
+  blocked: string | null;
+  updatedAt: string;
+}
+
+export interface StudView {
+  cost: number;
+  failRefund: number;
+  maxFee: number;
+  listings: StudListingView[];
+  deals: StudDealView[];
 }
 
 /** A youngster in a held nest: hatched, but not in the loft until you keep it. */
@@ -999,6 +1065,8 @@ export interface BreedingView {
   /** Doffer/duivin combinations in this loft that are family — only the related
    *  ones are sent, so an ordinary loft gets an empty list. */
   related: { sireId: string; damId: string; degree: KinshipDegree }[];
+  /** Samen kweken (absent on an older server). */
+  stud?: StudView;
 }
 
 export type KinshipDegree = 'directe-lijn' | 'volle' | 'half' | 'familie';
