@@ -88,6 +88,9 @@
   Migratie **v63** wist het aanbod van de botduiven, zonder bel (eigenaar: "geen communicatie
   nodig"); oude voorstellen met een bot vallen weg zodra de Kweek-pagina ze leest, een lopend nest
   met een bot maakt het af (zie §0b, *Vijfde ronde*).
+- **Dubbele vluchten opgekuist, live op 12 okt** (eigenaar: "vanaf overmorgen staat elke vlucht er
+  twee keer … zorg voor opkuis zodat er maar een vlucht is per type"): `plannedFlightId` +
+  `dedupeScheduledFlights` (zie *`advanceRealtime()` — draait bij élk verzoek*, stap 2).
 - **Dev gepauzeerd op 12 okt** (`dea321f`, zelfde werkwijze als 11 okt; na de vijfde ronde opnieuw,
   nu `168dcab`): beide dev-branches tonen een pauzepagina. Terugzetten: `git revert --no-edit
   8e8d97a..HEAD` op de dev-branch en pushen.
@@ -756,6 +759,23 @@ volgorde:
    blok + `db.world.dataVersion = N`). De oudere migraties hebben hun werk gedaan en
    zijn enkel nog van belang als **patroon** — zie §8, kop *Eenmalige migraties*.
 2. `ensureFlightsScheduled(db, nowMs)` — plant vluchten volgens `REAL_SCHEDULE`.
+   ⚠️ **Eén vlucht per plaats (dag + slot), ook bij gelijktijdige verzoeken** (bug van 12 okt:
+   vanaf 14 okt stond elke vlucht twee keer op de kalender). Binnen één verzoek is de planning
+   idempotent via `templateKey`, maar twee verzoeken die tegelijk de motor draaien zagen allebei
+   een lege dag en maakten elk een vlucht met een **willekeurige** id; `persist` schreef ze allebei
+   weg. Nu: de id volgt uit de plaats — **`plannedFlightId(templateKey)`** = `flt_<slot>_<y>-<m>-<d>`,
+   zoals de zondagveiling (`auc_<slug>`) — dus racende verzoeken schrijven dezelfde rij (INSERT OR
+   REPLACE: de laatste batch wint, consistent met haar eigen bot-inschrijvingen). En elk verzoek
+   begint met **`dedupeScheduledFlights`**: per `templateKey` met meer dan één *geplande* vlucht
+   blijft die met de meeste inschrijvingen van spelers (dan de meeste inschrijvingen, dan de
+   oudste — overal dezelfde keuze); de inschrijvingen van de andere schuiven over, wat daar niet
+   mag (zelfde duif, tweede titanduif of tweede estafetteploeg van een hok) krijgt het
+   inschrijfgeld terug (estafette: één keer per ploeg), open weddenschappen op de weggehaalde
+   vlucht worden terugbetaald (`refundFlightBets` met eigen tekst, eigen bel), en elke speler wiens
+   inschrijving verschoof of terugbetaald werd krijgt één bel `ntf:dedupe:<vlucht>:<speler>` met
+   de vlucht die blijft (route en afstand verschillen!). Permanent en niet als migratie, zodat
+   ook een race met een oude isolate of een preview-build met oude code vanzelf rechtgezet wordt.
+   Test: `tests/flight-duplicates.test.mts` (de race zelf + de opkuis).
 3. `ensureAuctions(db, nowMs)` — zondagsveiling + willekeurige opvangcentrum-veilingen
    (+ **verlies-meldingen** bij sluiting aan wie meebood maar niet wint). Bieden via
    `placeBid` (auction.ts): een bod in de **laatste 5 min** schuift `endAt` naar

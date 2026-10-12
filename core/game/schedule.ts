@@ -445,8 +445,21 @@ function hashDate(y: number, m: number, d: number): number {
  *  flight is left within the horizon this guard stops matching and can go. */
 const LEGACY_SLOT_KEYS = ['morning-long', 'noon-practice', 'evening-short'];
 
+/**
+ * The id of the flight planned for a calendar slot (`<slot>:<y>-<m>-<d>`). Derived
+ * from the slot, like the Sunday auction's `auc_<slug>`, so two requests that plan
+ * the same day at the same moment write the SAME row instead of one each — with a
+ * random id that race put every flight on the calendar twice (12 okt).
+ */
+export function plannedFlightId(templateKey: string): string {
+  return `flt_${templateKey.replace(/[^a-z0-9-]/gi, '_')}`;
+}
+
 /** Keep the next few days of flights on the calendar (idempotent). */
 export function ensureFlightsScheduled(db: Database, nowMs: number): void {
+  // Before anything is added: a slot that is on the calendar twice (left by the
+  // old race, see plannedFlightId) goes back to one flight.
+  dedupeScheduledFlights(db);
   const today = tzDateParts(TIMEZONE, nowMs);
   const todayUtcMidnight = Date.UTC(today.y, today.m - 1, today.d);
 
@@ -499,10 +512,93 @@ export function ensureFlightsScheduled(db: Database, nowMs: number): void {
         templateKey, tier, startMs, db.world.currentWeek, !!slot.practice, !!slot.titan && !relay, relay, cup,
         { minKm: slot.minKm, maxKm: slot.maxKm },
       );
+      flight.id = plannedFlightId(templateKey);
       db.flights.push(flight);
       botsEnterFlight(db, flight);
     }
   }
+}
+
+/**
+ * One flight per calendar slot. Before `plannedFlightId`, two requests that ran
+ * the engine at the same moment each planned the same new days with a random id,
+ * and both rows were saved: from 14 okt every race was on the calendar twice (the
+ * owner, 12 okt: "zorg voor opkuis zodat er maar een vlucht is per type").
+ *
+ * Per slot with more than one SCHEDULED flight, one stays: the one with the most
+ * players' entries (fewest birds to move), then the most entries, then the oldest
+ * — the same pick in every request, so two requests cleaning at once agree. The
+ * other's entries move over, as the same race on the same day; what the stayer's
+ * rules do not allow (a bird already on it, a second bird of the loft in a
+ * titanenwedstrijd, a second team in an estafette) is dropped and its fee refunded.
+ * Open bets on a removed flight are refunded (the field they were priced on is
+ * gone; the refund has its own bell). Each player whose entry moved or was
+ * refunded gets one bell with a stable id, naming the flight that stays. A no-op once every slot is single.
+ */
+export function dedupeScheduledFlights(db: Database): void {
+  const bySlot = new Map<string, Flight[]>();
+  for (const f of db.flights) {
+    if (f.status !== 'scheduled') continue;
+    const list = bySlot.get(f.templateKey);
+    if (list) list.push(f);
+    else bySlot.set(f.templateKey, [f]);
+  }
+  const isBot = (userId: string) => !!db.lofts.find((l) => l.userId === userId)?.isBot;
+  const humans = (f: Flight) => f.entries.filter((e) => !isBot(e.ownerId)).length;
+  const removed = new Set<string>();
+  for (const twins of bySlot.values()) {
+    if (twins.length < 2) continue;
+    const [keep, ...drop] = [...twins].sort((a, b) =>
+      humans(b) - humans(a) || b.entries.length - a.entries.length
+        || a.createdAt.localeCompare(b.createdAt) || a.id.localeCompare(b.id));
+    for (const f of drop) {
+      const moved = new Map<string, number>();
+      const refunded = new Map<string, number>();
+      const teamsRefunded = new Set<string>();
+      // Who already flies the stayer, before anything moves in: a loft's titan
+      // bird or estafette team there keeps its place.
+      const ownersOnKeep = new Set(keep.entries.map((e) => e.ownerId));
+      for (const e of f.entries) {
+        const clash =
+          keep.entries.some((k) => k.pigeonId === e.pigeonId) ||
+          ((keep.titan || keep.relay) && ownersOnKeep.has(e.ownerId));
+        if (!clash) {
+          keep.entries.push({ ...e });
+          moved.set(e.ownerId, (moved.get(e.ownerId) ?? 0) + 1);
+          continue;
+        }
+        // The same bird on both (the race entered a bot's bird twice) paid once.
+        if (keep.entries.some((k) => k.pigeonId === e.pigeonId)) continue;
+        // An estafette team paid one fee for the whole team.
+        if (keep.relay && teamsRefunded.has(e.ownerId)) continue;
+        teamsRefunded.add(e.ownerId);
+        const loft = db.lofts.find((l) => l.userId === e.ownerId);
+        if (loft && f.entryFee > 0) {
+          loft.money += f.entryFee;
+          refunded.set(e.ownerId, (refunded.get(e.ownerId) ?? 0) + f.entryFee);
+        }
+      }
+      // A bettor hears it from the refund's own bell.
+      refundFlightBets(db, f, `${f.name} stond per vergissing twee keer op de kalender; deze vlucht is weggehaald. Je inzet van €{stake} is terugbetaald.`);
+      const day = new Date(keep.startAt).toLocaleString('nl-BE', {
+        timeZone: TIMEZONE, weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit',
+      });
+      for (const userId of new Set([...moved.keys(), ...refunded.keys()])) {
+        if (isBot(userId)) continue;
+        const parts = [
+          `De ${keep.name} van ${day} stond per vergissing twee keer op de kalender. Er blijft er één: `
+            + `${keep.fromCity} → ${keep.toCity}, ${keep.distanceKm} km.`,
+        ];
+        const n = moved.get(userId) ?? 0;
+        if (n > 0) parts.push(`${n === 1 ? 'Je duif' : `Je ${n} duiven`} van de weggehaalde vlucht ${n === 1 ? 'staat' : 'staan'} nu op deze ingeschreven.`);
+        const back = refunded.get(userId) ?? 0;
+        if (back > 0) parts.push(`€${back} inschrijfgeld is terugbetaald (daar mag maar één ${keep.relay ? 'ploeg' : 'duif'} per hok mee).`);
+        pushNotification(db, userId, 'info', '🗓️ Dubbele vlucht opgekuist', parts.join(' '), keep.id, `ntf:dedupe:${f.id}:${userId}`);
+      }
+      removed.add(f.id);
+    }
+  }
+  if (removed.size > 0) db.flights = db.flights.filter((f) => !removed.has(f.id));
 }
 
 /** Dutch ordinal-ish suffix for a placing (1e, 2e, 3e, ...). */
