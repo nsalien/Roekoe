@@ -326,6 +326,7 @@ function rowToTrade(r: any): Trade {
     price: r.price,
     at: r.at,
     talent: typeof r.talent === 'number' ? r.talent : undefined,
+    quality: typeof r.quality === 'number' ? r.quality : undefined,
   };
 }
 
@@ -822,9 +823,9 @@ export class D1Store implements Store {
     diff(this.snapshots.trades, w.trades, (t) => t.id, {
       db,
       table: 'trades',
-      columns: ['id', 'pigeon_id', 'pigeon_name', 'seller_id', 'seller_name', 'buyer_id', 'buyer_name', 'price', 'at', 'talent'],
+      columns: ['id', 'pigeon_id', 'pigeon_name', 'seller_id', 'seller_name', 'buyer_id', 'buyer_name', 'price', 'at', 'talent', 'quality'],
       keyColumn: 'id',
-      row: (t) => [t.id, t.pigeonId, t.pigeonName, t.sellerId, t.sellerName, t.buyerId, t.buyerName, t.price, t.at, t.talent ?? null],
+      row: (t) => [t.id, t.pigeonId, t.pigeonName, t.sellerId, t.sellerName, t.buyerId, t.buyerName, t.price, t.at, t.talent ?? null, t.quality ?? null],
       onInsert: () => { addedTrade = true; },
       stmts,
     });
@@ -1744,6 +1745,10 @@ export const SCHEMA_STEPS: string[] = [
 
   // "Zoekertje naar boven": when a listing was last boosted (Pigeon.boostedAt).
   'ALTER TABLE pigeons ADD COLUMN boosted_at TEXT',
+  // Marktwaarde v2 (⚠️ enkel dev): how good the sold bird was beyond her talent
+  // (Trade.quality), so a sale is measured against HER, not an average bird.
+  // Already after production's last step, so it can go live in this position.
+  'ALTER TABLE trades ADD COLUMN quality REAL',
 ];
 
 /**

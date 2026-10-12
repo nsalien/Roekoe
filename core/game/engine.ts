@@ -49,7 +49,7 @@ import { newNewcomerPerks } from './newcomer.js';
 import { careSlots, runHealthWeek } from './health.js';
 import { nameKey, namesInUse } from './names.js';
 import { voidBetsForWithdrawnPigeon } from './betting.js';
-import { featuredListingId, minSalePrice, noteMarketNews } from './market.js';
+import { featuredListingId, minSalePrice, noteMarketNews, saleQuality } from './market.js';
 import { birdStillOut, flightClaimingDay, flightDay, pigeonAirborne, pigeonCommittedToFlight } from './flight.js';
 import {
   ageInWeeks,
@@ -808,6 +808,7 @@ export function settlePigeonSale(db: Database, buyer: Loft, pigeon: Pigeon): voi
   const price = pigeon.price ?? 0;
   const sellerId = pigeon.ownerId;
   const soldTalent = talent(pigeon); // read BEFORE the bird changes hands
+  const soldQuality = saleQuality(pigeon, db.world.currentWeek); // what she was worth beyond her talent
   buyer.money -= price;
   const seller = db.lofts.find((l) => l.userId === sellerId);
   if (seller) seller.money += price;
@@ -833,6 +834,7 @@ export function settlePigeonSale(db: Database, buyer: Loft, pigeon: Pigeon): voi
     sellerId,
     sellerName: ownerName(db, sellerId),
     talent: soldTalent, // price observation for the market valuation
+    quality: soldQuality,
     buyerId: buyer.userId,
     buyerName: buyer.name,
     price,

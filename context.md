@@ -15,14 +15,15 @@
 
 | Rol | Branch | Doel |
 |-----|--------|------|
-| **Dev** | `claude/demo-hokinrichting` | Alle ontwikkeling/commits komen hier **eerst**. ⏸️ **Gepauzeerd sinds 11 okt** (enkel een pauzepagina; hoe je hem terugzet staat in de `context.md` óp die branch). Van dev staat sinds 11 okt alles live **behalve Marktwaarde v2 en de demomodus** (§0b). |
+| **Dev** | `claude/breeding-other-player-pigeons-7314iz` | Alle ontwikkeling/commits komen hier **eerst**. Sinds **12 okt** herstart vanaf prod (`4a0c3ad`) + de demomodus + Marktwaarde v2 (§0b). De eigenaar test in de demo-preview van deze branch. |
 | **Prod** | `claude/roekoe-game-website-jwa0vo` | Elke commit wordt hierheen **gecherry-pickt**; deze branch triggert de **Cloudflare Pages**-deploy naar productie. |
 
 > Vorige dev-branches (niet meer gebruiken): `ccr-9c78dbf3-rdb1ea`, `claude/hallo-nno7pb`, `claude/hallo-r1wgvn`, `claude/hallo-ca55co`, `claude/hallo-qz9tmx`, `claude/hallo-fsp9nx`, `claude/hallo-mzjn0e`, `claude/hallo-su75jy`, `claude/hallo-rkr49f`, `claude/hallo-pvwabx`,
 > `claude/context-spelregels-q2ywtx`, `claude/hallo-49m6hj`, `claude/hallo-xifh0c`,
 > `claude/hallo-w97s85`, `claude/hallo-hrtwtv`,
 > `claude/prosper-postuum-tinne-race-j515f6`, `claude/hallo-v71l3e`,
-> `claude/duif-vorm-functie-s5fsaw`, `claude/context-spelregels-lsbm5a`, `claude/exciting-newton-xgvl6l`. Ontwikkelt een sessie op een nieuwe
+> `claude/duif-vorm-functie-s5fsaw`, `claude/context-spelregels-lsbm5a`, `claude/exciting-newton-xgvl6l`,
+> `claude/demo-hokinrichting` (gepauzeerd op 11 okt; vervangen door de herstart van 12 okt). Ontwikkelt een sessie op een nieuwe
 > `claude/…`- (of `ccr-…`-)branch, gebruik die dan als dev-branch en **werk deze tabel meteen bij** —
 > de prod-branch hierboven verandert nooit.
 
@@ -76,21 +77,26 @@
   *Marktwaarde houdt stand* + *nooit onder 1/5* (§8). Spelers kregen een bel (migratie **v61**,
   `core/game/news.ts`), een rondleiding (`INRICHTING_NEWS_STEPS` in `Tour.tsx`, sleutel
   `roekoe.newsSeen.inrichting.<id>`) en een wikisectie **#nieuw** ("Nieuw: inrichting & meer").
-- **Enkel op dev** (gepauzeerd): **Marktwaarde v2** (`ac31a45`) en de **demomodus**. Weggehaald
-  van dev en dus nergens: koppels, partnerhok, weduwschap, de scout, het nieuwe voer.
+- **Enkel op dev:** **Marktwaarde v2** en de **demomodus**, plus wat erna gebouwd is (zie
+  *Kweken met andermans duif*). Weggehaald van dev en dus nergens: koppels, partnerhok,
+  weduwschap, de scout, het nieuwe voer.
+- **Dev herstart op 12 okt** (`claude/breeding-other-player-pigeons-7314iz`), precies zoals
+  hieronder beschreven: vanaf prod `4a0c3ad`, de demo ongewijzigd uit `bc8c415`, en `ac31a45`
+  (v2) erop gecherry-pickt. De oude dev-branch `claude/demo-hokinrichting` blijft gepauzeerd.
 - **Schema:** prod's `SCHEMA_STEPS` kregen 4 stappen achteraan: `lofts.equipment`,
-  `pigeons.care`, `flights.forecast`, `pigeons.boosted_at`. ⚠️ Dev heeft `trades.quality` (v2)
-  **tussen** `flights.forecast` en `pigeons.boosted_at`. Gaat v2 live: `trades.quality`
-  **achteraan prod's lijst** (dev heeft geen eigen databank, zijn volgorde mag je gelijktrekken).
+  `pigeons.care`, `flights.forecast`, `pigeons.boosted_at`. Op dev staat `trades.quality` (v2)
+  sinds de herstart **ná** `pigeons.boosted_at`, dus v2 kan in die volgorde live. Wat daarna
+  komt (kweken met andermans duif) staat er weer achter: zet bij een cherry-pick naar prod
+  enkel de stappen van wat je meeneemt achteraan prod's lijst.
 - **Wacht op een beslissing van de eigenaar:**
   1. **Marktwaarde v2 naar productie?** (11 okt: nog niet.)
   2. Moeten de **opvangcentrum-veilingen** (start €25, NPC) buiten de marktwaarde blijven?
   (Beslist op 11 okt: **besmetting per ziekte**, zie §8.)
-- **Dev weer aanzetten:** dev mist de besmetting per ziekte, de aankondiging, het opruimen van
-  de "⚠️ dev"-labels en de vaccinteksten zonder ★ (die kwamen uit v2). Het eenvoudigst: **dev
-  herstarten vanaf prod** en daarop `ac31a45` (v2) en de demo (`client/demo/`, de Vite-plugin,
-  sql.js, `tests/demo-*.test.mts`, uit `bc8c415`) terugzetten — niet prod in dev mergen (v2 en de
-  revert ervan botsen in 9 bestanden). Werk dan de branchtabel in §0 bij.
+- **Dev weer aanzetten (gedaan op 12 okt):** **dev herstarten vanaf prod** en daarop `ac31a45`
+  (v2) en de demo (`client/demo/`, de Vite-plugin, sql.js, `tests/demo-*.test.mts`, uit
+  `bc8c415`) terugzetten — niet prod in dev mergen (v2 en de revert ervan botsen in 9
+  bestanden). De cherry-pick van `ac31a45` botste enkel op imports en de schemastap; de
+  v2-bestanden zijn daarna identiek aan `bc8c415`.
 
 ### Demomodus (preview-builds) — ⚠️ ENKEL OP DEV, niet op productie
 - **Niet mee naar productie (11 okt):** op prod bestaan `client/demo/`, de Vite-plugin, sql.js en
