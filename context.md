@@ -71,15 +71,20 @@
 > **Niet** mee: **Marktwaarde v2** (eigenaar: "nog niet") en de **demomodus** (geen spelersfeature).
 > Het voorstel (met alle getallen en de sketch) staat in de artifact "Roekoe Hokinrichting".
 
-### Stand van zaken (11 okt 2026) — lees dit eerst
+### Stand van zaken (12 okt 2026) — lees dit eerst
 - **Live op productie** (`claude/roekoe-game-website-jwa0vo`): alles in §0b behalve de twee
   blokken met **ENKEL OP DEV** (*Demomodus*, *Marktwaarde v2*). De marktwaarde op prod is die van
   *Marktwaarde houdt stand* + *nooit onder 1/5* (§8). Spelers kregen een bel (migratie **v61**,
   `core/game/news.ts`), een rondleiding (`INRICHTING_NEWS_STEPS` in `Tour.tsx`, sleutel
   `roekoe.newsSeen.inrichting.<id>`) en een wikisectie **#nieuw** ("Nieuw: inrichting & meer").
-- **Enkel op dev:** **Marktwaarde v2**, de **demomodus** en **Samen kweken** (kweken met
-  andermans duif, 12 okt — zie de sectie hieronder). Weggehaald van dev en dus nergens: koppels, partnerhok,
-  weduwschap, de scout, het nieuwe voer.
+- **Samen kweken live op 12 okt** (op vraag van de eigenaar), als **één commit op prod** (`ffb04b7`, "Samen
+  kweken live"), samengesteld uit de vier feature-commits van dev (`cbe8fcc`, `9b567c9`, `8167ff4`,
+  `abee7be`) — zonder de demo-commits en zonder Marktwaarde v2. Aankondiging: migratie **v62**
+  (twee bellen: samen kweken + vaccins/verzekering per duif), rondleiding `studNewsSteps` (sleutel
+  `roekoe.newsSeen.samen.<id>`), wiki **#nieuw**. Schema op prod: de drie stud-stappen staan
+  achteraan, direct na `pigeons.boosted_at` (op dev zit `trades.quality` ertussen).
+- **Enkel op dev:** **Marktwaarde v2** en de **demomodus**. Weggehaald van dev en dus nergens:
+  koppels, partnerhok, weduwschap, de scout, het nieuwe voer.
 - **Dev herstart op 12 okt** (gebouwd op `claude/breeding-other-player-pigeons-7314iz`, daarna ook
   op `claude/demo-hokinrichting`), precies zoals hieronder beschreven: vanaf prod `4a0c3ad`, de demo
   ongewijzigd uit `bc8c415`, en `ac31a45` (v2) erop gecherry-pickt.
