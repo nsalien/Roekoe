@@ -88,12 +88,12 @@
   Migratie **v63** wist het aanbod van de botduiven, zonder bel (eigenaar: "geen communicatie
   nodig"); oude voorstellen met een bot vallen weg zodra de Kweek-pagina ze leest, een lopend nest
   met een bot maakt het af (zie §0b, *Vijfde ronde*).
-- **Dubbele vluchten opgekuist, live op 12 okt** (eigenaar: "vanaf overmorgen staat elke vlucht er
+- **Dubbele vluchten opgekuist, live op 12 okt** (`61db9ea` = dev `3b1704b`; eigenaar: "vanaf overmorgen staat elke vlucht er
   twee keer … zorg voor opkuis zodat er maar een vlucht is per type"): `plannedFlightId` +
   `dedupeScheduledFlights` (zie *`advanceRealtime()` — draait bij élk verzoek*, stap 2).
 - **Dev gepauzeerd op 12 okt** (`dea321f`, zelfde werkwijze als 11 okt; na de vijfde ronde opnieuw,
-  nu `168dcab`): beide dev-branches tonen een pauzepagina. Terugzetten: `git revert --no-edit
-  8e8d97a..HEAD` op de dev-branch en pushen.
+  nu `47d5051`): beide dev-branches tonen een pauzepagina. Terugzetten: `git revert --no-edit
+  3b1704b..HEAD` op de dev-branch en pushen.
 - **Enkel op dev:** **Marktwaarde v2** en de **demomodus**. Weggehaald van dev en dus nergens:
   koppels, partnerhok, weduwschap, de scout, het nieuwe voer.
 - **Dev herstart op 12 okt** (gebouwd op `claude/breeding-other-player-pigeons-7314iz`, daarna ook
