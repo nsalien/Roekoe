@@ -976,18 +976,15 @@ export interface StudCriteria {
 export interface StudListingView {
   pigeon: Pigeon;
   ownerName: string;
-  ownerIsBot: boolean;
   mine: boolean;
   criteria: StudCriteria;
   /** The owner keeps the young ('young') or takes the fee ('fee'). */
   wants: StudWants;
   /** Why she could not go on a nest right now, or null. */
   busy: string | null;
-  /** What a bot that wants the fee asks; null for a player or a bot that wants the young. */
-  askFee: number | null;
   /** MY birds that may be offered (other sex, old enough, healthy, not entered, meeting the ask),
    *  with what the young would score and be worth at birth. */
-  candidates: { id: string; youngScore: number; youngValue: number; kin: KinshipDegree | null; botBid: number | null }[];
+  candidates: { id: string; youngScore: number; youngValue: number; kin: KinshipDegree | null }[];
   /** My birds that meet the ask but are sick or entered for a flight. */
   unfit: number;
   /** My birds of the other sex that fall short. */
@@ -1002,7 +999,6 @@ export interface StudDealView {
   stud: Pigeon;
   mate: Pigeon;
   otherName: string;
-  otherIsBot: boolean;
   youngToMe: boolean;
   fee: number;
   myTurn: boolean;

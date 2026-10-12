@@ -49,7 +49,6 @@ import { minSalePrice, valuePigeon } from './market.js';
 import { makeOffer } from './offers.js';
 import { ageInWeeks, breedingCooldownUntil, canRace, experienceGain, isAway, noteAttrChange, onRestCure, talent, trainCeil, trainingCost } from './pigeon.js';
 import { kinship } from './pedigree.js';
-import { activeListing, botOfferStud } from './stud.js';
 import { clamp, round1 } from './util.js';
 
 /** What a bot may spend right now without dipping under its cash floor. */
@@ -194,9 +193,7 @@ function canBreed(db: Database, p: Pigeon, nowMs: number): boolean {
     ageInWeeks(p, db.world.currentWeek) >= BREEDING.minAgeWeeks &&
 
     !db.breedingPairs.some((bp) => bp.sireId === p.id || bp.damId === p.id) &&
-    !pigeonCommittedToFlight(db, p.id, nowMs) &&
-    // The bird it put up for samen kweken stays free for a player's agreement.
-    !activeListing(p)
+    !pigeonCommittedToFlight(db, p.id, nowMs)
   );
 }
 
@@ -428,7 +425,6 @@ export function botDailyActions(db: Database, loft: Loft, pigeons: Pigeon[], now
   manageCoaches(loft, pigeons);
   maybeUpgradeCapacity(loft, pigeons);
   maybeBreed(db, loft, pigeons, nowMs);
-  botOfferStud(db, loft, pigeons, nowMs); // samen kweken: one bird up for the players
   maybeTrain(loft, pigeons, nowMs, BOT.trainPerDay);
   // Shopping last: whatever is left after food, care and training is what a bot
   // is genuinely free to spend. Reads `pigeons` before the purchase, which is
@@ -526,9 +522,7 @@ export function botRaceCandidates(
       !committed.has(p.id) &&
       // Bots breed now, and a bird on a nest is no more available than a
       // player's would be (`enterFlight` refuses one).
-      !ctx.onNest.has(p.id) &&
-      // Its samen-kweken bird stays home, so a player can start a nest with her.
-      !activeListing(p),
+      !ctx.onNest.has(p.id),
   );
 
   // A thinning loft keeps a breeding pair at home. Racing every fit bird leaves

@@ -38,8 +38,7 @@ export const INRICHTING_NEWS = {
 export const STUD_NEWS = {
   title: '🤝 Nieuw: samen kweken met de duif van een andere speler',
   body: [
-    'Je kan nu kweken met de duif van een andere speler — ook met die van de computermelkers. '
-      + 'Je vindt het bij Kweek → Samen kweken:',
+    'Je kan nu kweken met de duif van een andere speler. Je vindt het bij Kweek → Samen kweken:',
     '• Bied een gezonde duif aan en kies meteen of je de jongen wil of de vergoeding, en wat een partner minstens '
       + 'moet hebben (★, energie, libido).',
     '• Stel zelf een duif voor bij een aangeboden duif. Je ziet meteen de geschatte score van het jong en wat '
@@ -74,4 +73,20 @@ export const CARE_NEWS = {
     'Wanneer de verzekering uitbetaalt en wat elk middel doet: Wiki → Hokinrichting, vaccins & diensten.',
   ].join('\n'),
   id: (userId: string) => `ntf:news:verzorgingperduif:${userId}`,
+} as const;
+
+/**
+ * Rechtzetting (migratie v63): de bel van v62 zei dat de computermelkers meedoen met
+ * samen kweken; de eigenaar haalde ze er op 12 okt weer uit. Enkel voor wie die bel al
+ * kreeg — een wereld die v62 en v63 samen draait, krijgt meteen de nieuwe STUD_NEWS.
+ */
+export const STUD_BOTS_NEWS = {
+  title: '🤝 Samen kweken: enkel tussen echte spelers',
+  body: [
+    'Een rechtzetting bij de bel over samen kweken: de computermelkers doen toch niet mee. Hun aangeboden '
+      + 'duiven en hun voorstellen zijn weg; samen kweken gaat voortaan enkel tussen echte spelers.',
+    '• Liep er een onderhandeling met een computermelker, dan is die gestopt. Je betaalde er nog niets voor.',
+    '• Een nest dat al met een computermelker loopt, maakt het gewoon af, met de afspraak die jullie maakten.',
+  ].join('\n'),
+  id: (userId: string) => `ntf:news:samenkweken-bots:${userId}`,
 } as const;

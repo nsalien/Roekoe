@@ -867,7 +867,7 @@ export function studNewsSteps(pigeonId: string | null): Step[] {
       title: '🤝 Nieuw: samen kweken',
       body: (
         <>
-          Kweek met de duif van een <strong>andere speler</strong> — ook van de computermelkers. Bied een duif aan en kies
+          Kweek met de duif van een <strong>andere speler</strong>. Bied een duif aan en kies
           of je <strong>de jongen</strong> wil of <strong>de vergoeding</strong>, of stel zelf een duif voor: je ziet meteen
           de geschatte score en waarde van het jong. Jullie spreken enkel het bedrag af; bij een akkoord betaalt elk
           €1.000 en start het nest.

@@ -83,6 +83,8 @@
   (twee bellen: samen kweken + vaccins/verzekering per duif), rondleiding `studNewsSteps` (sleutel
   `roekoe.newsSeen.samen.<id>`), wiki **#nieuw**. Schema op prod: de drie stud-stappen staan
   achteraan, direct na `pigeons.boosted_at` (op dev zit `trades.quality` ertussen).
+- **Bots weer uit samen kweken (vijfde ronde, 12 okt):** op dev; naar prod enkel als de eigenaar het
+  vraagt (zie §0b, *Kweken met andermans duif*). Tot dan doen de bots op prod nog mee (v62).
 - **Enkel op dev:** **Marktwaarde v2** en de **demomodus**. Weggehaald van dev en dus nergens:
   koppels, partnerhok, weduwschap, de scout, het nieuwe voer.
 - **Dev herstart op 12 okt** (gebouwd op `claude/breeding-other-player-pigeons-7314iz`, daarna ook
@@ -138,8 +140,7 @@
   aanbiedformulier toont ze uitgeschakeld. **Omgekeerd**: zolang ze aangeboden of voorgesteld is, kan
   ze niet ingeschreven worden — `studFlightBlock` in `enterFlight`; daarvoor laadt **`POST
   /api/flights/:id/enter`** nu ook `stud_deals` (+1 query op die ene route) en verbergt
-  `client/game/flightEntry.ts::canEnter` een aangeboden duif. Bots bieden enkel een gezonde,
-  niet-ingeschreven duif aan. (3) **Onder de geschatte score de geschatte marktwaarde** van het jong:
+  `client/game/flightEntry.ts::canEnter` een aangeboden duif. (3) **Onder de geschatte score de geschatte marktwaarde** van het jong:
   `studYoung(db, a, b)` → `{score, value}`; `value` = `marketValue` van een virtuele **pasgeboren** duif
   met de verwachte vaardigheden en gen-caps (`breeding.expectedYoung`), het geërfde ras, geen
   kenmerk. In `candidates[].youngValue`, `deals[].youngValue` en de bel. (4) Het nest **loopt als een
@@ -163,13 +164,8 @@
      open voorstellen per speler, vergoeding hoogstens `STUD.maxFee`.
   6. Een **aangeboden duif is volledig zichtbaar** (`publiclyRevealed` in `pigeonDTO`, zoals te koop),
      en in een onderhandeling zien beide spelers beide duiven volledig.
-  7. **Bots** (`botOfferStud` in `botDailyActions`): elke bot met een duif van ★`botMinScore` (55)+
-     biedt zijn best gegende volwassen duif aan (voorkeur: nu vrij), vraagt een partner van
-     ★(talent − 10, afgerond op 5), ⚡30, ❤30, **`wants: 'fee'`**, en **houdt die duif thuis** van
-     vluchten (`botRaceCandidates`) en eigen nesten (`canBreed`). Hij antwoordt meteen (`botAnswer`):
-     een bedrag van minstens `botStudFee` (8 % van de marktwaarde, min. €250, per €50) aanvaardt hij
-     (kan zijn duif niet meteen, dan legt hij de beurt terug bij de speler), een lager bedrag krijgt
-     `botStudFee` als tegenvoorstel.
+  7. **Bots doen niet mee** (sinds de vijfde ronde; daarvoor boden ze aan en onderhandelden ze, zie
+     daar).
 - **Opslag (geen extra query op gewone verzoeken):**
   - het aanbod op de duif: **`Pigeon.stud`** (`StudListing {by, minScore, minEnergy, minLibido, wants, at}`,
     kolom `pigeons.stud`, `''` = niet aangeboden). Een aanbod met `by ≠ ownerId` is ongeldig
@@ -188,7 +184,7 @@
     `breeding_pairs.deal`, `CREATE TABLE stud_deals`. Naar prod zonder v2: deze drie achteraan
     prod's lijst.
 - **Code:** `core/game/stud.ts` (alle regels: `setStudListing`, `proposeStud`, `counterStud`,
-  `acceptStud`, `closeStud`, `pruneStudDeals`, `breedBlock`, `criteriaGap`, bots), hatch in
+  `acceptStud`, `closeStud`, `pruneStudDeals`, `breedBlock`, `criteriaGap`, `isBot`), hatch in
   `schedule.ts::tickBreedingHatch` (vergoeding, €500 elk, bel voor de partner met vaste id
   `ntf:brood:<pairId>:partner`, infrarood enkel voor `!bp.deal`), `STUD` + `studFailedRefund` in
   gameConfig. API: `GET /breeding` → `stud {cost, failRefund, maxFee, listings, deals}`; `POST
@@ -204,39 +200,27 @@
   ("Wil de vergoeding — de jongen zijn voor jou") en "Stel een duif voor" (keuzelijst met "→ jong ★62"
   per duif, de schatting + inteeltwaarschuwing van de gekozen duif, en het bedrag). Het hokoverzicht zet "🤝 met <hok>" bij zo'n
   nest; `PigeonCard` toont 🤝 bij een aangeboden duif. Wiki `#samen-kweken`, spelregels **§7.4** + §17.
-- **Demo (enkel dev):** de seed laat de bots hun duif aanbieden en haalt die van de geplande vluchten
-  (in productie gebeurt het aanbieden op de dagovergang en blijft ze daarna thuis); vindt geen enkele
-  demoduif een vrije botduif, dan zakken de eisen van de eerste tot wat de beste demoduif heeft.
-  `DEMO_VERSION` 7 (12 okt: de bots schrijven zich in de seed eerst uit en bieden dan aan; een bewaarde
-  demo wordt opnieuw opgebouwd). `demo-world` controleert dat er zo'n botduif is.
+- **Demo (enkel dev):** sinds de vijfde ronde biedt de seed **niets** aan (de bots doen niet mee; de
+  demo heeft maar één echte speler, dus *Samen kweken* is daar leeg tot je zelf een duif aanbiedt).
+  `DEMO_VERSION` 8 (een bewaarde demo met bot-aanbiedingen wordt opnieuw opgebouwd). `demo-world`
+  controleert dat geen bot iets aanbiedt.
 - **Test:** `tests/samen-kweken.test.mts` (~100 controles, node:sqlite + de echte API, los van de
   demo zodat hij ook op prod draait; ook de keuze jongen/vergoeding, de geschatte score bij kandidaat,
   onderhandeling en bel, de marktwaarde, ziek/ingeschreven weigeren, niet inschrijven zolang
-  aangeboden of voorgesteld, en de schatting tegen 4.000 echte worpen): bot antwoordt met zijn prijs en gaat akkoord, €1.000 elk,
+  aangeboden of voorgesteld, en de schatting tegen 4.000 echte worpen): een tweede speler (*Hok Drie*)
+  biedt aan, onderhandelt en gaat akkoord, €1.000 elk,
   jongen + vergoeding bij de geboorte, beide ouders rusten, speler-tegen-speler (eisen, beurten,
   tegenvoorstel, zelfde voorwaarden geweigerd), lege worp (€500 elk, geen vergoeding, vaste bel-id),
   stoppen door de partner, weigeren/intrekken/niet meer aanbieden/verkocht, infrarood, en de opslag
-  (een gewoon verzoek laadt `stud_deals` niet en wist ze dus ook niet).
+  (een gewoon verzoek laadt `stud_deals` niet en wist ze dus ook niet), en dat de bots er niet in
+  kunnen (zie de vijfde ronde).
 - **Vierde ronde (eigenaar, 12 okt): bots doen volop mee, vol hok, live + communicatie.**
-  - **Bots stellen zelf voor** (`botsProposeTo`): biedt een speler een duif aan, dan stelt elke bot
-    wiens aangeboden duif past (andere sekse, vrij (`breedBlock`), gezond/niet ingeschreven
-    (`offerBlock`), voldoet aan de eisen, géén familie) zijn duif voor — **hoogstens
-    `STUD.botMaxProposals` (3)** per aanbod, beste verwachte jong eerst, **elke bot één keer per
-    aanbod** (`StudListing.asked`, ook na een weigering; leeg gemaakt als de eigenaar wisselt tussen
-    jongen en vergoeding). Een bot stelt enkel zijn eigen aangeboden duif voor: die houdt hij al thuis
-    van vluchten en eigen nesten, dus een akkoord loopt nooit vast op een inschrijving (bots schrijven
-    in buiten de Kweek-routes, waar de onderhandelingen niet geladen zijn). Draait bij
-    `setStudListing` en bij **`GET /breeding`** (`botsAnswerListings`; die GET schrijft dan, enkel als er
-    iets veranderde).
-  - **Bots in beide rollen** (`botAnswer` via `botTerms`): krijgt de speler de jongen, dan wil de bot
-    minstens `botStudFee`; krijgt de bot de jongen, dan biedt hij `botYoungBid(waarde jong).offer` (25 %)
-    en betaalt hij hoogstens `.max` (50 %) — `STUD.botBidShare`/`botMaxBidShare`. Daarbinnen akkoord,
-    anders zijn eigen bedrag. Een bot die de jongen zou krijgen zonder plaats (`botHasRoom`: zelfde regel
-    als `maybeBreed`) of geld (`botCanPay`, boven `BOT.breedReserve`) weigert; `acceptStud` weigert ook
-    een bot-ontvanger zonder plaats (een bot gooit overtallige jongen weg). **Een bot wil zelf de jongen**
-    van zijn eigen aanbod als hij `STUD.botYoungFreePerches` (2) plaatsen en het geld over heeft
-    (`botOfferStud`), anders de vergoeding. De API stuurt `askFee` enkel voor een bot die de vergoeding
-    wil, en per kandidaat `botBid` (zijn maximum) voor een bot die de jongen wil.
+  - **Bots (teruggedraaid in de vijfde ronde):** de bots boden elk een duif aan (`botOfferStud`, met
+    `wants` 'young' of 'fee'), stelden zelf hun duif voor bij een speler (`botsProposeTo`, max. 3 per
+    aanbod, elk één keer — `StudListing.asked`) en antwoordden meteen met hun prijs (`botAnswer`/
+    `botTerms`: minstens 8 % van de marktwaarde als ze de vergoeding wilden, 25–50 % van de waarde van
+    het jong als ze de jongen wilden). Die code, de `STUD.bot*`-sleutels, `asked`, `askFee`/`botBid`
+    in de API en het schrijven in `GET /breeding` zijn weg. Terughalen kan uit `git show 6be40c3`.
   - **Vol hok:** werkte al (`tickBreedingHatch` houdt het nest vast in `pendingBroods`, de speler kiest
     en kan eerst plaats maken via `NestChoice`). Het keuzescherm staat nu **boven beide tabs** van Kweek,
     en een onderhandeling waarbij jij de jongen krijgt zegt het als je hok vol zit. De test laat een
@@ -250,6 +234,25 @@
     Wiki **#nieuw** heet nu "Nieuw: samen kweken, inrichting & meer" met twee nieuwe blokken bovenaan.
     Test: `tests/samen-kweken-news.test.mts`.
   - **Nog te doen door de beheerder:** het idee op De Stem op "In het spel" zetten.
+- **Vijfde ronde (eigenaar, 12 okt): "Laat de bots toch niet meedoen met broeden. Ze gaan de duiven
+  voor te lage prijs laten gaan."** Samen kweken is enkel nog tussen echte spelers:
+  - `stud.ts::isBot` (via `loftOf(...).isBot`): `setStudListing` weigert een bot ("Computermelkers doen
+    niet mee met samen kweken"), `proposeStud` weigert een bot-aanbod en een bot die voorstelt, en
+    `pruneStudDeals` laat elk voorstel met een bot vallen (zo verdwijnen de oude op prod, die buiten
+    de wereldload in `stud_deals` staan). `acceptStud` loopt via die prune, dus een oud bot-voorstel
+    aanvaarden geeft "niet gevonden". De API toont geen aanbod van een bot (`studView` filtert op
+    `botIds`), en `GET /breeding` schrijft weer niets.
+  - `bots.ts`: geen `botOfferStud` meer in `botDailyActions`; `canBreed`/`botRaceCandidates` kijken
+    niet meer naar `activeListing` (een bot heeft geen aanbod).
+  - **Migratie v63** (schedule.ts): wist `Pigeon.stud` van elke botduif. Een nest dat al met een bot
+    loopt, maakt het af (daar is al voor betaald, de afspraak blijft). Wie de bel van v62 **al had**
+    (`hadStudNews`: dataVersion was ≥ 62 bij de start van `runDataMigrations`), krijgt een rechtzetting
+    **`STUD_BOTS_NEWS`** (`ntf:news:samenkweken-bots:<id>`, news.ts) — een nieuwe wereld (of de demo),
+    die v62 en v63 samen draait, krijgt enkel de verbeterde `STUD_NEWS` (zonder "computermelkers").
+    Ook v62 belt nu enkel en laat de bots niets meer aanbieden.
+  - Teksten: `STUD_NEWS`, wiki `#samen-kweken` ("Enkel echte spelers") en `#nieuw`, rondleiding
+    `studNewsSteps`, spelregels §7.4 en §17. Test: `samen-kweken` (blok "Bots doen niet mee") en
+    `samen-kweken-news` (v63 op een wereld die v62 al had, en op een nieuwe).
 
 ### Demomodus (preview-builds) — ⚠️ ENKEL OP DEV, niet op productie
 - **Niet mee naar productie (11 okt):** op prod bestaan `client/demo/`, de Vite-plugin, sql.js en
@@ -742,7 +745,7 @@ krijgen.**
 `core/game/schedule.ts` → `advanceRealtime(db, nowMs, weatherByFlight)` roept in
 volgorde:
 1. `runDataMigrations(db)` — eenmalige datafixes, **gated op `world.dataVersion`**
-   (staat nu op **62** — v62 = de bellen van samen kweken en van vaccins/verzekering per duif + de bots bieden een duif aan, v61 = de aankondigingsbel van de hokinrichting & co (`core/game/news.ts`), v60 = die van Het Lokaal; nieuwe migratie = nieuw `if ((db.world.dataVersion ?? 0) < N)`
+   (staat nu op **63** — v63 = de bots uit samen kweken (hun aanbod gewist + een rechtzettingsbel voor wie v62 al had), v62 = de bellen van samen kweken en van vaccins/verzekering per duif, v61 = de aankondigingsbel van de hokinrichting & co (`core/game/news.ts`), v60 = die van Het Lokaal; nieuwe migratie = nieuw `if ((db.world.dataVersion ?? 0) < N)`
    blok + `db.world.dataVersion = N`). De oudere migraties hebben hun werk gedaan en
    zijn enkel nog van belang als **patroon** — zie §8, kop *Eenmalige migraties*.
 2. `ensureFlightsScheduled(db, nowMs)` — plant vluchten volgens `REAL_SCHEDULE`.
@@ -1271,8 +1274,8 @@ Entiteiten: `Pigeon`, `Loft`, `User`, `BreedingPair`, `PendingBrood`, `Flight` (
 - **Kweekleeftijd:** `BREEDING.minAgeWeeks` **8** — even oud als de vluchtleeftijd, maar een
   eigen knop. Inteelt: zie `INBREEDING` + `PIGEON_QUIRKS` en §8.
 - **Samen kweken (`STUD`, dev):** `cost` **1000** per speler bij het akkoord, `maxFee` 100.000,
-  `maxOpenProposals` 10; bots: `botMinScore` 55, `botScoreMargin` 10, `botMinEnergy`/`botMinLibido`
-  30, `botFeeShare` 0,08, `botMinFee` 250. Lege worp: `studFailedRefund()` = €500 elk.
+  `maxOpenProposals` 10 (geen bot-sleutels meer: de bots doen niet mee). Lege worp:
+  `studFailedRefund()` = €500 elk.
 - **Kweken (`BREEDING`):** ouders minstens **20** energie (`minParentForm`, was 40);
   meer energie+libido = sneller een jong. **`cost` 750** (was 200) en
   **`cooldownDays` 21** — het koppel gaat uiteen zodra het nest er is en beide ouders

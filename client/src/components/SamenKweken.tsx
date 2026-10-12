@@ -253,21 +253,11 @@ function ListingCard({
             </select>
           </div>
           {chosen && <YoungScore score={chosen.youngScore} value={chosen.youngValue} kin={chosen.kin} />}
-          {listing.askFee != null && (
-            <p className="faint" style={{ margin: 0, fontSize: '0.85rem' }}>
-              {listing.ownerName} laat de jongen aan jou voor <Money value={listing.askFee} />.
-            </p>
-          )}
-          {chosen?.botBid != null && (
-            <p className="faint" style={{ margin: 0, fontSize: '0.85rem' }}>
-              {listing.ownerName} betaalt hoogstens <Money value={chosen.botBid} /> voor de jongen van dit koppel.
-            </p>
-          )}
           <FeeForm
             key={mateId}
             other={listing.ownerName}
             youngToMe={youngToMe}
-            initial={listing.askFee ?? chosen?.botBid ?? 0}
+            initial={0}
             submitLabel="Voorstel sturen"
             busy={busy || !mateId}
             onSubmit={(fee) =>

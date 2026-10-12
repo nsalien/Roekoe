@@ -147,9 +147,6 @@ import { makeOffer, withdrawOffer, respondOffer, offersFor } from '../../core/ga
 import {
   acceptStud,
   activeListing,
-  botsAnswerListings,
-  botStudFee,
-  botYoungBid,
   breedBlock,
   closeStud,
   counterStud,
@@ -1012,13 +1009,9 @@ app.post('/loft/infirmary/staff', async (c) => {
 });
 
 // --- Breeding --------------------------------------------------------------
-app.get('/breeding', async (c) => {
+app.get('/breeding', (c) => {
   const user = requireUser(c);
-  const store = c.get('store');
-  const db = store.data;
-  // Samen kweken: the bots answer the birds players put up (once per bot per
-  // offer, see stud.botsProposeTo). The one write this GET may do.
-  if (botsAnswerListings(db)) await store.persist();
+  const db = c.get('store').data;
   const pairs = db.breedingPairs
     // A samen-kweken nest belongs to both players (stud.ts).
     .filter((bp) => bp.ownerId === user.id || bp.deal?.partnerId === user.id)
@@ -1084,11 +1077,12 @@ function studView(db: Database, userId: string) {
   pruneStudDeals(db);
   const week = db.world.currentWeek;
   const mine = db.pigeons.filter((p) => p.ownerId === userId);
+  // Real players only: bots do not take part in samen kweken (stud.ts).
+  const botIds = new Set(db.lofts.filter((l) => l.isBot).map((l) => l.userId));
   const listings = db.pigeons
-    .filter((p) => activeListing(p))
+    .filter((p) => activeListing(p) && !botIds.has(p.ownerId))
     .map((p) => {
       const l = activeListing(p)!;
-      const owner = db.lofts.find((x) => x.userId === p.ownerId);
       const isMine = p.ownerId === userId;
       // My birds that could be offered to her: the other sex, old enough, healthy,
       // not entered for a flight (offerBlock), and meeting what her owner asks.
@@ -1097,15 +1091,12 @@ function studView(db: Database, userId: string) {
       return {
         pigeon: pigeonDTO(db, p, userId),
         ownerName: ownerName(db, p.ownerId),
-        ownerIsBot: !!owner?.isBot,
         mine: isMine,
         criteria: { minScore: l.minScore, minEnergy: l.minEnergy, minLibido: l.minLibido },
         // Decided by the owner when she was put up: they keep the young, or take the fee.
         wants: wantsOf(l),
         // Why she could not go on a nest right now (resting, on a nest, entered…).
         busy: breedBlock(db, p),
-        // A bot that wants the fee says up front what it asks (stud.botStudFee).
-        askFee: owner?.isBot && wantsOf(l) === 'fee' ? botStudFee(db, p) : null,
         // Per bird of mine that may be offered: what the young are expected to score
         // (★), and whether the two are family — shown before anyone proposes.
         candidates: candidates.map((m) => {
@@ -1113,8 +1104,6 @@ function studView(db: Database, userId: string) {
           const young = studYoung(db, p, m);
           return {
             id: m.id, youngScore: young.score, youngValue: young.value, kin: kinship(db, sire, dam),
-            // A bot that wants the young says what it pays at most for this pair's.
-            botBid: owner?.isBot && wantsOf(l) === 'young' ? botYoungBid(young.value).max : null,
           };
         }),
         // Of the others that meet the ask: how many are sick or entered for a flight.
@@ -1141,7 +1130,6 @@ function studView(db: Database, userId: string) {
         stud: pigeonDTO(db, stud),
         mate: pigeonDTO(db, mate),
         otherName: ownerName(db, other),
-        otherIsBot: !!db.lofts.find((x) => x.userId === other)?.isBot,
         youngToMe: d.youngTo === userId,
         fee: d.fee,
         myTurn,
