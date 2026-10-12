@@ -117,16 +117,15 @@ export async function createDemoWorld(d1: DemoD1): Promise<void> {
   //    first free bot bird asks no more than the demo's best free partner has.
   store.mutate((w) => {
     const now = Date.now();
+    // The bots entered their birds for the coming flights on the first run. A bird
+    // on offer may not be entered, so their entries come off first; the bots enter
+    // the rest again on the next requests (tickBotEntries), the listed bird stays home.
+    const botIds = new Set(w.lofts.filter((x) => x.isBot).map((x) => x.userId));
+    for (const f of w.flights) {
+      if (f.status === 'scheduled') f.entries = f.entries.filter((e) => !botIds.has(e.ownerId));
+    }
     for (const l of w.lofts.filter((x) => x.isBot)) {
       botOfferStud(w, l, w.pigeons.filter((p) => p.ownerId === l.userId), now);
-    }
-    // The bots entered their birds for the coming flights before they put one up
-    // (production lists on the daily tick, and from then on keeps her home). Take
-    // the listed birds off flights that have not started, so the demo can agree
-    // with them right away.
-    const listedIds = new Set(w.pigeons.filter((p) => activeListing(p)).map((p) => p.id));
-    for (const f of w.flights) {
-      if (f.status === 'scheduled') f.entries = f.entries.filter((e) => !listedIds.has(e.pigeonId));
     }
     const studs = w.pigeons.filter((p) => activeListing(p) && w.lofts.find((l) => l.userId === p.ownerId)?.isBot && !breedBlock(w, p, now));
     const free = w.pigeons.filter((p) => p.ownerId === user.id && !breedBlock(w, p, now));
