@@ -83,8 +83,9 @@
   (twee bellen: samen kweken + vaccins/verzekering per duif), rondleiding `studNewsSteps` (sleutel
   `roekoe.newsSeen.samen.<id>`), wiki **#nieuw**. Schema op prod: de drie stud-stappen staan
   achteraan, direct na `pigeons.boosted_at` (op dev zit `trades.quality` ertussen).
-- **Bots weer uit samen kweken (vijfde ronde, 12 okt):** op dev; naar prod enkel als de eigenaar het
-  vraagt (zie §0b, *Kweken met andermans duif*). Tot dan doen de bots op prod nog mee (v62).
+- **Bots uit samen kweken, live op 12 okt** (vijfde ronde; eigenaar: "ja zet in productie, geen
+  communicatie nodig"): prod `4e97271` = dev `bc65e0b` + de bel eruit (op dev in de commit erna).
+  Migratie **v63** wist het aanbod van de botduiven, zonder bel (zie §0b, *Kweken met andermans duif*).
 - **Enkel op dev:** **Marktwaarde v2** en de **demomodus**. Weggehaald van dev en dus nergens:
   koppels, partnerhok, weduwschap, de scout, het nieuwe voer.
 - **Dev herstart op 12 okt** (gebouwd op `claude/breeding-other-player-pigeons-7314iz`, daarna ook
@@ -245,14 +246,15 @@
   - `bots.ts`: geen `botOfferStud` meer in `botDailyActions`; `canBreed`/`botRaceCandidates` kijken
     niet meer naar `activeListing` (een bot heeft geen aanbod).
   - **Migratie v63** (schedule.ts): wist `Pigeon.stud` van elke botduif. Een nest dat al met een bot
-    loopt, maakt het af (daar is al voor betaald, de afspraak blijft). Wie de bel van v62 **al had**
-    (`hadStudNews`: dataVersion was ≥ 62 bij de start van `runDataMigrations`), krijgt een rechtzetting
-    **`STUD_BOTS_NEWS`** (`ntf:news:samenkweken-bots:<id>`, news.ts) — een nieuwe wereld (of de demo),
-    die v62 en v63 samen draait, krijgt enkel de verbeterde `STUD_NEWS` (zonder "computermelkers").
-    Ook v62 belt nu enkel en laat de bots niets meer aanbieden.
+    loopt, maakt het af (daar is al voor betaald, de afspraak blijft). **Geen bel** — de eigenaar: "geen
+    communicatie nodig". Wie de bel van v62 al kreeg, las daar nog dat de computermelkers meedoen; enkel
+    de wiki, de rondleiding en de spelregels zeggen nu "enkel echte spelers". Een nieuwe wereld (of de
+    demo) krijgt in v62 de verbeterde `STUD_NEWS` (zonder "computermelkers"). Ook v62 belt nu enkel en
+    laat de bots niets meer aanbieden.
   - Teksten: `STUD_NEWS`, wiki `#samen-kweken` ("Enkel echte spelers") en `#nieuw`, rondleiding
     `studNewsSteps`, spelregels §7.4 en §17. Test: `samen-kweken` (blok "Bots doen niet mee") en
-    `samen-kweken-news` (v63 op een wereld die v62 al had, en op een nieuwe).
+    `samen-kweken-news` (v63 op een wereld die v62 al had: bot-aanbod weg, dat van een speler blijft,
+    geen bel).
 
 ### Demomodus (preview-builds) — ⚠️ ENKEL OP DEV, niet op productie
 - **Niet mee naar productie (11 okt):** op prod bestaan `client/demo/`, de Vite-plugin, sql.js en
@@ -745,7 +747,7 @@ krijgen.**
 `core/game/schedule.ts` → `advanceRealtime(db, nowMs, weatherByFlight)` roept in
 volgorde:
 1. `runDataMigrations(db)` — eenmalige datafixes, **gated op `world.dataVersion`**
-   (staat nu op **63** — v63 = de bots uit samen kweken (hun aanbod gewist + een rechtzettingsbel voor wie v62 al had), v62 = de bellen van samen kweken en van vaccins/verzekering per duif, v61 = de aankondigingsbel van de hokinrichting & co (`core/game/news.ts`), v60 = die van Het Lokaal; nieuwe migratie = nieuw `if ((db.world.dataVersion ?? 0) < N)`
+   (staat nu op **63** — v63 = de bots uit samen kweken (hun aanbod gewist, geen bel), v62 = de bellen van samen kweken en van vaccins/verzekering per duif, v61 = de aankondigingsbel van de hokinrichting & co (`core/game/news.ts`), v60 = die van Het Lokaal; nieuwe migratie = nieuw `if ((db.world.dataVersion ?? 0) < N)`
    blok + `db.world.dataVersion = N`). De oudere migraties hebben hun werk gedaan en
    zijn enkel nog van belang als **patroon** — zie §8, kop *Eenmalige migraties*.
 2. `ensureFlightsScheduled(db, nowMs)` — plant vluchten volgens `REAL_SCHEDULE`.

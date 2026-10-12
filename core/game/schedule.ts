@@ -118,7 +118,7 @@ import { pickRelayRoute, relayEntryTeams, relayLegKm, relayTeamComplete } from '
 import { rollAnyTrait, rollTrait } from './traits.js';
 import { season3CoachNote, season3Welcome } from './season3.js';
 import { LOKAAL_INTRO } from './lokaal.js';
-import { CARE_NEWS, INRICHTING_NEWS, STUD_BOTS_NEWS, STUD_NEWS } from './news.js';
+import { CARE_NEWS, INRICHTING_NEWS, STUD_NEWS } from './news.js';
 import { bell, clamp, hashString, haversineKm, pick, randFloat, round1, seededRng } from './util.js';
 
 // --- Time-zone helpers -----------------------------------------------------
@@ -2467,8 +2467,6 @@ export function runDataMigrations(db: Database): void {
     db.world.dataVersion = 61;
   }
 
-  // Wie de bel van v62 al vóór v63 kreeg, las nog dat de bots meedoen (zie v63).
-  const hadStudNews = (db.world.dataVersion ?? 0) >= 62;
   if ((db.world.dataVersion ?? 0) < 62) {
     // Aankondiging: SAMEN KWEKEN (core/game/stud.ts) gaat live, plus wat bij v61
     // vergeten werd: vaccins/kuren en een verzekering kan je ook per duif nemen (op
@@ -2489,15 +2487,9 @@ export function runDataMigrations(db: Database): void {
     // dagovergang). Hun lopende onderhandelingen staan in stud_deals, buiten de
     // wereldload: pruneStudDeals laat ze vallen zodra de Kweek-pagina ze leest. Een
     // nest dat al met een bot loopt, maakt het gewoon af — daar is al voor betaald.
-    // Wie de bel van v62 al had, krijgt een rechtzetting (STUD_BOTS_NEWS).
+    // Geen bel: de eigenaar wil hier geen communicatie over (12 okt).
     for (const p of db.pigeons) {
       if (p.stud && db.lofts.find((l) => l.userId === p.ownerId)?.isBot) p.stud = null;
-    }
-    if (hadStudNews) {
-      for (const loft of db.lofts) {
-        if (loft.isBot) continue;
-        pushNotification(db, loft.userId, 'info', STUD_BOTS_NEWS.title, STUD_BOTS_NEWS.body, null, STUD_BOTS_NEWS.id(loft.userId));
-      }
     }
     db.world.dataVersion = 63;
   }

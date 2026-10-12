@@ -74,19 +74,3 @@ export const CARE_NEWS = {
   ].join('\n'),
   id: (userId: string) => `ntf:news:verzorgingperduif:${userId}`,
 } as const;
-
-/**
- * Rechtzetting (migratie v63): de bel van v62 zei dat de computermelkers meedoen met
- * samen kweken; de eigenaar haalde ze er op 12 okt weer uit. Enkel voor wie die bel al
- * kreeg — een wereld die v62 en v63 samen draait, krijgt meteen de nieuwe STUD_NEWS.
- */
-export const STUD_BOTS_NEWS = {
-  title: '🤝 Samen kweken: enkel tussen echte spelers',
-  body: [
-    'Een rechtzetting bij de bel over samen kweken: de computermelkers doen toch niet mee. Hun aangeboden '
-      + 'duiven en hun voorstellen zijn weg; samen kweken gaat voortaan enkel tussen echte spelers.',
-    '• Liep er een onderhandeling met een computermelker, dan is die gestopt. Je betaalde er nog niets voor.',
-    '• Een nest dat al met een computermelker loopt, maakt het gewoon af, met de afspraak die jullie maakten.',
-  ].join('\n'),
-  id: (userId: string) => `ntf:news:samenkweken-bots:${userId}`,
-} as const;

@@ -1,12 +1,12 @@
 /**
  * Aankondiging van samen kweken + de vergeten melding over vaccins en verzekering
- * per duif (migratie v62, core/game/news.ts), en de rechtzetting van v63 (de bots
- * doen toch niet mee). Bewaakt:
+ * per duif (migratie v62, core/game/news.ts), en v63 (de bots doen toch niet mee,
+ * zonder bel). Bewaakt:
  *  - per echte speler precies twee bellen (samen kweken, verzorging per duif),
  *    geen voor bots, stabiele ids (een tweede run schrijft geen extra rij);
  *  - de bots bieden niets aan;
- *  - v63: een oud aanbod van een bot verdwijnt, dat van een speler blijft, en wie de
- *    bel van v62 al had, krijgt de rechtzetting — een nieuwe wereld niet;
+ *  - v63: een oud aanbod van een bot verdwijnt, dat van een speler blijft, en er komt
+ *    geen bel bij (de eigenaar wil daar geen communicatie over);
  *  - wat de bellen zeggen, met de bedragen uit de config (één bron);
  *  - dataVersion staat op 63.
  *
@@ -17,7 +17,7 @@ import { emptyDatabase } from '../core/schema.js';
 import type { User } from '../core/schema.js';
 import { seedWorld, createLoftForUser } from '../core/game/engine.js';
 import { runDataMigrations } from '../core/game/schedule.js';
-import { CARE_NEWS, STUD_BOTS_NEWS, STUD_NEWS } from '../core/game/news.js';
+import { CARE_NEWS, STUD_NEWS } from '../core/game/news.js';
 import { activeListing } from '../core/game/stud.js';
 import { INSURANCE, STUD, studFailedRefund } from '../core/config/gameConfig.js';
 
@@ -44,7 +44,6 @@ for (const news of [STUD_NEWS, CARE_NEWS]) {
     `"${news.title}": één bel per echte speler, met een stabiele id`);
   ok(b.every((n) => !bots.some((x) => x.userId === n.userId)), '…en geen voor bots');
 }
-ok(bells(STUD_BOTS_NEWS.title).length === 0, 'geen rechtzetting: deze spelers lazen de oude tekst nooit');
 ok(db.world.dataVersion === 63, 'dataVersion staat op 63');
 ok(!db.pigeons.some((p) => activeListing(p)), 'de bots bieden niets aan');
 
@@ -58,17 +57,13 @@ const botBird = db.pigeons.find((p) => p.ownerId === bots[0].userId)!;
 const myBird = db.pigeons.find((p) => p.ownerId === humans[0].userId)!;
 botBird.stud = { by: botBird.ownerId, minScore: 0, minEnergy: 0, minLibido: 0, wants: 'young', at };
 myBird.stud = { by: myBird.ownerId, minScore: 50, minEnergy: 30, minLibido: 30, wants: 'fee', at };
+const bellsBefore = db.notifications.length;
 db.world.dataVersion = 62;
 runDataMigrations(db);
 ok(botBird.stud === null, 'het aanbod van de bot is weg');
 ok(!!myBird.stud && myBird.stud.minScore === 50, 'dat van de speler blijft staan');
-const fix = bells(STUD_BOTS_NEWS.title);
-ok(fix.length === humans.length && humans.every((l) => fix.some((n) => n.userId === l.userId && n.id === STUD_BOTS_NEWS.id(l.userId))),
-  'elke echte speler krijgt de rechtzetting, met een stabiele id');
+ok(db.notifications.length === bellsBefore, 'geen bel: de eigenaar wil daar geen communicatie over');
 ok(db.world.dataVersion === 63, 'dataVersion staat op 63');
-db.world.dataVersion = 62;
-runDataMigrations(db);
-ok(bells(STUD_BOTS_NEWS.title).length === humans.length, 'een tweede run schrijft geen extra rechtzetting');
 
 console.log('\nWat de bellen zeggen');
 for (const [word, what] of [
@@ -78,10 +73,6 @@ for (const [word, what] of [
 ] as const) ok(STUD_NEWS.body.includes(word), `samen kweken noemt ${what}`);
 ok(!/computermelker|bot/i.test(STUD_NEWS.body), 'samen kweken zegt niet meer dat de bots meedoen');
 ok(STUD_NEWS.body.includes(`€${STUD.cost}`) && STUD_NEWS.body.includes(`€${studFailedRefund()}`), `bedragen uit STUD (€${STUD.cost}, €${studFailedRefund()})`);
-for (const [word, what] of [['computermelkers doen toch niet mee', 'dat de bots niet meedoen'], ['echte spelers', 'met wie het wel kan'],
-  ['niets voor', 'dat een gestopte onderhandeling niets kostte'], ['maakt het gewoon af', 'dat een lopend nest doorgaat']] as const) {
-  ok(STUD_BOTS_NEWS.body.includes(word), `de rechtzetting noemt ${what}`);
-}
 for (const [word, what] of [['pagina van elke duif', 'waar het staat'], ['vaccin', 'de vaccins'], ['Verzeker', 'de verzekering'], ['Dagbalans', 'waar de premie staat']] as const) {
   ok(CARE_NEWS.body.includes(word), `verzorging per duif noemt ${what}`);
 }
