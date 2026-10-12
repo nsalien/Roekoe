@@ -59,6 +59,7 @@ import type {
   StemComment,
   StemIdea,
   StemStatus,
+  StudDeal,
   Trade,
   User,
 } from './schema.js';
@@ -186,6 +187,7 @@ function rowToPigeon(r: any): Pigeon {
     listedAt: r.listed_at ?? null,
     minBid: r.min_bid ?? null,
     boostedAt: r.boosted_at ?? null,
+    stud: r.stud ? JSON.parse(r.stud) : null,
     lastRaceAt: r.last_race_at ?? null,
     lastRestCureAt: r.last_rest_cure_at ?? null,
     lastBredAt: r.last_bred_at ?? null,
@@ -217,6 +219,21 @@ function rowToBreeding(r: any): BreedingPair {
     damId: r.dam_id,
     hatchAt: r.hatch_at ?? '',
     createdAtWeek: r.created_at_week,
+    deal: r.deal ? JSON.parse(r.deal) : null,
+  };
+}
+function rowToStudDeal(r: any): StudDeal {
+  return {
+    id: r.id,
+    studId: r.stud_id,
+    studOwnerId: r.stud_owner_id,
+    mateId: r.mate_id,
+    mateOwnerId: r.mate_owner_id,
+    youngTo: r.young_to,
+    fee: r.fee ?? 0,
+    turn: r.turn,
+    createdAt: r.created_at,
+    updatedAt: r.updated_at,
   };
 }
 function rowToFlight(r: any): Flight {
@@ -388,7 +405,7 @@ const PIGEON_COLUMNS = [
   'season_start_score', 'season_practice_gain', 'trained_at', 'genes', 'decline_rate',
   'care_assigned', 'last_race_at', 'last_race_practice', 'last_rest_cure_at', 'away_until',
   'cup', 'titles', 'listed_at', 'min_bid', 'last_bred_at', 'sire_name', 'dam_name', 'quirk',
-  'trait', 'earnings', 'earnings_owner', 'care', 'boosted_at',
+  'trait', 'earnings', 'earnings_owner', 'care', 'boosted_at', 'stud',
 ];
 
 /**
@@ -436,6 +453,8 @@ function pigeonRow(p: Pigeon): unknown[] {
     // '' for a bird without any care, so its column-narrowed UPDATE skips it.
     p.care && Object.keys(p.care).length ? JSON.stringify(p.care) : '',
     p.boostedAt ?? null,
+    // '' for a bird that is not put up for samen kweken, so its narrowed UPDATE skips it.
+    p.stud ? JSON.stringify(p.stud) : '',
   ];
 }
 
@@ -477,7 +496,7 @@ function loftRow(l: Loft): unknown[] {
 }
 
 const BREEDING_PAIR_COLUMNS = [
-  'id', 'owner_id', 'sire_id', 'dam_id', 'hatch_week', 'hatch_at', 'created_at_week',
+  'id', 'owner_id', 'sire_id', 'dam_id', 'hatch_week', 'hatch_at', 'created_at_week', 'deal',
 ];
 
 /**
@@ -496,7 +515,7 @@ const BREEDING_PAIR_COLUMNS = [
  * A narrow UPDATE on a row that is gone is simply a no-op, so the delete wins.
  */
 function breedingPairRow(bp: BreedingPair): unknown[] {
-  return [bp.id, bp.ownerId, bp.sireId, bp.damId, 0, bp.hatchAt, bp.createdAtWeek];
+  return [bp.id, bp.ownerId, bp.sireId, bp.damId, 0, bp.hatchAt, bp.createdAtWeek, bp.deal ? JSON.stringify(bp.deal) : ''];
 }
 
 /** How `D1Store.load` should size the pigeon read — see the file header. */
@@ -508,6 +527,11 @@ export interface LoadOptions {
   narrowWhenIdle?: boolean;
   /** Injectable clock, so tests can drive the freshness window. */
   nowMs?: number;
+  /**
+   * Also load the samen-kweken negotiations (`stud_deals`). Only the Kweek routes
+   * ask for them, so every other request keeps its query count.
+   */
+  studDeals?: boolean;
 }
 
 export class D1Store implements Store {
@@ -692,6 +716,16 @@ export class D1Store implements Store {
     }
 
     // (Private pigeon offers are read further up — the narrow pigeon read needs them.)
+
+    // Samen kweken: only on the routes that ask (see LoadOptions.studDeals). Guarded
+    // like the other late tables, so a database the schema has not reached loads.
+    if (opts?.studDeals) {
+      try {
+        dbObj.studDeals = ((await db.prepare('SELECT * FROM stud_deals').all()).results as any[]).map(rowToStudDeal);
+      } catch {
+        dbObj.studDeals = [];
+      }
+    }
     const snapshots: Record<string, Map<string, string>> = {
       users: snapshot(dbObj.users, (u) => u.id),
       lofts: snapshot(dbObj.lofts, (l) => l.userId),
@@ -705,6 +739,8 @@ export class D1Store implements Store {
       bets: snapshot(dbObj.bets, (bt) => bt.id),
       offers: snapshot(dbObj.offers, (o) => o.id),
     };
+    // Only when loaded: `persist` must never read an absent array as "all deleted".
+    if (dbObj.studDeals) snapshots.studDeals = snapshot(dbObj.studDeals, (d) => d.id);
     // Column-level snapshots of the two heavy tables, taken BEFORE the engine
     // mutates the entities, so `persist` can write `SET form = ...` instead of
     // all 38 columns of a pigeon.
@@ -883,6 +919,21 @@ export class D1Store implements Store {
       row: (o) => [o.id, o.pigeonId, o.pigeonName, o.fromUserId, o.fromUserName, o.toUserId, o.toUserName, o.amount, o.status, o.createdAt, o.resolvedAt],
       stmts,
     });
+
+    // Samen kweken — only when this request loaded the table (see LoadOptions.studDeals).
+    if (this.snapshots.studDeals) {
+      diff(this.snapshots.studDeals, w.studDeals ?? [], (d) => d.id, {
+        db,
+        table: 'stud_deals',
+        columns: [
+          'id', 'stud_id', 'stud_owner_id', 'mate_id', 'mate_owner_id', 'young_to', 'fee', 'turn',
+          'created_at', 'updated_at',
+        ],
+        keyColumn: 'id',
+        row: (d) => [d.id, d.studId, d.studOwnerId, d.mateId, d.mateOwnerId, d.youngTo, d.fee, d.turn, d.createdAt, d.updatedAt],
+        stmts,
+      });
+    }
 
     // Flush this request's queued history lines (see Pigeon.pendingLog). They are
     // appends, so they never conflict; the id makes a race line idempotent per
@@ -1413,6 +1464,9 @@ function purgeRemovedPlayers(
   // van de anderen in het gesprek plots in het luchtledige.
   chunked(userIds, (m) => `UPDATE lokaal_messages SET user_id = '', author_name = 'Oud-speler' WHERE user_id IN (${m})`);
   chunked(pigeonIds, (m) => `DELETE FROM pigeon_log_entries WHERE pigeon_id IN (${m})`);
+  // Samen kweken: outside the world load too. Either side leaving ends the talk.
+  chunked(userIds, (m) => `DELETE FROM stud_deals WHERE stud_owner_id IN (${m})`);
+  chunked(userIds, (m) => `DELETE FROM stud_deals WHERE mate_owner_id IN (${m})`);
 }
 
 /**
@@ -1749,6 +1803,12 @@ export const SCHEMA_STEPS: string[] = [
   // (Trade.quality), so a sale is measured against HER, not an average bird.
   // Already after production's last step, so it can go live in this position.
   'ALTER TABLE trades ADD COLUMN quality REAL',
+  // Samen kweken (core/game/stud.ts): a bird put up to breed with another player's
+  // (Pigeon.stud), the agreement on a running pair (BreedingPair.deal), and the
+  // open negotiations — their own table, loaded only on the Kweek routes.
+  "ALTER TABLE pigeons ADD COLUMN stud TEXT NOT NULL DEFAULT ''",
+  "ALTER TABLE breeding_pairs ADD COLUMN deal TEXT NOT NULL DEFAULT ''",
+  'CREATE TABLE IF NOT EXISTS stud_deals (id TEXT PRIMARY KEY, stud_id TEXT NOT NULL, stud_owner_id TEXT NOT NULL, mate_id TEXT NOT NULL, mate_owner_id TEXT NOT NULL, young_to TEXT NOT NULL, fee INTEGER NOT NULL DEFAULT 0, turn TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL)',
 ];
 
 /**

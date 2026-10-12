@@ -34,6 +34,7 @@ const SECTIONS = [
   { id: 'estafette', icon: '🔗', label: 'Estafettevlucht' },
   { id: 'criterium', icon: '🏆', label: 'Leeftijdscriterium' },
   { id: 'broeden', icon: '🥚', label: 'Kweken & broeden' },
+  { id: 'samen-kweken', icon: '🤝', label: 'Samen kweken' },
   { id: 'inteelt', icon: '🌳', label: 'Stamboom & inteelt' },
   { id: 'ziekte', icon: '🤒', label: 'Ziekte' },
   { id: 'ziekenboeg', icon: '🏥', label: 'De ziekenboeg' },
@@ -1225,6 +1226,44 @@ export function WikiPage() {
           hier tot je plaats maakt. Zo'n duif is <strong>geen nest</strong> — ze telt niet mee voor je kweekbadges en
           ze houdt het koppelformulier <strong>niet</strong> tegen.
         </p>
+      </Section>
+
+      <Section id="samen-kweken" icon="🤝" title="Samen kweken met andermans duif">
+        <p className="muted" style={{ marginTop: 0 }}>
+          Kweek met de duif van een andere speler, zonder dat er een duif van eigenaar verandert. Eén van jullie krijgt
+          de jongen, de andere een vergoeding die jullie samen afspreken. Je vindt het bij <em>Kweek → Samen kweken</em>.
+        </p>
+        <p><strong>Aanbieden.</strong> Zet een duif <em>beschikbaar</em> en kies wat een partner minstens moet hebben:
+          een <strong>algemene score (★)</strong>, <strong>energie</strong> en <strong>libido</strong>. Aanbieden is
+          gratis en je duif blijft gewoon vliegen tot je met iemand akkoord gaat. Een aangeboden duif is, net als een
+          duif te koop, voor iedereen <strong>volledig te bekijken</strong>.</p>
+        <p><strong>Voorstellen en onderhandelen.</strong> Een andere speler stelt een eigen duif van het andere geslacht
+          voor die aan je eisen voldoet, met zijn voorwaarden: <strong>wie krijgt de jongen</strong> en <strong>hoeveel
+          betaalt die aan de ander</strong>. Wie aan de beurt is, gaat <strong>akkoord</strong>, doet een
+          <strong> tegenvoorstel</strong> of weigert. Zo gaat het heen en weer tot iemand akkoord gaat. Wie een voorstel
+          doet, toont zijn duif volledig aan de andere speler.</p>
+        <ul>
+          <li><strong>Akkoord = meteen broeden.</strong> Beide duiven moeten op dat moment kunnen broeden (zelfde regels
+            als een eigen nest: oud genoeg, 20 energie, gezond, niet ingeschreven, niet aan het uitrusten) en de partner
+            moet nog altijd aan de eisen voldoen — energie en libido bewegen elke dag.</li>
+          <li><strong>Het kost elk €1.000</strong>, betaald bij het akkoord (een eigen nest kost €750, maar daarvoor moeten
+            twee van je eigen duiven van de vluchten weg; hier maar één). Beide duiven verliezen 15 energie.</li>
+          <li><strong>Alle jongen gaan naar dezelfde speler</strong> — een tweeling ook.</li>
+          <li><strong>De vergoeding wordt pas betaald wanneer de jongen er zijn.</strong> Wie de jongen krijgt, moet ze
+            bij het akkoord wel kunnen betalen.</li>
+          <li><strong>Lege worp:</strong> geen vergoeding, en elk van jullie krijgt <strong>€500</strong> terug (de helft,
+            net als bij een eigen nest).</li>
+          <li><strong>Stoppen</strong> mag elk van beiden, zolang het nest loopt — dan krijgt niemand iets terug en wordt er
+            geen vergoeding betaald. Hetzelfde als een ouder sterft.</li>
+          <li><strong>Je eigen uitrusting telt niet mee:</strong> infrarood boven de nestbak doet niets voor dit nest.</li>
+          <li>Daarna <strong>rusten beide duiven 21 dagen</strong>, net als na een eigen nest. <a href="#inteelt">Inteelt</a>{' '}
+            geldt ook hier: zijn de twee familie, dan zie je dat bij de onderhandeling.</li>
+          <li>Gaat een duif op een nest, wordt ze verkocht of niet meer aangeboden, dan vervallen de andere voorstellen
+            waar ze in zat.</li>
+        </ul>
+        <p><strong>Computermelkers</strong> bieden elk hun best gegende duif aan (vanaf ★55), houden die thuis van de vluchten
+          en van hun eigen nesten, en willen zelf geen jongen: ze laten de jongen aan jou voor een vergoeding van ongeveer
+          8 % van de marktwaarde van hun duif (minstens €250). Vraag je minder, dan antwoorden ze met dat bedrag.</p>
       </Section>
 
       <Section id="inteelt" icon="🌳" title="Stamboom & inteelt">

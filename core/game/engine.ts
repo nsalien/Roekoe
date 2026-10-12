@@ -267,12 +267,27 @@ export function renameLoft(store: Store, userId: string, name: string): string |
   });
 }
 
-/** Cancel a breeding pair so the parents can race again (no refund). */
+/**
+ * Cancel a breeding pair so the parents can race again (no refund). A samen-kweken
+ * nest may be stopped by either player — it is their bird too — and then nobody
+ * gets anything back and no fee is paid (stud.ts); the other player is told.
+ */
 export function stopBreeding(store: Store, userId: string, pairId: string): string | null {
   return store.mutate((db) => {
-    const idx = db.breedingPairs.findIndex((bp) => bp.id === pairId && bp.ownerId === userId);
+    const idx = db.breedingPairs.findIndex(
+      (bp) => bp.id === pairId && (bp.ownerId === userId || bp.deal?.partnerId === userId),
+    );
     if (idx === -1) return 'Koppel niet gevonden';
-    db.breedingPairs.splice(idx, 1);
+    const [bp] = db.breedingPairs.splice(idx, 1);
+    if (bp.deal) {
+      const other = bp.ownerId === userId ? bp.deal.partnerId : bp.ownerId;
+      const otherLoft = db.lofts.find((l) => l.userId === other);
+      if (otherLoft && !otherLoft.isBot) {
+        const sire = db.pigeons.find((p) => p.id === bp.sireId)?.name ?? '?';
+        const dam = db.pigeons.find((p) => p.id === bp.damId)?.name ?? '?';
+        notify(db, other, 'info', '🤝 Samen kweken gestopt', `${ownerName(db, userId)} stopte het nest ${sire} × ${dam}. Niemand krijgt iets terug en er wordt geen vergoeding betaald.`);
+      }
+    }
     return null;
   });
 }

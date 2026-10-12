@@ -65,6 +65,7 @@ export function PigeonCard({
           {pigeon.compartment && <span className="badge" style={{ background: 'var(--surface-2)', color: 'var(--text-soft)' }}>🧱</span>}
           {pigeon.racing && <span className="badge" style={{ background: 'var(--surface-2)', color: 'var(--text-soft)' }}>🏁</span>}
           {pigeon.breeding && <span className="badge" style={{ background: 'var(--surface-2)', color: 'var(--text-soft)' }}>🥚</span>}
+          {pigeon.stud && <span className="badge" style={{ background: 'var(--surface-2)', color: 'var(--text-soft)' }} title="Aangeboden om mee te kweken">🤝</span>}
         </div>
         {showOwner && <div className="faint" style={{ marginBottom: 6 }}>🏠 {pigeon.ownerName}</div>}
       </div>

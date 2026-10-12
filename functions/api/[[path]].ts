@@ -47,6 +47,8 @@ import {
   BOT,
   BREEDING,
   failedBreedRefund,
+  STUD,
+  studFailedRefund,
   COACH,
   EQUIPMENT,
   INSURANCE,
@@ -142,6 +144,18 @@ import {
   validateMessage,
 } from '../../core/game/lokaal.js';
 import { makeOffer, withdrawOffer, respondOffer, offersFor } from '../../core/game/offers.js';
+import {
+  acceptStud,
+  activeListing,
+  botStudFee,
+  breedBlock,
+  closeStud,
+  counterStud,
+  criteriaGap,
+  proposeStud,
+  pruneStudDeals,
+  setStudListing,
+} from '../../core/game/stud.js';
 import type { BetKind } from '../../core/schema.js';
 import { refreshDailyMissions } from '../../core/game/missions.js';
 import { sponsorView } from '../../core/game/sponsors.js';
@@ -285,14 +299,18 @@ app.use('*', async (c, next) => {
   // narrows only if the engine is ALSO fresh, so a narrowed store never runs
   // the engine — see core/d1.ts.
   const narrowable = readOnlyPath(path);
+  // Samen kweken: the open negotiations are read only where they are used (the
+  // Kweek page and its actions), so no other request pays a query for them.
+  const studDeals = path === '/api/breeding' || path.startsWith('/api/breeding/');
   let store = await D1Store.load(c.env.DB, payload?.sub, {
     narrowWhenIdle: narrowable && (c.req.method === 'GET' || c.req.method === 'HEAD'),
     nowMs,
+    studDeals,
   });
   if (!store.data.world.seeded) {
     seedWorld(store);
     await store.persist();
-    store = await D1Store.load(c.env.DB, payload?.sub); // fresh snapshots for any later write
+    store = await D1Store.load(c.env.DB, payload?.sub, { studDeals }); // fresh snapshots for any later write
   }
   // Registration is "light": it skips the real-time engine (flight lifecycle,
   // ticks, migrations) and its write, so signing up stays cheap. Its own handler
@@ -990,12 +1008,20 @@ app.get('/breeding', (c) => {
   const user = requireUser(c);
   const db = c.get('store').data;
   const pairs = db.breedingPairs
-    .filter((bp) => bp.ownerId === user.id)
+    // A samen-kweken nest belongs to both players (stud.ts).
+    .filter((bp) => bp.ownerId === user.id || bp.deal?.partnerId === user.id)
     .map((bp) => ({
       id: bp.id,
       sire: db.pigeons.find((p) => p.id === bp.sireId)?.name ?? '?',
       dam: db.pigeons.find((p) => p.id === bp.damId)?.name ?? '?',
       hatchAt: bp.hatchAt,
+      deal: bp.deal
+        ? {
+            partner: ownerName(db, bp.ownerId === user.id ? bp.deal.partnerId : bp.ownerId),
+            youngToMe: bp.ownerId === user.id,
+            fee: bp.deal.fee,
+          }
+        : null,
     }));
   // Held clutches waiting on a keep/let-go choice. The young are not in the loft
   // yet, so they get their own DTO rather than going through `pigeonDTO`.
@@ -1033,7 +1059,138 @@ app.get('/breeding', (c) => {
     pigeonCount: owned,
     freeSpace: Math.max(0, (loft?.capacity ?? 0) - owned),
     related,
+    stud: studView(db, user.id),
   });
+});
+
+/**
+ * Samen kweken (core/game/stud.ts): every bird that is put up, and the viewer's
+ * open negotiations. This route loads `stud_deals` (see the middleware); pruning
+ * here is in memory only — the next action persists it.
+ */
+function studView(db: Database, userId: string) {
+  pruneStudDeals(db);
+  const week = db.world.currentWeek;
+  const mine = db.pigeons.filter((p) => p.ownerId === userId);
+  const listings = db.pigeons
+    .filter((p) => activeListing(p))
+    .map((p) => {
+      const l = activeListing(p)!;
+      const owner = db.lofts.find((x) => x.userId === p.ownerId);
+      const isMine = p.ownerId === userId;
+      // My birds that could be offered to her: the other sex, old enough, and
+      // meeting what her owner asks. The rest of the opposite sex is "too weak".
+      const opposite = isMine ? [] : mine.filter((m) => m.sex !== p.sex && ageInWeeks(m, week) >= BREEDING.minAgeWeeks);
+      const candidates = opposite.filter((m) => !criteriaGap(l, m));
+      return {
+        pigeon: pigeonDTO(db, p, userId),
+        ownerName: ownerName(db, p.ownerId),
+        ownerIsBot: !!owner?.isBot,
+        mine: isMine,
+        criteria: { minScore: l.minScore, minEnergy: l.minEnergy, minLibido: l.minLibido },
+        // Why she could not go on a nest right now (resting, on a nest, entered…).
+        busy: breedBlock(db, p),
+        // A bot says up front what it wants for the young (stud.botStudFee).
+        askFee: owner?.isBot ? botStudFee(db, p) : null,
+        candidates: candidates.map((m) => m.id),
+        shortfall: opposite.length - candidates.length,
+      };
+    })
+    // Others first, and among them the birds that are free right now.
+    .sort((a, b) => Number(a.mine) - Number(b.mine) || Number(!!a.busy) - Number(!!b.busy) || b.pigeon.talent - a.pigeon.talent);
+  const deals = (db.studDeals ?? [])
+    .filter((d) => d.studOwnerId === userId || d.mateOwnerId === userId)
+    .map((d) => {
+      const stud = db.pigeons.find((p) => p.id === d.studId)!;
+      const mate = db.pigeons.find((p) => p.id === d.mateId)!;
+      const other = d.studOwnerId === userId ? d.mateOwnerId : d.studOwnerId;
+      const myTurn = d.turn === userId;
+      const l = activeListing(stud)!;
+      const [sire, dam] = stud.sex === 'doffer' ? [stud, mate] : [mate, stud];
+      return {
+        id: d.id,
+        role: d.studOwnerId === userId ? 'stud' : 'mate',
+        // Both birds in full: this is a deal about what the young inherit.
+        stud: pigeonDTO(db, stud),
+        mate: pigeonDTO(db, mate),
+        otherName: ownerName(db, other),
+        otherIsBot: !!db.lofts.find((x) => x.userId === other)?.isBot,
+        youngToMe: d.youngTo === userId,
+        fee: d.fee,
+        myTurn,
+        kin: kinship(db, sire, dam),
+        // On your turn: would accepting work right now? So the button does not lie.
+        blocked: myTurn ? (criteriaGap(l, mate) ?? breedBlock(db, stud) ?? breedBlock(db, mate)) : null,
+        updatedAt: d.updatedAt,
+      };
+    })
+    .sort((a, b) => Number(b.myTurn) - Number(a.myTurn) || (a.updatedAt < b.updatedAt ? 1 : -1));
+  return {
+    cost: STUD.cost,
+    failRefund: studFailedRefund(),
+    maxFee: STUD.maxFee,
+    listings,
+    deals,
+  };
+}
+
+// --- Samen kweken -----------------------------------------------------------
+app.post('/breeding/stud/list', async (c) => {
+  const user = requireUser(c);
+  const body = await c.req.json().catch(() => ({}));
+  const store = c.get('store');
+  const err = store.mutate((db) =>
+    setStudListing(db, user.id, String(body.pigeonId ?? ''), {
+      minScore: Number(body.minScore), minEnergy: Number(body.minEnergy), minLibido: Number(body.minLibido),
+    }),
+  );
+  await store.persist();
+  return err ? c.json({ error: err }, 400) : c.json({ ok: true });
+});
+
+app.post('/breeding/stud/unlist', async (c) => {
+  const user = requireUser(c);
+  const body = await c.req.json().catch(() => ({}));
+  const store = c.get('store');
+  const err = store.mutate((db) => setStudListing(db, user.id, String(body.pigeonId ?? ''), null));
+  await store.persist();
+  return err ? c.json({ error: err }, 400) : c.json({ ok: true });
+});
+
+app.post('/breeding/stud/propose', async (c) => {
+  const user = requireUser(c);
+  const body = await c.req.json().catch(() => ({}));
+  const store = c.get('store');
+  const err = store.mutate((db) =>
+    proposeStud(db, user.id, String(body.studId ?? ''), String(body.mateId ?? ''), !!body.youngToMe, Number(body.fee)),
+  );
+  await store.persist();
+  return err ? c.json({ error: err }, 400) : c.json({ ok: true });
+});
+
+app.post('/breeding/stud/:id/counter', async (c) => {
+  const user = requireUser(c);
+  const body = await c.req.json().catch(() => ({}));
+  const store = c.get('store');
+  const err = store.mutate((db) => counterStud(db, user.id, c.req.param('id'), !!body.youngToMe, Number(body.fee)));
+  await store.persist();
+  return err ? c.json({ error: err }, 400) : c.json({ ok: true });
+});
+
+app.post('/breeding/stud/:id/accept', async (c) => {
+  const user = requireUser(c);
+  const store = c.get('store');
+  const err = store.mutate((db) => acceptStud(db, user.id, c.req.param('id')));
+  await store.persist();
+  return err ? c.json({ error: err }, 400) : c.json({ ok: true });
+});
+
+app.post('/breeding/stud/:id/close', async (c) => {
+  const user = requireUser(c);
+  const store = c.get('store');
+  const err = store.mutate((db) => closeStud(db, user.id, c.req.param('id')));
+  await store.persist();
+  return err ? c.json({ error: err }, 400) : c.json({ ok: true });
 });
 
 /**

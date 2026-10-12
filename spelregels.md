@@ -1826,6 +1826,84 @@ familie** (§17).
 
 ---
 
+### 7.4 Samen kweken met de duif van een andere speler
+
+Je kan ook kweken met de duif van een andere speler, zonder dat er een duif van
+eigenaar verandert. Eén van jullie krijgt de jongen, de andere een vergoeding die
+jullie samen afspreken. Alles gebeurt bij **Kweek → Samen kweken**.
+
+**1. Aanbieden.** Zet een eigen duif (minstens 8 weken oud) *beschikbaar* en kies
+wat een partner minstens moet hebben:
+
+| Eis | Wat telt |
+|---|---|
+| Algemene score | ★ van de partner |
+| Energie | ⚡ van de partner, bij het voorstel én bij het akkoord |
+| Libido | ❤ van de partner, bij het voorstel én bij het akkoord |
+
+Aanbieden is **gratis**, en je duif blijft gewoon vliegen tot je met iemand
+akkoord gaat. Een aangeboden duif is — net als een duif te koop — voor iedereen
+**volledig te bekijken**. Je kan de eisen altijd aanpassen of je duif weer
+weghalen; lopende voorstellen voor haar vervallen dan.
+
+**2. Voorstellen.** Een andere speler kiest een eigen duif van het andere
+geslacht die aan je eisen voldoet, en doet een voorstel: **wie krijgt de jongen**
+en **hoeveel betaalt die aan de ander** (dat mag ook €0 zijn). Wie een voorstel
+doet, toont zijn duif volledig aan de andere speler.
+
+**3. Onderhandelen.** Wie aan de beurt is, kan **akkoord** gaan, een
+**tegenvoorstel** doen (andere verdeling of ander bedrag) of het voorstel
+**weigeren / intrekken**. Zo gaat het heen en weer, tot iemand akkoord gaat. Je
+gaat altijd akkoord met wat de **ander** het laatst voorstelde.
+
+**4. Akkoord = meteen broeden.**
+
+- Beide duiven moeten op dat moment kunnen broeden — dezelfde voorwaarden als bij
+  een eigen nest (§7): oud genoeg, minstens 20 energie, gezond, niet in de
+  ziekenboeg of op rustkuur, niet ingeschreven voor een vlucht, niet nog aan het
+  uitrusten van een vorig nest. En de partner moet **nog altijd** aan de eisen
+  voldoen.
+- **Elke speler betaalt €1.000** bij het akkoord. (Een eigen nest kost €750, maar
+  daarvoor moet je twee duiven van de vluchten weghouden; hier maar één.) Beide
+  duiven verliezen 15 energie.
+- Wie de jongen krijgt, moet ook de afgesproken vergoeding kunnen betalen.
+- Wacht er bij wie de jongen krijgt nog een nest op een keuze (§7.1), dan kan het
+  akkoord nog niet.
+- Gaat een van de twee duiven op een nest, dan vervallen de andere voorstellen
+  waar ze in zat.
+
+**5. Het nest.** Het nest loopt zoals elk ander nest (§7): de kans op jongen en
+het uitkomen hangen af van het libido en de energie van beide ouders.
+
+- **Alle jongen gaan naar dezelfde speler** — een tweeling ook. Zit zijn hok vol,
+  dan wacht het nest op zijn keuze (§7.1).
+- **De vergoeding wordt betaald op het moment dat de jongen er zijn.** Staat de
+  betaler dan in het rood, dan zakt hij verder (§4.5).
+- **Lege worp:** er wordt geen vergoeding betaald, en **elk** krijgt **€500**
+  terug — de helft, net als bij een eigen nest (§7.2).
+- **Stoppen** mag elk van beiden: dan krijgt niemand iets terug en wordt er geen
+  vergoeding betaald. Hetzelfde als een ouder sterft.
+- Na een nest met jongen **rusten beide duiven 21 dagen** (§7.2).
+- **Je eigen uitrusting telt niet mee**: infrarood boven de nestbak (§5.2ter)
+  doet niets voor dit nest.
+- **Inteelt** (§7.3) geldt ook hier; zijn de twee duiven familie, dan zie je dat
+  bij de onderhandeling.
+
+| Wat er gebeurt | Wie de jongen krijgt | De andere speler |
+|---|---|---|
+| Akkoord | betaalt €1.000 | betaalt €1.000 |
+| Jongen geboren | krijgt alle jongen, betaalt de vergoeding | ontvangt de vergoeding |
+| Lege worp | krijgt €500 terug | krijgt €500 terug |
+| Nest gestopt / ouder sterft | niets terug | niets terug |
+
+> **Voorbeeld.** Jan biedt zijn doffer (★80) aan en vraagt een partner van ★70
+> met minstens 40 energie en 40 libido. An stelt haar duivin (★72) voor: "de
+> jongen naar mij, ik betaal €1.500". Jan antwoordt: "€2.000". An gaat akkoord.
+> Ze betalen elk €1.000 en het nest start. Er komt een tweeling: beide jongen gaan
+> naar An, en op dat moment gaat €2.000 van An naar Jan.
+
+---
+
 ## 7bis. Genen: het aangeboren plafond van een duif
 
 Elke duif heeft **aangeboren maxima** (genen) voor **snelheid, conditie en
@@ -2699,6 +2777,14 @@ dezelfde €750, krijgt bij een lege worp dezelfde €375 terug en zijn ouders r
 dezelfde drie weken uit, dus hij kan zijn hok
 niet sneller aanvullen dan jij. Hij koppelt bovendien **nooit twee verwanten**
 (§7.3) en houdt zich aan dezelfde kweekleeftijd van 8 weken.
+
+**Samen kweken met een bot** (§7.4). Elke bot met een duif van minstens ★55 biedt
+zijn best gegende duif aan om mee te kweken, vraagt een partner van hoogstens 10
+punten lager (afgerond op 5) met minstens 30 energie en 30 libido, en houdt die
+duif thuis van de vluchten en van zijn eigen nesten. Een bot wil zelf geen jongen:
+hij laat ze aan jou voor ongeveer 8 % van de marktwaarde van zijn duif (minstens
+€250, afgerond op €50). Bied je dat, dan gaat hij meteen akkoord; bied je iets
+anders, dan antwoordt hij met dat voorstel.
 
 **Ze kiezen hun duiven met verstand.** Een bot zet een duif enkel in als ze de
 route ook echt aankan (genoeg energie voor de afstand) en niet als haar
