@@ -293,11 +293,30 @@ export function setStudListing(
   if (typeof c === 'string') return c;
   const before = activeListing(p);
   const switched = !!before && wantsOf(before) !== c.wants;
+  // New on offer, or its terms changed: the other players get the dot on Kweek.
+  // Saving the same terms again is not news.
+  const changed = !before || switched || before.minScore !== c.minScore
+    || before.minEnergy !== c.minEnergy || before.minLibido !== c.minLibido;
   p.stud = { by: userId, ...c, at: before?.at ?? new Date(nowMs).toISOString() };
+  if (changed) noteStudNews(db, userId, nowMs);
   if (switched && db.studDeals) {
     dropDealsWith(db, [p.id], `${nameOf(db, userId)} wil voor ${p.name} nu ${c.wants === 'young' ? 'zelf de jongen' : 'de vergoeding'}`);
   }
   return null;
+}
+
+/**
+ * Note that there is something new under Samen kweken (a bird put up, or an
+ * offer's terms changed), so the Kweek nav button shows a dot until the player
+ * has looked — the market's `noteMarketNews`, for the breeding offers. `byUserId`
+ * is who did it, so their own offer does not nag them.
+ *
+ * ⚠️ Only on a real change: a stamp on every request would write the world row on
+ * every poll (`idle-writes.test.mts`).
+ */
+export function noteStudNews(db: Database, byUserId: string, nowMs = Date.now()): void {
+  db.world.studNewsAt = new Date(nowMs).toISOString();
+  db.world.studNewsBy = byUserId;
 }
 
 // --- negotiating -----------------------------------------------------------------

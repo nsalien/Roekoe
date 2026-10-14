@@ -6,9 +6,12 @@
  * shows what decides the click.
  */
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../api/client';
+import { useAuth } from '../auth/AuthContext';
+import { useGame } from '../game/GameContext';
+import { markStudSeen } from '../game/studSeen';
 import { Money, useToast } from './ui';
 import { PigeonAvatar } from './PigeonAvatar';
 import { PigeonCard } from './PigeonCard';
@@ -399,6 +402,14 @@ export function SamenKweken({
 
   const others = view.listings.filter((l) => !l.mine);
   const own = view.listings.filter((l) => l.mine);
+
+  // The offers are on screen: the dot on Kweek (studSeen.ts) can go. Both stamps,
+  // this response's and the /state one the nav reads, whichever is newer.
+  const { user } = useAuth();
+  const { state } = useGame();
+  useEffect(() => {
+    markStudSeen(user?.id, [view.newsAt, state?.world.studNewsAt]);
+  }, [user?.id, view.newsAt, state?.world.studNewsAt]);
 
   return (
     <div className="stack" style={{ gap: 16 }}>

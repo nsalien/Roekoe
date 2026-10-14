@@ -1133,6 +1133,13 @@ export interface World {
   marketNewsAt?: string;
   marketNewsBy?: string;
   /**
+   * Same for SAMEN KWEKEN (the dot on the Kweek nav button): when a bird was last
+   * put up to breed, or an offer's terms changed, and by whom (core/game/stud.ts
+   * `noteStudNews`). On the world row for the same reason as `marketNewsAt`.
+   */
+  studNewsAt?: string;
+  studNewsBy?: string;
+  /**
    * ISO timestamp of the last big "wat is er nieuw" announcement (seizoen 3:
    * migration v56). The Overzicht shows its news card for 7 days from here.
    * Empty = none.

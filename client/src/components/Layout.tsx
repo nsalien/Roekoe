@@ -6,6 +6,7 @@ import { useAuth } from '../auth/AuthContext';
 import { useGame } from '../game/GameContext';
 import { MARKET_SEEN_EVENT, hasMarketNews, marketSeenAt } from '../game/marketSeen';
 import { LOKAAL_SEEN_EVENT, hasLokaalNews, lokaalSeenAt } from '../game/lokaalSeen';
+import { STUD_SEEN_EVENT, hasStudNews, studSeenAt } from '../game/studSeen';
 import { api } from '../api/client';
 import { useToast } from './ui';
 import { NotificationsBell } from './NotificationsBell';
@@ -53,6 +54,22 @@ function useLokaalSeenAt(userId: string | null | undefined): number {
     window.addEventListener('storage', sync);
     return () => {
       window.removeEventListener(LOKAAL_SEEN_EVENT, sync);
+      window.removeEventListener('storage', sync);
+    };
+  }, [userId]);
+  return at;
+}
+
+/** Same, for Samen kweken (game/studSeen.ts): until when this player saw the breeding offers. */
+function useStudSeenAt(userId: string | null | undefined): number {
+  const [at, setAt] = useState(() => studSeenAt(userId));
+  useEffect(() => {
+    const sync = () => setAt(studSeenAt(userId));
+    sync();
+    window.addEventListener(STUD_SEEN_EVENT, sync);
+    window.addEventListener('storage', sync);
+    return () => {
+      window.removeEventListener(STUD_SEEN_EVENT, sync);
       window.removeEventListener('storage', sync);
     };
   }, [userId]);
@@ -283,6 +300,9 @@ export function Layout() {
   // Same idea for Het Lokaal: a dot until this player has read the newest message.
   const lokaalSeen = useLokaalSeenAt(user?.id);
   const lokaalNews = hasLokaalNews(state?.world.chatLastAt, state?.world.chatLastBy, user?.id, lokaalSeen);
+  // And for Kweek: a bird put up to breed (or an offer that changed) not seen yet.
+  const studSeen = useStudSeenAt(user?.id);
+  const studNews = hasStudNews(state?.world.studNewsAt, state?.world.studNewsBy, user?.id, studSeen);
 
   function badgeFor(n: NavItem): NavBadge {
     if (n.to === '/sponsors') {
@@ -303,11 +323,10 @@ export function Layout() {
       // Anything waiting for a perch nags here: a held clutch (which also blocks
       // new pairs) or a bird an event handed over into a full loft.
       const count = state?.pendingNests ?? 0;
-      return {
-        count,
-        news: false,
-        title: `${count} ${count === 1 ? 'nest of duif wacht' : 'nesten of duiven wachten'} op je keuze — kies wie een plaats krijgt`,
-      };
+      const parts = [];
+      if (count > 0) parts.push(`${count} ${count === 1 ? 'nest of duif wacht' : 'nesten of duiven wachten'} op je keuze — kies wie een plaats krijgt`);
+      if (studNews) parts.push('nieuw bij Samen kweken — er is een duif aangeboden of een aanbod aangepast');
+      return { count, news: studNews, title: parts.join(' · ') };
     }
     return { count: 0, news: false, title: '' };
   }
