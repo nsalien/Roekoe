@@ -439,6 +439,8 @@ table.data tr.podium-1 td { background: var(--gold-soft); }
 .chip:hover { color: var(--text); border-color: var(--border-strong); }
 .chip.active { background: var(--brand-soft); border-color: var(--brand); color: var(--brand-ink); }
 .chip .n { margin-left: 5px; font-weight: 600; opacity: 0.65; }
+/* "Something new behind this tab" — the plain nav dot, on a chip. */
+.chip .dot { display: inline-block; width: 8px; height: 8px; margin-left: 5px; border-radius: 999px; background: var(--accent); vertical-align: middle; }
 
 .day-head {
   display: flex; align-items: baseline; justify-content: space-between; gap: 10px; flex-wrap: wrap;

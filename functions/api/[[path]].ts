@@ -1151,6 +1151,10 @@ function studView(db: Database, userId: string) {
     maxFee: STUD.maxFee,
     listings,
     deals,
+    // The dot on Kweek (World.studNewsAt), sent along with the offers it is about:
+    // the /state poll the nav reads can lag this response, and marking as seen
+    // only what /state said would bring the dot back over offers already seen.
+    newsAt: db.world.studNewsAt ?? '',
   };
 }
 

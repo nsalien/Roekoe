@@ -90,6 +90,8 @@
   elke vlucht er twee keer … zorg voor opkuis zodat er maar een vlucht is per type"):
   `plannedFlightId` + `dedupeScheduledFlights` (zie *`advanceRealtime()` — draait bij élk
   verzoek*, stap 2). Ook op dev, zodat een preview met dev-code geen dubbels meer maakt.
+- **Bolletje op Kweek bij een nieuw of aangepast kweekaanbod (14 okt):** `World.studNewsAt` (zie §4,
+  *World*). Eerst hier (dev), naar prod op vraag van de eigenaar.
 - **Enkel op dev:** **Marktwaarde v2** en de **demomodus**. Weggehaald van dev en dus nergens:
   koppels, partnerhok, weduwschap, de scout, het nieuwe voer.
 - **Dev herstart op 12 okt** (gebouwd op `claude/breeding-other-player-pigeons-7314iz`, daarna ook
@@ -1109,6 +1111,19 @@ Entiteiten: `Pigeon`, `Loft`, `User`, `BreedingPair`, `PendingBrood`, `Flight` (
   een smal-laadpad is: daar de verse listings tellen zou de hele `pigeons`-tabel terug op
   de heetste route trekken. Gezet door `noteMarketNews` (market.ts) — **nooit vanuit een
   tick die elk verzoek draait**, anders stempelt elke poll de wereldrij.
+- `World.studNewsAt` / `studNewsBy` — wanneer er voor het laatst een duif **aangeboden werd om te
+  kweken** of een kweekaanbod **aangepast** werd (andere ★/energie/libido-eis of jongen ↔ vergoeding),
+  en door wie; kolommen `stud_news_at`/`stud_news_by` (achteraan `SCHEMA_STEPS`). Voedt het
+  **bolletje op de Kweek-knop** én op het tabje *🤝 Samen kweken* (eigenaar, 14 okt: "zoals
+  gewoonlijk … een bolletje aan 'kweek' zodat ze weten waar ze heen moeten gaan"). Precies het
+  patroon van `marketNewsAt`: gezet door **`noteStudNews`** (stud.ts) enkel vanuit
+  `setStudListing` bij een echte wijziging — dezelfde voorwaarden opnieuw opslaan of een aanbod
+  intrekken stempelt niet. Gezien-zijn in localStorage (`roekoe.studSeen.<userId>`,
+  `client/src/game/studSeen.ts`, React-vrij), gemarkeerd zodra de tab *Samen kweken* zijn
+  aanbiedingen toont — met `stud.newsAt` uit datzelfde `/breeding`-antwoord, want de
+  `/state`-poll van de navigatie kan achterlopen. Wie aanbiedt, krijgt zelf geen bolletje.
+  Onderhandelingen tellen niet mee: die staan in `stud_deals` (niet op `/state`) en hebben al
+  hun bel. Test: `tests/stud-news.test.mts`.
 - `World.chatLastAt` / `chatLastBy` — laatste bericht in **Het Lokaal** en van wie (kolommen
   `chat_last_at`/`chat_last_by`); voedt het bolletje op de Lokaal-knop, zoals `marketNewsAt`.
   ⚠️ **Enkel geschreven door `insertLokaalMessage`** (een directe `UPDATE world SET chat_last_*`),
@@ -1773,6 +1788,7 @@ npx tsx tests/pedigree.test.mts          # verwantschap, inteeltgevolgen, stambo
 npx tsx tests/mortality.test.mts         # geen duif sterft van 'hoge leeftijd' vóór haar 4e
 npx tsx tests/family-chart.test.mts      # het diagram: duif in het midden, elke lijn wijst ergens naar
 npx tsx tests/market-news.test.mts       # de markt-stip: markering, D1-rondrit, en géén stempel op een poll
+npx tsx tests/stud-news.test.mts         # het bolletje op Kweek: stempel bij nieuw/aangepast aanbod, D1 + API, de regel
 npx tsx tests/event-arrival.test.mts    # een duif uit een gebeurtenis gaat nooit verloren aan een vol hok
 npx tsx tests/offer-visibility.test.mts # je eigen bod blijft zichtbaar + intrekbaar op een SMALLE load
 npx tsx tests/podium-badges.test.mts     # een podium = een medaille, op élke wedstrijdsoort

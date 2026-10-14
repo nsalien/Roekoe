@@ -4,6 +4,8 @@ import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../api/client';
 import { useGame } from '../game/GameContext';
+import { useAuth } from '../auth/AuthContext';
+import { hasStudNews, studSeenAt } from '../game/studSeen';
 import { Money, Spinner, timeUntil, useToast } from '../components/ui';
 import { PigeonAvatar } from '../components/PigeonAvatar';
 import { NestChoice } from '../components/NestChoice';
@@ -12,6 +14,7 @@ import type { BreedingView } from '../types';
 
 export function BreedingPage() {
   const { state, loading, refresh } = useGame();
+  const { user } = useAuth();
   const toast = useToast();
   const [view, setView] = useState<BreedingView | null>(null);
   const [sireId, setSireId] = useState('');
@@ -135,6 +138,10 @@ export function BreedingPage() {
         <button className={`chip ${tab === 'eigen' ? 'active' : ''}`} onClick={() => setTab('eigen')}>🥚 Eigen nest</button>
         <button className={`chip ${tab === 'samen' ? 'active' : ''}`} onClick={() => setTab('samen')}>
           🤝 Samen kweken{myTurn > 0 && <span className="n">{myTurn}</span>}
+          {/* The dot from the Kweek button, on the tab it points to (the page opens on Eigen nest). */}
+          {tab !== 'samen' && hasStudNews(state.world.studNewsAt, state.world.studNewsBy, user?.id, studSeenAt(user?.id)) && (
+            <span className="dot" aria-label="Nieuw aanbod bij Samen kweken" title="Nieuw aanbod bij Samen kweken" />
+          )}
         </button>
       </div>
 

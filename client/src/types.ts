@@ -740,6 +740,10 @@ export interface World {
    *  auction house). Drives the dot on the Markt button — see marketSeen.ts. */
   marketNewsAt?: string;
   marketNewsBy?: string;
+  /** When a bird was last put up to breed or an offer changed, and by whom —
+   *  the dot on the Kweek button (see studSeen.ts). */
+  studNewsAt?: string;
+  studNewsBy?: string;
   /** Wanneer de laatste grote aankondiging (seizoen 3) verstuurd werd; '' = geen. */
   newsAt?: string;
   /** Laatste bericht in Het Lokaal, en van wie — het bolletje op de Lokaal-knop
@@ -1017,6 +1021,8 @@ export interface StudView {
   maxFee: number;
   listings: StudListingView[];
   deals: StudDealView[];
+  /** world.studNewsAt at the moment of this response — marks the offers as seen. */
+  newsAt?: string;
 }
 
 /** A youngster in a held nest: hatched, but not in the loft until you keep it. */
