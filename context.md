@@ -22,8 +22,8 @@ met zijn valkuilen) en `spelregels.md`. Lezen zonder iets terug te zetten:
 **Gewijzigd tijdens de pauze (12 okt):** de bots doen niet meer mee met samen kweken (eigenaar: "ze
 gaan de duiven voor te lage prijs laten gaan") — `bc65e0b` (feature, migratie **v63**), `7d7b40b`
 (demo) en `8e8d97a` (geen bel bij v63: "geen communicatie nodig"); daarna `3b1704b`, de fix voor de
-dubbele vluchten (prod `61db9ea`); daarna `c52c6d9`, het bolletje op Kweek (14 okt, nog niet op
-productie). Telkens ging Dev eerst even terug naar de volledige stand (`e102b9b`, `d7a67e1`,
+dubbele vluchten (prod `61db9ea`); daarna `c52c6d9`, het bolletje op Kweek (14 okt, live als prod
+`9e2a79a`). Telkens ging Dev eerst even terug naar de volledige stand (`e102b9b`, `d7a67e1`,
 `2e8be0b`, `46a1558`) en in dezelfde push weer op pauze, met `[CF-Pages-Skip]` op
 de laatste commit, dus Cloudflare bouwde niets. Deze pauzecommit is boom voor boom gelijk aan de
 eerste (`dea321f`), op dit bestand na.
@@ -40,7 +40,7 @@ spelersfeature):
   zonder bel — eigenaar: "geen communicatie nodig"). = dev `bc65e0b` + `8e8d97a`.
 - 12 okt (`61db9ea`): **één vlucht per dag en type** — de dubbele vluchten (vanaf 14 okt) worden
   opgekuist en een race tussen twee verzoeken plant er geen meer. = dev `3b1704b`.
-- **Nog niet live:** het bolletje op Kweek bij een nieuw of aangepast kweekaanbod (dev `c52c6d9`).
+- 14 okt (`9e2a79a`): **bolletje op Kweek** bij een nieuw of aangepast kweekaanbod. = dev `c52c6d9`.
 
 **Op Dev en nergens anders:** Marktwaarde v2 en de demomodus. ⚠️ Schema: prod heeft de drie
 samen-kweken-stappen direct na `pigeons.boosted_at`; op Dev zit `trades.quality` (v2) ertussen.
