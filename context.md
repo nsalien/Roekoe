@@ -16,7 +16,7 @@
 | Rol | Branch | Doel |
 |-----|--------|------|
 | **Dev** | `claude/demo-hokinrichting` | Alle ontwikkeling/commits komen hier **eerst**. ⏸️ **Gepauzeerd sinds 12 okt** (tweede keer, op vraag van de eigenaar; pauzecommit `dea321f`, enkel een pauzepagina). De volledige Dev-stand is `6be40c3` (herstart vanaf prod + demo + Marktwaarde v2 + samen kweken); hoe je hem terugzet staat in de `context.md` óp die branch. Ook `claude/breeding-other-player-pigeons-7314iz` (zelfde commits) is gepauzeerd. Van dev staat alles live **behalve Marktwaarde v2 en de demomodus**. |
-| **Dev (sessie 15 okt)** | `claude/duivenlokker-feature-mhf3yb` | Sessiebranch van de **duivenlokker**, vertrokken van prod `9e2a79a` (geen demo, geen Marktwaarde v2). De eigenaar vroeg meteen "implementeren op productie": de feature-commit staat hier (met `[CF-Pages-Skip]`, want een preview-build van een prod-tak kan aan de live `roekoe-db` hangen) en is daarna naar prod gecherry-pickt. De gepauzeerde `claude/demo-hokinrichting` heeft de lokker **niet**. |
+| **Dev (sessie 15 okt)** | `claude/duivenlokker-feature-mhf3yb` | Sessiebranch van de **duivenlokker**, vertrokken van prod `9e2a79a` (geen demo, geen Marktwaarde v2). De eigenaar vroeg meteen "implementeren op productie": de feature-commit staat hier als `fc0a933` (met `[CF-Pages-Skip]`, want een preview-build van een prod-tak kan aan de live `roekoe-db` hangen) en staat op prod als **`b4f3ab8`** (zelfde boom, boodschap zonder skip). De gepauzeerde `claude/demo-hokinrichting` heeft de lokker **niet**. |
 | **Prod** | `claude/roekoe-game-website-jwa0vo` | Elke commit wordt hierheen **gecherry-pickt**; deze branch triggert de **Cloudflare Pages**-deploy naar productie. |
 
 > Vorige dev-branches (niet meer gebruiken): `ccr-9c78dbf3-rdb1ea`, `claude/hallo-nno7pb`, `claude/hallo-r1wgvn`, `claude/hallo-ca55co`, `claude/hallo-qz9tmx`, `claude/hallo-fsp9nx`, `claude/hallo-mzjn0e`, `claude/hallo-su75jy`, `claude/hallo-rkr49f`, `claude/hallo-pvwabx`,
@@ -94,8 +94,8 @@
   `dedupeScheduledFlights` (zie *`advanceRealtime()` — draait bij élk verzoek*, stap 2).
 - **Bolletje op Kweek bij een nieuw of aangepast kweekaanbod, live op 14 okt** (= dev `c52c6d9`; eigenaar
   akkoord): `World.studNewsAt` (zie §4, *World*).
-- **Duivenlokker live op 15 okt** (De Stem, *"Vrijgelate duifjes zoeken nieuw nest"*; eigenaar: "implementeren
-  op productie en zorg voor communicatie"): zie *Duivenlokker* hieronder. Aankondiging: migratie **v64** (bel),
+- **Duivenlokker live op 15 okt** (`b4f3ab8` = dev `fc0a933`; De Stem, *"Vrijgelate duifjes zoeken nieuw nest"*;
+  eigenaar: "implementeren op productie en zorg voor communicatie"): zie *Duivenlokker* hieronder. Aankondiging: migratie **v64** (bel),
   rondleiding `lureNewsSteps`, wiki `#duivenlokker` + `#nieuw`. **Nog te doen door de beheerder:** het idee op De
   Stem op "In het spel" zetten.
 - **Dev gepauzeerd op 12 okt** (`dea321f`, zelfde werkwijze als 11 okt; na de vijfde ronde opnieuw,
