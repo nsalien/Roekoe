@@ -118,7 +118,7 @@ import { pickRelayRoute, relayEntryTeams, relayLegKm, relayTeamComplete } from '
 import { rollAnyTrait, rollTrait } from './traits.js';
 import { season3CoachNote, season3Welcome } from './season3.js';
 import { LOKAAL_INTRO } from './lokaal.js';
-import { CARE_NEWS, INRICHTING_NEWS, STUD_NEWS } from './news.js';
+import { CARE_NEWS, INRICHTING_NEWS, LURE_NEWS, STUD_NEWS } from './news.js';
 import { bell, clamp, hashString, haversineKm, pick, randFloat, round1, seededRng } from './util.js';
 
 // --- Time-zone helpers -----------------------------------------------------
@@ -2588,6 +2588,19 @@ export function runDataMigrations(db: Database): void {
       if (p.stud && db.lofts.find((l) => l.userId === p.ownerId)?.isBot) p.stud = null;
     }
     db.world.dataVersion = 63;
+  }
+
+  if ((db.world.dataVersion ?? 0) < 64) {
+    // Aankondiging: de DUIVENLOKKER (core/game/lure.ts) gaat live — idee van De
+    // Stem, "Vrijgelate duifjes zoeken nieuw nest". Zelfde vorm als v60–v62: één
+    // bel per echte speler met een stabiele id (core/game/news.ts); de tweede helft
+    // is lureNewsSteps in Tour.tsx. Geen datafix: niemand heeft al een lokker, dus
+    // vrijlaten werkt tot de eerste aankoop precies zoals vroeger.
+    for (const loft of db.lofts) {
+      if (loft.isBot) continue;
+      pushNotification(db, loft.userId, 'info', LURE_NEWS.title, LURE_NEWS.body, null, LURE_NEWS.id(loft.userId));
+    }
+    db.world.dataVersion = 64;
   }
 }
 

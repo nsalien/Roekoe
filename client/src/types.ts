@@ -272,6 +272,8 @@ export interface LoftEquipment {
   levels?: Record<string, number>;
   weatherStation: boolean;
   magazine: boolean;
+  /** Duivenlokker: 0 = none, else 1..`InrichtingCatalogue.lure.max` (absent on an older server). */
+  lure?: number;
   lastHawkDay: number | null;
 }
 
@@ -293,6 +295,8 @@ export interface InrichtingCatalogue {
   };
   /** Per item in Uitrusting, every effect: `values[i]` at level i+1 (one value without levels), `none` without the item. */
   effects?: Record<string, { label: string; none: string; values: string[] }[]>;
+  /** Duivenlokker: `prices[i]` buys level i+1; `effects` as above, one value per level. */
+  lure?: { label: string; max: number; prices: number[]; effects: { label: string; none: string; values: string[] }[] };
   vaccines: Record<string, { label: string; disease: string; kind: 'vaccin' | 'kuur'; price: number; days: number; protect: number; noFlyDays: number; libidoHit: number }>;
   /** "Hele hok" skips a bird with more than this share of her course left. */
   vaccineRenewShare: number;
@@ -1041,10 +1045,14 @@ export interface BroodYoung {
   genes: { speed: number; endurance: number; orientation: number } | null;
   declineRate: number;
   trait?: PigeonTrait | null;
+  /** An adult that waits here (caught by a duivenlokker) has a past; absent on an older server. */
+  ageWeeks?: number;
+  experience?: number;
+  ailment?: { name: string; severity: string; kind: 'ziekte' | 'kwetsuur' } | null;
 }
 
 /** Where a waiting bird came from — see `BroodOrigin` in core/schema.ts. */
-export type BroodOrigin = 'nest' | 'erfenis' | 'zwerver';
+export type BroodOrigin = 'nest' | 'erfenis' | 'zwerver' | 'lokker';
 
 /** A bird that arrived into a full loft and is waiting on your keep/let-go choice:
  *  usually a hatched clutch, otherwise a pigeon an event handed you. */
@@ -1054,6 +1062,8 @@ export interface PendingNest {
   origin: BroodOrigin;
   sire: string;
   dam: string;
+  /** `lokker`: the loft she was released from. */
+  from?: string | null;
   createdAt: string;
   young: BroodYoung[];
 }

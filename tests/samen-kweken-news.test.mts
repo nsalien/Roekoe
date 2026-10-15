@@ -44,7 +44,7 @@ for (const news of [STUD_NEWS, CARE_NEWS]) {
     `"${news.title}": één bel per echte speler, met een stabiele id`);
   ok(b.every((n) => !bots.some((x) => x.userId === n.userId)), '…en geen voor bots');
 }
-ok(db.world.dataVersion === 63, 'dataVersion staat op 63');
+ok((db.world.dataVersion ?? 0) >= 63, 'dataVersion staat op 63 (of een latere migratie)');
 ok(!db.pigeons.some((p) => activeListing(p)), 'de bots bieden niets aan');
 
 db.world.dataVersion = 61;
@@ -63,7 +63,7 @@ runDataMigrations(db);
 ok(botBird.stud === null, 'het aanbod van de bot is weg');
 ok(!!myBird.stud && myBird.stud.minScore === 50, 'dat van de speler blijft staan');
 ok(db.notifications.length === bellsBefore, 'geen bel: de eigenaar wil daar geen communicatie over');
-ok(db.world.dataVersion === 63, 'dataVersion staat op 63');
+ok((db.world.dataVersion ?? 0) >= 63, 'dataVersion staat op 63 (of een latere migratie)');
 
 console.log('\nWat de bellen zeggen');
 for (const [word, what] of [

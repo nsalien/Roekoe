@@ -66,6 +66,7 @@ import {
 } from './pigeon.js';
 import { clamp, randFloat, randInt, round1 } from './util.js';
 import { clearOwnerCare, grounded } from './inrichting.js';
+import { catchReleased, tellReleaser } from './lure.js';
 import { studFlightBlock } from './stud.js';
 
 export const NPC_OWNER_ID = 'npc_market';
@@ -334,13 +335,18 @@ export function resolveBrood(
     // (an inheritance, a stray) shares this queue but was never bred here, so
     // counting it in `stats.babies`/`tweeling`/`dynastie` would be a lie.
     const isNest = (brood.origin ?? 'nest') === 'nest';
+    // A bird a duivenlokker caught (lure.ts): letting her go means gone for good,
+    // and the player who released her hears what became of her.
+    const lured = brood.origin === 'lokker';
     if (keep.length > 0) {
       if (isNest) awardBroodBadges(db, loft, keep, brood.young.length, brood.dynasty);
       else evaluateBadges(db, loft);
       const names = keep.map((y) => y.name).join(' en ');
       notify(
         db, userId, 'info',
-        isNest ? `🐣 ${keep.length === 1 ? 'Een jong' : `${keep.length} jongen`} in het hok` : '🕊️ Er is plaats gemaakt',
+        isNest
+          ? `🐣 ${keep.length === 1 ? 'Een jong' : `${keep.length} jongen`} in het hok`
+          : lured ? '🧲 Opgevangen' : '🕊️ Er is plaats gemaakt',
         `${names} ${keep.length === 1 ? 'hoort' : 'horen'} nu bij ${loft.name}.`,
       );
     }
@@ -352,9 +358,10 @@ export function resolveBrood(
           ? `${released === 1 ? 'Eén jong' : `${released} jongen`} uit het nest van ${brood.sireName} × ${brood.damName} ` +
             `${released === 1 ? 'vloog' : 'vlogen'} uit — je krijgt er niets voor terug.`
           : `${brood.young.filter((y) => !keep.includes(y)).map((y) => y.name).join(' en ')} ` +
-            `${released === 1 ? 'vloog' : 'vlogen'} uit — je krijgt er niets voor terug.`,
+            `${released === 1 ? 'vloog' : 'vlogen'} ${lured ? 'weg en is voorgoed uit het spel.' : 'uit — je krijgt er niets voor terug.'}`,
       );
     }
+    if (lured) tellReleaser(db, brood, loft, keep.length > 0);
     return null;
   });
 }
@@ -927,8 +934,12 @@ export function purgePigeon(db: Database, pigeon: Pigeon): void {
   db.pigeons = db.pigeons.filter((p) => p.id !== pigeon.id);
 }
 
-/** Release one of your pigeons into the wild: you're rid of it, for no money. */
-export function releasePigeon(store: Store, userId: string, pigeonId: string): string | null {
+/**
+ * Release one of your pigeons into the wild: you're rid of it, for no money. She
+ * may fly to another player's duivenlokker (lure.ts) — then that player decides
+ * whether she stays, and you hear about it twice: now, and once they decide.
+ */
+export function releasePigeon(store: Store, userId: string, pigeonId: string, rng: () => number = Math.random): string | null {
   return store.mutate((db) => {
     const pigeon = db.pigeons.find((p) => p.id === pigeonId && p.ownerId === userId);
     if (!pigeon) return 'Duif niet gevonden';
@@ -936,7 +947,15 @@ export function releasePigeon(store: Store, userId: string, pigeonId: string): s
     if (busy) return busy;
     const name = pigeon.name;
     purgePigeon(db, pigeon);
-    notify(db, userId, 'info', '🕊️ Duif vrijgelaten', `Je liet ${name} vrij. Ze vliegt de vrijheid tegemoet — je krijgt er niets voor terug.`);
+    const caught = catchReleased(db, db.lofts.find((l) => l.userId === userId), pigeon, rng);
+    notify(
+      db, userId, 'info', '🕊️ Duif vrijgelaten',
+      caught
+        ? `Je liet ${name} vrij. Ze vloog recht naar de duivenlokker van ${caught.name}. ` +
+            `${caught.name} beslist nu of ze mag blijven — je krijgt bericht.`
+        : `Je liet ${name} vrij. Ze vloog de vrijheid tegemoet en geen enkele duivenlokker kreeg haar te pakken: ` +
+            'ze is voorgoed weg.',
+    );
     return null;
   });
 }

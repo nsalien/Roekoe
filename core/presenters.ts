@@ -41,6 +41,7 @@ import {
 } from './game/newcomer.js';
 import { coveredInInfirmary, idleCareStaff } from './game/health.js';
 import { equipmentLevel, equipmentOf, hygieneDecay } from './game/hygiene.js';
+import { lureLevel } from './game/lure.js';
 import { insuranceCost, insurancePremium, insuranceQuote, irBoxesInUse, magazineRanges, readsMagazine } from './game/inrichting.js';
 import { marketValue, valuePigeon } from './game/market.js';
 import { activeListing, wantsOf } from './game/stud.js';
@@ -264,7 +265,7 @@ export function pigeonDTO(db: Database, p: Pigeon, viewerId?: string, viewerIsAd
  * The genes are shown in full: which youngster to keep is a bet on its ceilings,
  * so the owner has to be able to see them before deciding.
  */
-export function broodYoungDTO(p: Pigeon) {
+export function broodYoungDTO(p: Pigeon, week?: number) {
   const b = breedInfo(p.breed);
   return {
     id: p.id,
@@ -281,6 +282,11 @@ export function broodYoungDTO(p: Pigeon) {
     genes: p.genes ?? null,
     declineRate: p.declineRate ?? 1,
     trait: traitDTO(p.trait),
+    // An adult that waits here (a bird a duivenlokker caught) has a past: how old
+    // she is, her ervaring and whether she is ill matter to the keep choice.
+    ageWeeks: week === undefined ? undefined : ageInWeeks(p, week),
+    experience: p.experience,
+    ailment: p.ailment ? { name: p.ailment.name, severity: p.ailment.severity, kind: p.ailment.kind } : null,
   };
 }
 
@@ -390,6 +396,8 @@ export function loftDTO(db: Database, loft: Loft) {
         levels: Object.fromEntries(EQUIPMENT_LEVELS.keys.map((k) => [k, equipmentLevel(loft, k)])),
         weatherStation: !!eq.weatherStation,
         magazine: !!eq.magazine,
+        // Duivenlokker: 0 = none, 1..LURE_MAX_LEVEL (core/game/lure.ts).
+        lure: lureLevel(loft),
         lastHawkDay: eq.lastHawkDay ?? null,
       };
     })(),

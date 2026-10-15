@@ -10,7 +10,7 @@ import { STUD_SEEN_EVENT, hasStudNews, studSeenAt } from '../game/studSeen';
 import { api } from '../api/client';
 import { useToast } from './ui';
 import { NotificationsBell } from './NotificationsBell';
-import { INRICHTING_NEWS_STEPS, LOKAAL_NEWS_STEPS, Tour, season3NewsSteps, studNewsSteps } from './Tour';
+import { INRICHTING_NEWS_STEPS, LOKAAL_NEWS_STEPS, Tour, lureNewsSteps, season3NewsSteps, studNewsSteps } from './Tour';
 import { PrizeCeremony } from './PrizeCeremony';
 
 interface NavItem { to: string; label: string; short: string; icon: string; end?: boolean }
@@ -147,6 +147,7 @@ export function Layout() {
     if (user?.id) { try { localStorage.setItem(`roekoe.newsSeen.lokaal.${user.id}`, '1'); } catch { /* private mode */ } }
     if (user?.id) { try { localStorage.setItem(`roekoe.newsSeen.inrichting.${user.id}`, '1'); } catch { /* private mode */ } }
     if (user?.id) { try { localStorage.setItem(`roekoe.newsSeen.samen.${user.id}`, '1'); } catch { /* private mode */ } }
+    if (user?.id) { try { localStorage.setItem(`roekoe.newsSeen.lokker.${user.id}`, '1'); } catch { /* private mode */ } }
     setShowTour(false);
   }
 
@@ -242,11 +243,39 @@ export function Layout() {
     } catch { /* private mode: treat as seen */ }
     if (!seen && !earlierPending) setShowSamenNews(true);
   }, [samenNewsKey, inrichtingNewsKey, lokaalNewsKey, newsKey, state?.loft, state?.world?.newsAt, showTour, showNews, showLokaalNews, showInrichtingNews, lokaalNewsDone, inrichtingNewsDone]);
+  const [samenNewsDone, setSamenNewsDone] = useState(false);
   function closeSamenNews() {
     if (samenNewsKey) { try { localStorage.setItem(samenNewsKey, '1'); } catch { /* private mode */ } }
     setShowSamenNews(false);
+    setSamenNewsDone(true);
   }
   const samenNewsSteps = studNewsSteps(state?.pigeons?.[0]?.id ?? null);
+
+  // Aankondiging van de DUIVENLOKKER (twee spotlights, eigen sleutel). Zelfde regel:
+  // pas als de vorige aankondigingen gezien zijn, nooit twee runs op één bezoek.
+  // Bel: migratie v64.
+  const lureNewsKey = user?.id ? `roekoe.newsSeen.lokker.${user.id}` : null;
+  const [showLureNews, setShowLureNews] = useState(false);
+  useEffect(() => {
+    if (!lureNewsKey || !state?.loft || showTour || showNews || showLokaalNews || showInrichtingNews || showSamenNews
+      || lokaalNewsDone || inrichtingNewsDone || samenNewsDone) return;
+    let seen = true;
+    let earlierPending = false;
+    try {
+      seen = !!localStorage.getItem(lureNewsKey);
+      earlierPending = (!!samenNewsKey && !localStorage.getItem(samenNewsKey))
+        || (!!inrichtingNewsKey && !localStorage.getItem(inrichtingNewsKey))
+        || (!!lokaalNewsKey && !localStorage.getItem(lokaalNewsKey))
+        || (!!newsKey && !!state.world?.newsAt && !localStorage.getItem(newsKey));
+    } catch { /* private mode: treat as seen */ }
+    if (!seen && !earlierPending) setShowLureNews(true);
+  }, [lureNewsKey, samenNewsKey, inrichtingNewsKey, lokaalNewsKey, newsKey, state?.loft, state?.world?.newsAt, showTour, showNews,
+    showLokaalNews, showInrichtingNews, showSamenNews, lokaalNewsDone, inrichtingNewsDone, samenNewsDone]);
+  function closeLureNews() {
+    if (lureNewsKey) { try { localStorage.setItem(lureNewsKey, '1'); } catch { /* private mode */ } }
+    setShowLureNews(false);
+  }
+  const lureSteps = lureNewsSteps(state?.pigeons?.[0]?.id ?? null);
 
   // Prijsuitreiking: de prizes of the season that just ended, one screen each.
   // No server state — `loft.ceremony` carries the last season's awards and this
@@ -419,7 +448,10 @@ export function Layout() {
       {showSamenNews && !showInrichtingNews && !showLokaalNews && !showNews && !showTour && !showCeremony && (
         <Tour steps={samenNewsSteps} onClose={closeSamenNews} />
       )}
-      {state?.pendingEvent && !showTour && !showNews && !showLokaalNews && !showInrichtingNews && !showSamenNews && !showCeremony && <EventModal />}
+      {showLureNews && !showSamenNews && !showInrichtingNews && !showLokaalNews && !showNews && !showTour && !showCeremony && (
+        <Tour steps={lureSteps} onClose={closeLureNews} />
+      )}
+      {state?.pendingEvent && !showTour && !showNews && !showLokaalNews && !showInrichtingNews && !showSamenNews && !showLureNews && !showCeremony && <EventModal />}
     </div>
   );
 }

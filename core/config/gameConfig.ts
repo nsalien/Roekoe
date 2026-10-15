@@ -164,6 +164,42 @@ export function irBoxPrice(owned: number): number {
 }
 
 /**
+ * De duivenlokker (De Stem, "Vrijgelate duifjes zoeken nieuw nest"). A player
+ * who RELEASES a bird may see her fly to the loft of another player who owns a
+ * lokker (core/game/lure.ts). Every lokker pulls with `pull[level − 1]`, the
+ * open sky with `freedom`; the bird lands at lokker i with chance
+ *
+ *   pull_i / (freedom + Σ pull)
+ *
+ * and is gone for good with chance freedom / (freedom + Σ pull). So a higher
+ * level always has the better chance, two equal lokkers have equal chances, the
+ * bird lands at one lokker at most, and she can always vanish (the owner: "er is
+ * geen garantie"). Alone with a lokker: level 1 10 %, level 5 ~26 %.
+ *
+ * `prices[i]` is what level i+1 costs — the first is buying it; the owner's
+ * table (€500 · €750 · €1.500 · €3.000 · €5.000). One-off, cannot be sold back.
+ * Only real players: the bots buy no lokker and a bot does not release birds.
+ */
+export const LURE = {
+  label: 'Duivenlokker',
+  prices: [500, 750, 1500, 3000, 5000] as readonly number[],
+  pull: [10, 14, 19, 25, 32] as readonly number[],
+  freedom: 90,
+} as const;
+export const LURE_MAX_LEVEL = LURE.prices.length;
+
+/**
+ * The chance a released bird lands at each lokker, for the given lokker levels
+ * (one entry per OTHER player with a lokker; 0 = none). Returns one chance per
+ * input plus `none`, the chance she is gone for good. Sums to 1.
+ */
+export function lureChances(levels: readonly number[]): { each: number[]; none: number } {
+  const pulls = levels.map((l) => (l >= 1 ? LURE.pull[Math.min(l, LURE_MAX_LEVEL) - 1] : 0));
+  const total = LURE.freedom + pulls.reduce((s, x) => s + x, 0);
+  return { each: pulls.map((x) => x / total), none: LURE.freedom / total };
+}
+
+/**
  * Vaccins en kuren. Each works on ONE disease: a protected bird that
  * falls ill with exactly that disease fends it off with `protect`. Vaccines last
  * long and ground the bird for `noFlyDays`; kuren are short. `days` in real days

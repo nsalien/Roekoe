@@ -2,8 +2,9 @@
  * The keep-or-let-go screen for birds that arrived into a full loft.
  *
  * Two shapes, one screen: a hatched clutch, or a single bird an event handed the
- * player (the inheritance, a stray). The decision is identical, so `origin` only
- * swaps the copy — everything below it is shared.
+ * player (the inheritance, a stray) or their duivenlokker caught (another player
+ * released her). The decision is identical, so `origin` only swaps the copy —
+ * everything below it is shared.
  *
  * The birds are real already — they just aren't in the loft yet. Nothing happens
  * to them until the owner confirms, so this screen has to make two things obvious
@@ -64,11 +65,14 @@ export function NestChoice({
   const isNest = nest.origin === 'nest';
   const one = nest.young.length === 1;
   // A gift is always a single bird, so "houd je haar?" reads better than a tally.
+  const lured = nest.origin === 'lokker';
   const heading = isNest
     ? `🐣 Nest van ${nest.sire} × ${nest.dam}`
     : nest.origin === 'erfenis'
       ? '📜 Een duif uit de erfenis'
-      : '🕊️ De verdwaalde duif';
+      : lured
+        ? '🧲 Gevangen door je duivenlokker'
+        : '🕊️ De verdwaalde duif';
 
   function toggle(id: string) {
     setConfirm(false);
@@ -83,7 +87,7 @@ export function NestChoice({
         keep.length === 0
           ? isNest
             ? 'Het nest is uitgevlogen — je hield geen enkel jong.'
-            : 'Je liet haar gaan.'
+            : lured ? 'Je liet haar gaan — ze is voorgoed weg.' : 'Je liet haar gaan.'
           : isNest
             ? `${keep.length === 1 ? 'Eén jong' : `${keep.length} jongen`} in je hok! 🐣`
             : 'Ze staat in je hok! 🕊️',
@@ -129,6 +133,11 @@ export function NestChoice({
             {one ? 'Er is één jong' : `Er zijn ${nest.young.length} jongen`} geboren, maar je hok zat vol. Kies wie je
             houdt. Wie je niet kiest, <strong>vliegt weg</strong> — daar krijg je niets voor terug.
           </>
+        ) : lured ? (
+          <>
+            {nest.young[0]?.name ?? 'Deze duif'} werd vrijgelaten{nest.from ? <> door <strong>{nest.from}</strong></> : null} en
+            vloog naar je duivenlokker. Houd je haar? Kies je haar niet, dan <strong>is ze voorgoed weg</strong>.
+          </>
         ) : (
           <>
             Ze hoort bij je hok, maar er was geen plaats. Maak hieronder plaats — laat een duif vrij of verkoop er een
@@ -170,6 +179,17 @@ export function NestChoice({
                       {y.sex === 'doffer' ? '♂ doffer' : '♀ duivin'} · ★{y.talent}
                       {y.breed?.name && <> · {y.breed.name}</>}
                     </div>
+                    {/* An adult has a past: her age and ervaring, and whether she is ill. */}
+                    {!isNest && y.ageWeeks !== undefined && (
+                      <div className="faint" style={{ fontSize: '0.8rem' }}>
+                        {y.ageWeeks} wk · ervaring {Math.round(y.experience ?? 0)}
+                      </div>
+                    )}
+                    {!isNest && y.ailment && (
+                      <div style={{ fontSize: '0.8rem', color: 'var(--bad)' }}>
+                        {y.ailment.kind === 'ziekte' ? '🦠' : '🩹'} {y.ailment.name} ({y.ailment.severity})
+                      </div>
+                    )}
                   </div>
                 </div>
                 <span style={{ fontSize: '1.1rem' }}>{chosen ? '✅' : '⬜'}</span>

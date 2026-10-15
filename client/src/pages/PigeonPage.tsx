@@ -504,7 +504,7 @@ export function PigeonPage() {
           </div>
 
           {mine && (
-            <div className="card" style={{ borderColor: 'var(--bad)' }}>
+            <div className="card" style={{ borderColor: 'var(--bad)' }} data-tour="farewell">
               <h2>⚠️ Afscheid nemen</h2>
               {p.racing ? (
                 <p className="muted" style={{ margin: 0 }}>
@@ -517,7 +517,8 @@ export function PigeonPage() {
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <strong>🕊️ Vrijlaten</strong>
                       <div className="faint" style={{ fontSize: '0.85rem' }}>
-                        {p.name} verdwijnt uit je hok. <strong>Geen geld</strong>, geen bijwerkingen.
+                        {p.name} verdwijnt uit je hok. <strong>Geen geld</strong> — en een speler met een duivenlokker
+                        kan haar opvangen. <Link to="/wiki#duivenlokker">Meer info →</Link>
                       </div>
                     </div>
                     {confirmPart === 'release' ? (
