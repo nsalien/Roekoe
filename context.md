@@ -16,6 +16,7 @@
 | Rol | Branch | Doel |
 |-----|--------|------|
 | **Dev** | `claude/demo-hokinrichting` | Alle ontwikkeling/commits komen hier **eerst**. ⏸️ **Gepauzeerd sinds 12 okt** (tweede keer, op vraag van de eigenaar; pauzecommit `dea321f`, enkel een pauzepagina). De volledige Dev-stand is `6be40c3` (herstart vanaf prod + demo + Marktwaarde v2 + samen kweken); hoe je hem terugzet staat in de `context.md` óp die branch. Ook `claude/breeding-other-player-pigeons-7314iz` (zelfde commits) is gepauzeerd. Van dev staat alles live **behalve Marktwaarde v2 en de demomodus**. |
+| **Dev (sessie 15 okt)** | `claude/duivenlokker-feature-mhf3yb` | Sessiebranch van de **duivenlokker**, vertrokken van prod `9e2a79a` (geen demo, geen Marktwaarde v2). De eigenaar vroeg meteen "implementeren op productie": de feature-commit staat hier (met `[CF-Pages-Skip]`, want een preview-build van een prod-tak kan aan de live `roekoe-db` hangen) en is daarna naar prod gecherry-pickt. De gepauzeerde `claude/demo-hokinrichting` heeft de lokker **niet**. |
 | **Prod** | `claude/roekoe-game-website-jwa0vo` | Elke commit wordt hierheen **gecherry-pickt**; deze branch triggert de **Cloudflare Pages**-deploy naar productie. |
 
 > Vorige dev-branches (niet meer gebruiken): `ccr-9c78dbf3-rdb1ea`, `claude/hallo-nno7pb`, `claude/hallo-r1wgvn`, `claude/hallo-ca55co`, `claude/hallo-qz9tmx`, `claude/hallo-fsp9nx`, `claude/hallo-mzjn0e`, `claude/hallo-su75jy`, `claude/hallo-rkr49f`, `claude/hallo-pvwabx`,
@@ -93,6 +94,10 @@
   `dedupeScheduledFlights` (zie *`advanceRealtime()` — draait bij élk verzoek*, stap 2).
 - **Bolletje op Kweek bij een nieuw of aangepast kweekaanbod, live op 14 okt** (= dev `c52c6d9`; eigenaar
   akkoord): `World.studNewsAt` (zie §4, *World*).
+- **Duivenlokker live op 15 okt** (De Stem, *"Vrijgelate duifjes zoeken nieuw nest"*; eigenaar: "implementeren
+  op productie en zorg voor communicatie"): zie *Duivenlokker* hieronder. Aankondiging: migratie **v64** (bel),
+  rondleiding `lureNewsSteps`, wiki `#duivenlokker` + `#nieuw`. **Nog te doen door de beheerder:** het idee op De
+  Stem op "In het spel" zetten.
 - **Dev gepauzeerd op 12 okt** (`dea321f`, zelfde werkwijze als 11 okt; na de vijfde ronde opnieuw,
   nu `2ea049c`): beide dev-branches tonen een pauzepagina. Terugzetten: `git revert --no-edit
   c52c6d9..HEAD` op de dev-branch en pushen.
@@ -118,6 +123,69 @@
   `claude/demo-hokinrichting` (het vertrouwde preview-adres), als samenvoegcommit bovenop de
   pauzecommits: de boom is die van de herstart, de oude commits (`bc8c415`, `70d3209`, `264f93f`, …)
   blijven via de tweede ouder bereikbaar. De pauzepagina is daarmee weg.
+
+### Duivenlokker — LIVE sinds 15 okt (`core/game/lure.ts`, `LURE` in gameConfig)
+- **Vraag van de eigenaar** (De Stem, *"Vrijgelate duifjes zoeken nieuw nest"*, Roekoeloos 1 okt, in stemming):
+  een duif die je **vrijlaat** heeft een kans om naar het hok van een andere speler te vliegen die een
+  **duivenlokker** heeft (koop + upgrade op *Inrichting*). Hoger niveau = meer kans, gelijk niveau = gelijke
+  kans, de duif komt hoogstens bij één lokker, en er is **altijd** een kans dat ze nergens heen gaat. De vanger
+  kiest of hij haar houdt (vol hok → eerst plaats maken); niet houden = voorgoed uit het spel. Wie vrijliet én
+  wie haar ving krijgen een melding. Prijzen van de eigenaar: **€500 · €750 · €1.500 · €3.000 · €5.000**
+  (niveau 1–5, samen €10.750).
+- **De kans (zelf gekozen, de eigenaar kan bijstellen):** elke lokker trekt met `LURE.pull[niveau−1]`
+  = **10 / 14 / 19 / 25 / 32**, de vrije lucht met `LURE.freedom` **90**; lokker i krijgt de duif met kans
+  `pull_i / (90 + Σ pull)`, nergens met `90 / (90 + Σ pull)` (`lureChances(levels)` in gameConfig — één
+  bron voor motor, ⓘ, wiki en spelregels). Alleen: niveau 1 **10 %** … niveau 5 **26,2 %**; naast één lokker van
+  hetzelfde niveau 9,1 % … 20,8 %. "Kleine kans" uit het oorspronkelijke idee: zelfs 12 lokkers op niveau 5
+  laten nog ~19 % "nergens". Meer of minder lokken = enkel `pull`/`freedom` aanpassen (en de twee
+  tabellen in wiki + spelregels: de test controleert ze).
+- **Wanneer (enkel `engine.releasePigeon`):** de knop *Vrijlaten* op de duifpagina en *Maak plaats* bij Kweek.
+  `releasePigeon(store, userId, pigeonId, rng = Math.random)` purget de duif zoals altijd en roept dan
+  `catchReleased(db, from, bird, rng)`: kandidaten = `lureRivals` (echte spelers ≠ de vrijlater met lokker > 0,
+  gesorteerd op id), loting = `pickLure`. **Niet gelokt:** het restaurant (soep), een jong/geschonken duif die
+  in de wachtkamer niet gehouden wordt (`resolveBrood`), wat bots wegdoen (`purgePigeon` rechtstreeks), een duif
+  op een **open veiling** (anders ontloopt een schuldenaar de gedwongen veiling via een vriend: `closeAuction`
+  zou de nieuwe eigenaar als schuldenaar betalen), en een duif die de vanger laat gaan (niet naar een volgende
+  lokker). Bots kopen geen lokker (`buyLure` weigert ze) en `lureRivals` slaat een bot over.
+- **De gevangen duif** gaat (net als een erfenis) in de wachtkamer **`Loft.pendingBroods`** van de vanger, met
+  `origin: 'lokker'` en **`from: {userId, name}`** (nieuw optioneel veld op `PendingBrood`), **altijd** — ook met
+  plaats in het hok, want de vanger kiest. `adopt` maakt haar klaar zoals een verkoop: `ownerId` = vanger,
+  uit de markt (`forSale/price/minBid/listedAt/boostedAt`), `clearOwnerCare` (verzekering + kweekaanbod),
+  geen coach/apart hok/ziekenboeg/`careAssigned`/rustkuur, `hungerDays/restDays` 0, `ration` = het
+  standaardvoer van de vanger. Vaccins, genen, stamboom, `raceLog` (de `pigeon_log_entries` worden bij een
+  purge niet gewist, dus de historiek komt terug), titels, `earnings` (getoond enkel aan `earningsOwner`) blijven.
+  Dezelfde id: de pigeon-rij wordt bij het vrijlaten gewist en bij "houden" opnieuw ingevoegd.
+- **Beslissen = `resolveBrood`** (bestaand, `POST /breeding/nest/:id`): bij `origin === 'lokker'` titel
+  "🧲 Opgevangen" bij houden, "…vloog weg en is voorgoed uit het spel" bij laten gaan, en daarna
+  **`tellReleaser`**: de vrijlater krijgt "🧲 X blijft bij <hok>" of "🕊️ X is voorgoed weg" (niets als die speler
+  intussen weg is). Een lokker-duif blokkeert het koppelformulier niet (enkel `origin === 'nest'`).
+- **Meldingen** (gewone `notify`, geen stabiele id nodig: het is een spelersactie, geen tick): de vanger
+  "🧲 Je duivenlokker ving een duif" (naam, ★, wie vrijliet, ga naar Kweek); de vrijlater meteen "🕊️ Duif
+  vrijgelaten" met **bij wie** ze landde of dat ze voorgoed weg is, en later de afloop.
+- **Opslag:** het niveau in **`Loft.equipment.lure`** (de bestaande JSON-kolom, `0`/afwezig = geen). Geen
+  schemawijziging, geen extra query. `loftDTO.equipment.lure`; catalogus `/state.inrichting.lure` =
+  `lureCatalogue()` (`{label, max, prices, effects}` — `effects` in de vorm van de ⓘ: "Kans als enige lokker" en
+  "Naast één lokker van hetzelfde niveau", één waarde per niveau). API **`POST /loft/lure`** = `buyLure` (kopen
+  of één niveau hoger; `debtBlock`; niet terug te verkopen). `GET /breeding.nests[]` kreeg `from`, en
+  `broodYoungDTO(p, week?)` geeft nu ook `ageWeeks`, `experience` en `ailment` (de kaart toont die enkel bij
+  een niet-nest).
+- **UI:** *Inrichting → Uitrusting* kreeg een eigen regel `LureLine` (`components/Inrichting.tsx`; 5 niveaus
+  met eigen prijzen, dus niet via `levelInfo`/`EQUIPMENT_LEVELS`): "🧲 Duivenlokker: niveau n/5", één zin, groen
+  "↑ Niveau n+1: kans als enige lokker a → b", ⓘ met beide rijen, knop "Kopen · €500" / "Niveau n+1 · €…" met
+  bevestiging. Het blok Uitrusting kreeg `data-tour="uitrusting"`. `NestChoice` heeft een kop "🧲 Gevangen door je
+  duivenlokker", zegt van wie ze komt, en toont leeftijd/ervaring/aandoening. *Afscheid nemen* op de duifpagina
+  (`data-tour="farewell"`) zegt nu "Geen geld — en een speler met een duivenlokker kan haar opvangen".
+- **Communicatie:** bel `LURE_NEWS` (`core/game/news.ts`, id `ntf:news:duivenlokker:<id>`) via **migratie v64**
+  voor elke echte speler; rondleiding **`lureNewsSteps(pigeonId)`** (Tour.tsx: blok Uitrusting → het afscheid op
+  de pagina van je eerste duif), sleutel `roekoe.newsSeen.lokker.<id>`, pas na de vorige aankondigingen
+  (Layout; `closeTour` zet de sleutel ook); wiki **`#duivenlokker`** (tabel, formule, voorbeelden van de
+  eigenaar, wat (niet) gelokt wordt) + blok bovenaan `#nieuw` (nu "Nieuw: duivenlokker, samen kweken, inrichting
+  & meer") + `#afscheid`; spelregels **§9.2bis** (+ §9.2, §5.2ter, §7.1).
+- **Test:** `tests/duivenlokker.test.mts` (92 controles): de kansen, kopen/opwaarderen (prijzen, max 5, rood,
+  bot), vrijlaten zonder/met vangst (klaargemaakt, bellen), eigen lokker/bot/veiling/restaurant doen niet mee,
+  de loting tegen `lureChances` (40.000 worpen), houden/laten gaan/vol hok/koppelformulier, de rondrit door D1 +
+  de echte API (`/loft/lure`, `/breeding` met `from`, keuze, bel in D1), wiki- en spelregeltabellen ==
+  `lureChances`, en de bel van v64. `samen-kweken-news` controleert nu `dataVersion >= 63` (v64 komt erachter).
 
 ### Kweken met andermans duif ("Samen kweken") — LIVE sinds 12 okt
 - **Vraag van de eigenaar** (De Stem, *"Broeden met de duif van een andere speler"*, spelleiding 19
@@ -757,7 +825,7 @@ krijgen.**
 `core/game/schedule.ts` → `advanceRealtime(db, nowMs, weatherByFlight)` roept in
 volgorde:
 1. `runDataMigrations(db)` — eenmalige datafixes, **gated op `world.dataVersion`**
-   (staat nu op **63** — v63 = de bots uit samen kweken (hun aanbod gewist, geen bel), v62 = de bellen van samen kweken en van vaccins/verzekering per duif, v61 = de aankondigingsbel van de hokinrichting & co (`core/game/news.ts`), v60 = die van Het Lokaal; nieuwe migratie = nieuw `if ((db.world.dataVersion ?? 0) < N)`
+   (staat nu op **64** — v64 = de bel van de duivenlokker (`LURE_NEWS`), v63 = de bots uit samen kweken (hun aanbod gewist, geen bel), v62 = de bellen van samen kweken en van vaccins/verzekering per duif, v61 = de aankondigingsbel van de hokinrichting & co (`core/game/news.ts`), v60 = die van Het Lokaal; nieuwe migratie = nieuw `if ((db.world.dataVersion ?? 0) < N)`
    blok + `db.world.dataVersion = N`). De oudere migraties hebben hun werk gedaan en
    zijn enkel nog van belang als **patroon** — zie §8, kop *Eenmalige migraties*.
 2. `ensureFlightsScheduled(db, nowMs)` — plant vluchten volgens `REAL_SCHEDULE`.
@@ -1006,6 +1074,7 @@ Roekoe/
 │       ├── events.ts            dilemma-kaarten
 │       ├── pedigree.ts          stamboom + verwantschap (kinship/ancestorIds/pedigreeOf)
 │       ├── pigeon.ts, weather.ts, util.ts (seededRng/hashString/clamp/pickWith)
+│       ├── lure.ts              duivenlokker: kopen, de loting bij vrijlaten, de wachtkamer + meldingen
 │       ├── stem.ts              De Stem: regels van het ideeënbord + de 4 startideeën (géén DB)
 │       ├── lokaal.ts            Het Lokaal (chat): opkuisen/valideren, rem, wie mag weghalen, pollvenster (géén DB)
 │       ├── newcomer.ts          starterspakket nieuwe spelers (punten, gratis coach, 2x winst)
@@ -1144,6 +1213,9 @@ Entiteiten: `Pigeon`, `Loft`, `User`, `BreedingPair`, `PendingBrood`, `Flight` (
 - `Ailment.healed?` (0..1 herstelvoortgang), `lastTickMs?`, `lastUpdateMs?`,
   `updates?` — voor real-time herstel + 12u-statusupdates.
 - `PlayerStats.bets` / `betsWon` / `broods` — voor nieuwe badges/missies.
+
+**Duivenlokker (§0b):** `Loft.equipment.lure` (niveau 0–5, in de bestaande JSON-kolom) en op
+`PendingBrood` `origin: 'lokker'` + `from: {userId, name}` (in `lofts.pending_broods`). Geen schemawijziging.
 
 **Samen kweken (dev, zie §0b):** `Pigeon.stud` (kolom `stud`, het aanbod), `BreedingPair.deal`
 (kolom `deal`, de afspraak op een lopend nest) en de tabel `stud_deals` (de onderhandelingen,
@@ -1315,6 +1387,8 @@ Entiteiten: `Pigeon`, `Loft`, `User`, `BreedingPair`, `PendingBrood`, `Flight` (
   duiven worden niet meer weggestreept. Enkel `gaveUp`/`dnfAtSeconds` = DNF.
 - **Kweekleeftijd:** `BREEDING.minAgeWeeks` **8** — even oud als de vluchtleeftijd, maar een
   eigen knop. Inteelt: zie `INBREEDING` + `PIGEON_QUIRKS` en §8.
+- **Duivenlokker (`LURE`):** `prices [500,750,1500,3000,5000]` (niveau 1–5, de eigenaar), `pull
+  [10,14,19,25,32]`, `freedom 90`; `LURE_MAX_LEVEL` 5, `lureChances(levels)` = de kans per lokker + "nergens".
 - **Samen kweken (`STUD`, dev):** `cost` **1000** per speler bij het akkoord, `maxFee` 100.000,
   `maxOpenProposals` 10 (geen bot-sleutels meer: de bots doen niet mee). Lege worp:
   `studFailedRefund()` = €500 elk.
@@ -1820,6 +1894,7 @@ npx tsx tests/contagion.test.mts          # besmetting per ziekte: de eigen ziek
 npx tsx tests/inrichting-news.test.mts    # v61: één aankondigingsbel per echte speler, stabiele id
 npx tsx tests/samen-kweken.test.mts       # kweken met andermans duif: bot, onderhandelen, vergoeding, lege worp, opslag
 npx tsx tests/samen-kweken-news.test.mts  # v62: twee bellen per echte speler, stabiele id, bots bieden aan
+npx tsx tests/duivenlokker.test.mts       # duivenlokker: kansen, kopen, vangen, kiezen, D1 + API, wiki/spelregels, bel v64
 ```
 
 > **Geen `tsx` beschikbaar?** (cloud-sessie waar de npm-registry geblokkeerd is: `npx tsx`
@@ -1845,7 +1920,9 @@ Alles in één keer (bash, vanuit de root):
 for f in tests/*.test.mts; do printf '%-26s ' "$(basename "$f")"; npx tsx "$f" >/dev/null 2>&1 && echo OK || echo FAIL; done
 ```
 
-**Stand van de suite (dev, 12 okt, na Samen kweken): alles groen behalve `age-cup`** (64 tests;
+**Stand van de suite (prod + duivenlokker, 15 okt): alles groen behalve `age-cup`** (66 tests; `cpu-budget` en
+`family-chart` apart gedraaid, groen; `live-speed` was op de ongewijzigde boom 1× rood, daarna groen — flaky,
+zie hieronder). **Daarvoor (dev, 12 okt, na Samen kweken): alles groen behalve `age-cup`** (64 tests;
 `cpu-budget` en `demo-build` apart gedraaid, beide groen). Daarvoor: **(na het weghalen van de koppels) 57 van de 58 groen** (`cpu-budget`
 apart gedraaid; enkel `age-cup` rood, zie hieronder). `inrichting` hing af van het uur: een vlucht
 die 24–25 u later vertrekt, schoof tijdens het geteste uur het weerstationvenster in; de assertie

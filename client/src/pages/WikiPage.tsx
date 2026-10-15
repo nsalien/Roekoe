@@ -12,7 +12,7 @@ import { useEffect } from 'react';
 import { Link } from 'react-router-dom';
 
 const SECTIONS = [
-  { id: 'nieuw', icon: '🧰', label: 'Nieuw: samen kweken, inrichting & meer' },
+  { id: 'nieuw', icon: '🧰', label: 'Nieuw: duivenlokker, samen kweken & meer' },
   { id: 'seizoen3', icon: '🎉', label: 'Nieuw in seizoen 3' },
   { id: 'starterspakket', icon: '🎁', label: 'Starterspakket' },
   { id: 'genen', icon: '🧬', label: 'Genen & training' },
@@ -48,6 +48,7 @@ const SECTIONS = [
   { id: 'schuld', icon: '🔴', label: 'Rode cijfers & gedwongen veiling' },
   { id: 'waarde', icon: '💰', label: 'Wat is een duif waard?' },
   { id: 'afscheid', icon: '👋', label: 'Afscheid nemen' },
+  { id: 'duivenlokker', icon: '🧲', label: 'Duivenlokker' },
 ];
 
 const cell: React.CSSProperties = {
@@ -112,9 +113,19 @@ export function WikiPage() {
         </div>
       </div>
 
-      <Section id="nieuw" icon="🧰" title="Nieuw: samen kweken, inrichting & meer">
+      <Section id="nieuw" icon="🧰" title="Nieuw: duivenlokker, samen kweken, inrichting & meer">
         <p className="muted" style={{ marginTop: 0 }}>
           Wat er in oktober (seizoen 3) bijkwam en veranderde, op één plek. Deze sectie blijft staan als logboek.
+        </p>
+
+        <h3>🧲 De duivenlokker (15 oktober)</h3>
+        <p>
+          Een idee van De Stem: <em>vrijgelate duifjes zoeken een nieuw nest</em>. Bij <em>Inrichting → Uitrusting</em>{' '}
+          koop je een <strong>duivenlokker</strong> (€500) en waardeer je hem op tot <strong>niveau 5</strong>. Laat een{' '}
+          <strong>andere speler</strong> een duif vrij, dan maakt elke lokker kans om haar te vangen — hoe hoger het
+          niveau, hoe groter de kans. Vangt de jouwe er een, dan kies je bij <em>Kweek</em> of je haar houdt. Een
+          vrijgelaten duif kan dus bij een concurrent belanden: denk even na voor je vrijlaat.{' '}
+          <a href="#duivenlokker">Alles over de duivenlokker →</a>
         </p>
 
         <h3>🤝 Samen kweken (12 oktober)</h3>
@@ -1997,7 +2008,8 @@ export function WikiPage() {
         <ul>
           <li>
             <strong>🕊️ Vrijlaten</strong> — je laat de duif gaan. Ze verdwijnt uit je hok en je krijgt er
-            <strong> niets</strong> voor terug. Geen bijwerkingen: de rest van je hok blijft ongemoeid.
+            <strong> niets</strong> voor terug. De rest van je hok blijft ongemoeid, maar een andere speler met een{' '}
+            <strong>duivenlokker</strong> kan haar opvangen (<a href="#duivenlokker">hoe dat werkt</a>).
           </li>
           <li>
             <strong>🍲 Verkopen aan Bistro De Laatste Vlucht</strong> — het lokale duivenrestaurant maakt er
@@ -2009,15 +2021,73 @@ export function WikiPage() {
         <MiniTable
           head={['Manier', 'Opbrengst', 'Effect op de rest van je hok']}
           rows={[
-            ['🕊️ Vrijlaten', '€0', 'geen'],
+            ['🕊️ Vrijlaten', '€0', 'geen — maar ze kan bij een concurrent met een duivenlokker landen'],
             ['🍲 Duivenrestaurant', '€50 (vast)', 'elke andere duif −1 tot −5 energie'],
           ]}
         />
         <p style={{ marginTop: 12 }}>
-          <strong>Strategie:</strong> vrijlaten is het nettste als je gewoon plaats wil maken. Verkopen aan het
-          restaurant geeft snel wat geld voor een duif die toch niets meer opbrengt, maar reken de
-          energie-dip van je hele hok mee — doe het niet vlak voor een belangrijke vlucht.
+          <strong>Strategie:</strong> vrijlaten is het nettste als je gewoon plaats wil maken — tenzij je niet wil dat
+          een concurrent je duif krijgt. Verkopen aan het restaurant geeft snel wat geld voor een duif die toch niets
+          meer opbrengt, en daar komt ze zeker nooit meer terug; reken wel de energie-dip van je hele hok mee — doe het
+          niet vlak voor een belangrijke vlucht.
         </p>
+      </Section>
+
+      <Section id="duivenlokker" icon="🧲" title="De duivenlokker: vrijgelate duiven zoeken een nieuw nest">
+        <p className="muted" style={{ marginTop: 0 }}>
+          Een duif die een speler <strong>vrijlaat</strong>, vliegt soms naar het hok van een <strong>andere
+          speler</strong> — als die een duivenlokker heeft. Je koopt hem bij <em>Inrichting → Uitrusting</em> en
+          waardeert hem op tot niveau 5. Hij kost niets per dag en je kan hem niet terugverkopen.
+        </p>
+        <MiniTable
+          head={['Niveau', 'Prijs', 'Samen betaald', 'Kans als enige lokker', 'Naast één lokker van hetzelfde niveau']}
+          rows={[
+            ['1', '€500', '€500', '10 %', '9,1 %'],
+            ['2', '€750', '€1.250', '13,5 %', '11,9 %'],
+            ['3', '€1.500', '€2.750', '17,4 %', '14,8 %'],
+            ['4', '€3.000', '€5.750', '21,7 %', '17,9 %'],
+            ['5', '€5.000', '€10.750', '26,2 %', '20,8 %'],
+          ]}
+        />
+        <h3 style={{ marginTop: 14 }}>Hoe de kans werkt</h3>
+        <p>
+          Elke lokker trekt aan de vrijgelaten duif, en de vrije lucht trekt ook. Een lokker trekt met{' '}
+          <strong>10 / 14 / 19 / 25 / 32</strong> (niveau 1 tot 5), de vrije lucht met <strong>90</strong>. Je kans is
+          jouw trekkracht gedeeld door alles samen:
+        </p>
+        <p style={{ textAlign: 'center', fontWeight: 600 }}>kans = jouw lokker ÷ (90 + alle lokkers samen)</p>
+        <ul>
+          <li><strong>Niemand heeft een lokker</strong> — de duif verdwijnt definitief uit het spel.</li>
+          <li><strong>Enkel jij</strong> — enkel jij maakt kans, maar zonder garantie (zie de tabel).</li>
+          <li><strong>Twee lokkers van hetzelfde niveau</strong> — allebei evenveel kans, en ze landt hoogstens bij één
+            van beide. Ze kan ook nergens heen gaan.</li>
+          <li><strong>Verschillende niveaus</strong> — iedereen maakt kans, maar het hoogste niveau altijd het meest.
+            Voorbeeld: jij niveau 3, iemand anders niveau 1 → jij 16 %, de ander 8,4 %, verdwenen 75,6 %.</li>
+          <li>Er is <strong>altijd</strong> een kans dat de duif nergens heen gaat: hoe meer lokkers, hoe kleiner, maar
+            nooit nul. Jouw eigen lokker vangt nooit een duif die je zelf vrijlaat.</li>
+        </ul>
+        <h3>Gevangen: jij kiest</h3>
+        <ul>
+          <li>Vangt jouw lokker een duif, dan krijg je een bel en staat ze bij <strong>Kweek</strong>. Je ziet haar
+            score, genen, leeftijd, ervaring en of ze ziek is, en je kiest of je haar <strong>houdt</strong>. Ze kost je
+            niets; enkel het gewone onderhoud zodra ze in je hok zit.</li>
+          <li>Zit je hok vol? Maak op hetzelfde scherm eerst plaats (vrijlaten of het restaurant) — of laat haar gaan.</li>
+          <li>Laat je haar gaan, dan is ze <strong>voorgoed weg</strong>; ze gaat niet naar een andere lokker.</li>
+          <li>Ze neemt haar vaardigheden, leeftijd, ervaring, vaccins, stamboom en historiek mee. Wat de vorige eigenaar
+            regelde, blijft daar: coach, apart hok, ziekenboegbed, rustkuur, verzekering, zoekertje en kweekaanbod.</li>
+        </ul>
+        <h3>Wie zelf vrijlaat, hoort het</h3>
+        <p>
+          Laat je een duif vrij, dan zegt een bel meteen of een lokker haar ving (en bij wie) of dat ze verdwenen is.
+          Werd ze gevangen, dan krijg je nog een bel zodra die speler beslist: gehouden, of toch losgelaten en voorgoed
+          weg.
+        </p>
+        <h3>Wat er niet gelokt wordt</h3>
+        <ul>
+          <li>Een duif die je aan het <strong>restaurant</strong> verkoopt — daar wordt soep van gemaakt.</li>
+          <li>Jongen uit een nest die je niet houdt, en duiven van de computermelkers (die kopen ook geen lokker).</li>
+          <li>Een duif die op een <strong>veiling</strong> staat.</li>
+        </ul>
       </Section>
 
       <p className="muted" style={{ textAlign: 'center', fontSize: '0.9rem' }}>

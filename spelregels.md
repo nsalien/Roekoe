@@ -1471,6 +1471,7 @@ niveau 4); enkel de hokpoetser, het vakblad en een verzekering kosten per dag (D
 | Infrarood nestbakken | €1.600 voor 2, +€500/bak | — | uitkomen ×1,15 sneller, +6 pp tweelingkans, onder 10 °C +4 pp succes |
 | Betere reismanden | €1.000 | — | vlucht −3 % energie, −5 % gezondheid |
 | Weerstation | €1.500 | — | voorspelling vanaf 24 u vóór de lossing |
+| Duivenlokker | €500, tot niveau 5 (§9.2bis) | — | vangt soms een duif die een andere speler vrijlaat |
 | Vakblad | — | €6 | bandbreedtes (±6) bij andermans duif; marktrapport 28 dagen; maandag Het Duivenblad |
 
 **Vaccins & kuren** (per ziekte, buiten de bodem ×0,4), elk met **één vaste prijs**:
@@ -1680,7 +1681,8 @@ ziet welk jong een plaats waard is.
 > (§12) — de erfenis of de verdwaalde duif. Kies je die terwijl je hok vol zit,
 > dan wacht ze daar tot je plaats maakt, precies zoals een nest. Zo'n duif is
 > géén nest: ze telt niet mee voor je kweekbadges en ze houdt het koppelformulier
-> **niet** tegen.
+> **niet** tegen. Ook een duif die je **duivenlokker** ving (§9.2bis) wacht hier —
+> altijd, ook met plaats in je hok, want jij kiest of je haar houdt.
 
 Per jong kies je **houden** of niet. Wat je niet kiest, **vliegt weg** — dat
 brengt niets op (het duivenrestaurant is enkel voor volwassen duiven, §9.2). Je
@@ -2231,7 +2233,8 @@ twee keuzes. Een duif die **ingeschreven staat voor een vlucht** moet je eerst
 
 - **🕊️ Vrijlaten.** Je laat de duif gaan; ze verdwijnt uit je hok. Dit brengt **geen
   geld** op en heeft **geen** bijwerkingen op je andere duiven — de nette manier om
-  simpelweg plaats te maken.
+  simpelweg plaats te maken. Maar: een andere speler met een **duivenlokker** kan haar
+  opvangen (§9.2bis).
 - **🍲 Verkopen aan Bistro De Laatste Vlucht.** Het lokale duivenrestaurant maakt er
   **duivensoep** van. Je krijgt een **vast bedrag van €50**, maar het nieuws **drukt de
   moraal** van je hele hok: **elke andere duif verliest 1 tot 5 energie** (willekeurig
@@ -2239,12 +2242,53 @@ twee keuzes. Een duif die **ingeschreven staat voor een vlucht** moet je eerst
 
 | Manier | Opbrengst | Effect op de rest van je hok |
 |---|---|---|
-| 🕊️ Vrijlaten | €0 | geen |
+| 🕊️ Vrijlaten | €0 | geen — maar ze kan bij een concurrent met een duivenlokker landen (§9.2bis) |
 | 🍲 Duivenrestaurant | €50 (vast) | elke andere duif −1 tot −5 energie |
 
 Bij beide keuzes vervallen eventuele **openstaande biedingen** van andere spelers op
 die duif (de bieders krijgen een melding). Zet een duif dus niet naar de soep vlak
 vóór een belangrijke vlucht — de energie-dip treft je hele ploeg.
+
+### 9.2bis De duivenlokker: vrijgelate duiven zoeken een nieuw nest
+Idee van De Stem (*"Vrijgelate duifjes zoeken nieuw nest"*). Een **duivenlokker** koop je
+bij *Inrichting → Uitrusting* en waardeer je op tot **niveau 5**. Eenmalig, geen dagkost,
+niet terug te verkopen. Enkel echte spelers: de computermelkers kopen er geen.
+
+| Niveau | Prijs | Samen | Trekkracht | Kans als enige lokker | Naast één lokker van hetzelfde niveau |
+|---|---|---|---|---|---|
+| 1 | €500 | €500 | 10 | 10 % | 9,1 % |
+| 2 | €750 | €1.250 | 14 | 13,5 % | 11,9 % |
+| 3 | €1.500 | €2.750 | 19 | 17,4 % | 14,8 % |
+| 4 | €3.000 | €5.750 | 25 | 21,7 % | 17,9 % |
+| 5 | €5.000 | €10.750 | 32 | 26,2 % | 20,8 % |
+
+**Wanneer.** Laat een speler een duif **vrij** (de knop op de duifpagina, of *Maak plaats*
+bij Kweek), dan maakt de lokker van **elke andere** speler kans. De vrije lucht trekt met
+**90**:
+```
+kans voor lokker i      = trekkracht_i ÷ (90 + Σ trekkracht van alle lokkers)
+kans dat ze verdwijnt   = 90 ÷ (90 + Σ trekkracht van alle lokkers)
+```
+Dus: niemand een lokker → de duif verdwijnt definitief. Twee lokkers van hetzelfde niveau →
+evenveel kans, en ze landt hoogstens bij één. Verschillende niveaus → iedereen maakt kans,
+het hoogste niveau altijd het meest (jij niveau 3 naast niveau 1: 16 % tegen 8,4 %, 75,6 %
+verdwenen). Er blijft **altijd** een kans dat ze nergens heen gaat. Je eigen lokker vangt
+nooit je eigen duif.
+
+**Gevangen.** De speler bij wie ze landt krijgt een bel; de duif wacht bij *Kweek* in
+dezelfde wachtkamer als een nest in een vol hok (§7.1). Die speler kiest **houden** of
+**laten gaan** — zit het hok vol, dan eerst plaats maken. Laten gaan = **voorgoed uit het
+spel** (ze gaat niet naar een volgende lokker). Er is geen klok. Ze kost niets; zodra ze in
+het hok zit, het gewone onderhoud. Ze houdt haar vaardigheden, genen, leeftijd, ervaring,
+vaccins, stamboom en historiek. Wat de vorige eigenaar regelde, blijft daar: privécoach,
+apart hok, ziekenboegbed, rustkuur, verzekering, zoekertje en kweekaanbod.
+
+**Meldingen.** Wie vrijlaat, hoort meteen of een lokker haar ving (en bij wie) of dat ze
+verdween — en, als ze gevangen werd, nog eens wanneer de vanger beslist heeft.
+
+**Niet gelokt:** een duif voor het **restaurant** (soep), jongen of een duif uit een
+gebeurtenis die je in de wachtkamer niet houdt, duiven van de computermelkers, en een duif
+die op een **veiling** staat.
 
 ---
 

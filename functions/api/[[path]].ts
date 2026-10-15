@@ -114,6 +114,7 @@ import { advanceRealtime, applyFlightForecasts, applyRelayForecasts, flightsAwai
 import { pigeonSeasonRankings } from '../../core/game/season.js';
 import { buyStraw, setCleaner } from '../../core/game/hygiene.js';
 import { buyEquipment, buyIrBox, inrichtingEffects, inrichtingLevels, magazineReport, setInsurance, upgradeEquipment, vaccinate, vaccinateLoft } from '../../core/game/inrichting.js';
+import { buyLure, lureCatalogue } from '../../core/game/lure.js';
 import { spendAttribute, spendExperience } from '../../core/game/newcomer.js';
 import { velocityBreakdown, weightsForDistance } from '../../core/game/flight.js';
 import { ageInWeeks } from '../../core/game/pigeon.js';
@@ -206,6 +207,7 @@ const PEDIGREE_GENERATIONS = 3;
 /** Hokinrichting: niveaus and their prices, from the config — the same for every request. */
 const INRICHTING_LEVELS = inrichtingLevels();
 const INRICHTING_EFFECTS = inrichtingEffects();
+const LURE_CATALOGUE = lureCatalogue();
 /** How far DOWN the family view goes: children, grandchildren, great-grandchildren. */
 const DESCENDANT_GENERATIONS = 3;
 
@@ -554,6 +556,7 @@ app.get('/state', (c) => {
       equipment: EQUIPMENT,
       levels: INRICHTING_LEVELS,
       effects: INRICHTING_EFFECTS,
+      lure: LURE_CATALOGUE,
       vaccines: VACCINES,
       vaccineRenewShare: VACCINE_RENEW_SHARE,
       insurancePayoutRate: INSURANCE.payoutRate,
@@ -888,6 +891,15 @@ app.post('/loft/irbox', async (c) => {
   return c.json(ok(err), err ? 400 : 200);
 });
 
+// Duivenlokker (core/game/lure.ts): buy it, or take it one level up.
+app.post('/loft/lure', async (c) => {
+  const user = requireUser(c);
+  const store = c.get('store');
+  const err = buyLure(store, user.id);
+  await store.persist();
+  return c.json(ok(err), err ? 400 : 200);
+});
+
 app.post('/pigeons/:id/vaccinate', async (c) => {
   const user = requireUser(c);
   const body = await c.req.json().catch(() => ({}));
@@ -1040,8 +1052,10 @@ app.get('/breeding', (c) => {
       origin: b.origin ?? 'nest',
       sire: b.sireName,
       dam: b.damName,
+      // A bird a duivenlokker caught: whose loft she flew away from.
+      from: b.from?.name ?? null,
       createdAt: b.createdAt,
-      young: b.young.map((y) => broodYoungDTO(y)),
+      young: b.young.map((y) => broodYoungDTO(y, db.world.currentWeek)),
     }));
   // Which of MY doffer/duivin combinations are relatives, so the pairing form can
   // warn before the click rather than after the hatch. Computed here because the

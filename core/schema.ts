@@ -363,6 +363,8 @@ export interface LoftEquipment {
   lastHawkDay?: number;
   /** Niveaus (EQUIPMENT_LEVELS): absent = level 1 for whatever is bought. */
   levels?: Partial<Record<'ventilation' | 'run' | 'light' | 'irBoxes' | 'baskets', number>>;
+  /** Duivenlokker (LURE): its level, 1..LURE_MAX_LEVEL; absent/0 = none. */
+  lure?: number;
 }
 
 /**
@@ -616,7 +618,7 @@ export interface StudDeal {
  * `resolveBrood` / `startBreeding`). Absent on every row written before this
  * existed, so treat `undefined` as `nest`.
  */
-export type BroodOrigin = 'nest' | 'erfenis' | 'zwerver';
+export type BroodOrigin = 'nest' | 'erfenis' | 'zwerver' | 'lokker';
 
 /**
  * A bird that did not fit in the loft and is waiting on the owner's decision:
@@ -650,6 +652,8 @@ export interface PendingBrood {
   dynasty: boolean;
   /** Absent = a hatched clutch (every row written before this shipped). */
   origin?: BroodOrigin;
+  /** `lokker` only: who released her, so they hear what became of her (lure.ts). */
+  from?: { userId: string; name: string } | null;
   createdAt: string;
   createdAtWeek: number;
 }

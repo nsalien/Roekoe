@@ -899,6 +899,49 @@ export function studNewsSteps(pigeonId: string | null): Step[] {
   return steps;
 }
 
+/**
+ * Aankondiging van de DUIVENLOKKER (15 okt, idee van De Stem). De bel (migratie
+ * v64, core/game/news.ts) is de eerste helft. Eerst het blok Uitrusting op
+ * Inrichting (waar je hem koopt), dan het afscheid op de pagina van een eigen duif
+ * (de eerste uit het hok): daar beslis je of je vrijlaat.
+ */
+export function lureNewsSteps(pigeonId: string | null): Step[] {
+  const steps: Step[] = [
+    {
+      route: '/inrichting', selector: '[data-tour="uitrusting"]',
+      title: '🧲 Nieuw: de duivenlokker',
+      body: (
+        <>
+          Bij <strong>Uitrusting</strong> koop je nu een <strong>duivenlokker</strong>, op te waarderen tot niveau 5.
+          Laat een <strong>andere speler</strong> een duif vrij, dan maakt elke lokker kans om haar te vangen: hoe hoger
+          het niveau, hoe groter de kans. Vangt de jouwe er een, dan kies je bij <strong>Kweek</strong> of je haar houdt.
+          <br />
+          <span className="faint" style={{ display: 'inline-block', marginTop: 4 }}>
+            Geen garantie: een vrijgelaten duif kan ook gewoon verdwijnen. <Link to="/wiki#duivenlokker">De kansen per niveau →</Link>
+          </span>
+        </>
+      ),
+    },
+  ];
+  if (pigeonId) {
+    steps.push({
+      route: `/duif/${pigeonId}`, selector: '[data-tour="farewell"]',
+      title: '🕊️ Vrijlaten? Denk even na',
+      body: (
+        <>
+          Een duif die je <strong>vrijlaat</strong>, kan nu in het hok van een <strong>concurrent</strong> met een
+          duivenlokker belanden. Je hoort waar ze terechtkwam en of die speler haar hield.
+          <br />
+          <span className="faint" style={{ display: 'inline-block', marginTop: 4 }}>
+            Wil je dat zeker niet? Het restaurant blijft een optie. 🍲
+          </span>
+        </>
+      ),
+    });
+  }
+  return steps;
+}
+
 export const LOKAAL_NEWS_STEPS: Step[] = [
   {
     route: '/lokaal', selector: '[data-tour="lokaal"]',

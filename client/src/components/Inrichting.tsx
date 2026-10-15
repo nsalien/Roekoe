@@ -30,7 +30,7 @@ const euro = (n: number) => `€${n.toLocaleString('nl-BE', Number.isInteger(n) 
 
 const ICON: Record<string, string> = {
   ventilation: '🌬️', run: '🌳', raptorGuard: '🦅', light: '💡', irBoxes: '🔥',
-  baskets: '🧺', weatherStation: '📡', magazine: '📰',
+  baskets: '🧺', weatherStation: '📡', magazine: '📰', lure: '🧲',
 };
 
 /** What each item does, in one short sentence. The exact numbers are in the wiki. */
@@ -43,6 +43,7 @@ const WHAT: Record<string, string> = {
   baskets: 'Elke vlucht kost minder energie en gezondheid',
   weatherStation: 'Je ziet het weer van de lossing een dag vooraf',
   magazine: 'Marktrapport, scherpere schattingen bij andermans duif en elke maandag Het Duivenblad',
+  lure: 'Vangt soms een duif die een andere speler vrijlaat — jij kiest of je haar houdt',
 };
 
 /** "2/3 in gebruik": green while there is room, red once everything is taken. */
@@ -211,6 +212,44 @@ function EquipmentLine({ k, owned, needs, loft, cat, busy, act }: {
           Kopen · <Money value={price} />
         </button>
       )}
+    </Item>
+  );
+}
+
+/**
+ * De duivenlokker (core/game/lure.ts): five levels at the owner's own prices
+ * instead of the ×3 of the other items, so it has its own line rather than going
+ * through levelInfo. Same shape as the rest: name + level, one sentence, what the
+ * next level adds, the ⓘ with the chances per level, one button.
+ */
+function LureLine({ loft, cat, busy, act }: { loft: Loft; cat: InrichtingCatalogue; busy: boolean; act: Act }) {
+  const L = cat.lure;
+  if (!L) return null;
+  const level = loft.equipment?.lure ?? 0;
+  const next = level < L.max ? { level: level + 1, price: L.prices[level] } : null;
+  const main = L.effects[0];
+  // "kans als enige lokker 13,5 % → 17,4 %": the main effect now, and at the next level.
+  const gain = level > 0 && next && main ? `${main.label.toLowerCase()} ${main.values[level - 1]} → ${main.values[level]}` : null;
+  return (
+    <Item
+      icon={ICON.lure}
+      name={L.label}
+      status={level > 0 ? `niveau ${level}/${L.max}` : undefined}
+      what={WHAT.lure}
+      more={gain && next ? `↑ Niveau ${next.level}: ${gain}` : undefined}
+      info={<EffectInfo effects={L.effects} level={level} max={L.max} />}
+    >
+      {next ? (
+        <button className={`btn sm${level > 0 ? ' ghost' : ''}`} disabled={busy || loft.money < next.price} onClick={() => {
+          const ask = level === 0
+            ? `${L.label} kopen voor ${euro(next.price)}? Dat kan je niet terugverkopen.`
+            : `${L.label} naar niveau ${next.level} voor ${euro(next.price)}?\n\n${gain ? `${gain[0].toUpperCase()}${gain.slice(1)}.` : 'Hij trekt dan harder.'}\n\nDat kan je niet terugverkopen.`;
+          if (!window.confirm(ask)) return;
+          act(() => api('/loft/lure', { method: 'POST' }), level === 0 ? `${L.label} gekocht 🧲` : `${L.label}: niveau ${next.level} 🧲`);
+        }}>
+          {level === 0 ? 'Kopen' : `Niveau ${next.level}`} · <Money value={next.price} />
+        </button>
+      ) : <span className="badge">✓ hoogste niveau</span>}
     </Item>
   );
 }
@@ -427,16 +466,18 @@ export function VaccineSection({ loft, pigeons, cat, busy, act, open, onToggle }
 
 /**
  * Uitrusting: what you buy once and can then take up to level 4 — the ren (and
- * the net over it), ventilatie, kunstlicht, infrarood, reismanden, weerstation.
+ * the net over it), ventilatie, kunstlicht, infrarood, reismanden, weerstation —
+ * and the duivenlokker (up to level 5).
  */
 export function GearSection({ loft, cat, busy, act, open, onToggle }: SectionProps & { loft: Loft; cat: InrichtingCatalogue }) {
   const eq = loft.equipment!;
   const irInfo = eq.irBoxes > 0 ? levelInfo(cat, 'irBoxes', eq.levels?.irBoxes ?? 1) : null;
   const owned = [eq.run, eq.raptorGuard, eq.ventilation, eq.light, eq.irBoxes > 0, eq.baskets, eq.weatherStation];
+  if (cat.lure) owned.push((eq.lure ?? 0) > 0);
   const have = owned.filter(Boolean).length;
   const summary = have === 0 ? 'Nog niets gekocht' : `${have} van de ${owned.length} gekocht`;
   return (
-    <Section icon="🛠️" title="Uitrusting" summary={summary} open={open} onToggle={onToggle}>
+    <Section icon="🛠️" title="Uitrusting" summary={summary} open={open} onToggle={onToggle} tour="uitrusting">
       <p className="faint" style={{ marginTop: 0, fontSize: '0.85rem' }}>
         Koop je één keer. Het meeste kan je daarna tot niveau 4 opwaarderen: elk niveau sterker, maar 3× duurder.
       </p>
@@ -464,6 +505,7 @@ export function GearSection({ loft, cat, busy, act, open, onToggle }: SectionPro
       </Item>
       <EquipmentLine k="baskets" owned={eq.baskets} loft={loft} cat={cat} busy={busy} act={act} />
       <EquipmentLine k="weatherStation" owned={eq.weatherStation} loft={loft} cat={cat} busy={busy} act={act} />
+      <LureLine loft={loft} cat={cat} busy={busy} act={act} />
     </Section>
   );
 }

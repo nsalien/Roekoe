@@ -7,7 +7,7 @@
  * en niet in de migratie, zodat de test hem kan lezen zonder de motor te draaien.
  */
 
-import { INSURANCE, MARKET_BOOST, STUD, VACCINES, studFailedRefund } from '../config/gameConfig.js';
+import { INSURANCE, LURE, LURE_MAX_LEVEL, MARKET_BOOST, STUD, VACCINES, studFailedRefund } from '../config/gameConfig.js';
 
 export const INRICHTING_NEWS = {
   title: '🧰 Nieuw: je hok inrichten, en meer',
@@ -73,4 +73,28 @@ export const CARE_NEWS = {
     'Wanneer de verzekering uitbetaalt en wat elk middel doet: Wiki → Hokinrichting, vaccins & diensten.',
   ].join('\n'),
   id: (userId: string) => `ntf:news:verzorgingperduif:${userId}`,
+} as const;
+
+/**
+ * De bel van de DUIVENLOKKER (migratie v64 in schedule.ts, voor élke echte speler;
+ * idee van De Stem, "Vrijgelate duifjes zoeken nieuw nest"). De tweede helft van de
+ * aankondiging is lureNewsSteps in client/src/components/Tour.tsx; de uitleg met de
+ * kansen staat in de wiki (#duivenlokker). Prijs en niveaus uit LURE.
+ */
+export const LURE_NEWS = {
+  title: '🧲 Nieuw: de duivenlokker',
+  body: [
+    'Denk twee keer na voor je een duif vrijlaat: misschien vliegt ze naar het hok van een concurrent.',
+    `• 🧲 Koop een duivenlokker bij Inrichting → Uitrusting (€${LURE.prices[0].toLocaleString('nl-BE')}) en waardeer hem `
+      + `op tot niveau ${LURE_MAX_LEVEL}.`,
+    '• Laat een andere speler een duif vrij, dan maakt elke lokker kans om haar te vangen. Hoe hoger het niveau, '
+      + 'hoe groter de kans. Een duif belandt hoogstens bij één lokker, en ze kan altijd ook gewoon verdwijnen.',
+    '• Vangt jouw lokker een duif, dan krijg je een bel en kies je bij Kweek of je haar houdt — zit je hok vol, '
+      + 'maak dan eerst plaats. Laat je haar gaan, dan is ze voorgoed weg.',
+    '• Laat je zelf een duif vrij, dan hoor je waar ze terechtkwam en wat de nieuwe eigenaar besliste.',
+    '• Wil je zeker niet dat een concurrent haar krijgt? Het restaurant blijft altijd een optie. 🍲',
+    'Alles op een rij: Wiki → Duivenlokker.',
+  ].join('\n'),
+  /** Stabiel per speler: twee verzoeken die tegelijk migreren geven één bel. */
+  id: (userId: string) => `ntf:news:duivenlokker:${userId}`,
 } as const;
