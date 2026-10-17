@@ -10,7 +10,7 @@ import { STUD_SEEN_EVENT, hasStudNews, studSeenAt } from '../game/studSeen';
 import { api } from '../api/client';
 import { useToast } from './ui';
 import { NotificationsBell } from './NotificationsBell';
-import { INRICHTING_NEWS_STEPS, LOKAAL_NEWS_STEPS, Tour, lureNewsSteps, season3NewsSteps, studNewsSteps } from './Tour';
+import { INRICHTING_NEWS_STEPS, LOKAAL_NEWS_STEPS, Tour, lureNewsSteps, season3NewsSteps, studNewsSteps, tagNewsSteps } from './Tour';
 import { PrizeCeremony } from './PrizeCeremony';
 
 interface NavItem { to: string; label: string; short: string; icon: string; end?: boolean }
@@ -148,6 +148,7 @@ export function Layout() {
     if (user?.id) { try { localStorage.setItem(`roekoe.newsSeen.inrichting.${user.id}`, '1'); } catch { /* private mode */ } }
     if (user?.id) { try { localStorage.setItem(`roekoe.newsSeen.samen.${user.id}`, '1'); } catch { /* private mode */ } }
     if (user?.id) { try { localStorage.setItem(`roekoe.newsSeen.lokker.${user.id}`, '1'); } catch { /* private mode */ } }
+    if (user?.id) { try { localStorage.setItem(`roekoe.newsSeen.tags.${user.id}`, '1'); } catch { /* private mode */ } }
     setShowTour(false);
   }
 
@@ -271,11 +272,40 @@ export function Layout() {
     if (!seen && !earlierPending) setShowLureNews(true);
   }, [lureNewsKey, samenNewsKey, inrichtingNewsKey, lokaalNewsKey, newsKey, state?.loft, state?.world?.newsAt, showTour, showNews,
     showLokaalNews, showInrichtingNews, showSamenNews, lokaalNewsDone, inrichtingNewsDone, samenNewsDone]);
+  const [lureNewsDone, setLureNewsDone] = useState(false);
   function closeLureNews() {
     if (lureNewsKey) { try { localStorage.setItem(lureNewsKey, '1'); } catch { /* private mode */ } }
     setShowLureNews(false);
+    setLureNewsDone(true);
   }
   const lureSteps = lureNewsSteps(state?.pigeons?.[0]?.id ?? null);
+
+  // Aankondiging van de TAGS OP JE DUIVEN (twee spotlights, eigen sleutel). Zelfde
+  // regel: pas als de vorige aankondigingen gezien zijn, nooit twee runs op één
+  // bezoek. Bel: migratie v65.
+  const tagsNewsKey = user?.id ? `roekoe.newsSeen.tags.${user.id}` : null;
+  const [showTagsNews, setShowTagsNews] = useState(false);
+  useEffect(() => {
+    if (!tagsNewsKey || !state?.loft || showTour || showNews || showLokaalNews || showInrichtingNews || showSamenNews
+      || showLureNews || lokaalNewsDone || inrichtingNewsDone || samenNewsDone || lureNewsDone) return;
+    let seen = true;
+    let earlierPending = false;
+    try {
+      seen = !!localStorage.getItem(tagsNewsKey);
+      earlierPending = (!!lureNewsKey && !localStorage.getItem(lureNewsKey))
+        || (!!samenNewsKey && !localStorage.getItem(samenNewsKey))
+        || (!!inrichtingNewsKey && !localStorage.getItem(inrichtingNewsKey))
+        || (!!lokaalNewsKey && !localStorage.getItem(lokaalNewsKey))
+        || (!!newsKey && !!state.world?.newsAt && !localStorage.getItem(newsKey));
+    } catch { /* private mode: treat as seen */ }
+    if (!seen && !earlierPending) setShowTagsNews(true);
+  }, [tagsNewsKey, lureNewsKey, samenNewsKey, inrichtingNewsKey, lokaalNewsKey, newsKey, state?.loft, state?.world?.newsAt, showTour,
+    showNews, showLokaalNews, showInrichtingNews, showSamenNews, showLureNews, lokaalNewsDone, inrichtingNewsDone, samenNewsDone, lureNewsDone]);
+  function closeTagsNews() {
+    if (tagsNewsKey) { try { localStorage.setItem(tagsNewsKey, '1'); } catch { /* private mode */ } }
+    setShowTagsNews(false);
+  }
+  const tagSteps = tagNewsSteps(state?.pigeons?.[0]?.id ?? null);
 
   // Prijsuitreiking: de prizes of the season that just ended, one screen each.
   // No server state — `loft.ceremony` carries the last season's awards and this
@@ -451,7 +481,10 @@ export function Layout() {
       {showLureNews && !showSamenNews && !showInrichtingNews && !showLokaalNews && !showNews && !showTour && !showCeremony && (
         <Tour steps={lureSteps} onClose={closeLureNews} />
       )}
-      {state?.pendingEvent && !showTour && !showNews && !showLokaalNews && !showInrichtingNews && !showSamenNews && !showLureNews && !showCeremony && <EventModal />}
+      {showTagsNews && !showLureNews && !showSamenNews && !showInrichtingNews && !showLokaalNews && !showNews && !showTour && !showCeremony && (
+        <Tour steps={tagSteps} onClose={closeTagsNews} />
+      )}
+      {state?.pendingEvent && !showTour && !showNews && !showLokaalNews && !showInrichtingNews && !showSamenNews && !showLureNews && !showTagsNews && !showCeremony && <EventModal />}
     </div>
   );
 }

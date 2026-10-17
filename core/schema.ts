@@ -377,6 +377,9 @@ export interface PigeonCare {
   noFlyUntil?: string;
   /** Duivenverzekering: what is paid out on death, and since when. */
   insurance?: { payout: number; since: string };
+  /** Tags the OWNER put on her (PIGEON_TAGS, core/game/tags.ts). Private to the
+   *  owner, and like the policy they stay with the old loft when she changes hands. */
+  tags?: string[];
 }
 
 /**

@@ -94,6 +94,8 @@ export interface Pigeon {
   revealed: boolean;
   /** Hokinrichting: vaccins, verzekering — own birds only. */
   care?: PigeonCareView | null;
+  /** The owner's private tags ("sprint", …) — only ever sent for your own birds. */
+  tags?: string[];
   /** Vakblad: someone else's bird as bands instead of hidden values. */
   magazineRanges?: Record<'speed' | 'endurance' | 'orientation', [number, number]> | null;
   speed: number | null;
@@ -374,6 +376,9 @@ export interface EconomyCosts {
   restaurantPayout: number; // fixed coins for selling a bird there
   restaurantMoraleMin: number; // each remaining bird loses this much energie…
   restaurantMoraleMax: number; // …up to this much (random per bird)
+  /** Tags op je duiven: how many per bird, and how long each (absent on an older server). */
+  pigeonTagsMax?: number;
+  pigeonTagMaxLength?: number;
 }
 
 /**

@@ -7,7 +7,7 @@ import { useAuth } from '../auth/AuthContext';
 import { useGame } from '../game/GameContext';
 import { useVisiblePoll } from '../game/useVisiblePoll';
 import { buildDaysTaken, canEnter, flightDay } from '../game/flightEntry';
-import { Money, Spinner, countdownTo, formatDuration, formatFlightDay, formatFlightDayShort, formatFlightTime, tierLabel, traitEntryHint, TraitResultMark, useToast } from '../components/ui';
+import { Money, Spinner, countdownTo, formatDuration, formatFlightDay, formatFlightDayShort, formatFlightTime, tagText, tierLabel, traitEntryHint, TraitResultMark, useToast } from '../components/ui';
 import type { BetKind, BetPreview, BetView, Flight, FlightEntrant } from '../types';
 
 /** A ticking clock so countdowns update every second. */
@@ -138,6 +138,10 @@ export function FlightsPage() {
 
   // Exactly one tour anchor, on whatever card is at the top of the page.
   const tourFlightId = live[0]?.id ?? dayGroups[0]?.flights[0]?.id;
+  // …and one for the tags announcement: the first planned flight with birds in its picker.
+  const entryTourFlightId = dayGroups
+    .flatMap((g) => g.flights)
+    .find((f) => (state?.pigeons ?? []).some((p) => canEnter(p, f, daysTaken, user?.id)))?.id;
 
   async function act(fn: () => Promise<unknown>, ok?: string) {
     setBusy(true);
@@ -358,6 +362,8 @@ export function FlightsPage() {
                         ) : (
                           <EnterControl
                             disabled={busy}
+                            // The tags announcement points at the first picker on the page.
+                            tour={f.id === entryTourFlightId ? 'flight-entry' : undefined}
                             options={available.map((p) => ({
                               id: p.id,
                               // Energie AND vluchtvorm: the tank on its own says nothing about
@@ -366,8 +372,10 @@ export function FlightsPage() {
                               // that deduction, so it is shown on its own — naming the
                               // deduction next to it only raised the question of whether it
                               // still had to come off.
+                              // Your own tags right behind the name ("🏷️ sprint"), so the bird
+                              // you meant for this kind of flight stands out in the list.
                               label:
-                                `${p.formLabel === 'fris' ? '🟢' : p.formLabel === 'matig' ? '🟡' : '🔴'} ${p.name} ` +
+                                `${p.formLabel === 'fris' ? '🟢' : p.formLabel === 'matig' ? '🟡' : '🔴'} ${p.name}${tagText(p.tags)} ` +
                                 `(★${p.talent} · energie ${Math.round(p.form ?? 0)} · vorm ${p.flightForm ?? '?'})` +
                                 (traitEntryHint(p.trait, f.distanceKm) ? ` ${traitEntryHint(p.trait, f.distanceKm)}` : ''),
                             }))}
@@ -745,15 +753,17 @@ function EnterControl({
   options,
   onEnter,
   disabled,
+  tour,
 }: {
   options: { id: string; label: string }[];
   onEnter: (id: string) => void;
   disabled?: boolean;
+  tour?: string;
 }) {
   const [sel, setSel] = useState('');
   if (options.length === 0) return <span className="muted">Geen vluchtklare duiven beschikbaar.</span>;
   return (
-    <div className="row enter-control" style={{ gap: 8, flex: 1, minWidth: 0 }}>
+    <div className="row enter-control" style={{ gap: 8, flex: 1, minWidth: 0 }} data-tour={tour}>
       <select
         value={sel}
         onChange={(e) => setSel(e.target.value)}

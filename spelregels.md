@@ -2316,6 +2316,19 @@ kampioenen en oorlogsduiven op als **Armando**, **Bolt**, **Kim**, **Ami** (naar
 Ami), **Winkie**, **Paddy** en **Gustav**. Zo'n legendarische bijnaam is zeldzamer dan
 de rest — een duif die er een krijgt, mag gezien worden.
 
+### 10.1 Tags op je duiven
+Naast haar naam kan je een duif je **eigen labels** geven: *sprint*, *mid-fond*,
+*lange-fond*, *kweek*, of wat je maar wil. Op de **duifpagina** tik je *Tag toevoegen*.
+
+- Tot **3 tags** per duif, elk hoogstens **20 tekens**; meerdere scheid je met een komma.
+  Hoofdletters tellen niet als verschil (*Sprint* en *sprint* is één tag). Gratis.
+- Je ziet ze bij je duiven in **Mijn hok**, op de duifpagina en bij het **inschrijven** op
+  de Vluchten-pagina, achter de naam van elke duif die je kan inschrijven.
+- **Enkel jij** ziet je tags — andere spelers, ook bij een bod of op de markt, zien ze nooit.
+- Een tag heeft **geen invloed** op het spel: hij is enkel een geheugensteun.
+- Verandert een duif van eigenaar (verkoop, aanvaard bod, veiling, duivenlokker), dan
+  **verdwijnen** haar tags: de nieuwe eigenaar begint met een lege duif.
+
 ---
 
 ## 11. Meldingen (belknop)

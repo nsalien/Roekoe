@@ -515,11 +515,13 @@ export function insurancePayout(
   return pol.payout;
 }
 
-/** A sold bird leaves her policy with the old loft — and the offer to breed with her (samen kweken). */
+/** A sold bird leaves her policy with the old loft — and the offer to breed with her (samen kweken),
+ *  and the owner's private tags (tags.ts). Called on EVERY change of owner. */
 export function clearOwnerCare(p: Pigeon): void {
   p.stud = null;
   if (!p.care) return;
   p.care.insurance = undefined;
+  p.care.tags = undefined;
   tidy(p);
 }
 

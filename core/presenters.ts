@@ -42,6 +42,7 @@ import {
 import { coveredInInfirmary, idleCareStaff } from './game/health.js';
 import { equipmentLevel, equipmentOf, hygieneDecay } from './game/hygiene.js';
 import { lureLevel } from './game/lure.js';
+import { pigeonTags } from './game/tags.js';
 import { insuranceCost, insurancePremium, insuranceQuote, irBoxesInUse, magazineRanges, readsMagazine } from './game/inrichting.js';
 import { marketValue, valuePigeon } from './game/market.js';
 import { activeListing, wantsOf } from './game/stud.js';
@@ -154,6 +155,9 @@ export function pigeonDTO(db: Database, p: Pigeon, viewerId?: string, viewerIsAd
     // Hokinrichting: vaccins, verzekering (owner only),
     // and the vakblad's bands on someone else's bird.
     care: publiclyRevealed && p.ownerId === viewerId ? careDTO(db, p) : null,
+    // Tags (core/game/tags.ts): the owner's private notes — ONLY to the owner, never
+    // to an admin or a server-internal call without a viewer.
+    tags: viewerId !== undefined && p.ownerId === viewerId ? pigeonTags(p) : [],
     magazineRanges: !revealed && readsMagazine(db, viewerId) ? magazineRanges(p) : null,
     // A bird in the infirmary keeps its compartment flag internally (to reclaim the
     // slot on the way out) but is shown as not-in-a-compartment while isolated.

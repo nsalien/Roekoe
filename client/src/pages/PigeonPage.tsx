@@ -9,6 +9,7 @@ import { PigeonAvatar } from '../components/PigeonAvatar';
 import { BreedBadge, Money, PigeonStats, SexBadge, Spinner, TraitBadge, formatFlightTime, useToast } from '../components/ui';
 import type { AncestorNode, FamilyTree, Pigeon, RaceHistoryRow } from '../types';
 import { Pedigree } from '../components/Pedigree';
+import { PigeonTags } from '../components/PigeonTags';
 
 interface PigeonDetail {
   pigeon: Pigeon;
@@ -204,6 +205,8 @@ export function PigeonPage() {
                 {p.canRace ? ' klaar om te vliegen' : ' nog niet vluchtklaar'}
               </p>
               <div className="faint">Geschatte waarde <Money value={p.value} /> · eigenaar {p.ownerName}</div>
+              {/* Your own labels for her (tags) — private, shown on Mijn hok and when entering a flight. */}
+              {mine && <PigeonTags pigeon={p} onSaved={load} />}
             </div>
           </div>
 

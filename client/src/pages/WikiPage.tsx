@@ -12,7 +12,7 @@ import { useEffect } from 'react';
 import { Link } from 'react-router-dom';
 
 const SECTIONS = [
-  { id: 'nieuw', icon: '🧰', label: 'Nieuw: duivenlokker, samen kweken & meer' },
+  { id: 'nieuw', icon: '🧰', label: 'Nieuw: tags, duivenlokker & meer' },
   { id: 'seizoen3', icon: '🎉', label: 'Nieuw in seizoen 3' },
   { id: 'starterspakket', icon: '🎁', label: 'Starterspakket' },
   { id: 'genen', icon: '🧬', label: 'Genen & training' },
@@ -49,6 +49,7 @@ const SECTIONS = [
   { id: 'waarde', icon: '💰', label: 'Wat is een duif waard?' },
   { id: 'afscheid', icon: '👋', label: 'Afscheid nemen' },
   { id: 'duivenlokker', icon: '🧲', label: 'Duivenlokker' },
+  { id: 'tags', icon: '🏷️', label: 'Tags op je duiven' },
 ];
 
 const cell: React.CSSProperties = {
@@ -113,9 +114,17 @@ export function WikiPage() {
         </div>
       </div>
 
-      <Section id="nieuw" icon="🧰" title="Nieuw: duivenlokker, samen kweken, inrichting & meer">
+      <Section id="nieuw" icon="🧰" title="Nieuw: tags, duivenlokker, samen kweken & meer">
         <p className="muted" style={{ marginTop: 0 }}>
           Wat er in oktober (seizoen 3) bijkwam en veranderde, op één plek. Deze sectie blijft staan als logboek.
+        </p>
+
+        <h3>🏷️ Tags op je duiven</h3>
+        <p>
+          Geef je duiven je <strong>eigen labels</strong>, zoals <em>sprint</em>, <em>mid-fond</em> of{' '}
+          <em>lange-fond</em>: op de pagina van een duif tik je <em>Tag toevoegen</em>. Je ziet ze daarna in{' '}
+          <em>Mijn hok</em> en bij het <strong>inschrijven</strong> op de Vluchten-pagina, achter de naam van elke duif.
+          Enkel jij ziet ze, en bij verkoop verdwijnen ze. <a href="#tags">Alles over tags →</a>
         </p>
 
         <h3>🧲 De duivenlokker (15 oktober)</h3>
@@ -2087,6 +2096,30 @@ export function WikiPage() {
           <li>Een duif die je aan het <strong>restaurant</strong> verkoopt — daar wordt soep van gemaakt.</li>
           <li>Jongen uit een nest die je niet houdt, en duiven van de computermelkers (die kopen ook geen lokker).</li>
           <li>Een duif die op een <strong>veiling</strong> staat.</li>
+        </ul>
+      </Section>
+
+      <Section id="tags" icon="🏷️" title="Tags op je duiven">
+        <p className="muted" style={{ marginTop: 0 }}>
+          Een geheugensteun voor jezelf: welke duif is je sprinter, welke je fondvogel, welke houd je voor de kweek?
+          Geef haar een tag en je ziet het overal waar je een keuze maakt.
+        </p>
+        <ul>
+          <li><strong>Zetten:</strong> op de pagina van een duif (tik op haar naam in <em>Mijn hok</em>) →{' '}
+            <em>Tag toevoegen</em>. Tot <strong>3 tags</strong> per duif, elk hoogstens <strong>20 tekens</strong>;
+            meerdere scheid je met een komma. Tags die je al op andere duiven gebruikt, staan eronder: één tik en ze
+            staan erbij. Gratis, en je kan ze altijd aanpassen of wissen.</li>
+          <li><strong>Zien:</strong> bij je duiven in <em>Mijn hok</em>, op de duifpagina, en bij het{' '}
+            <strong>inschrijven</strong> op de Vluchten-pagina: in de keuzelijst staat achter elke duif die je kan
+            inschrijven <em>🏷️ sprint</em> (of wat jij koos). Zo schrijf je de juiste duif in voor een korte regionale
+            sprint of een lange internationale vlucht.</li>
+          <li><strong>Privé:</strong> enkel jij ziet je tags. Andere spelers zien ze nooit, ook niet op de markt of bij
+            een bod.</li>
+          <li><strong>Bij verkoop weg:</strong> verandert een duif van eigenaar (verkoop, aanvaard bod, veiling,
+            duivenlokker), dan verdwijnen haar tags.</li>
+          <li>Een tag doet niets in het spel zelf: een duif met de tag <em>sprint</em> vliegt niet sneller. Wat een duif
+            echt goed kan, lees je af aan haar eigenschappen en haar kenmerk (<a href="#eigenschappen">wat doet elke
+            eigenschap?</a>).</li>
         </ul>
       </Section>
 

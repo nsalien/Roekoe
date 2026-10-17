@@ -118,7 +118,7 @@ import { pickRelayRoute, relayEntryTeams, relayLegKm, relayTeamComplete } from '
 import { rollAnyTrait, rollTrait } from './traits.js';
 import { season3CoachNote, season3Welcome } from './season3.js';
 import { LOKAAL_INTRO } from './lokaal.js';
-import { CARE_NEWS, INRICHTING_NEWS, LURE_NEWS, STUD_NEWS } from './news.js';
+import { CARE_NEWS, INRICHTING_NEWS, LURE_NEWS, STUD_NEWS, TAGS_NEWS } from './news.js';
 import { bell, clamp, hashString, haversineKm, pick, randFloat, round1, seededRng } from './util.js';
 
 // --- Time-zone helpers -----------------------------------------------------
@@ -2601,6 +2601,17 @@ export function runDataMigrations(db: Database): void {
       pushNotification(db, loft.userId, 'info', LURE_NEWS.title, LURE_NEWS.body, null, LURE_NEWS.id(loft.userId));
     }
     db.world.dataVersion = 64;
+  }
+
+  if ((db.world.dataVersion ?? 0) < 65) {
+    // Aankondiging: TAGS OP JE DUIVEN (core/game/tags.ts). Zelfde vorm als v64: één
+    // bel per echte speler met een stabiele id (core/game/news.ts); de tweede helft
+    // is tagNewsSteps in Tour.tsx. Geen datafix: geen enkele duif heeft al een tag.
+    for (const loft of db.lofts) {
+      if (loft.isBot) continue;
+      pushNotification(db, loft.userId, 'info', TAGS_NEWS.title, TAGS_NEWS.body, null, TAGS_NEWS.id(loft.userId));
+    }
+    db.world.dataVersion = 65;
   }
 }
 

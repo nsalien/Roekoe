@@ -7,7 +7,7 @@
  * en niet in de migratie, zodat de test hem kan lezen zonder de motor te draaien.
  */
 
-import { INSURANCE, LURE, LURE_MAX_LEVEL, MARKET_BOOST, STUD, VACCINES, studFailedRefund } from '../config/gameConfig.js';
+import { INSURANCE, LURE, LURE_MAX_LEVEL, MARKET_BOOST, PIGEON_TAGS, STUD, VACCINES, studFailedRefund } from '../config/gameConfig.js';
 
 export const INRICHTING_NEWS = {
   title: '🧰 Nieuw: je hok inrichten, en meer',
@@ -97,4 +97,25 @@ export const LURE_NEWS = {
   ].join('\n'),
   /** Stabiel per speler: twee verzoeken die tegelijk migreren geven één bel. */
   id: (userId: string) => `ntf:news:duivenlokker:${userId}`,
+} as const;
+
+/**
+ * De bel van de TAGS OP JE DUIVEN (migratie v65 in schedule.ts, voor élke echte
+ * speler). De tweede helft is tagNewsSteps in client/src/components/Tour.tsx; de
+ * uitleg staat in de wiki (#tags). Aantal en lengte uit PIGEON_TAGS.
+ */
+export const TAGS_NEWS = {
+  title: '🏷️ Nieuw: tags op je duiven',
+  body: [
+    'Geef je duiven je eigen labels, zoals "sprint", "mid-fond" of "lange-fond" — of wat je maar wil.',
+    `• Op de pagina van een duif (tik op haar naam) zet je tot ${PIGEON_TAGS.max} tags, elk hoogstens `
+      + `${PIGEON_TAGS.maxLength} tekens. Gratis.`,
+    '• Je ziet ze bij het inschrijven op de Vluchten-pagina, achter de naam van elke duif die je kan inschrijven: '
+      + 'zo kies je snel de juiste duif voor een korte sprint of een lange internationale vlucht.',
+    '• Ze staan ook bij je duiven in Mijn hok.',
+    '• Enkel jij ziet je tags. Verkoop je een duif (of verandert ze op een andere manier van eigenaar), dan verdwijnen ze.',
+    'Meer uitleg: Wiki → Tags op je duiven.',
+  ].join('\n'),
+  /** Stabiel per speler: twee verzoeken die tegelijk migreren geven één bel. */
+  id: (userId: string) => `ntf:news:tags:${userId}`,
 } as const;
