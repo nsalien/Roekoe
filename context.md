@@ -16,7 +16,7 @@
 | Rol | Branch | Doel |
 |-----|--------|------|
 | **Dev** | `claude/demo-hokinrichting` | Alle ontwikkeling/commits komen hier **eerst**. ⏸️ **Gepauzeerd sinds 12 okt** (tweede keer, op vraag van de eigenaar; pauzecommit `dea321f`, enkel een pauzepagina). De volledige Dev-stand is `6be40c3` (herstart vanaf prod + demo + Marktwaarde v2 + samen kweken); hoe je hem terugzet staat in de `context.md` óp die branch. Ook `claude/breeding-other-player-pigeons-7314iz` (zelfde commits) is gepauzeerd. Van dev staat alles live **behalve Marktwaarde v2 en de demomodus**. |
-| **Dev (sessie 15 okt)** | `claude/duivenlokker-feature-mhf3yb` | Sessiebranch van de **duivenlokker**, vertrokken van prod `9e2a79a` (geen demo, geen Marktwaarde v2). De eigenaar vroeg meteen "implementeren op productie": de feature-commit staat hier als `fc0a933` (met `[CF-Pages-Skip]`, want een preview-build van een prod-tak kan aan de live `roekoe-db` hangen) en staat op prod als **`b4f3ab8`** (zelfde boom, boodschap zonder skip). De gepauzeerde `claude/demo-hokinrichting` heeft de lokker **niet**. Op 17 okt kwamen hier de **tags op je duiven** bij (§0b) — **nog niet op prod** (de eigenaar vroeg er niet om). |
+| **Dev (sessie 15 okt)** | `claude/duivenlokker-feature-mhf3yb` | Sessiebranch van de **duivenlokker**, vertrokken van prod `9e2a79a` (geen demo, geen Marktwaarde v2). De eigenaar vroeg meteen "implementeren op productie": de feature-commit staat hier als `fc0a933` (met `[CF-Pages-Skip]`, want een preview-build van een prod-tak kan aan de live `roekoe-db` hangen) en staat op prod als **`b4f3ab8`** (zelfde boom, boodschap zonder skip). De gepauzeerde `claude/demo-hokinrichting` heeft de lokker **niet**. Op 17 okt kwamen hier de **tags op je duiven** bij (§0b, `13f6571`), dezelfde dag op vraag van de eigenaar naar prod ("zet op productie"). |
 | **Prod** | `claude/roekoe-game-website-jwa0vo` | Elke commit wordt hierheen **gecherry-pickt**; deze branch triggert de **Cloudflare Pages**-deploy naar productie. |
 
 > Vorige dev-branches (niet meer gebruiken): `ccr-9c78dbf3-rdb1ea`, `claude/hallo-nno7pb`, `claude/hallo-r1wgvn`, `claude/hallo-ca55co`, `claude/hallo-qz9tmx`, `claude/hallo-fsp9nx`, `claude/hallo-mzjn0e`, `claude/hallo-su75jy`, `claude/hallo-rkr49f`, `claude/hallo-pvwabx`,
@@ -94,9 +94,8 @@
   `dedupeScheduledFlights` (zie *`advanceRealtime()` — draait bij élk verzoek*, stap 2).
 - **Bolletje op Kweek bij een nieuw of aangepast kweekaanbod, live op 14 okt** (= dev `c52c6d9`; eigenaar
   akkoord): `World.studNewsAt` (zie §4, *World*).
-- **Tags op je duiven, op dev sinds 17 okt — NIET live** (eigenaar vroeg geen productie): zie *Tags op je duiven*
-  hieronder. Live zetten = de feature-commit naar prod cherry-picken (zonder `[CF-Pages-Skip]` in de boodschap);
-  de aankondiging (migratie **v65**) gaat dan mee.
+- **Tags op je duiven live op 17 okt** (`42dea7c` = dev `13f6571`; eigenaar: "zet op productie"): zie *Tags op je duiven*
+  hieronder. Aankondiging: migratie **v65** (bel), rondleiding `tagNewsSteps`, wiki `#tags` + `#nieuw`.
 - **Duivenlokker live op 15 okt** (`b4f3ab8` = dev `fc0a933`; De Stem, *"Vrijgelate duifjes zoeken nieuw nest"*;
   eigenaar: "implementeren op productie en zorg voor communicatie"): zie *Duivenlokker* hieronder. Aankondiging: migratie **v64** (bel),
   rondleiding `lureNewsSteps`, wiki `#duivenlokker` + `#nieuw`. **Nog te doen door de beheerder:** het idee op De
@@ -127,7 +126,7 @@
   pauzecommits: de boom is die van de herstart, de oude commits (`bc8c415`, `70d3209`, `264f93f`, …)
   blijven via de tweede ouder bereikbaar. De pauzepagina is daarmee weg.
 
-### Tags op je duiven — op dev sinds 17 okt, nog niet live (`core/game/tags.ts`, `PIGEON_TAGS` in gameConfig)
+### Tags op je duiven — LIVE sinds 17 okt (`core/game/tags.ts`, `PIGEON_TAGS` in gameConfig)
 - **Vraag van de eigenaar:** vrije, persoonlijke tags (tekst) op je duiven — bv. *sprint*, *mid-fond*,
   *lange-fond* — die **enkel de speler zelf** ziet, **bij het inschrijven op de Vluchten-pagina** bij elke duif die
   hij kan inschrijven, en ook in **Mijn hok**. **Bij verkoop verdwijnt de tag.** Communicatie voorzien.
@@ -862,7 +861,7 @@ krijgen.**
 `core/game/schedule.ts` → `advanceRealtime(db, nowMs, weatherByFlight)` roept in
 volgorde:
 1. `runDataMigrations(db)` — eenmalige datafixes, **gated op `world.dataVersion`**
-   (staat nu op **65** op dev, **64** op prod — v65 = de bel van de tags (`TAGS_NEWS`), v64 = de bel van de duivenlokker (`LURE_NEWS`), v63 = de bots uit samen kweken (hun aanbod gewist, geen bel), v62 = de bellen van samen kweken en van vaccins/verzekering per duif, v61 = de aankondigingsbel van de hokinrichting & co (`core/game/news.ts`), v60 = die van Het Lokaal; nieuwe migratie = nieuw `if ((db.world.dataVersion ?? 0) < N)`
+   (staat nu op **65** — v65 = de bel van de tags (`TAGS_NEWS`), v64 = de bel van de duivenlokker (`LURE_NEWS`), v63 = de bots uit samen kweken (hun aanbod gewist, geen bel), v62 = de bellen van samen kweken en van vaccins/verzekering per duif, v61 = de aankondigingsbel van de hokinrichting & co (`core/game/news.ts`), v60 = die van Het Lokaal; nieuwe migratie = nieuw `if ((db.world.dataVersion ?? 0) < N)`
    blok + `db.world.dataVersion = N`). De oudere migraties hebben hun werk gedaan en
    zijn enkel nog van belang als **patroon** — zie §8, kop *Eenmalige migraties*.
 2. `ensureFlightsScheduled(db, nowMs)` — plant vluchten volgens `REAL_SCHEDULE`.
@@ -1252,7 +1251,7 @@ Entiteiten: `Pigeon`, `Loft`, `User`, `BreedingPair`, `PendingBrood`, `Flight` (
   `updates?` — voor real-time herstel + 12u-statusupdates.
 - `PlayerStats.bets` / `betsWon` / `broods` — voor nieuwe badges/missies.
 
-**Tags (§0b, dev):** `PigeonCare.tags` (`string[]`, in de bestaande kolom `care`; gewist door `clearOwnerCare`).
+**Tags (§0b):** `PigeonCare.tags` (`string[]`, in de bestaande kolom `care`; gewist door `clearOwnerCare`).
 
 **Duivenlokker (§0b):** `Loft.equipment.lure` (niveau 0–5, in de bestaande JSON-kolom) en op
 `PendingBrood` `origin: 'lokker'` + `from: {userId, name}` (in `lofts.pending_broods`). Geen schemawijziging.
@@ -1427,7 +1426,7 @@ Entiteiten: `Pigeon`, `Loft`, `User`, `BreedingPair`, `PendingBrood`, `Flight` (
   duiven worden niet meer weggestreept. Enkel `gaveUp`/`dnfAtSeconds` = DNF.
 - **Kweekleeftijd:** `BREEDING.minAgeWeeks` **8** — even oud als de vluchtleeftijd, maar een
   eigen knop. Inteelt: zie `INBREEDING` + `PIGEON_QUIRKS` en §8.
-- **Tags (`PIGEON_TAGS`, dev):** `max 3` per duif, `maxLength 20` tekens.
+- **Tags (`PIGEON_TAGS`):** `max 3` per duif, `maxLength 20` tekens.
 - **Duivenlokker (`LURE`):** `prices [500,750,1500,3000,5000]` (niveau 1–5, de eigenaar), `pull
   [10,14,19,25,32]`, `freedom 90`; `LURE_MAX_LEVEL` 5, `lureChances(levels)` = de kans per lokker + "nergens".
 - **Samen kweken (`STUD`, dev):** `cost` **1000** per speler bij het akkoord, `maxFee` 100.000,
@@ -1962,7 +1961,7 @@ Alles in één keer (bash, vanuit de root):
 for f in tests/*.test.mts; do printf '%-26s ' "$(basename "$f")"; npx tsx "$f" >/dev/null 2>&1 && echo OK || echo FAIL; done
 ```
 
-**Stand van de suite (dev, 17 okt, + tags): alles groen behalve `age-cup`** (67 tests; `cpu-budget` en
+**Stand van de suite (prod + tags, 17 okt): alles groen behalve `age-cup`** (67 tests; `cpu-budget` en
 `family-chart` apart gedraaid, groen; `live-speed` was op de ongewijzigde boom 1× rood, daarna groen — flaky,
 zie hieronder). **Daarvoor (dev, 12 okt, na Samen kweken): alles groen behalve `age-cup`** (64 tests;
 `cpu-budget` en `demo-build` apart gedraaid, beide groen). Daarvoor: **(na het weghalen van de koppels) 57 van de 58 groen** (`cpu-budget`
