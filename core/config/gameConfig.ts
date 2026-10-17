@@ -376,6 +376,16 @@ export const RENAME_COST = 1000;
 export const RENAME_LOFT_COST = 2000;
 
 /**
+ * Tags op je duiven: free text the owner puts on a bird ("sprint", "lange-fond",
+ * …), shown only to that owner — on Mijn hok, the pigeon page and when entering a
+ * flight. Gone when the bird changes hands (clearOwnerCare). Free, no game effect.
+ */
+export const PIGEON_TAGS = {
+  max: 3, // tags per bird
+  maxLength: 20, // characters per tag
+} as const;
+
+/**
  * The local pigeon-soup restaurant. Selling a bird here pays a small fixed sum,
  * but sending a loft-mate to the pot rattles every remaining pigeon: each loses
  * a random `moraleEnergyMin..moraleEnergyMax` energie (form). Releasing a bird

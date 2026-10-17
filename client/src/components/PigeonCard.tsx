@@ -3,7 +3,7 @@
 import { Link } from 'react-router-dom';
 import type { Pigeon } from '../types';
 import { PigeonAvatar } from './PigeonAvatar';
-import { BreedBadge, PigeonStats, SexBadge, TraitBadge } from './ui';
+import { BreedBadge, PigeonStats, SexBadge, TagBadges, TraitBadge } from './ui';
 
 function ageLabel(weeks: number): string {
   const years = Math.floor(weeks / 52);
@@ -49,6 +49,7 @@ export function PigeonCard({
             ★ {pigeon.talent}
           </span>
           <TraitBadge trait={pigeon.trait} />
+          <TagBadges tags={pigeon.tags} />
           {pigeon.forSale && <span className="badge sale">te koop</span>}
           {pigeon.ailment && (
             <span className={`badge ${pigeon.ailment.severity === 'ernstig' ? 'sev-ernstig' : pigeon.ailment.severity === 'matig' ? 'sev-matig' : 'sev-licht'}`}>

@@ -231,6 +231,34 @@ export function TraitResultMark({ trait, share }: { trait?: string; share?: numb
   );
 }
 
+/**
+ * Tags op je duiven: the owner's own labels ("sprint", "lange-fond", …). The server
+ * only sends them for your own birds, so wherever a card shows them they are yours.
+ * Drawn with a dashed edge: a note of yours, not something the game says.
+ */
+export function TagBadges({ tags }: { tags?: string[] }) {
+  if (!tags || tags.length === 0) return null;
+  return (
+    <>
+      {tags.map((t) => (
+        <span
+          key={t}
+          className="badge"
+          title="Jouw tag — enkel jij ziet hem"
+          style={{ background: 'var(--surface-2)', color: 'var(--text)', border: '1px dashed var(--border-strong)' }}
+        >
+          🏷️ {t}
+        </span>
+      ))}
+    </>
+  );
+}
+
+/** The tags as plain text, for a <select> option: " 🏷️ sprint · mid-fond" (or ''). */
+export function tagText(tags?: string[]): string {
+  return tags && tags.length > 0 ? ` 🏷️ ${tags.join(' · ')}` : '';
+}
+
 /** The short "✨ …" hint shown when entering a bird with a trait for a flight.
  *  Null = her trait cannot count on this flight (a distance trait on the wrong
  *  distance) or she has none / a passive one. */

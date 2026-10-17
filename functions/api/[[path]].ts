@@ -61,6 +61,7 @@ import {
   INFIRMARY,
   LOKAAL,
   PIGEON_RESTAURANT,
+  PIGEON_TAGS,
   REST_CURE,
   RENAME_COST,
   RENAME_LOFT_COST,
@@ -115,6 +116,7 @@ import { pigeonSeasonRankings } from '../../core/game/season.js';
 import { buyStraw, setCleaner } from '../../core/game/hygiene.js';
 import { buyEquipment, buyIrBox, inrichtingEffects, inrichtingLevels, magazineReport, setInsurance, upgradeEquipment, vaccinate, vaccinateLoft } from '../../core/game/inrichting.js';
 import { buyLure, lureCatalogue } from '../../core/game/lure.js';
+import { setPigeonTags } from '../../core/game/tags.js';
 import { spendAttribute, spendExperience } from '../../core/game/newcomer.js';
 import { velocityBreakdown, weightsForDistance } from '../../core/game/flight.js';
 import { ageInWeeks } from '../../core/game/pigeon.js';
@@ -595,6 +597,9 @@ app.get('/state', (c) => {
       restaurantPayout: PIGEON_RESTAURANT.payout,
       restaurantMoraleMin: PIGEON_RESTAURANT.moraleEnergyMin,
       restaurantMoraleMax: PIGEON_RESTAURANT.moraleEnergyMax,
+      // Tags op je duiven: how many per bird and how long each may be.
+      pigeonTagsMax: PIGEON_TAGS.max,
+      pigeonTagMaxLength: PIGEON_TAGS.maxLength,
     },
     missions: loft?.missions ?? [],
     streak: loft?.streak ?? 0,
@@ -887,6 +892,17 @@ app.post('/loft/irbox', async (c) => {
   const user = requireUser(c);
   const store = c.get('store');
   const err = buyIrBox(store, user.id);
+  await store.persist();
+  return c.json(ok(err), err ? 400 : 200);
+});
+
+// Tags op je duiven (core/game/tags.ts): the owner's private labels on a bird.
+// `tags` = a list or one comma-separated string; empty removes them.
+app.post('/pigeons/:id/tags', async (c) => {
+  const user = requireUser(c);
+  const body = await c.req.json().catch(() => ({}));
+  const store = c.get('store');
+  const err = setPigeonTags(store, user.id, c.req.param('id'), body.tags ?? '');
   await store.persist();
   return c.json(ok(err), err ? 400 : 200);
 });

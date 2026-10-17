@@ -942,6 +942,43 @@ export function lureNewsSteps(pigeonId: string | null): Step[] {
   return steps;
 }
 
+/**
+ * Aankondiging van de TAGS OP JE DUIVEN. De bel (migratie v65, core/game/news.ts)
+ * is de eerste helft. Eerst de pagina van je eerste duif (daar zet je ze), dan de
+ * keuzelijst op Vluchten (daar zie je ze bij het inschrijven).
+ */
+export function tagNewsSteps(pigeonId: string | null): Step[] {
+  const steps: Step[] = [];
+  if (pigeonId) {
+    steps.push({
+      route: `/duif/${pigeonId}`, selector: '[data-tour="pigeon-tags"]',
+      title: '🏷️ Nieuw: tags op je duiven',
+      body: (
+        <>
+          Geef je duiven je <strong>eigen labels</strong>, zoals <em>sprint</em>, <em>mid-fond</em> of{' '}
+          <em>lange-fond</em>. Tik op <strong>Tag toevoegen</strong>; meerdere scheid je met een komma. Ze staan
+          daarna ook bij je duiven in <strong>Mijn hok</strong>.
+          <br />
+          <span className="faint" style={{ display: 'inline-block', marginTop: 4 }}>
+            Enkel jij ziet ze. Verkoop je de duif, dan verdwijnen ze.
+          </span>
+        </>
+      ),
+    });
+  }
+  steps.push({
+    route: '/vluchten', selector: '[data-tour="flight-entry"]',
+    title: '🏷️ Tags bij het inschrijven',
+    body: (
+      <>
+        Kies je een duif voor een vlucht, dan staan haar tags <strong>achter haar naam</strong>. Zo zie je meteen welke
+        duif je voor een korte sprint inschrijft en welke voor een lange internationale vlucht.
+      </>
+    ),
+  });
+  return steps;
+}
+
 export const LOKAAL_NEWS_STEPS: Step[] = [
   {
     route: '/lokaal', selector: '[data-tour="lokaal"]',
