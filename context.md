@@ -94,7 +94,7 @@
   `dedupeScheduledFlights` (zie *`advanceRealtime()` — draait bij élk verzoek*, stap 2).
 - **Bolletje op Kweek bij een nieuw of aangepast kweekaanbod, live op 14 okt** (= dev `c52c6d9`; eigenaar
   akkoord): `World.studNewsAt` (zie §4, *World*).
-- **Tags op je duiven live op 17 okt** (= dev `13f6571`; eigenaar: "zet op productie"): zie *Tags op je duiven*
+- **Tags op je duiven live op 17 okt** (`42dea7c` = dev `13f6571`; eigenaar: "zet op productie"): zie *Tags op je duiven*
   hieronder. Aankondiging: migratie **v65** (bel), rondleiding `tagNewsSteps`, wiki `#tags` + `#nieuw`.
 - **Duivenlokker live op 15 okt** (`b4f3ab8` = dev `fc0a933`; De Stem, *"Vrijgelate duifjes zoeken nieuw nest"*;
   eigenaar: "implementeren op productie en zorg voor communicatie"): zie *Duivenlokker* hieronder. Aankondiging: migratie **v64** (bel),
