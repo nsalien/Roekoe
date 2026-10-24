@@ -5,10 +5,16 @@
  * capacity 12 with 2 private compartments, a breeding pair on the nest, a
  * sick bird in the infirmary and six-day-old straw on the floor. (Samen kweken
  * is between real players only, so the demo has nobody to breed with there.)
+ *
+ * LEAGUES: every league gets birds of its own score, so all four league races can
+ * be seen flying. Bots on their own never get past ★70 in their first weeks (and a
+ * league needs 4 birds from 2 breeders), so the seed lifts one bird per bot into
+ * ★ 71–80 and one into ★ 81+, and gives the demo player one bird per league.
  */
 
 import { D1Store, ensureSchema } from '../../core/d1.js';
-import type { User } from '../../core/schema.js';
+import type { Pigeon, User } from '../../core/schema.js';
+import { LEAGUES } from '../../core/config/gameConfig.js';
 import { createLoftForUser, seedWorld, startBreeding } from '../../core/game/engine.js';
 import { advanceRealtime } from '../../core/game/schedule.js';
 import { generatePigeon } from '../../core/game/pigeon.js';
@@ -26,6 +32,19 @@ const DEMO_CAPACITY = 12;
 const DEMO_COMPARTMENTS = 2;
 /** Leave two perches free, so a tap on an empty one shows the way to the market. */
 const DEMO_BIRDS = 10;
+
+/** Put a bird on (about) this algemene score — the three skills around it, the
+ *  gene caps high enough to hold it. Demo-only: the leagues need birds per score. */
+function setScore(p: Pigeon, score: number): void {
+  p.speed = score + 1;
+  p.endurance = score;
+  p.orientation = score - 1;
+  p.genes = {
+    speed: Math.min(95, Math.max(p.genes?.speed ?? 0, score + 4)),
+    endurance: Math.min(95, Math.max(p.genes?.endurance ?? 0, score + 4)),
+    orientation: Math.min(95, Math.max(p.genes?.orientation ?? 0, score + 4)),
+  };
+}
 
 async function schemaUpToDate(d1: DemoD1): Promise<void> {
   for (let i = 0; i < 30; i++) {
@@ -49,6 +68,19 @@ export async function createDemoWorld(d1: DemoD1): Promise<void> {
   const nowMs = Date.now();
   advanceRealtime(store.data, nowMs, new Map());
   store.data.world.lastAdvance = new Date(nowMs).toISOString();
+  // Leagues: lift each bot's two best birds into ★ 81+ and ★ 71–80 (see the top).
+  // AFTER the first engine run: an old migration (v15) trims bot birds to player
+  // level on a fresh world and would undo it. The bots enter the league races on
+  // a later tick (tickBotEntries looks again until the release).
+  store.mutate((w) => {
+    w.lofts.filter((l) => l.isBot).forEach((bot, i) => {
+      const best = w.pigeons
+        .filter((p) => p.ownerId === bot.userId)
+        .sort((a, b) => b.speed + b.endurance + b.orientation - (a.speed + a.endurance + a.orientation));
+      if (best[0]) setScore(best[0], 82 + (i % 5));
+      if (best[1]) setScore(best[1], 72 + (i % 6));
+    });
+  });
   await store.persist();
 
   // 2. The demo player, created like a registration — then given a bigger loft.
@@ -63,6 +95,7 @@ export async function createDemoWorld(d1: DemoD1): Promise<void> {
   };
   store.mutate((w) => w.users.push(user));
   const loft = createLoftForUser(store, user, 'Hok De Demo');
+  const leagueBirds = new Set<string>();
 
   store.mutate((w) => {
     loft.capacity = DEMO_CAPACITY;
@@ -87,12 +120,20 @@ export async function createDemoWorld(d1: DemoD1): Promise<void> {
       w.pigeons.push(p);
     }
     for (const p of mine()) p.form = Math.max(p.form, 60);
+    // One bird per league: four of the starting birds, right after the two in a
+    // compartment (the rest stays as it came out of the egg). Kept off the nest and
+    // out of the infirmary below, so all four can fly — the pair then comes from the
+    // birds generated above, which include the guaranteed doffer and duivin.
+    const scores = [56, 66, 76, 85];
+    mine()
+      .slice(DEMO_COMPARTMENTS, DEMO_COMPARTMENTS + LEAGUES.length)
+      .forEach((p, i) => { setScore(p, scores[i]); leagueBirds.add(p.id); });
     // Two birds in their own compartment.
     mine().slice(0, DEMO_COMPARTMENTS).forEach((p) => (p.compartment = true));
   });
 
   // 3. One pair on the nest, through the real engine call.
-  const birds = store.data.pigeons.filter((p) => p.ownerId === user.id && !p.compartment);
+  const birds = store.data.pigeons.filter((p) => p.ownerId === user.id && !p.compartment && !leagueBirds.has(p.id));
   const sire = birds.find((p) => p.sex === 'doffer');
   const dam = birds.find((p) => p.sex === 'duivin');
   if (sire && dam) startBreeding(store, user.id, sire.id, dam.id);
@@ -100,7 +141,7 @@ export async function createDemoWorld(d1: DemoD1): Promise<void> {
   // 4. One sick bird, resting in the infirmary.
   store.mutate((w) => {
     const busy = new Set(w.breedingPairs.flatMap((bp) => [bp.sireId, bp.damId]));
-    const patient = w.pigeons.find((p) => p.ownerId === user.id && !p.compartment && !busy.has(p.id));
+    const patient = w.pigeons.find((p) => p.ownerId === user.id && !p.compartment && !busy.has(p.id) && !leagueBirds.has(p.id));
     if (patient) {
       applyAilment(patient, randomDisease(w.world.currentWeek, 60));
       patient.inInfirmary = true;

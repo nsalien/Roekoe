@@ -41,6 +41,22 @@ assert(loft.money === 100000 && DEMO_MONEY === 100000, `de demospeler start met 
 assert(mine.length === 10, `10 duiven (2 vrije plaatsen), kreeg ${mine.length}`);
 assert(mine.filter((p) => p.compartment).length === 2, '2 duiven in een apart hok');
 assert(w.breedingPairs.filter((bp) => bp.ownerId === DEMO_USER_ID).length === 1, 'één broedend koppel');
+// Leagues: the demo player has a bird in every league, and so do the bots, so all
+// four league races can actually fly (a league needs 4 birds from 2 breeders).
+{
+  const talentOf = (p: { speed: number; endurance: number; orientation: number }) => Math.round(((p.speed + p.endurance + p.orientation) / 3) * 10) / 10;
+  const leagueOf = (t: number) => (t <= 60 ? 'l60' : t <= 70 ? 'l70' : t <= 80 ? 'l80' : 'l81');
+  const myLeagues = new Set(mine.map((p) => leagueOf(talentOf(p))));
+  assert(['l60', 'l70', 'l80', 'l81'].every((l) => myLeagues.has(l)), `de demospeler heeft een duif in elke league (${[...myLeagues].sort().join(', ')})`);
+  const botIds = new Set(w.lofts.filter((l) => l.isBot).map((l) => l.userId));
+  const botBirds = w.pigeons.filter((p) => botIds.has(p.ownerId));
+  for (const lg of ['l80', 'l81']) {
+    const n = botBirds.filter((p) => leagueOf(talentOf(p)) === lg).length;
+    assert(n >= 4, `de bots hebben ${n} duiven in ${lg} (minstens 4, anders vliegt die league in de demo nooit)`);
+  }
+  assert(w.flights.some((f) => f.league), 'er staan leaguevluchten op de kalender');
+  assert(!w.flights.some((f) => f.ageCat), 'en geen criteriumvluchten');
+}
 const sick = mine.filter((p) => p.ailment && p.inInfirmary);
 assert(sick.length === 1, 'één zieke duif in de ziekenboeg');
 assert(!w.pigeons.some((p) => activeListing(p) && w.lofts.find((l) => l.userId === p.ownerId)?.isBot),

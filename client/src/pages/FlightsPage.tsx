@@ -23,22 +23,22 @@ function useNow(intervalMs = 1000): number {
 /**
  * The three families the calendar can be filtered by — the same split the rules
  * use: only `competition` feeds the melkerranglijst (§15.2 spelregels), the
- * criterium has its own standing (§2.10) and the rest is prize money only.
+ * leagues have their own standing (§2.10) and the rest is prize money only.
  *
  * Oefenvluchten sit with titan/estafette rather than in a fourth bucket: they
  * share the property a player filters on here — no seizoenspunten.
  */
-type FlightFamily = 'competition' | 'special' | 'cup';
+type FlightFamily = 'competition' | 'special' | 'league';
 
 const FAMILIES: { id: FlightFamily | 'all'; label: string }[] = [
   { id: 'all', label: 'Alles' },
   { id: 'competition', label: '\ud83c\udfc1 Competitie' },
   { id: 'special', label: '\ud83c\udfc6 Buiten competitie' },
-  { id: 'cup', label: '\ud83c\udf82 Criterium' },
+  { id: 'league', label: '\ud83c\udfc5 Leagues' },
 ];
 
 function flightFamily(f: Flight): FlightFamily {
-  if (f.ageCat) return 'cup';
+  if (f.leagueRace) return 'league';
   if (f.relay || f.titan || f.practice) return 'special';
   return 'competition';
 }
@@ -100,7 +100,7 @@ export function FlightsPage() {
   }, [bets]);
 
   const familyCounts = useMemo(() => {
-    const c: Record<FlightFamily | 'all', number> = { all: scheduled.length, competition: 0, special: 0, cup: 0 };
+    const c: Record<FlightFamily | 'all', number> = { all: scheduled.length, competition: 0, special: 0, league: 0 };
     for (const f of scheduled) c[flightFamily(f)]++;
     return c;
   }, [scheduled]);
@@ -111,7 +111,7 @@ export function FlightsPage() {
   );
 
   // The day chips follow the type filter, so the selected day can disappear from
-  // under the player (pick "vrijdag", then switch to Criterium). Fall back to all
+  // under the player (pick "vrijdag", then switch to Leagues). Fall back to all
   // days rather than showing an empty calendar with a day still highlighted.
   const dayKeys = useMemo(() => {
     const seen = new Map<string, string>(); // day → the ISO start of its first flight
@@ -217,6 +217,8 @@ export function FlightsPage() {
                     key={t.id}
                     className={`chip ${family === t.id ? 'active' : ''}`}
                     onClick={() => setFamily(t.id)}
+                    // The leagues announcement points at this chip.
+                    data-tour={t.id === 'league' ? 'league-filter' : undefined}
                   >
                     {t.label}<span className="n">{familyCounts[t.id]}</span>
                   </button>
@@ -279,16 +281,18 @@ export function FlightsPage() {
                                 ? <span className="badge" style={{ background: 'var(--gold-soft)', color: 'var(--gold)' }}>🏆 Titanenwedstrijd</span>
                                 : f.practice
                                   ? <span className="badge" style={{ background: 'var(--surface-2)' }}>🌤️ Oefenvlucht</span>
-                                  : f.ageCat
+                                  : f.league
                                     ? <>
                                         <span className="badge" style={{ background: 'var(--gold-soft)', color: 'var(--gold)' }}>
-                                          {f.ageCatIcon} Criterium {f.ageCatShort}
+                                          {f.leagueIcon} League {f.leagueShort}
                                         </span>
                                         <span className="badge" style={{ background: 'var(--surface-2)' }}>
-                                          {f.cupSprint ? '🏁 Sprint' : '🛰️ Grote fond'}
+                                          {f.leagueSprint ? '🏁 Sprint' : '🛰️ Grote fond'}
                                         </span>
                                       </>
-                                    : <span className={`badge ${f.type}`}>{tierLabel(f.type)}</span>}
+                                    : f.leagueRace
+                                      ? <span className="badge" style={{ background: 'var(--surface-2)' }}>🎂 Criterium</span>
+                                      : <span className={`badge ${f.type}`}>{tierLabel(f.type)}</span>}
                           </div>
                           <div className="faint" style={{ marginTop: 2 }}>
                             🕊️ {f.fromCity} → {f.toCity} · {f.distanceKm} km
@@ -355,9 +359,9 @@ export function FlightsPage() {
                           <span className="faint">🔗 Je ploeg is compleet ({f.teamSize} duiven). Wissel hierboven de volgorde tot de start.</span>
                         ) : f.titan && myEntries.length >= 1 ? (
                           <span className="faint">🏆 Je hebt je duif voor de titanenwedstrijd ingeschreven (max. één per hok).</span>
-                        ) : f.ageCat && available.length === 0 ? (
+                        ) : f.leagueRace && available.length === 0 ? (
                           <span className="faint">
-                            {f.ageCatIcon} Je hebt op dit moment geen vluchtklare duif {f.ageCatLabel?.toLowerCase()}.
+                            {f.leagueIcon ?? '🏅'} Je hebt op dit moment geen vluchtklare duif met een score {f.leagueShort ?? 'voor deze vlucht'}.
                           </span>
                         ) : (
                           <EnterControl
@@ -416,13 +420,13 @@ export function FlightsPage() {
                           🌤️ Korte training: lage energiekost, gratis, geen punten of prijzen — en geen risico.
                         </p>
                       )}
-                      {f.ageCat && (
+                      {f.league && (
                         <p className="faint" style={{ marginTop: 10, marginBottom: 0 }}>
-                          {f.ageCatIcon} Enkel duiven <strong>{f.ageCatLabel?.toLowerCase()}</strong>. Tot €{f.cupPrizes?.places[0]},
-                          geen seizoenspunten. <Link to="/wiki#criterium">Meer over het criterium →</Link>
+                          {f.leagueIcon} Enkel duiven met een score <strong>{f.leagueShort}</strong>. Tot €{f.leaguePrizes?.places[0]},
+                          geen seizoenspunten; gaat door vanaf {f.leagueMinBirds} duiven. <Link to="/wiki#leagues">Meer over de leagues →</Link>
                         </p>
                       )}
-                      {!f.practice && !f.titan && !f.relay && !f.ageCat && (() => {
+                      {!f.practice && !f.titan && !f.relay && !f.leagueRace && (() => {
                         const opensAt = Date.parse(f.startAt) - state.economy.betWindowHours * 3600000;
                         if (betFlights.has(f.id)) {
                           return (

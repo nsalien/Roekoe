@@ -80,7 +80,7 @@ let racerIds: string[] = [];
   advanceRealtime(s.data, T0, new Map());
   await s.persist();
   const s2 = await D1Store.load(d1, undefined);
-  const flight = s2.data.flights.find((f) => f.status === 'scheduled' && !f.practice && !f.ageCat)!;
+  const flight = s2.data.flights.find((f) => f.status === 'scheduled' && !f.practice && !f.league)!;
   flightId = flight.id;
   await s2.persist();
   for (const h of humans) {

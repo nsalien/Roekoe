@@ -174,7 +174,7 @@ export function PigeonPage() {
                   <span
                     key={`${t.kind}-${t.season}-${i}`}
                     className="badge"
-                    title={`Gewonnen na seizoen ${t.season} met ${t.value} criteriumpunten. Deze titel blijft bij de duif, ook als ze verkocht wordt.`}
+                    title={`Gewonnen in seizoen ${t.season} met ${t.value} ${t.kind === 'league' ? 'leaguepunten' : 'criteriumpunten'}. Deze titel blijft bij de duif, ook als ze verkocht wordt.`}
                     style={{ background: 'var(--gold-soft)', color: 'var(--gold)' }}
                   >
                     {t.icon} {t.label}

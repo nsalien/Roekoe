@@ -2648,60 +2648,72 @@ export const MORTALITY_CURVE: { weeks: number; p: number }[] = [
 ];
 
 /**
- * LEEFTIJDSCRITERIUM (AGE_CUP) — a competition that runs ALONGSIDE the normal
- * season, split into four age brackets.
+ * LEAGUES — a competition that runs ALONGSIDE the normal season, split into four
+ * classes by the bird's ALGEMENE SCORE (★, `talent`). It replaced the
+ * leeftijdscriterium (owner, 24 okt: "betere balancering, en ook slechte duiven
+ * krijgen de kans om iets te winnen"): a ★55 bird no longer flies against a ★85
+ * of the same age, she flies against other ★≤60 birds.
  *
- * Every week each bracket gets exactly one race that only birds of that age may
+ * Every week each league gets exactly one race that only birds of that score may
  * enter. The format alternates weekly between a SPRINT (100-300 km) and a GROTE
- * FOND (400-1000 km), so a season (4 weeks) holds 2 of each per bracket and a
- * full cycle of `seasons` (3) holds 6 of each.
+ * FOND (400-1000 km), counted from the season start, so a season (4 weeks) holds
+ * 2 of each per league. The standings run ONE season and are handed out at the
+ * normal prijsuitreiking (season.ts), then reset.
  *
- * It is deliberately a PIGEON competition: results pay money and criterium
- * points to the bird, but no seizoenspunten, medals, wins, sponsor bonuses or
- * bets — the melkerranglijst (Roekoe) never moves because of it. Because there
- * is only one race per bracket per week, the standings need much longer than a
- * normal season to mean anything, which is why they run for THREE seasons before
- * the ceremony and the reset.
+ * It is deliberately a PIGEON competition: prize money to the owner and league
+ * points to the bird, medals for a podium, but no seizoenspunten, wins, sponsor
+ * bonuses or bets — the melkerranglijst (Roekoe) never moves because of it.
  *
- * NOTE ON AGEING: birds age `GAME_WEEKS_PER_REAL_WEEK` (4) game weeks per real
- * week, so over a full 3-season cycle a bird ages ~48 game weeks — almost a whole
- * pigeon year. A bird therefore MOVES UP a bracket mid-cycle. That is intended:
- * the bracket is decided per race, at the moment of entry, and the points a bird
- * earned stay in the bracket it earned them in (so it can appear in two
- * standings at once). See `ageCategoryFor`.
+ * Money scales with the league (`factor`): the lowest league pays half of what
+ * the top one pays, so winning there is worth it without turning a weak bird into
+ * a money machine. The owner's choice (24 okt).
+ *
+ * NOTE ON SCORE: a bird's score moves (training, coach, flights up; ageing down),
+ * so she can change league during a season. The league is decided per race, at
+ * the moment of ENTRY, and the points she earned stay in the league she earned
+ * them in (so she can appear in two standings at once). See `leagueFor`.
  */
-export type AgeCategoryId = 'u1' | 'y12' | 'y23' | 'o3';
+export type LeagueId = 'l60' | 'l70' | 'l80' | 'l81';
 
-export interface AgeCategoryDef {
-  id: AgeCategoryId;
+export interface LeagueDef {
+  id: LeagueId;
   label: string; // full name, used as the flight name
   short: string; // compact label for tables/badges
   icon: string;
-  minWeeks: number; // inclusive
-  maxWeeks: number; // exclusive
-  weekday: number; // 0=Sun..6=Sat — the day this bracket races
+  /** Inclusive upper bound on the algemene score (talent, one decimal). The next
+   *  league starts right above it: ★60.0 is l60, ★60.1 already l70. */
+  maxScore: number;
+  weekday: number; // 0=Sun..6=Sat — the day this league races
+  /** Share of the base prize table (LEAGUE.sprint/fond) and of LEAGUE.awards. */
+  factor: number;
 }
 
-/** The four age brackets, in order. `maxWeeks` is exclusive; 52 game weeks = 1 year. */
-export const AGE_CATEGORIES: AgeCategoryDef[] = [
-  { id: 'u1', label: 'Onder 1 jaar', short: '< 1 j', icon: '🐣', minWeeks: 0, maxWeeks: 52, weekday: 1 },
-  { id: 'y12', label: '1 tot 2 jaar', short: '1–2 j', icon: '🕊️', minWeeks: 52, maxWeeks: 104, weekday: 3 },
-  { id: 'y23', label: '2 tot 3 jaar', short: '2–3 j', icon: '🦅', minWeeks: 104, maxWeeks: 156, weekday: 4 },
-  { id: 'o3', label: 'Ouder dan 3 jaar', short: '3 j +', icon: '🏅', minWeeks: 156, maxWeeks: Number.MAX_SAFE_INTEGER, weekday: 5 },
+/** The four leagues, lowest first. The owner's classes: t/m 60 · 61–70 · 71–80 · 81+. */
+export const LEAGUES: LeagueDef[] = [
+  { id: 'l60', label: 'League ★ t/m 60', short: '★ t/m 60', icon: '🌱', maxScore: 60, weekday: 1, factor: 0.5 },
+  { id: 'l70', label: 'League ★ 61–70', short: '★ 61–70', icon: '🌿', maxScore: 70, weekday: 3, factor: 0.7 },
+  { id: 'l80', label: 'League ★ 71–80', short: '★ 71–80', icon: '🌳', maxScore: 80, weekday: 4, factor: 0.85 },
+  { id: 'l81', label: 'League ★ 81+', short: '★ 81+', icon: '👑', maxScore: Number.POSITIVE_INFINITY, weekday: 5, factor: 1 },
 ];
 
-export const AGE_CUP = {
-  /** Real weeks the standings run before the ceremony + reset (3 seasons). */
-  seasons: 3,
-  /** Entry fee per bird, same for a sprint and a fond race. */
+export const LEAGUE = {
+  /** Entry fee per bird, same for a sprint and a fond race, in every league. */
   entryFee: 20,
+  /**
+   * A league race only flies with at least this many birds at the release (after
+   * the ones that cannot be released are pulled), so at least one bird misses the
+   * podium. Fewer = called off and refunded, like a race with fewer than two
+   * breeders (which still applies too).
+   */
+  minBirds: 4,
   /** Release time (Brussels). Early, so even a 1000 km fond race is home by evening. */
   hour: 6,
   minute: 0,
   /**
-   * The two formats the weekly race alternates between. Week 1 of a cycle is a
+   * The two formats the weekly race alternates between. Week 1 of a season is a
    * sprint, week 2 a fond, and so on — which is what makes it 2+2 per season.
-   * Both pay the same ranking points; only the money differs.
+   * Both pay the same league points; only the money differs. These tables are
+   * what the TOP league pays; the others get `factor` of it (`leaguePrizes`).
    */
   sprint: {
     label: 'Sprint',
@@ -2727,30 +2739,68 @@ export const AGE_CUP = {
       rest: 90,
     } as PrizeTable,
   },
-  /** Paid to the OWNER of the top-3 birds of each bracket at the cycle reset. */
-  awards: [2000, 1600, 1200],
+  /** Paid to the OWNER of the top-3 birds of the TOP league at the season end;
+   *  the other leagues pay `factor` of it. The bird gets a title on top. */
+  awards: [1000, 750, 500],
 } as const;
 
-/** Look up a bracket definition by id. */
-export function ageCategoryDef(id: AgeCategoryId): AgeCategoryDef {
-  return AGE_CATEGORIES.find((c) => c.id === id) ?? AGE_CATEGORIES[0];
+/** Look up a league definition by id. */
+export function leagueDef(id: LeagueId): LeagueDef {
+  return LEAGUES.find((c) => c.id === id) ?? LEAGUES[0];
 }
 
-/** Which bracket a bird of `ageWeeks` game weeks belongs to, right now. */
-export function ageCategoryFor(ageWeeks: number): AgeCategoryId {
-  for (const c of AGE_CATEGORIES) {
-    if (ageWeeks >= c.minWeeks && ageWeeks < c.maxWeeks) return c.id;
-  }
-  return AGE_CATEGORIES[AGE_CATEGORIES.length - 1].id;
+/** Which league a bird with algemene score `score` (★, one decimal) races in. */
+export function leagueFor(score: number): LeagueId {
+  for (const c of LEAGUES) if (score <= c.maxScore) return c.id;
+  return LEAGUES[LEAGUES.length - 1].id;
+}
+
+/** The lowest score that belongs to a league (the one right above the previous
+ *  league's bound). 0 for the lowest league. */
+export function leagueMinScore(id: LeagueId): number {
+  const i = LEAGUES.findIndex((c) => c.id === id);
+  return i <= 0 ? 0 : Math.round((LEAGUES[i - 1].maxScore + 0.1) * 10) / 10;
+}
+
+/** The exact score range of a league, in words, for messages and the wiki:
+ *  "★60 of lager" · "★60,1 tot en met ★70" · "★80,1 of hoger". */
+export function leagueRangeText(id: LeagueId): string {
+  const nl = (x: number) => String(x).replace('.', ',');
+  const def = leagueDef(id);
+  const min = leagueMinScore(id);
+  if (min === 0) return `★${nl(def.maxScore)} of lager`;
+  if (!Number.isFinite(def.maxScore)) return `★${nl(min)} of hoger`;
+  return `★${nl(min)} tot en met ★${nl(def.maxScore)}`;
+}
+
+/** Scale a league amount and round it to €5, like the sponsor premiums. */
+function leagueAmount(base: number, factor: number): number {
+  return Math.round((base * factor) / 5) * 5;
+}
+
+/** What a race of league `id` pays per place (sprint or fond edition). */
+export function leaguePrizes(id: LeagueId, sprint: boolean): PrizeTable {
+  const base = sprint ? LEAGUE.sprint.prizes : LEAGUE.fond.prizes;
+  const f = leagueDef(id).factor;
+  return {
+    places: base.places.map((x) => leagueAmount(x, f)),
+    bands: base.bands.map((b) => ({ below: b.below, amount: leagueAmount(b.amount, f) })),
+    rest: leagueAmount(base.rest, f),
+  };
+}
+
+/** The season-end prize for `rank` (1-based) in league `id`; 0 past the podium. */
+export function leagueAward(id: LeagueId, rank: number): number {
+  const base = LEAGUE.awards[rank - 1];
+  return base === undefined ? 0 : leagueAmount(base, leagueDef(id).factor);
 }
 
 /**
- * Is the criterium week `index` (0-based, counted from the cycle start) a sprint?
- * Week 0 sprint, week 1 fond, ... → 2 of each per 4-week season, 6 of each per
- * 3-season cycle.
+ * Is league week `index` (0-based, counted from the season start) a sprint?
+ * Week 0 sprint, week 1 fond, ... → 2 of each per 4-week season.
  */
-export function isCupSprintWeek(weekIndex: number): boolean {
-  return weekIndex % 2 === 0;
+export function isLeagueSprintWeek(weekIndex: number): boolean {
+  return ((weekIndex % 2) + 2) % 2 === 0;
 }
 
 /**
@@ -2767,8 +2817,8 @@ export interface ScheduleSlot {
   minute: number;
   practice?: boolean; // an oefenvlucht: no fee, no prizes/points, gentle training
   titan?: boolean; // a titanenwedstrijd: money-only, one bird per loft (see TITAN)
-  /** A leeftijdscriterium race: only birds in this age bracket may enter (see AGE_CUP). */
-  ageCat?: AgeCategoryId;
+  /** A league race: only birds with a score in this league may enter (see LEAGUE). */
+  league?: LeagueId;
   everyNDays?: number; // only schedule this slot every N calendar days (default: every day)
   /**
    * Narrow this slot's route to part of its tier's window, so one fixed race can
@@ -2807,16 +2857,17 @@ export const TITAN = {
 /**
  * The weekly calendar (Brussels time), one fixed line-up per weekday.
  *
- *   ma  06:00 criterium < 1 j  · 08:00 internationaal
+ *   ma  06:00 league ★ t/m 60  · 08:00 internationaal
  *   di  10:00 regionaal        · 12:00 oefenvlucht
- *   wo  06:00 criterium 1-2 j  · 08:00 nationaal
- *   do  06:00 criterium 2-3 j  · 08:00 internationaal
- *   vr  06:00 criterium 3 j +  · 10:00 regionaal · 12:00 oefenvlucht
- *   za  08:00 titanenwedstrijd (replaces everything else that day)
+ *   wo  06:00 league ★ 61–70   · 08:00 nationaal
+ *   do  06:00 league ★ 71–80   · 08:00 internationaal
+ *   vr  06:00 league ★ 81+     · 07:00 nationaal (lang) · 12:00 oefenvlucht · 17:00 regionaal
+ *   za  08:00 titanenwedstrijd / 05:00 estafette (replaces everything else that day)
  *   zo  08:00 nationaal        · 17:00 regionaal
  *
- * The four 06:00 slots are the leeftijdscriterium (AGE_CUP): age-restricted races
- * that pay money to the bird's owner but feed only the pigeon standings.
+ * The four 06:00 slots are the LEAGUES (LEAGUE): score-restricted races that pay
+ * money to the bird's owner but feed only the pigeon standings. (Before the leagues they
+ * were the leeftijdscriterium, by age.)
  *
  * Deliberately fewer races than the old daily long+short calendar: every flight
  * draws from the same pool of birds, so a lighter schedule concentrates the
@@ -2874,14 +2925,14 @@ export const REAL_SCHEDULE: ScheduleSlot[] = [
   // slot that pays a conditie-duif. At 07:00 it still starts early enough to be
   // home well before the evening.
   //
-  // ⚠️ 07:00 and not 06:00, deliberately: the criterium 'Ouder dan 3 jaar' flies
-  // Friday at AGE_CUP.hour (06:00), and two races sharing a start instant means
+  // ⚠️ 07:00 and not 06:00, deliberately: the league ★ 81+ flies Friday at
+  // LEAGUE.hour (06:00), and two races sharing a start instant means
   // ONE request carries both `scheduled → live` transitions — freezing both sims
   // and fetching two forecasts in the same invocation, on a 10 ms CPU budget.
   // An hour apart puts each in its own request.
   //
   // ⚠️ It does NOT undo the choice: one-flight-per-day is per CALENDAR DAY, so a
-  // bird over three years old still picks one of the two.
+  // ★81+ bird still picks one of the two.
   { key: 'fri-national-long', tier: 'national', weekday: 5, hour: 7, minute: 0, minKm: 430, maxKm: 500 },
   { key: 'fri-practice', tier: 'regional', weekday: 5, hour: 12, minute: 0, practice: true },
   // Moved from 10:00 to 17:00 to make room for the long national above.
@@ -2892,16 +2943,17 @@ export const REAL_SCHEDULE: ScheduleSlot[] = [
   { key: 'titan', tier: 'international', weekday: TITAN.weekday, hour: TITAN.hour, minute: TITAN.minute, titan: true },
   { key: 'sun-national', tier: 'national', weekday: 0, hour: 8, minute: 0 },
   { key: 'sun-regional', tier: 'regional', weekday: 0, hour: 17, minute: 0 },
-  // Leeftijdscriterium (AGE_CUP): one race per age bracket per week, at 06:00 so a
-  // fond edition is home well before the evening. These slots only produce a flight
-  // once the cycle has started (world.ageCupStartedAt) — see ensureFlightsScheduled.
-  // Their tier/distance is decided by the week (sprint or fond), not by the slot.
-  ...AGE_CATEGORIES.map((c): ScheduleSlot => ({
-    key: `cup-${c.id}`,
+  // Leagues (LEAGUE): one race per score league per week, at 06:00 so a fond
+  // edition is home well before the evening. Their tier/distance is decided by the
+  // week of the season (sprint or fond), not by the slot — see ensureFlightsScheduled.
+  // New keys (`league-…`, the criterium had `cup-…`), so a day keeps whatever the
+  // old calendar left on it and simply gains its league race.
+  ...LEAGUES.map((c): ScheduleSlot => ({
+    key: `league-${c.id}`,
     weekday: c.weekday,
-    hour: AGE_CUP.hour,
-    minute: AGE_CUP.minute,
-    ageCat: c.id,
+    hour: LEAGUE.hour,
+    minute: LEAGUE.minute,
+    league: c.id,
   })),
 ];
 

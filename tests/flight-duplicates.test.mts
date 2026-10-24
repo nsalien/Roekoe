@@ -2,7 +2,7 @@
  * Eén vlucht per kalenderplaats (dag + type), ook als twee verzoeken tegelijk plannen.
  *
  * De gemelde bug (12 okt): vanaf woensdag stond elke vlucht twee keer op de kalender —
- * twee nationale om hetzelfde uur, twee criteriumvluchten, … `ensureFlightsScheduled`
+ * twee nationale om hetzelfde uur, twee leaguevluchten, … `ensureFlightsScheduled`
  * is idempotent BINNEN één verzoek (het kijkt naar `templateKey`), maar twee verzoeken
  * die tegelijk de motor draaien zien allebei een lege dag en maakten elk hun eigen
  * vlucht met een willekeurige id. `persist` schreef ze allebei weg.
@@ -119,7 +119,7 @@ console.log('\nWat al dubbel staat, wordt opgekuist');
   const mine = w.pigeons.filter((p) => p.ownerId === USER.id);
   // A regular flight a few days out, its twin as the old race left it (own id, own
   // route, own bot entries), and Anna's birds spread over both.
-  const reg = w.flights.find((f) => f.status === 'scheduled' && !f.titan && !f.relay && !f.ageCat && !f.practice
+  const reg = w.flights.find((f) => f.status === 'scheduled' && !f.titan && !f.relay && !f.league && !f.practice
     && Date.parse(f.startAt) > now + DAY)!;
   const twin: Flight = { ...structuredClone(reg), id: 'flt_oude_race_1', fromCity: 'Ergens', distanceKm: reg.distanceKm + 37,
     createdAt: new Date(Date.parse(reg.createdAt) + 50).toISOString() };

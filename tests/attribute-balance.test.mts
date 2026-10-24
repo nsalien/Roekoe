@@ -86,18 +86,18 @@ const lcg = (seed: number) => { let s = seed >>> 0; return () => ((s = (s * 1664
  * ⚠️ DE WEGING VOLGT DE ECHTE KALENDER, en stond hier jarenlang scheef.
  *
  * Dit was 3 / 2 / 2. Dat klopte niet meer op twee punten: de vrijdagnationale
- * kwam erbij (nationaal is 3 per week, niet 2), en criterium, titan en estafette
+ * kwam erbij (nationaal is 3 per week, niet 2), en de leagues (vroeger het criterium), titan en estafette
  * — samen 10 van de 26 wedstrijd-startplaatsen per twee weken — zaten er
  * helemaal niet in. Omdat §8 zijn balansconclusies op dít gemiddelde baseert,
  * betekende dat: conclusies trekken over een kalender die niet bestaat.
  *
- * Geteld over de volle cyclus van twee weken (week A draagt het sprintcriterium
- * + de titan, week B het fondcriterium + de estafette), ingedeeld op het
+ * Geteld over de volle cyclus van twee weken (week A draagt de sprintleagues
+ * + de titan, week B de fondleagues + de estafette), ingedeeld op het
  * afstandsvenster waarin elk slot valt:
  *
- *   kort  (100–300)  regio 6  + criterium sprint 4 + estafette-etappe 1  = 11
+ *   kort  (100–300)  regio 6  + league sprint 4   + estafette-etappe 1  = 11
  *   midden(200–600)  nationaal 6 + titan 1                              =  7
- *   lang  (400–1200) internationaal 4 + criterium fond 4                 =  8
+ *   lang  (400–1200) internationaal 4 + league fond 4                   =  8
  *
  * Oefenvluchten tellen niet mee (geen geld, geen punten).
  */

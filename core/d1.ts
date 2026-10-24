@@ -207,7 +207,8 @@ function rowToPigeon(r: any): Pigeon {
     trainedAt: r.trained_at ? JSON.parse(r.trained_at) : undefined,
     genes: r.genes ? JSON.parse(r.genes) : undefined,
     declineRate: typeof r.decline_rate === 'number' ? r.decline_rate : undefined,
-    cup: r.cup ? JSON.parse(r.cup) : undefined,
+    cup: r.cup ? JSON.parse(r.cup) : undefined, // ⚠️ legacy criterium, read by migration v66 only
+    leagues: r.leagues ? JSON.parse(r.leagues) : undefined,
     titles: r.titles ? JSON.parse(r.titles) : undefined,
   };
 }
@@ -253,8 +254,10 @@ function rowToFlight(r: any): Flight {
     titan: !!r.titan,
     relay: !!r.relay,
     legs: r.legs ? JSON.parse(r.legs) : undefined,
-    ageCat: r.age_cat || undefined,
+    ageCat: r.age_cat || undefined, // ⚠️ legacy criterium race
     cupSprint: r.age_cat ? !!r.cup_sprint : undefined,
+    league: r.league || undefined,
+    leagueSprint: r.league ? !!r.league_sprint : undefined,
     entries: JSON.parse(r.entries || '[]'),
     sim: JSON.parse(r.sim || '[]'),
     weather: r.weather,
@@ -405,7 +408,7 @@ const PIGEON_COLUMNS = [
   'season_start_score', 'season_practice_gain', 'trained_at', 'genes', 'decline_rate',
   'care_assigned', 'last_race_at', 'last_race_practice', 'last_rest_cure_at', 'away_until',
   'cup', 'titles', 'listed_at', 'min_bid', 'last_bred_at', 'sire_name', 'dam_name', 'quirk',
-  'trait', 'earnings', 'earnings_owner', 'care', 'boosted_at', 'stud',
+  'trait', 'earnings', 'earnings_owner', 'care', 'boosted_at', 'stud', 'leagues',
 ];
 
 /**
@@ -455,6 +458,9 @@ function pigeonRow(p: Pigeon): unknown[] {
     p.boostedAt ?? null,
     // '' for a bird that is not put up for samen kweken, so its narrowed UPDATE skips it.
     p.stud ? JSON.stringify(p.stud) : '',
+    // '' for a bird without league points (most birds, and every bird right after
+    // the season reset), so its narrowed UPDATE skips the column.
+    p.leagues && Object.keys(p.leagues).length ? JSON.stringify(p.leagues) : '',
   ];
 }
 
@@ -830,7 +836,7 @@ export class D1Store implements Store {
         'id', 'week', 'template_key', 'name', 'type', 'distance_km', 'entry_fee', 'from_city',
         'to_city', 'start_at', 'status', 'entries', 'sim', 'weather', 'weather_factor', 'results',
         'recap', 'created_at', 'practice', 'titan', 'relay', 'legs', 'age_cat', 'cup_sprint',
-        'chat', 'weather_along', 'weather_rain', 'temp_c', 'forecast',
+        'chat', 'weather_along', 'weather_rain', 'temp_c', 'forecast', 'league', 'league_sprint',
       ],
       keyColumn: 'id',
       row: (f) => [
@@ -844,6 +850,7 @@ export class D1Store implements Store {
         f.chat?.length ? JSON.stringify(f.chat) : '',
         f.weatherAlong ?? null, f.weatherRain == null ? null : b(f.weatherRain), f.tempC ?? null,
         f.forecast ? JSON.stringify(f.forecast) : '',
+        f.league ?? null, b(f.leagueSprint),
       ],
       stmts,
     });
@@ -1816,6 +1823,11 @@ export const SCHEMA_STEPS: string[] = [
   // here may move; when a feature goes live, its steps go at the END of
   // production's list. Keep dev-only steps LAST so dev stays "production + extras".
   //
+  // Leagues (LEAGUE, replaced the leeftijdscriterium): the score league a race is
+  // restricted to + its format, and every bird's league standings this season.
+  'ALTER TABLE flights ADD COLUMN league TEXT',
+  'ALTER TABLE flights ADD COLUMN league_sprint INTEGER NOT NULL DEFAULT 0',
+  "ALTER TABLE pigeons ADD COLUMN leagues TEXT NOT NULL DEFAULT ''",
   // Marktwaarde v2: how good the sold bird was beyond her talent (Trade.quality),
   // so a sale is measured against HER, not an average bird.
   'ALTER TABLE trades ADD COLUMN quality REAL',

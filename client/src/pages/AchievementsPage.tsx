@@ -81,11 +81,20 @@ const WING_CAT_LABEL: Record<WingCategory, string> = {
   progress: 'meeste vooruitgang',
 };
 
+const LEAGUE_SHORT: Record<string, string> = { l60: '★ t/m 60', l70: '★ 61–70', l80: '★ 71–80', l81: '★ 81+' };
+
 function SeasonPrizesView({ profile }: { profile: PlayerProfile }) {
   const { roekoes, vleugels, awards } = profile;
   const medal = (rank: number) => (rank === 1 ? '🥇' : rank === 2 ? '🥈' : '🥉');
   const roekoeName = (rank: number) => (rank === 1 ? 'Gouden' : rank === 2 ? 'Zilveren' : 'Bronzen') + ' Roekoe';
   const wingName = (rank: number) => (rank === 1 ? 'Gouden' : rank === 2 ? 'Zilveren' : 'Bronzen') + ' Vleugel';
+  const metal = (rank: number) => (rank === 1 ? 'Gouden' : rank === 2 ? 'Zilveren' : 'Bronzen');
+  const prizeName = (a: SeasonAward) =>
+    a.kind === 'roekoe' ? roekoeName(a.rank)
+      : a.kind === 'premie' ? 'Seizoenspremie'
+        : a.kind === 'league' ? `${metal(a.rank)} Leagueduif`
+          : a.kind === 'criterium' ? `${metal(a.rank)} Criteriumduif`
+            : wingName(a.rank);
 
   return (
     <>
@@ -128,15 +137,17 @@ function SeasonPrizesView({ profile }: { profile: PlayerProfile }) {
                 {awards.map((a: SeasonAward, i) => (
                   <tr key={a.kind + a.season + i}>
                     <td style={{ fontSize: '1.1rem' }}>{a.kind === 'premie' ? '💰' : medal(a.rank)}</td>
-                    <td>
-                      {a.kind === 'roekoe' ? roekoeName(a.rank) : a.kind === 'premie' ? 'Seizoenspremie' : wingName(a.rank)}
-                    </td>
+                    <td>{prizeName(a)}</td>
                     <td className="faint">
                       {a.kind === 'roekoe'
                         ? `${a.value} seizoenspunten`
                         : a.kind === 'premie'
                           ? `${a.rank}e plaats · ${a.value} seizoenspunten`
-                          : `${a.pigeonName} · ${WING_CAT_LABEL[a.category ?? 'speed']}`}
+                          : a.kind === 'league'
+                            ? `${a.pigeonName} · league ${LEAGUE_SHORT[a.league ?? ''] ?? ''} · ${a.value} punten`
+                            : a.kind === 'criterium'
+                              ? `${a.pigeonName} · leeftijdscriterium · ${a.value} punten`
+                              : `${a.pigeonName} · ${WING_CAT_LABEL[a.category ?? 'speed']}`}
                     </td>
                     <td className="num">{a.season}</td>
                     <td className="num">€{a.reward}</td>

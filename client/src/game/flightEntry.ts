@@ -44,8 +44,8 @@ export function canEnter(
   // is offered in an open negotiation, which the client does not know about).
   if (p.stud) return false;
   if (daysTaken.get(p.id)?.has(flightDay(f))) return false;
-  // A leeftijdscriterium takes one age bracket only.
-  if (f.ageCat && p.ageCat !== f.ageCat) return false;
+  // A league takes one score league only (a leftover criterium race takes no one).
+  if (f.leagueRace && (!f.league || p.league !== f.league)) return false;
   const mine = f.entries.filter((e) => e.ownerId === userId);
   if (f.titan && mine.length >= 1) return false; // one bird per loft
   if (f.relay && mine.length >= (f.teamSize ?? 3)) return false; // team complete

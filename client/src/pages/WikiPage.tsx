@@ -12,7 +12,7 @@ import { useEffect } from 'react';
 import { Link } from 'react-router-dom';
 
 const SECTIONS = [
-  { id: 'nieuw', icon: '🧰', label: 'Nieuw: tags, duivenlokker & meer' },
+  { id: 'nieuw', icon: '🧰', label: 'Nieuw: leagues, tags, duivenlokker & meer' },
   { id: 'seizoen3', icon: '🎉', label: 'Nieuw in seizoen 3' },
   { id: 'starterspakket', icon: '🎁', label: 'Starterspakket' },
   { id: 'genen', icon: '🧬', label: 'Genen & training' },
@@ -32,7 +32,7 @@ const SECTIONS = [
   { id: 'sponsors', icon: '🤝', label: 'Sponsors' },
   { id: 'titan', icon: '🏆', label: 'Titanenwedstrijd' },
   { id: 'estafette', icon: '🔗', label: 'Estafettevlucht' },
-  { id: 'criterium', icon: '🏆', label: 'Leeftijdscriterium' },
+  { id: 'leagues', icon: '🏅', label: 'Leagues' },
   { id: 'broeden', icon: '🥚', label: 'Kweken & broeden' },
   { id: 'samen-kweken', icon: '🤝', label: 'Samen kweken' },
   { id: 'inteelt', icon: '🌳', label: 'Stamboom & inteelt' },
@@ -114,9 +114,18 @@ export function WikiPage() {
         </div>
       </div>
 
-      <Section id="nieuw" icon="🧰" title="Nieuw: tags, duivenlokker, samen kweken & meer">
+      <Section id="nieuw" icon="🧰" title="Nieuw: leagues, tags, duivenlokker, samen kweken & meer">
         <p className="muted" style={{ marginTop: 0 }}>
           Wat er in oktober (seizoen 3) bijkwam en veranderde, op één plek. Deze sectie blijft staan als logboek.
+        </p>
+
+        <h3>🏅 De leagues, in plaats van het leeftijdscriterium</h3>
+        <p>
+          Het leeftijdscriterium is weg. In de plaats komen <strong>vier leagues volgens de algemene score (★)</strong>{' '}
+          van je duif: ★ t/m 60 op maandag, ★ 61–70 op woensdag, ★ 71–80 op donderdag en ★ 81+ op vrijdag, telkens om
+          06:00. Zo vliegt een zwakkere duif tegen haar gelijken en kan ook zij iets winnen. Een league gaat pas door
+          met minstens <strong>4 duiven</strong>, en de stand loopt <strong>één seizoen</strong>.{' '}
+          <a href="#leagues">Alles over de leagues →</a>
         </p>
 
         <h3>🏷️ Tags op je duiven</h3>
@@ -695,80 +704,90 @@ export function WikiPage() {
           <em> zwakste</em> schakel: die bepaalt evenveel van de ploegtijd als je kampioen.</p>
       </Section>
 
-      <Section id="criterium" icon="🏆" title="Het leeftijdscriterium (elke week, per leeftijdsklasse)">
+      <Section id="leagues" icon="🏅" title="De leagues (elke week, per score)">
         <p className="muted" style={{ marginTop: 0 }}>
           Naast het gewone seizoen loopt er een tweede competitie, alleen voor <strong>duiven</strong>. Er zijn vier
-          leeftijdsklassen, en elke klasse krijgt <strong>één eigen vlucht per week</strong> waar enkel duiven van die
-          leeftijd in mogen. Zo moet je jonge duif niet meteen tegen doorwinterde routiniers, en heeft een oude
-          kampioen nog altijd haar eigen wedstrijd.
+          leagues volgens de <strong>algemene score (★)</strong> van een duif, en elke league krijgt{' '}
+          <strong>één eigen vlucht per week</strong> waar enkel duiven met die score in mogen. Zo vliegt een duif van
+          ★55 tegen andere duiven van haar niveau in plaats van tegen een ★85 — en kan ook een zwakkere duif iets
+          winnen. (Vroeger was dit het leeftijdscriterium, per leeftijd.)
         </p>
         <MiniTable
-          head={['Klasse', 'Leeftijd', 'Vluchtdag']}
+          head={['League', 'Score', 'Vluchtdag']}
           rows={[
-            ['🐣 Onder 1 jaar', 'tot 1 jaar', 'maandag 06:00'],
-            ['🕊️ 1 tot 2 jaar', '1 – 2 jaar', 'woensdag 06:00'],
-            ['🦅 2 tot 3 jaar', '2 – 3 jaar', 'donderdag 06:00'],
-            ['🏅 Ouder dan 3 jaar', 'vanaf 3 jaar', 'vrijdag 06:00'],
+            ['🌱 ★ t/m 60', '★60 of lager', 'maandag 06:00'],
+            ['🌿 ★ 61–70', '★60,1 tot en met ★70', 'woensdag 06:00'],
+            ['🌳 ★ 71–80', '★70,1 tot en met ★80', 'donderdag 06:00'],
+            ['👑 ★ 81+', '★80,1 of hoger', 'vrijdag 06:00'],
           ]}
         />
         <ul style={{ marginTop: 12 }}>
           <li><strong>Inschrijven kost €20</strong>, en je mag er <strong>zoveel duiven in zetten als je wil</strong>
-            — zolang ze in de juiste leeftijdsklasse vallen. In welke klasse een duif zit, staat op haar
-            <strong> duifpagina</strong>; bij het inschrijven toont de lijst enkel de duiven die mogen.</li>
+            — zolang hun score in die league valt. Zoals overal verdienen per vlucht enkel je <strong>3 best
+            geplaatste</strong> duiven.</li>
+          <li><strong>De score telt op het moment dat je inschrijft.</strong> De score heeft één decimaal: ★60,0 hoort
+            nog in de laagste league, ★60,1 al in ★ 61–70. Stijgt je duif na het inschrijven (coach, training), dan
+            vliegt ze die vlucht nog gewoon in de league waarvoor je haar inschreef.</li>
+          <li>Een league gaat pas door met <strong>minstens 4 duiven</strong> aan de start (en, zoals elke wedstrijd,
+            minstens 2 melkers) — zo valt er altijd minstens één duif naast het podium. Zijn er minder, dan wordt de
+            vlucht afgelast en krijgt iedereen zijn inschrijfgeld terug. De bots doen mee.</li>
           <li>De vlucht <strong>wisselt week na week</strong> tussen een <strong>🏁 sprint</strong> (100 – 300 km) en
-            een <strong>🛰️ grote fond</strong> (400 – 1000 km). Alle vier de klassen vliegen dezelfde week hetzelfde
-            format, dus per seizoen zijn dat 2 sprints en 2 fondvluchten per klasse.</li>
+            een <strong>🛰️ grote fond</strong> (400 – 1000 km): week 1 en 3 van een seizoen een sprint, week 2 en 4 een
+            fond. Alle vier de leagues vliegen dezelfde week hetzelfde format.</li>
           <li>Verder is het een <strong>gewone wedstrijd</strong>: normale energiekost, normale kans op een blessure,
             en je duif gaat er gewoon op vooruit.</li>
         </ul>
         <h3>Prijzengeld per vlucht</h3>
-        <MiniTable
-          head={['Plaats', '🏁 Sprint', '🛰️ Grote fond']}
-          rows={[
-            ['1e', '€1.000', '€1.600'],
-            ['2e', '€800', '€1.400'],
-            ['3e', '€600', '€1.200'],
-            ['4e', '€420', '€850'],
-            ['5e', '€300', '€600'],
-            ['6e', '€200', '€400'],
-            ['7e', '€130', '€260'],
-            ['8e', '€80', '€160'],
-          ]}
-        />
-        <h3>De stand loopt drie seizoenen</h3>
-        <p>
-          Eén vlucht per klasse per week is maar vier resultaten per seizoen — veel te weinig om een veld te scheiden.
-          Daarom telt de criteriumstand <strong>drie seizoenen</strong> door (12 weken, dus 6 sprints en 6 fondvluchten)
-          voor er een prijsuitreiking en een reset volgt. Punten krijg je met dezelfde tabel als een gewone vlucht
-          (100 voor de winnaar, 80, 65, …) — <strong>een sprint en een fondvlucht wegen even zwaar</strong>, alleen het
-          geld verschilt.
+        <p className="faint" style={{ marginTop: 0 }}>
+          Hoe hoger de league, hoe meer: de laagste betaalt de helft van de hoogste, ★ 61–70 70 % en ★ 71–80 85 %.
+          De volledige tabellen staan bij <a href="#prijzengeld">Prijzengeld</a>.
         </p>
         <MiniTable
-          head={['Plaats na 3 seizoenen', 'Prijs']}
-          rows={[['🥇 1e', '€2.000 + gouden titel'], ['🥈 2e', '€1.600 + zilveren titel'], ['🥉 3e', '€1.200 + bronzen titel']]}
+          head={['Zege', '★ t/m 60', '★ 61–70', '★ 71–80', '★ 81+']}
+          rows={[
+            ['🏁 Sprint', '€500', '€700', '€850', '€1.000'],
+            ['🛰️ Grote fond', '€800', '€1.120', '€1.360', '€1.600'],
+          ]}
+        />
+        <h3>De stand loopt één seizoen</h3>
+        <p>
+          Punten krijg je met dezelfde tabel als een gewone vlucht (100 voor de winnaar, 80, 65, …) —{' '}
+          <strong>een sprint en een fondvlucht wegen even zwaar</strong>, alleen het geld verschilt. Bij een gelijke
+          stand beslissen het aantal zeges en daarna de beste gemiddelde snelheid. Op het einde van het seizoen wint de{' '}
+          <strong>top 3 van elke league</strong>:
+        </p>
+        <MiniTable
+          head={['League', '🥇 1e', '🥈 2e', '🥉 3e']}
+          rows={[
+            ['★ t/m 60', '€500', '€375', '€250'],
+            ['★ 61–70', '€700', '€525', '€350'],
+            ['★ 71–80', '€850', '€640', '€425'],
+            ['★ 81+', '€1.000', '€750', '€500'],
+          ]}
         />
         <p style={{ marginTop: 12 }}>
           Het geld gaat naar de <strong>eigenaar</strong>, maar de <strong>titel komt op de duif zelf</strong> te staan
-          — die blijft bij haar, ook als je haar later verkoopt.
+          (bv. <em>Gouden Leagueduif ★ 61–70</em>) — die blijft bij haar, ook als je haar later verkoopt. Daarna gaat
+          elke leaguestand terug op nul.
         </p>
         <h3>Wat het níet doet</h3>
         <p>
-          Het criterium is een <strong>aparte rangschikking</strong>. Er zijn <strong>geen seizoenspunten</strong>, geen
-          medailles en geen overwinningen voor je hok, er is geen sponsorpremie en je kan er niet op wedden: de
-          melkerranglijst (de Roekoe) beweegt er dus <em>niet</em> door. Voor de gewone <strong>duivenranglijsten</strong>
-          (snelheid, podiums, vooruitgang) telt de vlucht wél mee, net als de titanenwedstrijd.
+          De leagues zijn een <strong>aparte rangschikking</strong>. Er zijn <strong>geen seizoenspunten</strong> en
+          geen overwinningen voor je hok, er is geen sponsorpremie en je kan er niet op wedden: de melkerranglijst (de
+          Roekoe) beweegt er dus <em>niet</em> door. Een podium levert wél een <strong>medaille</strong> op, en voor de
+          gewone <strong>duivenranglijsten</strong> (snelheid, podiums, vooruitgang) telt de vlucht mee.
         </p>
-        <h3>Je duif wordt ouder — en klimt mee</h3>
+        <h3>Je duif verandert van league</h3>
         <p>
-          Duiven verouderen vier keer sneller dan de echte klok, dus over een volledige cyclus van drie seizoenen wordt
-          een duif bijna een jaar ouder. <strong>Haar klasse wordt bepaald op het moment dat je haar inschrijft.</strong>
-          Groeit ze tijdens de cyclus uit haar klasse, dan blijven de punten die ze daar verdiende gewoon staan en begint
-          ze bovendien punten te verzamelen in haar nieuwe klasse. Ze kan dus in twee standen tegelijk verschijnen.
+          De score van een duif beweegt: trainen, de coach en vluchten tillen haar op, ouderdom laat haar zakken. Komt
+          ze tijdens een seizoen in een andere league terecht, dan blijven de punten die ze in haar oude league
+          verdiende daar gewoon staan en begint ze in haar nieuwe league opnieuw. Ze kan dus in twee standen tegelijk
+          verschijnen.
         </p>
-        <p><strong>Strategie:</strong> de klasse <em>onder 1 jaar</em> is de goedkoopste plek om een jong te laten
-          rijpen — ze vliegt er tegen leeftijdsgenoten in plaats van tegen het hele veld. En omdat de stand drie
-          seizoenen loopt, is <em>elke week meedoen</em> meer waard dan één keer schitteren: een duif die alle twaalf
-          vluchten uitvliegt, verzamelt meer dan een kampioen die er de helft mist.</p>
+        <p><strong>Strategie:</strong> een duif net onder een grens (★69,8) is in haar league een van de sterksten;
+          een duif net erboven is in de volgende league een van de zwaksten. Een paar punten training kunnen je dus een
+          league hoger duwen — kijk eerst waar je duif het meest kan winnen. En omdat de stand een heel seizoen loopt,
+          is <em>elke week meedoen</em> meer waard dan één keer schitteren.</p>
       </Section>
 
       <Section id="eigenschappen" icon="📋" title="Wat doet elke eigenschap tijdens een vlucht?">
@@ -961,7 +980,7 @@ export function WikiPage() {
         <ul>
           <li>
             <strong>Alle vluchtsoorten tellen mee</strong> — een oefenvlucht, een
-            leeftijdscriterium, de titanenwedstrijd en de estafettevlucht evengoed als een
+            league, de titanenwedstrijd en de estafettevlucht evengoed als een
             gewone wedstrijd.
           </li>
           <li>
@@ -1022,15 +1041,29 @@ export function WikiPage() {
           head={['Plaats', 'Prijzengeld']}
           rows={[['1', '€2.200'], ['2', '€1.800'], ['3', '€1.000'], ['4', '€650'], ['5', '€420'], ['6', '€270'], ['7', '€240'], ['8', '€200'], ['9 – 11', '€140'], ['12 – 15', '€100'], ['16 en verder', '€75']]}
         />
-        <h3 style={{ marginBottom: 4, marginTop: 14 }}>Leeftijdscriterium — sprint · 100–300 km · €20</h3>
+        <h3 style={{ marginBottom: 4, marginTop: 14 }}>Leagues — sprint · 100–300 km · €20</h3>
         <MiniTable
-          head={['Plaats', 'Prijzengeld']}
-          rows={[['1', '€1.000'], ['2', '€700'], ['3', '€500'], ['4', '€300'], ['5', '€250'], ['6', '€220'], ['7', '€180'], ['8', '€120'], ['9 – 11', '€100'], ['12 – 15', '€80'], ['16 en verder', '€60']]}
+          head={['Plaats', '★ t/m 60', '★ 61–70', '★ 71–80', '★ 81+']}
+          rows={[
+            ['1', '€500', '€700', '€850', '€1.000'], ['2', '€350', '€490', '€595', '€700'],
+            ['3', '€250', '€350', '€425', '€500'], ['4', '€150', '€210', '€255', '€300'],
+            ['5', '€125', '€175', '€215', '€250'], ['6', '€110', '€155', '€185', '€220'],
+            ['7', '€90', '€125', '€155', '€180'], ['8', '€60', '€85', '€100', '€120'],
+            ['9 – 11', '€50', '€70', '€85', '€100'], ['12 – 15', '€40', '€55', '€70', '€80'],
+            ['16 en verder', '€30', '€40', '€50', '€60'],
+          ]}
         />
-        <h3 style={{ marginBottom: 4, marginTop: 14 }}>Leeftijdscriterium — fond · 400–1000 km · €20</h3>
+        <h3 style={{ marginBottom: 4, marginTop: 14 }}>Leagues — grote fond · 400–1000 km · €20</h3>
         <MiniTable
-          head={['Plaats', 'Prijzengeld']}
-          rows={[['1', '€1.600'], ['2', '€1.400'], ['3', '€1.200'], ['4', '€850'], ['5', '€600'], ['6', '€400'], ['7', '€350'], ['8', '€300'], ['9 – 11', '€175'], ['12 – 15', '€125'], ['16 en verder', '€90']]}
+          head={['Plaats', '★ t/m 60', '★ 61–70', '★ 71–80', '★ 81+']}
+          rows={[
+            ['1', '€800', '€1.120', '€1.360', '€1.600'], ['2', '€700', '€980', '€1.190', '€1.400'],
+            ['3', '€600', '€840', '€1.020', '€1.200'], ['4', '€425', '€595', '€725', '€850'],
+            ['5', '€300', '€420', '€510', '€600'], ['6', '€200', '€280', '€340', '€400'],
+            ['7', '€175', '€245', '€300', '€350'], ['8', '€150', '€210', '€255', '€300'],
+            ['9 – 11', '€90', '€120', '€150', '€175'], ['12 – 15', '€65', '€90', '€105', '€125'],
+            ['16 en verder', '€45', '€65', '€75', '€90'],
+          ]}
         />
         <p className="faint" style={{ marginTop: 12 }}>
           De <strong>titanenwedstrijd</strong> (§ hierboven) houdt bewust drie plaatsen zonder bodem — daar mag je
@@ -1064,7 +1097,8 @@ export function WikiPage() {
         />
         <p className="faint" style={{ marginTop: 8 }}>
           Drie ranglijsten: snelste duif, meeste podiums en meeste vooruitgang. Eén duif kan meerdere Vleugels winnen;
-          het geld gaat naar haar eigenaar. Het <strong>leeftijdscriterium</strong> heeft zijn eigen prijzen (zie hierboven).
+          het geld gaat naar haar eigenaar. De <strong>leagues</strong> reiken op hetzelfde moment hun eigen prijzen uit
+          (<a href="#leagues">zie Leagues</a>).
         </p>
       </Section>
 

@@ -110,15 +110,17 @@ console.log('\nDe server markeert nieuw aanbod');
 console.log('\nEen nieuwe veiling telt ook als nieuw aanbod');
 {
   const { db } = world();
-  // Ver in het verleden gestempeld: de spawn-kans nadert 1. Math.random wordt
-  // vastgezet zodat de test niet op een dobbelsteen leunt.
-  db.world.lastShelterSpawn = new Date(Date.now() - 1000 * 3600000).toISOString();
+  // Maandag 12:00 UTC — buiten élk zondagvenster, dus enkel het opvangcentrum.
+  const monday = Date.parse('2026-09-07T12:00:00Z');
+  // Ver vóór die maandag gestempeld: de spawn-kans nadert 1. ⚠️ Relatief aan
+  // `monday`, niet aan Date.now(): "nu − 1000 u" schoof vanaf ~19 okt voorbij de
+  // vaste maandag, en dan spawnde er niets (de tijdbom die deze test rood zette).
+  // Math.random wordt vastgezet zodat de test niet op een dobbelsteen leunt.
+  db.world.lastShelterSpawn = new Date(monday - 1000 * 3600000).toISOString();
   db.world.marketNewsAt = '';
   const real = Math.random;
   Math.random = () => 0.01;
   try {
-    // Maandag 12:00 UTC — buiten élk zondagvenster, dus enkel het opvangcentrum.
-    const monday = Date.parse('2026-09-07T12:00:00Z');
     ok('de gekozen dag is inderdaad geen zondag', new Date(monday).getUTCDay() === 1);
     ensureAuctions(db, monday);
     ok('er staat een opvangcentrum-veiling open', db.auctions.length === 1,

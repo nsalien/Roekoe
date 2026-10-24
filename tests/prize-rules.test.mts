@@ -13,7 +13,7 @@
  * Draai: npx tsx prize-rules.test.mts
  */
 import { startLiveFlight, finalizeFlight, computeFinishPayouts, flightPrizes, type Entry } from '../core/game/flight.js';
-import { PRIZE_MONEY, AGE_CUP, TITAN, REWARD_BIRDS_PER_LOFT, prizeForRank } from '../core/config/gameConfig.js';
+import { PRIZE_MONEY, LEAGUE, TITAN, REWARD_BIRDS_PER_LOFT, leaguePrizes, prizeForRank } from '../core/config/gameConfig.js';
 import type { Flight, Pigeon, SimEntry, FlightResult } from '../core/schema.js';
 
 let pass = 0, fail = 0;
@@ -36,11 +36,12 @@ console.log('\nDe prijzentabellen');
   ok('nationaal 18 en verder = €50', prizeForRank(N, 18) === 50 && prizeForRank(N, 60) === 50);
   ok('internationaal 9–11 = €140, 12–15 = €100, 16+ = €75',
     prizeForRank(I, 9) === 140 && prizeForRank(I, 12) === 100 && prizeForRank(I, 16) === 75);
-  ok('criterium sprint 1e €1000, bodem €60', prizeForRank(AGE_CUP.sprint.prizes, 1) === 1000 && prizeForRank(AGE_CUP.sprint.prizes, 40) === 60);
-  ok('criterium fond 1e €1600, bodem €90', prizeForRank(AGE_CUP.fond.prizes, 1) === 1600 && prizeForRank(AGE_CUP.fond.prizes, 40) === 90);
+  ok('league ★81+ sprint 1e €1000, bodem €60', prizeForRank(LEAGUE.sprint.prizes, 1) === 1000 && prizeForRank(LEAGUE.sprint.prizes, 40) === 60);
+  ok('league ★81+ fond 1e €1600, bodem €90', prizeForRank(LEAGUE.fond.prizes, 1) === 1600 && prizeForRank(LEAGUE.fond.prizes, 40) === 90);
+  ok('league ★ t/m 60 sprint 1e €500, bodem €30', prizeForRank(leaguePrizes('l60', true), 1) === 500 && prizeForRank(leaguePrizes('l60', true), 40) === 30);
 
   // De kern van de wijziging: geen enkele plaats levert nog niets op.
-  for (const [naam, t] of [['regionaal', R], ['nationaal', N], ['internationaal', I], ['sprint', AGE_CUP.sprint.prizes], ['fond', AGE_CUP.fond.prizes]] as const) {
+  for (const [naam, t] of [['regionaal', R], ['nationaal', N], ['internationaal', I], ['league sprint', LEAGUE.sprint.prizes], ['league fond', LEAGUE.fond.prizes], ['league ★ t/m 60 sprint', leaguePrizes('l60', true)]] as const) {
     let minPrize = Infinity;
     for (let r = 1; r <= 60; r++) minPrize = Math.min(minPrize, prizeForRank(t, r));
     ok(`  ${naam}: élke plaats t/m 60 levert geld op (min €${minPrize})`, minPrize > 0);
@@ -121,23 +122,23 @@ console.log('\nHoogstens drie beloonde duiven per hok');
     }));
 }
 
-// --- 2b. De limiet dekt óók de criteriumpunten van de duif ----------------
-console.log('\nDe limiet dekt ook de criteriumpunten');
+// --- 2b. De limiet dekt óók de leaguepunten van de duif -------------------
+console.log('\nDe limiet dekt ook de leaguepunten');
 {
-  // Een criteriumvlucht kent punten toe aan de DUIF (schedule.tickFlights, uit
+  // Een leaguevlucht kent punten toe aan de DUIF (schedule.tickFlights, uit
   // results[].rank). Die tellen als beloning, dus de vierde duif hoort er ook
   // daar niets van te krijgen.
   const pigeons = [
     ...Array.from({ length: 5 }, (_, i) => bird(`c${i}`, 'groot', 88 - i)),
     bird('r0', 'klein', 70),
   ];
-  const f = race(pigeons, 250, 'flt_cup');
-  (f as unknown as { ageCat: string; cupSprint: boolean }).ageCat = 'y12';
-  (f as unknown as { cupSprint: boolean }).cupSprint = true;
+  const f = race(pigeons, 250, 'flt_league');
+  f.league = 'l81';
+  f.leagueSprint = true;
   finalizeFlight(f, pigeons.map((p) => ({ ...p })) as Pigeon[]);
   const results = (f.results as FlightResult[]).slice().sort((a, b) => a.rank - b.rank);
   const grootFinishers = results.filter((r) => r.ownerId === 'groot' && r.finished);
-  ok('een criteriumvlucht markeert de vierde duif ook als niet-beloond',
+  ok('een leaguevlucht markeert de vierde duif ook als niet-beloond',
     grootFinishers.length > REWARD_BIRDS_PER_LOFT &&
     grootFinishers.slice(REWARD_BIRDS_PER_LOFT).every((r) => r.rewarded === false));
   ok('en betaalt haar geen prijzengeld',

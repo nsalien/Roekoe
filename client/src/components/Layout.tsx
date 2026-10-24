@@ -10,7 +10,7 @@ import { STUD_SEEN_EVENT, hasStudNews, studSeenAt } from '../game/studSeen';
 import { api } from '../api/client';
 import { useToast } from './ui';
 import { NotificationsBell } from './NotificationsBell';
-import { INRICHTING_NEWS_STEPS, LOKAAL_NEWS_STEPS, Tour, lureNewsSteps, season3NewsSteps, studNewsSteps, tagNewsSteps } from './Tour';
+import { INRICHTING_NEWS_STEPS, LEAGUE_NEWS_STEPS, LOKAAL_NEWS_STEPS, Tour, lureNewsSteps, season3NewsSteps, studNewsSteps, tagNewsSteps } from './Tour';
 import { PrizeCeremony } from './PrizeCeremony';
 
 interface NavItem { to: string; label: string; short: string; icon: string; end?: boolean }
@@ -149,6 +149,7 @@ export function Layout() {
     if (user?.id) { try { localStorage.setItem(`roekoe.newsSeen.samen.${user.id}`, '1'); } catch { /* private mode */ } }
     if (user?.id) { try { localStorage.setItem(`roekoe.newsSeen.lokker.${user.id}`, '1'); } catch { /* private mode */ } }
     if (user?.id) { try { localStorage.setItem(`roekoe.newsSeen.tags.${user.id}`, '1'); } catch { /* private mode */ } }
+    if (user?.id) { try { localStorage.setItem(`roekoe.newsSeen.leagues.${user.id}`, '1'); } catch { /* private mode */ } }
     setShowTour(false);
   }
 
@@ -301,11 +302,42 @@ export function Layout() {
     if (!seen && !earlierPending) setShowTagsNews(true);
   }, [tagsNewsKey, lureNewsKey, samenNewsKey, inrichtingNewsKey, lokaalNewsKey, newsKey, state?.loft, state?.world?.newsAt, showTour,
     showNews, showLokaalNews, showInrichtingNews, showSamenNews, showLureNews, lokaalNewsDone, inrichtingNewsDone, samenNewsDone, lureNewsDone]);
+  const [tagsNewsDone, setTagsNewsDone] = useState(false);
   function closeTagsNews() {
     if (tagsNewsKey) { try { localStorage.setItem(tagsNewsKey, '1'); } catch { /* private mode */ } }
     setShowTagsNews(false);
+    setTagsNewsDone(true);
   }
   const tagSteps = tagNewsSteps(state?.pigeons?.[0]?.id ?? null);
+
+  // Aankondiging van de LEAGUES (twee spotlights, eigen sleutel). Zelfde regel:
+  // pas als de vorige aankondigingen gezien zijn, nooit twee runs op één bezoek.
+  // Bel: migratie v66.
+  const leagueNewsKey = user?.id ? `roekoe.newsSeen.leagues.${user.id}` : null;
+  const [showLeagueNews, setShowLeagueNews] = useState(false);
+  useEffect(() => {
+    if (!leagueNewsKey || !state?.loft || showTour || showNews || showLokaalNews || showInrichtingNews || showSamenNews
+      || showLureNews || showTagsNews || lokaalNewsDone || inrichtingNewsDone || samenNewsDone || lureNewsDone
+      || tagsNewsDone) return;
+    let seen = true;
+    let earlierPending = false;
+    try {
+      seen = !!localStorage.getItem(leagueNewsKey);
+      earlierPending = (!!tagsNewsKey && !localStorage.getItem(tagsNewsKey))
+        || (!!lureNewsKey && !localStorage.getItem(lureNewsKey))
+        || (!!samenNewsKey && !localStorage.getItem(samenNewsKey))
+        || (!!inrichtingNewsKey && !localStorage.getItem(inrichtingNewsKey))
+        || (!!lokaalNewsKey && !localStorage.getItem(lokaalNewsKey))
+        || (!!newsKey && !!state.world?.newsAt && !localStorage.getItem(newsKey));
+    } catch { /* private mode: treat as seen */ }
+    if (!seen && !earlierPending) setShowLeagueNews(true);
+  }, [leagueNewsKey, tagsNewsKey, lureNewsKey, samenNewsKey, inrichtingNewsKey, lokaalNewsKey, newsKey, state?.loft,
+    state?.world?.newsAt, showTour, showNews, showLokaalNews, showInrichtingNews, showSamenNews, showLureNews, showTagsNews,
+    lokaalNewsDone, inrichtingNewsDone, samenNewsDone, lureNewsDone, tagsNewsDone]);
+  function closeLeagueNews() {
+    if (leagueNewsKey) { try { localStorage.setItem(leagueNewsKey, '1'); } catch { /* private mode */ } }
+    setShowLeagueNews(false);
+  }
 
   // Prijsuitreiking: de prizes of the season that just ended, one screen each.
   // No server state — `loft.ceremony` carries the last season's awards and this
@@ -484,7 +516,10 @@ export function Layout() {
       {showTagsNews && !showLureNews && !showSamenNews && !showInrichtingNews && !showLokaalNews && !showNews && !showTour && !showCeremony && (
         <Tour steps={tagSteps} onClose={closeTagsNews} />
       )}
-      {state?.pendingEvent && !showTour && !showNews && !showLokaalNews && !showInrichtingNews && !showSamenNews && !showLureNews && !showTagsNews && !showCeremony && <EventModal />}
+      {showLeagueNews && !showTagsNews && !showLureNews && !showSamenNews && !showInrichtingNews && !showLokaalNews && !showNews && !showTour && !showCeremony && (
+        <Tour steps={LEAGUE_NEWS_STEPS} onClose={closeLeagueNews} />
+      )}
+      {state?.pendingEvent && !showTour && !showNews && !showLokaalNews && !showInrichtingNews && !showSamenNews && !showLureNews && !showTagsNews && !showLeagueNews && !showCeremony && <EventModal />}
     </div>
   );
 }

@@ -177,10 +177,10 @@ export interface Pigeon {
   flightForm: number | null;
   formLabel: 'fris' | 'matig' | 'risico' | null;
   restPenalty: number; // vorm docked for having raced in the last couple of days
-  /** Leeftijdscriterium — public for every bird: which bracket she races in now,
-   *  her standings per bracket, and the titles engraved on her. */
-  ageCat?: AgeCategoryId;
-  cup?: Partial<Record<AgeCategoryId, CupStanding>> | null;
+  /** Leagues — public for every bird: which league her ★ puts her in now, her
+   *  standings per league this season, and the titles engraved on her. */
+  league?: LeagueId;
+  leagues?: Partial<Record<LeagueId, LeagueStanding>> | null;
   titles?: PigeonTitle[];
   /** A visible oddity from an inbred pairing (see PIGEON_QUIRKS on the server). */
   quirk?: PigeonQuirk | null;
@@ -472,14 +472,17 @@ export interface Flight {
   teamSize?: number;
   legKm?: number;
   teams?: RelayEntryTeam[];
-  /** Leeftijdscriterium: the age bracket this race is restricted to (see AGE_CUP). */
-  ageCat?: AgeCategoryId;
-  ageCatLabel?: string;
-  ageCatShort?: string;
-  ageCatIcon?: string;
+  /** A league race (or a leftover leeftijdscriterium race): no seizoenspunten. */
+  leagueRace?: boolean;
+  /** League: the score league this race is restricted to (see LEAGUE). */
+  league?: LeagueId;
+  leagueLabel?: string;
+  leagueShort?: string;
+  leagueIcon?: string;
   /** true = sprint (100–300 km), false = grote fond (400–1000 km). */
-  cupSprint?: boolean;
-  cupPrizes?: PrizeTable;
+  leagueSprint?: boolean;
+  leaguePrizes?: PrizeTable;
+  leagueMinBirds?: number;
   weather: string;
   /** Weerstation (hokinrichting): the forecast for the release, only for station owners. */
   forecast?: { label: string; factor: number; rain: boolean; tempC: number; at: string } | null;
@@ -712,13 +715,14 @@ export interface Trophy {
 export type WingCategory = 'speed' | 'podium' | 'progress';
 
 export interface SeasonAward {
-  kind: 'roekoe' | 'vleugel' | 'criterium' | 'premie';
+  kind: 'roekoe' | 'vleugel' | 'league' | 'criterium' | 'premie';
   rank: number;
   season: number;
   at: string;
   reward: number;
   category?: WingCategory;
-  ageCat?: AgeCategoryId;
+  league?: LeagueId;
+  ageCat?: string; // legacy criterium bracket
   pigeonName?: string;
   value?: number;
 }
@@ -776,49 +780,53 @@ export interface PigeonRankings {
   progress: PigeonRankRow[];
 }
 
-/** The four leeftijdscriterium brackets. */
-export type AgeCategoryId = 'u1' | 'y12' | 'y23' | 'o3';
+/** The four leagues, by algemene score: t/m 60 · 61–70 · 71–80 · 81+. */
+export type LeagueId = 'l60' | 'l70' | 'l80' | 'l81';
 
-/** One bird's running total in one bracket. */
-export interface CupStanding {
+/** One bird's running total in one league this season. */
+export interface LeagueStanding {
   points: number;
   wins: number;
   best: number;
   races: number;
 }
 
-/** A trophy engraved on the bird herself; it follows her when she is sold. */
+/** A trophy engraved on the bird herself; it follows her when she is sold.
+ *  'criterium' titles date from before the leagues and stay on their birds. */
 export interface PigeonTitle {
-  kind: 'criterium';
+  kind: 'league' | 'criterium';
   rank: number;
   label: string;
   icon: string;
   season: number;
   at: string;
-  ageCat?: AgeCategoryId;
+  league?: LeagueId;
+  ageCat?: string;
   value?: number;
 }
 
-export interface AgeCategoryInfo {
-  id: AgeCategoryId;
+export interface LeagueDefInfo {
+  id: LeagueId;
   label: string;
   short: string;
   icon: string;
   weekday: number;
-  minWeeks: number;
-  maxWeeks: number | null;
-}
-
-/** Static criterium config plus where the running three-season cycle stands. */
-export interface AgeCupInfo {
-  categories: AgeCategoryInfo[];
-  seasons: number;
-  seasonsDone: number;
-  startedAt: string | null;
-  entryFee: number;
-  awards: number[];
+  factor: number;
+  minScore: number;
+  maxScore: number | null; // null = no upper bound (★ 81+)
+  range: string; // "★60,1 tot en met ★70"
   sprintPrizes: PrizeTable;
   fondPrizes: PrizeTable;
+  awards: number[]; // season-end prize for 1st/2nd/3rd
+}
+
+/** Static league catalogue (classes, days, prize tables, season prizes). */
+export interface LeagueInfo {
+  entryFee: number;
+  minBirds: number;
+  hour: number;
+  minute: number;
+  leagues: LeagueDefInfo[];
 }
 
 export interface FeedRationInfo {
@@ -849,10 +857,10 @@ export interface GameState {
   scheduledFlights: Flight[];
   rankings: RankingRow[];
   pigeonRankings: PigeonRankings;
-  /** Leeftijdscriterium standings, per bracket. Rides the same cached leaderboard
+  /** League standings this season, per league. Rides the same cached leaderboard
    *  as `pigeonRankings`; may be missing on a world whose cache predates it. */
-  cupRankings?: Partial<Record<AgeCategoryId, PigeonRankRow[]>>;
-  ageCup?: AgeCupInfo;
+  leagueRankings?: Partial<Record<LeagueId, PigeonRankRow[]>>;
+  leagueInfo?: LeagueInfo;
   offers: { received: OfferView[]; sent: OfferView[] };
   feedRations: Record<FeedRation, FeedRationInfo>;
   /** Hokinrichting catalogue (absent on an older server). */

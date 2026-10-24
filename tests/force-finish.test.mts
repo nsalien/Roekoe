@@ -43,9 +43,9 @@ function buildWorld(): { db: Database; flightId: string; startMs: number } {
   }
   advanceRealtime(store.data, T0);
   const db = store.data;
-  // Not a criterium race either: that one only accepts one age bracket, so the
+  // Not a league race either: that one only accepts one score league, so the
   // arbitrary birds entered below would bounce and leave an empty field.
-  const flight = db.flights.find((f) => f.status === 'scheduled' && !f.practice && !f.relay && !f.ageCat);
+  const flight = db.flights.find((f) => f.status === 'scheduled' && !f.practice && !f.relay && !f.league);
   if (!flight) throw new Error('geen geplande wedstrijdvlucht gevonden');
   for (const loft of db.lofts.filter((l) => !l.isBot)) {
     for (const p of db.pigeons.filter((x) => x.ownerId === loft.userId).slice(0, 3)) {
@@ -129,7 +129,10 @@ ok(pigEqual, `elke duif identiek (energie/gezondheid/conditie/skills/aandoening)
 // De energie moet volledig afgerekend zijn, niet blijven staan op de 85%.
 const drainedOk = fB.results.every((r) => {
   const before = base.db.pigeons.find((p) => p.id === r.pigeonId)!;
-  const after = dbB.pigeons.find((p) => p.id === r.pigeonId)!;
+  const after = dbB.pigeons.find((p) => p.id === r.pigeonId);
+  // A bird that set off on almost no energie can die on the way (in both paths
+  // alike, see above) — there is nothing left of her to check.
+  if (!after) return true;
   return after.form <= before.form;
 });
 ok(drainedOk, 'vroeg afronden rekent de volledige vluchtenergie af (niet enkel het gevlogen deel)');
