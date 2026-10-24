@@ -1095,7 +1095,7 @@ export const LEAGUE_NEWS_STEPS: Step[] = [
     body: (
       <>
         Prijzengeld per vlucht (meer in een hogere league), en op het einde van het seizoen wint de top 10 van elke
-        league geld — tot <strong>€2.000</strong> — en de top 3 ook een <strong>titel op de duif</strong>. Geen seizoenspunten: je Roekoe-ranglijst beweegt er
+        league geld — tot <strong>€1.600</strong> — en de top 3 ook een <strong>titel op de duif</strong>. Geen seizoenspunten: je Roekoe-ranglijst beweegt er
         niet door.
         <br />
         <span className="faint" style={{ display: 'inline-block', marginTop: 4 }}>Klassen en prijzen: 📖 Wiki → Leagues.</span>

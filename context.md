@@ -184,10 +184,12 @@
   buurt liggen van hoe criterium rewards zijn nu voor de 81+. De rest dan iets lager. Onder de 3e plaats wordt er
   ook geld bedeeld, maar stuk lager natuurlijk. Maak nieuw voorstel." → `LEAGUE.awards` = **€2.000 / 1.600 / 1.200
   / 500 / 400 / 300 / 200 / 200 / 200 / 200** (het podium = de oude criteriumprijs per cyclus), × dezelfde factor
-  (0,5/0,7/0,85/1) → ★ t/m 60 €1.000/800/600 … €100. Plaats 4–10 = **leaguepremie**: geld, géén titel (titels
+  (0,5/0,7/0,85/1). **Meteen daarna: "Doe alles 20% lager"** → nu **€1.600 / 1.280 / 960 / 400 / 320 / 240 / 160
+  ×4** (★ t/m 60: €800/640/480 … €80; op €5 afgerond, dus bv. €895 i.p.v. €896). Enkel de eindprijzen; het
+  prijzengeld per vlucht bleef. Plaats 4–10 = **leaguepremie**: geld, géén titel (titels
   blijven top 3); bel-regel "💰 Leaguepremie ★ …: 4e plaats", `PrizeCeremony` toont munten i.p.v. een medaille,
   erelijst "Leaguepremie (4e)". Wiki + spelregels: één tabel per plaats (rijen 1e…7e – 10e, kolommen de
-  leagues). ⚠️ Kost: met alle tien plaatsen bezet **€6.800 × 3,05 ≈ €20.700 per seizoen** over de vier leagues
+  leagues). ⚠️ Kost: met alle tien plaatsen bezet **≈ €16.600 per seizoen** over de vier leagues (v2 was €20.700)
   (het criterium gaf gemiddeld ~€6.400 per seizoen uit, de Roekoes €5.100, de Vleugels €6.750) — in de praktijk
   minder, want ★ 71–80 en ★ 81+ vliegen weinig zonder spelers. Knop: `LEAGUE.awards`.
 - **Seizoenseinde (`season.ts`):** `runLeagueSeasonEnd` in `runSeasonEnd`: top 10 per league (titel enkel top 3) (`leagueRankings`,
@@ -219,7 +221,7 @@
   **§2.10** herschreven (+ §2.1, §2.6, §3.9, §12, §14, §15.2/3/5, §17). Rondleiding: `LEAGUE_STEP` in de volledige
   tour, eenmalige run **`LEAGUE_NEWS_STEPS`** (sleutel `roekoe.newsSeen.leagues.<id>`, na de tags-run; `closeTour`
   zet de sleutel).
-- **Demo:** `DEMO_VERSION` 11 (9 = de leagues, 10 = de bel met het minimum van 3 melkers, 11 = de bel met de eindprijzen v2). De seed zet per bot zijn twee beste duiven op ★82–86 en ★72–77 (**ná** de eerste
+- **Demo:** `DEMO_VERSION` 12 (9 = de leagues, 10 = de bel met het minimum van 3 melkers, 11 = de bel met de eindprijzen v2, 12 = −20 %). De seed zet per bot zijn twee beste duiven op ★82–86 en ★72–77 (**ná** de eerste
   engine-run: migratie v15 trimt botduiven op een verse wereld) en geeft de demospeler één duif per league
   (★56/66/76/85, niet op het nest, niet ziek). Zonder dat vliegen ★ 71–80 en ★ 81+ in de demo nooit.
 - ⚠️ **Om op te volgen op prod — de hogere leagues hangen aan de spelers.** Gemeten (10 weken, enkel bots, verse
@@ -1705,7 +1707,7 @@ Entiteiten: `Pigeon`, `Loft`, `User`, `BreedingPair`, `PendingBrood`, `Flight` (
   algemene score: **t/m 60 · 60,1–70 · 70,1–80 · 80,1+** (`maxScore` inclusief), één vlucht per week op ma/wo/do/vr
   om **06:00**, week om week sprint (100–300 km, pool `national`) / grote fond (400–1000 km, pool `international`).
   `entryFee 20`, geen limiet per hok, **`minBirds 4`** van **`minOwners 3`** hokken. Prijzen = basistabel × `factor` (0,5/0,7/0,85/1, op €5);
-  stand per **seizoen**, `awards` (10 plaatsen: €2.000/1.600/1.200/500/400/300/200 ×4) × factor, titel voor de top 3. Zie §0b.
+  stand per **seizoen**, `awards` (10 plaatsen: €1.600/1.280/960/400/320/240/160 ×4) × factor, titel voor de top 3. Zie §0b.
 - **Schema (`REAL_SCHEDULE` — vaste weekkalender):** één vast programma per
   weekdag i.p.v. het oude dagelijkse lang+kort-ritme. **ma** 08:00 intl · **di** 10:00 regio
   + 12:00 oefenvlucht · **wo** 08:00 nat · **do** 08:00 intl · **vr** 07:00 **nat lang

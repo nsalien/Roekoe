@@ -162,9 +162,9 @@ console.log('\n1. De klassen: grenzen per decimaal, prijzen per league');
   ok(higherPaysMore, 'een hogere league betaalt een zege altijd beter');
   ok(prizeForRank(leaguePrizes('l60', true), 1) === 500 && prizeForRank(leaguePrizes('l60', false), 1) === 800,
      `league ★ t/m 60: zege €${prizeForRank(leaguePrizes('l60', true), 1)} (sprint) / €${prizeForRank(leaguePrizes('l60', false), 1)} (fond)`);
-  ok(leagueAward('l81', 1) === 2000 && leagueAward('l81', 3) === 1200 && leagueAward('l60', 1) === 1000 && leagueAward('l80', 2) === 1360,
+  ok(leagueAward('l81', 1) === 1600 && leagueAward('l81', 3) === 960 && leagueAward('l60', 1) === 800 && leagueAward('l80', 2) === 1090,
      `eindprijzen podium: ${LEAGUES.map((l) => `${l.short} €${[1, 2, 3].map((r) => leagueAward(l.id, r)).join('/')}`).join(' · ')}`);
-  ok(leagueAward('l81', 4) === 500 && leagueAward('l81', 10) === 200 && leagueAward('l60', 10) === 100 && leagueAward('l81', 11) === 0,
+  ok(leagueAward('l81', 4) === 400 && leagueAward('l81', 10) === 160 && leagueAward('l60', 10) === 80 && leagueAward('l81', 11) === 0,
      `plaats 4–10 krijgt ook iets (★ 81+: €${[4, 5, 6, 7, 10].map((r) => leagueAward('l81', r)).join('/')}), plaats 11 niets`);
   ok(LEAGUES.every((l) => LEAGUE.awards.every((_, i) => i === 0 || leagueAward(l.id, i + 1) <= leagueAward(l.id, i))),
      'een lagere plaats betaalt nooit meer');
@@ -521,7 +521,9 @@ console.log('\n8. De bel, de wiki en de spelregels zeggen hetzelfde als LEAGUE')
   ok(body.includes(`€${LEAGUE.entryFee}`) && body.includes(`minstens ${LEAGUE.minOwners} melkers en ${LEAGUE.minBirds} duiven`), 'de bel noemt het inschrijfgeld en beide minimums');
   ok(/geen seizoenspunten/.test(body) && /wiki/i.test(body), 'ze waarschuwt voor de seizoenspunten en verwijst naar de wiki');
   ok(body.length < 900, `ze blijft kort (${body.length} tekens)`);
-  ok(body.includes(`top ${LEAGUE.awards.length}`) && body.includes('€2.000'), 'ze noemt hoeveel plaatsen betalen en de hoogste prijs');
+  ok(body.includes(`top ${LEAGUE.awards.length}`) && body.includes(`€${leagueAward('l81', 1).toLocaleString('nl-BE')}`), 'ze noemt hoeveel plaatsen betalen en de hoogste prijs');
+  const tour = readFileSync('./client/src/components/Tour.tsx', 'utf8');
+  ok(tour.includes(`tot <strong>€${leagueAward('l81', 1).toLocaleString('nl-BE')}</strong>`), 'de rondleiding noemt dezelfde hoogste prijs');
   const wiki = readFileSync('./client/src/pages/WikiPage.tsx', 'utf8');
   const rules = readFileSync('./spelregels.md', 'utf8');
   ok(wiki.includes('id="leagues"') && !/id="criterium"/.test(wiki), 'de wiki heeft een sectie #leagues en geen #criterium meer');

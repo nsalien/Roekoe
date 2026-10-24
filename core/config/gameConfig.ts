@@ -2747,10 +2747,10 @@ export const LEAGUE = {
   /**
    * Season-end prize per place (index = rank − 1) in the TOP league, paid to the
    * OWNER; the other leagues pay `factor` of it. The top 3 also get a title on the
-   * bird; places 4–10 money only. The podium matches the criterium's old cycle
-   * prize (€2.000/€1.600/€1.200) — the owner's ask, 24 okt.
+   * bird; places 4–10 money only. Owner, 24 okt: first "in de buurt van de
+   * criteriumprijzen" (€2.000/€1.600/€1.200 …), then "doe alles 20% lager".
    */
-  awards: [2000, 1600, 1200, 500, 400, 300, 200, 200, 200, 200],
+  awards: [1600, 1280, 960, 400, 320, 240, 160, 160, 160, 160],
 } as const;
 
 /** Look up a league definition by id. */
