@@ -150,8 +150,9 @@ const CUP_MEDAL = ['🥇', '🥈', '🥉'];
  * crucially, engrave a title ON THE BIRD (`Pigeon.titles`), which follows her if
  * she is ever sold. Then every criterium total is wiped and the next cycle starts.
  *
- * Returns the awards it handed out, per loft, so the caller can fold them into
- * the one consolidated prijsuitreiking message a player gets.
+ * Returns whether it closed the cycle, so the caller can say so in the one
+ * consolidated prijsuitreiking message a player gets. `force` closes it now even
+ * when the cycle has seasons left (owner's call, migration v66).
  */
 function runAgeCupCycleEnd(
   db: Database,
@@ -159,6 +160,7 @@ function runAgeCupCycleEnd(
   atMs: number,
   atIso: string,
   give: (loft: Loft, award: SeasonAward) => void,
+  force = false,
 ): boolean {
   // Only count seasons the criterium actually ran through. The anchor sits ON a
   // season boundary, so the season that ends exactly when the cycle STARTS is the
@@ -166,7 +168,7 @@ function runAgeCupCycleEnd(
   const started = Date.parse(db.world.ageCupStartedAt ?? '');
   if (!Number.isFinite(started) || atMs <= started) return false;
   const done = (db.world.ageCupSeasonsDone ?? 0) + 1;
-  if (done < AGE_CUP.seasons) {
+  if (!force && done < AGE_CUP.seasons) {
     db.world.ageCupSeasonsDone = done;
     return false;
   }
@@ -211,9 +213,15 @@ function runAgeCupCycleEnd(
  * Hold the prijsuitreiking for the season that just ended, then reset all season
  * standings. Awards go to the top-3 melkers (Roekoe) and to the owners of the
  * top-3 pigeons in each of the three pigeon rankings (Vleugel). Bots can occupy
- * a podium spot but never receive a prize.
+ * a podium spot but never receive a prize. `closeCriterium` also closes the
+ * leeftijdscriterium cycle when it still has seasons to go (see `endSeasonNow`).
  */
-export function runSeasonEnd(db: Database, endedSeason: number, atMs: number): void {
+export function runSeasonEnd(
+  db: Database,
+  endedSeason: number,
+  atMs: number,
+  opts: { closeCriterium?: boolean } = {},
+): void {
   const atIso = new Date(atMs).toISOString();
   const perLoft = new Map<string, SeasonAward[]>();
   const give = (loft: Loft, award: SeasonAward) => {
@@ -275,7 +283,7 @@ export function runSeasonEnd(db: Database, endedSeason: number, atMs: number): v
 
   // 2b. Leeftijdscriterium → only every AGE_CUP.seasons seasons, when the cycle
   //     is up. It shares the prijsuitreiking message below.
-  const cupClosed = runAgeCupCycleEnd(db, endedSeason, atMs, atIso, give);
+  const cupClosed = runAgeCupCycleEnd(db, endedSeason, atMs, atIso, give, opts.closeCriterium);
 
   // 3. Notify each human winner (one consolidated message per loft).
   for (const [userId, awards] of perLoft) {
@@ -311,6 +319,55 @@ export function runSeasonEnd(db: Database, endedSeason: number, atMs: number): v
     p.seasonStartScore = seasonScore(p);
     p.seasonPracticeGain = 0;
   }
+}
+
+/**
+ * End the running season NOW instead of at its natural end, and start the next
+ * one from this instant (owner, 24 okt: "Sluit seizoen 3 af en start seizoen 4").
+ *
+ * The same ceremony as `tickSeason` (Roekoes, premies, Vleugels, sponsor review,
+ * reset), only anchored on `nowMs`: the new season runs a full SEASON_MS from
+ * here. The review stamps a sponsor that walks out with `atMs`, which is exactly
+ * the new `seasonStartedAt` — the invariant v53 relies on still holds.
+ */
+export function endSeasonNow(db: Database, nowMs: number, opts: { closeCriterium?: boolean } = {}): void {
+  const w = db.world;
+  runSeasonEnd(db, w.seasonYear, nowMs, opts);
+  w.seasonYear += 1;
+  w.seasonStartedAt = new Date(nowMs).toISOString();
+  w.seasonEndsAt = new Date(nowMs + SEASON_MS).toISOString();
+  w.seasonWeek = 1;
+}
+
+/**
+ * Hand out the leeftijdscriterium on its own, for a season whose prijsuitreiking
+ * already ran (migration v66, when the season had rolled over before the deploy).
+ * `atMs` is that season's end: the titles and awards carry it, and the next cycle
+ * is anchored on it, so the sprint/fond weeks stay on the season boundary.
+ */
+export function closeAgeCupNow(db: Database, endedSeason: number, atMs: number): boolean {
+  const atIso = new Date(atMs).toISOString();
+  const perLoft = new Map<string, SeasonAward[]>();
+  const closed = runAgeCupCycleEnd(db, endedSeason, atMs, atIso, (loft, award) => {
+    loft.money += award.reward;
+    (loft.awards ??= []).push(award);
+    if (!loft.isBot) perLoft.set(loft.userId, [...(perLoft.get(loft.userId) ?? []), award]);
+  }, true);
+  for (const [userId, awards] of perLoft) {
+    const money = awards.reduce((s, a) => s + a.reward, 0);
+    const lines = awards.map((a) => {
+      const def = ageCategoryDef(a.ageCat ?? 'u1');
+      return `${CUP_MEDAL[a.rank - 1]} ${CUP_METAL[a.rank - 1]} Criteriumduif ${def.short} met ${a.pigeonName} (${a.value} punten)`;
+    });
+    seasonNotify(
+      db, userId,
+      `🏅 Prijsuitreiking leeftijdscriterium (seizoen ${endedSeason})`,
+      `Het leeftijdscriterium is uitgereikt. Proficiat! Je won: ${lines.join(' · ')}. Totaal prijzengeld: €${money}. ` +
+        'De criteriumstand begint aan een nieuwe cyclus van drie seizoenen.',
+      `ntf:criterium:${endedSeason}:${userId}`,
+    );
+  }
+  return closed;
 }
 
 /**

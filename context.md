@@ -73,6 +73,21 @@
 > Het voorstel (met alle getallen en de sketch) staat in de artifact "Roekoe Hokinrichting".
 
 ### Stand van zaken (12 okt 2026) — lees dit eerst
+- **Seizoen 3 afgesloten, seizoen 4 gestart — 24 okt, migratie v66** (eigenaar: "Sluit seizoen 3 af op de
+  productie omgeving en start seizoen 4 … uitreiking van de prijzen van seizoen 3 van de melkers, duiven en
+  criterium. Criterium is normaal nog een extra seizoen, maar we gaan deze toch ook al uitreiken. Doe verder
+  nog niets."). Seizoen 3 liep die dag ook vanzelf af en de sandbox kan prod niet lezen, dus v66 dekt beide
+  kanten van die wissel: **nog `seasonYear` 3** → `endSeasonNow` (season.ts): de gewone `runSeasonEnd`
+  (Roekoes, premies, Vleugels, sponsorreview, reset) **mét** het criterium (`closeCriterium`, = `force` in
+  `runAgeCupCycleEnd`), en seizoen 4 start op dát moment voor 4 volle weken (dus niet meer op de oude
+  grens); **al `seasonYear` 4** (de gewone wissel was er al, zonder criterium) → enkel `closeAgeCupNow`:
+  het criterium uitgereikt en opnieuw verankerd op `seasonStartedAt` (het einde van seizoen 3), eigen bel
+  `ntf:criterium:3:<speler>`. Een ander seizoensnummer = geen prod-wereld → niets. In beide gevallen begint
+  het criterium daarna een **nieuwe cyclus van drie seizoenen** (dat is wat een cycluseinde altijd doet).
+  `runDataMigrations(db, nowMs)` krijgt nu de klok van de engine (standaard `Date.now()`). Test:
+  `tests/season-close.test.mts`. ⚠️ **Dev gebruikt v66 voor de leagues** (`claude/demo-hokinrichting`):
+  die migratie moet **v67** worden als de leagues naar prod gaan, anders slaat prod ze over. Op dev is
+  verder niets aangeraakt (op vraag van de eigenaar).
 - **Live op productie** (`claude/roekoe-game-website-jwa0vo`): alles in §0b behalve de twee
   blokken met **ENKEL OP DEV** (*Demomodus*, *Marktwaarde v2*). De marktwaarde op prod is die van
   *Marktwaarde houdt stand* + *nooit onder 1/5* (§8). Spelers kregen een bel (migratie **v61**,
@@ -861,7 +876,7 @@ krijgen.**
 `core/game/schedule.ts` → `advanceRealtime(db, nowMs, weatherByFlight)` roept in
 volgorde:
 1. `runDataMigrations(db)` — eenmalige datafixes, **gated op `world.dataVersion`**
-   (staat nu op **65** — v65 = de bel van de tags (`TAGS_NEWS`), v64 = de bel van de duivenlokker (`LURE_NEWS`), v63 = de bots uit samen kweken (hun aanbod gewist, geen bel), v62 = de bellen van samen kweken en van vaccins/verzekering per duif, v61 = de aankondigingsbel van de hokinrichting & co (`core/game/news.ts`), v60 = die van Het Lokaal; nieuwe migratie = nieuw `if ((db.world.dataVersion ?? 0) < N)`
+   (staat nu op **66** — v66 = seizoen 3 afsluiten + criterium uitreiken (24 okt, zie *Stand van zaken*), v65 = de bel van de tags (`TAGS_NEWS`), v64 = de bel van de duivenlokker (`LURE_NEWS`), v63 = de bots uit samen kweken (hun aanbod gewist, geen bel), v62 = de bellen van samen kweken en van vaccins/verzekering per duif, v61 = de aankondigingsbel van de hokinrichting & co (`core/game/news.ts`), v60 = die van Het Lokaal; nieuwe migratie = nieuw `if ((db.world.dataVersion ?? 0) < N)`
    blok + `db.world.dataVersion = N`). De oudere migraties hebben hun werk gedaan en
    zijn enkel nog van belang als **patroon** — zie §8, kop *Eenmalige migraties*.
 2. `ensureFlightsScheduled(db, nowMs)` — plant vluchten volgens `REAL_SCHEDULE`.
@@ -1936,6 +1951,7 @@ npx tsx tests/samen-kweken.test.mts       # kweken met andermans duif: bot, onde
 npx tsx tests/samen-kweken-news.test.mts  # v62: twee bellen per echte speler, stabiele id, bots bieden aan
 npx tsx tests/duivenlokker.test.mts       # duivenlokker: kansen, kopen, vangen, kiezen, D1 + API, wiki/spelregels, bel v64
 npx tsx tests/pigeon-tags.test.mts        # tags: opkuisen, privé, weg bij elke eigendomswissel, D1 + API, bel v65
+npx tsx tests/season-close.test.mts       # v66: seizoen 3 nu afsluiten (of enkel het criterium als de wissel er al was)
 ```
 
 > **Geen `tsx` beschikbaar?** (cloud-sessie waar de npm-registry geblokkeerd is: `npx tsx`
@@ -1961,7 +1977,10 @@ Alles in één keer (bash, vanuit de root):
 for f in tests/*.test.mts; do printf '%-26s ' "$(basename "$f")"; npx tsx "$f" >/dev/null 2>&1 && echo OK || echo FAIL; done
 ```
 
-**Stand van de suite (prod + tags, 17 okt): alles groen behalve `age-cup`** (67 tests; `cpu-budget` en
+**Stand van de suite (prod + seizoen 3 afgesloten, 24 okt): alles groen behalve `age-cup` en `market-news`**
+(68 tests; beide identiek rood op de ongewijzigde boom: tijdbommen met een vaste datum — `market-news` zet
+de laatste opvangcentrumveiling op "nu − 1000 u" naast een vaste maandag in september, op dev al
+gerepareerd; `live-speed` 1× rood, daarna groen — flaky). **Daarvoor (prod + tags, 17 okt): alles groen behalve `age-cup`** (67 tests; `cpu-budget` en
 `family-chart` apart gedraaid, groen; `live-speed` was op de ongewijzigde boom 1× rood, daarna groen — flaky,
 zie hieronder). **Daarvoor (dev, 12 okt, na Samen kweken): alles groen behalve `age-cup`** (64 tests;
 `cpu-budget` en `demo-build` apart gedraaid, beide groen). Daarvoor: **(na het weghalen van de koppels) 57 van de 58 groen** (`cpu-budget`

@@ -91,7 +91,7 @@ import {
   tickHealing,
 } from './health.js';
 import { inheritanceCard } from './events.js';
-import { tickSeason } from './season.js';
+import { closeAgeCupNow, endSeasonNow, tickSeason } from './season.js';
 import { progressMissions } from './missions.js';
 import { activeContracts, applyHighTierDoubleMigration, applySponsorLimitMigration, evaluateSponsorOffers, offerStarterSponsor, restoreSeasonReviewDrops, sponsorsPaused } from './sponsors.js';
 import {
@@ -1170,7 +1170,7 @@ export function tickFlights(
 }
 
 /** One-time data fixes (guarded by world.dataVersion). */
-export function runDataMigrations(db: Database): void {
+export function runDataMigrations(db: Database, nowMs = Date.now()): void {
   if ((db.world.dataVersion ?? 0) < 1) {
     // Give every existing bird a funny name.
     for (const p of db.pigeons) {
@@ -2613,6 +2613,31 @@ export function runDataMigrations(db: Database): void {
     }
     db.world.dataVersion = 65;
   }
+
+  if ((db.world.dataVersion ?? 0) < 66) {
+    // Owner, 24 okt: "Sluit seizoen 3 af op de productie omgeving en start seizoen
+    // 4" — with the prijsuitreiking of the melkers, the duiven AND the
+    // leeftijdscriterium, which would normally run one more season ("we gaan deze
+    // toch ook al uitreiken").
+    //
+    // Season 3 was due to end on its own that same day, so the deploy can land on
+    // either side of the natural rollover:
+    //  - still season 3 → end it now, criterium included, and start season 4 here;
+    //  - already season 4 (tickSeason held the melkers/duiven ceremony, but the
+    //    criterium cycle was not up) → hand out only the criterium, as of the
+    //    moment season 3 ended.
+    // Any other season number means this world is not production's: leave it be
+    // (a fresh test or demo world sits on season 1).
+    const w = db.world;
+    if (w.seasonYear === 3) {
+      endSeasonNow(db, nowMs, { closeCriterium: true });
+    } else if (w.seasonYear === 4) {
+      const handedOut = db.lofts.some((l) => (l.awards ?? []).some((a) => a.kind === 'criterium' && a.season === 3));
+      const seasonEnd = Date.parse(w.seasonStartedAt ?? '');
+      if (!handedOut && Number.isFinite(seasonEnd)) closeAgeCupNow(db, 3, seasonEnd);
+    }
+    db.world.dataVersion = 66;
+  }
 }
 
 /**
@@ -3545,7 +3570,7 @@ export function advanceRealtime(
   nowMs: number,
   weatherByFlight?: Map<string, WeatherResult>,
 ): void {
-  runDataMigrations(db);
+  runDataMigrations(db, nowMs);
   ensureFlightsScheduled(db, nowMs);
   ensureAuctions(db, nowMs);
   tickDailyCare(db, nowMs);
