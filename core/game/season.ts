@@ -200,8 +200,8 @@ const CRITERIUM_BRACKETS = [
 const CRITERIUM_AWARDS = [2000, 1600, 1200];
 
 /**
- * ⚠️ LEGACY — closes the leeftijdscriterium for good (migration v66, when the
- * leagues replaced it).
+ * ⚠️ LEGACY — closes the leeftijdscriterium for good (migration v67, when the
+ * leagues replaced it; also v66, the early close of season 3).
  *
  * A cycle that has run at least ONE full season is handed out exactly as its own
  * end would have done: €2.000/€1.600/€1.200 to the owner of the top 3 per bracket
@@ -210,14 +210,21 @@ const CRITERIUM_AWARDS = [2000, 1600, 1200];
  * left the choice open; this is the call that neither throws away weeks of
  * standings nor pays a full prize for one race. Either way every criterium total
  * and the cycle anchor are wiped. One bell per player who won something.
+ * `force` hands the standings out however long the cycle ran, labelled `season`
+ * (v66: the owner had the criterium handed out with season 3, a season early).
  *
  * Writes absolute values on rows the request loaded, so two requests running the
  * migration at once land on the same result (one payment, one title).
  */
-export function closeCriterium(db: Database, atMs: number): void {
+export function closeCriterium(
+  db: Database,
+  atMs: number,
+  opts: { force?: boolean; season?: number } = {},
+): void {
   const atIso = new Date(atMs).toISOString();
-  const season = db.world.seasonYear ?? 1;
-  const ran = Number.isFinite(Date.parse(db.world.ageCupStartedAt ?? '')) && (db.world.ageCupSeasonsDone ?? 0) >= 1;
+  const season = opts.season ?? db.world.seasonYear ?? 1;
+  const ran = Number.isFinite(Date.parse(db.world.ageCupStartedAt ?? '')) &&
+    (opts.force || (db.world.ageCupSeasonsDone ?? 0) >= 1);
   const lines = new Map<string, { text: string[]; money: number }>();
   if (ran) {
     for (const cat of CRITERIUM_BRACKETS) {
@@ -362,6 +369,24 @@ export function runSeasonEnd(db: Database, endedSeason: number, atMs: number): v
     p.seasonStartScore = seasonScore(p);
     p.seasonPracticeGain = 0;
   }
+}
+
+/**
+ * End the running season NOW instead of at its natural end, and start the next
+ * one from this instant (owner, 24 okt: "Sluit seizoen 3 af en start seizoen 4").
+ *
+ * The same ceremony as `tickSeason` (Roekoes, premies, Vleugels, leagues, sponsor
+ * review, reset), only anchored on `nowMs`: the new season runs a full SEASON_MS
+ * from here. The review stamps a sponsor that walks out with `atMs`, which is
+ * exactly the new `seasonStartedAt` — the invariant v53 relies on still holds.
+ */
+export function endSeasonNow(db: Database, nowMs: number): void {
+  const w = db.world;
+  runSeasonEnd(db, w.seasonYear, nowMs);
+  w.seasonYear += 1;
+  w.seasonStartedAt = new Date(nowMs).toISOString();
+  w.seasonEndsAt = new Date(nowMs + SEASON_MS).toISOString();
+  w.seasonWeek = 1;
 }
 
 /**

@@ -17,7 +17,7 @@
  *  5. prijzengeld ja, seizoenspunten/overwinningen/weddenschappen nee, medaille ja,
  *     en de leaguepunten belanden bij de DUIF;
  *  6. de uitreiking op het einde van het seizoen: geld, een titel, een schone lei;
- *  7. migratie v66: het criterium uitgereikt (of niet), de geplande vluchten weg
+ *  7. migratie v67: het criterium uitgereikt (of niet), de geplande vluchten weg
  *     met terugbetaling, de aankondiging, en een criteriumvlucht die al vloog;
  *  8. de bel, de wiki en de spelregels zeggen hetzelfde als LEAGUE.
  *
@@ -183,7 +183,7 @@ let SEEN: Flight[] = [];
 {
   const seen = new Map<string, Flight>();
   let db = await W.tick(T0);
-  ok((db.world.dataVersion ?? 0) >= 66, `de migraties lopen tot v66 (${db.world.dataVersion})`);
+  ok((db.world.dataVersion ?? 0) >= 67, `de migraties lopen tot v67 (${db.world.dataVersion})`);
   for (let d = 0; d <= 14; d++) {
     db = await W.tick(T0 + d * DAY + 3600000);
     for (const f of db.flights) if (f.league) seen.set(f.templateKey, f);
@@ -401,16 +401,16 @@ console.log('\n6. Het einde van het seizoen: prijzen, een titel, een schone lei'
 }
 
 // ---------------------------------------------------------------------------
-console.log('\n7. Migratie v66: het criterium gaat eruit');
+console.log('\n7. Migratie v67: het criterium gaat eruit');
 for (const seasonsDone of [1, 0]) {
   const M = await freshWorld();
   let db = await M.tick(T0);
-  // Rebuild what production looks like at v65: a running criterium cycle, its
+  // Rebuild what production looks like at v66: a running criterium cycle, its
   // standings, a scheduled criterium race with a player's bird in it, and one that
   // is already in the air.
   const s = await M.load(M.humans[0]);
   db = s.data;
-  db.world.dataVersion = 65;
+  db.world.dataVersion = 66;
   db.world.ageCupStartedAt = new Date(T0 - 4 * WEEK).toISOString();
   db.world.ageCupSeasonsDone = seasonsDone;
   const mine = db.pigeons.filter((p) => p.ownerId === M.humans[0]);
@@ -443,7 +443,7 @@ for (const seasonsDone of [1, 0]) {
   db = await M.tick(T0 + 60000);
   const loft = db.lofts.find((l) => l.userId === M.humans[0])!;
   const p0 = db.pigeons.find((p) => p.id === mine[0].id)!;
-  ok(db.world.dataVersion === 66, `(${seasonsDone} seizoen(en) gelopen) de migratie liep`);
+  ok(db.world.dataVersion === 67, `(${seasonsDone} seizoen(en) gelopen) de migratie liep`);
   if (seasonsDone >= 1) {
     ok(loft.money === moneyBefore + 20 + 2000 + 1600, `de lopende stand is uitgereikt: €2.000 + €1.600, plus €20 terug (kassa +€${Math.round(loft.money - moneyBefore)})`);
     ok((p0.titles ?? []).some((t) => t.kind === 'criterium' && t.rank === 1 && t.label === 'Gouden Criteriumduif 1–2 j'), 'de kampioen draagt haar criteriumtitel');
@@ -494,7 +494,7 @@ for (const seasonsDone of [1, 0]) {
   const monday = db.flights.find((f) => f.league === 'l60')!;
   const s = await M.load(M.humans[0]);
   db = s.data;
-  db.world.dataVersion = 65;
+  db.world.dataVersion = 66;
   db.flights = db.flights.filter((f) => !f.league);
   const field = db.pigeons.filter((p) => p.ownerId === M.humans[1] || p.ownerId === M.humans[2]).slice(0, 4);
   const live: Flight = {
@@ -507,7 +507,7 @@ for (const seasonsDone of [1, 0]) {
   db.flights.push(live);
   await s.persist();
   db = await M.tick(Date.parse(monday.startAt) + 1800000);
-  ok(db.world.dataVersion === 66, 'de migratie liep terwijl er een criteriumvlucht in de lucht hing');
+  ok(db.world.dataVersion === 67, 'de migratie liep terwijl er een criteriumvlucht in de lucht hing');
   ok(db.flights.find((f) => f.id === live.id)?.status === 'live', 'die vlucht vliegt gewoon verder');
   ok(!db.flights.some((f) => f.league && f.startAt.slice(0, 10) === live.startAt.slice(0, 10)), 'en die maandag krijgt er geen league bij');
   ok(db.flights.some((f) => f.league === 'l70'), 'de volgende leaguedag (woensdag) wel');

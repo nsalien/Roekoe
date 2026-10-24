@@ -1818,16 +1818,17 @@ export const SCHEMA_STEPS: string[] = [
   // offer changed), and by whom (World.studNewsAt) — like market_news_at.
   "ALTER TABLE world ADD COLUMN stud_news_at TEXT NOT NULL DEFAULT ''",
   "ALTER TABLE world ADD COLUMN stud_news_by TEXT NOT NULL DEFAULT ''",
+  // Leagues (LEAGUE, replaced the leeftijdscriterium, live 24 okt): the score
+  // league a race is restricted to + its format, and every bird's league standings
+  // this season.
+  'ALTER TABLE flights ADD COLUMN league TEXT',
+  'ALTER TABLE flights ADD COLUMN league_sprint INTEGER NOT NULL DEFAULT 0',
+  "ALTER TABLE pigeons ADD COLUMN leagues TEXT NOT NULL DEFAULT ''",
   // ⚠️ ENKEL OP DEV — everything below this line is not on production yet. Dev has
   // no database of its own (only demo worlds, rebuilt via DEMO_VERSION), so a step
   // here may move; when a feature goes live, its steps go at the END of
   // production's list. Keep dev-only steps LAST so dev stays "production + extras".
   //
-  // Leagues (LEAGUE, replaced the leeftijdscriterium): the score league a race is
-  // restricted to + its format, and every bird's league standings this season.
-  'ALTER TABLE flights ADD COLUMN league TEXT',
-  'ALTER TABLE flights ADD COLUMN league_sprint INTEGER NOT NULL DEFAULT 0',
-  "ALTER TABLE pigeons ADD COLUMN leagues TEXT NOT NULL DEFAULT ''",
   // Marktwaarde v2: how good the sold bird was beyond her talent (Trade.quality),
   // so a sale is measured against HER, not an average bird.
   'ALTER TABLE trades ADD COLUMN quality REAL',

@@ -90,7 +90,7 @@ import {
   tickHealing,
 } from './health.js';
 import { inheritanceCard } from './events.js';
-import { closeCriterium, tickSeason } from './season.js';
+import { closeCriterium, endSeasonNow, tickSeason } from './season.js';
 import { progressMissions } from './missions.js';
 import { activeContracts, applyHighTierDoubleMigration, applySponsorLimitMigration, evaluateSponsorOffers, offerStarterSponsor, restoreSeasonReviewDrops, sponsorsPaused } from './sponsors.js';
 import {
@@ -1192,7 +1192,7 @@ export function tickFlights(
 }
 
 /** One-time data fixes (guarded by world.dataVersion). */
-export function runDataMigrations(db: Database): void {
+export function runDataMigrations(db: Database, nowMs = Date.now()): void {
   if ((db.world.dataVersion ?? 0) < 1) {
     // Give every existing bird a funny name.
     for (const p of db.pigeons) {
@@ -2588,6 +2588,39 @@ export function runDataMigrations(db: Database): void {
   }
 
   if ((db.world.dataVersion ?? 0) < 66) {
+    // Owner, 24 okt: "Sluit seizoen 3 af op de productie omgeving en start seizoen
+    // 4" — with the prijsuitreiking of the melkers, the duiven AND the
+    // leeftijdscriterium, which would normally run one more season ("we gaan deze
+    // toch ook al uitreiken").
+    //
+    // ⚠️ Production ran this with the code of 5169df1, from before the leagues: the
+    // criterium was handed out inside the season ceremony and re-anchored. Since
+    // the leagues (v67) the criterium code is gone, so a world that still comes
+    // through here hands it out with `closeCriterium` (same money and titles, its
+    // own bell) — and v67 follows in the same request anyway.
+    //
+    // Season 3 was due to end on its own that same day, so the deploy could land
+    // on either side of the natural rollover:
+    //  - still season 3 → the criterium, then end the season now and start season
+    //    4 here;
+    //  - already season 4 (tickSeason held the melkers/duiven ceremony, but the
+    //    criterium cycle was not up) → only the criterium, as of the moment season
+    //    3 ended.
+    // Any other season number means this world is not production's: leave it be
+    // (a fresh test world sits on season 1).
+    const w = db.world;
+    if (w.seasonYear === 3) {
+      closeCriterium(db, nowMs, { force: true, season: 3 });
+      endSeasonNow(db, nowMs);
+    } else if (w.seasonYear === 4) {
+      const handedOut = db.lofts.some((l) => (l.awards ?? []).some((a) => a.kind === 'criterium' && a.season === 3));
+      const seasonEnd = Date.parse(w.seasonStartedAt ?? '');
+      if (!handedOut && Number.isFinite(seasonEnd)) closeCriterium(db, seasonEnd, { force: true, season: 3 });
+    }
+    db.world.dataVersion = 66;
+  }
+
+  if ((db.world.dataVersion ?? 0) < 67) {
     // DE LEAGUES vervangen het LEEFTIJDSCRITERIUM (eigenaar, 24 okt): dezelfde vier
     // vluchten per week, maar per algemene score i.p.v. per leeftijd (LEAGUE in
     // gameConfig). Drie stappen, elk idempotent, zodat twee verzoeken die deze
@@ -2597,7 +2630,7 @@ export function runDataMigrations(db: Database): void {
     //    één keer uitgereikt (geld + titel, zoals op het einde van een cyclus) en
     //    daarna gewist. Een cyclus die net herbegon (0 seizoenen) heeft hoogstens
     //    een paar dagen punten en valt gewoon weg. Zie closeCriterium (season.ts).
-    closeCriterium(db, Date.now());
+    closeCriterium(db, nowMs);
     // 2. Elke criteriumvlucht die nog op de kalender staat, gaat eraf: inschrijfgeld
     //    terug (en een eventuele open weddenschap), één bel per speler. Een vlucht die
     //    al LIVE is, vliegt gewoon uit — prijzengeld zonder punten (leagueRace in
@@ -2635,7 +2668,7 @@ export function runDataMigrations(db: Database): void {
       if (loft.isBot) continue;
       pushNotification(db, loft.userId, 'info', LEAGUE_NEWS.title, LEAGUE_NEWS.body, null, LEAGUE_NEWS.id(loft.userId));
     }
-    db.world.dataVersion = 66;
+    db.world.dataVersion = 67;
   }
 }
 
@@ -3538,7 +3571,7 @@ export function advanceRealtime(
   nowMs: number,
   weatherByFlight?: Map<string, WeatherResult>,
 ): void {
-  runDataMigrations(db);
+  runDataMigrations(db, nowMs);
   ensureFlightsScheduled(db, nowMs);
   ensureAuctions(db, nowMs);
   tickDailyCare(db, nowMs);
