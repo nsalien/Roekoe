@@ -211,7 +211,10 @@ function fakeD1(): any {
   ok(seen.status === 200 && (seen.json.pigeon.tags ?? []).length === 0, 'een andere speler ziet ze niet op de duifpagina');
   const mineView = await call(ME, `/pigeons/${bird.id}`);
   ok(mineView.json.pigeon.tags?.join('|') === 'sprint|mid-fond', 'de eigenaar wel');
-  await call(ME, '/market/list', 'POST', { pigeonId: bird.id, price: 400 });
+  // Ask what the bird is worth instead of a fixed price: a sale may not go below 1/5
+  // of the market value, and that floor moves with the valuation (Marktwaarde v2).
+  const price = Math.max(400, bird.minPrice ?? 0);
+  await call(ME, '/market/list', 'POST', { pigeonId: bird.id, price });
   const market = await call(OTHER, '/market');
   const listing = (market.json.listings ?? []).find((l: any) => (l.pigeon?.id ?? l.id) === bird.id);
   ok(!!listing && ((listing.pigeon ?? listing).tags ?? []).length === 0, 'te koop op de markt: de koper ziet geen tags');

@@ -15,8 +15,8 @@
 
 | Rol | Branch | Doel |
 |-----|--------|------|
-| **Dev** | `claude/demo-hokinrichting` | Alle ontwikkeling/commits komen hier **eerst**. ⏸️ **Gepauzeerd sinds 12 okt** (tweede keer, op vraag van de eigenaar; pauzecommit `dea321f`, enkel een pauzepagina). De volledige Dev-stand is `6be40c3` (herstart vanaf prod + demo + Marktwaarde v2 + samen kweken); hoe je hem terugzet staat in de `context.md` óp die branch. Ook `claude/breeding-other-player-pigeons-7314iz` (zelfde commits) is gepauzeerd. Van dev staat alles live **behalve Marktwaarde v2 en de demomodus**. |
-| **Dev (sessie 15 okt)** | `claude/duivenlokker-feature-mhf3yb` | Sessiebranch van de **duivenlokker**, vertrokken van prod `9e2a79a` (geen demo, geen Marktwaarde v2). De eigenaar vroeg meteen "implementeren op productie": de feature-commit staat hier als `fc0a933` (met `[CF-Pages-Skip]`, want een preview-build van een prod-tak kan aan de live `roekoe-db` hangen) en staat op prod als **`b4f3ab8`** (zelfde boom, boodschap zonder skip). De gepauzeerde `claude/demo-hokinrichting` heeft de lokker **niet**. Op 17 okt kwamen hier de **tags op je duiven** bij (§0b, `13f6571`), dezelfde dag op vraag van de eigenaar naar prod ("zet op productie"). |
+| **Dev** | `claude/demo-hokinrichting` | Alle ontwikkeling/commits komen hier **eerst**. **Sinds 24 okt weer aan** (op vraag van de eigenaar): herstart vanaf prod `6bc0116` (dus mét duivenlokker en tags) + de demomodus + Marktwaarde v2, zelfde werkwijze als 12 okt — als **samenvoegcommit bovenop de pauzecommits** (geen force-push; de oude dev-geschiedenis blijft via de tweede ouder bereikbaar). De eigenaar test in de demo-preview: **https://claude-demo-hokinrichting.roekoe.pages.dev**. Van dev staat alles live **behalve Marktwaarde v2, de demomodus en de leagues** (§0b). |
+| **Dev (sessie 24 okt)** | `ccr-45f5bf10-t7yi6h` | Sessiebranch van de herstart en de **leagues**; dezelfde commits als `claude/demo-hokinrichting` (preview `https://ccr-45f5bf10-t7yi6h.roekoe.pages.dev`). |
 | **Prod** | `claude/roekoe-game-website-jwa0vo` | Elke commit wordt hierheen **gecherry-pickt**; deze branch triggert de **Cloudflare Pages**-deploy naar productie. |
 
 > Vorige dev-branches (niet meer gebruiken): `ccr-9c78dbf3-rdb1ea`, `claude/hallo-nno7pb`, `claude/hallo-r1wgvn`, `claude/hallo-ca55co`, `claude/hallo-qz9tmx`, `claude/hallo-fsp9nx`, `claude/hallo-mzjn0e`, `claude/hallo-su75jy`, `claude/hallo-rkr49f`, `claude/hallo-pvwabx`,
@@ -24,7 +24,8 @@
 > `claude/hallo-w97s85`, `claude/hallo-hrtwtv`,
 > `claude/prosper-postuum-tinne-race-j515f6`, `claude/hallo-v71l3e`,
 > `claude/duif-vorm-functie-s5fsaw`, `claude/context-spelregels-lsbm5a`, `claude/exciting-newton-xgvl6l`,
-> `claude/breeding-other-player-pigeons-7314iz` (sessiebranch van de herstart en Samen kweken, 12 okt; zelfde stand als dev). Ontwikkelt een sessie op een nieuwe
+> `claude/breeding-other-player-pigeons-7314iz` (sessiebranch van de herstart en Samen kweken, 12 okt; zelfde stand als dev),
+> `claude/duivenlokker-feature-mhf3yb` (duivenlokker + tags, 15–17 okt; vertrok van prod, zit nu in dev via de herstart). Ontwikkelt een sessie op een nieuwe
 > `claude/…`- (of `ccr-…`-)branch, gebruik die dan als dev-branch en **werk deze tabel meteen bij** —
 > de prod-branch hierboven verandert nooit.
 
@@ -100,19 +101,23 @@
   eigenaar: "implementeren op productie en zorg voor communicatie"): zie *Duivenlokker* hieronder. Aankondiging: migratie **v64** (bel),
   rondleiding `lureNewsSteps`, wiki `#duivenlokker` + `#nieuw`. **Nog te doen door de beheerder:** het idee op De
   Stem op "In het spel" zetten.
-- **Dev gepauzeerd op 12 okt** (`dea321f`, zelfde werkwijze als 11 okt; na de vijfde ronde opnieuw,
-  nu `2ea049c`): beide dev-branches tonen een pauzepagina. Terugzetten: `git revert --no-edit
-  c52c6d9..HEAD` op de dev-branch en pushen.
-- **Enkel op dev:** **Marktwaarde v2** en de **demomodus**. Weggehaald van dev en dus nergens:
+- **Dev herstart op 24 okt** (op vraag van de eigenaar: "activeer de Dev omgeving terug"): vanaf prod
+  `6bc0116`, daarop `git diff 9e2a79a c52c6d9` (= precies demo + Marktwaarde v2, want prod `9e2a79a` = dev
+  `c52c6d9` zonder die twee) met `git apply -3`; enkel `context.md` botste (prod-versie gehouden). De
+  schemastap van v2 (`trades.quality`) staat nu **achteraan** de lijst, na alle prod-stappen, met een
+  ⚠️-kop "ENKEL OP DEV": dev = productie + eigen stappen. Twee wankele testfixtures vastgezet
+  (`market-memory`: vast ras; `pigeon-tags`: vraagprijs = de 1/5-grens i.p.v. €400). Vroegere pauzes:
+  11 en 12 okt (`dea321f`, `2ea049c`).
+- **Enkel op dev:** **Marktwaarde v2**, de **demomodus** en de **leagues** (§0b). Weggehaald van dev en dus nergens:
   koppels, partnerhok, weduwschap, de scout, het nieuwe voer.
 - **Dev herstart op 12 okt** (gebouwd op `claude/breeding-other-player-pigeons-7314iz`, daarna ook
   op `claude/demo-hokinrichting`), precies zoals hieronder beschreven: vanaf prod `4a0c3ad`, de demo
   ongewijzigd uit `bc8c415`, en `ac31a45` (v2) erop gecherry-pickt.
 - **Schema:** prod's `SCHEMA_STEPS` kregen 4 stappen achteraan: `lofts.equipment`,
-  `pigeons.care`, `flights.forecast`, `pigeons.boosted_at`. Op dev staat `trades.quality` (v2)
-  sinds de herstart **ná** `pigeons.boosted_at`, dus v2 kan in die volgorde live. Wat daarna
-  komt (kweken met andermans duif) staat er weer achter: zet bij een cherry-pick naar prod
-  enkel de stappen van wat je meeneemt achteraan prod's lijst.
+  `pigeons.care`, `flights.forecast`, `pigeons.boosted_at`, daarna samen kweken en het bolletje op
+  Kweek. **Sinds de herstart van 24 okt is dev = prod's lijst + de dev-stappen achteraan**, onder een
+  ⚠️-kop "ENKEL OP DEV" in `core/d1.ts`: eerst de leagues, dan `trades.quality` (v2). Zet bij een
+  cherry-pick naar prod enkel de stappen van wat je meeneemt achteraan prod's lijst.
 - **Wacht op een beslissing van de eigenaar:**
   1. **Marktwaarde v2 naar productie?** (11 okt: nog niet.)
   2. Moeten de **opvangcentrum-veilingen** (start €25, NPC) buiten de marktwaarde blijven?
@@ -295,9 +300,8 @@
     `ownerId` = wie de jongen krijgt (en betaalt). Alles wat vraagt "zit deze duif op een nest?"
     kijkt naar de duif, dus de duif van de partner is gewoon bezet. `loftDTO.nests` en `GET
     /breeding.pairs` tonen het nest bij beide spelers (met `partner`).
-  - **Schema:** 3 stappen achteraan `SCHEMA_STEPS` (na `trades.quality`): `pigeons.stud`,
-    `breeding_pairs.deal`, `CREATE TABLE stud_deals`. Naar prod zonder v2: deze drie achteraan
-    prod's lijst.
+  - **Schema:** 3 stappen in `SCHEMA_STEPS` (live, na `pigeons.boosted_at`): `pigeons.stud`,
+    `breeding_pairs.deal`, `CREATE TABLE stud_deals`.
 - **Code:** `core/game/stud.ts` (alle regels: `setStudListing`, `proposeStud`, `counterStud`,
   `acceptStud`, `closeStud`, `pruneStudDeals`, `breedBlock`, `criteriaGap`, `isBot`), hatch in
   `schedule.ts::tickBreedingHatch` (vergoeding, €500 elk, bel voor de partner met vaste id
@@ -507,7 +511,7 @@
      zette één oude "verkoop" van €7.000 voor een ★55 elke ★55 45 % hoger toen de grens nog 0,2–5 was;
      blijft de markt buiten die band betalen, herijk dan `VALUE_CURVE`). Oude
      verkopen zonder quality rekenen met `legacyQuality` 1,15. Nieuwe kolom `trades.quality`:
-     ⚠️ **SCHEMA_STEPS**: de stap staat achteraan dev (na de 3 hokinrichtingsstappen); bij een
+     ⚠️ **SCHEMA_STEPS**: de stap staat helemaal achteraan dev (onder "ENKEL OP DEV"); bij een
      cherry-pick naar productie zet je hem achteraan *productie's* lijst (dev heeft geen eigen
      databank, enkel demo's, dus de volgorde op dev mag nadien gelijkgetrokken worden).
   3. **Robuust gemiddelde:** `robustLogMean` = Huber in log-ruimte, gestart op de gewogen mediaan;
@@ -627,7 +631,7 @@
   andermans geboostte zoekertje → badge "📌 Bovenaan". Uitleg in de wiki (*Marktwaarde*) en
   spelregels §9.1.
 - **Schema:** stap `ALTER TABLE pigeons ADD COLUMN boosted_at TEXT` staat achteraan prod's
-  `SCHEMA_STEPS` (op dev staat `trades.quality` ervoor, zie *Stand van zaken*).
+  `SCHEMA_STEPS`.
   `PIGEON_COLUMNS`/`pigeonRow` dragen de kolom mee (kolomsmalle
   diff, dus twee spelers die tegelijk boosten overschrijven elkaar niet).
 - **De bewaker:** `tests/market-boost.test.mts` (24 controles): kost en plek, recentste wint,

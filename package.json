@@ -9,7 +9,7 @@
     "build": "npm --prefix client install && npm --prefix client run build",
     "dev:client": "npm --prefix client run dev",
     "dev": "npm run build && wrangler pages dev",
-    "typecheck": "tsc --noEmit && npm --prefix client run typecheck",
+    "typecheck": "tsc --noEmit && npm --prefix client run typecheck && npm --prefix client run typecheck:demo",
     "db:migrate:local": "wrangler d1 migrations apply roekoe-db --local",
     "db:migrate": "wrangler d1 migrations apply roekoe-db --remote",
     "deploy": "npm run build && wrangler pages deploy client/dist"

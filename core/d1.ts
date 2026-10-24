@@ -343,6 +343,7 @@ function rowToTrade(r: any): Trade {
     price: r.price,
     at: r.at,
     talent: typeof r.talent === 'number' ? r.talent : undefined,
+    quality: typeof r.quality === 'number' ? r.quality : undefined,
   };
 }
 
@@ -860,9 +861,9 @@ export class D1Store implements Store {
     diff(this.snapshots.trades, w.trades, (t) => t.id, {
       db,
       table: 'trades',
-      columns: ['id', 'pigeon_id', 'pigeon_name', 'seller_id', 'seller_name', 'buyer_id', 'buyer_name', 'price', 'at', 'talent'],
+      columns: ['id', 'pigeon_id', 'pigeon_name', 'seller_id', 'seller_name', 'buyer_id', 'buyer_name', 'price', 'at', 'talent', 'quality'],
       keyColumn: 'id',
-      row: (t) => [t.id, t.pigeonId, t.pigeonName, t.sellerId, t.sellerName, t.buyerId, t.buyerName, t.price, t.at, t.talent ?? null],
+      row: (t) => [t.id, t.pigeonId, t.pigeonName, t.sellerId, t.sellerName, t.buyerId, t.buyerName, t.price, t.at, t.talent ?? null, t.quality ?? null],
       onInsert: () => { addedTrade = true; },
       stmts,
     });
@@ -1803,8 +1804,6 @@ export const SCHEMA_STEPS: string[] = [
   // Samen kweken (core/game/stud.ts): a bird put up to breed with another player's
   // (Pigeon.stud), the agreement on a running pair (BreedingPair.deal), and the
   // open negotiations — their own table, loaded only on the Kweek routes.
-  // (On dev, Marktwaarde v2's `trades.quality` sits before these three: should v2
-  // go live, it goes at the END of this list.)
   "ALTER TABLE pigeons ADD COLUMN stud TEXT NOT NULL DEFAULT ''",
   "ALTER TABLE breeding_pairs ADD COLUMN deal TEXT NOT NULL DEFAULT ''",
   'CREATE TABLE IF NOT EXISTS stud_deals (id TEXT PRIMARY KEY, stud_id TEXT NOT NULL, stud_owner_id TEXT NOT NULL, mate_id TEXT NOT NULL, mate_owner_id TEXT NOT NULL, young_to TEXT NOT NULL, fee INTEGER NOT NULL DEFAULT 0, turn TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL)',
@@ -1812,6 +1811,14 @@ export const SCHEMA_STEPS: string[] = [
   // offer changed), and by whom (World.studNewsAt) — like market_news_at.
   "ALTER TABLE world ADD COLUMN stud_news_at TEXT NOT NULL DEFAULT ''",
   "ALTER TABLE world ADD COLUMN stud_news_by TEXT NOT NULL DEFAULT ''",
+  // ⚠️ ENKEL OP DEV — everything below this line is not on production yet. Dev has
+  // no database of its own (only demo worlds, rebuilt via DEMO_VERSION), so a step
+  // here may move; when a feature goes live, its steps go at the END of
+  // production's list. Keep dev-only steps LAST so dev stays "production + extras".
+  //
+  // Marktwaarde v2: how good the sold bird was beyond her talent (Trade.quality),
+  // so a sale is measured against HER, not an average bird.
+  'ALTER TABLE trades ADD COLUMN quality REAL',
 ];
 
 /**
