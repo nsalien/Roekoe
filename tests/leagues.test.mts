@@ -162,8 +162,12 @@ console.log('\n1. De klassen: grenzen per decimaal, prijzen per league');
   ok(higherPaysMore, 'een hogere league betaalt een zege altijd beter');
   ok(prizeForRank(leaguePrizes('l60', true), 1) === 500 && prizeForRank(leaguePrizes('l60', false), 1) === 800,
      `league ★ t/m 60: zege €${prizeForRank(leaguePrizes('l60', true), 1)} (sprint) / €${prizeForRank(leaguePrizes('l60', false), 1)} (fond)`);
-  ok(leagueAward('l81', 1) === 1000 && leagueAward('l81', 3) === 500 && leagueAward('l60', 1) === 500 && leagueAward('l80', 2) === 640 && leagueAward('l60', 4) === 0,
-     `eindprijzen: ${LEAGUES.map((l) => `${l.short} €${[1, 2, 3].map((r) => leagueAward(l.id, r)).join('/')}`).join(' · ')}`);
+  ok(leagueAward('l81', 1) === 2000 && leagueAward('l81', 3) === 1200 && leagueAward('l60', 1) === 1000 && leagueAward('l80', 2) === 1360,
+     `eindprijzen podium: ${LEAGUES.map((l) => `${l.short} €${[1, 2, 3].map((r) => leagueAward(l.id, r)).join('/')}`).join(' · ')}`);
+  ok(leagueAward('l81', 4) === 500 && leagueAward('l81', 10) === 200 && leagueAward('l60', 10) === 100 && leagueAward('l81', 11) === 0,
+     `plaats 4–10 krijgt ook iets (★ 81+: €${[4, 5, 6, 7, 10].map((r) => leagueAward('l81', r)).join('/')}), plaats 11 niets`);
+  ok(LEAGUES.every((l) => LEAGUE.awards.every((_, i) => i === 0 || leagueAward(l.id, i + 1) <= leagueAward(l.id, i))),
+     'een lagere plaats betaalt nooit meer');
   ok(LEAGUE.minBirds === 4 && LEAGUE.minOwners === 3 && LEAGUE.entryFee === 20,
      `minstens ${LEAGUE.minBirds} duiven van ${LEAGUE.minOwners} melkers, €${LEAGUE.entryFee} inschrijving`);
 }
@@ -364,6 +368,11 @@ console.log('\n6. Het einde van het seizoen: prijzen, een titel, een schone lei'
   const low = db.pigeons.find((p) => p.ownerId === W.humans[1] && leagueFor(talent(p)) === O)!;
   low.leagues = { [O]: { points: 65, wins: 0, best: 900, races: 1 } };
   const lowLoft = db.lofts.find((l) => l.userId === low.ownerId)!;
+  // Places 2–4 of league L, so the first place past the podium is in the ceremony too.
+  const chasers = db.pigeons.filter((p) => p.ownerId === W.humans[2] && p.id !== WINNER).slice(0, 3);
+  chasers.forEach((p, i) => { p.leagues = { [L]: { points: [80, 65, 55][i], wins: 0, best: 900, races: 2 } }; });
+  const fourth = chasers[2];
+  const chaserLoft = db.lofts.find((l) => l.userId === W.humans[2])!;
   const moneyBefore = loft.money, lowBefore = lowLoft.money;
   runSeasonEnd(db, db.world.seasonYear, T0 + SEASON.weeks * WEEK);
   ok(loft.money >= moneyBefore + leagueAward(L, 1), `de kampioen van ${L} levert €${leagueAward(L, 1)} op`);
@@ -372,6 +381,12 @@ console.log('\n6. Het einde van het seizoen: prijzen, een titel, een schone lei'
   const short = LEAGUES.find((l) => l.id === L)!.short;
   ok(!!title && title.rank === 1 && title.league === L && title.label === `Gouden Leagueduif ${short}`, `de duif draagt een titel: "${title?.label}"`);
   ok((loft.awards ?? []).some((a) => a.kind === 'league' && a.league === L && a.reward === leagueAward(L, 1)), 'het hok heeft de prijs in zijn erelijst');
+  const premie = (chaserLoft.awards ?? []).find((a) => a.kind === 'league' && a.league === L && a.rank === 4);
+  ok(!!premie && premie.reward === leagueAward(L, 4) && premie.pigeonName === fourth.name, `de 4e plaats krijgt een leaguepremie van €${premie?.reward}`);
+  ok(!(fourth.titles ?? []).some((t) => t.kind === 'league'), 'maar geen titel op de duif (enkel de top 3)');
+  ok((chasers[1].titles ?? []).some((t) => t.kind === 'league' && t.rank === 3), 'de 3e plaats wel');
+  const chaserBell = db.notifications.find((n) => n.id === `ntf:season:${db.world.seasonYear}:${chaserLoft.userId}`);
+  ok(!!chaserBell && chaserBell.body.includes('Leaguepremie') && chaserBell.body.includes('4e plaats'), 'de bel noemt de leaguepremie en de plaats');
   ok(db.pigeons.every((p) => !p.leagues), 'elke leaguestand is gewist: de leagues lopen één seizoen');
   const bell = db.notifications.find((n) => n.id === `ntf:season:${db.world.seasonYear}:${loft.userId}`);
   ok(!!bell && bell.body.includes(`Gouden Leagueduif ${short}`), 'de prijsuitreiking noemt de leagueprijs');
@@ -506,6 +521,7 @@ console.log('\n8. De bel, de wiki en de spelregels zeggen hetzelfde als LEAGUE')
   ok(body.includes(`€${LEAGUE.entryFee}`) && body.includes(`minstens ${LEAGUE.minOwners} melkers en ${LEAGUE.minBirds} duiven`), 'de bel noemt het inschrijfgeld en beide minimums');
   ok(/geen seizoenspunten/.test(body) && /wiki/i.test(body), 'ze waarschuwt voor de seizoenspunten en verwijst naar de wiki');
   ok(body.length < 900, `ze blijft kort (${body.length} tekens)`);
+  ok(body.includes(`top ${LEAGUE.awards.length}`) && body.includes('€2.000'), 'ze noemt hoeveel plaatsen betalen en de hoogste prijs');
   const wiki = readFileSync('./client/src/pages/WikiPage.tsx', 'utf8');
   const rules = readFileSync('./spelregels.md', 'utf8');
   ok(wiki.includes('id="leagues"') && !/id="criterium"/.test(wiki), 'de wiki heeft een sectie #leagues en geen #criterium meer');
@@ -515,6 +531,14 @@ console.log('\n8. De bel, de wiki en de spelregels zeggen hetzelfde als LEAGUE')
     const f1 = eur(prizeForRank(leaguePrizes(lg.id, false), 1));
     const a1 = eur(leagueAward(lg.id, 1));
     ok(rules.includes(s1) && rules.includes(f1) && rules.includes(a1), `spelregels: ${lg.short} zege ${s1} / ${f1}, eindprijs ${a1}`);
+    // The season prizes, place by place, as one table row each in rules and wiki.
+    const places: [string, number][] = [['🥇 1e', 1], ['🥈 2e', 2], ['🥉 3e', 3], ['4e', 4], ['5e', 5], ['6e', 6], ['7e – 10e', 7]];
+    for (const [label, rank] of places) {
+      const col = LEAGUES.map((l) => eur(leagueAward(l.id, rank)));
+      const rulesRow = `| ${label} | ${col.join(' | ')} |`;
+      const wikiRow = `['${label}', ${col.map((x) => `'${x}'`).join(', ')}]`;
+      if (lg.id === 'l60') ok(rules.includes(rulesRow) && wiki.includes(wikiRow), `eindprijs ${label}: ${col.join(' / ')} (spelregels + wiki)`);
+    }
   }
   ok(rules.includes(`minstens **${LEAGUE.minBirds} duiven** van minstens **${LEAGUE.minOwners} verschillende`), 'de spelregels noemen beide minimums (4 duiven, 3 melkers)');
   ok(wiki.includes(`minstens ${LEAGUE.minBirds} duiven van minstens ${LEAGUE.minOwners} verschillende melkers`), 'de wiki ook');

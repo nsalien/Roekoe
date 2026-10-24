@@ -189,7 +189,8 @@ function LeaguePanel({ meId }: { meId?: string }) {
       <div className="card">
         <h2 style={{ margin: '0 0 4px' }}>🏅 Leagues</h2>
         <p className="faint" style={{ margin: 0 }}>
-          De stand loopt tot het einde van dit seizoen; dan wint de top 3 van elke league geld en een titel.
+          De stand loopt tot het einde van dit seizoen; dan wint de top {info.leagues[0]?.awards.length ?? 10} van elke league geld,
+          de top 3 ook een titel op de duif.
           {' '}<Link to="/wiki#leagues">Meer info over de leagues →</Link>
         </p>
       </div>

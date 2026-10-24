@@ -49,7 +49,7 @@ function awardName(a: SeasonAward): string {
   if (a.kind === 'roekoe') return `de ${metal} Roekoe`;
   if (a.kind === 'vleugel') return `de ${metal} Vleugel`;
   if (a.kind === 'premie') return 'Seizoenspremie';
-  if (a.kind === 'league') return `${metal} Leagueduif`;
+  if (a.kind === 'league') return a.rank <= METAL.length ? `${metal} Leagueduif` : 'Leaguepremie';
   return `${metal} Criteriumduif`;
 }
 
@@ -58,7 +58,10 @@ function awardFor(a: SeasonAward): string {
   if (a.kind === 'roekoe') return `${a.value ?? 0} seizoenspunten`;
   if (a.kind === 'vleugel') return `${WING_LABEL[a.category ?? ''] ?? 'duivenranglijst'} — ${a.pigeonName ?? 'je duif'}`;
   if (a.kind === 'premie') return `${a.rank}e plaats · ${a.value ?? 0} seizoenspunten`;
-  if (a.kind === 'league') return `League ${LEAGUE_LABEL[a.league ?? ''] ?? ''} — ${a.pigeonName ?? 'je duif'}`;
+  if (a.kind === 'league') {
+    const place = a.rank > METAL.length ? `${a.rank}e plaats · ` : '';
+    return `${place}League ${LEAGUE_LABEL[a.league ?? ''] ?? ''} — ${a.pigeonName ?? 'je duif'}`;
+  }
   return `${AGE_LABEL[a.ageCat ?? ''] ?? 'leeftijdsklasse'} — ${a.pigeonName ?? 'je duif'}`;
 }
 
@@ -197,7 +200,8 @@ export function PrizeCeremony({
 
         {/* key = de prijs, zodat de animatie bij élke prijs opnieuw speelt */}
         <div key={`${a.kind}-${a.rank}-${i}`} className="ceremony-stage">
-          <Trophy kind={a.kind} rank={a.rank} />
+          {/* a league place past the podium is money, not a medal: show the coins */}
+          <Trophy kind={a.kind === 'league' && a.rank > METAL.length ? 'premie' : a.kind} rank={a.rank} />
           {/* Geen medaille-emoji naast de titel: de getekende beker draagt de
               plaats al (goud/zilver/brons), en naast de leaguemedaille stond
               er anders een medaille náást een medaille. */}

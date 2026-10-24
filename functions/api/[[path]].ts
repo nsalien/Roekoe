@@ -556,7 +556,7 @@ app.get('/state', (c) => {
         range: leagueRangeText(l.id),
         sprintPrizes: leaguePrizes(l.id, true),
         fondPrizes: leaguePrizes(l.id, false),
-        awards: [1, 2, 3].map((rank) => leagueAward(l.id, rank)),
+        awards: LEAGUE.awards.map((_, i) => leagueAward(l.id, i + 1)),
       })),
     },
     feedRations: FEED_RATIONS,

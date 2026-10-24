@@ -2744,9 +2744,13 @@ export const LEAGUE = {
       rest: 90,
     } as PrizeTable,
   },
-  /** Paid to the OWNER of the top-3 birds of the TOP league at the season end;
-   *  the other leagues pay `factor` of it. The bird gets a title on top. */
-  awards: [1000, 750, 500],
+  /**
+   * Season-end prize per place (index = rank − 1) in the TOP league, paid to the
+   * OWNER; the other leagues pay `factor` of it. The top 3 also get a title on the
+   * bird; places 4–10 money only. The podium matches the criterium's old cycle
+   * prize (€2.000/€1.600/€1.200) — the owner's ask, 24 okt.
+   */
+  awards: [2000, 1600, 1200, 500, 400, 300, 200, 200, 200, 200],
 } as const;
 
 /** Look up a league definition by id. */
@@ -2794,7 +2798,7 @@ export function leaguePrizes(id: LeagueId, sprint: boolean): PrizeTable {
   };
 }
 
-/** The season-end prize for `rank` (1-based) in league `id`; 0 past the podium. */
+/** The season-end prize for `rank` (1-based) in league `id`; 0 past the paid places. */
 export function leagueAward(id: LeagueId, rank: number): number {
   const base = LEAGUE.awards[rank - 1];
   return base === undefined ? 0 : leagueAmount(base, leagueDef(id).factor);

@@ -818,7 +818,7 @@ export interface LeagueDefInfo {
   range: string; // "★60,1 tot en met ★70"
   sprintPrizes: PrizeTable;
   fondPrizes: PrizeTable;
-  awards: number[]; // season-end prize for 1st/2nd/3rd
+  awards: number[]; // season-end prize per place (index = rank − 1); the top 3 also get a title
 }
 
 /** Static league catalogue (classes, days, prize tables, season prizes). */

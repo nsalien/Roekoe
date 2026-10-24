@@ -602,19 +602,24 @@ betaalt de volle tabel, ★ 71–80 **85 %**, ★ 61–70 **70 %** en ★ t/m 60
 gewone vlucht** (100, 80, 65, 55, … — §2.6): een sprint en een fondvlucht wegen
 **even zwaar**, alleen het geld verschilt. Bij gelijke punten beslissen het aantal
 zeges en daarna de beste gemiddelde snelheid. Bij de prijsuitreiking op het einde
-van het seizoen (§15) wint de **top 3 van elke league**:
+van het seizoen (§15) wint de **top 10 van elke league** geld, en de **top 3** ook
+een titel:
 
-| League | 🥇 1e | 🥈 2e | 🥉 3e |
-|---|---|---|---|
-| ★ t/m 60 | €500 | €375 | €250 |
-| ★ 61–70 | €700 | €525 | €350 |
-| ★ 71–80 | €850 | €640 | €425 |
-| ★ 81+ | €1.000 | €750 | €500 |
+| Plaats | ★ t/m 60 | ★ 61–70 | ★ 71–80 | ★ 81+ |
+|---|---|---|---|---|
+| 🥇 1e | €1.000 | €1.400 | €1.700 | €2.000 |
+| 🥈 2e | €800 | €1.120 | €1.360 | €1.600 |
+| 🥉 3e | €600 | €840 | €1.020 | €1.200 |
+| 4e | €250 | €350 | €425 | €500 |
+| 5e | €200 | €280 | €340 | €400 |
+| 6e | €150 | €210 | €255 | €300 |
+| 7e – 10e | €100 | €140 | €170 | €200 |
 
 Het geld gaat naar de **eigenaar**, maar de **titel komt op de duif zelf** te
 staan (bv. *Gouden Leagueduif ★ 61–70*) — die blijft bij haar, ook als je haar
-later verkoopt. Je ziet ze op haar duifpagina. Daarna gaat elke leaguestand terug
-op nul.
+later verkoopt. Je ziet ze op haar duifpagina. Plaats 4 tot 10 krijgt een
+**leaguepremie**: enkel geld, geen titel. Daarna gaat elke leaguestand terug op
+nul.
 
 **Wat het níet doet.** De leagues zijn een **aparte rangschikking**: **geen
 seizoenspunten** en geen overwinningen voor je hok, geen sponsorpremie (§12) en je

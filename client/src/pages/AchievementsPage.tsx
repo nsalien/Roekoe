@@ -92,7 +92,7 @@ function SeasonPrizesView({ profile }: { profile: PlayerProfile }) {
   const prizeName = (a: SeasonAward) =>
     a.kind === 'roekoe' ? roekoeName(a.rank)
       : a.kind === 'premie' ? 'Seizoenspremie'
-        : a.kind === 'league' ? `${metal(a.rank)} Leagueduif`
+        : a.kind === 'league' ? (a.rank <= 3 ? `${metal(a.rank)} Leagueduif` : `Leaguepremie (${a.rank}e)`)
           : a.kind === 'criterium' ? `${metal(a.rank)} Criteriumduif`
             : wingName(a.rank);
 
@@ -136,7 +136,7 @@ function SeasonPrizesView({ profile }: { profile: PlayerProfile }) {
               <tbody>
                 {awards.map((a: SeasonAward, i) => (
                   <tr key={a.kind + a.season + i}>
-                    <td style={{ fontSize: '1.1rem' }}>{a.kind === 'premie' ? '💰' : medal(a.rank)}</td>
+                    <td style={{ fontSize: '1.1rem' }}>{a.kind === 'premie' || a.rank > 3 ? '💰' : medal(a.rank)}</td>
                     <td>{prizeName(a)}</td>
                     <td className="faint">
                       {a.kind === 'roekoe'

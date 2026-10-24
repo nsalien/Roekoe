@@ -12,7 +12,7 @@
  * monotonic game-week counter (it drives ages, ailments and flight weeks).
  */
 
-import { LEAGUES, SEASON, SEASON_AWARDS, leagueAward, leagueDef } from '../config/gameConfig.js';
+import { LEAGUE, LEAGUES, SEASON, SEASON_AWARDS, leagueAward, leagueDef } from '../config/gameConfig.js';
 import type { LeagueId } from '../config/gameConfig.js';
 import type { Database, Loft, Pigeon, SeasonAward, WingCategory } from '../schema.js';
 import { awardBadge } from './badges.js';
@@ -147,9 +147,9 @@ const CUP_MEDAL = ['🥇', '🥈', '🥉'];
 /**
  * Hand out the league standings of the season that just ended, then wipe them.
  *
- * The top 3 of every league pay their owner (`leagueAward`: the top league pays
- * LEAGUE.awards, the lower ones their `factor` of it) and, crucially, engrave a
- * title ON THE BIRD (`Pigeon.titles`), which follows her if she is ever sold.
+ * Every paid place of every league pays its owner (`leagueAward`: the top league
+ * pays LEAGUE.awards, the lower ones their `factor` of it); the top 3 also engrave
+ * a title ON THE BIRD (`Pigeon.titles`), which follows her if she is ever sold.
  * Bots can win too (money, no bell). Every bird's league totals reset afterwards,
  * whether she placed or not: the standings run one season.
  */
@@ -161,13 +161,13 @@ function runLeagueSeasonEnd(
 ): void {
   const rankings = leagueRankings(db, db.pigeons.length || 1);
   for (const lg of LEAGUES) {
-    const top = (rankings[lg.id] ?? []).filter((r) => r.value > 0).slice(0, 3);
-    top.forEach((row, i) => {
+    const paid = (rankings[lg.id] ?? []).filter((r) => r.value > 0).slice(0, LEAGUE.awards.length);
+    paid.forEach((row, i) => {
       const pigeon = db.pigeons.find((p) => p.id === row.pigeonId);
       const loft = db.lofts.find((l) => l.userId === row.ownerId);
       // The title goes on the bird even when her owner has since vanished — it is
       // hers, not his. The money obviously needs a loft to land in.
-      if (pigeon) {
+      if (pigeon && i < CUP_METAL.length) {
         (pigeon.titles ??= []).push({
           kind: 'league',
           rank: i + 1,
@@ -323,8 +323,8 @@ export function runSeasonEnd(db: Database, endedSeason: number, atMs: number): v
     });
   }
 
-  // 2b. Leagues → the top-3 birds of every league; then the league standings
-  //     reset. It shares the prijsuitreiking message below.
+  // 2b. Leagues → the paid places of every league (a title for the top 3); then
+  //     the league standings reset. It shares the prijsuitreiking message below.
   runLeagueSeasonEnd(db, endedSeason, atIso, give);
 
   // 3. Notify each human winner (one consolidated message per loft).
@@ -335,7 +335,9 @@ export function runSeasonEnd(db: Database, endedSeason: number, atMs: number): v
       if (a.kind === 'premie') return `💰 Seizoenspremie (${a.value} punten, ${a.rank}e plaats)`;
       if (a.kind === 'league') {
         const def = leagueDef(a.league ?? 'l60');
-        return `${CUP_MEDAL[a.rank - 1]} ${CUP_METAL[a.rank - 1]} Leagueduif ${def.short} met ${a.pigeonName} (${a.value} punten)`;
+        return a.rank <= CUP_METAL.length
+          ? `${CUP_MEDAL[a.rank - 1]} ${CUP_METAL[a.rank - 1]} Leagueduif ${def.short} met ${a.pigeonName} (${a.value} punten)`
+          : `💰 Leaguepremie ${def.short}: ${a.rank}e plaats met ${a.pigeonName} (${a.value} punten)`;
       }
       return `🪽 ${WING_NAME[a.rank - 1]} — ${WING_LABEL[a.category!]} met ${a.pigeonName}`;
     });

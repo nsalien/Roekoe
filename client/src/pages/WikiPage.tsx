@@ -755,21 +755,24 @@ export function WikiPage() {
           Punten krijg je met dezelfde tabel als een gewone vlucht (100 voor de winnaar, 80, 65, …) —{' '}
           <strong>een sprint en een fondvlucht wegen even zwaar</strong>, alleen het geld verschilt. Bij een gelijke
           stand beslissen het aantal zeges en daarna de beste gemiddelde snelheid. Op het einde van het seizoen wint de{' '}
-          <strong>top 3 van elke league</strong>:
+          <strong>top 10 van elke league</strong> geld, en de <strong>top 3</strong> ook een titel:
         </p>
         <MiniTable
-          head={['League', '🥇 1e', '🥈 2e', '🥉 3e']}
+          head={['Plaats', '★ t/m 60', '★ 61–70', '★ 71–80', '★ 81+']}
           rows={[
-            ['★ t/m 60', '€500', '€375', '€250'],
-            ['★ 61–70', '€700', '€525', '€350'],
-            ['★ 71–80', '€850', '€640', '€425'],
-            ['★ 81+', '€1.000', '€750', '€500'],
+            ['🥇 1e', '€1.000', '€1.400', '€1.700', '€2.000'],
+            ['🥈 2e', '€800', '€1.120', '€1.360', '€1.600'],
+            ['🥉 3e', '€600', '€840', '€1.020', '€1.200'],
+            ['4e', '€250', '€350', '€425', '€500'],
+            ['5e', '€200', '€280', '€340', '€400'],
+            ['6e', '€150', '€210', '€255', '€300'],
+            ['7e – 10e', '€100', '€140', '€170', '€200'],
           ]}
         />
         <p style={{ marginTop: 12 }}>
           Het geld gaat naar de <strong>eigenaar</strong>, maar de <strong>titel komt op de duif zelf</strong> te staan
-          (bv. <em>Gouden Leagueduif ★ 61–70</em>) — die blijft bij haar, ook als je haar later verkoopt. Daarna gaat
-          elke leaguestand terug op nul.
+          (bv. <em>Gouden Leagueduif ★ 61–70</em>) — die blijft bij haar, ook als je haar later verkoopt. Plaats 4 tot
+          10 krijgt een <strong>leaguepremie</strong>: enkel geld, geen titel. Daarna gaat elke leaguestand terug op nul.
         </p>
         <h3>Wat het níet doet</h3>
         <p>
