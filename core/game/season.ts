@@ -12,7 +12,7 @@
  * monotonic game-week counter (it drives ages, ailments and flight weeks).
  */
 
-import { LEAGUE, LEAGUES, SEASON, SEASON_AWARDS, leagueAward, leagueDef } from '../config/gameConfig.js';
+import { LEAGUES, SEASON, SEASON_AWARDS, leagueAward, leagueDef } from '../config/gameConfig.js';
 import type { LeagueId } from '../config/gameConfig.js';
 import type { Database, Loft, Pigeon, SeasonAward, WingCategory } from '../schema.js';
 import { awardBadge } from './badges.js';
@@ -147,8 +147,8 @@ const CUP_MEDAL = ['🥇', '🥈', '🥉'];
 /**
  * Hand out the league standings of the season that just ended, then wipe them.
  *
- * Every paid place of every league pays its owner (`leagueAward`: the top league
- * pays LEAGUE.awards, the lower ones their `factor` of it); the top 3 also engrave
+ * Every paid place of every league pays its owner (`leagueAward`, the league's own
+ * `awards` table); the top 3 also engrave
  * a title ON THE BIRD (`Pigeon.titles`), which follows her if she is ever sold.
  * Bots can win too (money, no bell). Every bird's league totals reset afterwards,
  * whether she placed or not: the standings run one season.
@@ -161,7 +161,7 @@ function runLeagueSeasonEnd(
 ): void {
   const rankings = leagueRankings(db, db.pigeons.length || 1);
   for (const lg of LEAGUES) {
-    const paid = (rankings[lg.id] ?? []).filter((r) => r.value > 0).slice(0, LEAGUE.awards.length);
+    const paid = (rankings[lg.id] ?? []).filter((r) => r.value > 0).slice(0, lg.awards.length);
     paid.forEach((row, i) => {
       const pigeon = db.pigeons.find((p) => p.id === row.pigeonId);
       const loft = db.lofts.find((l) => l.userId === row.ownerId);

@@ -139,7 +139,7 @@ export const LEAGUE_NEWS = {
     `• Inschrijven kost €${LEAGUE.entryFee}. Je duif vliegt in de league van haar score op het moment dat je haar `
       + `inschrijft. Een league gaat pas door met minstens ${LEAGUE.minOwners} melkers en ${LEAGUE.minBirds} duiven.`,
     `• Prijzengeld per vlucht (hoe hoger de league, hoe meer) en medailles, maar geen seizoenspunten. Op het einde `
-      + `van elk seizoen wint de top ${LEAGUE.awards.length} van elke league geld (tot €${leagueAward(LEAGUES[LEAGUES.length - 1].id, 1).toLocaleString('nl-BE')}), `
+      + `van elk seizoen wint de top ${LEAGUES[0].awards.length} van elke league geld (tot €${leagueAward(LEAGUES[LEAGUES.length - 1].id, 1).toLocaleString('nl-BE')}), `
       + 'de top 3 ook een titel op de duif.',
     'De stand staat bij Ranglijst → Leagues. Alles op een rij: Wiki → Leagues.',
   ].join('\n'),

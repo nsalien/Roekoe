@@ -2684,16 +2684,30 @@ export interface LeagueDef {
    *  league starts right above it: ★60.0 is l60, ★60.1 already l70. */
   maxScore: number;
   weekday: number; // 0=Sun..6=Sat — the day this league races
-  /** Share of the base prize table (LEAGUE.sprint/fond) and of LEAGUE.awards. */
+  /** Share of the base prize table (LEAGUE.sprint/fond) this league pays per race. */
   factor: number;
+  /**
+   * Season-end prize per place (index = rank − 1), paid to the OWNER. The top 3
+   * also get a title on the bird; places 4–10 money only (a leaguepremie).
+   */
+  awards: number[];
 }
 
 /** The four leagues, lowest first. The owner's classes: t/m 60 · 61–70 · 71–80 · 81+. */
+//
+// The season prizes (`awards`) are written out per league rather than derived from
+// `factor`, so they stay round. Owner, 24 okt: first "in de buurt van de
+// criteriumprijzen" for ★ 81+ (€2.000/€1.600/€1.200), the rest lower, and money
+// below 3rd too; then "doe alles 20% lager"; then "rond de getallen mooi af".
 export const LEAGUES: LeagueDef[] = [
-  { id: 'l60', label: 'League ★ t/m 60', short: '★ t/m 60', icon: '🌱', maxScore: 60, weekday: 1, factor: 0.5 },
-  { id: 'l70', label: 'League ★ 61–70', short: '★ 61–70', icon: '🌿', maxScore: 70, weekday: 3, factor: 0.7 },
-  { id: 'l80', label: 'League ★ 71–80', short: '★ 71–80', icon: '🌳', maxScore: 80, weekday: 4, factor: 0.85 },
-  { id: 'l81', label: 'League ★ 81+', short: '★ 81+', icon: '👑', maxScore: Number.POSITIVE_INFINITY, weekday: 5, factor: 1 },
+  { id: 'l60', label: 'League ★ t/m 60', short: '★ t/m 60', icon: '🌱', maxScore: 60, weekday: 1, factor: 0.5,
+    awards: [800, 650, 500, 200, 150, 100, 75, 75, 75, 75] },
+  { id: 'l70', label: 'League ★ 61–70', short: '★ 61–70', icon: '🌿', maxScore: 70, weekday: 3, factor: 0.7,
+    awards: [1100, 900, 650, 300, 200, 150, 100, 100, 100, 100] },
+  { id: 'l80', label: 'League ★ 71–80', short: '★ 71–80', icon: '🌳', maxScore: 80, weekday: 4, factor: 0.85,
+    awards: [1350, 1100, 800, 350, 250, 200, 125, 125, 125, 125] },
+  { id: 'l81', label: 'League ★ 81+', short: '★ 81+', icon: '👑', maxScore: Number.POSITIVE_INFINITY, weekday: 5, factor: 1,
+    awards: [1600, 1300, 950, 400, 300, 250, 150, 150, 150, 150] },
 ];
 
 export const LEAGUE = {
@@ -2744,13 +2758,6 @@ export const LEAGUE = {
       rest: 90,
     } as PrizeTable,
   },
-  /**
-   * Season-end prize per place (index = rank − 1) in the TOP league, paid to the
-   * OWNER; the other leagues pay `factor` of it. The top 3 also get a title on the
-   * bird; places 4–10 money only. Owner, 24 okt: first "in de buurt van de
-   * criteriumprijzen" (€2.000/€1.600/€1.200 …), then "doe alles 20% lager".
-   */
-  awards: [1600, 1280, 960, 400, 320, 240, 160, 160, 160, 160],
 } as const;
 
 /** Look up a league definition by id. */
@@ -2800,8 +2807,7 @@ export function leaguePrizes(id: LeagueId, sprint: boolean): PrizeTable {
 
 /** The season-end prize for `rank` (1-based) in league `id`; 0 past the paid places. */
 export function leagueAward(id: LeagueId, rank: number): number {
-  const base = LEAGUE.awards[rank - 1];
-  return base === undefined ? 0 : leagueAmount(base, leagueDef(id).factor);
+  return leagueDef(id).awards[rank - 1] ?? 0;
 }
 
 /**

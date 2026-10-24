@@ -162,12 +162,16 @@ console.log('\n1. De klassen: grenzen per decimaal, prijzen per league');
   ok(higherPaysMore, 'een hogere league betaalt een zege altijd beter');
   ok(prizeForRank(leaguePrizes('l60', true), 1) === 500 && prizeForRank(leaguePrizes('l60', false), 1) === 800,
      `league ★ t/m 60: zege €${prizeForRank(leaguePrizes('l60', true), 1)} (sprint) / €${prizeForRank(leaguePrizes('l60', false), 1)} (fond)`);
-  ok(leagueAward('l81', 1) === 1600 && leagueAward('l81', 3) === 960 && leagueAward('l60', 1) === 800 && leagueAward('l80', 2) === 1090,
+  ok(leagueAward('l81', 1) === 1600 && leagueAward('l81', 3) === 950 && leagueAward('l60', 1) === 800 && leagueAward('l80', 2) === 1100,
      `eindprijzen podium: ${LEAGUES.map((l) => `${l.short} €${[1, 2, 3].map((r) => leagueAward(l.id, r)).join('/')}`).join(' · ')}`);
-  ok(leagueAward('l81', 4) === 400 && leagueAward('l81', 10) === 160 && leagueAward('l60', 10) === 80 && leagueAward('l81', 11) === 0,
+  ok(leagueAward('l81', 4) === 400 && leagueAward('l81', 10) === 150 && leagueAward('l60', 10) === 75 && leagueAward('l81', 11) === 0,
      `plaats 4–10 krijgt ook iets (★ 81+: €${[4, 5, 6, 7, 10].map((r) => leagueAward('l81', r)).join('/')}), plaats 11 niets`);
-  ok(LEAGUES.every((l) => LEAGUE.awards.every((_, i) => i === 0 || leagueAward(l.id, i + 1) <= leagueAward(l.id, i))),
-     'een lagere plaats betaalt nooit meer');
+  ok(LEAGUES.every((l) => l.awards.length === 10 && l.awards.every((x, i) => i === 0 || x <= l.awards[i - 1])),
+     'tien betaalde plaatsen per league, en een lagere plaats betaalt nooit meer');
+  ok(LEAGUES.every((l, k) => k === 0 || l.awards.every((x, i) => x > LEAGUES[k - 1].awards[i])),
+     'een hogere league betaalt op elke plaats meer');
+  ok(LEAGUES.every((l) => l.awards.every((x) => x % (x >= 500 ? 50 : 25) === 0)),
+     'mooi afgerond: vanaf €500 op €50, daaronder op €25');
   ok(LEAGUE.minBirds === 4 && LEAGUE.minOwners === 3 && LEAGUE.entryFee === 20,
      `minstens ${LEAGUE.minBirds} duiven van ${LEAGUE.minOwners} melkers, €${LEAGUE.entryFee} inschrijving`);
 }
@@ -521,7 +525,7 @@ console.log('\n8. De bel, de wiki en de spelregels zeggen hetzelfde als LEAGUE')
   ok(body.includes(`€${LEAGUE.entryFee}`) && body.includes(`minstens ${LEAGUE.minOwners} melkers en ${LEAGUE.minBirds} duiven`), 'de bel noemt het inschrijfgeld en beide minimums');
   ok(/geen seizoenspunten/.test(body) && /wiki/i.test(body), 'ze waarschuwt voor de seizoenspunten en verwijst naar de wiki');
   ok(body.length < 900, `ze blijft kort (${body.length} tekens)`);
-  ok(body.includes(`top ${LEAGUE.awards.length}`) && body.includes(`€${leagueAward('l81', 1).toLocaleString('nl-BE')}`), 'ze noemt hoeveel plaatsen betalen en de hoogste prijs');
+  ok(body.includes(`top ${LEAGUES[0].awards.length}`) && body.includes(`€${leagueAward('l81', 1).toLocaleString('nl-BE')}`), 'ze noemt hoeveel plaatsen betalen en de hoogste prijs');
   const tour = readFileSync('./client/src/components/Tour.tsx', 'utf8');
   ok(tour.includes(`tot <strong>€${leagueAward('l81', 1).toLocaleString('nl-BE')}</strong>`), 'de rondleiding noemt dezelfde hoogste prijs');
   const wiki = readFileSync('./client/src/pages/WikiPage.tsx', 'utf8');

@@ -166,7 +166,8 @@
   stond daar nog open, maar `tickFlights` settlede zo'n bet nooit), wél medailles en de duivenranglijsten.
 - **Config (`gameConfig.ts`):** `LEAGUES` (`LeagueId` = `l60`/`l70`/`l80`/`l81`, `maxScore`, `weekday`, `factor`,
   `label` "League ★ 61–70", `short` "★ 61–70", icoon 🌱🌿🌳👑), `LEAGUE` (`entryFee`, **`minBirds` 4**, **`minOwners` 3**, `hour`,
-  `sprint`/`fond` met de basistabellen = de oude criteriumtabellen, `awards` = 10 plaatsen, zie *Eindprijzen v2*), helpers `leagueFor(score)`,
+  `sprint`/`fond` met de basistabellen = de oude criteriumtabellen; de eindprijzen staan per league in
+  `LeagueDef.awards`, zie *Eindprijzen v2*), helpers `leagueFor(score)`,
   `leagueDef`, `leagueMinScore`, `leagueRangeText` ("★60,1 tot en met ★70"), `leaguePrizes(id, sprint)` en
   `leagueAward(id, rank)` (× factor, **afgerond op €5**), `isLeagueSprintWeek`. `ScheduleSlot.league`; de slots
   heten `league-<id>` (het criterium had `cup-<id>`).
@@ -186,12 +187,16 @@
   / 500 / 400 / 300 / 200 / 200 / 200 / 200** (het podium = de oude criteriumprijs per cyclus), × dezelfde factor
   (0,5/0,7/0,85/1). **Meteen daarna: "Doe alles 20% lager"** → nu **€1.600 / 1.280 / 960 / 400 / 320 / 240 / 160
   ×4** (★ t/m 60: €800/640/480 … €80; op €5 afgerond, dus bv. €895 i.p.v. €896). Enkel de eindprijzen; het
-  prijzengeld per vlucht bleef. Plaats 4–10 = **leaguepremie**: geld, géén titel (titels
+  prijzengeld per vlucht bleef. **Daarna: "Rond de getallen nu mooi af"** → de eindprijzen staan nu **per league
+  uitgeschreven** (`LeagueDef.awards`, niet meer factor × basis; `LEAGUE.awards` is weg; `factor` geldt enkel nog
+  voor het prijzengeld per vlucht), vanaf €500 op €50, daaronder op €25:
+  ★ t/m 60 €800/650/500/200/150/100/75 · ★ 61–70 €1.100/900/650/300/200/150/100 · ★ 71–80
+  €1.350/1.100/800/350/250/200/125 · ★ 81+ €1.600/1.300/950/400/300/250/150 (de laatste waarde = plaats 7–10). Plaats 4–10 = **leaguepremie**: geld, géén titel (titels
   blijven top 3); bel-regel "💰 Leaguepremie ★ …: 4e plaats", `PrizeCeremony` toont munten i.p.v. een medaille,
   erelijst "Leaguepremie (4e)". Wiki + spelregels: één tabel per plaats (rijen 1e…7e – 10e, kolommen de
-  leagues). ⚠️ Kost: met alle tien plaatsen bezet **≈ €16.600 per seizoen** over de vier leagues (v2 was €20.700)
+  leagues). ⚠️ Kost: met alle tien plaatsen bezet **€16.350 per seizoen** over de vier leagues (v2 was €20.700)
   (het criterium gaf gemiddeld ~€6.400 per seizoen uit, de Roekoes €5.100, de Vleugels €6.750) — in de praktijk
-  minder, want ★ 71–80 en ★ 81+ vliegen weinig zonder spelers. Knop: `LEAGUE.awards`.
+  minder, want ★ 71–80 en ★ 81+ vliegen weinig zonder spelers. Knop: `LEAGUES[].awards`.
 - **Seizoenseinde (`season.ts`):** `runLeagueSeasonEnd` in `runSeasonEnd`: top 10 per league (titel enkel top 3) (`leagueRankings`,
   punten → zeges → beste snelheid) → geld via `give` (award `kind: 'league'`, `league`), titel
   `Gouden/Zilveren/Bronzen Leagueduif <short>` op de duif (`PigeonTitle.kind 'league'`), daarna **elke**
@@ -1707,7 +1712,7 @@ Entiteiten: `Pigeon`, `Loft`, `User`, `BreedingPair`, `PendingBrood`, `Flight` (
   algemene score: **t/m 60 · 60,1–70 · 70,1–80 · 80,1+** (`maxScore` inclusief), één vlucht per week op ma/wo/do/vr
   om **06:00**, week om week sprint (100–300 km, pool `national`) / grote fond (400–1000 km, pool `international`).
   `entryFee 20`, geen limiet per hok, **`minBirds 4`** van **`minOwners 3`** hokken. Prijzen = basistabel × `factor` (0,5/0,7/0,85/1, op €5);
-  stand per **seizoen**, `awards` (10 plaatsen: €1.600/1.280/960/400/320/240/160 ×4) × factor, titel voor de top 3. Zie §0b.
+  stand per **seizoen**, `LeagueDef.awards` (10 plaatsen per league, ★ 81+ €1.600/1.300/950/400/300/250/150 ×4), titel voor de top 3. Zie §0b.
 - **Schema (`REAL_SCHEDULE` — vaste weekkalender):** één vast programma per
   weekdag i.p.v. het oude dagelijkse lang+kort-ritme. **ma** 08:00 intl · **di** 10:00 regio
   + 12:00 oefenvlucht · **wo** 08:00 nat · **do** 08:00 intl · **vr** 07:00 **nat lang
