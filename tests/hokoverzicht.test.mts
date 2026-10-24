@@ -39,7 +39,7 @@ advanceRealtime(store.data, T0);
 const db = store.data;
 
 const flight = db.flights
-  .filter((f) => f.status === 'scheduled' && !f.ageCat && !f.relay && !f.titan)
+  .filter((f) => f.status === 'scheduled' && !f.league && !f.relay && !f.titan)
   .sort((a, b) => a.startAt.localeCompare(b.startAt))[0]!;
 // Every loft enters one bird, or the flight is called off for too few melkers.
 let birdId = '';

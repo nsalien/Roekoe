@@ -35,7 +35,7 @@ import {
   TITAN,
   TOURNEY_RISK,
 } from '../config/gameConfig.js';
-import { AGE_CUP, CITY_COORDS, RELAY, TRAITS, quirkById } from '../config/gameConfig.js';
+import { CITY_COORDS, LEAGUE, RELAY, TRAITS, leaguePrizes, quirkById } from '../config/gameConfig.js';
 import { applyTraitBonus, traitActiveAt, traitWindows, type TraitRun } from './traits.js';
 import type { Ailment, Database, Flight, FlightResult, Loft, Pigeon, SimEntry } from '../schema.js';
 import { relayEntryTeams, relayLegKm, relaySimTeams } from './relay.js';
@@ -1230,13 +1230,26 @@ export interface FinishPayout {
 }
 
 /**
+ * A league race — or a leeftijdscriterium race left over from before the leagues
+ * (one that was already live when migration v66 ran). Both are PIGEON
+ * competitions: prize money and medals, but no seizoenspunten, no competition
+ * wins, no bets and no sponsor bonuses.
+ */
+export function leagueRace(flight: Flight): boolean {
+  return !!flight.league || !!flight.ageCat;
+}
+
+/**
  * The money table a flight pays out by placing. Most races use their tier's
- * PRIZE_MONEY; the two specials bring their own: the titanenwedstrijd, and a
- * leeftijdscriterium, whose table depends on the week's format (a sprint pays
- * less than a grote fond).
+ * PRIZE_MONEY; the specials bring their own: the titanenwedstrijd, and a league
+ * race, whose table depends on the league (a lower league pays less) and on the
+ * week's format (a sprint pays less than a grote fond).
  */
 export function flightPrizes(flight: Flight): PrizeTable {
-  if (flight.ageCat) return flight.cupSprint ? AGE_CUP.sprint.prizes : AGE_CUP.fond.prizes;
+  if (flight.league) return leaguePrizes(flight.league, !!flight.leagueSprint);
+  // A criterium race still in the air at the switch pays what it promised: the
+  // criterium tables are, unchanged, the top league's base tables.
+  if (flight.ageCat) return flight.cupSprint ? LEAGUE.sprint.prizes : LEAGUE.fond.prizes;
   if (flight.titan) return TITAN.prizes;
   return PRIZE_MONEY[flight.type];
 }
@@ -1322,8 +1335,8 @@ export function computeFinishPayouts(flight: Flight): FinishPayout[] {
 export function finalizeFlight(flight: Flight, pigeons: Pigeon[]): SimulatedFlight {
   if (flight.practice) return finalizePracticeFlight(flight, pigeons);
   if (flight.relay) return finalizeRelayFlight(flight, pigeons);
-  // A titanenwedstrijd and a leeftijdscriterium both pay their own money prizes
-  // and NO seizoenspunten for the melker standings.
+  // A titanenwedstrijd and a league race both pay their own money prizes and NO
+  // seizoenspunten for the melker standings.
   const prizes = flightPrizes(flight);
   const results: FlightResult[] = [];
   const payoutMap = new Map<string, { prize: number; points: number; wins: number }>();
@@ -1379,10 +1392,10 @@ export function finalizeFlight(flight: Flight, pigeons: Pigeon[]): SimulatedFlig
     // Fourth bird of this loft and beyond: it flew, it holds its place in the
     // result, it still builds conditie/ervaring — but it earns nothing.
     const rewarded = eligible(s.ownerId, !isDnf);
-    // De titanenwedstrijd en het leeftijdscriterium geven geen seizoenspunten voor
-    // de melkerranglijst (enkel prijzengeld). Het criterium kent zijn eigen punten
-    // toe aan de DUIF — dat gebeurt in tickFlights, uit `results[].rank`.
-    const points = !rewarded || flight.titan || flight.ageCat ? 0 : RANKING_POINTS[i] ?? 0;
+    // De titanenwedstrijd en de leagues geven geen seizoenspunten voor de
+    // melkerranglijst (enkel prijzengeld). Een league kent haar eigen punten toe
+    // aan de DUIF — dat gebeurt in tickFlights, uit `results[].rank`.
+    const points = !rewarded || flight.titan || leagueRace(flight) ? 0 : RANKING_POINTS[i] ?? 0;
     const prize = rewarded ? prizeForRank(prizes, rank) : 0;
     results.push({
       rewarded,
@@ -1407,9 +1420,9 @@ export function finalizeFlight(flight: Flight, pigeons: Pigeon[]): SimulatedFlig
     // money credited at finalize excludes what was already banked.
     acc.prize += s.prizePaid ? 0 : prize;
     acc.points += points;
-    // A titan or criterium win is money-only — it does not count as a competition
+    // A titan or league win is money-only — it does not count as a competition
     // win for the loft (those drive badges, level and the melker standings).
-    if (rank === 1 && !isDnf && !flight.titan && !flight.ageCat) acc.wins += 1;
+    if (rank === 1 && !isDnf && !flight.titan && !leagueRace(flight)) acc.wins += 1;
     payoutMap.set(s.ownerId, acc);
 
     // Fatigue: racing drains energie, and a bird pays ONLY for the part it flew.

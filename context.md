@@ -85,9 +85,9 @@
   `ntf:criterium:3:<speler>`. Een ander seizoensnummer = geen prod-wereld → niets. In beide gevallen begint
   het criterium daarna een **nieuwe cyclus van drie seizoenen** (dat is wat een cycluseinde altijd doet).
   `runDataMigrations(db, nowMs)` krijgt nu de klok van de engine (standaard `Date.now()`). Test:
-  `tests/season-close.test.mts`. ⚠️ **Dev gebruikt v66 voor de leagues** (`claude/demo-hokinrichting`):
-  die migratie moet **v67** worden als de leagues naar prod gaan, anders slaat prod ze over. Op dev is
-  verder niets aangeraakt (op vraag van de eigenaar).
+  `tests/season-close.test.mts`. Toen de leagues later die dag live gingen, werd hun migratie **v67**; v66 reikt
+  het criterium sindsdien uit via `closeCriterium` (de criteriumcode van 5169df1 ging mee weg). Op prod liep v66
+  al met de oude code; de test bewaakt beide.
 - **Live op productie** (`claude/roekoe-game-website-jwa0vo`): alles in §0b behalve de twee
   blokken met **ENKEL OP DEV** (*Demomodus*, *Marktwaarde v2*). De marktwaarde op prod is die van
   *Marktwaarde houdt stand* + *nooit onder 1/5* (§8). Spelers kregen een bel (migratie **v61**,
@@ -115,9 +115,17 @@
   eigenaar: "implementeren op productie en zorg voor communicatie"): zie *Duivenlokker* hieronder. Aankondiging: migratie **v64** (bel),
   rondleiding `lureNewsSteps`, wiki `#duivenlokker` + `#nieuw`. **Nog te doen door de beheerder:** het idee op De
   Stem op "In het spel" zetten.
-- **Dev gepauzeerd op 12 okt** (`dea321f`, zelfde werkwijze als 11 okt; na de vijfde ronde opnieuw,
-  nu `2ea049c`): beide dev-branches tonen een pauzepagina. Terugzetten: `git revert --no-edit
-  c52c6d9..HEAD` op de dev-branch en pushen.
+- **Dev herstart op 24 okt** (op vraag van de eigenaar: "activeer de Dev omgeving terug"): vanaf prod
+  `6bc0116`, daarop `git diff 9e2a79a c52c6d9` (= precies demo + Marktwaarde v2, want prod `9e2a79a` = dev
+  `c52c6d9` zonder die twee) met `git apply -3`; enkel `context.md` botste (prod-versie gehouden). De
+  schemastap van v2 (`trades.quality`) staat nu **achteraan** de lijst, na alle prod-stappen, met een
+  ⚠️-kop "ENKEL OP DEV": dev = productie + eigen stappen. Twee wankele testfixtures vastgezet
+  (`market-memory`: vast ras; `pigeon-tags`: vraagprijs = de 1/5-grens i.p.v. €400). Vroegere pauzes:
+  11 en 12 okt (`dea321f`, `2ea049c`).
+- **Leagues live op 24 okt** (eigenaar: "Zet de leagues op productie. Zorg dus ook dat criterium verdwijnt"): zie
+  *Leagues* hieronder. Prod = dev `88efc45` + `0fe19f5` + `cd4d602` + `50bc6a9` + `b888ca3` (zonder de demo), als
+  één commit; de leaguemigratie heet op prod **v67** (prod gebruikte v66 die ochtend al voor de afsluiting van
+  seizoen 3, zie hierboven).
 - **Enkel op dev:** **Marktwaarde v2** en de **demomodus**. Weggehaald van dev en dus nergens:
   koppels, partnerhok, weduwschap, de scout, het nieuwe voer.
 - **Dev herstart op 12 okt** (gebouwd op `claude/breeding-other-player-pigeons-7314iz`, daarna ook
@@ -129,6 +137,9 @@
   komt (kweken met andermans duif) staat er weer achter: zet bij een cherry-pick naar prod
   enkel de stappen van wat je meeneemt achteraan prod's lijst.
 - **Wacht op een beslissing van de eigenaar:**
+  0. **Leagues naar productie?** En: mag de lopende criteriumstand bij de overstap uitgereikt worden
+     zoals nu gebouwd (enkel als de cyclus al ≥ 1 seizoen liep)? De eigenaar koos hier niets ("geen
+     voorkeur"); zie *Leagues → Overstap*.
   1. **Marktwaarde v2 naar productie?** (11 okt: nog niet.)
   2. Moeten de **opvangcentrum-veilingen** (start €25, NPC) buiten de marktwaarde blijven?
   (Beslist op 11 okt: **besmetting per ziekte**, zie §8.)
@@ -140,6 +151,119 @@
   `claude/demo-hokinrichting` (het vertrouwde preview-adres), als samenvoegcommit bovenop de
   pauzecommits: de boom is die van de herstart, de oude commits (`bc8c415`, `70d3209`, `264f93f`, …)
   blijven via de tweede ouder bereikbaar. De pauzepagina is daarmee weg.
+
+### Leagues (per score) in plaats van het leeftijdscriterium — LIVE sinds 24 okt (migratie v67)
+- **Vraag van de eigenaar** (24 okt, de dag dat seizoen 3 afloopt): "We gaan de criterium vluchten volledig weg
+  halen, en in de plek doen we een gelijkaardig principe: aparte 'league' gebaseerd op de score van een duif in
+  plaats van de leeftijd. Dit zorgt voor betere balancering en geeft ook slechte duiven de kans om iets te
+  winnen." Klassen van de eigenaar: **t/m 60 · 61–70 · 71–80 · 81 en hoger**. "Er moeten per vlucht minstens
+  **4 duiven** meedoen om de vlucht door te laten gaan, zodat er toch minstens 1 duif niet in top 3 kan belanden."
+  **Bijgestuurd (24 okt, tweede vraag):** "Zorg dat een league wedstrijd alleen doorgaan als er minstens **3 spelers**
+  meedoen en minstens 4 duiven" → `LEAGUE.minOwners 3`. "Spelers" gelezen als **verschillende hokken, bots
+  inbegrepen** — net als de bestaande "minstens 2 melkers" van elke wedstrijd (de eigenaar kan dat omdraaien naar
+  enkel menselijke spelers, maar dan vliegt zonder 3 actieve spelers geen enkele league).
+- **Keuzes van de eigenaar (gevraagd):** (1) prijzengeld **lager in de lagere leagues**: factor ×0,5 / ×0,7 /
+  ×0,85 / ×1 op de oude criteriumtabellen; (2) de stand loopt **één seizoen** en wordt uitgereikt bij de gewone
+  prijsuitreiking: top 3 per league **€1.000/€750/€500 × factor** + titel op de duif — **bijgestuurd 24 okt, zie
+  *Eindprijzen v2* hieronder** — (≈ zoveel geld per seizoen
+  als het criterium per seizoen uitdeelde); (3) dev = `claude/demo-hokinrichting`. **Geen voorkeur** gegeven over
+  de lopende criteriumstand bij de overstap → zelf gekozen, zie *Overstap*.
+- **Zelf gekozen (meegedeeld, de eigenaar kan bijstellen):** dezelfde kalenderplaatsen als het criterium (ma ★ t/m
+  60, wo ★ 61–70, do ★ 71–80, vr ★ 81+, telkens 06:00), week om week sprint (100–300 km) / grote fond (400–1000 km);
+  €20 per duif, geen limiet per hok (wel `REWARD_BIRDS_PER_LOFT`); minstens 4 duiven **én** minstens **3 melkers**
+  (op vraag, zie hierboven; de gewone regel is 2); **league vastgelegd bij het inschrijven** (score op dat moment); grenzen op één decimaal:
+  **★60,0 = l60, ★60,1 = l70** (`maxScore` inclusief); bots doen mee; geen seizoenspunten, geen wins, geen
+  sponsorpremie, **geen weddenschappen** (nu ook server-side: `bettingOpen` weigert `leagueRace` — het criterium
+  stond daar nog open, maar `tickFlights` settlede zo'n bet nooit), wél medailles en de duivenranglijsten.
+- **Config (`gameConfig.ts`):** `LEAGUES` (`LeagueId` = `l60`/`l70`/`l80`/`l81`, `maxScore`, `weekday`, `factor`,
+  `label` "League ★ 61–70", `short` "★ 61–70", icoon 🌱🌿🌳👑), `LEAGUE` (`entryFee`, **`minBirds` 4**, **`minOwners` 3**, `hour`,
+  `sprint`/`fond` met de basistabellen = de oude criteriumtabellen; de eindprijzen staan per league in
+  `LeagueDef.awards`, zie *Eindprijzen v2*), helpers `leagueFor(score)`,
+  `leagueDef`, `leagueMinScore`, `leagueRangeText` ("★60,1 tot en met ★70"), `leaguePrizes(id, sprint)` en
+  `leagueAward(id, rank)` (× factor, **afgerond op €5**), `isLeagueSprintWeek`. `ScheduleSlot.league`; de slots
+  heten `league-<id>` (het criterium had `cup-<id>`).
+- **Motor:** `makeRealtimeFlight(..., league)` → `Flight.league` + `leagueSprint` (kolommen `league`,
+  `league_sprint`); sprint/fond = **`leagueWeekIndex`** (weken sinds `world.seasonStartedAt`, doorgeteld voorbij het
+  seizoenseinde: seizoenen zijn exact 4 weken, dus pariteit klopt ook voor vluchten die al in het volgende seizoen
+  gepland worden); `enterFlight` + `botRaceCandidates` eisen `leagueFor(talent(p)) === flight.league`;
+  `tickFlights` schrapt bij de lossing (ná het weghalen van niet-inzetbare duiven) een league met minder dan
+  `minBirds` duiven **of** minder dan `minOwners` verschillende hokken: afgelast, inschrijfgeld terug; het weerveld
+  en de bel `ntf:cancel:<vlucht>:<speler>` noemen welk minimum ("minder dan 3 melkers en minder dan 4 duiven");
+  bij de afronding gaan de punten naar **`Pigeon.leagues[league]`** (`LeagueStanding {points, wins, best, races}`,
+  kolom `leagues`, `''` als leeg). **`leagueRace(f)`** (flight.ts) = `league || ageCat`: 0 seizoenspunten, geen
+  wins, geen bets/missies/sponsor (`specialFormat`), prijzen via `flightPrizes`.
+- **Eindprijzen v2 (24 okt, eigenaar na een blik op de wiki):** "Zorg dat de prijzen wat hoger liggen. Mag in de
+  buurt liggen van hoe criterium rewards zijn nu voor de 81+. De rest dan iets lager. Onder de 3e plaats wordt er
+  ook geld bedeeld, maar stuk lager natuurlijk. Maak nieuw voorstel." → `LEAGUE.awards` = **€2.000 / 1.600 / 1.200
+  / 500 / 400 / 300 / 200 / 200 / 200 / 200** (het podium = de oude criteriumprijs per cyclus), × dezelfde factor
+  (0,5/0,7/0,85/1). **Meteen daarna: "Doe alles 20% lager"** → nu **€1.600 / 1.280 / 960 / 400 / 320 / 240 / 160
+  ×4** (★ t/m 60: €800/640/480 … €80; op €5 afgerond, dus bv. €895 i.p.v. €896). Enkel de eindprijzen; het
+  prijzengeld per vlucht bleef. **Daarna: "Rond de getallen nu mooi af"** → de eindprijzen staan nu **per league
+  uitgeschreven** (`LeagueDef.awards`, niet meer factor × basis; `LEAGUE.awards` is weg; `factor` geldt enkel nog
+  voor het prijzengeld per vlucht), vanaf €500 op €50, daaronder op €25:
+  ★ t/m 60 €800/650/500/200/150/100/75 · ★ 61–70 €1.100/900/650/300/200/150/100 · ★ 71–80
+  €1.350/1.100/800/350/250/200/125 · ★ 81+ €1.600/1.300/950/400/300/250/150 (de laatste waarde = plaats 7–10). Plaats 4–10 = **leaguepremie**: geld, géén titel (titels
+  blijven top 3); bel-regel "💰 Leaguepremie ★ …: 4e plaats", `PrizeCeremony` toont munten i.p.v. een medaille,
+  erelijst "Leaguepremie (4e)". Wiki + spelregels: één tabel per plaats (rijen 1e…7e – 10e, kolommen de
+  leagues). ⚠️ Kost: met alle tien plaatsen bezet **€16.350 per seizoen** over de vier leagues (v2 was €20.700)
+  (het criterium gaf gemiddeld ~€6.400 per seizoen uit, de Roekoes €5.100, de Vleugels €6.750) — in de praktijk
+  minder, want ★ 71–80 en ★ 81+ vliegen weinig zonder spelers. Knop: `LEAGUES[].awards`.
+- **Seizoenseinde (`season.ts`):** `runLeagueSeasonEnd` in `runSeasonEnd`: top 10 per league (titel enkel top 3) (`leagueRankings`,
+  punten → zeges → beste snelheid) → geld via `give` (award `kind: 'league'`, `league`), titel
+  `Gouden/Zilveren/Bronzen Leagueduif <short>` op de duif (`PigeonTitle.kind 'league'`), daarna **elke**
+  `p.leagues` gewist. De prijsuitreikingsbel noemt het; `PrizeCeremony` toont de medaille; de erelijst
+  (`AchievementsPage`) kreeg eigen namen voor league én criterium (een criteriumprijs stond daar als "Vleugel").
+- **Overstap = migratie v67** (schedule.ts; op dev heette ze v66): (1) `closeCriterium` (season.ts, ⚠️ legacy): liep de cyclus al
+  **≥ 1 seizoen** (`ageCupSeasonsDone ≥ 1`), dan wordt de lopende stand nog uitgereikt zoals een cycluseinde
+  (€2.000/€1.600/€1.200 + criteriumtitel, bel `ntf:criterium:close:<speler>`); anders (net herbegonnen) valt ze
+  gewoon weg. Daarna `p.cup`, `ageCupStartedAt`, `ageCupSeasonsDone` gewist. (2) Elke **geplande**
+  criteriumvlucht eraf: inschrijfgeld terug, open bets terug (`refundFlightBets`), één bel per speler
+  `ntf:league:refund:<speler>`. Een criteriumvlucht die al **live** is vliegt uit (prijzen = de basistabellen,
+  geen punten) en die dag krijgt **geen** league (`ensureFlightsScheduled` slaat een dag met een `ageCat`-vlucht
+  over). (3) Bel **`LEAGUE_NEWS`** (`ntf:news:leagues:<id>`). v40–v42 (start + aankondiging van het criterium)
+  zijn no-ops geworden, zodat een verse wereld/demo geen criterium meer aankondigt; v43 noemt het niet meer.
+  **Op prod** had v66 de cyclus die ochtend net uitgereikt en herstart (`ageCupSeasonsDone` 0), dus v67 reikte
+  niets meer uit; er vloog sinds die afsluiting geen criteriumvlucht (zaterdag), er ging dus niets verloren.
+- **Legacy-velden (enkel gelezen door v66/v67 en door een uitvliegende criteriumvlucht):** `Pigeon.cup`, `Flight.ageCat`/
+  `cupSprint`, `World.ageCupStartedAt`/`ageCupSeasonsDone`; oude titels `kind 'criterium'` en awards blijven staan.
+- **Schema:** 3 stappen **achteraan** `SCHEMA_STEPS` (na `world.stud_news_by`): `flights.league`,
+  `flights.league_sprint`, `pigeons.leagues`. (Op dev staan ze vóór Marktwaarde v2's `trades.quality`.)
+- **API/DTO:** `/state.leagueInfo` (catalogus: per league `range`, `minScore`, `maxScore` (null = geen), tabellen,
+  `awards`; `entryFee`, `minBirds`, `minOwners`), `leagueRankings` in de leaderboard-cache (i.p.v. `cupRankings`);
+  `pigeonDTO.league` + `.leagues`; `flightDTO.leagueRace/league/leagueLabel/leagueShort/leagueIcon/leagueSprint/
+  leaguePrizes/leagueMinBirds`.
+- **UI:** Vluchten: filter **🏅 Leagues** (`data-tour="league-filter"`), badge "League ★ 61–70" + format, één regel
+  "Enkel duiven met een score ★ 61–70. Tot €…, geen seizoenspunten; gaat door vanaf 3 melkers en 4 duiven" + wikilink (`flightDTO.leagueMinOwners`);
+  `flightEntry.canEnter` op `p.league`. Ranglijst: tab **Leagues** (`LeaguePanel`, `data-tour="leagues"`).
+  Wiki **`#leagues`** (i.p.v. `#criterium`), tabellen bij `#prijzengeld`, blok bovenaan `#nieuw`. Spelregels
+  **§2.10** herschreven (+ §2.1, §2.6, §3.9, §12, §14, §15.2/3/5, §17). Rondleiding: `LEAGUE_STEP` in de volledige
+  tour, eenmalige run **`LEAGUE_NEWS_STEPS`** (sleutel `roekoe.newsSeen.leagues.<id>`, na de tags-run; `closeTour`
+  zet de sleutel).
+- **Demo (enkel dev):** `DEMO_VERSION` 12 (9 = de leagues, 10 = de bel met het minimum van 3 melkers, 11 = de bel met de eindprijzen v2, 12 = −20 %). De seed zet per bot zijn twee beste duiven op ★82–86 en ★72–77 (**ná** de eerste
+  engine-run: migratie v15 trimt botduiven op een verse wereld) en geeft de demospeler één duif per league
+  (★56/66/76/85, niet op het nest, niet ziek). Zonder dat vliegen ★ 71–80 en ★ 81+ in de demo nooit.
+- ⚠️ **Om op te volgen op prod — de hogere leagues hangen aan de spelers.** Gemeten (10 weken, enkel bots, verse
+  wereld): ★ t/m 60 vloog 10/10 (gem. 9 duiven), ★ 61–70 7/10, **★ 71–80 en ★ 81+ 0/10**: na 10 weken hebben de
+  bots 2 duiven boven ★70 en geen boven ★80. Op prod zullen die twee leagues dus enkel doorgaan als minstens twee
+  spelers samen 4 duiven van die score inschrijven (en met 3 melkers: minstens drie hokken, bots inbegrepen).
+  **Met `minOwners` 3** (zelfde simulatie, 2× gedraaid): ★ t/m 60 blijft 9/9 (gem. 9,6 duiven van 7 hokken),
+  ★ 61–70 zakt van 6/10 naar **4–5/10**, de bovenste twee blijven 0/10. Knoppen als het knelt: `LEAGUE.minBirds`,
+  `LEAGUE.minOwners`, de grenzen
+  (`maxScore`), of de bots hun beste duiven sneller laten groeien.
+- ⚠️ **Bijwerking (gemeten, niet aangepakt): iets meer dode botduiven.** Een bot boekt een duif dagen vooraf op de
+  energie van dát moment en kijkt bij de lossing niet opnieuw (`canBeReleased` toetst enkel `canRace`). Vliegt ze
+  intussen een andere vlucht, dan vertrekt ze soms onder `TOURNEY_RISK.deathThreshold` (5) → 7 % kans dat ze sterft.
+  Dat bestond al; de ★ t/m 60-league op maandag zet nu veel zwakke botduiven in (het criterium op maandag was enkel
+  voor jonge duiven). In `force-finish` (één maandag-/dinsdagvlucht, 40 keer): **5 dode botduiven op ~920
+  deelnemers, op prod 1**. Spelers merken het niet (hun eigen duiven controleren ze zelf). Oplossing als de
+  botstallen uitdunnen: bij de lossing een botduif terugtrekken als haar energie de route niet meer dekt
+  (dezelfde toets als bij het inschrijven, `expectedFlightEnergyCost × BOT.raceHeadroom`).
+- **Test:** `tests/leagues.test.mts` (149 controles; vervangt `age-cup.test.mts`, die al rood stond door een vaste
+  `T0`): grenzen, tabellen, kalender, scoregrens (speler + bot), het minimum van 4, punten/geld/medaille,
+  uitreiking + reset, v67 (met en zonder uitreiking, terugbetaling, bel, live criteriumvlucht), wiki/spelregels ==
+  config. Vertrekt van de **komende zaterdag** (geen tijdbom). `season-close` dekt v66 + v67 samen; op dev
+  controleert `demo-world` de demo-leagues;
+  `prize-rules`, `podium-badges` en de tests die "een gewone vlucht" kiezen (`!f.league`) zijn aangepast.
 
 ### Tags op je duiven — LIVE sinds 17 okt (`core/game/tags.ts`, `PIGEON_TAGS` in gameConfig)
 - **Vraag van de eigenaar:** vrije, persoonlijke tags (tekst) op je duiven — bv. *sprint*, *mid-fond*,
@@ -876,7 +1000,7 @@ krijgen.**
 `core/game/schedule.ts` → `advanceRealtime(db, nowMs, weatherByFlight)` roept in
 volgorde:
 1. `runDataMigrations(db)` — eenmalige datafixes, **gated op `world.dataVersion`**
-   (staat nu op **66** — v66 = seizoen 3 afsluiten + criterium uitreiken (24 okt, zie *Stand van zaken*), v65 = de bel van de tags (`TAGS_NEWS`), v64 = de bel van de duivenlokker (`LURE_NEWS`), v63 = de bots uit samen kweken (hun aanbod gewist, geen bel), v62 = de bellen van samen kweken en van vaccins/verzekering per duif, v61 = de aankondigingsbel van de hokinrichting & co (`core/game/news.ts`), v60 = die van Het Lokaal; nieuwe migratie = nieuw `if ((db.world.dataVersion ?? 0) < N)`
+   (staat nu op **67** — v67 = de leagues i.p.v. het leeftijdscriterium (§0b, 24 okt), v66 = seizoen 3 afsluiten + criterium uitreiken (24 okt, zie *Stand van zaken*), v65 = de bel van de tags (`TAGS_NEWS`), v64 = de bel van de duivenlokker (`LURE_NEWS`), v63 = de bots uit samen kweken (hun aanbod gewist, geen bel), v62 = de bellen van samen kweken en van vaccins/verzekering per duif, v61 = de aankondigingsbel van de hokinrichting & co (`core/game/news.ts`), v60 = die van Het Lokaal; nieuwe migratie = nieuw `if ((db.world.dataVersion ?? 0) < N)`
    blok + `db.world.dataVersion = N`). De oudere migraties hebben hun werk gedaan en
    zijn enkel nog van belang als **patroon** — zie §8, kop *Eenmalige migraties*.
 2. `ensureFlightsScheduled(db, nowMs)` — plant vluchten volgens `REAL_SCHEDULE`.
@@ -1266,6 +1390,11 @@ Entiteiten: `Pigeon`, `Loft`, `User`, `BreedingPair`, `PendingBrood`, `Flight` (
   `updates?` — voor real-time herstel + 12u-statusupdates.
 - `PlayerStats.bets` / `betsWon` / `broods` — voor nieuwe badges/missies.
 
+**Leagues (§0b, dev):** `Flight.league`/`leagueSprint` (kolommen `league`/`league_sprint`), `Pigeon.leagues`
+(kolom `leagues`, per league `{points, wins, best, races}`), `PigeonTitle.kind 'league'`, `SeasonAward.kind 'league'`.
+⚠️ Legacy van het criterium, enkel nog gelezen door v66/v67: `Pigeon.cup`, `Flight.ageCat`/`cupSprint`,
+`World.ageCupStartedAt`/`ageCupSeasonsDone`.
+
 **Tags (§0b):** `PigeonCare.tags` (`string[]`, in de bestaande kolom `care`; gewist door `clearOwnerCare`).
 
 **Duivenlokker (§0b):** `Loft.equipment.lure` (niveau 0–5, in de bestaande JSON-kolom) en op
@@ -1356,9 +1485,9 @@ Entiteiten: `Pigeon`, `Loft`, `User`, `BreedingPair`, `PendingBrood`, `Flight` (
   **exclusief** op `below` (`{below:12}` = t/m plaats 11). Regionaal `[800,600,350,220,140,
   110,100,90]` + 9–11 €70 / 12–15 €60 / **16+ €40**; nationaal `[1200,800,500,320,210,180,
   150,140,120,100]` + 11–13 €80 / 14–17 €70 / **18+ €50**; internationaal `[2200,1800,1000,
-  650,420,270,240,200]` + 9–11 €140 / 12–15 €100 / **16+ €75**. Criterium sprint `[1000,700,
-  500,300,250,220,180,120]` + €100/€80/**€60**; fond `[1600,1400,1200,850,600,400,350,300]`
-  + €175/€125/**€90**. **Titan houdt bewust 3 plaatsen zonder bodem** (max. 1 duif per hok).
+  650,420,270,240,200]` + 9–11 €140 / 12–15 €100 / **16+ €75**. League-basistabellen (= de hoogste
+  league; dev): sprint `[1000,700,500,300,250,220,180,120]` + €100/€80/**€60**; fond `[1600,1400,1200,850,600,400,
+  350,300]` + €175/€125/**€90**, × factor per league (`leaguePrizes`). **Titan houdt bewust 3 plaatsen zonder bodem** (max. 1 duif per hok).
 - **`REWARD_BIRDS_PER_LOFT` (3)** — per vlucht worden enkel de **3 best geplaatste duiven van
   een hok** beloond, **geld én seizoenspunten**. Meer inschrijven mag; die vliegen, staan in
   de uitslag en verbeteren, maar leveren niets op (`FlightResult.rewarded = false`). Het geld
@@ -1594,16 +1723,11 @@ Entiteiten: `Pigeon`, `Loft`, `User`, `BreedingPair`, `PendingBrood`, `Flight` (
   `capacityReserveFactor 2.5`/**`maxCapacity 12`** (platformgrens, zie §Performance),
   `maxPairs 2`/`breedReserve 2500`/`breedMinLibido 35`, `foodWeeksBuffer 3`,
   **`goodFeedFrom 2500`** (vanaf dat bedrag Herstelvoer i.p.v. Normaal).
-- **Leeftijdscriterium (`AGE_CUP` + `AGE_CATEGORIES`):** een tweede competitie
-  náást het seizoen, enkel voor **duiven**. Vier klassen (`AgeCategoryId` = `u1`/`y12`/
-  `y23`/`o3`, grenzen 52/104/156 gameweken) met elk **één vlucht per week** op een eigen
-  weekdag om **06:00** (ma/wo/do/vr — vroeg, zodat een fondvlucht van 1000 km 's avonds
-  binnen is). `entryFee 20`, **geen limiet per hok**. Het format wisselt week na week:
-  `sprint` (100–300 km, pool `national`, prijzen `[1000,800,600,420,300,200,130,80]`) en
-  `fond` (400–1000 km, pool `international`, `[1600,1400,1200,850,600,400,260,160]`).
-  Helpers `ageCategoryFor(ageWeeks)`, `ageCategoryDef(id)` en `isCupSprintWeek(index)`.
-  **Cyclus:** `seasons 3` — de stand loopt drie seizoenen door en pas dan volgt de
-  prijsuitreiking (`awards [2000,1600,1200]` per klasse) + reset.
+- **Leagues (`LEAGUE` + `LEAGUES`, live sinds 24 okt — vervangt het leeftijdscriterium `AGE_CUP`):** vier leagues op de
+  algemene score: **t/m 60 · 60,1–70 · 70,1–80 · 80,1+** (`maxScore` inclusief), één vlucht per week op ma/wo/do/vr
+  om **06:00**, week om week sprint (100–300 km, pool `national`) / grote fond (400–1000 km, pool `international`).
+  `entryFee 20`, geen limiet per hok, **`minBirds 4`** van **`minOwners 3`** hokken. Prijzen = basistabel × `factor` (0,5/0,7/0,85/1, op €5);
+  stand per **seizoen**, `LeagueDef.awards` (10 plaatsen per league, ★ 81+ €1.600/1.300/950/400/300/250/150 ×4), titel voor de top 3. Zie §0b.
 - **Schema (`REAL_SCHEDULE` — vaste weekkalender):** één vast programma per
   weekdag i.p.v. het oude dagelijkse lang+kort-ritme. **ma** 08:00 intl · **di** 10:00 regio
   + 12:00 oefenvlucht · **wo** 08:00 nat · **do** 08:00 intl · **vr** 07:00 **nat lang
@@ -1690,8 +1814,8 @@ Entiteiten: `Pigeon`, `Loft`, `User`, `BreedingPair`, `PendingBrood`, `Flight` (
   de knop **"Toon volledige stamboom"** → `components/Pedigree.tsx`: **één zandloper**
   met voorouders links, de duif + broers/zussen + partners in het midden en de
   nakomelingen rechts; zie §8) · **"Afscheid nemen"** · **Wedstrijdhistoriek**.
-  ⚠️ Bewust **niet** hier (zie §8): het leeftijdscriterium (staat op *Ranglijst →
-  Criterium*), de voerkeuze en de apart-hok-knop (staan op *Mijn hok*) en de uitleg bij
+  ⚠️ Bewust **niet** hier (zie §8): de leaguestand (staat op *Ranglijst →
+  Leagues*; vroeger het leeftijdscriterium), de voerkeuze en de apart-hok-knop (staan op *Mijn hok*) en de uitleg bij
   de waardeschatting. Verder: **rustkuur**
   (POST `/pigeons/:id/restcure`); hernoemen; **"Afscheid nemen"**
   (POST `/pigeons/:id/release` = vrijlaten, geen geld; POST `/pigeons/:id/restaurant`
@@ -1730,9 +1854,9 @@ Entiteiten: `Pigeon`, `Loft`, `User`, `BreedingPair`, `PendingBrood`, `Flight` (
 - `InfirmaryPage` (Ziekenboeg) — zieke/gekwetste duiven; dokter/kinesist/medicatievoer;
   **herstelbalk per duif** (`ailment.healed`).
 - `ProfilePage` — hoknaam, **thema-toggle (donker/licht)**, **"Start rondleiding"**.
-- `RankingPage` — tabs **Melkers** (seizoenspunten), **Duiven** en **Criterium**
-  (`AgeCupPanel`: de vier leeftijdsklassen van §2.10 spelregels, met hoever de
-  driejarige cyclus staat). Duiven = drie ranglijsten:
+- `RankingPage` — tabs **Melkers** (seizoenspunten), **Duiven** en **Leagues**
+  (`LeaguePanel`: de vier leagues van §2.10 spelregels, stand van dit seizoen; op prod nog
+  de tab Criterium). Duiven = drie ranglijsten:
   hoogste gemiddelde vluchtsnelheid, meeste podiums, meeste vooruitgang — via `state.pigeonRankings`).
   Kop toont "Seizoen X · week Y/4 · nog Z dagen" (tot seizoenseinde) + een tweede regel
   met **dagen tot de volgende speelweek** (`nextPlayWeek`+`timeUntilOrClock`, zelfde
@@ -1834,7 +1958,8 @@ volledige `STEPS`). De volledige tour dekt o.a. **rassen** (`BREED_STEP`, anker
 `[data-tour="pigeon"]`: foto/zeldzaamheid/kans/kweek), oefenvluchten, rustkuur, markt +
 **"🕊️ Bied op andermans duiven"** (anker `[data-tour="market-bid"]`: speler→duif→
 bedrag + verborgen eigenschappen), **seizoen, ranglijst (Roekoe), duivenranglijsten
-(Vleugel)**, het **leeftijdscriterium** (`AGE_CUP_STEP`, anker `[data-tour="age-cup"]`)
+(Vleugel)**, de **leagues** (`LEAGUE_STEP`, anker `[data-tour="leagues"]`; op prod nog het
+leeftijdscriterium, `AGE_CUP_STEP`)
 en de prestige-seizoensprijzen. Eenmalig per speler (localStorage
 `roekoe.tourSeen.<id>`), draait vanuit `Layout` (blijft gemonteerd tijdens navigatie);
 de profielknop herhaalt hem via `window.dispatchEvent(new Event('roekoe:start-tour'))`.
@@ -1850,9 +1975,9 @@ aankondiging. **Het Lokaal** kreeg een eigen, losse run náást de seizoen 3-run
 `roekoe.newsSeen.lokaal.<id>`, en die toont pas als de seizoen 3-run gezien is (nooit twee
 aankondigingen op één bezoek). `closeTour` zet beide sleutels; de volledige tour heeft een
 Lokaal-stap vóór Profiel. De bel kwam via migratie **v60** (`LOKAAL_INTRO` in `game/lokaal.ts`).
-De vorige sets `PEDIGREE_NEWS_STEPS`, `PRIZE_NEWS_STEPS`, `AGE_CUP_NEWS_STEPS`, `FAREWELL_NEWS_STEPS`, `REST_CURE_NEWS_STEPS`,
+De vorige sets `PEDIGREE_NEWS_STEPS`, `PRIZE_NEWS_STEPS`, `FAREWELL_NEWS_STEPS`, `REST_CURE_NEWS_STEPS`,
 `RELAY_NEWS_STEPS`, `GENES_NEWS_STEPS`, `BREED_NEWS_STEPS`, `BID_NEWS_STEPS` en
-`SEASON_NEWS_STEPS` blijven in `Tour.tsx` als referentie. (De oude `FeatureTour` met gecentreerde kaarten
+`SEASON_NEWS_STEPS` blijven in `Tour.tsx` als referentie (`AGE_CUP_NEWS_STEPS` is weg, met het criterium). (De oude `FeatureTour` met gecentreerde kaarten
 is verwijderd — alles zit nu in `Tour`.)
 
 **Thema:** `data-theme` op `<html>` (default **dark**, gezet door inline script in
@@ -1909,7 +2034,7 @@ npx tsx tests/flight-eligibility.test.mts # een niet-inzetbare duif wordt geschr
 npx tsx tests/prize-rules.test.mts       # prijzentabellen lopen door + max 3 beloonde duiven
 npx tsx tests/market-bidding.test.mts    # marktprijs, bieden vanaf, en geen zwevende biedingen
 npx tsx tests/bot-bidding.test.mts       # bots bieden binnen de band rond de marktwaarde
-npx tsx tests/age-cup.test.mts           # leeftijdscriterium: klassen, afwisseling, 3-seizoenencyclus
+npx tsx tests/leagues.test.mts           # leagues: grenzen, kalender, min. 4 duiven/3 melkers, uitreiking, migratie v67
 npx tsx tests/pigeon-logs.test.mts       # de logboeken blijven uit de wereldload, legacy blijft leesbaar
 npx tsx tests/season-prizes.test.mts     # seasonWins reset, totalWins niet; ceremonie = laatste seizoen
 npx tsx tests/bot-market.test.mts        # de prijsgrens voor bots (anti-exploit) + hun trainingsregels
@@ -1951,7 +2076,7 @@ npx tsx tests/samen-kweken.test.mts       # kweken met andermans duif: bot, onde
 npx tsx tests/samen-kweken-news.test.mts  # v62: twee bellen per echte speler, stabiele id, bots bieden aan
 npx tsx tests/duivenlokker.test.mts       # duivenlokker: kansen, kopen, vangen, kiezen, D1 + API, wiki/spelregels, bel v64
 npx tsx tests/pigeon-tags.test.mts        # tags: opkuisen, privé, weg bij elke eigendomswissel, D1 + API, bel v65
-npx tsx tests/season-close.test.mts       # v66: seizoen 3 nu afsluiten (of enkel het criterium als de wissel er al was)
+npx tsx tests/season-close.test.mts       # v66: seizoen 3 afsluiten (of enkel het criterium) + v67 erna; prod zoals ze is
 ```
 
 > **Geen `tsx` beschikbaar?** (cloud-sessie waar de npm-registry geblokkeerd is: `npx tsx`
@@ -1977,10 +2102,13 @@ Alles in één keer (bash, vanuit de root):
 for f in tests/*.test.mts; do printf '%-26s ' "$(basename "$f")"; npx tsx "$f" >/dev/null 2>&1 && echo OK || echo FAIL; done
 ```
 
-**Stand van de suite (prod + seizoen 3 afgesloten, 24 okt): alles groen behalve `age-cup` en `market-news`**
-(68 tests; beide identiek rood op de ongewijzigde boom: tijdbommen met een vaste datum — `market-news` zet
-de laatste opvangcentrumveiling op "nu − 1000 u" naast een vaste maandag in september, op dev al
-gerepareerd; `live-speed` 1× rood, daarna groen — flaky). **Daarvoor (prod + tags, 17 okt): alles groen behalve `age-cup`** (67 tests; `cpu-budget` en
+**Stand van de suite (prod + leagues, 24 okt): alles groen behalve het gekende wankele `live-speed`** (68 tests,
+1× rood en daarna 3× groen). `age-cup` is weg (vervangen door `leagues`), `season-close` kwam erbij; `market-news` stond sinds ~19 okt rood door een tijdbom in de fixture (de laatste
+opvangcentrumveiling op "nu − 1000 u" naast een vaste maandag in september — ook op prod-code rood), nu relatief
+aan die maandag. `force-finish` viel sporadisch om (op prod 1/40, met de leagues ~1/6): een botduif die bijna
+leeg vertrok stierf onderweg en de energiecontrole zocht haar nog op — slaat zo'n duif nu over (60/60 groen; zie
+*Bijwerking* in §0b Leagues). **Daarvoor (prod + seizoen 3 afgesloten, 24 okt): alles groen behalve `age-cup` en
+`market-news`** (beide tijdbommen, identiek rood op de ongewijzigde boom). **Daarvoor (prod + tags, 17 okt): alles groen behalve `age-cup`** (67 tests; `cpu-budget` en
 `family-chart` apart gedraaid, groen; `live-speed` was op de ongewijzigde boom 1× rood, daarna groen — flaky,
 zie hieronder). **Daarvoor (dev, 12 okt, na Samen kweken): alles groen behalve `age-cup`** (64 tests;
 `cpu-budget` en `demo-build` apart gedraaid, beide groen). Daarvoor: **(na het weghalen van de koppels) 57 van de 58 groen** (`cpu-budget`
@@ -1988,9 +2116,9 @@ apart gedraaid; enkel `age-cup` rood, zie hieronder). `inrichting` hing af van h
 die 24–25 u later vertrekt, schoof tijdens het geteste uur het weerstationvenster in; de assertie
 kijkt nu enkel naar vluchten die al een voorspelling hadden (groen op alle 24 uren van de dag).
 Bekende rode — controleer of een rode test hierin staat vóór je gaat zoeken:
-- `age-cup` — **echt rood**, intussen drie asserties ("de cyclus is verankerd op het einde
-  van het lopende seizoen", "er staan criteriumvluchten gepland (0)", "alle 4 klassen komen
-  aan bod"), identiek op de boom vóór de hokinrichting. Nog te repareren.
+- `age-cup` — was **echt rood** (tijdbom met een vaste `T0`); op dev weg, vervangen door
+  `leagues.test.mts`, dat van de komende zaterdag vertrekt. Op prod staat hij nog (rood) tot de
+  leagues live gaan.
 - `cpu-budget` — **rood op een belaste machine**: de koude odds-meting schiet over haar
   budget (gemeten 6,3–8,4 ms over 3 runs op de ongewijzigde boom). Draai hem apart, niet
   naast een andere testrun; los gedraaid is hij groen (3,0 / 4,4 ms).
@@ -3701,7 +3829,8 @@ Alles hieronder staat **live** op de deploy-branch. Data-migraties liepen door t
   telt niet mee, een andere dag mag wél, en over een doorgespoelde week staat geen enkele
   botduif twee keer op één dag.
 
-**Leeftijdscriterium: vier leeftijdsklassen, één vlucht per week, drie seizoenen**
+**Leeftijdscriterium: vier leeftijdsklassen, één vlucht per week, drie seizoenen** (⚠️ sinds 24 okt vervangen
+door de *Leagues*, §0b — dit blok is geschiedenis; de code bestaat niet meer)
 (De spelregels staan in `spelregels.md` §2.10, de knoppen in `AGE_CUP`/`AGE_CATEGORIES` — §5.
 Hieronder enkel wat je nodig hebt om eraan te werken.)
 - **Kalender:** vier slots in `REAL_SCHEDULE` (`cup-u1` ma · `cup-y12` wo · `cup-y23` do ·

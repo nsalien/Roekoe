@@ -6,7 +6,7 @@
 
 import type { Database, Flight, Loft, Notification, Pigeon, RaceLogEntry, Trade } from './schema.js';
 import type { PigeonLogs } from './d1.js';
-import { AGE_CUP, AUCTION, BREED_RARITY, MIN_SALE_SHARE, CITY_COORDS, COACH, DEBT, coachSalaryFor, nextCoachBand, ageCategoryDef, ageCategoryFor, compartmentCost, EQUIPMENT, EQUIPMENT_LEVELS, cleanerWage, hygieneIllnessMult, irBoxPrice, VACCINES, type VaccineKey, quirkById, strawCost, RELAY, REST_CURE, TRADE_HISTORY_DAYS, TRAINING } from './config/gameConfig.js';
+import { AUCTION, BREED_RARITY, MIN_SALE_SHARE, CITY_COORDS, COACH, DEBT, coachSalaryFor, nextCoachBand, LEAGUE, leagueDef, leagueFor, leaguePrizes, compartmentCost, EQUIPMENT, EQUIPMENT_LEVELS, cleanerWage, hygieneIllnessMult, irBoxPrice, VACCINES, type VaccineKey, quirkById, strawCost, RELAY, REST_CURE, TRADE_HISTORY_DAYS, TRAINING } from './config/gameConfig.js';
 import {
   ageInWeeks,
   breedInfo,
@@ -28,7 +28,7 @@ const FORM_GOOD = 70;
 const FORM_FAIR = 45;
 import { sunTimes, traitDTO } from './game/traits.js';
 import { auctionKind, sundayBandLabel, sundayBidBlock } from './game/auction.js';
-import { ageCupRankings, pigeonSeasonRankings } from './game/season.js';
+import { leagueRankings, pigeonSeasonRankings } from './game/season.js';
 import { bettingOpen } from './game/betting.js';
 import { nextCapacityTier, nextInfirmaryTier, ownerName } from './game/engine.js';
 import { coachDailyGain, dailyRunningCostBreakdown, projectDailyCare } from './game/economy.js';
@@ -46,7 +46,7 @@ import { pigeonTags } from './game/tags.js';
 import { insuranceCost, insurancePremium, insuranceQuote, irBoxesInUse, magazineRanges, readsMagazine } from './game/inrichting.js';
 import { marketValue, valuePigeon } from './game/market.js';
 import { activeListing, wantsOf } from './game/stud.js';
-import { flightCancelled, flightCommentary, liveSnapshot, pigeonAirborne, pigeonCommittedToFlight } from './game/flight.js';
+import { flightCancelled, flightCommentary, leagueRace, liveSnapshot, pigeonAirborne, pigeonCommittedToFlight } from './game/flight.js';
 import { relayEntryTeams, relayLegKm } from './game/relay.js';
 import { BADGES, levelForXp } from './game/badges.js';
 import { round1 } from './game/util.js';
@@ -250,12 +250,12 @@ export function pigeonDTO(db: Database, p: Pigeon, viewerId?: string, viewerIsAd
           experience: Math.round(experienceGain(p.experience, COACH.experienceDailyGain) * 100) / 100,
         }
       : null,
-    // LEEFTIJDSCRITERIUM — both PUBLIC on purpose. The standings are a public
-    // scoreboard (they show up under Ranglijst → Duiven with every bird's name),
-    // and a title is an honour the bird carries around, so hiding either from a
-    // rival looking at her page would be pointless.
-    ageCat: ageCategoryFor(ageInWeeks(p, week)),
-    cup: p.cup ?? null,
+    // LEAGUES — all PUBLIC on purpose. Her league follows from her ★, which is
+    // public anyway; the standings are a public scoreboard (Ranglijst → Leagues,
+    // with every bird's name), and a title is an honour the bird carries around,
+    // so hiding any of it from a rival looking at her page would be pointless.
+    league: leagueFor(talent(p)),
+    leagues: p.leagues ?? null,
     titles: p.titles ?? [],
   };
 }
@@ -466,15 +466,19 @@ export function flightDTO(db: Database, f: Flight) {
     practice: !!f.practice,
     titan: !!f.titan,
     relay: !!f.relay,
-    // Leeftijdscriterium: which age bracket may enter, and whether this edition is
-    // the sprint or the grote fond. Both are plain scalars already on the flight
-    // row, so this costs the narrowed poll nothing.
-    ageCat: f.ageCat,
-    ageCatLabel: f.ageCat ? ageCategoryDef(f.ageCat).label : undefined,
-    ageCatShort: f.ageCat ? ageCategoryDef(f.ageCat).short : undefined,
-    ageCatIcon: f.ageCat ? ageCategoryDef(f.ageCat).icon : undefined,
-    cupSprint: f.ageCat ? !!f.cupSprint : undefined,
-    cupPrizes: f.ageCat ? (f.cupSprint ? AGE_CUP.sprint.prizes : AGE_CUP.fond.prizes) : undefined,
+    // League: which score league may enter, and whether this edition is the sprint
+    // or the grote fond. Both are plain scalars already on the flight row, so this
+    // costs the narrowed poll nothing. `leagueRace` also covers a leftover
+    // criterium race (it files under the same family on the calendar).
+    leagueRace: leagueRace(f),
+    league: f.league,
+    leagueLabel: f.league ? leagueDef(f.league).label : undefined,
+    leagueShort: f.league ? leagueDef(f.league).short : undefined,
+    leagueIcon: f.league ? leagueDef(f.league).icon : undefined,
+    leagueSprint: f.league ? !!f.leagueSprint : undefined,
+    leaguePrizes: f.league ? leaguePrizes(f.league, !!f.leagueSprint) : undefined,
+    leagueMinBirds: f.league ? LEAGUE.minBirds : undefined,
+    leagueMinOwners: f.league ? LEAGUE.minOwners : undefined,
     // Estafettevlucht: the three equal legs, their handover points and the
     // forecast per leg (which is what makes the running order a real choice).
     legs: f.relay ? f.legs ?? [] : undefined,
@@ -775,14 +779,14 @@ export function pigeonRaceHistory(log: RaceLogEntry[]) {
  * the result would silently be wrong rather than merely stale.
  */
 export function computeLeaderboard(db: Database) {
-  // The criterium standings scan every pigeon exactly like the season rankings do,
+  // The league standings scan every pigeon exactly like the season rankings do,
   // so they ride the SAME cache. Computing them on /state instead would pull the
   // whole pigeons table back onto the hottest route in the game — the very thing
   // World.leaderboard exists to prevent.
   return {
     rankings: rankingRows(db),
     pigeonRankings: pigeonSeasonRankings(db),
-    cupRankings: ageCupRankings(db),
+    leagueRankings: leagueRankings(db),
   };
 }
 

@@ -32,7 +32,7 @@ import {
   LOFT_CAPACITY_TIERS,
   REST_CURE,
   TRAINING,
-  ageCategoryFor,
+  leagueFor,
 } from '../config/gameConfig.js';
 import type { FeedRationKey } from '../config/gameConfig.js';
 import type { Database, Flight, Loft, Pigeon } from '../schema.js';
@@ -542,10 +542,11 @@ export function botRaceCandidates(
     .filter((p) => {
       if (held.has(p.id)) return false;
       if (p.form < 1) return false; // the game's own floor
-      // A leeftijdscriterium only accepts one age bracket — the same hard rule the
-      // player's `enterFlight` applies. Everything else about the race is normal,
-      // so the energy/health judgement below still decides whether to enter.
-      if (flight.ageCat && ageCategoryFor(ageInWeeks(p, ctx.week)) !== flight.ageCat) return false;
+      // A league only accepts one score league — the same hard rule the player's
+      // `enterFlight` applies. Everything else about the race is normal, so the
+      // energy/health judgement below still decides whether to enter.
+      if (flight.league && leagueFor(talent(p)) !== flight.league) return false;
+      if (flight.ageCat) return false; // a leftover criterium race takes no new birds
       // The estafette skips the owner's judgement entirely; canRace still applies.
       if (flight.relay) return p.form >= BOT.minFormRelay;
       // A worn-down bird gets rested, not raced: low gezondheid is what turns a

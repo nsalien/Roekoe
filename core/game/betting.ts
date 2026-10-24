@@ -11,7 +11,7 @@ import { BETTING, FLIGHT_RISK } from '../config/gameConfig.js';
 import { debtBlock } from './economy.js';
 import type { Bet, BetKind, Database, Flight, Pigeon } from '../schema.js';
 import { newId } from '../store.js';
-import { pigeonVelocity } from './flight.js';
+import { leagueRace, pigeonVelocity } from './flight.js';
 import { expectedTraitFactor } from './traits.js';
 import { progressMissions } from './missions.js';
 import { evaluateBadges } from './badges.js';
@@ -21,6 +21,9 @@ import { clamp, hashString, seededRng } from './util.js';
 export function bettingOpen(flight: Flight, nowMs: number): boolean {
   if (flight.status !== 'scheduled') return false;
   if (flight.practice || flight.titan || flight.relay) return false; // oefenvlucht/titan/estafette: geen inzet
+  // A league race is a pigeon competition: no bets. (It is also never settled —
+  // tickFlights stops before settleFlightBets for it — so a bet would be stuck.)
+  if (leagueRace(flight)) return false;
   const start = Date.parse(flight.startAt);
   if (Number.isNaN(start)) return false;
   return nowMs >= start - BETTING.windowHours * 3600000 && nowMs < start;

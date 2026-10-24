@@ -1,7 +1,7 @@
 /**
  * De prijsuitreiking, als échte ceremonie.
  *
- * Aan het einde van een seizoen (en om de drie seizoenen ook het criterium) kan
+ * Aan het einde van een seizoen (Roekoe, Vleugels en de leagues) kan
  * één hok meerdere prijzen tegelijk winnen. Dat stond vroeger samengeperst in één
  * belmelding — een regel tekst voor iets waar je vier weken voor gevlogen hebt.
  * Nu krijgt elke prijs zijn eigen scherm: de beker groot in beeld, waarvoor je
@@ -29,6 +29,13 @@ const WING_LABEL: Record<string, string> = {
   podium: 'meeste podiums',
   progress: 'meeste vooruitgang',
 };
+const LEAGUE_LABEL: Record<string, string> = {
+  l60: '★ t/m 60',
+  l70: '★ 61–70',
+  l80: '★ 71–80',
+  l81: '★ 81+',
+};
+/** Legacy: a criterium prize from before the leagues (still in old ceremonies). */
 const AGE_LABEL: Record<string, string> = {
   u1: 'onder 1 jaar',
   y12: '1 tot 2 jaar',
@@ -42,6 +49,7 @@ function awardName(a: SeasonAward): string {
   if (a.kind === 'roekoe') return `de ${metal} Roekoe`;
   if (a.kind === 'vleugel') return `de ${metal} Vleugel`;
   if (a.kind === 'premie') return 'Seizoenspremie';
+  if (a.kind === 'league') return a.rank <= METAL.length ? `${metal} Leagueduif` : 'Leaguepremie';
   return `${metal} Criteriumduif`;
 }
 
@@ -50,13 +58,17 @@ function awardFor(a: SeasonAward): string {
   if (a.kind === 'roekoe') return `${a.value ?? 0} seizoenspunten`;
   if (a.kind === 'vleugel') return `${WING_LABEL[a.category ?? ''] ?? 'duivenranglijst'} — ${a.pigeonName ?? 'je duif'}`;
   if (a.kind === 'premie') return `${a.rank}e plaats · ${a.value ?? 0} seizoenspunten`;
+  if (a.kind === 'league') {
+    const place = a.rank > METAL.length ? `${a.rank}e plaats · ` : '';
+    return `${place}League ${LEAGUE_LABEL[a.league ?? ''] ?? ''} — ${a.pigeonName ?? 'je duif'}`;
+  }
   return `${AGE_LABEL[a.ageCat ?? ''] ?? 'leeftijdsklasse'} — ${a.pigeonName ?? 'je duif'}`;
 }
 
 /**
  * De beker zelf. Drie vormen, want drie soorten prijs: een klassieke cup voor de
  * melkerranglijst, een vleugel voor de duivenranglijsten, en een medaille voor
- * het criterium. Getekend in SVG i.p.v. als afbeelding: scherp op elk scherm,
+ * de leagues (en vroeger het criterium). Getekend in SVG i.p.v. als afbeelding: scherp op elk scherm,
  * en het metaal is gewoon een verloop dat met de plaats meebeweegt.
  */
 function Trophy({ kind, rank }: { kind: SeasonAward['kind']; rank: number }) {
@@ -120,7 +132,7 @@ function Trophy({ kind, rank }: { kind: SeasonAward['kind']; rank: number }) {
           <text x="60" y="45" textAnchor="middle" fontSize="20" fontWeight="700" fill={c.dark} stroke="none">€</text>
         </g>
       )}
-      {kind === 'criterium' && (
+      {(kind === 'league' || kind === 'criterium') && (
         <g fill={`url(#metal-${id})`} stroke={c.dark} strokeWidth="1.5" strokeLinejoin="round">
           {/* lint + medaille */}
           <path d="M44 14l12 30h8L52 14z" />
@@ -166,9 +178,9 @@ export function PrizeCeremony({
   awards: SeasonAward[];
   onClose: () => void;
 }) {
-  // Mooiste volgorde: eerst de Roekoe, dan de Vleugels, dan het criterium — en
+  // Mooiste volgorde: eerst de Roekoe, dan de Vleugels, dan de leagues — en
   // binnen elke soort de hoogste plaats eerst, zodat het opbouwt naar je beste.
-  const order = { roekoe: 0, premie: 0, vleugel: 1, criterium: 2 };
+  const order: Record<SeasonAward['kind'], number> = { roekoe: 0, premie: 0, vleugel: 1, league: 2, criterium: 2 };
   const list = [...awards].sort(
     (a, b) => (order[a.kind] ?? 9) - (order[b.kind] ?? 9) || a.rank - b.rank,
   );
@@ -188,9 +200,10 @@ export function PrizeCeremony({
 
         {/* key = de prijs, zodat de animatie bij élke prijs opnieuw speelt */}
         <div key={`${a.kind}-${a.rank}-${i}`} className="ceremony-stage">
-          <Trophy kind={a.kind} rank={a.rank} />
+          {/* a league place past the podium is money, not a medal: show the coins */}
+          <Trophy kind={a.kind === 'league' && a.rank > METAL.length ? 'premie' : a.kind} rank={a.rank} />
           {/* Geen medaille-emoji naast de titel: de getekende beker draagt de
-              plaats al (goud/zilver/brons), en naast de criteriummedaille stond
+              plaats al (goud/zilver/brons), en naast de leaguemedaille stond
               er anders een medaille náást een medaille. */}
           <h2 style={{ margin: '2px 0 2px', fontSize: '1.35rem' }}>{awardName(a)}</h2>
           <div className="muted" style={{ marginBottom: 10 }}>{awardFor(a)}</div>

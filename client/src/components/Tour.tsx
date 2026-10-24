@@ -42,14 +42,14 @@ const VLEUGEL_STEP: Step = {
     </>
   ),
 };
-// Leeftijdscriterium — shared by the full tour and the one-time news run below.
-const AGE_CUP_STEP: Step = {
-  route: '/ranglijst', selector: '[data-tour="age-cup"]',
-  title: '🏆 Leeftijdscriterium',
+// Leagues — shared by the full tour and the one-time news run below.
+const LEAGUE_STEP: Step = {
+  route: '/ranglijst', selector: '[data-tour="leagues"]',
+  title: '🏅 Leagues',
   body: (
     <>
-      Een tweede competitie, enkel voor duiven: <strong>vier leeftijdsklassen</strong> met elk één eigen vlucht per
-      week. Deze stand loopt <strong>drie seizoenen</strong> door.
+      Een tweede competitie, enkel voor duiven: <strong>vier leagues volgens de algemene score (★)</strong>, elk met
+      één eigen vlucht per week. Zo vliegt een zwakkere duif tegen haar gelijken. De stand loopt één seizoen.
       <br />
       <span className="faint" style={{ display: 'inline-block', marginTop: 4 }}>Alles erover: 📖 Wiki.</span>
     </>
@@ -210,7 +210,7 @@ const STEPS: Step[] = [
   SEASON_STEP,
   ROEKOE_STEP,
   VLEUGEL_STEP,
-  AGE_CUP_STEP,
+  LEAGUE_STEP,
   {
     route: '/prestaties', selector: '[data-tour="prestige"]',
     title: '🎖️ Prestige',
@@ -627,11 +627,6 @@ export const REST_CURE_NEWS_STEPS: Step[] = [
   },
 ];
 
-/**
- * The leeftijdscriterium: four age brackets, one race each per week, standings
- * that run for three seasons. Three steps — what it is, how you enter, and why
- * the horizon is longer than a season.
- */
 export const PRIZE_NEWS_STEPS: Step[] = [
   {
     route: '/',
@@ -649,7 +644,7 @@ export const PRIZE_NEWS_STEPS: Step[] = [
     body: (
       <>
         De bodem per vlucht: regionaal <strong>€40</strong>, nationaal <strong>€50</strong>, internationaal{' '}
-        <strong>€75</strong>, criterium <strong>€60</strong> (sprint) of <strong>€90</strong> (fond). De koppen
+        <strong>€75</strong>. De koppen
         blijven wat ze waren — een internationale zege is nog altijd <strong>€2.200</strong>.
       </>
     ),
@@ -1076,34 +1071,34 @@ export const PEDIGREE_NEWS_STEPS: Step[] = [
   },
 ];
 
-export const AGE_CUP_NEWS_STEPS: Step[] = [
+/**
+ * Aankondiging van de LEAGUES (in de plaats van het leeftijdscriterium). De bel
+ * (migratie v66, core/game/news.ts) is de eerste helft. Eerst de leagueknop op
+ * Vluchten (daar schrijf je in), dan de stand bij Ranglijst → Leagues.
+ */
+export const LEAGUE_NEWS_STEPS: Step[] = [
   {
-    route: '/',
-    title: '🏆 Nieuw: het leeftijdscriterium',
-    body: 'Een tweede competitie, enkel voor duiven: vier leeftijdsklassen die elk hun eigen wekelijkse vlucht krijgen.',
-  },
-  {
-    route: '/vluchten', selector: '[data-tour="flights"]',
-    title: '🐣 Vier klassen, elk hun eigen vlucht',
+    route: '/vluchten', selector: '[data-tour="league-filter"]',
+    title: '🏅 Nieuw: de leagues',
     body: (
       <>
-        Elke week vier extra vluchten om <strong>06:00</strong> — ma <strong>&lt; 1 j</strong>, wo{' '}
-        <strong>1–2 j</strong>, do <strong>2–3 j</strong>, vr <strong>3 j +</strong> — met enkel duiven van die
-        leeftijd. Inschrijven kost <strong>€20</strong> per duif.
+        Het leeftijdscriterium is weg. In de plaats komen <strong>vier leagues volgens de score</strong> van je duif:
+        ma <strong>★ t/m 60</strong>, wo <strong>★ 61–70</strong>, do <strong>★ 71–80</strong>, vr{' '}
+        <strong>★ 81+</strong>, telkens om 06:00. Je duif vliegt in de league van haar score; een league gaat pas
+        door met minstens <strong>3 melkers en 4 duiven</strong>.
       </>
     ),
   },
   {
-    route: '/ranglijst', selector: '[data-tour="age-cup"]',
-    title: '⏳ De stand loopt drie seizoenen',
+    ...LEAGUE_STEP,
+    title: '🏆 Een stand per seizoen',
     body: (
       <>
-        Daarna wint de top 3 van elke klasse geld én een <strong>titel op de duif</strong>. Geen seizoenspunten: je
-        Roekoe-ranglijst beweegt er niet door.
+        Prijzengeld per vlucht (meer in een hogere league), en op het einde van het seizoen wint de top 10 van elke
+        league geld — tot <strong>€1.600</strong> — en de top 3 ook een <strong>titel op de duif</strong>. Geen seizoenspunten: je Roekoe-ranglijst beweegt er
+        niet door.
         <br />
-        <span className="faint" style={{ display: 'inline-block', marginTop: 4 }}>
-          Klassen, prijzen en tactiek: 📖 Wiki → Leeftijdscriterium.
-        </span>
+        <span className="faint" style={{ display: 'inline-block', marginTop: 4 }}>Klassen en prijzen: 📖 Wiki → Leagues.</span>
       </>
     ),
   },

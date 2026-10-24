@@ -7,7 +7,7 @@
  * en niet in de migratie, zodat de test hem kan lezen zonder de motor te draaien.
  */
 
-import { INSURANCE, LURE, LURE_MAX_LEVEL, MARKET_BOOST, PIGEON_TAGS, STUD, VACCINES, studFailedRefund } from '../config/gameConfig.js';
+import { INSURANCE, LEAGUE, LEAGUES, LURE, LURE_MAX_LEVEL, MARKET_BOOST, PIGEON_TAGS, STUD, VACCINES, leagueAward, studFailedRefund } from '../config/gameConfig.js';
 
 export const INRICHTING_NEWS = {
   title: '🧰 Nieuw: je hok inrichten, en meer',
@@ -118,4 +118,31 @@ export const TAGS_NEWS = {
   ].join('\n'),
   /** Stabiel per speler: twee verzoeken die tegelijk migreren geven één bel. */
   id: (userId: string) => `ntf:news:tags:${userId}`,
+} as const;
+
+const WEEKDAY_NL = ['zondag', 'maandag', 'dinsdag', 'woensdag', 'donderdag', 'vrijdag', 'zaterdag'];
+const LEAGUE_AT = `${String(LEAGUE.hour).padStart(2, '0')}:${String(LEAGUE.minute).padStart(2, '0')}`;
+
+/**
+ * De bel van de LEAGUES (migratie v66 in schedule.ts, voor élke echte speler): het
+ * leeftijdscriterium is weg, vier leagues per algemene score nemen zijn plaats in.
+ * De tweede helft is leagueNewsSteps in client/src/components/Tour.tsx; de uitleg
+ * staat in de wiki (#leagues). Dagen, bedragen en het minimum uit LEAGUE/LEAGUES.
+ */
+export const LEAGUE_NEWS = {
+  title: '🏅 Nieuw: de leagues, in plaats van het criterium',
+  body: [
+    'Het leeftijdscriterium is weg. In de plaats komen vier leagues volgens de algemene score (★) van je duif: '
+      + 'zo vliegt een zwakkere duif tegen haar gelijken en kan ook zij iets winnen.',
+    `• ${LEAGUES.map((l) => `${l.icon} ${l.short} op ${WEEKDAY_NL[l.weekday]}`).join(' · ')}, telkens om ${LEAGUE_AT} — `
+      + 'week om week een sprint of een grote fond.',
+    `• Inschrijven kost €${LEAGUE.entryFee}. Je duif vliegt in de league van haar score op het moment dat je haar `
+      + `inschrijft. Een league gaat pas door met minstens ${LEAGUE.minOwners} melkers en ${LEAGUE.minBirds} duiven.`,
+    `• Prijzengeld per vlucht (hoe hoger de league, hoe meer) en medailles, maar geen seizoenspunten. Op het einde `
+      + `van elk seizoen wint de top ${LEAGUES[0].awards.length} van elke league geld (tot €${leagueAward(LEAGUES[LEAGUES.length - 1].id, 1).toLocaleString('nl-BE')}), `
+      + 'de top 3 ook een titel op de duif.',
+    'De stand staat bij Ranglijst → Leagues. Alles op een rij: Wiki → Leagues.',
+  ].join('\n'),
+  /** Stabiel per speler: twee verzoeken die tegelijk migreren geven één bel. */
+  id: (userId: string) => `ntf:news:leagues:${userId}`,
 } as const;

@@ -30,8 +30,9 @@ import {
   STARTING_MONEY,
   STARTING_PIGEONS,
   TRAINING,
-  ageCategoryDef,
-  ageCategoryFor,
+  leagueDef,
+  leagueFor,
+  leagueRangeText,
   compartmentCost,
   type FeedRationKey,
 } from '../config/gameConfig.js';
@@ -612,15 +613,17 @@ export function enterFlight(
     // The titanenwedstrijd allows only one bird per loft.
     if (flight.titan && flight.entries.some((e) => e.ownerId === userId))
       return 'In de titanenwedstrijd mag je maar één duif inschrijven';
-    // A leeftijdscriterium race is restricted to ONE age bracket. The bracket is
-    // decided here, at entry time, on the bird's age right now — she ages ~1 year
-    // over a full cycle, so she simply moves up as she gets older (AGE_CUP).
-    // There is no per-loft limit: enter as many eligible birds as you like.
-    if (flight.ageCat) {
-      const def = ageCategoryDef(flight.ageCat);
-      if (ageCategoryFor(ageInWeeks(pigeon, db.world.currentWeek)) !== flight.ageCat)
-        return `Deze vlucht is enkel voor duiven van ${def.label.toLowerCase()} — ${pigeon.name} valt in een andere leeftijdsklasse`;
+    // A league race is restricted to ONE score league. The league is decided here,
+    // at entry time, on the bird's algemene score right now — her score moves, so
+    // she may fly a different league next week (LEAGUE). There is no per-loft
+    // limit: enter as many eligible birds as you like.
+    if (flight.league) {
+      const own = leagueFor(talent(pigeon));
+      if (own !== flight.league)
+        return `De ${leagueDef(flight.league).label} is enkel voor duiven met een score van ${leagueRangeText(flight.league)} — ${pigeon.name} (★${talent(pigeon)}) hoort in de ${leagueDef(own).label}`;
     }
+    // A leeftijdscriterium race left over from before the leagues takes no new birds.
+    if (flight.ageCat) return 'Het leeftijdscriterium bestaat niet meer — schrijf je duif in voor de league van haar score';
     // An estafettevlucht is entered as ONE team of exactly RELAY.teamSize birds.
     // The entry fee is charged once, on the first bird of the team.
     const ownEntries = flight.entries.filter((e) => e.ownerId === userId);

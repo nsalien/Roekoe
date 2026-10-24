@@ -48,7 +48,7 @@ function buildWorld(): { store: MemoryStore; db: Database; userId: string } {
 /** Two plain competition flights on the SAME calendar day, in start order. */
 function sameDayPair(db: Database): [Flight, Flight] {
   const plain = db.flights
-    .filter((f) => f.status === 'scheduled' && !f.ageCat && !f.relay && !f.titan)
+    .filter((f) => f.status === 'scheduled' && !f.league && !f.relay && !f.titan)
     .sort((a, b) => a.startAt.localeCompare(b.startAt));
   for (const a of plain) {
     const b = plain.find((x) => x.id !== a.id && flightDay(x) === flightDay(a) && x.startAt > a.startAt);
@@ -69,7 +69,7 @@ console.log('\n=== 1. Twee vluchten op één dag: de tweede wordt geweigerd ==='
 
   console.log('\n=== 4. Een vlucht op een ANDERE dag mag wel ===');
   const other = db.flights.find(
-    (f) => f.status === 'scheduled' && !f.ageCat && !f.relay && !f.titan && flightDay(f) !== flightDay(f1),
+    (f) => f.status === 'scheduled' && !f.league && !f.relay && !f.titan && flightDay(f) !== flightDay(f1),
   );
   ok(!!other, `er staat ook een vlucht op een andere dag gepland (${other?.name})`);
   ok(enterFlight(store, userId, other!.id, bird!.id) === null, 'diezelfde duif mag daar wél starten');

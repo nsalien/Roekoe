@@ -2,7 +2,8 @@
  * Regressietest: een podium telt op ELKE wedstrijd.
  *
  * Aanleiding (eigenaar): "krijg je bij het behalen van een podiumplaats ook de
- * badge op de criteriumvluchten? Zo niet, dit moet op alle wedstrijden gelden."
+ * badge op de criteriumvluchten? Zo niet, dit moet op alle wedstrijden gelden." (Het
+ * criterium is intussen vervangen door de leagues; die volgen dezelfde regel.)
  * Dat deed het niet — `tickFlights` sloeg `awardFlightBadges` volledig over voor
  * de titan, de estafette én het leeftijdscriterium, dus medailles (die de
  * `podium_*`-badges en de trofeekast voeden) werden daar niet geboekt.
@@ -80,13 +81,13 @@ console.log('\n1. Medailles worden overal geboekt');
   for (const [label, kind] of [
     ['gewone wedstrijd', {}],
     ['titanenwedstrijd', { titan: true }],
-    ['leeftijdscriterium', { ageCat: 'y12' }],
+    ['league', { league: 'l70' }],
   ] as [string, Partial<Flight>][]) {
     const l = loft('u1');
     const a = pigeon('u1'), b = pigeon('u1'), c = pigeon('u1');
     const db = world([l], [a, b, c]);
     const f = soloFlight(kind, [{ p: a, rank: 1 }, { p: b, rank: 2 }, { p: c, rank: 3 }]);
-    const special = !!(kind.titan || kind.ageCat);
+    const special = !!(kind.titan || kind.league);
     awardFlightBadges(db, f, { tierWins: !special });
     ok(`${label}: goud/zilver/brons geboekt`,
       l.stats.gold === 1 && l.stats.silver === 1 && l.stats.bronze === 1,
@@ -108,8 +109,8 @@ console.log('\n2. Maar de TIER-zeges blijven bij de drie competitieniveaus');
   ok('een titanzege telt NIET als internationale zege',
     l.stats.intlWins === 0, `intlWins ${l.stats.intlWins}`);
   ok('maar het goud is er wel', l.stats.gold === 1);
-  awardFlightBadges(db, soloFlight({ ageCat: 'o3' }, [{ p: a, rank: 1 }]), { tierWins: false });
-  ok('een criteriumzege telt NIET als internationale zege', l.stats.intlWins === 0);
+  awardFlightBadges(db, soloFlight({ league: 'l81', type: 'international' }, [{ p: a, rank: 1 }]), { tierWins: false });
+  ok('een leaguezege telt NIET als internationale zege', l.stats.intlWins === 0);
   ok('en het goud stapelt gewoon door', l.stats.gold === 2);
   awardFlightBadges(db, soloFlight({ type: 'international' }, [{ p: a, rank: 1 }]), { tierWins: true });
   ok('een échte internationale zege telt wél', l.stats.intlWins === 1);
@@ -162,7 +163,7 @@ console.log('\n5. Een DNF levert geen medaille op');
   const l = loft('u1');
   const a = pigeon('u1');
   const db = world([l], [a]);
-  const f = soloFlight({ ageCat: 'u1' }, [{ p: a, rank: 1 }]);
+  const f = soloFlight({ league: 'l60' }, [{ p: a, rank: 1 }]);
   (f.results as any)[0].finished = false;
   awardFlightBadges(db, f, { tierWins: false });
   ok('geen goud voor een duif die niet finishte', l.stats.gold === 0);

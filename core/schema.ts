@@ -4,7 +4,7 @@
  * model and to evolve it (add fields, add entities) as the game grows.
  */
 
-import type { AgeCategoryId, FeedRationKey, Severity } from './config/gameConfig.js';
+import type { FeedRationKey, LeagueId, Severity } from './config/gameConfig.js';
 
 export type Sex = 'doffer' | 'duivin'; // male / female
 
@@ -209,12 +209,18 @@ export interface Pigeon {
   care?: PigeonCare;
   seasonPracticeGain?: number; // score gained from practice flights this season (excluded from the ranking)
   /**
-   * Leeftijdscriterium standings, PER age bracket (see AGE_CUP). A bird ages out
-   * of its bracket during a cycle, so the points it earned stay where they were
-   * earned and it simply starts a second entry in the next bracket. Reset only at
-   * the end of a full cycle (3 seasons), never at a normal season rollover.
+   * League standings for the running season, PER league (see LEAGUE). A bird's
+   * score moves, so she can change league mid-season: the points stay where they
+   * were earned and she starts a second entry in her new league. Reset at every
+   * season rollover, after the prijsuitreiking (game/league.ts).
    */
-  cup?: Partial<Record<AgeCategoryId, CupStanding>>;
+  leagues?: Partial<Record<LeagueId, LeagueStanding>>;
+  /**
+   * ⚠️ LEGACY — the leeftijdscriterium standings per age bracket (column `cup`),
+   * replaced by the leagues (v66). Only migration v66 still reads it (to hand
+   * out a running cycle) and then clears it. Do not use for anything new.
+   */
+  cup?: Record<string, LeagueStanding>;
   /**
    * Trophies won by the BIRD itself (as opposed to `Loft.awards`, which belong to
    * the player). They travel with her when she is sold — that is the point.
@@ -402,43 +408,48 @@ export interface NewcomerPerks {
 /** Which of the three pigeon rankings a Gouden Vleugel was won in. */
 export type WingCategory = 'speed' | 'podium' | 'progress';
 
-/** One bird's running total in ONE age bracket of the leeftijdscriterium. */
-export interface CupStanding {
-  points: number; // criterium points (RANKING_POINTS by placing, sprint and fond alike)
-  wins: number; // criterium victories — first tie-break
-  best: number; // best route average (m/min) in this bracket — second tie-break
-  races: number; // criterium races flown in this bracket
+/** One bird's running total in ONE league (and, legacy, one criterium bracket). */
+export interface LeagueStanding {
+  points: number; // league points (RANKING_POINTS by placing, sprint and fond alike)
+  wins: number; // league victories — first tie-break
+  best: number; // best route average (m/min) in this league — second tie-break
+  races: number; // league races flown in this league
 }
 
 /** A trophy engraved on the bird herself; survives a sale. */
 export interface PigeonTitle {
-  kind: 'criterium';
+  /** 'league' since the leagues (v66); 'criterium' titles from before stay on their birds. */
+  kind: 'league' | 'criterium';
   rank: number; // 1, 2 or 3
-  label: string; // e.g. "Gouden Criteriumduif 1–2 j"
+  label: string; // e.g. "Gouden Leagueduif ★ 61–70" (stored, so an old title reads as it was won)
   icon: string;
-  season: number; // the season the cycle ended in
+  season: number; // the season it was won in
   at: string; // ISO timestamp
-  ageCat?: AgeCategoryId;
-  value?: number; // criterium points at award time
+  league?: LeagueId;
+  ageCat?: string; // legacy criterium bracket
+  value?: number; // points at award time
 }
 
 /**
  * A prize won at a season's prijsuitreiking, kept in the owner's prestige.
  *  - `roekoe`: finished 1st/2nd/3rd in the melker standings (season points).
  *  - `vleugel`: owned a pigeon that finished top-3 in a pigeon ranking.
- *  - `criterium`: top-3 bird of an age bracket at the end of a cup cycle.
+ *  - `league`: owned a top-3 bird of a league at the season end.
+ *  - `criterium`: (legacy, before v66) top-3 bird of an age bracket at the end
+ *    of a criterium cycle — still in the erelijst.
  *  - `premie`: seizoenspremie for a melker outside the top 3 (points ÷ 3). Not a
  *    trophy — it never counts in the Roekoe tallies.
  */
 export interface SeasonAward {
-  kind: 'roekoe' | 'vleugel' | 'criterium' | 'premie';
+  kind: 'roekoe' | 'vleugel' | 'league' | 'criterium' | 'premie';
   rank: number; // 1, 2 or 3 — for 'premie' the melker's place in the standings (4+)
   season: number; // season number this was won in
   at: string; // ISO timestamp
   reward: number; // coins paid out
   category?: WingCategory; // only for 'vleugel'
-  ageCat?: AgeCategoryId; // only for 'criterium'
-  pigeonName?: string; // only for 'vleugel' and 'criterium'
+  league?: LeagueId; // only for 'league'
+  ageCat?: string; // only for 'criterium' (legacy)
+  pigeonName?: string; // only for 'vleugel', 'league' and 'criterium'
   value?: number; // the metric at award time (points / km-h / podiums / progress)
 }
 
@@ -851,15 +862,23 @@ export interface Flight {
   relay?: boolean;
   legs?: RelayLeg[];
   /**
-   * Leeftijdscriterium: the age bracket this race is restricted to. Only birds
-   * whose age falls in the bracket AT THE MOMENT OF ENTRY may be entered, and the
-   * result feeds only the criterium standings (`Pigeon.cup`) — no seizoenspunten,
-   * medals, wins, sponsor bonuses or bets. See AGE_CUP in gameConfig.
+   * League race: the score league this race is restricted to. Only birds whose
+   * algemene score falls in the league AT THE MOMENT OF ENTRY may be entered, and
+   * the result feeds the league standings (`Pigeon.leagues`) — no seizoenspunten,
+   * wins, sponsor bonuses or bets (medals yes). See LEAGUE in gameConfig.
    */
-  ageCat?: AgeCategoryId;
-  /** Criterium format for this edition: true = sprint (100-300 km), false = grote
+  league?: LeagueId;
+  /** League format for this edition: true = sprint (100-300 km), false = grote
    *  fond (400-1000 km). Stored rather than derived, because `pickRoute` may land
    *  slightly outside its window when the city pool cannot reach it. */
+  leagueSprint?: boolean;
+  /**
+   * ⚠️ LEGACY — a leeftijdscriterium race (columns `age_cat`/`cup_sprint`), from
+   * before the leagues. Migration v66 removes the scheduled ones; one that was
+   * already live finishes as a points-free special race (`leagueRace` in
+   * flight.ts) and is pruned with the other old flights.
+   */
+  ageCat?: string;
   cupSprint?: boolean;
   entries: FlightEntry[];
   sim: SimEntry[]; // frozen when the flight goes live
@@ -1118,7 +1137,8 @@ export interface World {
    * it also gives the season week: index 0,2,4.. are sprints and 1,3,5.. fond.
    */
   ageCupStartedAt?: string;
-  /** Seasons completed in the current criterium cycle (0..AGE_CUP.seasons - 1). */
+  /** Seasons completed in the current criterium cycle (0..2). ⚠️ LEGACY together
+   *  with `ageCupStartedAt`: only migration v66 reads them, then clears them. */
   ageCupSeasonsDone?: number;
   /**
    * When a bird was last put up for sale, and by whom — the "there is something

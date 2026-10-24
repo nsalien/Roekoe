@@ -13,13 +13,12 @@
  */
 
 import {
-  AGE_CUP,
-  ageCategoryDef,
-  ageCategoryFor,
-  isCupSprintWeek,
+  LEAGUE,
+  leagueDef,
+  isLeagueSprintWeek,
+  type LeagueId,
   RANKING_POINTS,
   SEASON,
-  type AgeCategoryId,
   BOT,
   BOT_LOFT_CAPACITY,
   BOT_LOFT_NAMES,
@@ -64,7 +63,7 @@ import {
   type RaceCity,
   traitById,
 } from '../config/gameConfig.js';
-import type { CupStanding, Database, Flight, FlightResult, Loft, Pigeon, RaceLogEntry } from '../schema.js';
+import type { Database, Flight, FlightResult, LeagueStanding, Loft, Pigeon, RaceLogEntry } from '../schema.js';
 import { emptySponsorState, emptyStats } from '../schema.js';
 import { tickHygiene } from './hygiene.js';
 import { entryMods, insuranceCost, insurancePayout, irBoxEffect, tickHawk, tickMagazine } from './inrichting.js';
@@ -91,7 +90,7 @@ import {
   tickHealing,
 } from './health.js';
 import { inheritanceCard } from './events.js';
-import { closeAgeCupNow, endSeasonNow, tickSeason } from './season.js';
+import { closeCriterium, endSeasonNow, tickSeason } from './season.js';
 import { progressMissions } from './missions.js';
 import { activeContracts, applyHighTierDoubleMigration, applySponsorLimitMigration, evaluateSponsorOffers, offerStarterSponsor, restoreSeasonReviewDrops, sponsorsPaused } from './sponsors.js';
 import {
@@ -102,6 +101,7 @@ import {
   flightDay,
   flightTotalSeconds,
   generateRecap,
+  leagueRace,
   pigeonAirborne,
   pigeonCommittedToFlight,
   relayTeams,
@@ -118,7 +118,7 @@ import { pickRelayRoute, relayEntryTeams, relayLegKm, relayTeamComplete } from '
 import { rollAnyTrait, rollTrait } from './traits.js';
 import { season3CoachNote, season3Welcome } from './season3.js';
 import { LOKAAL_INTRO } from './lokaal.js';
-import { CARE_NEWS, INRICHTING_NEWS, LURE_NEWS, STUD_NEWS, TAGS_NEWS } from './news.js';
+import { CARE_NEWS, INRICHTING_NEWS, LEAGUE_NEWS, LURE_NEWS, STUD_NEWS, TAGS_NEWS } from './news.js';
 import { bell, clamp, hashString, haversineKm, pick, randFloat, round1, seededRng } from './util.js';
 
 // --- Time-zone helpers -----------------------------------------------------
@@ -224,46 +224,46 @@ function pickRouteInRange(minKm: number, maxKm: number): { fromCity: string; toC
   return { fromCity: f.a.name, toCity: f.b.name, distanceKm: Math.round(f.d) };
 }
 
-/** The criterium edition a slot produces on a given week: which bracket, and
+/** The league edition a slot produces on a given week: which league, and
  *  whether it is the sprint or the grote-fond format. */
-export interface CupSpec { cat: AgeCategoryId; sprint: boolean; }
+export interface LeagueSpec { league: LeagueId; sprint: boolean; }
 
-const CUP_WEEK_MS = SEASON.weekDays * 86400000;
+const LEAGUE_WEEK_MS = SEASON.weekDays * 86400000;
 
 /**
- * Which week of the running leeftijdscriterium cycle `atMs` falls in, counted
- * from `world.ageCupStartedAt` (0-based). Returns -1 when the criterium has not
- * started, or when `atMs` lies before the anchor — both mean "plan no age race".
- *
- * The anchor sits on a SEASON boundary, so the index doubles as the season week:
- * 0,2,4,.. are sprints and 1,3,5,.. grote fond, which lands exactly 2 of each per
- * season and 6 of each per three-season cycle.
+ * Which week of the season `atMs` falls in, counted from `world.seasonStartedAt`
+ * (0-based) and simply carried on past the season's end. A season is exactly
+ * four weeks and the next one starts where this one ends, so a race the calendar
+ * plans into the NEXT season (it looks SCHEDULE_HORIZON_DAYS ahead) still gets
+ * the right sprint/fond parity: even = sprint, odd = grote fond → exactly 2 of
+ * each per league per season. A world whose season clock is not anchored yet
+ * falls back to whole weeks since the epoch.
  */
-export function cupWeekIndex(db: Database, atMs: number): number {
-  const start = Date.parse(db.world.ageCupStartedAt ?? '');
-  if (!Number.isFinite(start) || atMs < start) return -1;
-  return Math.floor((atMs - start) / CUP_WEEK_MS);
+export function leagueWeekIndex(db: Database, atMs: number): number {
+  const start = Date.parse(db.world.seasonStartedAt ?? '');
+  if (!Number.isFinite(start)) return Math.floor(atMs / LEAGUE_WEEK_MS);
+  return Math.floor((atMs - start) / LEAGUE_WEEK_MS);
 }
 
-/** The bird's running total in one bracket, created on first use. */
-function cupStanding(p: Pigeon, cat: AgeCategoryId): CupStanding {
-  const cup = (p.cup ??= {});
-  return (cup[cat] ??= { points: 0, wins: 0, best: 0, races: 0 });
+/** The bird's running total in one league this season, created on first use. */
+function leagueStanding(p: Pigeon, id: LeagueId): LeagueStanding {
+  const all = (p.leagues ??= {});
+  return (all[id] ??= { points: 0, wins: 0, best: 0, races: 0 });
 }
 
 function makeRealtimeFlight(
   templateKey: string, tier: FlightTier, startMs: number, week: number, practice = false, titan = false, relay = false,
-  cup?: CupSpec,
+  league?: LeagueSpec,
   /** Optional narrowing of the tier's route window (ScheduleSlot.minKm/maxKm). */
   range?: { minKm?: number; maxKm?: number },
 ): Flight {
   const cfg = FLIGHT_TIERS[tier];
-  // Leeftijdscriterium: an age-restricted race. Its distance window comes from the
+  // League race: a score-restricted race. Its distance window comes from the
   // week's format (sprint or fond) rather than from a tier, and it carries its own
   // flat entry fee; the tier only decides which city pool the route is drawn from.
-  if (cup) {
-    const fmt = cup.sprint ? AGE_CUP.sprint : AGE_CUP.fond;
-    const def = ageCategoryDef(cup.cat);
+  if (league) {
+    const fmt = league.sprint ? LEAGUE.sprint : LEAGUE.fond;
+    const def = leagueDef(league.league);
     const route = pickRoute(fmt.tier, fmt.minKm, fmt.maxKm);
     return {
       id: newId('flt'),
@@ -272,15 +272,15 @@ function makeRealtimeFlight(
       name: `${def.label} — ${fmt.label}`,
       type: fmt.tier,
       distanceKm: route.distanceKm,
-      entryFee: AGE_CUP.entryFee,
+      entryFee: LEAGUE.entryFee,
       fromCity: route.fromCity,
       toCity: route.toCity,
       startAt: new Date(startMs).toISOString(),
       status: 'scheduled',
       practice: false,
       titan: false,
-      ageCat: cup.cat,
-      cupSprint: cup.sprint,
+      league: league.league,
+      leagueSprint: league.sprint,
       entries: [],
       sim: [],
       weather: '',
@@ -492,15 +492,18 @@ export function ensureFlightsScheduled(db: Database, nowMs: number): void {
       const startMs = wallToUtcMs(TIMEZONE, y, m, d, hour, minute);
       // Skip flights that are already well past their live window.
       if (startMs < nowMs - 2 * 3600 * 1000) continue;
-      // A leeftijdscriterium slot only produces a race once the cycle has started,
-      // and the week index (counted from the cycle anchor) decides whether this
-      // edition is a sprint or a grote fond — so all four brackets fly the same
-      // format in the same week.
-      let cup: CupSpec | undefined;
-      if (slot.ageCat) {
-        const weekIndex = cupWeekIndex(db, startMs);
-        if (weekIndex < 0) continue; // criterium has not started for this day yet
-        cup = { cat: slot.ageCat, sprint: isCupSprintWeek(weekIndex) };
+      // A league slot: the week of the season decides whether this edition is a
+      // sprint or a grote fond — so all four leagues fly the same format in the
+      // same week.
+      let league: LeagueSpec | undefined;
+      if (slot.league) {
+        // The switch from the leeftijdscriterium (v66): a day that still holds a
+        // criterium race (one that was already live, or flown) keeps it and gets
+        // no league race on top — that would be planned in the past or clash with
+        // it. Scheduled criterium races were taken off by the migration.
+        const dayKey = new Date(startMs).toISOString().slice(0, 10);
+        if (db.flights.some((f) => !!f.ageCat && flightDay(f) === dayKey)) continue;
+        league = { league: slot.league, sprint: isLeagueSprintWeek(leagueWeekIndex(db, startMs)) };
       }
       const templateKey = `${slot.key}:${y}-${m}-${d}`;
       if (db.flights.some((f) => f.templateKey === templateKey)) continue;
@@ -509,7 +512,7 @@ export function ensureFlightsScheduled(db: Database, nowMs: number): void {
       const tier: FlightTier = slot.tier
         ?? (slot.tiers ? slot.tiers[Math.abs(hashDate(y, m, d)) % slot.tiers.length] : 'national');
       const flight = makeRealtimeFlight(
-        templateKey, tier, startMs, db.world.currentWeek, !!slot.practice, !!slot.titan && !relay, relay, cup,
+        templateKey, tier, startMs, db.world.currentWeek, !!slot.practice, !!slot.titan && !relay, relay, league,
         { minKm: slot.minKm, maxKm: slot.maxKm },
       );
       flight.id = plannedFlightId(templateKey);
@@ -976,9 +979,25 @@ export function tickFlights(
       // two complete TEAMS (short-handed ones were just removed above).
       const distinctOwners = new Set(flight.entries.map((e) => e.ownerId)).size;
       const tooFewRivals = !flight.practice && distinctOwners < 2;
-      if (entries.length === 0 || tooFewRivals) {
+      // A league race also needs LEAGUE.minBirds birds from LEAGUE.minOwners lofts
+      // at the release (the owner's rule), so at least one bird misses the podium
+      // and nobody takes it against a single rival. Counted AFTER the birds that
+      // could not be released were pulled above: it is who actually flies.
+      const tooFewLofts = !!flight.league && distinctOwners < LEAGUE.minOwners;
+      const tooFewBirds = !!flight.league && entries.length < LEAGUE.minBirds;
+      // A league says which minimum it missed: "te weinig deelnemers" alone would
+      // not tell a player with five birds in it why it was called off.
+      const leagueReason = [
+        tooFewLofts && `minder dan ${LEAGUE.minOwners} melkers`,
+        tooFewBirds && `minder dan ${LEAGUE.minBirds} duiven`,
+      ].filter(Boolean).join(' en ');
+      if (entries.length === 0 || tooFewRivals || tooFewLofts || tooFewBirds) {
         flight.status = 'completed';
-        flight.weather = entries.length === 0 ? 'Afgelast (geen deelnemers)' : 'Afgelast (te weinig deelnemers)';
+        flight.weather = entries.length === 0
+          ? 'Afgelast (geen deelnemers)'
+          : leagueReason
+            ? `Afgelast (${leagueReason})`
+            : 'Afgelast (te weinig deelnemers)';
         flight.results = [];
         flight.recap = generateRecap(flight);
         // Cancel + refund any open bets on this flight (it never reaches settle).
@@ -992,9 +1011,12 @@ export function tickFlights(
             if (!loft) continue;
             loft.money += flight.entryFee * count;
             if (!loft.isBot) {
+              const why = leagueReason
+                ? `${leagueReason[0].toUpperCase()}${leagueReason.slice(1)} aan de start van de ${flight.name.toLowerCase()} (${flight.fromCity} → ${flight.toCity}) — een league vliegt pas met minstens ${LEAGUE.minOwners} melkers en ${LEAGUE.minBirds} duiven.`
+                : `Te weinig deelnemers voor de ${flight.name.toLowerCase()} (${flight.fromCity} → ${flight.toCity}).`;
               pushNotification(
                 db, ownerId, 'info', `🚫 ${flight.name} afgelast`,
-                `Te weinig deelnemers voor de ${flight.name.toLowerCase()} (${flight.fromCity} → ${flight.toCity}). Je inschrijfgeld (€${flight.entryFee * count}) is terugbetaald.`,
+                `${why} Je inschrijfgeld (€${flight.entryFee * count}) is terugbetaald.`,
                 flight.id, `ntf:cancel:${flight.id}:${ownerId}`,
               );
             }
@@ -1067,18 +1089,18 @@ export function tickFlights(
           if (r.velocity > (p.seasonPeakSpeed ?? 0)) p.seasonPeakSpeed = r.velocity;
           if (r.rank <= 3) p.seasonPodiums = (p.seasonPodiums ?? 0) + 1;
         }
-        // Leeftijdscriterium: award the criterium points to the BIRD, in the
-        // bracket this race was run for. A bird ages out of its bracket during a
-        // cycle, so the points stay where they were earned instead of following
-        // her up — see AGE_CUP. Sprint and fond pay the same points; only the
-        // money differs. These totals survive the season rollover and are only
-        // cleared when a full three-season cycle ends (season.ts).
-        if (flight.ageCat) {
+        // League: award the league points to the BIRD, in the league this race
+        // was run for. A bird's score moves during a season, so the points stay
+        // where they were earned instead of following her — see LEAGUE. Sprint
+        // and fond pay the same points; only the money differs. Cleared at the
+        // season end, after the prijsuitreiking (season.ts). (A criterium race
+        // still in the air at the switch credits nothing: its standings are gone.)
+        if (flight.league) {
           for (const r of flight.results) {
             if (r.finished === false) continue;
             const p = db.pigeons.find((x) => x.id === r.pigeonId);
             if (!p) continue;
-            const st = cupStanding(p, flight.ageCat);
+            const st = leagueStanding(p, flight.league);
             // The three-bird limit covers POINTS too, not just money: a loft's
             // fourth bird scores nothing here either. Her start and her measured
             // speed are still recorded — those are facts about the flight, not a
@@ -1092,13 +1114,13 @@ export function tickFlights(
           }
         }
         // A PODIUM IS A PODIUM, whatever the format (owner's call): medals and the
-        // win badges are booked for the titan, the estafette and the criterium too,
+        // win badges are booked for the titan, the estafette and the leagues too,
         // not just the three competition tiers. Only the TIER win counters stay
         // behind — a titan is not an international victory, however its `type`
         // field reads. See awardFlightBadges.
-        const specialFormat = !!(flight.titan || flight.relay || flight.ageCat);
+        const specialFormat = !!(flight.titan || flight.relay || leagueRace(flight));
         awardFlightBadges(db, flight, { tierWins: !specialFormat });
-        // The weekend specials and the leeftijdscriterium stop here: no bets (none
+        // The weekend specials and the leagues stop here: no bets (none
         // can be placed on them), no win/podium missions and no sponsor bonuses —
         // money, medals and the pigeon standings above are all they feed.
         if (specialFormat) continue;
@@ -2072,63 +2094,14 @@ export function runDataMigrations(db: Database, nowMs = Date.now()): void {
     }
     db.world.dataVersion = 39;
   }
-  if ((db.world.dataVersion ?? 0) < 40) {
-    // Start the leeftijdscriterium (AGE_CUP) at the NEXT season boundary.
-    //
-    // Anchoring on the boundary rather than "now" is what keeps the arithmetic
-    // exact: the week index counted from the anchor doubles as the season week,
-    // so the sprint/fond alternation lands 2 of each per season and 6 of each per
-    // three-season cycle, and the cycle ends precisely at a prijsuitreiking.
-    // Days before the anchor simply get no age races (`cupWeekIndex` returns -1).
-    if (!db.world.ageCupStartedAt) {
-      const ends = Date.parse(db.world.seasonEndsAt ?? '');
-      // A world whose season clock has not been anchored yet (or is already past
-      // its end) starts the criterium at the next rollover tickSeason performs;
-      // falling back to that same instant keeps the two in step.
-      const anchor = Number.isFinite(ends) && ends > Date.now() ? ends : Date.now();
-      db.world.ageCupStartedAt = new Date(anchor).toISOString();
-      db.world.ageCupSeasonsDone = 0;
-    }
-    db.world.dataVersion = 40;
-  }
-  if ((db.world.dataVersion ?? 0) < 41) {
-    // Announce the leeftijdscriterium in the bell inbox.
-    //
-    // The spotlight run in Tour.tsx (AGE_CUP_NEWS_STEPS) is the usual first-login
-    // announcement, but it is gone the moment someone clicks it away. A bell
-    // notification stays put, so the pointer is still there when the first
-    // criterium race actually shows up on the calendar.
-    //
-    // Deliberately SHORT (see the tekstbudget rule in context.md §0): what it is,
-    // when, what it costs, and where the rest lives. Classes, prize tables and
-    // tactics belong in the wiki, which is the one place to keep in sync with
-    // gameConfig — a notification cannot be corrected once it is sent.
-    //
-    // Stable id per player, so two concurrent requests running this migration can
-    // never produce two messages.
-    announceAgeCup(db, 'ntf:news:agecup');
-    db.world.dataVersion = 41;
-  }
   if ((db.world.dataVersion ?? 0) < 42) {
-    // Re-announce the criterium: the first version of this message (and the
-    // matching tour run) was far too long to read, and the tour card could not
-    // even be scrolled to its buttons. Everyone gets the short version, unread.
-    //
-    // ⚠️ It reuses the SAME id on purpose. A new id would leave the old, long row
-    // in place for everyone except the one player whose request happens to run
-    // this migration: notifications load per viewer (`WHERE user_id = ?`), so
-    // `persist` can only delete rows it loaded — the rest would end up holding
-    // both messages. Writing the same id makes it one INSERT OR REPLACE per
-    // player instead: one row, new text.
-    announceAgeCup(db, 'ntf:news:agecup');
-    // ...and force it back to unread. For every other player pushNotification
-    // already produces a fresh, unread row, but for the viewer it deliberately
-    // preserves the existing `read` flag — which would silently hide the rewrite
-    // from the one player who had already opened the first version.
-    for (const n of db.notifications) if (n.id.startsWith('ntf:news:agecup:')) n.read = false;
+    // v40–v42 started the leeftijdscriterium (anchored its cycle on the next season
+    // boundary) and announced it twice in the bell — the second time shorter, with
+    // the same id. The criterium was replaced by the LEAGUES (v66), so on
+    // a world that still has to run them (a fresh world, a demo) there is nothing
+    // left to start or announce: they only move the version on.
     db.world.dataVersion = 42;
   }
-
   if ((db.world.dataVersion ?? 0) < 43) {
     // The prize tables now run to the last finisher, and only a loft's three
     // best-placed birds are paid and scored. Both change what a flight is worth,
@@ -2620,23 +2593,82 @@ export function runDataMigrations(db: Database, nowMs = Date.now()): void {
     // leeftijdscriterium, which would normally run one more season ("we gaan deze
     // toch ook al uitreiken").
     //
-    // Season 3 was due to end on its own that same day, so the deploy can land on
-    // either side of the natural rollover:
-    //  - still season 3 → end it now, criterium included, and start season 4 here;
+    // ⚠️ Production ran this with the code of 5169df1, from before the leagues: the
+    // criterium was handed out inside the season ceremony and re-anchored. Since
+    // the leagues (v67) the criterium code is gone, so a world that still comes
+    // through here hands it out with `closeCriterium` (same money and titles, its
+    // own bell) — and v67 follows in the same request anyway.
+    //
+    // Season 3 was due to end on its own that same day, so the deploy could land
+    // on either side of the natural rollover:
+    //  - still season 3 → the criterium, then end the season now and start season
+    //    4 here;
     //  - already season 4 (tickSeason held the melkers/duiven ceremony, but the
-    //    criterium cycle was not up) → hand out only the criterium, as of the
-    //    moment season 3 ended.
+    //    criterium cycle was not up) → only the criterium, as of the moment season
+    //    3 ended.
     // Any other season number means this world is not production's: leave it be
-    // (a fresh test or demo world sits on season 1).
+    // (a fresh test world sits on season 1).
     const w = db.world;
     if (w.seasonYear === 3) {
-      endSeasonNow(db, nowMs, { closeCriterium: true });
+      closeCriterium(db, nowMs, { force: true, season: 3 });
+      endSeasonNow(db, nowMs);
     } else if (w.seasonYear === 4) {
       const handedOut = db.lofts.some((l) => (l.awards ?? []).some((a) => a.kind === 'criterium' && a.season === 3));
       const seasonEnd = Date.parse(w.seasonStartedAt ?? '');
-      if (!handedOut && Number.isFinite(seasonEnd)) closeAgeCupNow(db, 3, seasonEnd);
+      if (!handedOut && Number.isFinite(seasonEnd)) closeCriterium(db, seasonEnd, { force: true, season: 3 });
     }
     db.world.dataVersion = 66;
+  }
+
+  if ((db.world.dataVersion ?? 0) < 67) {
+    // DE LEAGUES vervangen het LEEFTIJDSCRITERIUM (eigenaar, 24 okt): dezelfde vier
+    // vluchten per week, maar per algemene score i.p.v. per leeftijd (LEAGUE in
+    // gameConfig). Drie stappen, elk idempotent, zodat twee verzoeken die deze
+    // migratie tegelijk draaien op dezelfde rijen uitkomen:
+    //
+    // 1. Een criteriumcyclus die al minstens één volledig seizoen liep, wordt nog
+    //    één keer uitgereikt (geld + titel, zoals op het einde van een cyclus) en
+    //    daarna gewist. Een cyclus die net herbegon (0 seizoenen) heeft hoogstens
+    //    een paar dagen punten en valt gewoon weg. Zie closeCriterium (season.ts).
+    closeCriterium(db, nowMs);
+    // 2. Elke criteriumvlucht die nog op de kalender staat, gaat eraf: inschrijfgeld
+    //    terug (en een eventuele open weddenschap), één bel per speler. Een vlucht die
+    //    al LIVE is, vliegt gewoon uit — prijzengeld zonder punten (leagueRace in
+    //    flight.ts) — en die dag krijgt er geen league bij (ensureFlightsScheduled).
+    //    De leaguevluchten zelf plant ensureFlightsScheduled, meteen ná deze stap.
+    const refunded = new Map<string, { birds: number; money: number }>();
+    for (const f of db.flights) {
+      if (!f.ageCat || f.status !== 'scheduled') continue;
+      refundFlightBets(db, f);
+      for (const e of f.entries) {
+        const loft = db.lofts.find((l) => l.userId === e.ownerId);
+        if (!loft) continue;
+        loft.money += f.entryFee;
+        if (loft.isBot) continue;
+        const r = refunded.get(loft.userId) ?? { birds: 0, money: 0 };
+        r.birds += 1;
+        r.money += f.entryFee;
+        refunded.set(loft.userId, r);
+      }
+    }
+    db.flights = db.flights.filter((f) => !(f.ageCat && f.status === 'scheduled'));
+    for (const [userId, r] of refunded) {
+      pushNotification(
+        db, userId, 'info', '↩️ Criteriuminschrijvingen terugbetaald',
+        `Het leeftijdscriterium is vervangen door de leagues. ` +
+          `Je ${r.birds === 1 ? 'inschrijving' : `${r.birds} inschrijvingen`} voor een criteriumvlucht ` +
+          `${r.birds === 1 ? 'is' : 'zijn'} geschrapt en je krijgt €${r.money} terug. Schrijf je duiven ` +
+          `opnieuw in, voor de league van hun score.`,
+        null, `ntf:league:refund:${userId}`,
+      );
+    }
+    // 3. De aankondiging: één bel per echte speler (core/game/news.ts); de tweede
+    //    helft is leagueNewsSteps in Tour.tsx.
+    for (const loft of db.lofts) {
+      if (loft.isBot) continue;
+      pushNotification(db, loft.userId, 'info', LEAGUE_NEWS.title, LEAGUE_NEWS.body, null, LEAGUE_NEWS.id(loft.userId));
+    }
+    db.world.dataVersion = 67;
   }
 }
 
@@ -2879,18 +2911,6 @@ function announceBreedingRules(db: Database, idPrefix: string): void {
   }
 }
 
-/**
- * The leeftijdscriterium announcement, in the bell inbox, for every real player.
- *
- * Deliberately SHORT (see the tekstbudget rule in context.md §0): what it is,
- * when, what it costs, and where the rest lives. Classes, prize tables and
- * tactics belong in the wiki — the one place to keep in sync with gameConfig, and
- * unlike a notification it can still be corrected after the fact.
- *
- * `idPrefix` gives every send its own stable id (one per player), so re-announcing
- * is a matter of passing a new prefix instead of rewriting a row someone may have
- * already read.
- */
 /** Tell every real player about the new prize tables + the three-bird rule. */
 function announcePrizeRules(db: Database, idPrefix: string): void {
   const R = PRIZE_MONEY.regional, N = PRIZE_MONEY.national, I = PRIZE_MONEY.international;
@@ -2901,32 +2921,13 @@ function announcePrizeRules(db: Database, idPrefix: string): void {
       '💶 Nieuw: élke duif die thuis raakt verdient geld',
       `De prijzentabellen lopen voortaan door tot de laatste duif. Waar een vlucht na de 8e of 10e plaats ` +
         `niets meer opleverde, krijgt nu iedereen die finisht een bedrag — ook achteraan.` +
-        `\n\nBodem per vlucht: regionaal €${R.rest}, nationaal €${N.rest}, internationaal €${I.rest}, ` +
-        `criterium €${AGE_CUP.sprint.prizes.rest} (sprint) of €${AGE_CUP.fond.prizes.rest} (fond). ` +
+        `\n\nBodem per vlucht: regionaal €${R.rest}, nationaal €${N.rest}, internationaal €${I.rest}. ` +
         `De koppen blijven wat ze waren: een regionale zege €${R.places[0]}, een internationale €${I.places[0]}.` +
         `\n\n⚠️ Nieuw daarbij: per vlucht verdienen nog maar je ${REWARD_BIRDS_PER_LOFT} best geplaatste duiven — ` +
         `geld én seizoenspunten. Schrijf je er meer in, dan vliegen die gewoon mee, staan ze in de uitslag en ` +
         `gaan ze er nog steeds op vooruit, maar leveren ze niets meer op. In de uitslag zie je bij zo'n duif ` +
         `"buiten de 3" staan.` +
         `\n\nDe volledige tabellen staan in de wiki onder "Prijzengeld".`,
-      null,
-      `${idPrefix}:${loft.userId}`,
-    );
-  }
-}
-
-function announceAgeCup(db: Database, idPrefix: string): void {
-  const at = `${String(AGE_CUP.hour).padStart(2, '0')}:${String(AGE_CUP.minute).padStart(2, '0')}`;
-  for (const loft of db.lofts) {
-    if (loft.isBot) continue;
-    pushNotification(
-      db, loft.userId, 'info',
-      '🏆 Nieuw: het leeftijdscriterium',
-      `Een tweede competitie, enkel voor duiven: vier leeftijdsklassen met elk één eigen vlucht per week ` +
-        `(ma/wo/do/vr om ${at}), waar enkel duiven van die leeftijd in mogen. Inschrijven kost €${AGE_CUP.entryFee}.` +
-        `\n\nDeze stand loopt ${AGE_CUP.seasons} seizoenen door en geeft géén seizoenspunten — je Roekoe-ranglijst ` +
-        `beweegt er dus niet door. Je vindt ze bij Ranglijst → Criterium.` +
-        `\n\nAlle klassen, prijzen en tactiek staan in de wiki onder “Leeftijdscriterium”.`,
       null,
       `${idPrefix}:${loft.userId}`,
     );
