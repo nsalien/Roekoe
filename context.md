@@ -108,6 +108,10 @@
   ⚠️-kop "ENKEL OP DEV": dev = productie + eigen stappen. Twee wankele testfixtures vastgezet
   (`market-memory`: vast ras; `pigeon-tags`: vraagprijs = de 1/5-grens i.p.v. €400). Vroegere pauzes:
   11 en 12 okt (`dea321f`, `2ea049c`).
+- **Bots bijgevuld tot 10 duiven op prod (24 okt, migratie v68, prod `684e61f`)** — eigenaar: "vul hun aantal
+  duiven bij … random score tussen 60 en 75". `fillBotFlocks` (bots.ts), **in stappen van 3 per verzoek** (één
+  nieuwe duif = één D1-query) en enkel vanaf seizoen 4, dus de demo (seizoen 1) blijft ongemoeid. Details in de
+  `context.md` op prod; test `tests/bot-fill.test.mts`.
 - **Seizoen 3 afgesloten op prod (24 okt, migratie v66, prod `5169df1`)** — eigenaar: "Sluit seizoen 3 af … en
   start seizoen 4", met de uitreiking van melkers, duiven én het criterium (een seizoen vroeger dan gepland).
   Details in de `context.md` op prod; de code (`endSeasonNow`, v66) en `tests/season-close.test.mts` staan nu ook
@@ -987,7 +991,7 @@ krijgen.**
 `core/game/schedule.ts` → `advanceRealtime(db, nowMs, weatherByFlight)` roept in
 volgorde:
 1. `runDataMigrations(db)` — eenmalige datafixes, **gated op `world.dataVersion`**
-   (staat nu op **67** — v67 = de leagues i.p.v. het criterium (§0b), v66 = seizoen 3 afsluiten + criterium uitreiken (24 okt), v65 = de bel van de tags (`TAGS_NEWS`), v64 = de bel van de duivenlokker (`LURE_NEWS`), v63 = de bots uit samen kweken (hun aanbod gewist, geen bel), v62 = de bellen van samen kweken en van vaccins/verzekering per duif, v61 = de aankondigingsbel van de hokinrichting & co (`core/game/news.ts`), v60 = die van Het Lokaal; nieuwe migratie = nieuw `if ((db.world.dataVersion ?? 0) < N)`
+   (staat nu op **68** — v68 = bots bijvullen tot 10 duiven (enkel vanaf seizoen 4, in stappen), v67 = de leagues i.p.v. het criterium (§0b), v66 = seizoen 3 afsluiten + criterium uitreiken (24 okt), v65 = de bel van de tags (`TAGS_NEWS`), v64 = de bel van de duivenlokker (`LURE_NEWS`), v63 = de bots uit samen kweken (hun aanbod gewist, geen bel), v62 = de bellen van samen kweken en van vaccins/verzekering per duif, v61 = de aankondigingsbel van de hokinrichting & co (`core/game/news.ts`), v60 = die van Het Lokaal; nieuwe migratie = nieuw `if ((db.world.dataVersion ?? 0) < N)`
    blok + `db.world.dataVersion = N`). De oudere migraties hebben hun werk gedaan en
    zijn enkel nog van belang als **patroon** — zie §8, kop *Eenmalige migraties*.
 2. `ensureFlightsScheduled(db, nowMs)` — plant vluchten volgens `REAL_SCHEDULE`.
@@ -2023,6 +2027,7 @@ npx tsx tests/market-bidding.test.mts    # marktprijs, bieden vanaf, en geen zwe
 npx tsx tests/bot-bidding.test.mts       # bots bieden binnen de band rond de marktwaarde
 npx tsx tests/leagues.test.mts           # leagues: grenzen, kalender, min. 4 duiven/3 melkers, uitreiking, migratie v67
 npx tsx tests/season-close.test.mts       # v66: seizoen 3 afsluiten (of enkel het criterium) + v67 erna; prod zoals ze is
+npx tsx tests/bot-fill.test.mts           # v68: bots tot 10 duiven, ★60–75, in stappen van 3, vaste ids, querykost
 npx tsx tests/pigeon-logs.test.mts       # de logboeken blijven uit de wereldload, legacy blijft leesbaar
 npx tsx tests/season-prizes.test.mts     # seasonWins reset, totalWins niet; ceremonie = laatste seizoen
 npx tsx tests/bot-market.test.mts        # de prijsgrens voor bots (anti-exploit) + hun trainingsregels

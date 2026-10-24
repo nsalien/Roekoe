@@ -24,6 +24,7 @@
 import {
   BOT,
   EQUIPMENT,
+  GENE,
   strawCost,
   BREEDING,
   FEED_RATIONS,
@@ -47,9 +48,85 @@ import { equipmentOf } from './hygiene.js';
 import { purgePigeon, settlePigeonSale } from './engine.js';
 import { minSalePrice, valuePigeon } from './market.js';
 import { makeOffer } from './offers.js';
-import { ageInWeeks, breedingCooldownUntil, canRace, experienceGain, isAway, noteAttrChange, onRestCure, talent, trainCeil, trainingCost } from './pigeon.js';
+import { ageInWeeks, breedingCooldownUntil, canRace, experienceGain, generatePigeon, isAway, noteAttrChange, onRestCure, seasonScore, talent, trainCeil, trainingCost } from './pigeon.js';
+import { generatePigeonName, namesInUse } from './names.js';
 import { kinship } from './pedigree.js';
 import { clamp, round1 } from './util.js';
+
+/**
+ * The algemene score of a bird `fillBotFlocks` adds: ★60–70 four times out of
+ * five, ★70–75 otherwise (owner: "kleinere kans op hoge score, grotere kans tussen
+ * 60 en 70"). One decimal, like every score.
+ */
+export function rollBotFillScore(rng: () => number = Math.random): number {
+  return round1(rng() < 0.8 ? 60 + rng() * 10 : 70 + rng() * 5);
+}
+
+/**
+ * Top every bot loft up to `target` birds — migration v68 (owner, 24 okt: "Indien
+ * er bots zijn die minder dan 10 duiven hebben op dit moment, vul hun aantal
+ * duiven bij"). Adds at most `maxBirds` this call and returns how many birds the
+ * bots still lack AFTER it, so the caller knows when it is done.
+ *
+ * ⚠️ Why at most a few per call: a pigeon row has ~56 columns, so D1's 100 bound
+ * parameters fit ONE new bird per INSERT — every bird is a query, and a request
+ * may do 50 (the flight-finishing one already does ~45). Filling 40 birds at once
+ * would fail that request's write; the migration would then run again on the
+ * next request and fail again, for good. A few per request finishes in a handful
+ * of engine runs and never gets near the limit.
+ *
+ * A new bird is an ordinary generated one (age, breed, kenmerk, energie, …) whose
+ * three skills are then set around a score from `rollBotFillScore`, averaging it
+ * exactly, with gene caps a few points above each skill so she can still grow.
+ * She starts the season at her own score, so she does not top "meeste
+ * vooruitgang" for merely existing.
+ *
+ * Each bird gets a FIXED id (bot + the first free number), so two requests that
+ * run the migration at once write the same rows (`INSERT OR REPLACE`) instead of
+ * two sets. A loft still on fewer perches than `target` is raised to `target` for
+ * free: a bot over capacity could neither breed nor buy at the market.
+ */
+export function fillBotFlocks(db: Database, target: number, maxBirds: number): number {
+  const taken = namesInUse(db.pigeons);
+  const ids = new Set(db.pigeons.map((p) => p.id));
+  const week = db.world.currentWeek;
+  let budget = maxBirds;
+  let missing = 0;
+  for (const loft of db.lofts.filter((l) => l.isBot)) {
+    const have = db.pigeons.filter((p) => p.ownerId === loft.userId).length;
+    if (have < target) loft.capacity = Math.max(loft.capacity, target);
+    let slot = 0;
+    for (let n = have; n < target; n++) {
+      if (budget <= 0) { missing += target - n; break; }
+      budget--;
+      // The first free number: a bird of an earlier run may have died or been
+      // sold since, and reusing her id would overwrite a live bird's row.
+      while (ids.has(`pig_botfill_${loft.userId}_${slot}`)) slot++;
+      const p = generatePigeon({ ownerId: loft.userId, currentWeek: week, quality: 0.6 });
+      p.id = `pig_botfill_${loft.userId}_${slot}`;
+      ids.add(p.id);
+      const score = rollBotFillScore();
+      p.speed = round1(score + (Math.random() - 0.5) * 8);
+      p.endurance = round1(score + (Math.random() - 0.5) * 8);
+      p.orientation = round1(3 * score - p.speed - p.endurance);
+      const capAbove = (gene: number, skill: number) =>
+        Math.min(GENE.ceil, Math.max(gene, round1(skill + 3 + Math.random() * 7)));
+      p.genes = {
+        speed: capAbove(p.genes?.speed ?? 0, p.speed),
+        endurance: capAbove(p.genes?.endurance ?? 0, p.endurance),
+        orientation: capAbove(p.genes?.orientation ?? 0, p.orientation),
+      };
+      p.name = generatePigeonName(p.sex, p, taken);
+      taken.add(p.name);
+      p.seasonStartScore = seasonScore(p);
+      p.seasonPeakSpeed = 0;
+      p.seasonPodiums = 0;
+      p.seasonPracticeGain = 0;
+      db.pigeons.push(p);
+    }
+  }
+  return missing;
+}
 
 /** What a bot may spend right now without dipping under its cash floor. */
 function spendable(loft: Loft, reserve: number = BOT.reserve): number {
