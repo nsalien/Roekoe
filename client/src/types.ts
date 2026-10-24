@@ -442,9 +442,10 @@ export interface FlightResult {
   points: number;
   prize: number;
   finished: boolean;
-  /** False = deze duif viel buiten de 3 beloonde duiven van haar hok: ze vloog en
-   *  staat in de uitslag, maar kreeg geen geld en geen punten. Ontbreekt op oude
-   *  uitslagen — lees als `rewarded !== false`. */
+  /** False = deze duif viel buiten de 3 best geplaatste duiven van haar hok: ze
+   *  scoorde geen punten. Sinds 24 okt krijgt ze wél haar prijzengeld; op oudere
+   *  uitslagen betekende `false` ook "geen geld". Ontbreekt op heel oude uitslagen
+   *  — lees als `rewarded !== false`. */
   rewarded?: boolean;
   /** Kenmerk dat meetelde in deze vlucht + het aandeel van haar vliegtijd (0–1). */
   trait?: string;
@@ -812,7 +813,6 @@ export interface LeagueDefInfo {
   short: string;
   icon: string;
   weekday: number;
-  factor: number;
   minScore: number;
   maxScore: number | null; // null = no upper bound (★ 81+)
   range: string; // "★60,1 tot en met ★70"

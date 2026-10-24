@@ -135,33 +135,34 @@ console.log('\n1. De klassen: grenzen per decimaal, prijzen per league');
   ok(leagueMinScore('l60') === 0 && leagueMinScore('l70') === 60.1 && leagueMinScore('l81') === 80.1, 'de ondergrens van elke league ligt net boven de vorige');
   ok(leagueRangeText('l60') === '★60 of lager' && leagueRangeText('l70') === '★60,1 tot en met ★70' && leagueRangeText('l81') === '★80,1 of hoger',
      `de grenzen in woorden: "${LEAGUES.map((l) => leagueRangeText(l.id)).join('" · "')}"`);
-  // The top league pays the base tables untouched; the others their factor, on €5.
-  const topSprint = leaguePrizes('l81', true), topFond = leaguePrizes('l81', false);
-  ok(JSON.stringify(topSprint) === JSON.stringify(LEAGUE.sprint.prizes) && JSON.stringify(topFond) === JSON.stringify(LEAGUE.fond.prizes),
-     'de hoogste league betaalt de basistabellen');
-  ok(LEAGUES.map((l) => l.factor).join() === '0.5,0.7,0.85,1', 'de verhouding is ×0,5 / ×0,7 / ×0,85 / ×1 (de keuze van de eigenaar)');
-  let scaled = true, round5 = true, monotone = true, everyonePays = true, higherPaysMore = true;
+  // Race prizes, owner 24 okt: ★ t/m 60 wins €800 / €1.200, every higher league a
+  // bit more — on EVERY place, written out per league and round.
+  let round = true, monotone = true, everyonePays = true, higherPaysMore = true, restAboveFee = true;
   for (const sprint of [true, false]) {
     for (const lg of LEAGUES) {
       const t = leaguePrizes(lg.id, sprint);
+      if (t.rest <= LEAGUE.entryFee) restAboveFee = false;
       for (let r = 1; r <= 40; r++) {
         const x = prizeForRank(t, r);
-        if (x % 5 !== 0) round5 = false;
+        if (x % 5 !== 0 || (x >= 250 && x % 25 !== 0)) round = false;
         if (x <= 0) everyonePays = false;
         if (r > 1 && x > prizeForRank(t, r - 1)) monotone = false;
-        const base = prizeForRank(sprint ? LEAGUE.sprint.prizes : LEAGUE.fond.prizes, r);
-        if (Math.abs(x - base * lg.factor) > 2.5) scaled = false;
       }
     }
     for (let i = 1; i < LEAGUES.length; i++) {
-      if (prizeForRank(leaguePrizes(LEAGUES[i].id, sprint), 1) <= prizeForRank(leaguePrizes(LEAGUES[i - 1].id, sprint), 1)) higherPaysMore = false;
+      for (let r = 1; r <= 40; r++) {
+        if (prizeForRank(leaguePrizes(LEAGUES[i].id, sprint), r) <= prizeForRank(leaguePrizes(LEAGUES[i - 1].id, sprint), r)) higherPaysMore = false;
+      }
     }
   }
-  ok(scaled && round5, 'elke plaats = basis × factor, afgerond op €5');
+  ok(round, 'mooi afgerond: op €5, vanaf €250 op €25');
   ok(monotone && everyonePays, 'de tabellen lopen monotoon af en élke finisher verdient iets');
-  ok(higherPaysMore, 'een hogere league betaalt een zege altijd beter');
-  ok(prizeForRank(leaguePrizes('l60', true), 1) === 500 && prizeForRank(leaguePrizes('l60', false), 1) === 800,
+  ok(higherPaysMore, 'een hogere league betaalt op ELKE plaats meer');
+  ok(restAboveFee, `zelfs de laatste plaats is meer dan het inschrijfgeld (€${LEAGUE.entryFee})`);
+  ok(prizeForRank(leaguePrizes('l60', true), 1) === 800 && prizeForRank(leaguePrizes('l60', false), 1) === 1200,
      `league ★ t/m 60: zege €${prizeForRank(leaguePrizes('l60', true), 1)} (sprint) / €${prizeForRank(leaguePrizes('l60', false), 1)} (fond)`);
+  ok(LEAGUES.map((l) => `${l.sprint.places[0]}/${l.fond.places[0]}`).join(' ') === '800/1200 900/1350 1000/1500 1100/1650',
+     `zeges per league: ${LEAGUES.map((l) => `${l.short} €${l.sprint.places[0]}/€${l.fond.places[0]}`).join(' · ')}`);
   ok(leagueAward('l81', 1) === 1600 && leagueAward('l81', 3) === 950 && leagueAward('l60', 1) === 800 && leagueAward('l80', 2) === 1100,
      `eindprijzen podium: ${LEAGUES.map((l) => `${l.short} €${[1, 2, 3].map((r) => leagueAward(l.id, r)).join('/')}`).join(' · ')}`);
   ok(leagueAward('l81', 4) === 400 && leagueAward('l81', 10) === 150 && leagueAward('l60', 10) === 75 && leagueAward('l81', 11) === 0,
@@ -443,7 +444,7 @@ for (const seasonsDone of [1, 0]) {
   db = await M.tick(T0 + 60000);
   const loft = db.lofts.find((l) => l.userId === M.humans[0])!;
   const p0 = db.pigeons.find((p) => p.id === mine[0].id)!;
-  ok(db.world.dataVersion === 68, `(${seasonsDone} seizoen(en) gelopen) de migratie liep (en alles erna)`);
+  ok(db.world.dataVersion === 69, `(${seasonsDone} seizoen(en) gelopen) de migratie liep (en alles erna)`);
   if (seasonsDone >= 1) {
     ok(loft.money === moneyBefore + 20 + 2000 + 1600, `de lopende stand is uitgereikt: €2.000 + €1.600, plus €20 terug (kassa +€${Math.round(loft.money - moneyBefore)})`);
     ok((p0.titles ?? []).some((t) => t.kind === 'criterium' && t.rank === 1 && t.label === 'Gouden Criteriumduif 1–2 j'), 'de kampioen draagt haar criteriumtitel');
@@ -479,7 +480,9 @@ for (const seasonsDone of [1, 0]) {
     const done = await M.tick(T0 + 13 * 3600000);
     const f = done.flights.find((x) => x.id === live.id)!;
     ok(f.status === 'completed' && f.results.length === liveField.length, 'de oude criteriumvlucht is netjes afgerond');
-    ok(f.results.find((r) => r.rank === 1)!.prize === prizeForRank(LEAGUE.fond.prizes, 1), `ze betaalt wat ze beloofde (€${prizeForRank(LEAGUE.fond.prizes, 1)})`);
+    // (A leftover criterium race pays the top league's table — there is none left on
+    // production since the switch, so this only guards the code path.)
+    ok(f.results.find((r) => r.rank === 1)!.prize === prizeForRank(leaguePrizes('l81', false), 1), `ze betaalt prijzengeld (€${prizeForRank(leaguePrizes('l81', false), 1)}, de tabel van ★ 81+)`);
     ok(f.results.every((r) => r.points === 0), 'zonder seizoenspunten');
     ok(done.pigeons.every((p) => !p.cup && !p.leagues), 'en zonder criterium- of leaguepunten');
   }
@@ -507,7 +510,7 @@ for (const seasonsDone of [1, 0]) {
   db.flights.push(live);
   await s.persist();
   db = await M.tick(Date.parse(monday.startAt) + 1800000);
-  ok(db.world.dataVersion === 68, 'de migratie liep terwijl er een criteriumvlucht in de lucht hing');
+  ok(db.world.dataVersion === 69, 'de migratie liep terwijl er een criteriumvlucht in de lucht hing');
   ok(db.flights.find((f) => f.id === live.id)?.status === 'live', 'die vlucht vliegt gewoon verder');
   ok(!db.flights.some((f) => f.league && f.startAt.slice(0, 10) === live.startAt.slice(0, 10)), 'en die maandag krijgt er geen league bij');
   ok(db.flights.some((f) => f.league === 'l70'), 'de volgende leaguedag (woensdag) wel');
@@ -549,6 +552,22 @@ console.log('\n8. De bel, de wiki en de spelregels zeggen hetzelfde als LEAGUE')
   ok(rules.includes(`minstens **${LEAGUE.minBirds} duiven** van minstens **${LEAGUE.minOwners} verschillende`), 'de spelregels noemen beide minimums (4 duiven, 3 melkers)');
   ok(wiki.includes(`minstens ${LEAGUE.minBirds} duiven van minstens ${LEAGUE.minOwners} verschillende melkers`), 'de wiki ook');
   ok(!/\| 🏅 \*\*Ouder dan 3 jaar\*\*/.test(rules), 'de leeftijdsklassen staan niet meer in de spelregels');
+  // The race prizes, every row of both tables, in rules (md) and wiki (prijzengeld).
+  const raceRows: [string, string, number][] = [['1e', '1', 1], ['2e', '2', 2], ['3e', '3', 3], ['4e', '4', 4], ['5e', '5', 5],
+    ['6e', '6', 6], ['7e', '7', 7], ['8e', '8', 8], ['9e – 11e', '9 – 11', 9], ['12e – 15e', '12 – 15', 12], ['16e en verder', '16 en verder', 16]];
+  for (const sprint of [true, false]) {
+    const bad = raceRows.filter(([md, w, r]) => {
+      const col = LEAGUES.map((l) => eur(prizeForRank(leaguePrizes(l.id, sprint), r)));
+      return !rules.includes(`| ${md} | ${col.join(' | ')} |`) || !wiki.includes(`['${w}', ${col.map((x) => `'${x}'`).join(', ')}]`);
+    });
+    ok(bad.length === 0, `${sprint ? 'sprint' : 'grote fond'}: alle ${raceRows.length} rijen in spelregels + wiki == config${bad.length ? ` (fout: ${bad.map((b) => b[0]).join(', ')})` : ''}`);
+  }
+  const wins = (sprint: boolean) => LEAGUES.map((l) => `'${eur(leaguePrizes(l.id, sprint).places[0])}'`).join(', ');
+  ok(wiki.includes(`['🏁 Sprint', ${wins(true)}]`) && wiki.includes(`['🛰️ Grote fond', ${wins(false)}]`), 'de zegetabel in #leagues == config');
+  const tourSrc = readFileSync('./client/src/components/Tour.tsx', 'utf8');
+  const lo = LEAGUES[0], hi = LEAGUES[LEAGUES.length - 1];
+  ok([lo.sprint.places[0], lo.fond.places[0], hi.sprint.places[0], hi.fond.places[0]].every((x) => tourSrc.includes(`<strong>${eur(x)}</strong>`)),
+     'de rondleiding noemt de zeges van de laagste en hoogste league == config');
 }
 
 // ---------------------------------------------------------------------------

@@ -35,7 +35,7 @@ import {
   TITAN,
   TOURNEY_RISK,
 } from '../config/gameConfig.js';
-import { CITY_COORDS, LEAGUE, RELAY, TRAITS, leaguePrizes, quirkById } from '../config/gameConfig.js';
+import { CITY_COORDS, RELAY, TRAITS, leaguePrizes, quirkById } from '../config/gameConfig.js';
 import { applyTraitBonus, traitActiveAt, traitWindows, type TraitRun } from './traits.js';
 import type { Ailment, Database, Flight, FlightResult, Loft, Pigeon, SimEntry } from '../schema.js';
 import { relayEntryTeams, relayLegKm, relaySimTeams } from './relay.js';
@@ -1249,23 +1249,23 @@ export function flightPrizes(flight: Flight): PrizeTable {
   if (flight.league) return leaguePrizes(flight.league, !!flight.leagueSprint);
   // A criterium race still in the air at the switch pays what it promised: the
   // criterium tables are, unchanged, the top league's base tables.
-  if (flight.ageCat) return flight.cupSprint ? LEAGUE.sprint.prizes : LEAGUE.fond.prizes;
+  // A leftover criterium race (none since the leagues went live): the top league's table.
+  if (flight.ageCat) return leaguePrizes('l81', !!flight.cupSprint);
   if (flight.titan) return TITAN.prizes;
   return PRIZE_MONEY[flight.type];
 }
 
 /**
- * Walks a finish order and says, per bird, whether its loft may still be
- * rewarded for it — money AND seizoenspunten.
+ * Walks a finish order and says, per bird, whether it still scores POINTS for its
+ * loft — seizoenspunten, and in a league its league points.
  *
- * Only a loft's `REWARD_BIRDS_PER_LOFT` best-placed FINISHERS count. A bird that
- * does not get home never uses up a slot (it earns nothing anyway), so a loft
- * that loses two birds still has three that can score. The prize of an
- * ineligible bird is simply not paid: it does not cascade down the field, so the
- * result on the board is the result that was flown.
+ * Only a loft's `REWARD_BIRDS_PER_LOFT` best-placed FINISHERS score. A bird that
+ * does not get home never uses up a slot, so a loft that loses two birds still
+ * has three that can score. Prize MONEY is not gated (owner, 24 okt: "alle
+ * duiven krijgen wel sowieso hun geld beloning naargelang hun plaatsing"): every
+ * finisher is paid for her place.
  *
- * Callers must feed the birds in finishing order — both the early payout and the
- * finalize do, which is what keeps the two in step.
+ * Feed the birds in finishing order, as finalize does.
  */
 function rewardGate(): (ownerId: string, finished: boolean) => boolean {
   const used = new Map<string, number>();
@@ -1312,17 +1312,15 @@ export function computeFinishPayouts(flight: Flight): FinishPayout[] {
   const prizes = flightPrizes(flight);
   const isDnf = (s: SimEntry) => s.gaveUp || s.dnfAtSeconds != null;
   const finishers = flight.sim.filter((s) => !isDnf(s)).sort((a, b) => a.durationSeconds - b.durationSeconds);
-  // The same gate as finalize, walked in the same order — otherwise a loft's
-  // fourth bird would be paid the moment it lands and finalize would never take
-  // it back (it only skips what `prizePaid` already banked).
-  const eligible = rewardGate();
+  // Every finisher is paid for her place — however many birds her loft entered
+  // (the three-bird limit is for points only, see rewardGate).
   return finishers.map((s, i) => ({
     pigeonId: s.pigeonId,
     ownerId: s.ownerId,
     pigeonName: s.pigeonName,
     ownerName: s.ownerName,
     rank: i + 1,
-    prize: eligible(s.ownerId, true) ? prizeForRank(prizes, i + 1) : 0,
+    prize: prizeForRank(prizes, i + 1),
     finishSeconds: s.durationSeconds,
   }));
 }
@@ -1382,7 +1380,7 @@ export function finalizeFlight(flight: Flight, pigeons: Pigeon[]): SimulatedFlig
   const ordered = [...finishers, ...nonFinishers];
   const n = finishers.length;
 
-  // Only a loft's three best finishers are rewarded — money and points alike.
+  // Only a loft's three best finishers score points; every finisher is paid.
   const eligible = rewardGate();
 
   ordered.forEach((s, i) => {
@@ -1390,13 +1388,14 @@ export function finalizeFlight(flight: Flight, pigeons: Pigeon[]): SimulatedFlig
     const gaveUp = gaveUpSet.has(s.pigeonId);
     const rank = i + 1;
     // Fourth bird of this loft and beyond: it flew, it holds its place in the
-    // result, it still builds conditie/ervaring — but it earns nothing.
+    // result, it builds conditie/ervaring and it is paid for its place — it only
+    // scores no points.
     const rewarded = eligible(s.ownerId, !isDnf);
     // De titanenwedstrijd en de leagues geven geen seizoenspunten voor de
     // melkerranglijst (enkel prijzengeld). Een league kent haar eigen punten toe
     // aan de DUIF — dat gebeurt in tickFlights, uit `results[].rank`.
     const points = !rewarded || flight.titan || leagueRace(flight) ? 0 : RANKING_POINTS[i] ?? 0;
-    const prize = rewarded ? prizeForRank(prizes, rank) : 0;
+    const prize = isDnf ? 0 : prizeForRank(prizes, rank);
     results.push({
       rewarded,
       pigeonId: s.pigeonId,

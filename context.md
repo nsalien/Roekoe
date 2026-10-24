@@ -108,6 +108,28 @@
   ⚠️-kop "ENKEL OP DEV": dev = productie + eigen stappen. Twee wankele testfixtures vastgezet
   (`market-memory`: vast ras; `pigeon-tags`: vraagprijs = de 1/5-grens i.p.v. €400). Vroegere pauzes:
   11 en 12 okt (`dea321f`, `2ea049c`).
+- **Voorstel (24 okt) — ⚠️ ENKEL OP DEV: geld voor élke duif + hogere leagueprijzen per vlucht.** Eigenaar: "Zorg
+  voor alle matchen dat de eerste 3 duiven enkel seizoenspunten krijgen, maar alle duiven krijgen wel sowieso hun
+  geld beloning naargelang hun plaatsing. Communiceer dit ook." en "Stel voor de league vluchten bij dat de laagste
+  klasse (tot en met 60) voor eerste plaats op korte vlucht 800 wint. Op lange vlucht 1200 … Bij de hogere klasse
+  dan ook steeds iets meer. Doe voorstel."
+  - **Regel** (`flight.ts`): `REWARD_BIRDS_PER_LOFT` (3) begrenst nu enkel de **punten** (seizoenspunten, en in een
+    league de leaguepunten); `finalizeFlight` en `computeFinishPayouts` betalen **elke finisher** het bedrag van
+    haar plaats. `FlightResult.rewarded === false` = "scoorde geen punten" (vroeger ook "geen geld"). Uitslag op
+    Vluchten: "buiten de 3" staat nu in de puntenkolom. ⚠️ Gevolg: elke tabel heeft een `rest` boven het
+    inschrijfgeld (regio €40/€10, nationaal €50/€20, internationaal €75/€40, league €50–100/€20), dus elke extra
+    duif die thuis raakt brengt winst op — enkel energie, gezondheid en één vlucht per duif per dag remmen een groot
+    hok nog af.
+  - **Leagueprijzen per vlucht** staan nu **per league uitgeschreven** (`LeagueDef.sprint`/`.fond`; `factor` en
+    de basistabellen in `LEAGUE.sprint/fond.prizes` zijn weg; een overgebleven criteriumvlucht betaalt de tabel van
+    ★ 81+). Zege sprint/fond: **★ t/m 60 €800/€1.200 · ★ 61–70 €900/€1.350 · ★ 71–80 €1.000/€1.500 · ★ 81+
+    €1.100/€1.650**; de lagere plaatsen in dezelfde verhoudingen als de oude criteriumtabel, op €5 (vanaf €250 op
+    €25), en een hogere league betaalt op **elke** plaats meer. De seizoensprijzen (`awards`) bleven.
+  - **Communicatie:** bel **`PRIZE_RULE_NEWS`** (news.ts, `ntf:news:prijsregel:<id>`) via **migratie v69**, die
+    **wacht tot v68 klaar is** (anders zou v68 op prod nooit meer lopen); rondleiding `PRIZE_RULE_NEWS_STEPS`
+    (sleutel `roekoe.newsSeen.prijsregel.<id>`, na de leagues-run); wiki `#nieuw` + `#prijzengeld` + `#leagues`;
+    spelregels §2.6 ("Geld voor elke duif, punten voor je beste 3") en §2.10. `DEMO_VERSION` 14.
+  - **Tests:** `prize-rules` (regel + v69), `leagues` (tabellen, spelregels/wiki/rondleiding == config).
 - **Bots bijgevuld tot 10 duiven op prod (24 okt, migratie v68, prod `684e61f`)** — eigenaar: "vul hun aantal
   duiven bij … random score tussen 60 en 75". `fillBotFlocks` (bots.ts), **in stappen van 3 per verzoek** (één
   nieuwe duif = één D1-query) en enkel vanaf seizoen 4, dus de demo (seizoen 1) blijft ongemoeid. Details in de
@@ -991,7 +1013,7 @@ krijgen.**
 `core/game/schedule.ts` → `advanceRealtime(db, nowMs, weatherByFlight)` roept in
 volgorde:
 1. `runDataMigrations(db)` — eenmalige datafixes, **gated op `world.dataVersion`**
-   (staat nu op **68** — v68 = bots bijvullen tot 10 duiven (enkel vanaf seizoen 4, in stappen), v67 = de leagues i.p.v. het criterium (§0b), v66 = seizoen 3 afsluiten + criterium uitreiken (24 okt), v65 = de bel van de tags (`TAGS_NEWS`), v64 = de bel van de duivenlokker (`LURE_NEWS`), v63 = de bots uit samen kweken (hun aanbod gewist, geen bel), v62 = de bellen van samen kweken en van vaccins/verzekering per duif, v61 = de aankondigingsbel van de hokinrichting & co (`core/game/news.ts`), v60 = die van Het Lokaal; nieuwe migratie = nieuw `if ((db.world.dataVersion ?? 0) < N)`
+   (staat nu op **68** op prod, **69** op dev — v69 = de bel van de nieuwe prijsregel (enkel dev, wacht op v68), v68 = bots bijvullen tot 10 duiven (enkel vanaf seizoen 4, in stappen), v67 = de leagues i.p.v. het criterium (§0b), v66 = seizoen 3 afsluiten + criterium uitreiken (24 okt), v65 = de bel van de tags (`TAGS_NEWS`), v64 = de bel van de duivenlokker (`LURE_NEWS`), v63 = de bots uit samen kweken (hun aanbod gewist, geen bel), v62 = de bellen van samen kweken en van vaccins/verzekering per duif, v61 = de aankondigingsbel van de hokinrichting & co (`core/game/news.ts`), v60 = die van Het Lokaal; nieuwe migratie = nieuw `if ((db.world.dataVersion ?? 0) < N)`
    blok + `db.world.dataVersion = N`). De oudere migraties hebben hun werk gedaan en
    zijn enkel nog van belang als **patroon** — zie §8, kop *Eenmalige migraties*.
 2. `ensureFlightsScheduled(db, nowMs)` — plant vluchten volgens `REAL_SCHEDULE`.
@@ -2022,7 +2044,7 @@ npx tsx tests/velocity-model.test.mts    # ervaring raakt de snelheid van een fr
 npx tsx tests/attribute-balance.test.mts # elke racevaardigheid houdt haar eigen rol per afstand
 npx tsx tests/upset-balance.test.mts     # kwaliteit loont, maar een verrassing blijft mogelijk
 npx tsx tests/flight-eligibility.test.mts # een niet-inzetbare duif wordt geschrapt + terugbetaald
-npx tsx tests/prize-rules.test.mts       # prijzentabellen lopen door + max 3 beloonde duiven
+npx tsx tests/prize-rules.test.mts       # prijzentabellen lopen door; geld voor elke finisher, punten voor de beste 3 (dev), bel v69
 npx tsx tests/market-bidding.test.mts    # marktprijs, bieden vanaf, en geen zwevende biedingen
 npx tsx tests/bot-bidding.test.mts       # bots bieden binnen de band rond de marktwaarde
 npx tsx tests/leagues.test.mts           # leagues: grenzen, kalender, min. 4 duiven/3 melkers, uitreiking, migratie v67
@@ -3664,7 +3686,8 @@ Alles hieronder staat **live** op de deploy-branch. Data-migraties liepen door t
 - **Bewaakt door `prize-rules.test.mts`:** elke plaats levert in élke tabel geld op en de
   bedragen dalen monotoon, de titan houdt géén bodem, hoogstens 3 duiven per hok krijgen geld
   én punten, een DNF kost geen plaats, er wordt niet doorgeschoven, en — de invariant — **de
-  vroege uitbetaling wijst exact hetzelfde toe als de afronding**.
+  vroege uitbetaling wijst exact hetzelfde toe als de afronding**. (⚠️ Op dev sinds 24 okt: de
+  limiet geldt enkel nog voor de punten, elke finisher wordt betaald — zie §0b *Voorstel 24 okt*.)
 
 **Een duif die niet kan vliegen, vliegt nu ook echt niet**
 - **Aanleiding (eigenaar):** "als een duif nog vliegt, kan die niet ingeschreven worden op

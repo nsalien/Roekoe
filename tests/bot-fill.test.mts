@@ -86,7 +86,7 @@ console.log('\n2. Een verse wereld (seizoen 1) blijft ongemoeid');
   const W = await world();
   const s = await W.load(W.human);
   const before = new Map(botsOf(s.data).map((l) => [l.userId, countOf(s.data, l.userId)]));
-  ok(s.data.world.dataVersion === 68 && s.data.world.seasonYear === 1, `v68 gelopen op seizoen ${s.data.world.seasonYear}`);
+  ok((s.data.world.dataVersion ?? 0) >= 68 && s.data.world.seasonYear === 1, `v68 gelopen op seizoen ${s.data.world.seasonYear}`);
   ok(botsOf(s.data).every((l) => countOf(s.data, l.userId) === before.get(l.userId)) && !s.data.pigeons.some((p) => p.id.startsWith(FILL)),
      `geen enkele duif bijgevuld (bots: ${[...before.values()].join('/')})`);
 }
@@ -154,7 +154,7 @@ console.log('\n3–6. Een wereld zoals productie: twee verzoeken tegelijk');
     await r.persist();
     worstFill = Math.max(worstFill, queries);
     if (added > 3) ok(false, `verzoek ${runs}: ${added} duiven in één keer`);
-    if (r.data.world.dataVersion === 68) break;
+    if ((r.data.world.dataVersion ?? 0) >= 68) break;
   }
   ok(runs < 40, `klaar na ${runs + 1} verzoeken (hoogstens 3 duiven per verzoek)`);
   queries = 0;
@@ -165,7 +165,7 @@ console.log('\n3–6. Een wereld zoals productie: twee verzoeken tegelijk');
      `duurste bijvulverzoek ${worstFill} queries, een gewoon verzoek erna ${queries} (grens 50)`);
   const db = (await W.load(W.human)).data;
 
-  ok(db.world.dataVersion === 68, 'v68 gelopen');
+  ok((db.world.dataVersion ?? 0) >= 68, 'v68 gelopen');
   const fills = db.pigeons.filter((p) => p.id.startsWith(FILL));
   const expected = [...have.values()].reduce((n, h) => n + Math.max(0, 10 - h), 0);
   ok(fills.length === expected, `${fills.length} duiven bijgevuld (verwacht ${expected}) — niet dubbel, ondanks twee verzoeken tegelijk`);

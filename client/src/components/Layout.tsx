@@ -10,7 +10,7 @@ import { STUD_SEEN_EVENT, hasStudNews, studSeenAt } from '../game/studSeen';
 import { api } from '../api/client';
 import { useToast } from './ui';
 import { NotificationsBell } from './NotificationsBell';
-import { INRICHTING_NEWS_STEPS, LEAGUE_NEWS_STEPS, LOKAAL_NEWS_STEPS, Tour, lureNewsSteps, season3NewsSteps, studNewsSteps, tagNewsSteps } from './Tour';
+import { INRICHTING_NEWS_STEPS, LEAGUE_NEWS_STEPS, LOKAAL_NEWS_STEPS, PRIZE_RULE_NEWS_STEPS, Tour, lureNewsSteps, season3NewsSteps, studNewsSteps, tagNewsSteps } from './Tour';
 import { PrizeCeremony } from './PrizeCeremony';
 
 interface NavItem { to: string; label: string; short: string; icon: string; end?: boolean }
@@ -150,6 +150,7 @@ export function Layout() {
     if (user?.id) { try { localStorage.setItem(`roekoe.newsSeen.lokker.${user.id}`, '1'); } catch { /* private mode */ } }
     if (user?.id) { try { localStorage.setItem(`roekoe.newsSeen.tags.${user.id}`, '1'); } catch { /* private mode */ } }
     if (user?.id) { try { localStorage.setItem(`roekoe.newsSeen.leagues.${user.id}`, '1'); } catch { /* private mode */ } }
+    if (user?.id) { try { localStorage.setItem(`roekoe.newsSeen.prijsregel.${user.id}`, '1'); } catch { /* private mode */ } }
     setShowTour(false);
   }
 
@@ -334,9 +335,42 @@ export function Layout() {
   }, [leagueNewsKey, tagsNewsKey, lureNewsKey, samenNewsKey, inrichtingNewsKey, lokaalNewsKey, newsKey, state?.loft,
     state?.world?.newsAt, showTour, showNews, showLokaalNews, showInrichtingNews, showSamenNews, showLureNews, showTagsNews,
     lokaalNewsDone, inrichtingNewsDone, samenNewsDone, lureNewsDone, tagsNewsDone]);
+  const [leagueNewsDone, setLeagueNewsDone] = useState(false);
   function closeLeagueNews() {
     if (leagueNewsKey) { try { localStorage.setItem(leagueNewsKey, '1'); } catch { /* private mode */ } }
     setShowLeagueNews(false);
+    setLeagueNewsDone(true);
+  }
+
+  // Aankondiging van de NIEUWE PRIJSREGEL (geld voor élke duif, punten voor de
+  // beste 3, hogere leagueprijzen). Zelfde regel: pas als de vorige aankondigingen
+  // gezien zijn, nooit twee runs op één bezoek. Bel: migratie v69.
+  const prizeRuleNewsKey = user?.id ? `roekoe.newsSeen.prijsregel.${user.id}` : null;
+  const [showPrizeRuleNews, setShowPrizeRuleNews] = useState(false);
+  useEffect(() => {
+    if (!prizeRuleNewsKey || !state?.loft || showTour || showNews || showLokaalNews || showInrichtingNews || showSamenNews
+      || showLureNews || showTagsNews || showLeagueNews || lokaalNewsDone || inrichtingNewsDone || samenNewsDone
+      || lureNewsDone || tagsNewsDone || leagueNewsDone) return;
+    let seen = true;
+    let earlierPending = false;
+    try {
+      seen = !!localStorage.getItem(prizeRuleNewsKey);
+      earlierPending = (!!leagueNewsKey && !localStorage.getItem(leagueNewsKey))
+        || (!!tagsNewsKey && !localStorage.getItem(tagsNewsKey))
+        || (!!lureNewsKey && !localStorage.getItem(lureNewsKey))
+        || (!!samenNewsKey && !localStorage.getItem(samenNewsKey))
+        || (!!inrichtingNewsKey && !localStorage.getItem(inrichtingNewsKey))
+        || (!!lokaalNewsKey && !localStorage.getItem(lokaalNewsKey))
+        || (!!newsKey && !!state.world?.newsAt && !localStorage.getItem(newsKey));
+    } catch { /* private mode: treat as seen */ }
+    if (!seen && !earlierPending) setShowPrizeRuleNews(true);
+  }, [prizeRuleNewsKey, leagueNewsKey, tagsNewsKey, lureNewsKey, samenNewsKey, inrichtingNewsKey, lokaalNewsKey, newsKey,
+    state?.loft, state?.world?.newsAt, showTour, showNews, showLokaalNews, showInrichtingNews, showSamenNews, showLureNews,
+    showTagsNews, showLeagueNews, lokaalNewsDone, inrichtingNewsDone, samenNewsDone, lureNewsDone, tagsNewsDone,
+    leagueNewsDone]);
+  function closePrizeRuleNews() {
+    if (prizeRuleNewsKey) { try { localStorage.setItem(prizeRuleNewsKey, '1'); } catch { /* private mode */ } }
+    setShowPrizeRuleNews(false);
   }
 
   // Prijsuitreiking: de prizes of the season that just ended, one screen each.
@@ -519,7 +553,10 @@ export function Layout() {
       {showLeagueNews && !showTagsNews && !showLureNews && !showSamenNews && !showInrichtingNews && !showLokaalNews && !showNews && !showTour && !showCeremony && (
         <Tour steps={LEAGUE_NEWS_STEPS} onClose={closeLeagueNews} />
       )}
-      {state?.pendingEvent && !showTour && !showNews && !showLokaalNews && !showInrichtingNews && !showSamenNews && !showLureNews && !showTagsNews && !showLeagueNews && !showCeremony && <EventModal />}
+      {showPrizeRuleNews && !showLeagueNews && !showTagsNews && !showLureNews && !showSamenNews && !showInrichtingNews && !showLokaalNews && !showNews && !showTour && !showCeremony && (
+        <Tour steps={PRIZE_RULE_NEWS_STEPS} onClose={closePrizeRuleNews} />
+      )}
+      {state?.pendingEvent && !showTour && !showNews && !showLokaalNews && !showInrichtingNews && !showSamenNews && !showLureNews && !showTagsNews && !showLeagueNews && !showPrizeRuleNews && !showCeremony && <EventModal />}
     </div>
   );
 }

@@ -114,9 +114,19 @@ export function WikiPage() {
         </div>
       </div>
 
-      <Section id="nieuw" icon="🧰" title="Nieuw: leagues, tags, duivenlokker, samen kweken & meer">
+      <Section id="nieuw" icon="🧰" title="Nieuw: geld voor elke duif, leagues, tags, duivenlokker & meer">
         <p className="muted" style={{ marginTop: 0 }}>
-          Wat er in oktober (seizoen 3) bijkwam en veranderde, op één plek. Deze sectie blijft staan als logboek.
+          Wat er in oktober (seizoen 3 en 4) bijkwam en veranderde, op één plek. Deze sectie blijft staan als logboek.
+        </p>
+
+        <h3>💶 Geld voor élke duif, punten voor je beste 3</h3>
+        <p>
+          Elke duif die thuis raakt, krijgt nu het <strong>prijzengeld van haar plaats</strong> — hoeveel duiven je ook
+          inschrijft. Tot nu toe kregen enkel je 3 best geplaatste duiven iets. De <strong>seizoenspunten</strong> (en
+          in een league de leaguepunten) blijven voor je <strong>3 best geplaatste</strong> duiven per vlucht. En de
+          leagues betalen per vlucht meer: een zege in ★ t/m 60 is nu <strong>€800</strong> (sprint) of{' '}
+          <strong>€1.200</strong> (grote fond), elke hogere league iets meer.{' '}
+          <a href="#prijzengeld">Alle tabellen →</a>
         </p>
 
         <h3>🏅 De leagues, in plaats van het leeftijdscriterium</h3>
@@ -723,8 +733,8 @@ export function WikiPage() {
         />
         <ul style={{ marginTop: 12 }}>
           <li><strong>Inschrijven kost €20</strong>, en je mag er <strong>zoveel duiven in zetten als je wil</strong>
-            — zolang hun score in die league valt. Zoals overal verdienen per vlucht enkel je <strong>3 best
-            geplaatste</strong> duiven.</li>
+            — zolang hun score in die league valt. Elke duif krijgt het geld van haar plaats; leaguepunten krijgen
+            per vlucht enkel je <strong>3 best geplaatste</strong> duiven.</li>
           <li><strong>De score telt op het moment dat je inschrijft.</strong> De score heeft één decimaal: ★60,0 hoort
             nog in de laagste league, ★60,1 al in ★ 61–70. Stijgt je duif na het inschrijven (coach, training), dan
             vliegt ze die vlucht nog gewoon in de league waarvoor je haar inschreef.</li>
@@ -740,14 +750,15 @@ export function WikiPage() {
         </ul>
         <h3>Prijzengeld per vlucht</h3>
         <p className="faint" style={{ marginTop: 0 }}>
-          Hoe hoger de league, hoe meer: de laagste betaalt de helft van de hoogste, ★ 61–70 70 % en ★ 71–80 85 %.
+          Hoe hoger de league, hoe meer: een zege in de laagste league is €800 (sprint) of €1.200 (grote fond), en
+          elke hogere league betaalt op elke plaats iets meer. Elke duif die thuis raakt, krijgt het bedrag van haar plaats.
           De volledige tabellen staan bij <a href="#prijzengeld">Prijzengeld</a>.
         </p>
         <MiniTable
           head={['Zege', '★ t/m 60', '★ 61–70', '★ 71–80', '★ 81+']}
           rows={[
-            ['🏁 Sprint', '€500', '€700', '€850', '€1.000'],
-            ['🛰️ Grote fond', '€800', '€1.120', '€1.360', '€1.600'],
+            ['🏁 Sprint', '€800', '€900', '€1.000', '€1.100'],
+            ['🛰️ Grote fond', '€1.200', '€1.350', '€1.500', '€1.650'],
           ]}
         />
         <h3>De stand loopt één seizoen</h3>
@@ -1024,11 +1035,10 @@ export function WikiPage() {
           niet finisht — opgegeven, uitgevallen of de weg kwijt — krijgt niets.
         </p>
         <p className="notice" style={{ marginTop: 10 }}>
-          ⚠️ <strong>Hoogstens 3 duiven per hok per vlucht.</strong> Enkel je <strong>3 best geplaatste</strong>{' '}
-          duiven verdienen geld <em>én</em> seizoenspunten. Schrijf je er meer in, dan vliegen die gewoon mee,
-          staan ze in de uitslag en gaan ze er nog steeds op vooruit — maar ze leveren niets op. In de uitslag
-          staat er dan “buiten de 3” bij. Het prijzengeld van zo'n plaats <strong>vervalt</strong>: het schuift
-          niet door naar de volgende duif.
+          💶 <strong>Geld voor elke duif, punten voor je beste 3.</strong> Elke duif die thuis raakt, krijgt het
+          prijzengeld van haar plaats — hoeveel je er ook inschrijft. <strong>Seizoenspunten</strong> (en in een
+          league de leaguepunten) krijgen enkel je <strong>3 best geplaatste</strong> duiven per vlucht; bij de
+          andere staat “buiten de 3” in de puntenkolom. Die punten schuiven niet door naar de volgende duif.
         </p>
         <h3 style={{ marginBottom: 4 }}>Regionaal — 100–200 km · inschrijfgeld €10</h3>
         <MiniTable
@@ -1049,24 +1059,24 @@ export function WikiPage() {
         <MiniTable
           head={['Plaats', '★ t/m 60', '★ 61–70', '★ 71–80', '★ 81+']}
           rows={[
-            ['1', '€500', '€700', '€850', '€1.000'], ['2', '€350', '€490', '€595', '€700'],
-            ['3', '€250', '€350', '€425', '€500'], ['4', '€150', '€210', '€255', '€300'],
-            ['5', '€125', '€175', '€215', '€250'], ['6', '€110', '€155', '€185', '€220'],
-            ['7', '€90', '€125', '€155', '€180'], ['8', '€60', '€85', '€100', '€120'],
-            ['9 – 11', '€50', '€70', '€85', '€100'], ['12 – 15', '€40', '€55', '€70', '€80'],
-            ['16 en verder', '€30', '€40', '€50', '€60'],
+            ['1', '€800', '€900', '€1.000', '€1.100'], ['2', '€600', '€650', '€700', '€750'],
+            ['3', '€400', '€450', '€500', '€550'], ['4', '€250', '€275', '€300', '€325'],
+            ['5', '€200', '€225', '€250', '€275'], ['6', '€175', '€200', '€225', '€250'],
+            ['7', '€125', '€150', '€175', '€200'], ['8', '€100', '€110', '€120', '€130'],
+            ['9 – 11', '€80', '€90', '€100', '€110'], ['12 – 15', '€60', '€70', '€80', '€90'],
+            ['16 en verder', '€50', '€55', '€60', '€65'],
           ]}
         />
         <h3 style={{ marginBottom: 4, marginTop: 14 }}>Leagues — grote fond · 400–1000 km · €20</h3>
         <MiniTable
           head={['Plaats', '★ t/m 60', '★ 61–70', '★ 71–80', '★ 81+']}
           rows={[
-            ['1', '€800', '€1.120', '€1.360', '€1.600'], ['2', '€700', '€980', '€1.190', '€1.400'],
-            ['3', '€600', '€840', '€1.020', '€1.200'], ['4', '€425', '€595', '€725', '€850'],
-            ['5', '€300', '€420', '€510', '€600'], ['6', '€200', '€280', '€340', '€400'],
-            ['7', '€175', '€245', '€300', '€350'], ['8', '€150', '€210', '€255', '€300'],
-            ['9 – 11', '€90', '€120', '€150', '€175'], ['12 – 15', '€65', '€90', '€105', '€125'],
-            ['16 en verder', '€45', '€65', '€75', '€90'],
+            ['1', '€1.200', '€1.350', '€1.500', '€1.650'], ['2', '€1.050', '€1.200', '€1.300', '€1.450'],
+            ['3', '€900', '€1.000', '€1.150', '€1.250'], ['4', '€650', '€700', '€800', '€900'],
+            ['5', '€450', '€500', '€550', '€600'], ['6', '€300', '€350', '€400', '€450'],
+            ['7', '€250', '€300', '€325', '€350'], ['8', '€200', '€250', '€275', '€300'],
+            ['9 – 11', '€125', '€150', '€175', '€200'], ['12 – 15', '€100', '€110', '€120', '€130'],
+            ['16 en verder', '€70', '€80', '€90', '€100'],
           ]}
         />
         <p className="faint" style={{ marginTop: 12 }}>

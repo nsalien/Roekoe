@@ -549,7 +549,7 @@ app.get('/state', (c) => {
       hour: LEAGUE.hour,
       minute: LEAGUE.minute,
       leagues: LEAGUES.map((l) => ({
-        id: l.id, label: l.label, short: l.short, icon: l.icon, weekday: l.weekday, factor: l.factor,
+        id: l.id, label: l.label, short: l.short, icon: l.icon, weekday: l.weekday,
         minScore: leagueMinScore(l.id),
         maxScore: Number.isFinite(l.maxScore) ? l.maxScore : null, // JSON has no Infinity
         range: leagueRangeText(l.id),

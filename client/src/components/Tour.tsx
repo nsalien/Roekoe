@@ -651,12 +651,12 @@ export const PRIZE_NEWS_STEPS: Step[] = [
   },
   {
     route: '/vluchten', selector: '[data-tour="flights"]',
-    title: '⚠️ Maar: hoogstens 3 duiven per vlucht',
+    title: '⚠️ Punten: enkel je beste 3',
     body: (
       <>
-        Per vlucht verdienen enkel je <strong>3 best geplaatste duiven</strong> — geld én seizoenspunten. Schrijf je
-        er meer in, dan vliegen die gewoon mee, staan ze in de uitslag en gaan ze er nog steeds op vooruit, maar
-        leveren ze niets op. In de uitslag staat er dan <strong>"buiten de 3"</strong> bij.
+        Elke duif die thuis raakt, krijgt het geld van haar plaats, maar <strong>seizoenspunten</strong> krijgen
+        per vlucht enkel je <strong>3 best geplaatste duiven</strong>. Bij de andere staat er in de uitslag{' '}
+        <strong>"buiten de 3"</strong> in de puntenkolom.
         <br />
         <span className="faint" style={{ display: 'inline-block', marginTop: 4 }}>
           Alle tabellen: 📖 Wiki → Prijzengeld.
@@ -1099,6 +1099,38 @@ export const LEAGUE_NEWS_STEPS: Step[] = [
         niet door.
         <br />
         <span className="faint" style={{ display: 'inline-block', marginTop: 4 }}>Klassen en prijzen: 📖 Wiki → Leagues.</span>
+      </>
+    ),
+  },
+];
+
+/**
+ * Aankondiging (eigenaar, 24 okt): élke duif die thuis raakt krijgt het geld van
+ * haar plaats, de seizoenspunten blijven voor de beste 3 per hok — en de leagues
+ * betalen per vlucht meer. De bel is migratie v69 (PRIZE_RULE_NEWS in news.ts).
+ */
+export const PRIZE_RULE_NEWS_STEPS: Step[] = [
+  {
+    route: '/vluchten', selector: '[data-tour="flights"]',
+    title: '💶 Geld voor élke duif',
+    body: (
+      <>
+        Vanaf nu krijgt <strong>élke duif die thuis raakt</strong> het prijzengeld van haar plaats — hoeveel je er
+        ook inschrijft. De <strong>seizoenspunten</strong> blijven voor je <strong>3 best geplaatste</strong> duiven
+        per vlucht; bij de andere staat "buiten de 3" in de puntenkolom.
+      </>
+    ),
+  },
+  {
+    route: '/vluchten', selector: '[data-tour="league-filter"]',
+    title: '🏅 Meer geld in de leagues',
+    body: (
+      <>
+        Een zege in <strong>★ t/m 60</strong> is nu <strong>€800</strong> op een sprint en <strong>€1.200</strong> op
+        een grote fond, en elke hogere league betaalt op elke plaats iets meer — tot <strong>€1.100</strong> en{' '}
+        <strong>€1.650</strong> in ★ 81+.
+        <br />
+        <span className="faint" style={{ display: 'inline-block', marginTop: 4 }}>Alle tabellen: 📖 Wiki → Prijzengeld.</span>
       </>
     ),
   },

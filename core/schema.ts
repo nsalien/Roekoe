@@ -685,10 +685,11 @@ export interface FlightResult {
   prize: number;
   finished: boolean; // false = did not make it home (exhausted)
   /**
-   * Did this bird earn anything? Only a loft's REWARD_BIRDS_PER_LOFT best
-   * finishers are paid and scored; a fourth bird flies, takes its place in the
-   * result and still improves, but gets no money and no points. Absent on
-   * flights finalized before this shipped — read it as `rewarded !== false`.
+   * Did this bird score points? Only a loft's REWARD_BIRDS_PER_LOFT best
+   * finishers do; a fourth bird flies, takes its place, improves and (since 24
+   * okt) is paid for her place, but scores no points. Before 24 okt a `false`
+   * also meant "no money". Absent on flights finalized before the rule existed —
+   * read it as `rewarded !== false`.
    */
   rewarded?: boolean;
   /** Seizoen 3: her kenmerk (speed traits only) and the share of her flight

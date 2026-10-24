@@ -118,7 +118,7 @@ import { pickRelayRoute, relayEntryTeams, relayLegKm, relayTeamComplete } from '
 import { rollAnyTrait, rollTrait } from './traits.js';
 import { season3CoachNote, season3Welcome } from './season3.js';
 import { LOKAAL_INTRO } from './lokaal.js';
-import { CARE_NEWS, INRICHTING_NEWS, LEAGUE_NEWS, LURE_NEWS, STUD_NEWS, TAGS_NEWS } from './news.js';
+import { CARE_NEWS, INRICHTING_NEWS, LEAGUE_NEWS, LURE_NEWS, PRIZE_RULE_NEWS, STUD_NEWS, TAGS_NEWS } from './news.js';
 import { bell, clamp, hashString, haversineKm, pick, randFloat, round1, seededRng } from './util.js';
 
 // --- Time-zone helpers -----------------------------------------------------
@@ -2696,6 +2696,22 @@ export function runDataMigrations(db: Database, nowMs = Date.now()): void {
       });
       if (!busy && fillBotFlocks(db, 10, 3) === 0) db.world.dataVersion = 68;
     }
+  }
+
+  // Waits for v68: a migration only runs once everything before it is done, so
+  // while the bots are still being filled this bell simply comes a few requests
+  // later — the same order every player sees.
+  if ((db.world.dataVersion ?? 0) === 68) {
+    // Aankondiging (eigenaar, 24 okt): élke duif krijgt het geld van haar plaats,
+    // de punten blijven voor de beste 3 per hok (REWARD_BIRDS_PER_LOFT, flight.ts),
+    // en de leagues betalen per vlucht meer (LEAGUES[].sprint/fond). Geen datafix:
+    // de regel geldt vanaf de volgende uitbetaling. Eén bel per echte speler met een
+    // stabiele id; de tweede helft is PRIZE_RULE_NEWS_STEPS in Tour.tsx.
+    for (const loft of db.lofts) {
+      if (loft.isBot) continue;
+      pushNotification(db, loft.userId, 'info', PRIZE_RULE_NEWS.title, PRIZE_RULE_NEWS.body, null, PRIZE_RULE_NEWS.id(loft.userId));
+    }
+    db.world.dataVersion = 69;
   }
 }
 

@@ -791,15 +791,16 @@ export const PRIZE_MONEY: Record<FlightTier, PrizeTable> = {
 };
 
 /**
- * How many birds of ONE loft can be rewarded in a single flight — money AND
- * seizoenspunten. Enter more if you like: they fly, they take their place in the
- * result and they still build conditie and ervaring, but only the THREE
- * best-placed birds of a loft are paid and scored.
+ * How many birds of ONE loft score POINTS in a single flight — seizoenspunten,
+ * and in a league the league points. Enter more if you like: they fly, they take
+ * their place in the result, they build conditie and ervaring and they are PAID
+ * for their place — only the THREE best-placed birds of a loft score points.
  *
- * Without this, a deep table plus an unlimited entry list is a machine for the
- * biggest loft: enter eight birds, collect eight cheques. The prize of a bird
- * that falls outside the three simply is not paid — it does NOT cascade to the
- * next loft, so the result you see is the result that was flown.
+ * Until 24 okt this capped the prize money too ("enter eight birds, collect eight
+ * cheques"); the owner lifted that: "alle duiven krijgen wel sowieso hun geld
+ * beloning naargelang hun plaatsing". ⚠️ Every table's `rest` is above its entry
+ * fee, so each extra bird that gets home now pays for itself — energie, gezondheid
+ * and one race per bird per day are what still hold a big loft back.
  */
 export const REWARD_BIRDS_PER_LOFT = 3;
 
@@ -2664,9 +2665,10 @@ export const MORTALITY_CURVE: { weeks: number; p: number }[] = [
  * points to the bird, medals for a podium, but no seizoenspunten, wins, sponsor
  * bonuses or bets — the melkerranglijst (Roekoe) never moves because of it.
  *
- * Money scales with the league (`factor`): the lowest league pays half of what
- * the top one pays, so winning there is worth it without turning a weak bird into
- * a money machine. The owner's choice (24 okt).
+ * Money rises with the league, a step per class. Each league has its own written
+ * out tables (`sprint`/`fond` per race, `awards` at the season end), so every
+ * amount is a round one. Owner, 24 okt: ★ t/m 60 wins €800 on a sprint and
+ * €1.200 on a fond, "bij de hogere klasse dan ook steeds iets meer".
  *
  * NOTE ON SCORE: a bird's score moves (training, coach, flights up; ageing down),
  * so she can change league during a season. The league is decided per race, at
@@ -2684,8 +2686,10 @@ export interface LeagueDef {
    *  league starts right above it: ★60.0 is l60, ★60.1 already l70. */
   maxScore: number;
   weekday: number; // 0=Sun..6=Sat — the day this league races
-  /** Share of the base prize table (LEAGUE.sprint/fond) this league pays per race. */
-  factor: number;
+  /** Prize money per race, by place: the sprint (100–300 km) and the grote fond
+   *  (400–1000 km) edition. Every finisher is paid for her place. */
+  sprint: PrizeTable;
+  fond: PrizeTable;
   /**
    * Season-end prize per place (index = rank − 1), paid to the OWNER. The top 3
    * also get a title on the bird; places 4–10 money only (a leaguepremie).
@@ -2695,19 +2699,38 @@ export interface LeagueDef {
 
 /** The four leagues, lowest first. The owner's classes: t/m 60 · 61–70 · 71–80 · 81+. */
 //
-// The season prizes (`awards`) are written out per league rather than derived from
-// `factor`, so they stay round. Owner, 24 okt: first "in de buurt van de
-// criteriumprijzen" for ★ 81+ (€2.000/€1.600/€1.200), the rest lower, and money
-// below 3rd too; then "doe alles 20% lager"; then "rond de getallen mooi af".
+// All prizes are written out per league, so they stay round. Season prizes
+// (`awards`), owner 24 okt: first "in de buurt van de criteriumprijzen" for ★ 81+
+// (€2.000/€1.600/€1.200), the rest lower, money below 3rd too; then "doe alles
+// 20% lager"; then "rond de getallen mooi af". Race prizes (`sprint`/`fond`),
+// owner 24 okt: ★ t/m 60 wins €800 / €1.200 (used to be €500 / €800 = half the
+// top league), every higher class "steeds iets meer" — +€100 / +€150 a class on
+// the win, the lower places in the same proportions (the old criterium shape).
 export const LEAGUES: LeagueDef[] = [
-  { id: 'l60', label: 'League ★ t/m 60', short: '★ t/m 60', icon: '🌱', maxScore: 60, weekday: 1, factor: 0.5,
-    awards: [800, 650, 500, 200, 150, 100, 75, 75, 75, 75] },
-  { id: 'l70', label: 'League ★ 61–70', short: '★ 61–70', icon: '🌿', maxScore: 70, weekday: 3, factor: 0.7,
-    awards: [1100, 900, 650, 300, 200, 150, 100, 100, 100, 100] },
-  { id: 'l80', label: 'League ★ 71–80', short: '★ 71–80', icon: '🌳', maxScore: 80, weekday: 4, factor: 0.85,
-    awards: [1350, 1100, 800, 350, 250, 200, 125, 125, 125, 125] },
-  { id: 'l81', label: 'League ★ 81+', short: '★ 81+', icon: '👑', maxScore: Number.POSITIVE_INFINITY, weekday: 5, factor: 1,
-    awards: [1600, 1300, 950, 400, 300, 250, 150, 150, 150, 150] },
+  {
+    id: 'l60', label: 'League ★ t/m 60', short: '★ t/m 60', icon: '🌱', maxScore: 60, weekday: 1,
+    sprint: { places: [800, 600, 400, 250, 200, 175, 125, 100], bands: [{ below: 12, amount: 80 }, { below: 16, amount: 60 }], rest: 50 },
+    fond: { places: [1200, 1050, 900, 650, 450, 300, 250, 200], bands: [{ below: 12, amount: 125 }, { below: 16, amount: 100 }], rest: 70 },
+    awards: [800, 650, 500, 200, 150, 100, 75, 75, 75, 75],
+  },
+  {
+    id: 'l70', label: 'League ★ 61–70', short: '★ 61–70', icon: '🌿', maxScore: 70, weekday: 3,
+    sprint: { places: [900, 650, 450, 275, 225, 200, 150, 110], bands: [{ below: 12, amount: 90 }, { below: 16, amount: 70 }], rest: 55 },
+    fond: { places: [1350, 1200, 1000, 700, 500, 350, 300, 250], bands: [{ below: 12, amount: 150 }, { below: 16, amount: 110 }], rest: 80 },
+    awards: [1100, 900, 650, 300, 200, 150, 100, 100, 100, 100],
+  },
+  {
+    id: 'l80', label: 'League ★ 71–80', short: '★ 71–80', icon: '🌳', maxScore: 80, weekday: 4,
+    sprint: { places: [1000, 700, 500, 300, 250, 225, 175, 120], bands: [{ below: 12, amount: 100 }, { below: 16, amount: 80 }], rest: 60 },
+    fond: { places: [1500, 1300, 1150, 800, 550, 400, 325, 275], bands: [{ below: 12, amount: 175 }, { below: 16, amount: 120 }], rest: 90 },
+    awards: [1350, 1100, 800, 350, 250, 200, 125, 125, 125, 125],
+  },
+  {
+    id: 'l81', label: 'League ★ 81+', short: '★ 81+', icon: '👑', maxScore: Number.POSITIVE_INFINITY, weekday: 5,
+    sprint: { places: [1100, 750, 550, 325, 275, 250, 200, 130], bands: [{ below: 12, amount: 110 }, { below: 16, amount: 90 }], rest: 65 },
+    fond: { places: [1650, 1450, 1250, 900, 600, 450, 350, 300], bands: [{ below: 12, amount: 200 }, { below: 16, amount: 130 }], rest: 100 },
+    awards: [1600, 1300, 950, 400, 300, 250, 150, 150, 150, 150],
+  },
 ];
 
 export const LEAGUE = {
@@ -2731,8 +2754,8 @@ export const LEAGUE = {
   /**
    * The two formats the weekly race alternates between. Week 1 of a season is a
    * sprint, week 2 a fond, and so on — which is what makes it 2+2 per season.
-   * Both pay the same league points; only the money differs. These tables are
-   * what the TOP league pays; the others get `factor` of it (`leaguePrizes`).
+   * Both pay the same league points; only the money differs, and that is in each
+   * league's own `sprint`/`fond` table (`leaguePrizes`).
    */
   sprint: {
     label: 'Sprint',
@@ -2740,11 +2763,6 @@ export const LEAGUE = {
     minKm: 100,
     maxKm: 300,
     tier: 'national' as FlightTier, // city pool to draw the route from
-    prizes: {
-      places: [1000, 700, 500, 300, 250, 220, 180, 120],
-      bands: [{ below: 12, amount: 100 }, { below: 16, amount: 80 }],
-      rest: 60,
-    } as PrizeTable,
   },
   fond: {
     label: 'Grote fond',
@@ -2752,11 +2770,6 @@ export const LEAGUE = {
     minKm: 400,
     maxKm: 1000,
     tier: 'international' as FlightTier,
-    prizes: {
-      places: [1600, 1400, 1200, 850, 600, 400, 350, 300],
-      bands: [{ below: 12, amount: 175 }, { below: 16, amount: 125 }],
-      rest: 90,
-    } as PrizeTable,
   },
 } as const;
 
@@ -2789,20 +2802,10 @@ export function leagueRangeText(id: LeagueId): string {
   return `★${nl(min)} tot en met ★${nl(def.maxScore)}`;
 }
 
-/** Scale a league amount and round it to €5, like the sponsor premiums. */
-function leagueAmount(base: number, factor: number): number {
-  return Math.round((base * factor) / 5) * 5;
-}
-
 /** What a race of league `id` pays per place (sprint or fond edition). */
 export function leaguePrizes(id: LeagueId, sprint: boolean): PrizeTable {
-  const base = sprint ? LEAGUE.sprint.prizes : LEAGUE.fond.prizes;
-  const f = leagueDef(id).factor;
-  return {
-    places: base.places.map((x) => leagueAmount(x, f)),
-    bands: base.bands.map((b) => ({ below: b.below, amount: leagueAmount(b.amount, f) })),
-    rest: leagueAmount(base.rest, f),
-  };
+  const def = leagueDef(id);
+  return sprint ? def.sprint : def.fond;
 }
 
 /** The season-end prize for `rank` (1-based) in league `id`; 0 past the paid places. */

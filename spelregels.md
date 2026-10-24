@@ -394,23 +394,24 @@ format (sprint of grote fond) — zie daar.
 **Punten** (top 20): 100, 80, 65, 55, 47, 40, 34, 29, 25, 21, 18, 15, 13, 11, 9, 7, 5, 3, 2, 1.
 Seizoenspunten tellen op over **alle** vluchten en **alle** duiven van een hok.
 
-### Hoogstens 3 duiven per hok verdienen per vlucht
+### Geld voor elke duif, punten voor je beste 3
 
-Per vlucht worden enkel je **3 best geplaatste duiven** beloond — **geld én
-seizoenspunten**. Je mag er gerust meer inschrijven: die vliegen gewoon mee, staan
-in de uitslag, bouwen conditie en ervaring op en tellen mee voor de
-duivenranglijsten — maar ze leveren geen geld en geen punten op. In de uitslag
-staat er bij zo’n duif **“buiten de 3”**.
+**Elke duif die thuis raakt, krijgt het prijzengeld van haar plaats** — hoeveel
+duiven je ook inschrijft. **Seizoenspunten** (en in een league de leaguepunten)
+krijgen enkel je **3 best geplaatste duiven** per vlucht. Je vierde duif en
+verder vliegen gewoon mee, staan in de uitslag, worden betaald, bouwen conditie en
+ervaring op en tellen mee voor de duivenranglijsten — ze scoren alleen geen punten.
+In de uitslag staat er dan in de puntenkolom **“buiten de 3”**.
 
 - **Een duif die niet finisht kost je geen plaats.** De limiet telt enkel duiven
   die thuis raken, dus wie onderweg twee duiven verliest heeft nog altijd drie die
   kunnen scoren.
-- **Het geld vervalt, het schuift niet door.** Wordt je vierde duif zesde, dan
-  blijft ze zesde in de uitslag en wordt het prijzengeld van plaats 6 gewoon niet
-  uitbetaald — de duif die zevende werd krijgt nog steeds het bedrag van plaats 7.
-- **Waarom.** Zonder deze regel is een diepe prijzentabel een machine voor het
-  grootste hok: acht duiven inschrijven, acht keer incasseren. Nu bepaalt de
-  kwaliteit van je beste drie wat een vlucht opbrengt, niet de omvang van je hok.
+- **De punten schuiven niet door.** Wordt je vierde duif zesde, dan blijft ze
+  zesde (en krijgt ze het geld van plaats 6), maar de punten van plaats 6 gaan naar
+  niemand — de duif die zevende werd krijgt de punten van plaats 7.
+- **Waarom.** De punten bepalen de melkerranglijst (de Roekoe): daar telt de
+  kwaliteit van je beste drie, niet de omvang van je hok. Geld krijgt elke duif
+  voor wat ze vloog. (Tot 24 okt gold de limiet ook voor het geld.)
 
 **Prijzengeld krijg je meteen — zodra je duif finisht.** Je hoeft niet te wachten
 tot de hele vlucht is afgelopen (en de traagste duif eindelijk thuis is). **Op het
@@ -544,8 +545,8 @@ leeftijd.)
 | 👑 **★ 81+** | ★80,1 of hoger | vrijdag 06:00 |
 
 - **Inschrijfgeld €20**, en je mag er **zoveel duiven in zetten als je wil** —
-  zolang hun score in die league valt. Zoals overal verdienen enkel je **3 best
-  geplaatste** duiven (§2.6).
+  zolang hun score in die league valt. Elke duif krijgt het geld van haar plaats;
+  leaguepunten krijgen enkel je **3 best geplaatste** duiven (§2.6).
 - **Welke league?** Die van haar score **op het moment dat je haar inschrijft**.
   De score heeft één decimaal: ★60,0 is nog de laagste league, ★60,1 al ★ 61–70.
   Stijgt ze na het inschrijven, dan vliegt ze die vlucht nog in de league waarvoor
@@ -562,41 +563,42 @@ leeftijd.)
   op een blessure (§3.2), en je duif gaat er gewoon op vooruit.
 - Bots doen mee, zodat de leagues een echt deelnemersveld hebben.
 
-**Prijzengeld per vlucht.** Hoe hoger de league, hoe meer: de hoogste league
-betaalt de volle tabel, ★ 71–80 **85 %**, ★ 61–70 **70 %** en ★ t/m 60 **50 %**
-(afgerond op €5).
+**Prijzengeld per vlucht.** Hoe hoger de league, hoe meer: een zege in ★ t/m 60 is
+**€800** op een sprint en **€1.200** op een grote fond, en elke hogere league betaalt
+op elke plaats iets meer (tot €1.100 en €1.650 in ★ 81+). **Elke duif die thuis
+raakt, krijgt het bedrag van haar plaats** (§2.6).
 
 🏁 **Sprint**
 
 | Plaats | ★ t/m 60 | ★ 61–70 | ★ 71–80 | ★ 81+ |
 |---|---|---|---|---|
-| 1e | €500 | €700 | €850 | €1.000 |
-| 2e | €350 | €490 | €595 | €700 |
-| 3e | €250 | €350 | €425 | €500 |
-| 4e | €150 | €210 | €255 | €300 |
-| 5e | €125 | €175 | €215 | €250 |
-| 6e | €110 | €155 | €185 | €220 |
-| 7e | €90 | €125 | €155 | €180 |
-| 8e | €60 | €85 | €100 | €120 |
-| 9e – 11e | €50 | €70 | €85 | €100 |
-| 12e – 15e | €40 | €55 | €70 | €80 |
-| 16e en verder | €30 | €40 | €50 | €60 |
+| 1e | €800 | €900 | €1.000 | €1.100 |
+| 2e | €600 | €650 | €700 | €750 |
+| 3e | €400 | €450 | €500 | €550 |
+| 4e | €250 | €275 | €300 | €325 |
+| 5e | €200 | €225 | €250 | €275 |
+| 6e | €175 | €200 | €225 | €250 |
+| 7e | €125 | €150 | €175 | €200 |
+| 8e | €100 | €110 | €120 | €130 |
+| 9e – 11e | €80 | €90 | €100 | €110 |
+| 12e – 15e | €60 | €70 | €80 | €90 |
+| 16e en verder | €50 | €55 | €60 | €65 |
 
 🛰️ **Grote fond**
 
 | Plaats | ★ t/m 60 | ★ 61–70 | ★ 71–80 | ★ 81+ |
 |---|---|---|---|---|
-| 1e | €800 | €1.120 | €1.360 | €1.600 |
-| 2e | €700 | €980 | €1.190 | €1.400 |
-| 3e | €600 | €840 | €1.020 | €1.200 |
-| 4e | €425 | €595 | €725 | €850 |
-| 5e | €300 | €420 | €510 | €600 |
-| 6e | €200 | €280 | €340 | €400 |
-| 7e | €175 | €245 | €300 | €350 |
-| 8e | €150 | €210 | €255 | €300 |
-| 9e – 11e | €90 | €120 | €150 | €175 |
-| 12e – 15e | €65 | €90 | €105 | €125 |
-| 16e en verder | €45 | €65 | €75 | €90 |
+| 1e | €1.200 | €1.350 | €1.500 | €1.650 |
+| 2e | €1.050 | €1.200 | €1.300 | €1.450 |
+| 3e | €900 | €1.000 | €1.150 | €1.250 |
+| 4e | €650 | €700 | €800 | €900 |
+| 5e | €450 | €500 | €550 | €600 |
+| 6e | €300 | €350 | €400 | €450 |
+| 7e | €250 | €300 | €325 | €350 |
+| 8e | €200 | €250 | €275 | €300 |
+| 9e – 11e | €125 | €150 | €175 | €200 |
+| 12e – 15e | €100 | €110 | €120 | €130 |
+| 16e en verder | €70 | €80 | €90 | €100 |
 
 **De stand loopt één seizoen.** Punten krijg je met **dezelfde tabel als een
 gewone vlucht** (100, 80, 65, 55, … — §2.6): een sprint en een fondvlucht wegen

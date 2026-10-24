@@ -7,7 +7,7 @@
  * en niet in de migratie, zodat de test hem kan lezen zonder de motor te draaien.
  */
 
-import { INSURANCE, LEAGUE, LEAGUES, LURE, LURE_MAX_LEVEL, MARKET_BOOST, PIGEON_TAGS, STUD, VACCINES, leagueAward, studFailedRefund } from '../config/gameConfig.js';
+import { INSURANCE, LEAGUE, LEAGUES, LURE, LURE_MAX_LEVEL, MARKET_BOOST, PIGEON_TAGS, REWARD_BIRDS_PER_LOFT, STUD, VACCINES, leagueAward, studFailedRefund } from '../config/gameConfig.js';
 
 export const INRICHTING_NEWS = {
   title: '🧰 Nieuw: je hok inrichten, en meer',
@@ -145,4 +145,29 @@ export const LEAGUE_NEWS = {
   ].join('\n'),
   /** Stabiel per speler: twee verzoeken die tegelijk migreren geven één bel. */
   id: (userId: string) => `ntf:news:leagues:${userId}`,
+} as const;
+
+/**
+ * De bel van migratie v69 (eigenaar, 24 okt): élke duif die thuis raakt krijgt
+ * het geld van haar plaats, de punten blijven voor de beste 3 per hok — en de
+ * leagues betalen per vlucht meer. De tweede helft is PRIZE_RULE_NEWS_STEPS in
+ * Tour.tsx; de tabellen staan in de wiki (#prijzengeld). Bedragen uit LEAGUES.
+ */
+const euro = (n: number) => `€${n.toLocaleString('nl-BE')}`;
+const lowest = LEAGUES[0];
+const highest = LEAGUES[LEAGUES.length - 1];
+export const PRIZE_RULE_NEWS = {
+  title: '💶 Nieuw: geld voor élke duif',
+  body: [
+    `Tot nu toe kregen per vlucht enkel je ${REWARD_BIRDS_PER_LOFT} best geplaatste duiven iets. Vanaf nu krijgt élke `
+      + 'duif die thuis raakt het prijzengeld van haar plaats, hoeveel duiven je ook inschrijft.',
+    `• Seizoenspunten (en in een league de leaguepunten) blijven voor je ${REWARD_BIRDS_PER_LOFT} best geplaatste `
+      + 'duiven per vlucht. Bij de andere staat "buiten de 3" in de puntenkolom.',
+    `• De leagues betalen meer: een zege in ${lowest.short} is nu ${euro(lowest.sprint.places[0])} op een sprint en `
+      + `${euro(lowest.fond.places[0])} op een grote fond, en elke hogere league betaalt op elke plaats iets meer — `
+      + `tot ${euro(highest.sprint.places[0])} en ${euro(highest.fond.places[0])} in ${highest.short}.`,
+    'Alle tabellen: Wiki → Prijzengeld.',
+  ].join('\n'),
+  /** Stabiel per speler: twee verzoeken die tegelijk migreren geven één bel. */
+  id: (userId: string) => `ntf:news:prijsregel:${userId}`,
 } as const;
