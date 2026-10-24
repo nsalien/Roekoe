@@ -85,7 +85,7 @@ console.log('\n1. Een verse wereld (seizoen 1) blijft ongemoeid');
   const db = store.data;
   advanceRealtime(db, NOW);
   const started = db.world.seasonStartedAt;
-  ok(db.world.dataVersion === 67 && db.world.seasonYear === 1, `v66 en v67 gelopen, nog altijd seizoen ${db.world.seasonYear}`);
+  ok(db.world.dataVersion === 68 && db.world.seasonYear === 1, `v66–v68 gelopen, nog altijd seizoen ${db.world.seasonYear}`);
   advanceRealtime(db, NOW + 60000);
   ok(db.world.seasonStartedAt === started && db.lofts.every((l) => (l.awards ?? []).length === 0), 'geen uitreiking, de klok staat waar ze stond');
 }
@@ -97,7 +97,7 @@ console.log('\n2. Nog seizoen 3 → alles uitreiken en seizoen 4 start nu');
   const money = humans.map((l) => l.money);
   advanceRealtime(db, NOW);
   const w = db.world;
-  ok(w.dataVersion === 67, 'v66 en v67 gelopen');
+  ok((w.dataVersion ?? 0) >= 67, 'v66 en v67 gelopen (v68 vult de bots in stappen bij)');
   ok(w.seasonYear === 4 && w.seasonWeek === 1, `seizoen ${w.seasonYear}, week ${w.seasonWeek}`);
   ok(w.seasonStartedAt === iso(NOW) && w.seasonEndsAt === iso(NOW + SEASON_MS),
      `seizoen 4 loopt van nu (${w.seasonStartedAt}) tot ${w.seasonEndsAt} — vier volle weken`);
@@ -181,7 +181,7 @@ console.log('\n4. Productie zoals ze nu is: v66 al gelopen → v67 betaalt geen 
   birdA.titles = [{ kind: 'criterium', rank: 1, label: 'Gouden Criteriumduif < 1 j', icon: '🥇', season: 3, at: iso(NOW), ageCat: 'u1', value: 120 }];
   const money = humans.map((l) => l.money);
   advanceRealtime(db, NOW + 2 * 3600000);
-  ok(db.world.dataVersion === 67 && db.world.seasonYear === 4 && db.world.seasonStartedAt === iso(NOW), 'v67 gelopen, seizoen 4 onaangeroerd');
+  ok((db.world.dataVersion ?? 0) >= 67 && db.world.seasonYear === 4 && db.world.seasonStartedAt === iso(NOW), 'v67 gelopen, seizoen 4 onaangeroerd');
   ok(humans.every((l, i) => l.money === money[i]) && humans.every((l) => !(l.awards ?? []).some((a) => a.kind === 'criterium')),
      'geen criteriumgeld meer (de cyclus was net herbegonnen)');
   ok((birdA.titles ?? []).length === 1, 'de titel van seizoen 3 blijft op de duif');

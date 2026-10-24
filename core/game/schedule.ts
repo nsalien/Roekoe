@@ -75,7 +75,7 @@ import { kinship } from './pedigree.js';
 import { awardBadge, awardFlightBadges, evaluateBadges } from './badges.js';
 import { ensureAuctions, recomputeAuctionLeader } from './auction.js';
 import { tickLoftDebt } from './debt.js';
-import { botDailyActions, botEntryContext, botRaceCandidates } from './bots.js';
+import { botDailyActions, botEntryContext, botRaceCandidates, fillBotFlocks } from './bots.js';
 import type { BotEntryContext } from './bots.js';
 import { settleFlightBets, voidBetsForWithdrawnPigeon, voidOrphanedBets, refundFlightBets } from './betting.js';
 import {
@@ -2669,6 +2669,33 @@ export function runDataMigrations(db: Database, nowMs = Date.now()): void {
       pushNotification(db, loft.userId, 'info', LEAGUE_NEWS.title, LEAGUE_NEWS.body, null, LEAGUE_NEWS.id(loft.userId));
     }
     db.world.dataVersion = 67;
+  }
+
+  if ((db.world.dataVersion ?? 0) < 68) {
+    // Eigenaar, 24 okt: "Indien er bots zijn die minder dan 10 duiven hebben op dit
+    // moment, vul hun aantal duiven bij. Random score tussen 60 en 75 (kleinere
+    // kans op hoge score, grotere kans tussen 60 en 70). Dit op productie."
+    // → fillBotFlocks (bots.ts). Enkel een wereld vanaf seizoen 4, d.w.z.
+    // productie: een verse wereld (tests, de demo) begint in seizoen 1 met haar
+    // eigen geseede bots — en met het aantal duiven waarop elke budgettest meet.
+    // Tien per bot blijft onder BOT.maxCapacity (12), de grens waarop het budget
+    // van de 00:00-tick berekend is.
+    //
+    // ⚠️ In stappen: elke nieuwe duif kost één D1-query (zie fillBotFlocks), dus
+    // hoogstens 3 per verzoek, en NIET in een verzoek dat een vlucht start of
+    // afrondt (dat zit al op ~45 van de 50). De migratie blijft openstaan tot elke
+    // bot op 10 staat — met de motor elke 20 s een handvol verzoeken.
+    if ((db.world.seasonYear ?? 1) < 4) {
+      db.world.dataVersion = 68;
+    } else {
+      const busy = db.flights.some((f) => {
+        const start = Date.parse(f.startAt ?? '');
+        if (Number.isNaN(start) || nowMs < start) return false;
+        if (f.status === 'scheduled') return true;
+        return f.status === 'live' && nowMs >= start + flightTotalSeconds(f) * 1000;
+      });
+      if (!busy && fillBotFlocks(db, 10, 3) === 0) db.world.dataVersion = 68;
+    }
   }
 }
 

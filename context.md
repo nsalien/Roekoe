@@ -73,6 +73,21 @@
 > Het voorstel (met alle getallen en de sketch) staat in de artifact "Roekoe Hokinrichting".
 
 ### Stand van zaken (12 okt 2026) — lees dit eerst
+- **Bots bijgevuld tot 10 duiven — 24 okt, migratie v68** (eigenaar: "Indien er bots zijn die minder dan 10 duiven
+  hebben op dit moment, vul hun aantal duiven bij. Random score tussen 60 en 75 (kleinere kans op hoge score,
+  grotere kans tussen 60 en 70). Dit op productie."). `fillBotFlocks` (bots.ts): gewone gegenereerde duiven
+  (leeftijd 8–130 weken, ras, kenmerk, energie …) waarvan de drie vaardigheden rond een score uit
+  `rollBotFillScore` liggen (**80 % ★60–70, 20 % ★70–75**, het gemiddelde = precies die score), genen 3–10 punten
+  boven elke vaardigheid (max 95), `seasonStartScore` = haar eigen score (geen valse "vooruitgang"), unieke naam,
+  **vaste id** `pig_botfill_<bot>_<n>` (eerste vrije n). Een bothok onder 10 plaatsen gaat gratis naar 10.
+  ⚠️ **In stappen**: een duivenrij heeft ~56 kolommen, dus één nieuwe duif = één D1-query (100 parameters per
+  statement), en een verzoek mag er 50. Daarom **hoogstens 3 per verzoek** en **niets** in een verzoek dat een
+  vlucht start of afrondt (dat zit al op ~45); v68 blijft openstaan tot elke bot op 10 staat (met de motor elke
+  20 s: een paar minuten). Gemeten: een bijvulverzoek 18–19 queries, een gewoon 13. Enkel een wereld vanaf
+  **seizoen 4** (= prod): een verse wereld (tests, demo) begint in seizoen 1 en blijft ongemoeid. Test:
+  `tests/bot-fill.test.mts` (verdeling, verse wereld, exact 10, eigenschappen, capaciteit, twee verzoeken
+  tegelijk, de stappen en hun querykost). Tien per bot blijft onder `BOT.maxCapacity` (12), waarop het budget van
+  de 00:00-tick berekend is.
 - **Seizoen 3 afgesloten, seizoen 4 gestart — 24 okt, migratie v66** (eigenaar: "Sluit seizoen 3 af op de
   productie omgeving en start seizoen 4 … uitreiking van de prijzen van seizoen 3 van de melkers, duiven en
   criterium. Criterium is normaal nog een extra seizoen, maar we gaan deze toch ook al uitreiken. Doe verder
@@ -1000,7 +1015,7 @@ krijgen.**
 `core/game/schedule.ts` → `advanceRealtime(db, nowMs, weatherByFlight)` roept in
 volgorde:
 1. `runDataMigrations(db)` — eenmalige datafixes, **gated op `world.dataVersion`**
-   (staat nu op **67** — v67 = de leagues i.p.v. het leeftijdscriterium (§0b, 24 okt), v66 = seizoen 3 afsluiten + criterium uitreiken (24 okt, zie *Stand van zaken*), v65 = de bel van de tags (`TAGS_NEWS`), v64 = de bel van de duivenlokker (`LURE_NEWS`), v63 = de bots uit samen kweken (hun aanbod gewist, geen bel), v62 = de bellen van samen kweken en van vaccins/verzekering per duif, v61 = de aankondigingsbel van de hokinrichting & co (`core/game/news.ts`), v60 = die van Het Lokaal; nieuwe migratie = nieuw `if ((db.world.dataVersion ?? 0) < N)`
+   (staat nu op **68** zodra de bots vol zijn — v68 = bots bijvullen tot 10 duiven (24 okt, in stappen), v67 = de leagues i.p.v. het leeftijdscriterium (§0b, 24 okt), v66 = seizoen 3 afsluiten + criterium uitreiken (24 okt, zie *Stand van zaken*), v65 = de bel van de tags (`TAGS_NEWS`), v64 = de bel van de duivenlokker (`LURE_NEWS`), v63 = de bots uit samen kweken (hun aanbod gewist, geen bel), v62 = de bellen van samen kweken en van vaccins/verzekering per duif, v61 = de aankondigingsbel van de hokinrichting & co (`core/game/news.ts`), v60 = die van Het Lokaal; nieuwe migratie = nieuw `if ((db.world.dataVersion ?? 0) < N)`
    blok + `db.world.dataVersion = N`). De oudere migraties hebben hun werk gedaan en
    zijn enkel nog van belang als **patroon** — zie §8, kop *Eenmalige migraties*.
 2. `ensureFlightsScheduled(db, nowMs)` — plant vluchten volgens `REAL_SCHEDULE`.
@@ -2077,6 +2092,7 @@ npx tsx tests/samen-kweken-news.test.mts  # v62: twee bellen per echte speler, s
 npx tsx tests/duivenlokker.test.mts       # duivenlokker: kansen, kopen, vangen, kiezen, D1 + API, wiki/spelregels, bel v64
 npx tsx tests/pigeon-tags.test.mts        # tags: opkuisen, privé, weg bij elke eigendomswissel, D1 + API, bel v65
 npx tsx tests/season-close.test.mts       # v66: seizoen 3 afsluiten (of enkel het criterium) + v67 erna; prod zoals ze is
+npx tsx tests/bot-fill.test.mts           # v68: bots tot 10 duiven, ★60–75, in stappen van 3, vaste ids, querykost
 ```
 
 > **Geen `tsx` beschikbaar?** (cloud-sessie waar de npm-registry geblokkeerd is: `npx tsx`
