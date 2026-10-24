@@ -4,14 +4,16 @@
  * Vier klassen volgens de ALGEMENE SCORE (★) van een duif — t/m 60 · 61–70 ·
  * 71–80 · 81+ — met per league één vlucht per week, die week om week wisselt
  * tussen een sprint en een grote fond. De stand loopt één seizoen; prijzengeld
- * schaalt met de league, en een league vliegt pas met minstens 4 duiven.
+ * schaalt met de league, en een league vliegt pas met minstens 4 duiven van
+ * minstens 3 melkers.
  *
  * Wat deze test bewaakt, in de volgorde waarin het stuk kan gaan:
  *  1. de klassen: de grenzen per decimaal, de geschaalde prijzen en eindprijzen;
  *  2. de kalender: vier leaguevluchten per week op hun eigen dag, geen criterium
  *     meer, en sprint/fond volgens de week van het seizoen;
  *  3. de scoregrens: een duif buiten haar league raakt er niet in — ook geen botduif;
- *  4. minstens 4 duiven bij de lossing, anders afgelast + terugbetaald;
+ *  4. minstens 4 duiven van 3 melkers bij de lossing, anders afgelast + terugbetaald,
+ *     met de reden (welk minimum) erbij;
  *  5. prijzengeld ja, seizoenspunten/overwinningen/weddenschappen nee, medaille ja,
  *     en de leaguepunten belanden bij de DUIF;
  *  6. de uitreiking op het einde van het seizoen: geld, een titel, een schone lei;
@@ -162,7 +164,8 @@ console.log('\n1. De klassen: grenzen per decimaal, prijzen per league');
      `league ★ t/m 60: zege €${prizeForRank(leaguePrizes('l60', true), 1)} (sprint) / €${prizeForRank(leaguePrizes('l60', false), 1)} (fond)`);
   ok(leagueAward('l81', 1) === 1000 && leagueAward('l81', 3) === 500 && leagueAward('l60', 1) === 500 && leagueAward('l80', 2) === 640 && leagueAward('l60', 4) === 0,
      `eindprijzen: ${LEAGUES.map((l) => `${l.short} €${[1, 2, 3].map((r) => leagueAward(l.id, r)).join('/')}`).join(' · ')}`);
-  ok(LEAGUE.minBirds === 4 && LEAGUE.entryFee === 20, `minstens ${LEAGUE.minBirds} duiven, €${LEAGUE.entryFee} inschrijving`);
+  ok(LEAGUE.minBirds === 4 && LEAGUE.minOwners === 3 && LEAGUE.entryFee === 20,
+     `minstens ${LEAGUE.minBirds} duiven van ${LEAGUE.minOwners} melkers, €${LEAGUE.entryFee} inschrijving`);
 }
 
 // ---------------------------------------------------------------------------
@@ -262,9 +265,16 @@ console.log('\n3. Enkel duiven met de juiste score raken erin');
 }
 
 // ---------------------------------------------------------------------------
-console.log(`\n4. Minder dan ${LEAGUE.minBirds} duiven = afgelast en terugbetaald`);
+console.log(`\n4. Minder dan ${LEAGUE.minBirds} duiven of ${LEAGUE.minOwners} melkers = afgelast en terugbetaald`);
 {
-  for (const n of [3, 4]) {
+  // [birds, lofts, why it is called off — or null: it flies]
+  const cases: [number, number, RegExp | null][] = [
+    [3, 3, /^minder dan 4 duiven$/],
+    [6, 2, /^minder dan 3 melkers$/],
+    [2, 2, /^minder dan 3 melkers en minder dan 4 duiven$/],
+    [4, 3, null],
+  ];
+  for (const [n, owners, why] of cases) {
     const s = await W.load(W.humans[0]);
     const db = s.data;
     const flight = db.flights.find((f) => !!f.league && f.status === 'scheduled')!;
@@ -273,21 +283,25 @@ console.log(`\n4. Minder dan ${LEAGUE.minBirds} duiven = afgelast en terugbetaal
     const week = db.world.currentWeek;
     const field: Pigeon[] = [];
     for (let i = 0; i < n; i++) {
-      // two owners, so only the bird count can stop it
-      const p = bird(W.humans[i % 2], week, scoreIn(flight.league!) + i * 0.5);
+      const p = bird(W.humans[i % owners], week, scoreIn(flight.league!) + i * 0.5);
       db.pigeons.push(p); field.push(p);
     }
-    const before = new Map(W.humans.map((u) => [u, db.lofts.find((l) => l.userId === u)!.money]));
-    ok(field.every((p) => enterFlight(s, p.ownerId, flight.id, p.id) === null), `${n} duiven ingeschreven in de ${flight.name}`);
+    const entrants = W.humans.slice(0, owners);
+    const before = new Map(entrants.map((u) => [u, db.lofts.find((l) => l.userId === u)!.money]));
+    const label = `${n} duiven van ${owners} melkers`;
+    ok(field.every((p) => enterFlight(s, p.ownerId, flight.id, p.id) === null), `${label} ingeschreven in de ${flight.name}`);
     tickFlights(db, Date.parse(flight.startAt) + 60000);
-    if (n < LEAGUE.minBirds) {
-      ok(flight.status === 'completed' && flight.sim.length === 0, `${n} duiven: de vlucht is afgelast`);
-      ok(/minder dan 4 duiven/.test(flight.weather), `met de reden erbij ("${flight.weather}")`);
-      ok(W.humans.slice(0, 2).every((u) => db.lofts.find((l) => l.userId === u)!.money === before.get(u)), 'elk inschrijfgeld is terugbetaald');
+    if (why) {
+      ok(flight.status === 'completed' && flight.sim.length === 0, `${label}: de vlucht is afgelast`);
+      const reason = /^Afgelast \((.*)\)$/.exec(flight.weather)?.[1] ?? '';
+      ok(why.test(reason), `met de juiste reden erbij ("${flight.weather}")`);
+      ok(entrants.every((u) => db.lofts.find((l) => l.userId === u)!.money === before.get(u)), 'elk inschrijfgeld is terugbetaald');
       const bell = db.notifications.find((x) => x.id === `ntf:cancel:${flight.id}:${W.humans[0]}`);
-      ok(!!bell && /Minder dan 4 duiven/.test(bell.body), 'de speler krijgt een bel die het minimum noemt');
+      const said = reason[0].toUpperCase() + reason.slice(1);
+      ok(!!bell && bell.body.startsWith(said) && bell.body.includes(`minstens ${LEAGUE.minOwners} melkers en ${LEAGUE.minBirds} duiven`),
+         'de speler krijgt een bel met de reden en beide minimums');
     } else {
-      ok(flight.status === 'live' && flight.sim.length === n, `${n} duiven: de vlucht gaat door`);
+      ok(flight.status === 'live' && flight.sim.length === n, `${label}: de vlucht gaat door`);
     }
   }
 }
@@ -489,7 +503,7 @@ console.log('\n8. De bel, de wiki en de spelregels zeggen hetzelfde als LEAGUE')
 {
   const body = LEAGUE_NEWS.body;
   ok(LEAGUES.every((l) => body.includes(l.short)), 'de bel noemt de vier leagues');
-  ok(body.includes(`€${LEAGUE.entryFee}`) && body.includes(`minstens ${LEAGUE.minBirds} duiven`), 'de bel noemt het inschrijfgeld en het minimum');
+  ok(body.includes(`€${LEAGUE.entryFee}`) && body.includes(`minstens ${LEAGUE.minOwners} melkers en ${LEAGUE.minBirds} duiven`), 'de bel noemt het inschrijfgeld en beide minimums');
   ok(/geen seizoenspunten/.test(body) && /wiki/i.test(body), 'ze waarschuwt voor de seizoenspunten en verwijst naar de wiki');
   ok(body.length < 900, `ze blijft kort (${body.length} tekens)`);
   const wiki = readFileSync('./client/src/pages/WikiPage.tsx', 'utf8');
@@ -502,7 +516,8 @@ console.log('\n8. De bel, de wiki en de spelregels zeggen hetzelfde als LEAGUE')
     const a1 = eur(leagueAward(lg.id, 1));
     ok(rules.includes(s1) && rules.includes(f1) && rules.includes(a1), `spelregels: ${lg.short} zege ${s1} / ${f1}, eindprijs ${a1}`);
   }
-  ok(rules.includes(`minstens **${LEAGUE.minBirds} duiven**`), 'de spelregels noemen het minimum van 4 duiven');
+  ok(rules.includes(`minstens **${LEAGUE.minBirds} duiven** van minstens **${LEAGUE.minOwners} verschillende`), 'de spelregels noemen beide minimums (4 duiven, 3 melkers)');
+  ok(wiki.includes(`minstens ${LEAGUE.minBirds} duiven van minstens ${LEAGUE.minOwners} verschillende melkers`), 'de wiki ook');
   ok(!/\| 🏅 \*\*Ouder dan 3 jaar\*\*/.test(rules), 'de leeftijdsklassen staan niet meer in de spelregels');
 }
 

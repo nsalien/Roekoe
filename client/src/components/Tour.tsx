@@ -1085,7 +1085,7 @@ export const LEAGUE_NEWS_STEPS: Step[] = [
         Het leeftijdscriterium is weg. In de plaats komen <strong>vier leagues volgens de score</strong> van je duif:
         ma <strong>★ t/m 60</strong>, wo <strong>★ 61–70</strong>, do <strong>★ 71–80</strong>, vr{' '}
         <strong>★ 81+</strong>, telkens om 06:00. Je duif vliegt in de league van haar score; een league gaat pas
-        door met minstens <strong>4 duiven</strong>.
+        door met minstens <strong>3 melkers en 4 duiven</strong>.
       </>
     ),
   },

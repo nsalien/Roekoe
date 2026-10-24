@@ -97,8 +97,9 @@ andere duif.
 
 **Gaat een wedstrijd wel door?** Een **wedstrijdvlucht** (regionaal, nationaal,
 internationaal én de titanenwedstrijd) gaat **enkel door als er minstens 2
-verschillende duivenmelkers** meedoen. Doet er maar één mee, dan wordt de vlucht
-**afgelast** en krijgt iedereen zijn **inschrijfgeld terugbetaald**. Een
+verschillende duivenmelkers** meedoen (een **league**: minstens 3 melkers en 4
+duiven, §2.10). Doet er maar één mee, dan wordt de vlucht **afgelast** en krijgt
+iedereen zijn **inschrijfgeld terugbetaald**. Een
 **oefenvlucht** mag wél doorgaan met één deelnemer.
 
 ### 2.2 Niveaus
@@ -549,10 +550,11 @@ leeftijd.)
   De score heeft één decimaal: ★60,0 is nog de laagste league, ★60,1 al ★ 61–70.
   Stijgt ze na het inschrijven, dan vliegt ze die vlucht nog in de league waarvoor
   je haar inschreef.
-- Een league gaat pas door met minstens **4 duiven** aan de start (en, zoals elke
-  wedstrijd, minstens 2 melkers, §2.1). Zo valt er altijd minstens één duif naast
-  het podium. Zijn er minder, dan wordt de vlucht **afgelast** en krijgt iedereen
-  zijn inschrijfgeld terug.
+- Een league gaat pas door met minstens **4 duiven** van minstens **3 verschillende
+  melkers** aan de start (strenger dan de 2 melkers van een gewone wedstrijd, §2.1;
+  de bots tellen mee). Zo valt er altijd minstens één duif naast het podium, en pakt
+  niemand het podium tegen één enkele tegenstander. Zijn er minder, dan wordt de
+  vlucht **afgelast** en krijgt iedereen zijn inschrijfgeld terug.
 - De vlucht **wisselt week na week** tussen een **🏁 sprint** (100–300 km) en een
   **🛰️ grote fond** (400–1000 km): week 1 en 3 van een seizoen een sprint, week 2
   en 4 een grote fond. Alle vier de leagues vliegen dezelfde week hetzelfde format.

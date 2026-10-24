@@ -137,7 +137,7 @@ export const LEAGUE_NEWS = {
     `• ${LEAGUES.map((l) => `${l.icon} ${l.short} op ${WEEKDAY_NL[l.weekday]}`).join(' · ')}, telkens om ${LEAGUE_AT} — `
       + 'week om week een sprint of een grote fond.',
     `• Inschrijven kost €${LEAGUE.entryFee}. Je duif vliegt in de league van haar score op het moment dat je haar `
-      + `inschrijft. Een league gaat pas door met minstens ${LEAGUE.minBirds} duiven.`,
+      + `inschrijft. Een league gaat pas door met minstens ${LEAGUE.minOwners} melkers en ${LEAGUE.minBirds} duiven.`,
     `• Prijzengeld per vlucht (hoe hoger de league, hoe meer) en medailles, maar geen seizoenspunten. Op het einde `
       + `van elk seizoen wint de top 3 van elke league geld (tot €${leagueAward(LEAGUES[LEAGUES.length - 1].id, 1)}) `
       + 'en een titel op de duif.',

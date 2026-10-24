@@ -423,7 +423,7 @@ export function FlightsPage() {
                       {f.league && (
                         <p className="faint" style={{ marginTop: 10, marginBottom: 0 }}>
                           {f.leagueIcon} Enkel duiven met een score <strong>{f.leagueShort}</strong>. Tot €{f.leaguePrizes?.places[0]},
-                          geen seizoenspunten; gaat door vanaf {f.leagueMinBirds} duiven. <Link to="/wiki#leagues">Meer over de leagues →</Link>
+                          geen seizoenspunten; gaat door vanaf {f.leagueMinOwners} melkers en {f.leagueMinBirds} duiven. <Link to="/wiki#leagues">Meer over de leagues →</Link>
                         </p>
                       )}
                       {!f.practice && !f.titan && !f.relay && !f.leagueRace && (() => {

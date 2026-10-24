@@ -546,6 +546,7 @@ app.get('/state', (c) => {
     leagueInfo: {
       entryFee: LEAGUE.entryFee,
       minBirds: LEAGUE.minBirds,
+      minOwners: LEAGUE.minOwners,
       hour: LEAGUE.hour,
       minute: LEAGUE.minute,
       leagues: LEAGUES.map((l) => ({

@@ -142,6 +142,10 @@
   plaats van de leeftijd. Dit zorgt voor betere balancering en geeft ook slechte duiven de kans om iets te
   winnen." Klassen van de eigenaar: **t/m 60 · 61–70 · 71–80 · 81 en hoger**. "Er moeten per vlucht minstens
   **4 duiven** meedoen om de vlucht door te laten gaan, zodat er toch minstens 1 duif niet in top 3 kan belanden."
+  **Bijgestuurd (24 okt, tweede vraag):** "Zorg dat een league wedstrijd alleen doorgaan als er minstens **3 spelers**
+  meedoen en minstens 4 duiven" → `LEAGUE.minOwners 3`. "Spelers" gelezen als **verschillende hokken, bots
+  inbegrepen** — net als de bestaande "minstens 2 melkers" van elke wedstrijd (de eigenaar kan dat omdraaien naar
+  enkel menselijke spelers, maar dan vliegt zonder 3 actieve spelers geen enkele league).
 - **Keuzes van de eigenaar (gevraagd):** (1) prijzengeld **lager in de lagere leagues**: factor ×0,5 / ×0,7 /
   ×0,85 / ×1 op de oude criteriumtabellen; (2) de stand loopt **één seizoen** en wordt uitgereikt bij de gewone
   prijsuitreiking: top 3 per league **€1.000/€750/€500 × factor** + titel op de duif (≈ zoveel geld per seizoen
@@ -149,13 +153,13 @@
   de lopende criteriumstand bij de overstap → zelf gekozen, zie *Overstap*.
 - **Zelf gekozen (meegedeeld, de eigenaar kan bijstellen):** dezelfde kalenderplaatsen als het criterium (ma ★ t/m
   60, wo ★ 61–70, do ★ 71–80, vr ★ 81+, telkens 06:00), week om week sprint (100–300 km) / grote fond (400–1000 km);
-  €20 per duif, geen limiet per hok (wel `REWARD_BIRDS_PER_LOFT`); minstens 4 duiven **én** (bestaande regel)
-  minstens 2 melkers; **league vastgelegd bij het inschrijven** (score op dat moment); grenzen op één decimaal:
+  €20 per duif, geen limiet per hok (wel `REWARD_BIRDS_PER_LOFT`); minstens 4 duiven **én** minstens **3 melkers**
+  (op vraag, zie hierboven; de gewone regel is 2); **league vastgelegd bij het inschrijven** (score op dat moment); grenzen op één decimaal:
   **★60,0 = l60, ★60,1 = l70** (`maxScore` inclusief); bots doen mee; geen seizoenspunten, geen wins, geen
   sponsorpremie, **geen weddenschappen** (nu ook server-side: `bettingOpen` weigert `leagueRace` — het criterium
   stond daar nog open, maar `tickFlights` settlede zo'n bet nooit), wél medailles en de duivenranglijsten.
 - **Config (`gameConfig.ts`):** `LEAGUES` (`LeagueId` = `l60`/`l70`/`l80`/`l81`, `maxScore`, `weekday`, `factor`,
-  `label` "League ★ 61–70", `short` "★ 61–70", icoon 🌱🌿🌳👑), `LEAGUE` (`entryFee`, **`minBirds` 4**, `hour`,
+  `label` "League ★ 61–70", `short` "★ 61–70", icoon 🌱🌿🌳👑), `LEAGUE` (`entryFee`, **`minBirds` 4**, **`minOwners` 3**, `hour`,
   `sprint`/`fond` met de basistabellen = de oude criteriumtabellen, `awards [1000,750,500]`), helpers `leagueFor(score)`,
   `leagueDef`, `leagueMinScore`, `leagueRangeText` ("★60,1 tot en met ★70"), `leaguePrizes(id, sprint)` en
   `leagueAward(id, rank)` (× factor, **afgerond op €5**), `isLeagueSprintWeek`. `ScheduleSlot.league`; de slots
@@ -165,7 +169,8 @@
   seizoenseinde: seizoenen zijn exact 4 weken, dus pariteit klopt ook voor vluchten die al in het volgende seizoen
   gepland worden); `enterFlight` + `botRaceCandidates` eisen `leagueFor(talent(p)) === flight.league`;
   `tickFlights` schrapt bij de lossing (ná het weghalen van niet-inzetbare duiven) een league met minder dan
-  `minBirds` duiven: afgelast, inschrijfgeld terug, bel `ntf:cancel:<vlucht>:<speler>` die het minimum noemt;
+  `minBirds` duiven **of** minder dan `minOwners` verschillende hokken: afgelast, inschrijfgeld terug; het weerveld
+  en de bel `ntf:cancel:<vlucht>:<speler>` noemen welk minimum ("minder dan 3 melkers en minder dan 4 duiven");
   bij de afronding gaan de punten naar **`Pigeon.leagues[league]`** (`LeagueStanding {points, wins, best, races}`,
   kolom `leagues`, `''` als leeg). **`leagueRace(f)`** (flight.ts) = `league || ageCat`: 0 seizoenspunten, geen
   wins, geen bets/missies/sponsor (`specialFormat`), prijzen via `flightPrizes`.
@@ -188,23 +193,26 @@
 - **Schema:** 3 stappen onder "ENKEL OP DEV" in `SCHEMA_STEPS`, **vóór** `trades.quality` (v2):
   `flights.league`, `flights.league_sprint`, `pigeons.leagues`. Naar prod: deze drie achteraan prod's lijst.
 - **API/DTO:** `/state.leagueInfo` (catalogus: per league `range`, `minScore`, `maxScore` (null = geen), tabellen,
-  `awards`; `entryFee`, `minBirds`), `leagueRankings` in de leaderboard-cache (i.p.v. `cupRankings`);
+  `awards`; `entryFee`, `minBirds`, `minOwners`), `leagueRankings` in de leaderboard-cache (i.p.v. `cupRankings`);
   `pigeonDTO.league` + `.leagues`; `flightDTO.leagueRace/league/leagueLabel/leagueShort/leagueIcon/leagueSprint/
   leaguePrizes/leagueMinBirds`.
 - **UI:** Vluchten: filter **🏅 Leagues** (`data-tour="league-filter"`), badge "League ★ 61–70" + format, één regel
-  "Enkel duiven met een score ★ 61–70. Tot €…, geen seizoenspunten; gaat door vanaf 4 duiven" + wikilink;
+  "Enkel duiven met een score ★ 61–70. Tot €…, geen seizoenspunten; gaat door vanaf 3 melkers en 4 duiven" + wikilink (`flightDTO.leagueMinOwners`);
   `flightEntry.canEnter` op `p.league`. Ranglijst: tab **Leagues** (`LeaguePanel`, `data-tour="leagues"`).
   Wiki **`#leagues`** (i.p.v. `#criterium`), tabellen bij `#prijzengeld`, blok bovenaan `#nieuw`. Spelregels
   **§2.10** herschreven (+ §2.1, §2.6, §3.9, §12, §14, §15.2/3/5, §17). Rondleiding: `LEAGUE_STEP` in de volledige
   tour, eenmalige run **`LEAGUE_NEWS_STEPS`** (sleutel `roekoe.newsSeen.leagues.<id>`, na de tags-run; `closeTour`
   zet de sleutel).
-- **Demo:** `DEMO_VERSION` 9. De seed zet per bot zijn twee beste duiven op ★82–86 en ★72–77 (**ná** de eerste
+- **Demo:** `DEMO_VERSION` 10 (9 = de leagues, 10 = de bel met het minimum van 3 melkers). De seed zet per bot zijn twee beste duiven op ★82–86 en ★72–77 (**ná** de eerste
   engine-run: migratie v15 trimt botduiven op een verse wereld) en geeft de demospeler één duif per league
   (★56/66/76/85, niet op het nest, niet ziek). Zonder dat vliegen ★ 71–80 en ★ 81+ in de demo nooit.
 - ⚠️ **Om op te volgen op prod — de hogere leagues hangen aan de spelers.** Gemeten (10 weken, enkel bots, verse
   wereld): ★ t/m 60 vloog 10/10 (gem. 9 duiven), ★ 61–70 7/10, **★ 71–80 en ★ 81+ 0/10**: na 10 weken hebben de
   bots 2 duiven boven ★70 en geen boven ★80. Op prod zullen die twee leagues dus enkel doorgaan als minstens twee
-  spelers samen 4 duiven van die score inschrijven. Knoppen als het knelt: `LEAGUE.minBirds`, de grenzen
+  spelers samen 4 duiven van die score inschrijven (en met 3 melkers: minstens drie hokken, bots inbegrepen).
+  **Met `minOwners` 3** (zelfde simulatie, 2× gedraaid): ★ t/m 60 blijft 9/9 (gem. 9,6 duiven van 7 hokken),
+  ★ 61–70 zakt van 6/10 naar **4–5/10**, de bovenste twee blijven 0/10. Knoppen als het knelt: `LEAGUE.minBirds`,
+  `LEAGUE.minOwners`, de grenzen
   (`maxScore`), of de bots hun beste duiven sneller laten groeien.
 - ⚠️ **Bijwerking (gemeten, niet aangepakt): iets meer dode botduiven.** Een bot boekt een duif dagen vooraf op de
   energie van dát moment en kijkt bij de lossing niet opnieuw (`canBeReleased` toetst enkel `canRace`). Vliegt ze
@@ -214,7 +222,7 @@
   deelnemers, op prod 1**. Spelers merken het niet (hun eigen duiven controleren ze zelf). Oplossing als de
   botstallen uitdunnen: bij de lossing een botduif terugtrekken als haar energie de route niet meer dekt
   (dezelfde toets als bij het inschrijven, `expectedFlightEnergyCost × BOT.raceHeadroom`).
-- **Test:** `tests/leagues.test.mts` (121 controles; vervangt `age-cup.test.mts`, die al rood stond door een vaste
+- **Test:** `tests/leagues.test.mts` (132 controles; vervangt `age-cup.test.mts`, die al rood stond door een vaste
   `T0`): grenzen, tabellen, kalender, scoregrens (speler + bot), het minimum van 4, punten/geld/medaille,
   uitreiking + reset, v66 (met en zonder uitreiking, terugbetaling, bel, live criteriumvlucht), wiki/spelregels ==
   config. Vertrekt van de **komende zaterdag** (geen tijdbom). `demo-world` controleert de demo-leagues;
@@ -1680,7 +1688,7 @@ Entiteiten: `Pigeon`, `Loft`, `User`, `BreedingPair`, `PendingBrood`, `Flight` (
 - **Leagues (`LEAGUE` + `LEAGUES`, dev — vervangt het leeftijdscriterium `AGE_CUP`):** vier leagues op de
   algemene score: **t/m 60 · 60,1–70 · 70,1–80 · 80,1+** (`maxScore` inclusief), één vlucht per week op ma/wo/do/vr
   om **06:00**, week om week sprint (100–300 km, pool `national`) / grote fond (400–1000 km, pool `international`).
-  `entryFee 20`, geen limiet per hok, **`minBirds 4`**. Prijzen = basistabel × `factor` (0,5/0,7/0,85/1, op €5);
+  `entryFee 20`, geen limiet per hok, **`minBirds 4`** van **`minOwners 3`** hokken. Prijzen = basistabel × `factor` (0,5/0,7/0,85/1, op €5);
   stand per **seizoen**, `awards [1000,750,500]` × factor + titel. Zie §0b.
 - **Schema (`REAL_SCHEDULE` — vaste weekkalender):** één vast programma per
   weekdag i.p.v. het oude dagelijkse lang+kort-ritme. **ma** 08:00 intl · **di** 10:00 regio
@@ -1988,7 +1996,7 @@ npx tsx tests/flight-eligibility.test.mts # een niet-inzetbare duif wordt geschr
 npx tsx tests/prize-rules.test.mts       # prijzentabellen lopen door + max 3 beloonde duiven
 npx tsx tests/market-bidding.test.mts    # marktprijs, bieden vanaf, en geen zwevende biedingen
 npx tsx tests/bot-bidding.test.mts       # bots bieden binnen de band rond de marktwaarde
-npx tsx tests/leagues.test.mts           # leagues (dev): grenzen, kalender, min. 4 duiven, uitreiking, migratie v66
+npx tsx tests/leagues.test.mts           # leagues (dev): grenzen, kalender, min. 4 duiven/3 melkers, uitreiking, migratie v66
 npx tsx tests/pigeon-logs.test.mts       # de logboeken blijven uit de wereldload, legacy blijft leesbaar
 npx tsx tests/season-prizes.test.mts     # seasonWins reset, totalWins niet; ceremonie = laatste seizoen
 npx tsx tests/bot-market.test.mts        # de prijsgrens voor bots (anti-exploit) + hun trainingsregels

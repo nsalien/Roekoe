@@ -51,8 +51,10 @@ assert(w.breedingPairs.filter((bp) => bp.ownerId === DEMO_USER_ID).length === 1,
   const botIds = new Set(w.lofts.filter((l) => l.isBot).map((l) => l.userId));
   const botBirds = w.pigeons.filter((p) => botIds.has(p.ownerId));
   for (const lg of ['l80', 'l81']) {
-    const n = botBirds.filter((p) => leagueOf(talentOf(p)) === lg).length;
-    assert(n >= 4, `de bots hebben ${n} duiven in ${lg} (minstens 4, anders vliegt die league in de demo nooit)`);
+    const birds = botBirds.filter((p) => leagueOf(talentOf(p)) === lg);
+    const lofts = new Set(birds.map((p) => p.ownerId)).size;
+    // A league flies from 4 birds of 3 different lofts (LEAGUE.minBirds/minOwners).
+    assert(birds.length >= 4 && lofts >= 3, `de bots hebben ${birds.length} duiven in ${lg}, over ${lofts} hokken (minstens 4 duiven van 3 hokken, anders vliegt die league in de demo nooit)`);
   }
   assert(w.flights.some((f) => f.league), 'er staan leaguevluchten op de kalender');
   assert(!w.flights.some((f) => f.ageCat), 'en geen criteriumvluchten');

@@ -483,6 +483,7 @@ export interface Flight {
   leagueSprint?: boolean;
   leaguePrizes?: PrizeTable;
   leagueMinBirds?: number;
+  leagueMinOwners?: number;
   weather: string;
   /** Weerstation (hokinrichting): the forecast for the release, only for station owners. */
   forecast?: { label: string; factor: number; rain: boolean; tempC: number; at: string } | null;
@@ -824,6 +825,7 @@ export interface LeagueDefInfo {
 export interface LeagueInfo {
   entryFee: number;
   minBirds: number;
+  minOwners: number;
   hour: number;
   minute: number;
   leagues: LeagueDefInfo[];

@@ -2702,10 +2702,15 @@ export const LEAGUE = {
   /**
    * A league race only flies with at least this many birds at the release (after
    * the ones that cannot be released are pulled), so at least one bird misses the
-   * podium. Fewer = called off and refunded, like a race with fewer than two
-   * breeders (which still applies too).
+   * podium. Fewer = called off and refunded.
    */
   minBirds: 4,
+  /**
+   * ...and with birds from at least this many different lofts (bots count, as in
+   * the two-breeder rule of every competition flight), so no one walks off with a
+   * whole podium against a single rival. Checked together with `minBirds`.
+   */
+  minOwners: 3,
   /** Release time (Brussels). Early, so even a 1000 km fond race is home by evening. */
   hour: 6,
   minute: 0,

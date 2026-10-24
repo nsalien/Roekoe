@@ -124,7 +124,7 @@ export function WikiPage() {
           Het leeftijdscriterium is weg. In de plaats komen <strong>vier leagues volgens de algemene score (★)</strong>{' '}
           van je duif: ★ t/m 60 op maandag, ★ 61–70 op woensdag, ★ 71–80 op donderdag en ★ 81+ op vrijdag, telkens om
           06:00. Zo vliegt een zwakkere duif tegen haar gelijken en kan ook zij iets winnen. Een league gaat pas door
-          met minstens <strong>4 duiven</strong>, en de stand loopt <strong>één seizoen</strong>.{' '}
+          met minstens <strong>3 melkers en 4 duiven</strong>, en de stand loopt <strong>één seizoen</strong>.{' '}
           <a href="#leagues">Alles over de leagues →</a>
         </p>
 
@@ -728,9 +728,10 @@ export function WikiPage() {
           <li><strong>De score telt op het moment dat je inschrijft.</strong> De score heeft één decimaal: ★60,0 hoort
             nog in de laagste league, ★60,1 al in ★ 61–70. Stijgt je duif na het inschrijven (coach, training), dan
             vliegt ze die vlucht nog gewoon in de league waarvoor je haar inschreef.</li>
-          <li>Een league gaat pas door met <strong>minstens 4 duiven</strong> aan de start (en, zoals elke wedstrijd,
-            minstens 2 melkers) — zo valt er altijd minstens één duif naast het podium. Zijn er minder, dan wordt de
-            vlucht afgelast en krijgt iedereen zijn inschrijfgeld terug. De bots doen mee.</li>
+          <li>Een league gaat pas door met <strong>minstens 4 duiven van minstens 3 verschillende melkers</strong>{' '}
+            aan de start — zo valt er altijd minstens één duif naast het podium, en pakt niemand het podium tegen één
+            enkele tegenstander. Zijn er minder, dan wordt de vlucht afgelast en krijgt iedereen zijn inschrijfgeld
+            terug. De bots doen mee, en tellen ook als melker.</li>
           <li>De vlucht <strong>wisselt week na week</strong> tussen een <strong>🏁 sprint</strong> (100 – 300 km) en
             een <strong>🛰️ grote fond</strong> (400 – 1000 km): week 1 en 3 van een seizoen een sprint, week 2 en 4 een
             fond. Alle vier de leagues vliegen dezelfde week hetzelfde format.</li>

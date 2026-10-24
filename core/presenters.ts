@@ -478,6 +478,7 @@ export function flightDTO(db: Database, f: Flight) {
     leagueSprint: f.league ? !!f.leagueSprint : undefined,
     leaguePrizes: f.league ? leaguePrizes(f.league, !!f.leagueSprint) : undefined,
     leagueMinBirds: f.league ? LEAGUE.minBirds : undefined,
+    leagueMinOwners: f.league ? LEAGUE.minOwners : undefined,
     // Estafettevlucht: the three equal legs, their handover points and the
     // forecast per leg (which is what makes the running order a real choice).
     legs: f.relay ? f.legs ?? [] : undefined,

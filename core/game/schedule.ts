@@ -979,16 +979,24 @@ export function tickFlights(
       // two complete TEAMS (short-handed ones were just removed above).
       const distinctOwners = new Set(flight.entries.map((e) => e.ownerId)).size;
       const tooFewRivals = !flight.practice && distinctOwners < 2;
-      // A league race also needs LEAGUE.minBirds birds at the release, so at least
-      // one of them misses the podium (the owner's rule). Counted AFTER the birds
-      // that could not be released were pulled above: it is who actually flies.
+      // A league race also needs LEAGUE.minBirds birds from LEAGUE.minOwners lofts
+      // at the release (the owner's rule), so at least one bird misses the podium
+      // and nobody takes it against a single rival. Counted AFTER the birds that
+      // could not be released were pulled above: it is who actually flies.
+      const tooFewLofts = !!flight.league && distinctOwners < LEAGUE.minOwners;
       const tooFewBirds = !!flight.league && entries.length < LEAGUE.minBirds;
-      if (entries.length === 0 || tooFewRivals || tooFewBirds) {
+      // A league says which minimum it missed: "te weinig deelnemers" alone would
+      // not tell a player with five birds in it why it was called off.
+      const leagueReason = [
+        tooFewLofts && `minder dan ${LEAGUE.minOwners} melkers`,
+        tooFewBirds && `minder dan ${LEAGUE.minBirds} duiven`,
+      ].filter(Boolean).join(' en ');
+      if (entries.length === 0 || tooFewRivals || tooFewLofts || tooFewBirds) {
         flight.status = 'completed';
         flight.weather = entries.length === 0
           ? 'Afgelast (geen deelnemers)'
-          : tooFewBirds && !tooFewRivals
-            ? `Afgelast (minder dan ${LEAGUE.minBirds} duiven)`
+          : leagueReason
+            ? `Afgelast (${leagueReason})`
             : 'Afgelast (te weinig deelnemers)';
         flight.results = [];
         flight.recap = generateRecap(flight);
@@ -1003,8 +1011,8 @@ export function tickFlights(
             if (!loft) continue;
             loft.money += flight.entryFee * count;
             if (!loft.isBot) {
-              const why = tooFewBirds && !tooFewRivals
-                ? `Minder dan ${LEAGUE.minBirds} duiven aan de start van de ${flight.name.toLowerCase()} (${flight.fromCity} → ${flight.toCity}) — een league vliegt pas vanaf ${LEAGUE.minBirds}.`
+              const why = leagueReason
+                ? `${leagueReason[0].toUpperCase()}${leagueReason.slice(1)} aan de start van de ${flight.name.toLowerCase()} (${flight.fromCity} → ${flight.toCity}) — een league vliegt pas met minstens ${LEAGUE.minOwners} melkers en ${LEAGUE.minBirds} duiven.`
                 : `Te weinig deelnemers voor de ${flight.name.toLowerCase()} (${flight.fromCity} → ${flight.toCity}).`;
               pushNotification(
                 db, ownerId, 'info', `🚫 ${flight.name} afgelast`,
