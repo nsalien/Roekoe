@@ -1,0 +1,1110 @@
+/**
+ * Interactive guided tour. Walks the player through the real pages: each step
+ * navigates to the right screen, spotlights the relevant element and shows a
+ * short explanation anchored to it. Steps that target nothing show a centered
+ * card. Robust: if a target isn't found it falls back to a centered card so the
+ * tour never gets stuck.
+ *
+ * Shown once per player (localStorage, same pattern as the infirmary intro) and
+ * replayable from the profile.
+ */
+
+import { useEffect, useState, type CSSProperties, type ReactNode } from 'react';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
+
+interface Step {
+  route?: string; // navigate here first
+  selector?: string; // element to spotlight (via [data-tour="..."])
+  title: string;
+  body: ReactNode;
+}
+
+// --- Season / ranking / prizes steps (shared by the full tour and the
+//     one-time "what's new" run below). ---
+const SEASON_STEP: Step = {
+  route: '/ranglijst', selector: '[data-tour="season"]',
+  title: '📅 Seizoenen',
+  body: 'Een seizoen duurt 4 weken (in echte tijd). Hier lees je in welke week je zit en hoe lang het seizoen nog duurt. Op het einde volgt de prijsuitreiking en start alles opnieuw — de ranglijst gaat terug op nul.',
+};
+const ROEKOE_STEP: Step = {
+  route: '/ranglijst', selector: '[data-tour="ranking"]',
+  title: '🏆 Ranglijst & de Roekoe',
+  body: 'De hokken worden gerangschikt op seizoenspunten. De top 3 winnen op het einde de Gouden, Zilveren en Bronzen Roekoe (€2000 / €1500 / €1000). Ook de bots dingen mee.',
+};
+const VLEUGEL_STEP: Step = {
+  route: '/ranglijst', selector: '[data-tour="pigeon-ranks"]',
+  title: '🪽 Duivenranglijsten & de Vleugel',
+  body: (
+    <>
+      Onder <strong>Duiven</strong> vind je drie ranglijsten: <strong>hoogste gemiddelde snelheid</strong>,
+      <strong> meeste podiums</strong> en <strong>meeste vooruitgang</strong> dit seizoen. De top 3 van elke lijst
+      winnen de Gouden, Zilveren en Bronzen Vleugel (€1000 / €750 / €500 voor de eigenaar).
+    </>
+  ),
+};
+// Leeftijdscriterium — shared by the full tour and the one-time news run below.
+const AGE_CUP_STEP: Step = {
+  route: '/ranglijst', selector: '[data-tour="age-cup"]',
+  title: '🏆 Leeftijdscriterium',
+  body: (
+    <>
+      Een tweede competitie, enkel voor duiven: <strong>vier leeftijdsklassen</strong> met elk één eigen vlucht per
+      week. Deze stand loopt <strong>drie seizoenen</strong> door.
+      <br />
+      <span className="faint" style={{ display: 'inline-block', marginTop: 4 }}>Alles erover: 📖 Wiki.</span>
+    </>
+  ),
+};
+const PRIZES_STEP: Step = {
+  route: '/prestaties', selector: '[data-tour="season-prizes"]',
+  title: '🎖️ Je seizoensprijzen',
+  body: 'Al je gewonnen Roekoes en Vleugels worden hier bewaard — met de tellingen goud/zilver/brons en een erelijst per seizoen.',
+};
+// Breed (ras) intro — shared by the full tour and the one-time news run below.
+const BREED_STEP: Step = {
+  route: '/hok', selector: '[data-tour~="pigeon"]',
+  title: '🕊️ Rassen',
+  body: (
+    <>
+      Elke duif heeft een <strong>ras</strong>: dat bepaalt haar <strong>foto</strong> (klik op een duif om
+      naam + zeldzaamheid te zien). Het ras is <strong>puur cosmetisch</strong> — het verandert <strong>niets</strong> aan
+      de eigenschappen of prestaties — maar een <strong>zeldzamer ras maakt de duif een beetje meer waard</strong>.
+      Nieuwe duiven krijgen willekeurig een ras: meestal een gewoon (Algemeen ~75%), soms een Ongewoon (~21%),
+      zelden een <strong>Zeldzaam</strong> (Meulemans, ~2%) of <strong>Legendarisch</strong> (Bonte / Golden Ace, ~1%).
+      <br />
+      <span style={{ display: 'inline-block', marginTop: 4 }}>
+        <strong>Kweek</strong> je twee duiven van hetzelfde ras, dan houdt het jong dat ras; twee verschillende rassen
+        geven een <strong>Gemengd</strong> jong.
+      </span>
+    </>
+  ),
+};
+
+// Genetics (genen) intro — shared by the full tour and the one-time news run.
+const GENE_STEP: Step = {
+  route: '/hok', selector: '[data-tour~="pigeon"]',
+  title: '🧬 Genen: elke duif heeft haar eigen plafond',
+  body: (
+    <>
+      Elke duif heeft <strong>aangeboren maxima</strong> voor snelheid, conditie en oriëntatie —{' '}
+      <strong>geen enkele haalt ooit 100</strong>. Het{' '}
+      <span style={{ color: 'var(--bad)', fontWeight: 700 }}>rode streepje</span> op elke statbalk toont waar déze duif
+      capt; <strong>klik erop</strong> voor de exacte waarde.
+      <br />
+      <span style={{ display: 'inline-block', marginTop: 4 }}>
+        Groeien gaat in <strong>drie trappen</strong>: zelf <strong>trainen tot 80</strong>,{' '}
+        <strong>vluchten tot 90</strong>, en enkel een <strong>privécoach</strong> duwt nog boven 90 (tot haar gen-cap).
+        Hoe hoger de genen, hoe <strong>meer een duif waard</strong> is — en ze <strong>erven door</strong> bij kweek.
+        Oudere duiven <strong>zwakken na hun piek geleidelijk af</strong>.
+      </span>
+    </>
+  ),
+};
+
+const STEPS: Step[] = [
+  {
+    route: '/',
+    title: '🕊️ Welkom bij Roekoe!',
+    body: 'Ik neem je in een dik minuutje mee langs de belangrijkste schermen en toon telkens waar je iets doet. Tik op Volgende — sluiten mag altijd.',
+  },
+  {
+    route: '/hok', selector: '[data-tour~="pigeon"]',
+    title: '📊 Je duiven & hun eigenschappen',
+    body: (
+      <>
+        <ul style={{ margin: '2px 0 0', paddingLeft: 18, lineHeight: 1.4 }}>
+          <li><strong>Snelheid</strong> — sprint; telt op korte vluchten.</li>
+          <li><strong>Conditie</strong> — houdt de snelheid vast op lange vluchten.</li>
+          <li><strong>Oriëntatie</strong> — navigatie; telt op lange vluchten.</li>
+          <li><strong>⚡ Energie</strong> — "fut": daalt door vluchten, stijgt door eten.</li>
+          <li><strong>Gezondheid</strong> — laag = niet vluchtklaar.</li>
+          <li><strong>❤️ Libido</strong> — kweekdrift.</li>
+          <li><strong>Ervaring</strong> — groeit door te vliegen, maakt beter.</li>
+        </ul>
+        <div style={{ marginTop: 6 }}>De <strong>▲/▼</strong> tonen wat je keuzes per dag doen.</div>
+      </>
+    ),
+  },
+  GENE_STEP,
+  BREED_STEP,
+  {
+    route: '/', selector: '[data-tour="feed"]',
+    title: '🛒 Eerst: voer kopen',
+    body: 'Op het Overzicht koop je voer per type (de waarden staan per dag). Zorg dat je genoeg in voorraad hebt — een lege voorraad betekent honger.',
+  },
+  {
+    route: '/hok', selector: '[data-tour="ration"]',
+    title: '🍽 Daarna: voer toewijzen',
+    body: 'Kies hier per duif welk voertype ze krijgt. Is de voorraad van dat type op, dan lijdt ze honger — haar eigenschappen dalen en ze kan zelfs sterven.',
+  },
+  {
+    route: '/hok', selector: '[data-tour="ration"]',
+    title: '🥣 Welk voer wanneer?',
+    body: (
+      <ul style={{ margin: '2px 0 0', paddingLeft: 18, lineHeight: 1.4 }}>
+        <li><strong>Normaal</strong> — goedkoop; de dagelijkse basis als je op je budget let.</li>
+        <li><strong>Premium</strong> — de beste allrounder: energie + gezondheid én wat conditie.</li>
+        <li><strong>Libido-mix</strong> — geef je als je die duif wil laten <strong>broeden</strong> (tilt het libido op).</li>
+        <li><strong>Herstel</strong> — snelste energie; ideaal om een uitgeputte duif weer <strong>vluchtklaar</strong> te krijgen.</li>
+      </ul>
+    ),
+  },
+  {
+    route: '/hok', selector: '[data-tour="compartment"]',
+    title: '🧱 Apart hok',
+    body: 'Met deze knop zet je een duif in een apart hok: beter energieherstel en minder kans op ziekte. Je koopt aparte hokken op de pagina Inrichting.',
+  },
+  {
+    route: '/inrichting', selector: '[data-tour="upgrades"]',
+    title: '🏠 Hok uitbreiden',
+    body: 'Op de pagina Inrichting vergroot je je hokcapaciteit (meer duiven) en koop je aparte hokken, stro, inrichting en vaccins. Een duif verkopen doe je op Mijn hok, met de knop onderaan elke duif.',
+  },
+  {
+    route: '/', selector: '[data-tour="missions"]',
+    title: '🎯 Dagopdrachten & dilemma’s',
+    body: 'Elke dag 3 opdrachten voor geld + XP, met een streakbonus. En let op: af en toe verschijnt zomaar een dilemma-pop-up met een keuze en gevolgen.',
+  },
+  {
+    route: '/vluchten', selector: '[data-tour="flights"]',
+    title: '🏁 Vluchten, competitie & weddenschappen',
+    body: 'Schrijf duiven in en volg ze live. Goede aankomsten geven punten + prijzengeld. Elke middag om 12u is er ook een gratis oefenvlucht: die kost amper energie en bouwt vooral conditie & oriëntatie op — ideaal voor futloze duiven. Tot 12u voor de start van een wedstrijd kan je een weddenschap plaatsen.',
+  },
+  {
+    route: '/hok',
+    title: '🛌 Rustkuur',
+    body: 'Zit een duif zonder energie? Geef haar via haar duifpagina een betaalde rustkuur: één dag verplicht rusten voor €300, en daarna krijgt ze er +40 energie bij. Let op: maar één rustkuur per week (voor één duif).',
+  },
+  {
+    route: '/markt', selector: '[data-tour="market"]',
+    title: '🛒 Markt & veilingen',
+    body: 'Koop duiven van anderen of bied op veilingen — elke zondag een topper, en soms goedkope opvangcentrum-duiven. Word je overboden, dan krijg je een melding.',
+  },
+  {
+    route: '/markt', selector: '[data-tour="market-bid"]',
+    title: '🕊️ Bied op andermans duiven',
+    body: (
+      <>
+        Je kan nu ook een <strong>bod</strong> doen op een duif die <strong>niet te koop</strong> staat.
+        Kies eerst een <strong>speler</strong>, dan een van zijn <strong>duiven</strong> en bepaal je <strong>bedrag</strong>.
+        Van andermans duiven zie je enkel de <strong>algemene score (★ talent)</strong> — de precieze eigenschappen blijven
+        geheim, dus vorm je een idee via de <strong>duivenranglijst</strong> of vluchtresultaten. Je bod blijft geldig tot de
+        eigenaar het aanvaardt of weigert (je ziet dat bij de Markt, niet via de bel); je kan het altijd zelf intrekken.
+      </>
+    ),
+  },
+  {
+    route: '/kweek', selector: '[data-tour="breed"]',
+    title: '🥚 Kweken',
+    body: 'Start een nest met een doffer + duivin (beide energie ≥ 20). Hoe hoger hun energie én libido, hoe sneller een jong komt. Zorg voor vrije plaats in je hok.',
+  },
+  {
+    route: '/ziekenboeg', selector: '[data-tour="infirmary"]',
+    title: '🏥 Ziekenboeg',
+    body: 'Zet zieke of gekwetste duiven hier: geïsoleerd en sneller herstel. Huur een dokter (ziekte) of kinesist (kwetsuur) en zet medicatievoer aan.',
+  },
+  {
+    route: '/sponsors', selector: '[data-tour="sponsors"]',
+    title: '🤝 Sponsors',
+    body: 'Presteer goed en bedrijven bieden zich aan: tekengeld, een weekbijdrage en een bonus per overwinning. Eén sponsor per categorie.',
+  },
+  SEASON_STEP,
+  ROEKOE_STEP,
+  VLEUGEL_STEP,
+  AGE_CUP_STEP,
+  {
+    route: '/prestaties', selector: '[data-tour="prestige"]',
+    title: '🎖️ Prestige',
+    body: 'Verzamel badges en XP (levels) en bekijk je prijzenkast met medailles.',
+  },
+  PRIZES_STEP,
+  {
+    route: '/lokaal', selector: '[data-tour="lokaal"]',
+    title: '🍻 Het Lokaal',
+    body: 'Het café van de duivenmelkers: een chat waar je vrij praat met alle andere spelers. Een bolletje op de knop betekent dat er iets nieuws staat.',
+  },
+  {
+    route: '/profiel', selector: '[data-tour="profile"]',
+    title: '👤 Profiel',
+    body: 'Hier pas je je hoknaam en thema (licht/donker) aan — en kan je deze rondleiding altijd opnieuw starten. Veel vliegplezier! 🕊️',
+  },
+];
+
+/**
+ * A short, one-time "what's new" run reusing the same spotlight mechanism as the
+ * full tour. Shown once to every player when big features land; the same steps
+ * are also part of the full tour (replayable from the profile).
+ */
+export const SEASON_NEWS_STEPS: Step[] = [
+  {
+    route: '/',
+    title: '✨ Nieuw in Roekoe!',
+    body: 'Er is wat veranderd: echte seizoenen, een vernieuwde ranglijst en nieuwe seizoenstrofeeën — de Roekoe en de Vleugel. Ik loods je er even door. Je kan deze rondleiding later altijd opnieuw starten via je profiel.',
+  },
+  SEASON_STEP,
+  ROEKOE_STEP,
+  VLEUGEL_STEP,
+  PRIZES_STEP,
+];
+
+/**
+ * One-time "what's new" run for the private-bids feature: bid on any player's
+ * pigeon (also ones that aren't for sale) with hidden attributes.
+ */
+export const BID_NEWS_STEPS: Step[] = [
+  {
+    route: '/',
+    title: '✨ Nieuw: bieden op andermans duiven',
+    body: 'Je kan nu een bod uitbrengen op de duif van een andere speler — ook als die niet te koop staat. Even kort wat er verandert. Je kan deze rondleiding later altijd opnieuw starten via je profiel.',
+  },
+  {
+    route: '/markt', selector: '[data-tour="market-bid"]',
+    title: '🕊️ Zo doe je een bod',
+    body: (
+      <>
+        Op de <strong>Markt</strong> kies je eerst een <strong>speler</strong>, dan een van zijn <strong>duiven</strong> en
+        bepaal je je <strong>bedrag</strong>. Je bod blijft geldig tot de eigenaar het aanvaardt of weigert; je kan het
+        altijd zelf intrekken. Ook op de duifpagina zelf staat een knop <strong>“Bied op deze duif”</strong>.
+      </>
+    ),
+  },
+  {
+    route: '/markt', selector: '[data-tour="market-bid"]',
+    title: '🔒 Je koopt (deels) blind',
+    body: (
+      <>
+        Van andermans duiven zie je enkel de <strong>algemene score (★ talent)</strong> — de precieze snelheid, conditie,
+        oriëntatie enz. blijven <strong>geheim</strong>. Je weet dus niet exact wat je koopt, maar je kan een idee vormen via
+        de <strong>duivenranglijst</strong> en de <strong>resultaten van specifieke vluchten</strong>.
+      </>
+    ),
+  },
+  {
+    route: '/markt', selector: '[data-tour="market"]',
+    title: '🔔 Biedingen op jóuw duiven',
+    body: 'Krijg je een bod, dan zie je dat bovenaan de Markt (met een teller bij het Markt-menu, los van de belmeldingen) en kies je zelf: aanvaarden of weigeren.',
+  },
+];
+
+/**
+ * One-time "what's new" run for pigeon breeds (rassen): every bird now has a
+ * breed that sets its photo + rarity (cosmetic; rarer = a bit more valuable).
+ */
+export const BREED_NEWS_STEPS: Step[] = [
+  {
+    route: '/',
+    title: '✨ Nieuw: duivenrassen!',
+    body: 'Al je duiven hebben nu een echt ras — met een eigen foto en een zeldzaamheid. Even kort wat dat betekent. Je kan deze rondleiding later altijd opnieuw starten via je profiel.',
+  },
+  BREED_STEP,
+  {
+    route: '/hok', selector: '[data-tour~="pigeon"]',
+    title: '⭐ Zeldzaamheid & waarde',
+    body: (
+      <>
+        Rassen gaan van <strong>Algemeen</strong> over <strong>Ongewoon</strong> en <strong>Zeldzaam</strong> tot
+        <strong> Legendarisch</strong>. Hoe zeldzamer, hoe minder vaak zo'n duif voorkomt — en hoe wat
+        <strong> duurder</strong> ze is (Ongewoon +8%, Zeldzaam +20%, Legendarisch +40%). <strong>Belangrijk:</strong> het
+        ras verandert <strong>niets</strong> aan de snelheid, conditie of andere eigenschappen — het is puur voor de foto,
+        de verzameldrang en de marktwaarde. De <strong>Golden Ace</strong> en de <strong>Bonte</strong> zijn de
+        allerzeldzaamste (elk ~0,8% kans).
+      </>
+    ),
+  },
+];
+
+/**
+ * One-time "what's new" run for saying farewell to a pigeon: release it for
+ * free, or sell it to the local pigeon-soup restaurant for a fixed sum (which
+ * dents the whole loft's morale).
+ */
+export const FAREWELL_NEWS_STEPS: Step[] = [
+  {
+    route: '/',
+    title: '✨ Nieuw: afscheid nemen van een duif',
+    body: 'Je kan een duif waar je van af wil nu vrijlaten, óf verkopen aan het lokale duivenrestaurant. Even kort wat dat betekent. Je kan deze rondleiding later altijd opnieuw starten via je profiel.',
+  },
+  {
+    route: '/hok', selector: '[data-tour~="pigeon"]',
+    title: '👋 Twee manieren om afscheid te nemen',
+    body: (
+      <>
+        Klik een duif aan om haar pagina te openen — onderaan vind je <strong>“Afscheid nemen”</strong>:
+        <br />
+        <strong>🕊️ Vrijlaten</strong> — je bent van de duif af, maar krijgt er <strong>geen geld</strong> voor terug.
+        <br />
+        <strong>🍲 Verkopen aan Bistro De Laatste Vlucht</strong> — er wordt <strong>duivensoep</strong> van gemaakt en
+        je krijgt een <strong>vast bedrag van €50</strong>.
+      </>
+    ),
+  },
+  {
+    route: '/hok', selector: '[data-tour~="pigeon"]',
+    title: '💔 De soep drukt de moraal',
+    body: (
+      <>
+        Een duif naar de soep sturen valt <strong>zwaar bij de rest van je hok</strong>: elke andere duif verliest
+        <strong> 1 tot 5 energie</strong> (willekeurig per duif). Doe het dus liever niet vlak voor een belangrijke
+        vlucht. Wil je enkel plaats maken zonder bijwerkingen, kies dan <strong>vrijlaten</strong>.
+      </>
+    ),
+  },
+];
+
+/**
+ * One-time "what's new" run for the GENETICS update: per-bird caps, the three
+ * growth tiers, level-scaled training cost, and ageing. Uses a fresh localStorage
+ * key (see Layout). Shown once, after the main tour, to existing players.
+ */
+export const GENES_NEWS_STEPS: Step[] = [
+  {
+    route: '/',
+    title: '✨ Nieuw: genen, plafonds & veroudering',
+    body: 'Duiven hebben nu aangeboren maxima per vaardigheid, groeien in drie trappen en verouderen echt. Even kort wat dat betekent — je kan deze rondleiding later altijd opnieuw starten via je profiel.',
+  },
+  GENE_STEP,
+  {
+    route: '/hok', selector: '[data-tour~="pigeon"]',
+    title: '💰 Trainen wordt duurder op hoog niveau',
+    body: (
+      <>
+        Handmatig trainen kan nog steeds — maar <strong>enkel tot 80</strong>, en de <strong>kost stijgt
+        exponentieel</strong> met het niveau (50→51 is spotgoedkoop, 79→80 een echte investering). Daarboven groeit een
+        duif door te <strong>vliegen</strong> (tot 90) en met een <strong>privécoach</strong>. Die coach werkt op{' '}
+        <strong>elk niveau</strong> richting de gen-cap (met kleiner wordende winst), en is de <strong>enige weg boven
+        90</strong>.
+      </>
+    ),
+  },
+  {
+    route: '/hok', selector: '[data-tour~="pigeon"]',
+    title: '📉 Duiven verouderen',
+    body: (
+      <>
+        Na haar piek (rond ~4 duivenjaar) <strong>zwakt een duif geleidelijk af</strong> in snelheid, conditie en
+        oriëntatie — bij de ene sneller dan de andere. Zet je toppers dus tijdig in, en <strong>kweek</strong> met je
+        best gegende duiven: hoge plafonds <strong>erven door</strong> (en maken een duif <strong>meer waard</strong>).
+      </>
+    ),
+  },
+];
+
+/** One-time announcement of the estafettevlucht (see Layout's news key). */
+export const RELAY_NEWS_STEPS: Step[] = [
+  {
+    route: '/',
+    title: '🔗 Nieuw: de estafettevlucht',
+    body: 'De zaterdagwedstrijd wisselt vanaf nu week na week: de ene week de titanenwedstrijd, de andere week een gloednieuwe estafettevlucht. Even kort wat dat inhoudt — je kan deze rondleiding later altijd opnieuw starten via je profiel.',
+  },
+  {
+    route: '/vluchten', selector: '[data-tour="flights"]',
+    title: '🔗 Eén ploeg, drie duiven, ~900 km',
+    body: (
+      <>
+        Je schrijft <strong>één ploeg van 3 duiven</strong> in. Ze vliegen de route in{' '}
+        <strong>drie exact gelijke etappes</strong> van ± 300 km en lossen elkaar af op de wisselpunten — er is dus altijd
+        maar <strong>één duif tegelijk</strong> in de lucht. Elke duif betaalt enkel de energie van haar eigen etappe.
+        <br />
+        <span style={{ display: 'inline-block', marginTop: 4 }}>
+          Opgelet: <strong>geeft één duif er de brui aan, dan ligt de hele ploeg eruit</strong>.
+        </span>
+      </>
+    ),
+  },
+  {
+    route: '/vluchten', selector: '[data-tour="flights"]',
+    title: '🌬️ Kies zelf wie welke etappe vliegt',
+    body: (
+      <>
+        Bij elke etappe staat het <strong>weerbericht</strong>, dagen op voorhand. Omdat de etappes even lang zijn, is dát
+        het enige wat je volgorde uitmaakt — zet je <strong>sterkste duif op de zwaarste etappe</strong>. Je mag wisselen
+        tot de vlucht start.
+        <br />
+        <span style={{ display: 'inline-block', marginTop: 4 }}>
+          Er valt enkel <strong>geld</strong> te winnen (€3000 voor de winnende ploeg, tot de 5e plaats), geen
+          seizoenspunten — maar de snelheid van je duiven telt wél mee voor de duivenranglijsten.
+        </span>
+      </>
+    ),
+  },
+];
+
+const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
+
+export function Tour({ onClose, steps = STEPS }: { onClose: () => void; steps?: Step[] }) {
+  const nav = useNavigate();
+  const loc = useLocation();
+  const [i, setI] = useState(0);
+  const [rect, setRect] = useState<DOMRect | null>(null);
+  const step = steps[i];
+
+  // Navigate to the step's page.
+  useEffect(() => {
+    if (step.route && loc.pathname !== step.route) nav(step.route);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [i]);
+
+  // Find + measure the target element (polling until it mounts after nav).
+  useEffect(() => {
+    let cancelled = false;
+    let tries = 0;
+    setRect(null);
+    const sel = step.selector;
+    if (!sel) return; // centered step
+    function measure() {
+      if (cancelled) return;
+      const el = document.querySelector(sel!) as HTMLElement | null;
+      if (el) {
+        el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+        window.setTimeout(() => { if (!cancelled) setRect(el.getBoundingClientRect()); }, 320);
+      } else if (tries++ < 40) {
+        window.setTimeout(measure, 120);
+      } else {
+        setRect(null); // give up → centered fallback
+      }
+    }
+    const t = window.setTimeout(measure, 120);
+    return () => { cancelled = true; window.clearTimeout(t); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [i]);
+
+  // Keep the spotlight aligned on resize/scroll.
+  useEffect(() => {
+    const sel = step.selector;
+    if (!sel) return;
+    function update() {
+      const el = document.querySelector(sel!) as HTMLElement | null;
+      if (el) setRect(el.getBoundingClientRect());
+    }
+    window.addEventListener('resize', update);
+    window.addEventListener('scroll', update, true);
+    return () => {
+      window.removeEventListener('resize', update);
+      window.removeEventListener('scroll', update, true);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [i]);
+
+  const first = i === 0;
+  const last = i === steps.length - 1;
+
+  // Tooltip placement: below the target if there's room, else above; centered
+  // when there is no target.
+  //
+  // The card MUST also get a maxHeight that matches where it lands. It used to
+  // carry a flat `calc(100vh - 24px)`, which is only right for a centered card:
+  // anchored under a target it simply ran past the bottom of the screen, so the
+  // Vorige/Volgende buttons sat off-screen and its own scrollbar could not reach
+  // them. A step with a paragraph too many was then a dead end.
+  const MARGIN = 12;
+  const vw = typeof window !== 'undefined' ? window.innerWidth : 360;
+  const vh = typeof window !== 'undefined' ? window.innerHeight : 640;
+  const popW = Math.min(340, vw - 24);
+  let popStyle: CSSProperties;
+  if (rect) {
+    const left = clamp(rect.left + rect.width / 2 - popW / 2, MARGIN, vw - popW - MARGIN);
+    const below = vh - rect.bottom - MARGIN * 2;
+    const above = rect.top - MARGIN * 2;
+    if (Math.max(below, above) < 180) {
+      // Target sits mid-screen on a short viewport: neither side can hold a
+      // readable card, so centre it over the spotlight rather than clip it.
+      popStyle = { left, top: '50%', transform: 'translateY(-50%)', maxHeight: vh - MARGIN * 2 };
+    } else if (below >= above) {
+      popStyle = { left, top: rect.bottom + MARGIN, maxHeight: below };
+    } else {
+      popStyle = { left, bottom: vh - rect.top + MARGIN, maxHeight: above };
+    }
+  } else {
+    popStyle = { left: '50%', top: '50%', transform: 'translate(-50%, -50%)', maxHeight: vh - MARGIN * 2 };
+  }
+
+  return (
+    <>
+      {rect ? (
+        <>
+          {/* Transparent click/scroll blocker so the highlighted element stays put. */}
+          <div style={{ position: 'fixed', inset: 0, zIndex: 90 }} />
+          {/* Spotlight ring: the big box-shadow dims everything except the hole. */}
+          <div
+            style={{
+              position: 'fixed',
+              left: rect.left - 6, top: rect.top - 6,
+              width: rect.width + 12, height: rect.height + 12,
+              borderRadius: 12, border: '2px solid var(--brand)',
+              boxShadow: '0 0 0 9999px rgba(8, 12, 22, 0.66)',
+              zIndex: 91, pointerEvents: 'none', transition: 'all 0.2s ease',
+            }}
+          />
+        </>
+      ) : (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 90, background: 'rgba(8, 12, 22, 0.66)' }} />
+      )}
+
+      <div
+        style={{
+          position: 'fixed', width: popW, maxWidth: 'calc(100vw - 24px)', zIndex: 92,
+          overflowY: 'auto', // maxHeight comes from popStyle: it depends on where the card lands
+          overscrollBehavior: 'contain',
+          background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r-lg)',
+          boxShadow: 'var(--shadow-lg)', padding: 16,
+          ...popStyle,
+        }}
+      >
+        <div className="row" style={{ justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
+          <span className="faint" style={{ fontSize: '0.78rem' }}>Rondleiding · {i + 1}/{steps.length}</span>
+          <button className="btn ghost sm" onClick={onClose}>Sluiten ✕</button>
+        </div>
+        <h2 style={{ margin: '6px 0 5px', fontSize: '1.12rem' }}>{step.title}</h2>
+        <div style={{ fontSize: '0.9rem', lineHeight: 1.45 }}>{step.body}</div>
+
+        <div className="row" style={{ gap: 4, justifyContent: 'center', margin: '12px 0 10px', flexWrap: 'wrap' }}>
+          {steps.map((_, idx) => (
+            <span
+              key={idx}
+              onClick={() => setI(idx)}
+              style={{
+                width: 6, height: 6, borderRadius: 999, cursor: 'pointer',
+                background: idx === i ? 'var(--brand)' : 'var(--surface-3)',
+              }}
+            />
+          ))}
+        </div>
+
+        <div className="row" style={{ justifyContent: 'space-between', gap: 8 }}>
+          <button className="btn ghost sm" disabled={first} onClick={() => setI((n) => n - 1)}>‹ Vorige</button>
+          {last ? (
+            <button className="btn accent sm" onClick={onClose}>Klaar! 🎉</button>
+          ) : (
+            <button className="btn accent sm" onClick={() => setI((n) => n + 1)}>Volgende ›</button>
+          )}
+        </div>
+      </div>
+    </>
+  );
+}
+
+/**
+ * One-time "what's new" run for the REST-CURE update: every bird may take a cure
+ * (one a week each), it now restores gezondheid as well as energie, and it runs
+ * two days instead of one. Uses a fresh localStorage key (see Layout).
+ */
+export const REST_CURE_NEWS_STEPS: Step[] = [
+  {
+    route: '/',
+    title: '🛌 Nieuw: de rustkuur is vernieuwd',
+    body: 'De rustkuur was vroeger beperkt tot één duif per hok per week. Dat is voorbij — en ze levert nu ook gezondheid op. Even kort wat er verandert. Je kan deze rondleiding later altijd opnieuw starten via je profiel.',
+  },
+  {
+    route: '/hok', selector: '[data-tour~="pigeon"]',
+    title: '🛌 Elke duif mag op kuur',
+    body: (
+      <>
+        Je kan voortaan <strong>al je duiven</strong> op rustkuur sturen, ook meerdere tegelijk — maar
+        <strong> elke duif maar één keer per week</strong>. De prijs blijft <strong>€300</strong>.
+        <br />
+        <span style={{ display: 'inline-block', marginTop: 4 }}>
+          Ze levert nu <strong>+40 energie én +15 gezondheid</strong> op, in plaats van enkel energie. Wel duurt
+          een kuur voortaan <strong>2 dagen in plaats van 1</strong>, en zolang kan die duif niet vliegen,
+          trainen of koppelen.
+        </span>
+      </>
+    ),
+  },
+  {
+    route: '/hok', selector: '[data-tour~="pigeon"]',
+    title: '💚 Waarom gezondheid er nu toe doet',
+    body: (
+      <>
+        De kans dat een duif geblesseerd raakt of ziek wordt, hangt vanaf nu af van haar{' '}
+        <strong>vluchtvorm</strong> — energie én gezondheid samen, waarbij de laagste van de twee dubbel telt.
+        Je ziet ze als een <strong>🟢/🟡/🔴-stip</strong> op de duifpagina en bij het inschrijven.
+        <br />
+        <span style={{ display: 'inline-block', marginTop: 4 }}>
+          Een rustkuur is dus de <strong>snelste weg terug naar groen</strong> voor een duif die je hard hebt
+          gereden. Alle details staan in de <strong>📖 Wiki</strong>.
+        </span>
+      </>
+    ),
+  },
+];
+
+/**
+ * The leeftijdscriterium: four age brackets, one race each per week, standings
+ * that run for three seasons. Three steps — what it is, how you enter, and why
+ * the horizon is longer than a season.
+ */
+export const PRIZE_NEWS_STEPS: Step[] = [
+  {
+    route: '/',
+    title: '💶 Élke duif die thuis raakt verdient geld',
+    body: (
+      <>
+        De prijzentabellen lopen voortaan door tot de <strong>laatste duif</strong>. Waar een vlucht na de 8e of
+        10e plaats niets meer opleverde, krijgt nu iedereen die finisht een bedrag.
+      </>
+    ),
+  },
+  {
+    route: '/vluchten', selector: '[data-tour="flights"]',
+    title: '🪙 Ook achteraan',
+    body: (
+      <>
+        De bodem per vlucht: regionaal <strong>€40</strong>, nationaal <strong>€50</strong>, internationaal{' '}
+        <strong>€75</strong>, criterium <strong>€60</strong> (sprint) of <strong>€90</strong> (fond). De koppen
+        blijven wat ze waren — een internationale zege is nog altijd <strong>€2.200</strong>.
+      </>
+    ),
+  },
+  {
+    route: '/vluchten', selector: '[data-tour="flights"]',
+    title: '⚠️ Maar: hoogstens 3 duiven per vlucht',
+    body: (
+      <>
+        Per vlucht verdienen enkel je <strong>3 best geplaatste duiven</strong> — geld én seizoenspunten. Schrijf je
+        er meer in, dan vliegen die gewoon mee, staan ze in de uitslag en gaan ze er nog steeds op vooruit, maar
+        leveren ze niets op. In de uitslag staat er dan <strong>"buiten de 3"</strong> bij.
+        <br />
+        <span className="faint" style={{ display: 'inline-block', marginTop: 4 }}>
+          Alle tabellen: 📖 Wiki → Prijzengeld.
+        </span>
+      </>
+    ),
+  },
+];
+
+/**
+ * Breeding gets a rest between clutches, a dearer fee, and the pairing now really
+ * does end at the hatch (it used to be able to linger — a bug). Three short steps;
+ * the mechanics live in the wiki.
+ */
+export const BREEDING_NEWS_STEPS: Step[] = [
+  {
+    route: '/kweek', selector: '[data-tour="breed"]',
+    title: '🪺 Een koppel gaat uiteen na het nest',
+    body: (
+      <>
+        Zodra de jongen er zijn, is het koppel voorbij — dat hoorde altijd al zo te zijn, maar bleef soms staan
+        en bleef dan doorbroeden. Dat is nu gerepareerd.
+      </>
+    ),
+  },
+  {
+    route: '/kweek', selector: '[data-tour="breed"]',
+    title: '😴 Daarna 3 weken rust',
+    body: (
+      <>
+        Beide ouders rusten <strong>21 dagen</strong> voor ze opnieuw kunnen koppelen — ongeveer{' '}
+        <strong>vier nesten per duivenjaar</strong>, net als in het echt. Je ziet per duif wanneer ze weer mag.
+      </>
+    ),
+  },
+  {
+    route: '/kweek', selector: '[data-tour="breed"]',
+    title: '💶 En koppelen kost €750',
+    body: (
+      <>
+        Was €200. Een koppel dat nu al loopt betaalt <strong>niets bij</strong> — dat was al afgerekend.
+        <br />
+        <span className="faint" style={{ display: 'inline-block', marginTop: 4 }}>
+          Meer: 📖 Wiki → Kweken &amp; broeden.
+        </span>
+      </>
+    ),
+  },
+];
+
+/**
+ * DE STEM — de aankondiging van het ideeënbord. Drie stappen: dat het er is,
+ * wat je er doet, en dat je er zelf iets op mag zetten.
+ *
+ * Deze run loopt naast de bel-melding uit datamigratie 51 (schedule.ts). Twee
+ * kanalen met opzet: de bel bereikt iedereen (ook wie elke rondleiding wegklikt),
+ * deze zet de knop letterlijk in de schijnwerper.
+ */
+/**
+ * Seizoen 3 — "wat is er nieuw" (seizoen3.md §5.4). A function, not a constant:
+ * the coach step names what THIS player's coaches cost now, and points at one of
+ * their own birds. `coach` null = no coached birds.
+ */
+export function season3NewsSteps(opts: {
+  coach: { now: number; was: number } | null;
+  /** A bird of theirs to open for the coach step (coached, else the best). */
+  coachPigeonId: string | null;
+}): Step[] {
+  const eur = (n: number) => `€${n.toLocaleString('nl-BE')}`;
+  return [
+    {
+      route: '/',
+      title: '🎉 Welkom in seizoen 3',
+      body: (
+        <>
+          Jullie stemden, en het winnende idee zit in het spel. Daarnaast is er aan een paar knoppen gedraaid. De
+          belangrijkste in vijf stappen — alles in detail staat in de wiki.
+        </>
+      ),
+    },
+    {
+      route: '/hok', selector: '[data-tour~="trait"]',
+      title: '✨ Kenmerken',
+      body: (
+        <>
+          Ongeveer één op de drie duiven heeft nu een kenmerk: ze vliegt sneller in één bepaalde situatie — bij
+          rugwind, in de kou, in het donker, op een sprint… Klik op het label (op de duifpagina) om te zien wanneer.
+          Kenmerken zijn <strong>erfelijk</strong> en voor iedereen zichtbaar, ook op de markt.
+        </>
+      ),
+    },
+    {
+      route: '/vluchten', selector: '[data-tour="flights"]',
+      title: '✨ Wie is vandaag in haar element?',
+      body: (
+        <>
+          Bij het inschrijven zie je welke duif haar kenmerk kan gebruiken. Sommige hangen af van het weer bij de
+          lossing; andere — dag, nacht, in groep of alleen — slaan zelfs pas <strong>tijdens</strong> de vlucht aan.
+          Volg het op het live bord.
+        </>
+      ),
+    },
+    {
+      route: '/sponsors', selector: '[data-tour="sponsor-count"]',
+      title: '🤝 Hoogstens 6 sponsors',
+      body: (
+        <>
+          Je kan nog <strong>maximaal 6 sponsors</strong> tegelijk hebben. De prestigesponsors betalen per dag minder;
+          hun tekengeld en podiumpremie blijven. Wil je een zevende, dan zeg je er eerst een op.
+        </>
+      ),
+    },
+    {
+      route: opts.coachPigeonId ? `/duif/${opts.coachPigeonId}` : '/hok',
+      selector: opts.coachPigeonId ? '[data-tour="coach"]' : undefined,
+      title: '🎓 Een betere duif, een duurdere coach',
+      body: (
+        <>
+          De prijs van een privécoach hangt nu af van hoe goed je duif is: een gewone duif blijft goedkoop, een
+          topduif kost meer.{' '}
+          {opts.coach ? (
+            <>
+              <strong>Jouw coaches kosten nu samen {eur(opts.coach.now)} per dag</strong> (was {eur(opts.coach.was)}) —
+              per duif zie je het bij de coachknop.
+            </>
+          ) : (
+            <>Bij elke duif zie je aan de coachknop wat een coach voor háár kost.</>
+          )}{' '}
+          En zelf trainen geeft voortaan altijd precies <strong>+1</strong>.
+        </>
+      ),
+    },
+    {
+      route: '/vluchten',
+      title: '⚡ Vliegen vraagt meer',
+      body: (
+        <>
+          Een vlucht kost je duiven meer <strong>energie</strong> en meer <strong>gezondheid</strong> dan vroeger, en
+          ervaring spaart minder energie uit. Een volle tank en genoeg rust wegen dus zwaarder.
+          <br />
+          <Link to="/wiki#seizoen3">Alles op een rij: Wiki → Nieuw in seizoen 3 →</Link>
+        </>
+      ),
+    },
+  ];
+}
+
+/**
+ * Aankondiging van Het Lokaal (de vrije chat). Eén stap: de pagina zelf spreekt
+ * voor zich, en de bel van migratie v60 vertelde al wat het is. Draait pas na
+ * de seizoen 3-run (zie Layout), met een eigen sleutel `roekoe.newsSeen.lokaal`.
+ */
+/**
+ * Aankondiging van de hokinrichting & co (oktober, seizoen 3): het hokoverzicht,
+ * de pagina Inrichting, het zoekertje naar boven en de besmetting per ziekte.
+ * De bel (migratie v61, core/game/news.ts) is de eerste helft. Getallen enkel
+ * waar ze de beslissing sturen; de rest staat in de wiki (#nieuw).
+ */
+export const INRICHTING_NEWS_STEPS: Step[] = [
+  {
+    route: '/hok', selector: '[data-tour="hokoverzicht"]',
+    title: '🕊️ Nieuw: het hokoverzicht',
+    body: 'Bovenaan Mijn hok zie je nu in één oogopslag waar elke duif zit: de vrije plaatsen, de aparte hokken, wie broedt, wie in de ziekenboeg ligt, wie beschermd is en wie niet thuis is.',
+  },
+  {
+    route: '/inrichting', selector: '[data-tour="inrichting"]',
+    title: '🧰 Nieuw: Inrichting',
+    body: (
+      <>
+        Alles wat je aan je hok koopt staat nu hier, in vier blokken: <strong>plaatsen &amp; hokken</strong>,{' '}
+        <strong>hygiëne</strong> (vers stro, hokpoetser), <strong>vaccins &amp; kuren</strong> en{' '}
+        <strong>uitrusting</strong> (dakventilatie, buitenren, weerstation, …). Tik een blok open; de ⓘ bij elk onderdeel
+        toont wat het doet.
+        <br />
+        <span className="faint" style={{ display: 'inline-block', marginTop: 4 }}>
+          Niets kopen = het spel zoals je het kende. De verzekering vind je op de pagina van een duif, het vakblad op de Markt.
+        </span>
+      </>
+    ),
+  },
+  {
+    route: '/markt', selector: '[data-tour="market"]',
+    title: '📌 Nieuw: zoekertje naar boven',
+    body: 'Staat je duif te koop? Met "Zoekertje naar boven" (€50) staat ze 12 uur bovenaan de Markt — tot iemand anders zijn zoekertje naar boven haalt, dan zakt het jouwe terug naar zijn gewone plaats.',
+  },
+  {
+    route: '/ziekenboeg', selector: '[data-tour="infirmary"]',
+    title: '🦠 Besmetting gaat nu per ziekte',
+    body: 'Een zieke duif buiten de ziekenboeg geeft haar eigen ziekte door aan haar hokgenoten, en de ene ziekte slaat makkelijker over dan de andere: paramyxo het snelst, salmonella het traagst. Zet een zieke duif dus meteen hier. Is de ziekenboeg vol, dan beschermt een kuur of vaccin tegen díe ziekte de rest.',
+  },
+];
+
+/**
+ * Aankondiging van SAMEN KWEKEN (12 okt), plus wat de aankondiging van 11 okt
+ * vergat: vaccins en de verzekering per duif. De bellen (migratie v62,
+ * core/game/news.ts) zijn de eerste helft. De tweede stap opent de pagina van een
+ * eigen duif (de eerste uit het hok), want daar staat de kaart.
+ */
+export function studNewsSteps(pigeonId: string | null): Step[] {
+  const steps: Step[] = [
+    {
+      route: '/kweek', selector: '[data-tour="samen-kweken"]',
+      title: '🤝 Nieuw: samen kweken',
+      body: (
+        <>
+          Kweek met de duif van een <strong>andere speler</strong>. Bied een duif aan en kies
+          of je <strong>de jongen</strong> wil of <strong>de vergoeding</strong>, of stel zelf een duif voor: je ziet meteen
+          de geschatte score en waarde van het jong. Jullie spreken enkel het bedrag af; bij een akkoord betaalt elk
+          €1.000 en start het nest.
+          <br />
+          <span className="faint" style={{ display: 'inline-block', marginTop: 4 }}>
+            Een aangeboden of voorgestelde duif blijft thuis. <Link to="/wiki#samen-kweken">Hoe het werkt →</Link>
+          </span>
+        </>
+      ),
+    },
+  ];
+  if (pigeonId) {
+    steps.push({
+      route: `/duif/${pigeonId}`, selector: '[data-tour="pigeon-care"]',
+      title: '💉 Ook per duif: vaccins & verzekering',
+      body: (
+        <>
+          Vergeten te melden bij de inrichting: op de pagina van <strong>elke duif</strong> geef je haar apart een
+          <strong> vaccin of kuur</strong>, en <strong>verzeker</strong> je haar. Sterft een verzekerde duif, dan krijg je een
+          deel van haar marktwaarde terug; de premie betaal je per dag.
+          <br />
+          <span className="faint" style={{ display: 'inline-block', marginTop: 4 }}>
+            Na een vaccin mag ze 2 dagen niet vliegen, een kuur houdt haar niet aan de grond.
+          </span>
+        </>
+      ),
+    });
+  }
+  return steps;
+}
+
+/**
+ * Aankondiging van de DUIVENLOKKER (15 okt, idee van De Stem). De bel (migratie
+ * v64, core/game/news.ts) is de eerste helft. Eerst het blok Uitrusting op
+ * Inrichting (waar je hem koopt), dan het afscheid op de pagina van een eigen duif
+ * (de eerste uit het hok): daar beslis je of je vrijlaat.
+ */
+export function lureNewsSteps(pigeonId: string | null): Step[] {
+  const steps: Step[] = [
+    {
+      route: '/inrichting', selector: '[data-tour="uitrusting"]',
+      title: '🧲 Nieuw: de duivenlokker',
+      body: (
+        <>
+          Bij <strong>Uitrusting</strong> koop je nu een <strong>duivenlokker</strong>, op te waarderen tot niveau 5.
+          Laat een <strong>andere speler</strong> een duif vrij, dan maakt elke lokker kans om haar te vangen: hoe hoger
+          het niveau, hoe groter de kans. Vangt de jouwe er een, dan kies je bij <strong>Kweek</strong> of je haar houdt.
+          <br />
+          <span className="faint" style={{ display: 'inline-block', marginTop: 4 }}>
+            Geen garantie: een vrijgelaten duif kan ook gewoon verdwijnen. <Link to="/wiki#duivenlokker">De kansen per niveau →</Link>
+          </span>
+        </>
+      ),
+    },
+  ];
+  if (pigeonId) {
+    steps.push({
+      route: `/duif/${pigeonId}`, selector: '[data-tour="farewell"]',
+      title: '🕊️ Vrijlaten? Denk even na',
+      body: (
+        <>
+          Een duif die je <strong>vrijlaat</strong>, kan nu in het hok van een <strong>concurrent</strong> met een
+          duivenlokker belanden. Je hoort waar ze terechtkwam en of die speler haar hield.
+          <br />
+          <span className="faint" style={{ display: 'inline-block', marginTop: 4 }}>
+            Wil je dat zeker niet? Het restaurant blijft een optie. 🍲
+          </span>
+        </>
+      ),
+    });
+  }
+  return steps;
+}
+
+/**
+ * Aankondiging van de TAGS OP JE DUIVEN. De bel (migratie v65, core/game/news.ts)
+ * is de eerste helft. Eerst de pagina van je eerste duif (daar zet je ze), dan de
+ * keuzelijst op Vluchten (daar zie je ze bij het inschrijven).
+ */
+export function tagNewsSteps(pigeonId: string | null): Step[] {
+  const steps: Step[] = [];
+  if (pigeonId) {
+    steps.push({
+      route: `/duif/${pigeonId}`, selector: '[data-tour="pigeon-tags"]',
+      title: '🏷️ Nieuw: tags op je duiven',
+      body: (
+        <>
+          Geef je duiven je <strong>eigen labels</strong>, zoals <em>sprint</em>, <em>mid-fond</em> of{' '}
+          <em>lange-fond</em>. Tik op <strong>Tag toevoegen</strong>; meerdere scheid je met een komma. Ze staan
+          daarna ook bij je duiven in <strong>Mijn hok</strong>.
+          <br />
+          <span className="faint" style={{ display: 'inline-block', marginTop: 4 }}>
+            Enkel jij ziet ze. Verkoop je de duif, dan verdwijnen ze.
+          </span>
+        </>
+      ),
+    });
+  }
+  steps.push({
+    route: '/vluchten', selector: '[data-tour="flight-entry"]',
+    title: '🏷️ Tags bij het inschrijven',
+    body: (
+      <>
+        Kies je een duif voor een vlucht, dan staan haar tags <strong>achter haar naam</strong>. Zo zie je meteen welke
+        duif je voor een korte sprint inschrijft en welke voor een lange internationale vlucht.
+      </>
+    ),
+  });
+  return steps;
+}
+
+export const LOKAAL_NEWS_STEPS: Step[] = [
+  {
+    route: '/lokaal', selector: '[data-tour="lokaal"]',
+    title: '🍻 Nieuw: Het Lokaal',
+    body: (
+      <>
+        Het café van de duivenmelkers is open: hier praat je <strong>vrij met alle spelers</strong>. Typ onderaan
+        je bericht en druk op <strong>Verstuur</strong>. Tik op een eigen bericht om het weg te halen.
+        <br />
+        <span className="faint" style={{ display: 'inline-block', marginTop: 4 }}>
+          Staat er iets nieuws? Dan krijgt de knop <strong>🍻 Lokaal</strong> een bolletje.
+        </span>
+      </>
+    ),
+  },
+];
+
+export const STEM_NEWS_STEPS: Step[] = [
+  {
+    route: '/stem', selector: '[data-tour="stem"]',
+    title: '🗳️ Nieuw: De Stem',
+    body: (
+      <>
+        Elk seizoen komt er <strong>één nieuwe feature</strong> bij het spel — en jij kiest mee welke.
+        Op deze pagina staan de ideeën die kandidaat zijn.
+      </>
+    ),
+  },
+  {
+    route: '/stem', selector: '[data-tour="stem"]',
+    title: '👍 Stemmen en vragen stellen',
+    body: (
+      <>
+        Klik op <strong>👍</strong> bij elk idee dat jij wil zien — je mag er zoveel steunen als je wil, en je
+        stem weer intrekken. Onder elk idee kan je <strong>vragen of opmerkingen</strong> kwijt, zodat een idee
+        scherper wordt vóór het gebouwd wordt.
+      </>
+    ),
+  },
+  {
+    route: '/stem', selector: '[data-tour="stem"]',
+    title: '➕ En zet er je eigen idee bij',
+    body: (
+      <>
+        De vier startideeën zijn maar een begin: <strong>lenen bij de bank</strong>, <strong>kweken met de duif
+        van een andere speler</strong>, <strong>doping mét dopingcontrole</strong> en <strong>unieke
+        eigenschappen per duif</strong>. Heb je een beter idee? Zet het erbij.
+        <br />
+        <span className="faint" style={{ display: 'inline-block', marginTop: 4 }}>
+          Meer: 📖 Wiki → De Stem.
+        </span>
+      </>
+    ),
+  },
+];
+
+/**
+ * The stamboom, inteelt and the breeding age. Three steps: what is new to look
+ * at, what to avoid, and the one new rule.
+ */
+export const PEDIGREE_NEWS_STEPS: Step[] = [
+  {
+    route: '/hok', selector: '[data-tour~="pigeon"]',
+    title: '🌳 Je duiven hebben nu een stamboom',
+    body: (
+      <>
+        Op de pagina van elke duif kan je haar <strong>voorouders</strong> uitklappen — tot en met de
+        overgrootouders, met per duif of ze nog leeft en in welk hok ze zit.
+      </>
+    ),
+  },
+  {
+    route: '/kweek', selector: '[data-tour="breed"]',
+    title: '⚠️ Kweek niet met familie',
+    body: (
+      <>
+        Koppel je twee verwanten, dan zegt het spel dat nu vooraf. Doe je het toch, dan krijgt het jong{' '}
+        <strong>blijvend lagere genetische plafonds</strong> en grote kans op een <strong>afwijking</strong> —
+        van drie vleugels tot een duif die ondersteboven vliegt.
+      </>
+    ),
+  },
+  {
+    route: '/kweek', selector: '[data-tour="breed"]',
+    title: '🐣 En pas vanaf 8 weken',
+    body: (
+      <>
+        Een duif mag pas kweken zodra ze <strong>8 weken</strong> oud is — dezelfde leeftijd waarop ze mag vliegen.
+        <br />
+        <span className="faint" style={{ display: 'inline-block', marginTop: 4 }}>
+          Meer: 📖 Wiki → Stamboom &amp; inteelt.
+        </span>
+      </>
+    ),
+  },
+];
+
+export const AGE_CUP_NEWS_STEPS: Step[] = [
+  {
+    route: '/',
+    title: '🏆 Nieuw: het leeftijdscriterium',
+    body: 'Een tweede competitie, enkel voor duiven: vier leeftijdsklassen die elk hun eigen wekelijkse vlucht krijgen.',
+  },
+  {
+    route: '/vluchten', selector: '[data-tour="flights"]',
+    title: '🐣 Vier klassen, elk hun eigen vlucht',
+    body: (
+      <>
+        Elke week vier extra vluchten om <strong>06:00</strong> — ma <strong>&lt; 1 j</strong>, wo{' '}
+        <strong>1–2 j</strong>, do <strong>2–3 j</strong>, vr <strong>3 j +</strong> — met enkel duiven van die
+        leeftijd. Inschrijven kost <strong>€20</strong> per duif.
+      </>
+    ),
+  },
+  {
+    route: '/ranglijst', selector: '[data-tour="age-cup"]',
+    title: '⏳ De stand loopt drie seizoenen',
+    body: (
+      <>
+        Daarna wint de top 3 van elke klasse geld én een <strong>titel op de duif</strong>. Geen seizoenspunten: je
+        Roekoe-ranglijst beweegt er niet door.
+        <br />
+        <span className="faint" style={{ display: 'inline-block', marginTop: 4 }}>
+          Klassen, prijzen en tactiek: 📖 Wiki → Leeftijdscriterium.
+        </span>
+      </>
+    ),
+  },
+];

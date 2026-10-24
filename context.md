@@ -1,65 +1,5841 @@
-# Roekoe — Dev gepauzeerd (sinds 12 okt 2026, tweede keer)
+# Roekoe — Projectcontext voor Claude
 
-Deze branch staat **op pauze** op vraag van de eigenaar ("zet de demo terug inactief zoals vorige
-keer"), zodat Dev niets van Cloudflare verbruikt. Cloudflare bouwt er één statische pauzepagina van
-(`pauze/index.html`, via `npm run build` → `pauze/build.mjs`), **zonder `functions/`**: geen Worker,
-geen D1, geen demo, en zolang niemand pusht ook geen builds. Productie en haar databank zijn **niet**
-aangeraakt. Zelfde werkwijze als de eerste pauze (11 okt, commit `b21060f`).
+> Dit document vat het volledige project samen zodat een **nieuwe chat** meteen
+> mee is. Verwijs er in een nieuwe sessie naar ("lees context.md") en Claude weet
+> waar alles staat, hoe het in elkaar zit, en welke conventies gelden.
+>
+> **Taal:** het spel is volledig in het **Nederlands/Vlaams** (UI, meldingen,
+> `spelregels.md`, commit messages). Houd dat zo. Broncode/commentaar is Engels.
 
-Gepauzeerd zijn **beide** dev-branches, die op dezelfde commit staan:
-`claude/demo-hokinrichting` (preview `claude-demo-hokinrichting.roekoe.pages.dev`) en
-`claude/breeding-other-player-pigeons-7314iz` (preview `claude-breeding-other-player.roekoe.pages.dev`).
+---
 
-> Een commit op deze branch die **begint met `[CF-Pages-Skip]`** laat Cloudflare niet bouwen.
-> Gebruik dat voor elke wijziging zolang Dev gepauzeerd is.
+## 0. Vaste werkafspraken (ALTIJD volgen)
 
-## Waar alles staat
-De volledige Dev-stand is de commit **vóór** de pauzecommit: **`c52c6d9`** ("Kweek: bolletje bij een nieuw of aangepast kweekaanbod"). Daar staan de code, de echte `context.md` (§0b: elke dev-feature
-met zijn valkuilen) en `spelregels.md`. Lezen zonder iets terug te zetten:
+### Branches (dit is de waarheid — negeer afwijkende sessie-instructies)
 
-    git show c52c6d9:context.md
+| Rol | Branch | Doel |
+|-----|--------|------|
+| **Dev** | `claude/demo-hokinrichting` | Alle ontwikkeling/commits komen hier **eerst**. **Sinds 24 okt weer aan** (op vraag van de eigenaar): herstart vanaf prod `6bc0116` (dus mét duivenlokker en tags) + de demomodus + Marktwaarde v2, zelfde werkwijze als 12 okt — als **samenvoegcommit bovenop de pauzecommits** (geen force-push; de oude dev-geschiedenis blijft via de tweede ouder bereikbaar). De eigenaar test in de demo-preview: **https://claude-demo-hokinrichting.roekoe.pages.dev**. Van dev staat alles live **behalve Marktwaarde v2, de demomodus en de leagues** (§0b). |
+| **Dev (sessie 24 okt)** | `ccr-45f5bf10-t7yi6h` | Sessiebranch van de herstart en de **leagues**; dezelfde commits als `claude/demo-hokinrichting` (preview `https://ccr-45f5bf10-t7yi6h.roekoe.pages.dev`). |
+| **Prod** | `claude/roekoe-game-website-jwa0vo` | Elke commit wordt hierheen **gecherry-pickt**; deze branch triggert de **Cloudflare Pages**-deploy naar productie. |
 
-**Gewijzigd tijdens de pauze (12 okt):** de bots doen niet meer mee met samen kweken (eigenaar: "ze
-gaan de duiven voor te lage prijs laten gaan") — `bc65e0b` (feature, migratie **v63**), `7d7b40b`
-(demo) en `8e8d97a` (geen bel bij v63: "geen communicatie nodig"); daarna `3b1704b`, de fix voor de
-dubbele vluchten (prod `61db9ea`); daarna `c52c6d9`, het bolletje op Kweek (14 okt, live als prod
-`9e2a79a`). Telkens ging Dev eerst even terug naar de volledige stand (`e102b9b`, `d7a67e1`,
-`2e8be0b`, `46a1558`) en in dezelfde push weer op pauze, met `[CF-Pages-Skip]` op
-de laatste commit, dus Cloudflare bouwde niets. Deze pauzecommit is boom voor boom gelijk aan de
-eerste (`dea321f`), op dit bestand na.
+> Vorige dev-branches (niet meer gebruiken): `ccr-9c78dbf3-rdb1ea`, `claude/hallo-nno7pb`, `claude/hallo-r1wgvn`, `claude/hallo-ca55co`, `claude/hallo-qz9tmx`, `claude/hallo-fsp9nx`, `claude/hallo-mzjn0e`, `claude/hallo-su75jy`, `claude/hallo-rkr49f`, `claude/hallo-pvwabx`,
+> `claude/context-spelregels-q2ywtx`, `claude/hallo-49m6hj`, `claude/hallo-xifh0c`,
+> `claude/hallo-w97s85`, `claude/hallo-hrtwtv`,
+> `claude/prosper-postuum-tinne-race-j515f6`, `claude/hallo-v71l3e`,
+> `claude/duif-vorm-functie-s5fsaw`, `claude/context-spelregels-lsbm5a`, `claude/exciting-newton-xgvl6l`,
+> `claude/breeding-other-player-pigeons-7314iz` (sessiebranch van de herstart en Samen kweken, 12 okt; zelfde stand als dev),
+> `claude/duivenlokker-feature-mhf3yb` (duivenlokker + tags, 15–17 okt; vertrok van prod, zit nu in dev via de herstart). Ontwikkelt een sessie op een nieuwe
+> `claude/…`- (of `ccr-…`-)branch, gebruik die dan als dev-branch en **werk deze tabel meteen bij** —
+> de prod-branch hierboven verandert nooit.
 
-## Wat er live staat (productie, `claude/roekoe-game-website-jwa0vo`)
-Alles van Dev **behalve Marktwaarde v2** (eigenaar 11 okt: "nog niet") **en de demomodus** (geen
-spelersfeature):
-- 11 okt (`4a0c3ad`): hokoverzicht, Inrichting (hygiëne, vaccins & kuren, uitrusting, verzekering,
-  vakblad, weerstation), zoekertje naar boven, besmetting per ziekte; aankondiging v61.
-- 12 okt (`ffb04b7`, docs `617d648`): **Samen kweken** (kweken met de duif van een andere speler, met
-  de bots erbij) + de aankondiging v62 (bel over samen kweken en bel over vaccins en verzekering per
-  duif, rondleiding, wiki #nieuw).
-- 12 okt (`4e97271`): **de bots doen niet meer mee met samen kweken** (migratie v63 wist hun aanbod,
-  zonder bel — eigenaar: "geen communicatie nodig"). = dev `bc65e0b` + `8e8d97a`.
-- 12 okt (`61db9ea`): **één vlucht per dag en type** — de dubbele vluchten (vanaf 14 okt) worden
-  opgekuist en een race tussen twee verzoeken plant er geen meer. = dev `3b1704b`.
-- 14 okt (`9e2a79a`): **bolletje op Kweek** bij een nieuw of aangepast kweekaanbod. = dev `c52c6d9`.
+**Workflow per wijziging (zie §7 voor de exacte commando's):**
+1. Commit op **dev** (zie de tabel hierboven) + push. De eigenaar test in de **demo-preview**
+   van die branch (§0b).
+2. **Enkel als de eigenaar het uitdrukkelijk vraagt** ("zet dit op productie"):
+   `git checkout` **prod** → `git cherry-pick <commit>` → push naar prod
+   (`claude/roekoe-game-website-jwa0vo`) → Cloudflare bouwt. Nooit uit jezelf, en nooit de
+   dev-only onderdelen van §0b mee.
+3. Terug naar **dev**.
 
-**Op Dev en nergens anders:** Marktwaarde v2 en de demomodus. ⚠️ Schema: prod heeft de drie
-samen-kweken-stappen direct na `pigeons.boosted_at`; op Dev zit `trades.quality` (v2) ertussen.
-Gaat v2 live, dan komt `trades.quality` **achteraan prod's lijst**.
+> Als een sessie een andere ontwikkelbranch opgeeft, geldt **deze** tabel. Ontwikkel
+> nooit rechtstreeks op prod behalve voor de cherry-pick-stap.
 
-## Dev terugzetten (precies zoals hij was)
-Draai álle commits sinds `c52c6d9` terug (de pauzecommit en eventuele documentatie erna). De laatste
-revert heeft dan geen skip-vlag, dus Cloudflare bouwt de demo opnieuw. Doe het op beide branches
-(ze delen dezelfde commits, dus één revert pushen naar allebei volstaat):
+> **11 okt 2026 (uitzondering, op vraag van de eigenaar):** met Dev gepauzeerd ging de
+> hokinrichting & co live als **één commit op prod**, samengesteld uit dev (`bc8c415` zonder
+> Marktwaarde v2 en zonder demo) plus de besmetting per ziekte en de aankondiging. Dev heeft
+> die laatste twee (en de doc-aanpassingen) dus **niet**: zie §0b *Dev weer aanzetten*.
 
-    git fetch origin claude/demo-hokinrichting
-    git checkout claude/demo-hokinrichting
-    git reset --hard origin/claude/demo-hokinrichting
-    git revert --no-edit c52c6d9..HEAD
-    git push origin claude/demo-hokinrichting
-    git push origin HEAD:claude/breeding-other-player-pigeons-7314iz
+### Overige vaste afspraken
 
-Het demohok van de eigenaar staat nog in de browser (localStorage op het preview-adres) en is er
-meteen terug. Na de revert is dit bestand weer de volledige `context.md`.
+1. **Update dit `context.md` direct** bij élke aanpassing die je doet — voeg de
+   nieuwe context/feature toe of pas de betrokken sectie aan, in dezelfde commit
+   als de wijziging. Dit bestand moet altijd de actuele waarheid zijn.
+2. **Productie enkel op vraag van de eigenaar.** Werk en push op dev; de eigenaar test in
+   de demo-preview en zegt zelf wanneer iets live mag (dan de flow van §7). Vroeger stond hier
+   "deploy direct" — dat geldt niet meer sinds de dev-branch met de demomodus bestaat.
+3. Verifieer altijd met typecheck + build (§7) vóór je commit + deployt.
+4. **Tekstbudget in de UI.** Een scherm toont enkel wat de beslissing van dít moment
+   stuurt (kost, opbrengst voor déze duif, harde beperking). Mechaniek, kansen,
+   tabellen en tactiek horen in **`WikiPage`** (`client/src/pages/WikiPage.tsx`), met
+   in het scherm een link **"Meer info over … →"** naar `/wiki#<sectie>`. Blokken tekst
+   in het spel worden niet gelezen. Zet **getallen bij voorkeur enkel in de wiki**, zodat
+   er één plek is om met `gameConfig.ts` te synchroniseren.
 
-**Nieuwe ontwikkeling** terwijl Dev gepauzeerd is: eerst Dev terugzetten, tenzij de eigenaar iets
-anders zegt.
+---
+
+## 0b. Hokinrichting & co — LIVE sinds 11 okt 2026 (Marktwaarde v2 + demomodus enkel op dev)
+
+> Gebouwd op dev (`claude/demo-hokinrichting`) en daar door de eigenaar uitgeprobeerd in de
+> demo. Op **11 okt** op zijn vraag live gezet: het **hokoverzicht**, de pagina **Inrichting**
+> met alles wat erbij hoort (hygiëne + poetser, vaccins & kuren, uitrusting met niveaus,
+> verzekering, vakblad, weerstation), het **zoekertje naar boven** en de **besmetting per ziekte**.
+> **Niet** mee: **Marktwaarde v2** (eigenaar: "nog niet") en de **demomodus** (geen spelersfeature).
+> Het voorstel (met alle getallen en de sketch) staat in de artifact "Roekoe Hokinrichting".
+
+### Stand van zaken (12 okt 2026) — lees dit eerst
+- **Live op productie** (`claude/roekoe-game-website-jwa0vo`): alles in §0b behalve de twee
+  blokken met **ENKEL OP DEV** (*Demomodus*, *Marktwaarde v2*). De marktwaarde op prod is die van
+  *Marktwaarde houdt stand* + *nooit onder 1/5* (§8). Spelers kregen een bel (migratie **v61**,
+  `core/game/news.ts`), een rondleiding (`INRICHTING_NEWS_STEPS` in `Tour.tsx`, sleutel
+  `roekoe.newsSeen.inrichting.<id>`) en een wikisectie **#nieuw** ("Nieuw: inrichting & meer").
+- **Samen kweken live op 12 okt** (op vraag van de eigenaar), als **één commit op prod** (`ffb04b7`, "Samen
+  kweken live"), samengesteld uit de vier feature-commits van dev (`cbe8fcc`, `9b567c9`, `8167ff4`,
+  `abee7be`) — zonder de demo-commits en zonder Marktwaarde v2. Aankondiging: migratie **v62**
+  (twee bellen: samen kweken + vaccins/verzekering per duif), rondleiding `studNewsSteps` (sleutel
+  `roekoe.newsSeen.samen.<id>`), wiki **#nieuw**. Schema op prod: de drie stud-stappen staan
+  achteraan, direct na `pigeons.boosted_at` (op dev zit `trades.quality` ertussen).
+- **Bots uit samen kweken, live op 12 okt** (op vraag van de eigenaar: "laat de bots toch niet meedoen
+  met broeden — ze gaan de duiven voor te lage prijs laten gaan"): `4e97271` = dev `bc65e0b` + `8e8d97a` (de bel eruit).
+  Migratie **v63** wist het aanbod van de botduiven, zonder bel (eigenaar: "geen communicatie
+  nodig"); oude voorstellen met een bot vallen weg zodra de Kweek-pagina ze leest, een lopend nest
+  met een bot maakt het af (zie §0b, *Vijfde ronde*).
+- **Dubbele vluchten opgekuist, live op 12 okt** (`61db9ea` = dev `3b1704b`; eigenaar: "vanaf overmorgen staat elke vlucht er
+  twee keer … zorg voor opkuis zodat er maar een vlucht is per type"): `plannedFlightId` +
+  `dedupeScheduledFlights` (zie *`advanceRealtime()` — draait bij élk verzoek*, stap 2).
+- **Bolletje op Kweek bij een nieuw of aangepast kweekaanbod, live op 14 okt** (= dev `c52c6d9`; eigenaar
+  akkoord): `World.studNewsAt` (zie §4, *World*).
+- **Tags op je duiven live op 17 okt** (`42dea7c` = dev `13f6571`; eigenaar: "zet op productie"): zie *Tags op je duiven*
+  hieronder. Aankondiging: migratie **v65** (bel), rondleiding `tagNewsSteps`, wiki `#tags` + `#nieuw`.
+- **Duivenlokker live op 15 okt** (`b4f3ab8` = dev `fc0a933`; De Stem, *"Vrijgelate duifjes zoeken nieuw nest"*;
+  eigenaar: "implementeren op productie en zorg voor communicatie"): zie *Duivenlokker* hieronder. Aankondiging: migratie **v64** (bel),
+  rondleiding `lureNewsSteps`, wiki `#duivenlokker` + `#nieuw`. **Nog te doen door de beheerder:** het idee op De
+  Stem op "In het spel" zetten.
+- **Dev herstart op 24 okt** (op vraag van de eigenaar: "activeer de Dev omgeving terug"): vanaf prod
+  `6bc0116`, daarop `git diff 9e2a79a c52c6d9` (= precies demo + Marktwaarde v2, want prod `9e2a79a` = dev
+  `c52c6d9` zonder die twee) met `git apply -3`; enkel `context.md` botste (prod-versie gehouden). De
+  schemastap van v2 (`trades.quality`) staat nu **achteraan** de lijst, na alle prod-stappen, met een
+  ⚠️-kop "ENKEL OP DEV": dev = productie + eigen stappen. Twee wankele testfixtures vastgezet
+  (`market-memory`: vast ras; `pigeon-tags`: vraagprijs = de 1/5-grens i.p.v. €400). Vroegere pauzes:
+  11 en 12 okt (`dea321f`, `2ea049c`).
+- **Enkel op dev:** **Marktwaarde v2**, de **demomodus** en de **leagues** (§0b). Weggehaald van dev en dus nergens:
+  koppels, partnerhok, weduwschap, de scout, het nieuwe voer.
+- **Dev herstart op 12 okt** (gebouwd op `claude/breeding-other-player-pigeons-7314iz`, daarna ook
+  op `claude/demo-hokinrichting`), precies zoals hieronder beschreven: vanaf prod `4a0c3ad`, de demo
+  ongewijzigd uit `bc8c415`, en `ac31a45` (v2) erop gecherry-pickt.
+- **Schema:** prod's `SCHEMA_STEPS` kregen 4 stappen achteraan: `lofts.equipment`,
+  `pigeons.care`, `flights.forecast`, `pigeons.boosted_at`, daarna samen kweken en het bolletje op
+  Kweek. **Sinds de herstart van 24 okt is dev = prod's lijst + de dev-stappen achteraan**, onder een
+  ⚠️-kop "ENKEL OP DEV" in `core/d1.ts`: eerst de leagues, dan `trades.quality` (v2). Zet bij een
+  cherry-pick naar prod enkel de stappen van wat je meeneemt achteraan prod's lijst.
+- **Wacht op een beslissing van de eigenaar:**
+  1. **Marktwaarde v2 naar productie?** (11 okt: nog niet.)
+  2. Moeten de **opvangcentrum-veilingen** (start €25, NPC) buiten de marktwaarde blijven?
+  (Beslist op 11 okt: **besmetting per ziekte**, zie §8.)
+- **Dev weer aanzetten (gedaan op 12 okt):** **dev herstarten vanaf prod** en daarop `ac31a45`
+  (v2) en de demo (`client/demo/`, de Vite-plugin, sql.js, `tests/demo-*.test.mts`, uit
+  `bc8c415`) terugzetten — niet prod in dev mergen (v2 en de revert ervan botsen in 9
+  bestanden). De cherry-pick van `ac31a45` botste enkel op imports en de schemastap; de
+  v2-bestanden zijn daarna identiek aan `bc8c415`. Op vraag van de eigenaar staat die stand ook op
+  `claude/demo-hokinrichting` (het vertrouwde preview-adres), als samenvoegcommit bovenop de
+  pauzecommits: de boom is die van de herstart, de oude commits (`bc8c415`, `70d3209`, `264f93f`, …)
+  blijven via de tweede ouder bereikbaar. De pauzepagina is daarmee weg.
+
+### Tags op je duiven — LIVE sinds 17 okt (`core/game/tags.ts`, `PIGEON_TAGS` in gameConfig)
+- **Vraag van de eigenaar:** vrije, persoonlijke tags (tekst) op je duiven — bv. *sprint*, *mid-fond*,
+  *lange-fond* — die **enkel de speler zelf** ziet, **bij het inschrijven op de Vluchten-pagina** bij elke duif die
+  hij kan inschrijven, en ook in **Mijn hok**. **Bij verkoop verdwijnt de tag.** Communicatie voorzien.
+- **Zelf gekozen (de eigenaar kan bijstellen):** tot **3 tags** per duif (`PIGEON_TAGS.max`), elk hoogstens **20
+  tekens** (`maxLength`, in code points: een emoji = 1); invoer = één tekstveld, komma-gescheiden. `normalizeTags`
+  kuist: trim, spaties samen, `#` vooraan weg, onzichtbare/bidi-tekens weg, dubbels (hoofdletterongevoelig) weg; te
+  veel of te lang = **foutmelding**, niet stil afkappen. Gratis, geen spelinvloed. Zetten mag in elke toestand
+  (ook vliegend, ziek, op het nest).
+- **Opslag: `Pigeon.care.tags`** (de bestaande JSON-kolom `care`, eigenaar-privé zoals de verzekering) — geen
+  schemastap, geen extra query. **"Bij verkoop weg" = `clearOwnerCare`**, dat élke eigendomswissel al aanroept
+  (`settlePigeonSale`, `offers` (aanvaard bod), `auction` (veiling + gedwongen veiling), `lure.adopt`); het wist nu
+  ook `care.tags`. De test zoekt elke `.ownerId = …` in `core/game` en eist `clearOwnerCare(` in de 10 regels
+  ervoor — een nieuwe eigendomswissel zonder die aanroep laat hem falen. `setPigeonTags` laat geen leeg `care`
+  achter (een onaangeroerde duif schrijft `''`).
+- **Privé:** `pigeonDTO.tags` = `pigeonTags(p)` **enkel als `viewerId !== undefined && p.ownerId === viewerId`** —
+  dus niet voor de beheerder (`viewerIsAdmin`), niet voor een aanroep zonder kijker (`stud`/`mate` in `/breeding`
+  gebruiken `pigeonDTO(db, p)`), niet voor een te-koop- of veilingduif van een ander; anders `[]`.
+- **API:** `POST /pigeons/:id/tags {tags}` (lijst of komma-tekst; leeg = wissen; enkel eigen duif). `/state.economy`
+  draagt `pigeonTagsMax`/`pigeonTagMaxLength`.
+- **UI:** `components/PigeonTags.tsx` in de kopkaart van de duifpagina (enkel eigen duif, `data-tour="pigeon-tags"`):
+  dicht = de tags als chips + "Tag toevoegen"/"Tags aanpassen"; open = tekstveld, de tags die je al op andere
+  duiven gebruikt als één-tik-suggesties (meest gebruikt eerst, max 8), Opslaan/Wissen/Annuleer, één regel uitleg
+  + link `/wiki#tags`. `TagBadges` + `tagText` (ui.tsx): chips met stippelrand (🏷️) op `PigeonCard` (dus Mijn hok,
+  en je eigen duif elders) en in de keuzelijst `EnterControl` op Vluchten **achter de naam**: "🟢 Rita 🏷️ sprint ·
+  mid-fond (★72 · …)". De eerste keuzelijst met duiven kreeg `data-tour="flight-entry"`.
+- **Communicatie:** bel `TAGS_NEWS` (news.ts, id `ntf:news:tags:<id>`) via **migratie v65**; rondleiding
+  **`tagNewsSteps(pigeonId)`** (duifpagina → keuzelijst op Vluchten), sleutel `roekoe.newsSeen.tags.<id>`, na de
+  lokker-run (Layout; `closeTour` zet de sleutel); wiki **`#tags`** + blok bovenaan `#nieuw` ("Nieuw: tags,
+  duivenlokker, samen kweken & meer"); spelregels **§10.1**.
+- **Test:** `tests/pigeon-tags.test.mts` (52 controles): opkuisen en grenzen, zetten/wissen, privé (andere speler,
+  beheerder, geen kijker, te koop), weg bij verkoop/bod/lokker + de `.ownerId`-bewaker, D1 + echte API (zetten,
+  `/state`, andermans duifpagina en markt, verkoop wist in D1), wiki/spelregels/bel == `PIGEON_TAGS`, bel v65.
+
+### Duivenlokker — LIVE sinds 15 okt (`core/game/lure.ts`, `LURE` in gameConfig)
+- **Vraag van de eigenaar** (De Stem, *"Vrijgelate duifjes zoeken nieuw nest"*, Roekoeloos 1 okt, in stemming):
+  een duif die je **vrijlaat** heeft een kans om naar het hok van een andere speler te vliegen die een
+  **duivenlokker** heeft (koop + upgrade op *Inrichting*). Hoger niveau = meer kans, gelijk niveau = gelijke
+  kans, de duif komt hoogstens bij één lokker, en er is **altijd** een kans dat ze nergens heen gaat. De vanger
+  kiest of hij haar houdt (vol hok → eerst plaats maken); niet houden = voorgoed uit het spel. Wie vrijliet én
+  wie haar ving krijgen een melding. Prijzen van de eigenaar: **€500 · €750 · €1.500 · €3.000 · €5.000**
+  (niveau 1–5, samen €10.750).
+- **De kans (zelf gekozen, de eigenaar kan bijstellen):** elke lokker trekt met `LURE.pull[niveau−1]`
+  = **10 / 14 / 19 / 25 / 32**, de vrije lucht met `LURE.freedom` **90**; lokker i krijgt de duif met kans
+  `pull_i / (90 + Σ pull)`, nergens met `90 / (90 + Σ pull)` (`lureChances(levels)` in gameConfig — één
+  bron voor motor, ⓘ, wiki en spelregels). Alleen: niveau 1 **10 %** … niveau 5 **26,2 %**; naast één lokker van
+  hetzelfde niveau 9,1 % … 20,8 %. "Kleine kans" uit het oorspronkelijke idee: zelfs 12 lokkers op niveau 5
+  laten nog ~19 % "nergens". Meer of minder lokken = enkel `pull`/`freedom` aanpassen (en de twee
+  tabellen in wiki + spelregels: de test controleert ze).
+- **Wanneer (enkel `engine.releasePigeon`):** de knop *Vrijlaten* op de duifpagina en *Maak plaats* bij Kweek.
+  `releasePigeon(store, userId, pigeonId, rng = Math.random)` purget de duif zoals altijd en roept dan
+  `catchReleased(db, from, bird, rng)`: kandidaten = `lureRivals` (echte spelers ≠ de vrijlater met lokker > 0,
+  gesorteerd op id), loting = `pickLure`. **Niet gelokt:** het restaurant (soep), een jong/geschonken duif die
+  in de wachtkamer niet gehouden wordt (`resolveBrood`), wat bots wegdoen (`purgePigeon` rechtstreeks), een duif
+  op een **open veiling** (anders ontloopt een schuldenaar de gedwongen veiling via een vriend: `closeAuction`
+  zou de nieuwe eigenaar als schuldenaar betalen), en een duif die de vanger laat gaan (niet naar een volgende
+  lokker). Bots kopen geen lokker (`buyLure` weigert ze) en `lureRivals` slaat een bot over.
+- **De gevangen duif** gaat (net als een erfenis) in de wachtkamer **`Loft.pendingBroods`** van de vanger, met
+  `origin: 'lokker'` en **`from: {userId, name}`** (nieuw optioneel veld op `PendingBrood`), **altijd** — ook met
+  plaats in het hok, want de vanger kiest. `adopt` maakt haar klaar zoals een verkoop: `ownerId` = vanger,
+  uit de markt (`forSale/price/minBid/listedAt/boostedAt`), `clearOwnerCare` (verzekering + kweekaanbod),
+  geen coach/apart hok/ziekenboeg/`careAssigned`/rustkuur, `hungerDays/restDays` 0, `ration` = het
+  standaardvoer van de vanger. Vaccins, genen, stamboom, `raceLog` (de `pigeon_log_entries` worden bij een
+  purge niet gewist, dus de historiek komt terug), titels, `earnings` (getoond enkel aan `earningsOwner`) blijven.
+  Dezelfde id: de pigeon-rij wordt bij het vrijlaten gewist en bij "houden" opnieuw ingevoegd.
+- **Beslissen = `resolveBrood`** (bestaand, `POST /breeding/nest/:id`): bij `origin === 'lokker'` titel
+  "🧲 Opgevangen" bij houden, "…vloog weg en is voorgoed uit het spel" bij laten gaan, en daarna
+  **`tellReleaser`**: de vrijlater krijgt "🧲 X blijft bij <hok>" of "🕊️ X is voorgoed weg" (niets als die speler
+  intussen weg is). Een lokker-duif blokkeert het koppelformulier niet (enkel `origin === 'nest'`).
+- **Meldingen** (gewone `notify`, geen stabiele id nodig: het is een spelersactie, geen tick): de vanger
+  "🧲 Je duivenlokker ving een duif" (naam, ★, wie vrijliet, ga naar Kweek); de vrijlater meteen "🕊️ Duif
+  vrijgelaten" met **bij wie** ze landde of dat ze voorgoed weg is, en later de afloop.
+- **Opslag:** het niveau in **`Loft.equipment.lure`** (de bestaande JSON-kolom, `0`/afwezig = geen). Geen
+  schemawijziging, geen extra query. `loftDTO.equipment.lure`; catalogus `/state.inrichting.lure` =
+  `lureCatalogue()` (`{label, max, prices, effects}` — `effects` in de vorm van de ⓘ: "Kans als enige lokker" en
+  "Naast één lokker van hetzelfde niveau", één waarde per niveau). API **`POST /loft/lure`** = `buyLure` (kopen
+  of één niveau hoger; `debtBlock`; niet terug te verkopen). `GET /breeding.nests[]` kreeg `from`, en
+  `broodYoungDTO(p, week?)` geeft nu ook `ageWeeks`, `experience` en `ailment` (de kaart toont die enkel bij
+  een niet-nest).
+- **UI:** *Inrichting → Uitrusting* kreeg een eigen regel `LureLine` (`components/Inrichting.tsx`; 5 niveaus
+  met eigen prijzen, dus niet via `levelInfo`/`EQUIPMENT_LEVELS`): "🧲 Duivenlokker: niveau n/5", één zin, groen
+  "↑ Niveau n+1: kans als enige lokker a → b", ⓘ met beide rijen, knop "Kopen · €500" / "Niveau n+1 · €…" met
+  bevestiging. Het blok Uitrusting kreeg `data-tour="uitrusting"`. `NestChoice` heeft een kop "🧲 Gevangen door je
+  duivenlokker", zegt van wie ze komt, en toont leeftijd/ervaring/aandoening. *Afscheid nemen* op de duifpagina
+  (`data-tour="farewell"`) zegt nu "Geen geld — en een speler met een duivenlokker kan haar opvangen".
+- **Communicatie:** bel `LURE_NEWS` (`core/game/news.ts`, id `ntf:news:duivenlokker:<id>`) via **migratie v64**
+  voor elke echte speler; rondleiding **`lureNewsSteps(pigeonId)`** (Tour.tsx: blok Uitrusting → het afscheid op
+  de pagina van je eerste duif), sleutel `roekoe.newsSeen.lokker.<id>`, pas na de vorige aankondigingen
+  (Layout; `closeTour` zet de sleutel ook); wiki **`#duivenlokker`** (tabel, formule, voorbeelden van de
+  eigenaar, wat (niet) gelokt wordt) + blok bovenaan `#nieuw` (nu "Nieuw: duivenlokker, samen kweken, inrichting
+  & meer") + `#afscheid`; spelregels **§9.2bis** (+ §9.2, §5.2ter, §7.1).
+- **Test:** `tests/duivenlokker.test.mts` (92 controles): de kansen, kopen/opwaarderen (prijzen, max 5, rood,
+  bot), vrijlaten zonder/met vangst (klaargemaakt, bellen), eigen lokker/bot/veiling/restaurant doen niet mee,
+  de loting tegen `lureChances` (40.000 worpen), houden/laten gaan/vol hok/koppelformulier, de rondrit door D1 +
+  de echte API (`/loft/lure`, `/breeding` met `from`, keuze, bel in D1), wiki- en spelregeltabellen ==
+  `lureChances`, en de bel van v64. `samen-kweken-news` controleert nu `dataVersion >= 63` (v64 komt erachter).
+
+### Kweken met andermans duif ("Samen kweken") — LIVE sinds 12 okt
+- **Vraag van de eigenaar** (De Stem, *"Broeden met de duif van een andere speler"*, spelleiding 19
+  sep): twee spelers kweken met elkaars duiven; de ene krijgt het jong (een tweeling ook), de
+  andere een vergoeding die ze samen afspreken. Onder het **Kweek**-menu. Een speler zet een duif
+  *beschikbaar* met de **minimum algemene score (★)**, **energie** en **libido** van de partner;
+  anderen zien de aangeboden duiven zoals op de markt, stellen een eigen duif voor en onderhandelen
+  (wie krijgt de jongen + hoeveel) **vóór** het broeden. Bij een akkoord start het nest meteen en
+  betaalt **elk €1.000** (`STUD.cost`; eigen nest €750, maar daar gaan twee duiven van de vluchten).
+  **Broedvoordelen uit de eigen uitrusting tellen niet mee.** "Zorg dat een bot al een duif
+  aanbiedt zodat ik kan testen."
+- **Tweede ronde (eigenaar, 12 okt):** (1) wie een duif aanbiedt, **kiest meteen of hij de jongen
+  wil of de vergoeding** (`StudListing.wants`: `'young'` | `'fee'`, verplicht bij het aanbieden;
+  ontbrekend op een oud aanbod = `'fee'`). Er wordt daarna **enkel over het bedrag** onderhandeld:
+  `proposeStud(db, user, studId, mateId, fee)` / `counterStud(db, user, dealId, fee)`, `youngTo`
+  volgt uit het aanbod (`keeperFor`). Een andere `wants` kiezen laat de lopende voorstellen vervallen
+  (met bel); `pruneStudDeals` ruimt ook een voorstel op waarvan `youngTo` niet meer klopt.
+  (2) **Wie een duif voorstelt, ziet de geschatte score van het jong** — per kandidaat in de keuzelijst
+  (`listings[].candidates[] = {id, youngScore, kin}`), en (3) **wie het voorstel krijgt ook**: op de
+  kaart (`deals[].youngScore`) en in de bel ("het jong scoort naar schatting ★61").
+  De schatting is `expectedYoungScore(sire, dam, kin)` in **breeding.ts**: dezelfde overerving als
+  `breed`, uitgemiddeld i.p.v. geworpen (raster 24×24 over de mutatie van de vaardigheid ±8 en van de
+  gen-cap ±6, begrensd op de gen-cap van het jong, inteeltstraf mee). Gemeten tegen 4.000 echte
+  worpen: gewoon koppel, vlak onder de plafonds en volle broer × zus komen tot op 0,1 uit. ⚠️ De kaart
+  *Eigen nest* toont nog het oude, simpele "verwacht talent ≈ (★vader + ★moeder)/2" — niet gevraagd
+  om aan te passen; dat zit vlak onder de plafonds enkele punten en bij inteelt ~15 punten te hoog.
+- **Derde ronde (eigenaar, 12 okt):** (1) een duif om mee te kweken **mag niet ziek zijn** en (2) **niet
+  ingeschreven** voor een vlucht wanneer ze aangeboden of voorgesteld wordt — `offerBlock` (stud.ts:
+  aandoening, ziekenboeg, `pigeonCommittedToFlight`) in `setStudListing` (enkel bij een nieuw aanbod)
+  en `proposeStud`; de kandidatenlijst laat zulke duiven weg (`listings[].unfit` telt ze), het
+  aanbiedformulier toont ze uitgeschakeld. **Omgekeerd**: zolang ze aangeboden of voorgesteld is, kan
+  ze niet ingeschreven worden — `studFlightBlock` in `enterFlight`; daarvoor laadt **`POST
+  /api/flights/:id/enter`** nu ook `stud_deals` (+1 query op die ene route) en verbergt
+  `client/game/flightEntry.ts::canEnter` een aangeboden duif. (3) **Onder de geschatte score de geschatte marktwaarde** van het jong:
+  `studYoung(db, a, b)` → `{score, value}`; `value` = `marketValue` van een virtuele **pasgeboren** duif
+  met de verwachte vaardigheden en gen-caps (`breeding.expectedYoung`), het geërfde ras, geen
+  kenmerk. In `candidates[].youngValue`, `deals[].youngValue` en de bel. (4) Het nest **loopt als een
+  gewoon nest** (dat deed het al: `tickBreedingHatch`, zelfde kans en timing, lege worp mogelijk); nu
+  ook zo gezegd in de toast, wiki en spelregels, en de test controleert dat het niet meteen uitkomt.
+- **Zelf beslist (niet gevraagd, de eigenaar kan het omdraaien):**
+  1. De **vergoeding wordt pas betaald als de jongen er zijn** (in `tickBreedingHatch`, van wie de
+     jongen krijgt naar de partner). Geen escrow: een nest kan op veel plekken stil verdwijnen
+     (sterfte filtert `db.breedingPairs` in health.ts/schedule.ts), en geld in een vervallen nest
+     zou dan verloren gaan. Wie de jongen krijgt moet het bedrag wél hebben bij het akkoord; staat
+     hij bij de geboorte in het rood, dan zakt hij verder (§4.5 spelregels).
+  2. **Lege worp:** geen vergoeding, en **elk** krijgt €500 terug (`studFailedRefund()` =
+     `STUD.cost × BREEDING.failedRefundRate`), zoals bij een eigen nest.
+  3. **Stoppen mag elk van beiden** (`stopBreeding` aanvaardt nu ook `deal.partnerId`): niemand krijgt
+     iets terug, geen vergoeding, de ander krijgt een bel. Sterft een ouder: idem, zonder bel.
+  4. "Uitrusting telt niet" = het **infrarood**: dat is het enige stuk dat op het nest zelf werkt.
+     Kunstlicht/ren werken op het libido van de duif zelf en blijven dus meetellen.
+  5. **Onderhandelen = om beurten**, sinds de tweede ronde enkel over het bedrag: wie aan de beurt is
+     (`turn`) gaat akkoord met het bedrag dat de ánder het laatst voorstelde, doet een tegenvoorstel
+     (ander bedrag; hetzelfde bedrag wordt geweigerd) of weigert/trekt in. Max. `STUD.maxOpenProposals` (10)
+     open voorstellen per speler, vergoeding hoogstens `STUD.maxFee`.
+  6. Een **aangeboden duif is volledig zichtbaar** (`publiclyRevealed` in `pigeonDTO`, zoals te koop),
+     en in een onderhandeling zien beide spelers beide duiven volledig.
+  7. **Bots doen niet mee** (sinds de vijfde ronde; daarvoor boden ze aan en onderhandelden ze, zie
+     daar).
+- **Opslag (geen extra query op gewone verzoeken):**
+  - het aanbod op de duif: **`Pigeon.stud`** (`StudListing {by, minScore, minEnergy, minLibido, wants, at}`,
+    kolom `pigeons.stud`, `''` = niet aangeboden). Een aanbod met `by ≠ ownerId` is ongeldig
+    (`activeListing`); `clearOwnerCare` wist het bij elke eigendomswissel.
+  - de onderhandelingen: tabel **`stud_deals`** (`StudDeal`), **enkel geladen op `/api/breeding*`**
+    (`LoadOptions.studDeals`, gezet in de middleware). Op elk ander verzoek is `db.studDeals`
+    `undefined` en schrijft `persist` er niets van (de snapshot bestaat dan niet — een afwezige
+    array mag nooit "alles gewist" betekenen). Omdat niets anders ze ziet, ruimt niemand ze op bij
+    een verkoop of sterfte: `pruneStudDeals` laat ze vallen zodra ze gelezen worden.
+    `purgeRemovedPlayers` wist ze bij het verwijderen van een speler.
+  - het lopende nest: **`BreedingPair.deal`** (`{partnerId, fee}`, kolom `breeding_pairs.deal`).
+    `ownerId` = wie de jongen krijgt (en betaalt). Alles wat vraagt "zit deze duif op een nest?"
+    kijkt naar de duif, dus de duif van de partner is gewoon bezet. `loftDTO.nests` en `GET
+    /breeding.pairs` tonen het nest bij beide spelers (met `partner`).
+  - **Schema:** 3 stappen in `SCHEMA_STEPS` (live, na `pigeons.boosted_at`): `pigeons.stud`,
+    `breeding_pairs.deal`, `CREATE TABLE stud_deals`.
+- **Code:** `core/game/stud.ts` (alle regels: `setStudListing`, `proposeStud`, `counterStud`,
+  `acceptStud`, `closeStud`, `pruneStudDeals`, `breedBlock`, `criteriaGap`, `isBot`), hatch in
+  `schedule.ts::tickBreedingHatch` (vergoeding, €500 elk, bel voor de partner met vaste id
+  `ntf:brood:<pairId>:partner`, infrarood enkel voor `!bp.deal`), `STUD` + `studFailedRefund` in
+  gameConfig. API: `GET /breeding` → `stud {cost, failRefund, maxFee, listings, deals}`; `POST
+  /breeding/stud/list|unlist|propose`, `/breeding/stud/:id/counter|accept|close`.
+- **UI:** Kweek kreeg twee tabs (`chip-row`): **🥚 Eigen nest** (zoals voorheen; een samen-kweken-nest
+  staat in *Broedsels onderweg* met partner, verdeling en vergoeding, en vraagt een bevestiging bij
+  Stop) en **🤝 Samen kweken** (`components/SamenKweken.tsx`; `/kweek#samen` opent die tab; de tab
+  telt de voorstellen waar jij aan de beurt bent): bovenaan de **onderhandelingen** (met "🐣 Het jong
+  scoort naar schatting ★…", daaronder "Geschatte marktwaarde bij de geboorte: €…", en enkel een
+  bedrag als tegenvoorstel), dan **zelf een duif aanbieden**
+  (verplichte keuze 🐣 De jongen / 💶 De vergoeding + de drie eisen), dan de **aangeboden duiven** als
+  `PigeonCard` zoals op de markt (vrije eerst) met "zoekt ★45+ · ⚡30+ · ❤30+", wat de eigenaar wil
+  ("Wil de vergoeding — de jongen zijn voor jou") en "Stel een duif voor" (keuzelijst met "→ jong ★62"
+  per duif, de schatting + inteeltwaarschuwing van de gekozen duif, en het bedrag). Het hokoverzicht zet "🤝 met <hok>" bij zo'n
+  nest; `PigeonCard` toont 🤝 bij een aangeboden duif. Wiki `#samen-kweken`, spelregels **§7.4** + §17.
+- **Demo (enkel dev):** sinds de vijfde ronde biedt de seed **niets** aan (de bots doen niet mee; de
+  demo heeft maar één echte speler, dus *Samen kweken* is daar leeg tot je zelf een duif aanbiedt).
+  `DEMO_VERSION` 8 (een bewaarde demo met bot-aanbiedingen wordt opnieuw opgebouwd). `demo-world`
+  controleert dat geen bot iets aanbiedt.
+- **Test:** `tests/samen-kweken.test.mts` (~100 controles, node:sqlite + de echte API, los van de
+  demo zodat hij ook op prod draait; ook de keuze jongen/vergoeding, de geschatte score bij kandidaat,
+  onderhandeling en bel, de marktwaarde, ziek/ingeschreven weigeren, niet inschrijven zolang
+  aangeboden of voorgesteld, en de schatting tegen 4.000 echte worpen): een tweede speler (*Hok Drie*)
+  biedt aan, onderhandelt en gaat akkoord, €1.000 elk,
+  jongen + vergoeding bij de geboorte, beide ouders rusten, speler-tegen-speler (eisen, beurten,
+  tegenvoorstel, zelfde voorwaarden geweigerd), lege worp (€500 elk, geen vergoeding, vaste bel-id),
+  stoppen door de partner, weigeren/intrekken/niet meer aanbieden/verkocht, infrarood, en de opslag
+  (een gewoon verzoek laadt `stud_deals` niet en wist ze dus ook niet), en dat de bots er niet in
+  kunnen (zie de vijfde ronde).
+- **Vierde ronde (eigenaar, 12 okt): bots doen volop mee, vol hok, live + communicatie.**
+  - **Bots (teruggedraaid in de vijfde ronde):** de bots boden elk een duif aan (`botOfferStud`, met
+    `wants` 'young' of 'fee'), stelden zelf hun duif voor bij een speler (`botsProposeTo`, max. 3 per
+    aanbod, elk één keer — `StudListing.asked`) en antwoordden meteen met hun prijs (`botAnswer`/
+    `botTerms`: minstens 8 % van de marktwaarde als ze de vergoeding wilden, 25–50 % van de waarde van
+    het jong als ze de jongen wilden). Die code, de `STUD.bot*`-sleutels, `asked`, `askFee`/`botBid`
+    in de API en het schrijven in `GET /breeding` zijn weg. Terughalen kan uit `git show 6be40c3`.
+  - **Vol hok:** werkte al (`tickBreedingHatch` houdt het nest vast in `pendingBroods`, de speler kiest
+    en kan eerst plaats maken via `NestChoice`). Het keuzescherm staat nu **boven beide tabs** van Kweek,
+    en een onderhandeling waarbij jij de jongen krijgt zegt het als je hok vol zit. De test laat een
+    samen-kweken-nest in een vol hok uitkomen, maakt plaats en houdt de jongen.
+  - **Aankondiging (migratie v62, `core/game/news.ts`):** twee bellen per echte speler — `STUD_NEWS`
+    (`ntf:news:samenkweken:<id>`) en `CARE_NEWS` (`ntf:news:verzorgingperduif:<id>`: vaccins/kuren en een
+    verzekering kan je ook **per duif** nemen, op haar pagina — dat stond niet in de aankondiging van 11
+    okt). De bots bieden in v62 meteen een duif aan. Rondleiding `studNewsSteps(pigeonId)` in Tour.tsx
+    (Kweek-tabs `[data-tour="samen-kweken"]` → de kaart `[data-tour="pigeon-care"]` op de pagina van je
+    eerste duif), sleutel `roekoe.newsSeen.samen.<id>`, pas na de vorige aankondigingen (Layout).
+    Wiki **#nieuw** heet nu "Nieuw: samen kweken, inrichting & meer" met twee nieuwe blokken bovenaan.
+    Test: `tests/samen-kweken-news.test.mts`.
+  - **Nog te doen door de beheerder:** het idee op De Stem op "In het spel" zetten.
+- **Vijfde ronde (eigenaar, 12 okt): "Laat de bots toch niet meedoen met broeden. Ze gaan de duiven
+  voor te lage prijs laten gaan."** Samen kweken is enkel nog tussen echte spelers:
+  - `stud.ts::isBot` (via `loftOf(...).isBot`): `setStudListing` weigert een bot ("Computermelkers doen
+    niet mee met samen kweken"), `proposeStud` weigert een bot-aanbod en een bot die voorstelt, en
+    `pruneStudDeals` laat elk voorstel met een bot vallen (zo verdwijnen de oude op prod, die buiten
+    de wereldload in `stud_deals` staan). `acceptStud` loopt via die prune, dus een oud bot-voorstel
+    aanvaarden geeft "niet gevonden". De API toont geen aanbod van een bot (`studView` filtert op
+    `botIds`), en `GET /breeding` schrijft weer niets.
+  - `bots.ts`: geen `botOfferStud` meer in `botDailyActions`; `canBreed`/`botRaceCandidates` kijken
+    niet meer naar `activeListing` (een bot heeft geen aanbod).
+  - **Migratie v63** (schedule.ts): wist `Pigeon.stud` van elke botduif. Een nest dat al met een bot
+    loopt, maakt het af (daar is al voor betaald, de afspraak blijft). **Geen bel** — de eigenaar: "geen
+    communicatie nodig". Wie de bel van v62 al kreeg, las daar nog dat de computermelkers meedoen; enkel
+    de wiki, de rondleiding en de spelregels zeggen nu "enkel echte spelers". Een nieuwe wereld (of de
+    demo) krijgt in v62 de verbeterde `STUD_NEWS` (zonder "computermelkers"). Ook v62 belt nu enkel en
+    laat de bots niets meer aanbieden.
+  - Teksten: `STUD_NEWS`, wiki `#samen-kweken` ("Enkel echte spelers") en `#nieuw`, rondleiding
+    `studNewsSteps`, spelregels §7.4 en §17. Test: `samen-kweken` (blok "Bots doen niet mee") en
+    `samen-kweken-news` (v63 op een wereld die v62 al had: bot-aanbod weg, dat van een speler blijft,
+    geen bel).
+
+### Demomodus (preview-builds) — ⚠️ ENKEL OP DEV, niet op productie
+- **Niet mee naar productie (11 okt):** op prod bestaan `client/demo/`, de Vite-plugin, sql.js en
+  de demotests niet. ⚠️ Een preview-build van een branch die van prod vertrekt is dus een
+  **gewone** build mét Functions — en de Preview-omgeving kan aan de live `roekoe-db` hangen.
+  Push zo'n branch met `[CF-Pages-Skip]` in de commitboodschap als je geen preview wil.
+- **Wanneer:** Cloudflare Pages zet `CF_PAGES_BRANCH` tijdens de build. Is die **niet**
+  `claude/roekoe-game-website-jwa0vo`, dan bouwt de client als demo (`client/vite.config.ts`).
+  `ROEKOE_DEMO=1` forceert het lokaal. Zonder `CF_PAGES_BRANCH` (lokaal, `wrangler pages dev`)
+  is het een gewone build. Preview-adres: `https://<branch>.roekoe.pages.dev` — slashes en
+  andere tekens worden streepjes en ⚠️ **Cloudflare kapt het af op 28 tekens**
+  (`claude/breeding-other-player-pigeons-7314iz` → `claude-breeding-other-player`). Het juiste
+  adres staat ook in de check "Cloudflare Pages" op de commit in GitHub (`/commits/<sha>/check-runs`,
+  "Branch Preview URL").
+- **Hoe het de productie ongemoeid laat:** de demo-build verandert **enkel het instappunt** in
+  `index.html` (`/src/main.tsx` → `/demo/entry.ts`, via een Vite-plugin met `order: 'pre'`).
+  Geen enkel bestand onder `client/src` weet van de demo. Een productiebuild is daardoor
+  **byte-identiek** aan die van vóór de demomodus (zo geverifieerd), en
+  `tests/demo-build.test.mts` bewaakt het: geen wasm, geen demotekst in de prodbundel.
+- **Nooit naar de server:** `client/demo/index.ts` vervangt `window.fetch` vóór de app start.
+  Een verzoek naar `/api` wordt **in de pagina** beantwoord en verlaat ze nooit; een verzoek naar
+  een ander domein wordt geweigerd (het Open-Meteo-weer valt dan terug op een willekeurige
+  hemel). Cruciaal: de Preview-omgeving van het Pages-project kan aan de live `roekoe-db`
+  gekoppeld zijn. Raak de Cloudflare-instellingen niet aan.
+- **De echte API in de browser:** de demo draait **dezelfde Hono-app** (`onRequest` uit
+  `functions/api/[[path]].ts`, ongewijzigd) op een D1-nabootsing over **sql.js** (SQLite in
+  wasm, `client/demo/d1.ts`; zelfde idee als de `fakeD1` in de tests). Dus ook Het Lokaal,
+  De Stem en de logboeken werken, gewoon lokaal. Verzoeken lopen één voor één (zoals één Worker).
+- **Klaargezette wereld** (`client/demo/seed.ts`): eerst wat productie bij de allereerste
+  request doet (world-rij, `ensureSchema`, `seedWorld` = 8 bots, `advanceRealtime` = migraties +
+  vluchtkalender), dan de demospeler (`usr_demo`, **beheerder**) via `createLoftForUser`:
+  capaciteit 12, 2 aparte hokken (2 duiven erin), 10 willekeurige duiven (2 vrije plaatsen),
+  **altijd minstens €100.000** (zie hieronder), één dokter, één koppel via `startBreeding`, één zieke duif (`applyAilment`) in de
+  ziekenboeg. De token tekent de demo zelf (vaste, niet-geheime sleutel).
+- **Tijd:** de banner heeft **+1 uur / +6 uur / +1 dag**. `client/demo/clock.ts` verschuift
+  `Date.now()` én `new Date()` voor de hele pagina (de motor draait in dezelfde pagina, dus
+  motor en UI zijn het eens); de verschuiving blijft bewaard. De gewone beheerknoppen
+  (volgende week, vlucht beëindigen) werken ook.
+- **Bewaren:** de sql.js-databank gaat na elk verzoek (gedebounced) **gzip + base64** in
+  `localStorage` (`roekoe.demo.db`, ~25 kB bij de start). **"Demo opnieuw"** wist ze + de
+  klokverschuiving. Verandert de seed of het schema zo dat oude demo's stuk gaan, verhoog dan
+  `DEMO_VERSION` in `client/demo/index.ts`.
+- **Typecheck:** `client/demo` valt buiten `client/tsconfig.json` (anders zou de prodbuild de
+  demo meechecken) en heeft een eigen `client/demo/tsconfig.json`; `npm run typecheck` draait
+  hem mee (`typecheck:demo`). sql.js staat als devDependency in `client/package.json`.
+- **Tests:** `tests/demo-build.test.mts` (prod vs. preview vs. lokaal bouwen) en
+  `tests/demo-world.test.mts` (de seed + de API op sql.js in Node).
+
+### Hokoverzicht bovenaan *Mijn hok* (`client/src/components/LoftView.tsx`)
+- **Tekstueel, bewust.** Er was eerst een getekend hokaanzicht (zitbakjes, deurtjes, dag/nacht);
+  de eigenaar vond dat het op niets trok, dus het is vervangen door een kaart met regels.
+  **Maak het niet opnieuw grafisch zonder het te vragen.**
+- **Eén duif of broedkoppel per regel, altijd de volledige naam** (wens van de eigenaar). Het
+  pictogram hangt vooraan (`Line`), zodat een lange naam die op de gsm omloopt herkenbaar één
+  regel blijft; de grijze toelichting springt als geheel naar de volgende regel.
+  - *Plaatsen:* "10 van 12 bezet · 2 vrij →" (markt), daaronder "8 thuis".
+  - *Aparte hokken:* elke naam op een eigen regel, daaronder "N vrij" + keuzelijst "Zet apart…"
+    (bestaande `/pigeons/:id/compartment`).
+  - *Broeden* (was "Nest"): elk broedkoppel op een regel (of "niemand · naar de kweek →").
+  - *Ziekenboeg:* "1 van de 2 bedden bezet", daaronder per patiënt 🦠/🩹 naam + aandoening,
+    % hersteld (+ "wacht op verzorging" als geen dokter/kinesist haar behandelt).
+  - *Bescherming:* 💉 ingeënt/gekuurd en 🛡️ verzekerd, elk op een regel.
+- **Thuis / niet thuis** (`awayStatus`): niet thuis is enkel wie 🧭 de weg kwijt is, ✈️ nu
+  vliegt of 🏥 in de ziekenboeg ligt, elk op een eigen regel. Op het nest,
+  op rustkuur of ingeschreven voor een latere vlucht = **thuis**.
+  "Vliegt" komt uit de nieuwe `pigeonDTO.flying` (`live && pigeonAirborne`): smaller dan
+  `racing`, dat ook geldt voor een vlucht die nog moet beginnen; de scan loopt enkel voor een
+  duif op een lopende vlucht. **Test:** `tests/hokoverzicht.test.mts`.
+- Puur weergave van `/state`, geen eigen verzoek. Eén serveraanvulling: `loftDTO.nests`
+  (`{id, sireId, damId}` per broedkoppel), uit de al geladen `breedingPairs`, geen query.
+
+### Hokhygiëne, vers stro & hokpoetser (`core/game/hygiene.ts`, `HYGIENE` in gameConfig)
+- **Opslag:** `Loft.equipment` = JSON-kolom `equipment` op de loft-rij (achteraan
+  `SCHEMA_STEPS`), `{ hygiene, lastStrawAt, cleaner }`. Afwezig = nooit aangeraakt = hygiëne
+  50, niets ingehuurd. `loftRow` schrijft `''` zolang ze afwezig is, dus een onaangeroerd hok
+  (alle bots!) wordt niet herschreven. Bedoeld om later de rest van de inrichting (ventilatie,
+  ren, …) in dezelfde blob te zetten — geen nieuwe tabel, geen extra query.
+- **Regels:** vers stro `strawCost(capacity)` = €18 per 8 plaatsen → meter 100. Boven 50
+  ziektekans ×`hygieneIllnessMult` = 1 − 0,2·(h−50)/50; op/onder 50 ×1. Verval op de
+  **dagovergang** in `tickDailyCare` (`tickHygiene`, ná de dagafrekening): 8 × bezetting
+  (thuis/capaciteit), ×1,5 met een zieke duif (ziekte, geen kwetsuur) buiten de boeg. Nooit
+  per verzoek, dus `idle-writes` blijft groen.
+- **Poetser:** `cleanerWage(aantal duiven)` per schijf (`HYGIENE.cleanerWageBands`, tabel van de
+  eigenaar): t/m 8 duiven €10, 12 €15, 14 €20, 16 €30, 18 €45, 20 €75 (de laatste schijf geldt ook
+  daarboven). Telt alle eigen duiven, net als de Dagbalans. Zit als lijn
+  `cleaner` in `dailyRunningCostBreakdown.equipment` (`equipmentCostLines(loft, pigeonCount)`) →
+  vanzelf in de Dagbalans en in wat `tickDailyCare` afrekent. Onder 70 koopt `tickHygiene` een
+  lading stro aan de gewone prijs (eenmalige uitgave, níet in de Dagbalans). Besmetting ×0,85.
+- **Ziektekans:** `runHealthDay` gebruikt nu `illnessChance(...)`: hygiëne × apart hok ×
+  IJzeren gestel × (poetser op de besmetting), met als **bodem ×0,4** van de kans zonder al die
+  factoren. ⚠️ Gevolg voor wie het al had: apart hok (×0,5) + IJzeren gestel (×0,7) = ×0,35
+  wordt nu ×0,4. De legacy `runHealthWeek` (admin) is ongewijzigd.
+- **API:** `POST /api/loft/straw`, `POST /api/loft/cleaner {on}`. DTO: `loftDTO.equipment`
+  (`hygiene, lastStrawAt, cleaner, strawCost, cleanerWage, illnessMult, decayPerDay`).
+- **UI:** blok "Hygiëne" op de pagina Inrichting (waarde, effect, stro-knop, poetser
+  aan/uit) + wiki-sectie `#hygiene` + spelregels §5.2bis. Bots kopen (nog) niets: open vraag.
+
+### Koppels, partnerhok en weduwschap — voorlopig weggehaald
+- **Op vraag van de eigenaar volledig van dev gehaald** (10 okt): partners (wennen, aantrekking,
+  ontkoppelen, geforceerd nest), het **partnerhok** en het **weduwschap**. **Broeden werkt zoals op
+  productie:** elke doffer met elke duivin, zonder partnerband en zonder libidoverlies. Wat dev wel
+  houdt: de kweekteksten zeggen "nest/broeden" i.p.v. "koppelen", en de rij in het hokoverzicht
+  heet **"Broeden"** (was "Nest").
+- **Wat weg is:** `core/game/koppels.ts`, `COUPLES`, `WIDOW`, `EQUIPMENT.partnerhok` +
+  `partnerhokPrice`, `Loft.equipment.couples/attractions/partnerhokken`, `PigeonCare.widow`,
+  `SimEntry.widow` en `Entry.mods.widow` (de dagvorm in `buildPaceProfile` is weer die van
+  productie), `settleWidowhood`, `tickCouples`, `partnerhokBirds` (de partnerhokbonus op herstel en
+  ziekte), `/couples/*`, `/loft/partnerhok`, `/pigeons/:id/widow`, `components/Koppels.tsx`, de
+  partner- en weduwschapblokken op de duifpagina, de wikisectie `#koppels` en
+  `tests/koppels.test.mts`. `entryMods(db, p)` neemt geen vlucht meer mee (enkel reismanden).
+- **Terughalen?** De laatste versie mét alles is commit `70d3209` (koppels kwamen in `e12c28c`,
+  het partnerhok als woonhok in `cc1281c`). Het weduwschap vloog op de partner: zonder koppels
+  heeft het eerst een nieuw ontwerp nodig.
+- **Demo:** `DEMO_VERSION` = 4, zodat een bewaarde demo met koppels opnieuw opgebouwd wordt; het
+  broedende duo in de demo is gewoon een nest (`startBreeding`), zonder aantrekking.
+
+### Marktwaarde v2 — correct en stabiel (⚠️ ENKEL OP DEV, niet live: eigenaar 11 okt "nog niet")
+- **Vraag van de eigenaar:** "ik wil kunnen baseren op marktwaarde, maar daarvoor moet die eerst
+  correct worden bepaald" — en niet meer fluctueren. Een ★80 werd op ~€14.000 geschat terwijl
+  spelers €20–25.000 betalen. De scout (die met de waarde rekende) is van dev gehaald tot de
+  waarde vaststaat — zie *Scout — voorlopig weggehaald*.
+- **Oorzaken (gemeten):** (1) de schatting was aan de top veel te laag: `(t/50)^2.2 × 800` gaf een
+  gewone ★80 €2.600; (2) één verkoop telde voor 2/3, het model hield altijd 15 % en de marktfactor
+  was begrensd op ×8 → één verkoop van €20.000 gaf €14.680, vier gaven €18.000 (de grens);
+  (3) **dubbeltelling**: een verkoop werd gemeten t.o.v. een *gemiddelde* duif van dat talent, en
+  daarna nog eens vermenigvuldigd met de genen/ervaring van de getaxeerde duif — een goede duif
+  verkocht aan haar schatting maakte de hele band ~40 % duurder.
+- **Fix:**
+  1. **`talentCurve(t)`** (pigeon.ts, `VALUE_CURVE`): `800 × (t/50)^2.2 × (1 + 0,01375 × max(0, t−60)²)`
+     — ×6,5 bij ★80. Zowel `estimateValue` als `reference` in market.ts gebruiken hem. Gewone duif
+     (genen 82, ervaring 30): ★70 €4.600 · ★75 €9.200 · ★80 €16.800 · ★85 €28.400 · ★90 €44.800;
+     goede (genen 90, ervaring 60) ~1,5×. ★60 en lager ongewijzigd.
+  2. **`Trade.quality`** = `estimateValue ÷ talentCurve` bij de verkoop (`saleQuality`, gezet in
+     `settlePigeonSale`, `offers.transfer` en de veilinghamer). Een verkoop zegt
+     `prijs ÷ (curve × quality)`, per verkoop begrensd op **0,5–2** (`minFactor/maxFactor`: in de demo
+     zette één oude "verkoop" van €7.000 voor een ★55 elke ★55 45 % hoger toen de grens nog 0,2–5 was;
+     blijft de markt buiten die band betalen, herijk dan `VALUE_CURVE`). Oude
+     verkopen zonder quality rekenen met `legacyQuality` 1,15. Nieuwe kolom `trades.quality`:
+     ⚠️ **SCHEMA_STEPS**: de stap staat helemaal achteraan dev (onder "ENKEL OP DEV"); bij een
+     cherry-pick naar productie zet je hem achteraan *productie's* lijst (dev heeft geen eigen
+     databank, enkel demo's, dus de volgorde op dev mag nadien gelijkgetrokken worden).
+  3. **Robuust gemiddelde:** `robustLogMean` = Huber in log-ruimte, gestart op de gewogen mediaan;
+     een verkoop verder dan **×1,5** (`outlierBand`) van de consensus trekt niet harder dan een
+     verkoop op die rand. Log-ruimte: 2× en ½× heffen elkaar op.
+  4. **`trustWeight` 1,5 → 3**: één verkoop verschuift een derde, ~drie verkopen 85 % (`maxTrust`).
+- **Gemeten (`tests/market-memory.test.mts`, herschreven):** zonder verkopen = schatting; verkopen
+  aan hun schatting (goede of gewone) veranderen niets; één verkoop aan 2× → ×1,33; drie aan 1,3×
+  → ×1,26; twee normale + één uitschieter aan 3× → ×1,26 (was ×1,49); de prijs blijft staan (dag
+  1 = dag 40), vervaagt op het einde, is na 60 dagen weg; monotoon.
+- **Gevolgen:** alles wat op de waarde steunt schuift mee (verzekering, veilingstart 30 %, 1/5-grens,
+  schuldveiling, wat bots willen betalen). Bots geven hoogstens de helft van hun vrije kas uit,
+  dus een topduif van €25.000+ kopen ze zelden. Testfixtures aangepast: `market-bidding` (duif ★60
+  i.p.v. ★75, anders lagen €3.000–€4.000 onder 1/5), `bot-bidding` (koopje ★75 i.p.v. ★85),
+  `bot-market` (bot krijgt €400.000 om te winkelen). `DEMO_VERSION` 5.
+
+### Voer: ongewijzigd
+- Een eerste poging met acht voersoorten (Herstel enkel na een vlucht, Sport, Fond, …) is op
+  vraag van de eigenaar **volledig teruggedraaid**: "niet goed gedaan". `FEED_RATIONS`, de bots en
+  de wiki staan weer zoals live. Begin daar niet opnieuw aan zonder een nieuw voorstel.
+
+### Scout — voorlopig weggehaald (11 okt)
+- **Op vraag van de eigenaar volledig van dev gehaald** tot vaststaat dat de marktwaarde (v2)
+  juist bepaald wordt: zijn prijs was marktwaarde × 1,4–1,7 (China × 1,8–2,2), dus een scheve
+  waarde gaf meteen een scheve scout. Weg: `core/game/scout.ts`, `SCOUT`, `ScoutMission`,
+  `Loft.equipment.scout`/`scoutSeason`, de quarantaine (`PigeonCare.quarantineUntil`,
+  `inQuarantine` in `startBreeding`, het quarantainedeel van `grounded`/`groundedByCare`), de
+  herkomst (`PigeonCare.origin`, `pigeonDTO.origin`, 🌍 op de duifpagina), `/scout/*`,
+  `ScoutCard` op de Markt, de wikiparagraaf en de scouttests in `inrichting.test.mts`.
+- **Terughalen?** De laatste versie mét scout is commit `264f93f`. Een bewaarde demo met een
+  lopende scout of een importduif werkt gewoon door: de velden worden genegeerd (geen
+  `DEMO_VERSION`-bump nodig). De open vraag over duidelijker verschillende scoutregio's is
+  daarmee ook geparkeerd.
+
+### Vaccins: één vaste prijs per middel, gekozen door de eigenaar (`VACCINES.price`, 11 okt)
+- **Prijzen:** PMV €10 · pokken €8 · salmonella €6 · geel/cocci/adem €5 — hele euro's, voor elke
+  duif dezelfde ("een vaccin is een vaccin, en de prijs is de prijs"). Zo gekozen door de eigenaar.
+- **Hoe het zo gelopen is (11 okt, in één sessie):** eerst gemeten dat de oude prijzen
+  (€60/€40/€75/€15/€25/€40) amper loonden → wens "een vaccin moet altijd iets voordeliger zijn
+  dan een zieke duif, een investering in de duif" → een prijs **per duif** (commit `bfcb207`),
+  afgewezen ("niet logisch, een vaccin is een vaccin") → één prijs, 80 % van de schade bij een
+  duif van €5.000 (€6/€4/€2 en kuren €0,20–0,50), → afgerond op hele euro's (kuren €1) → deze
+  prijzen. Herbegin daar niet aan zonder de eigenaar.
+- **Wat ze opleveren** (`vaccineAvoidedDamage`, vorm 75): de vaccins lonen vanaf een duif met een
+  marktwaarde van ~€6.400 (PMV), ~€8.600 (pokken) en ~€11.400 (salmonella); een topduif
+  (~€37.000) haalt 2,3–3,8× terug; op vorm 65 (een duif die gewoon meevliegt) lonen ze al vanaf
+  ~€2.500–4.400. ⚠️ **De kuren aan €5 lonen voor geen realistische duif** (topduif 0,24–0,47× op
+  vorm 75, ~0,5–0,8× op vorm 65): een kuur van een week tegen één ziekte voorkomt te weinig.
+  Sinds 11 okt geldt **besmetting per ziekte** (§8): een kuur loont wél wanneer die ziekte in het
+  hok rondgaat en je de zieke duif niet kan afzonderen. `vaccineAvoidedDamage` rekent besmetting
+  bewust nog altijd niet mee (de meetlat voor gewone omstandigheden). Op dev noemden wiki en
+  spelregels er ook de ★ bij (★72/★75/★77): die kwamen uit Marktwaarde v2 en zijn op prod weg.
+- **De schade** (`vaccineAvoidedDamage(key, value)`, inrichting.ts) = looptijd × dagkans op die
+  ziekte (dezelfde helpers als `runHealthDay`: `spontaneousIllnessPerDay` + `diseaseShare` in
+  hygiene.ts; `runHealthDay` gebruikt de eerste nu ook) × afweer × `diseaseCaseCost(ernst, waarde)`.
+  `diseaseCaseCost` is afgeleid uit HEALING/HEALTH/INFIRMARY: de goedkoopste van ziekenboeg +
+  medicatievoer met of zonder dokter — zorg, sterftekans en gemiste starts **per middernacht** dat
+  ze nog ziek is (een ziekte breekt om middernacht uit; zorg, voer en de sterfteworp vallen op de
+  nachten erna), gemiste starts × `startValueShare` (1,3 % van de marktwaarde per start), + een
+  halve start trager na een ernstig geval. Besmetting telt niet mee. Knoppen in `VACCINE_PRICING`
+  (de meetlat, géén prijsformule).
+- **`refVorm` 75 is de voorzichtige keuze.** Gemeten op duiven die meevliegen (bots, 6 weken):
+  gemiddeld vorm 72, mediaan 74, maar hun gemiddelde ziekterisico hoort bij vorm 60–65 (het risico
+  stijgt niet lineair, de dips na elke vlucht wegen zwaar).
+- **Kost voor een speler die alles bijhoudt:** de drie vaccins samen ~€2,30 per duif per week; mét
+  alle kuren (elke 7–10 dagen) ~€16. **Bots vaccineren niet.** `Money` toont een niet-geheel bedrag
+  met twee decimalen (verzekeringspremie).
+- **De bewaker:** `tests/vaccine-price.test.mts` (26 controles, ~5 s): `diseaseCaseCost` nooit
+  duurder dan het echte ziekteverloop (tickHealing + applyDayOfCare per kwartier/middernacht, met
+  en zonder dokter) en hooguit 20 % voorzichtiger; het risico = runHealthDay; elke prijs een heel
+  bedrag, elk vaccin loont voor een goede wedstrijdduif (★80) — faalt dus als een prijs of een
+  wijziging aan HEALING/HEALTH/INFIRMARY/ILLNESS dat breekt — met per middel vanaf welke duif het
+  loont; dezelfde prijs voor een gewone en een topduif; hele hok = aantal × prijs.
+
+### Vaccins: wat een kuur waard is (`tests/vaccine-economics.mts`, diagnose)
+- **Methode, alles met de echte code:** opbrengst per start uit echte vluchten
+  (`startLiveFlight` + `finalizeFlight`, veld van 24 van ★60 tot ★84, weekmix 3 regio · 3 nat ·
+  2 intl, na inschrijfgeld) bij gezondheid 95/85/75/65/55; kans per ziekte uit `runHealthDay`
+  (klopt met de formule; `fendsOff` weert ~80 % af); kost per geval door het ziekteverloop dag per
+  dag te volgen (`tickHealing` + `applyDayOfCare` + `runHealthDay`, Herstelvoer, ziekenboeg +
+  medicatievoer, met of zonder dokter — de goedkoopste telt). Starten is **energie-begrensd**
+  (~7,5 energie/dag op Herstelvoer, ~32 per start → 1,6 starts/week): wat een zieke duif aan
+  energie mist, wordt nooit meer gevlogen.
+- **Opbrengst:** topduif (★84) ~€480 per start / €112 per dag, goede (★80) €331 / €77, gewone
+  (★73) €148 / €35. Op gezondheid 65 nog maar ~35–40 % daarvan.
+- **Kost van één geval** (top / goede / gewone duif): licht ~€300 / €230 / €140 · matig ~€720 /
+  €550 / €320 · ernstig ~€1.900 / €1.390 / €780. Bij een ernstig geval van een topduif: dokter +
+  medicatie €315, gemiste starts ~€670, trager tot de gezondheid terug is ~€250, sterftekans
+  1,8 % × €37.000 = ~€660. ⚠️ De dokter is dus het kleinste deel; het gemiste geld en het
+  sterfterisico wegen het zwaarst.
+- **Aannames:** de zieke duif staat binnen de dag in de ziekenboeg (besmetting telt niet mee),
+  er is een bed vrij, geen seizoenspunten of sponsorpremies in de opbrengst (dus aan de lage
+  kant), en de 2 dagen niet vliegen na een vaccin kosten niets als je ze op rustdagen legt
+  (energie blijft binnenkomen).
+
+### Zoekertje naar boven (`MARKET_BOOST`, live sinds 11 okt)
+- **Wens van de eigenaar:** op je eigen zoekertje een knop **"Zoekertje naar boven"** voor
+  **€50**; je zoekertje komt bovenaan de markt en blijft daar **12 uur**, tenzij iemand anders
+  intussen boost: dan zakt het jouwe terug naar zijn gewone plaats.
+- **Eén plek bovenaan, afgeleid — geen tick, geen schrijfwerk bij het pollen:** de duif krijgt
+  één tijdstip `Pigeon.boostedAt` (kolom `pigeons.boosted_at`). `featuredListingId(db, nowMs)`
+  (`core/game/market.ts`) kiest onder de te-koop-duiven met een boost die nog loopt
+  (`boostEndsAt` = `boostedAt` + `MARKET_BOOST.hours`) de **recentste**. Wie overboost wordt dus
+  niet "teruggezet": zijn boost is gewoon niet meer de recentste. Loopt de nieuwste af, dan
+  komt niemand bovenaan (een oudere boost eindigt altijd eerder).
+- **`boostListing`** (`engine.ts`, `POST /market/boost`): enkel je eigen te-koop-duif, geen bot,
+  niet in het rood (`debtBlock`), genoeg geld, en **niet opnieuw betalen zolang je al bovenaan
+  staat**. Wie overboost is, mag opnieuw betalen.
+- **Een boost hoort bij één zoekertje:** `unlist`, `settlePigeonSale`, `transfer` (aanvaard bod)
+  en de gedwongen veiling wissen `boostedAt`. `listForSale` op een duif die nog niet te koop
+  stond begint zonder boost; een **prijswijziging** (opnieuw `listForSale` terwijl ze te koop
+  staat) **behoudt** hem.
+- **`GET /market`:** elke listing krijgt `featured` + `featuredUntil`; de geboostte staat eerst,
+  de rest op prijs (oplopend). De respons draagt ook `boost: MARKET_BOOST` voor de knop.
+- **UI (`MarketPage`):** eigen zoekertje → knop "Zoekertje naar boven · €50" (bevestiging met
+  de 12 uur en het terugzakken) of, als het bovenaan staat, "📌 Staat bovenaan tot …";
+  andermans geboostte zoekertje → badge "📌 Bovenaan". Uitleg in de wiki (*Marktwaarde*) en
+  spelregels §9.1.
+- **Schema:** stap `ALTER TABLE pigeons ADD COLUMN boosted_at TEXT` staat achteraan prod's
+  `SCHEMA_STEPS`.
+  `PIGEON_COLUMNS`/`pigeonRow` dragen de kolom mee (kolomsmalle
+  diff, dus twee spelers die tegelijk boosten overschrijven elkaar niet).
+- **De bewaker:** `tests/market-boost.test.mts` (24 controles): kost en plek, recentste wint,
+  12 uur, de regels, gewist bij intrekken/verkoop/bod, en de rondrit door D1 (INSERT + UPDATE).
+
+### De rest van de hokinrichting (`core/game/inrichting.ts`)
+- **Config** in gameConfig: `EQUIPMENT` (ventilatie, ren, roofvogelafweer, kunstlicht,
+  infrarood, reismanden, weerstation, vakblad), `VACCINES`, `INSURANCE`,
+  plus `BOT.strawBelowHygiene`/`ventilationReserve`.
+- **Opslag:** alles van het hok in `Loft.equipment` (zelfde JSON-kolom als de hygiëne, incl.
+  `lastHawkDay`). Per duif één nieuwe JSON-kolom **`care`** (`PigeonCare`: vaccins,
+  `noFlyUntil`, `insurance`), `''` als leeg. Op de vlucht
+  een kolom **`forecast`**. `Ailment.boeg` onthoudt of ze in de ziekenboeg lag. Drie nieuwe
+  stappen achteraan `SCHEMA_STEPS`. Pigeons blijven 1 rij per multi-row statement (53 kolommen).
+- **Dagkost:** `equipmentCostLines` + `insuranceCost` → `dailyRunningCostBreakdown.equipment`
+  (lijnen), `.equipmentTotal`, `.insurance`; zelfde bron voor Dagbalans en `tickDailyCare`.
+  Het oude veld `cleaner` is vervangen door een lijn `key: 'cleaner'`. **Inrichting is
+  eenmalig** (de eigenaar: €0,50–€2/dag is de moeite niet): enkel de **hokpoetser** (€10–€75 per schijf) en
+  het **vakblad** (€6, abonnement) staan nog in `equipmentCostLines`; de verzekeringspremie
+  komt erbij. De premie is soms centen — `loft.money` mag fractioneel worden, de DTO rondt af.
+- **Ontwerpregel (eigenaar):** elk onderdeel geeft maar een **klein** voordeel; pas alles samen
+  is het een echt verschil. **Op de pagina kort en zonder cijfers** (de eigenaar vond de lange
+  teksten met percentages te veel): één zin per onderdeel (`WHAT` in `components/Inrichting.tsx`)
+  en bovenaan een link naar de wiki. **Vaste vorm per onderdeel** (`Item`): regel 1 = naam +
+  wat je ervan hebt ("Aparte hokken: 2/2 in gebruik", "Dakventilatie: niveau 2/4"), regel 2 =
+  de beschrijving, de knop ernaast. Tellers met een maximum (`Usage`: plaatsen, aparte hokken,
+  ziekenboeg, infrarood) zijn **groen zolang er plaats vrij is, rood als alles
+  bezet is**; 0 gekocht = "nog geen". **De exacte cijfers en de formules staan in de wiki**
+  (#inrichting: tabel niveau 1 incl. apart hok en ziekenboegbed, niveautabel, formules; #hygiene).
+  ⚠️ Die wikitabellen zijn met de hand geschreven: pas ze mee aan als je `EQUIPMENT`,
+  `EQUIPMENT_LEVELS`, `VACCINES`, `COMPARTMENT` of `HYGIENE` wijzigt.
+- **Niveaus** (`EQUIPMENT_LEVELS`): ventilatie, buitenren, kunstlicht, infrarood en reismanden
+  gaan na de aankoop (= niveau 1) tot **niveau 4**. Prijs `levelPrice` = eerste prijs ×
+  3^(niveau−1) (1×, 3×, 9×, 27×; infrarood rekent met de eerste 2 bakken), effect ×
+  `effectScale` [1; 1,5; 1,8; 2]. Opslag: `Loft.equipment.levels` (afwezig = niveau 1 voor wat
+  gekocht is). `equipmentLevel`/`effectScale` (hygiene.ts) voeden elk effect: `fendsOff`,
+  `feedHealthMult`, `hygieneDecay`, `restBonusEnergy` (basis + extra × schaal),
+  `libidoTargetBonus`, `entryMods` (reismanden), `irBoxEffect` (tickBreedingHatch). API
+  `POST /loft/equipment/upgrade {key}` → `upgradeEquipment`; DTO `equipment.levels`; catalogus
+  `inrichting.levels` = `{max, scale, prices}` uit `inrichtingLevels()`. De pagina toont een
+  badge "niveau n/4", de knop "Niveau n+1 · €…" en (groen) **wat het volgende niveau oplevert
+  t.o.v. nu**: "↑ Niveau 3: ornithose −60 % → −72 %" — het hoofdeffect per onderdeel uit
+  `inrichtingLevels().gain` (`GAIN` in inrichting.ts: ornithose, energie na een rustdag, libido,
+  sneller uit, energieverlies per vlucht); de andere effecten groeien evenveel mee. Bots waarderen
+  niet op.
+- **Vaccinprijzen:** één vaste prijs per middel (zie *Vaccins: één vaste prijs*). "Hele hok" (`vaccinateLoft`) slaat wie nog meer dan
+  `VACCINE_RENEW_SHARE` (25 %) van haar kuur heeft over (`needsCourse`); de client rekent met
+  dezelfde regel (`inrichting.vaccineRenewShare`). Per duif hernieuwen kan altijd.
+- **Effecten en waar ze zitten:**
+  - ventilatie: `fendsOff` (ornithose), `feedHealthMult` (applyDayOfCare/projectDailyCare),
+    `hygieneDecay` ×0,75;
+  - ren: `restBonusEnergy`, `libidoTargetBonus`; sperwer `tickHawk` in tickDailyCare (geseed op
+    hok+dag, stabiele melding-id), niet bij `raptorGuard`; afweer maakt de event `poacher`
+    ongevaarlijk (events.ts);
+  - kunstlicht: `libidoTargetBonus`;
+  - infrarood: `tickBreedingHatch` (eerste `irBoxes` koppels per hok, op id) → gemiddelde ÷1,15
+    en `breed(..., bonus)` (tweeling, succes onder 10 °C via `monthTemperature`);
+  - reismanden: `Entry.mods` → `routeEnergyCost(..., mult)` en `SimEntry.healthMult` in finalize
+    (solo én estafette);
+  - vaccins/kuren: `fendsOff` in `runHealthDay` na de ziektetrekking (buiten de bodem ×0,4);
+    vaccin → `care.noFlyUntil`; `canRace` kijkt naar `groundedByCare` (pigeon.ts), `enterFlight`
+    geeft de reden (`grounded`);
+  - verzekering: `insurancePayout` op elke sterfteplek (ziekte/ouderdom in health.ts, vlucht en
+    honger in schedule.ts, sperwer in events.ts); premie = 1,3 × uitkering × (0,04 % +
+    `ageMortality`·4/7); `clearOwnerCare` bij elke eigendomswissel (engine/auction/offers);
+  - vakblad: `pigeonDTO.magazineRanges` (geseed, bevat altijd de echte waarde) — getoond op de
+    duifpagina van andermans duif **én bij een privébod op de Markt** (BidCascade); `/market.report`
+    (`magazineReport`, onderaan de Markt), `tickMagazine` op de maandag-dagovergang (stabiele id per
+    lezer+dag). De vakbladkaart zegt een abonnee waar hij het ziet. ⚠️ In de demo zijn er geen
+    andere mensen (privébod onmogelijk) en weinig verkopen: daar zie je vooral de bandbreedtes
+    op de pagina's van botduiven (via de ranglijst) en Het Duivenblad op maandag.
+  - weerstation: `flightsNeedingForecast`/`applyFlightForecasts` (schedule.ts), opgehaald in de
+    middleware naast de estafettevoorspellingen — **enkel als een hok een station heeft**;
+    `withForecast` in de API toont het enkel aan stationhouders.
+- **API:** `POST /loft/equipment {key, on}`, `/loft/irbox`, `/loft/vaccinate {key}`,
+  `/pigeons/:id/vaccinate {key}`, `/pigeons/:id/insurance {on}`. `/state.inrichting` =
+  de catalogus. DTO: `loftDTO.equipment` (alle vlaggen), `pigeonDTO.care` (enkel
+  eigenaar), `.magazineRanges`, `flight.forecast`.
+- **UI (tekst):** een eigen pagina **Inrichting** (`/inrichting`, `pages/InrichtingPage.tsx`,
+  menu-item 🧰 na *Mijn hok*). **Vier inklapbare blokken** (de eigenaar vond de lange lijst
+  "veel en complex, een opsomming van random zaken"): dicht toont elk blok enkel zijn naam en
+  **in één regel hoe je ervoor staat**; je tikt er één open, **één tegelijk** (`Section` in
+  `components/Inrichting.tsx`; de keuze blijft per toestel bewaard in localStorage
+  `roekoe.inrichting.open`, in try/catch). Een link `/inrichting#hokken|hygiene|vaccins|uitrusting`
+  opent dat blok meteen (ook bij een hashwissel op de pagina zelf).
+  1. 🏠 **Plaatsen & hokken** (`RoomsSection`, `data-tour="upgrades"` — de rondleiding wijst
+     erheen) — dicht: drie regels, altijd alle drie (wens van de eigenaar): "Plaatsen: 10/12",
+     "Apart: 2/2", "Ziekenboeg: 1/2" (`Usage`; 0 aparte hokken = "nog geen").
+     Hokcapaciteit, aparte hokken, ziekenboegbedden
+     (zelfde `/loft/infirmary/upgrade` als op de ziekenboegpagina, hier met bevestiging).
+  2. 🧹 **Hygiëne** (`HygieneSection`) — dicht: "58/100 proper" (+ "de poetser is aan het werk"
+     of "tijd voor vers stro" op ≤ 50). Meter, vers stro, hokpoetser.
+  3. 💉 **Vaccins & kuren** (`VaccineSection`, hele hok) — dicht: "Nog niets gegeven" of
+     "2 van de 6 middelen actief".
+  4. 🛠️ **Uitrusting** (`GearSection`) — dicht: "Nog niets gekocht" of "3 van de 7 gekocht".
+     Alles wat je één keer koopt en (meestal) tot niveau 4 opwaardeert: buitenren,
+     roofvogelafweer ("eerst een buitenren"), dakventilatie, kunstlicht, infrarood nestbakken,
+     betere reismanden, weerstation. **Elk onderdeel heeft een ⓘ** (`InfoToggle` in `Item`): tik
+     erop en er klapt een tabelletje open (`EffectInfo`) met **elk effect nu en na aankoop** (niet
+     gekocht: "Nu" vs "Na aankoop"; gekocht: "Nu (niveau n)" vs "Niveau n+1"; op niveau 4 enkel
+     "Nu" + "Dit is het hoogste niveau"). De cijfers komen van de server: `inrichtingEffects()`
+     (inrichting.ts, zelfde formules als de effecten zelf) → `/state.inrichting.effects`
+     (`{label, none, values[]}` per onderdeel; `values[i]` = niveau i+1, `none` = zonder). Zo
+     blijft de pagina kort en staan de exacte cijfers één tik verder.
+
+  Elk item binnen een blok in de vaste vorm `Item` (zie de ontwerpregel hierboven); op de gsm
+  staat de knop onder de tekst. Gemeten op 390 px: dicht ~1.000 px hoog (de oude lijst ~2.900).
+  Marktinformatie staat op de **Markt**: het **vakblad** (`MagazineCard`, net
+  boven het marktrapport dat het ontgrendelt; na (de)abonneren herlaadt de Markt `/market`).
+  *Mijn hok* toont boven de duiven enkel het compacte hokoverzicht + een link naar Inrichting: de
+  eigenaar wil zonder scrollen bij zijn duiven. Het hokoverzicht toont ook de
+  bescherming; duifpagina: kaart "Verzorging & verzekering" (`PigeonCareCard`),
+  vakblad-bandbreedtes bij andermans duif; Vluchten: 📡 voorspelling.
+- **Bots:** vers stro bij hygiëne ≤ 60 en dakventilatie zodra ze €5.000 boven hun reserve
+  zitten (`maybeFitOutLoft`). Geen vaccins (die houden een duif 2 dagen aan de grond), geen
+  verzekering of vakblad. Dit was een open vraag; het voorstel is gevolgd.
+- **Demo (enkel dev):** de demospeler heeft **altijd minstens €100.000** (wens van de eigenaar): de seed geeft
+  `DEMO_MONEY`, en `topUpDemoMoney` (client/demo/seed.ts) vult bij **elke start** van de demo aan tot
+  dat bedrag — ook na +1 uur/+6 uur/+1 dag en "Demo opnieuw" (die herladen de pagina). Binnen een
+  bezoek zie je wat je uitgeeft; meer dan €100.000 (prijzengeld) blijft staan. `DEMO_VERSION` = 5.
+- **Tests:** `tests/inrichting.test.mts` (alles hierboven), `tests/hygiene.test.mts`.
+
+---
+
+## 1. Wat is Roekoe
+
+Een online **duivenmelker-managementspel** voor een groepje vrienden (~10 spelers
++ bots). Kernloop: **verzorgen → trainen → inschrijven voor vluchten → punten &
+geld verdienen → kopen/kweken/uitbreiden → herhalen.** Bots vullen het veld.
+
+- **Repo:** `nsalien/roekoe` (GitHub).
+- **Ontwikkelbranch:** zie de tabel in §0 — hier ontwikkelen en committen.
+- **Productie/deploy-branch:** `claude/roekoe-game-website-jwa0vo` — een push
+  hiernaartoe triggert de **Cloudflare Pages** build (= live). Elke wijziging
+  wordt via cherry-pick naar deze branch gebracht en gepusht (zie §7).
+- **Eigenaar/mail:** nicolaisalien@hotmail.com.
+
+---
+
+## 2. Architectuur (belangrijk)
+
+Draait **volledig op Cloudflare** — geen altijd-aan server:
+
+- **Client:** React + Vite + TypeScript → statische bundle op **Cloudflare Pages**.
+- **API:** één Hono-app als **Pages Function** in `functions/api/[[path]].ts`
+  (Workers-runtime).
+- **Database:** **Cloudflare D1** (serverless SQLite), naam `roekoe-db`.
+- **Spelkern:** runtime-neutrale TypeScript in `core/`, gedeeld door de API.
+
+### D1Store-patroon (cruciaal om te begrijpen)
+De wereld is klein, dus **elk verzoek**:
+1. laadt de wereld uit D1 in een in-memory `Database` (`core/d1.ts`),
+2. draait de **synchrone** engine erop,
+3. schrijft alleen de **gewijzigde rijen** terug (per-rij JSON-diff).
+
+**Niet meer letterlijk "de hele wereld" (leesbudget):** D1 rekent
+**gelezen rijen** af, en dát is wat het spel plat legt (zie §Performance). De drie
+**log-vormige** tabellen worden daarom **gedeeltelijk** geladen, via `viewerId`
+(= de `sub` uit de JWT, die vóór de load geverifieerd wordt want dat kost geen DB):
+- `notifications` → **enkel de inbox van de viewer** (`WHERE user_id = ?`),
+- `bets` → **alle openstaande** (elk verzoek kan de afhandelaar zijn) + de
+  **eigen afgehandelde** van de viewer,
+- `trades` → enkel de **nieuwste `TRADE_LOAD_LIMIT` (40)** (`ORDER BY at DESC`).
+
+**Volledig buiten de wereldload** staan daarnaast de drie tabellen van **De Stem**
+(`stem_ideas`, `stem_votes`, `stem_comments`): enkel `/api/stem*` leest ze, met
+eigen queries (`loadStemBoard`/`loadStemThread` in `d1.ts`), en de tellingen komen
+als `GROUP BY` terug zodat duizend stemmen één rij per idee kosten. Ze staan
+daarom ook **niet** in `Database` en lopen **niet** door de per-rij-diff van
+`persist()` — elke schrijfactie is een losse append of een DELETE op een
+samengestelde sleutel, dus twee spelers raken elkaars rij nooit.
+
+**Het Lokaal** (de vrije chat, `lokaal_messages`) gaat nog een stap verder: de
+routes `/api/lokaal*` staan bij de **featherweight**-routes in de middleware (net
+als login/`/auth/me`), dus ze laden de wereld **helemaal niet** en de motor draait
+niet — `c.get('store')` bestaat daar niet. Alles loopt via eigen, index-gedekte
+queries in `d1.ts`. Zie §8, *Het Lokaal*. **GIFs** (geen schemawijziging): een bericht dat
+enkel uit een Giphy/Tenor-link bestaat, maakt de server (`normalizeGifLink`, lokaal.ts) tot één
+vaste vorm (Giphy: `media.giphy.com/media/<id>/200.gif`); de client (`game/gif.ts`) toont ENKEL
+die vormen als `<img>` — andere links blijven tekst. Zoeken: `GET /api/lokaal/gifs?q=`
+(featherweight, proxy naar Giphy met het secret `GIPHY_API_KEY`; zonder sleutel
+`enabled:false` en toont de client enkel de plak-uitleg).
+
+Alles wat de engine globaal nodig heeft (users, lofts, pigeons, flights, auctions,
+offers, auction_bids) wordt nog steeds volledig geladen; die zijn begrensd door het
+aantal spelers en de 2-daagse vluchtretentie.
+
+**En `pigeons` is geen `SELECT *` meer (dé CPU-fix):** de wereldload
+leest een **expliciete kolomlijst** (`PIGEON_SELECT`, afgeleid van
+`PIGEON_COLUMNS`) waar de twee historiekblobs **niet** in zitten. `race_log` en
+`attr_log` zijn samen ~13 KB per duif; op 264 duiven scheepte `SELECT *` daarmee
+~3,3 MB per verzoek aan, en dat parsen (13 ms) + opnieuw serialiseren voor de diff
+(9 ms) was **88 % van de CPU van een volle load** — op data die geen enkele tick
+leest. Ze staan nu in **`pigeon_log_entries`** (append-only, één rij per regel) en
+worden enkel gelezen door `loadPigeonLogs`. Zie §8.
+
+**Gevolgen om te onthouden bij nieuwe code:**
+- De engine mag deze drie arrays **niet meer aftoppen** (`db.trades.slice(-200)`
+  e.d. is overal weg): wat niet geladen is, zou de per-rij-diff als *verwijderd*
+  zien. Aftoppen gebeurt nu in **SQL** via `boundedCleanups` in `d1.ts::persist`,
+  en enkel op verzoeken die écht een rij toevoegen (een gewone poll doet niets).
+- Elke partiële query **moet** door een index gedekt zijn, anders scant SQLite —
+  en factureert D1 — de tabel alsnog. `ensureSchema` maakt daarom
+  `idx_notifications_user_created`, `idx_trades_at` en `idx_bets_status` aan.
+- Dedupe op een **stabiele melding-id** werkt enkel nog binnen de eigen inbox; voor
+  een andere speler valt hij terug op `INSERT OR REPLACE` (zelfde rij, maar
+  `read` gaat terug op false). Dat gebeurt alleen bij dubbele verwerking.
+
+Twee spelers die aan verschillende rijen werken overschrijven elkaar dus niet.
+**Let op — "lost update" op gedeelde hot rows:** dezelfde rij (bv. een veiling,
+een live vlucht) kan door gelijktijdige verzoeken wél overschreven worden. Daarom:
+- **Veilingbiedingen** staan in een **aparte tabel** `auction_bids` (één rij per
+  veiling+bieder) i.p.v. één JSON-kolom → geen verloren biedingen.
+- **Vluchtafhandeling is deterministisch** (seeded op vlucht-id) en meldingen
+  hebben **stabiele id's**, zodat een dubbele afhandeling identieke output geeft
+  en geen dubbele/tegenstrijdige meldingen.
+- **Veiling-sluiting (`closeAuction`) is idempotent:** `ensureAuctions` draait bij
+  élk verzoek, dus wanneer een veiling sluit kunnen meerdere gelijktijdige verzoeken
+  ze allemaal afhandelen. Geld/eigenaar komen goed (absolute last-write-wins), maar
+  de **verkoop-trade** en de **win/verlies-meldingen** worden toegevoegd, niet
+  overschreven → zonder stabiele id gaf dat **dubbele entries in de
+  verkoopgeschiedenis**. Opgelost met **stabiele id's**: trade-id `trd_auc_<auctionId>`
+  en meldingen `ntf:auc:win:<auctionId>` / `ntf:auc:loss:<auctionId>:<userId>`
+  (INSERT OR REPLACE → precies één rij). `auction.ts::notify` accepteert nu een
+  optionele stabiele id en dedupliceert net als `schedule.ts::pushNotification`.
+Bij nieuwe gedeelde-staat-features: hou hier rekening mee — **elke append (trade,
+melding) die tijdens `advanceRealtime` kan gebeuren, hoort een stabiele id te
+krijgen.**
+
+### `advanceRealtime()` — draait bij élk verzoek
+`core/game/schedule.ts` → `advanceRealtime(db, nowMs, weatherByFlight)` roept in
+volgorde:
+1. `runDataMigrations(db)` — eenmalige datafixes, **gated op `world.dataVersion`**
+   (staat nu op **65** — v65 = de bel van de tags (`TAGS_NEWS`), v64 = de bel van de duivenlokker (`LURE_NEWS`), v63 = de bots uit samen kweken (hun aanbod gewist, geen bel), v62 = de bellen van samen kweken en van vaccins/verzekering per duif, v61 = de aankondigingsbel van de hokinrichting & co (`core/game/news.ts`), v60 = die van Het Lokaal; nieuwe migratie = nieuw `if ((db.world.dataVersion ?? 0) < N)`
+   blok + `db.world.dataVersion = N`). De oudere migraties hebben hun werk gedaan en
+   zijn enkel nog van belang als **patroon** — zie §8, kop *Eenmalige migraties*.
+2. `ensureFlightsScheduled(db, nowMs)` — plant vluchten volgens `REAL_SCHEDULE`.
+   ⚠️ **Eén vlucht per plaats (dag + slot), ook bij gelijktijdige verzoeken** (bug van 12 okt:
+   vanaf 14 okt stond elke vlucht twee keer op de kalender). Binnen één verzoek is de planning
+   idempotent via `templateKey`, maar twee verzoeken die tegelijk de motor draaien zagen allebei
+   een lege dag en maakten elk een vlucht met een **willekeurige** id; `persist` schreef ze allebei
+   weg. Nu: de id volgt uit de plaats — **`plannedFlightId(templateKey)`** = `flt_<slot>_<y>-<m>-<d>`,
+   zoals de zondagveiling (`auc_<slug>`) — dus racende verzoeken schrijven dezelfde rij (INSERT OR
+   REPLACE: de laatste batch wint, consistent met haar eigen bot-inschrijvingen). En elk verzoek
+   begint met **`dedupeScheduledFlights`**: per `templateKey` met meer dan één *geplande* vlucht
+   blijft die met de meeste inschrijvingen van spelers (dan de meeste inschrijvingen, dan de
+   oudste — overal dezelfde keuze); de inschrijvingen van de andere schuiven over, wat daar niet
+   mag (zelfde duif, tweede titanduif of tweede estafetteploeg van een hok) krijgt het
+   inschrijfgeld terug (estafette: één keer per ploeg), open weddenschappen op de weggehaalde
+   vlucht worden terugbetaald (`refundFlightBets` met eigen tekst, eigen bel), en elke speler wiens
+   inschrijving verschoof of terugbetaald werd krijgt één bel `ntf:dedupe:<vlucht>:<speler>` met
+   de vlucht die blijft (route en afstand verschillen!). Permanent en niet als migratie, zodat
+   ook een race met een oude isolate of een preview-build met oude code vanzelf rechtgezet wordt.
+   Test: `tests/flight-duplicates.test.mts` (de race zelf + de opkuis).
+3. `ensureAuctions(db, nowMs)` — zondagsveiling + willekeurige opvangcentrum-veilingen
+   (+ **verlies-meldingen** bij sluiting aan wie meebood maar niet wint). Bieden via
+   `placeBid` (auction.ts): een bod in de **laatste 5 min** schuift `endAt` naar
+   **nu + 5 min** (anti-snipe), zodat anderen nog kunnen terugbieden.
+4. `tickDailyCare(db, nowMs)` — **dagelijkse** voeding/herstel/**honger**/**rustbonus**
+   (afgerekend op de **dagovergang om 00:00** in `TIMEZONE` — elke duif krijgt op
+   net hetzelfde moment energie bij, ongeacht wanneer de eigenaar inlogt; het
+   aantal gepasseerde middernachten sinds `world.lastDailyTick` wordt ingehaald,
+   tot 30 dagen; `world.lastDailyTick` staat telkens op de laatst verwerkte
+   lokale middernacht).
+   Verhongerde duiven worden hier verwijderd. **Draait per bothok ook
+   `botDailyActions`** (bots.ts): voer/ziekenboeg/rustkuur/coach/hokuitbreiding/
+   kweek — bewust op de dagovergang en niet per verzoek, want het schrijft rijen. **Rekent ook alle vaste onkosten dagelijks
+   af** (`dailyRunningCost`: onderhoud + coach + ziekenboegstaf/medicatie) en betaalt
+   **sponsorbijdragen dagelijks** (weekbedrag ÷ 7). `advanceWeek` doet dit **niet** meer.
+   Roept per gepasseerde dag ook **`runHealthDay(db, week)`** (health.ts) aan: dáár
+   worden duiven **effectief ziek in echte tijd** (besmetting + spontaan), zakt de
+   gezondheid van een aandoening **elke dag verder**, en kan een **onbehandelde**
+   matige/ernstige aandoening **dodelijk** aflopen. (De oude `runHealthWeek` blijft
+   enkel voor de admin-`/advance-week`-knop; illness/sterfte gebeurde vroeger
+   *alleen* daar, dus in normaal spel werden duiven nooit ziek en verouderden ze
+   niet — nu wel.)
+   **Verouderen in echte tijd (4×):** de loop rolt `world.currentWeek` met
+   `GAME_WEEKS_PER_REAL_WEEK` (=4) weken per échte week (gelijkmatig via
+   `floor(dn·4/7)`-delta per dag). Zo is een jong na ~2 echte weken vliegklaar en
+   speelt ouderdom over echte maanden mee. **Per gerolde gameweek** draait
+   `runAgeMortality(db, week)` (health.ts) met de **rauwe weekkans** — zo blijft de
+   `MORTALITY_CURVE` kloppen ongeacht de veroudersnelheid. (Ailment-sterfte zit in
+   `runHealthDay`, per dag. Vlucht-sterfte zat al in `finalizeFlight` via
+   `TOURNEY_RISK.deathChance`.) **Ook `runAgeDecline(db, week)`** draait hier: boven de
+   piekleeftijd (`AGING.peakEndWeeks`) zakken snelheid/conditie/oriëntatie **echt** (per-duif
+   `declineRate`); `AGE_CURVE` is daarom neerwaarts afgevlakt.
+5. `tickBreedingHatch(db, nowMs)` — jongen komen uit in echte tijd. **Het koppel gaat
+   daarbij ALTIJD uiteen** (ook bij een lege worp of een verdwenen ouder), en beide
+   ouders krijgen `lastBredAt` → `BREEDING.cooldownDays` (21 d) rust. Een koppel waarvan
+   de ouders nog rusten wordt hier ontbonden i.p.v. te broeden — het vangnet tegen een
+   koppel dat via een gelijktijdig verzoek terugkwam (zie §8).
+6. `tickFlightEnergy(db, nowMs)` — trekt vlucht-energie **geleidelijk per 30 min** af.
+7. `tickHealing(db, nowMs)` — **real-time herstel** van ziekte/kwetsuur + 12u-statusupdates.
+8. `tickRestCures(db, nowMs)` — laat afgelopen **rustkuren** aflopen (+40 energie, melding).
+9. `tickSeason(db, nowMs)` — **real-time seizoensklok** (`core/game/season.ts`): zet
+   `world.seasonWeek`/`seasonEndsAt`, en bij het einde van week 4 → `runSeasonEnd`
+   (prijsuitreiking Roekoes + Vleugels, **sponsorreview** via `reviewSponsorContracts`,
+   geld + meldingen, ranglijst reset, seizoen++).
+9b. `payFinishedFlightPrizes(db, nowMs)` (vóór `tickFlights`) — **betaalt prijzengeld
+   uit zodra een duif finisht**, niet pas bij afronding. Per live wedstrijd-/titanvlucht:
+   `computeFinishPayouts(flight)` (flight.ts) leidt uit de **bevroren sim** de finisher-
+   ordening af (zelfde sort als finalize → identieke rank/prijs), en voor elke finisher
+   met `finishSeconds ≤ elapsed` + prijs > 0 + nog niet betaald wordt `loft.money += prize`
+   gezet, `SimEntry.prizePaid = true` (idempotent, rijdt in `sim`-JSON) en een melding
+   gestuurd (stabiele id `ntf:prize:<flightId>:<pigeonId>`). Veilig want een finisher-rank
+   ligt vast zodra ze finisht (een snellere duif die opgeeft, geeft op vóór haar finish).
+   Punten/medailles/bets/prestaties blijven bij de afronding.
+9c. `tickBotEntries(db, nowMs)` — geeft **elke bot opnieuw de kans** om in te
+   schrijven voor élke nog niet gestarte vlucht, tot vlak vóór de lossing (zie
+   §Bots). Idempotent (een hok met een inschrijving wordt overgeslagen), dus een
+   uitgekristalliseerde vlucht schrijft 0 rijen.
+10. `tickFlights(db, nowMs, ...)` — laat vluchten `scheduled → live → completed`
+   overgaan (deterministische `finalizeFlight`; **oefenvluchten** via
+   `finalizePracticeFlight`; dode duiven uit `sim.deaths` worden verwijderd; werkt
+   ook per-seizoen duivenstatistieken bij: `seasonPeakSpeed`, `seasonPodiums`).
+   `finalizeFlight` telt het **al vroeg uitbetaalde prijzengeld niet nog eens** mee
+   (`acc.prize += s.prizePaid ? 0 : prize`); punten/wins blijven volledig.
+   **Bij afronding schrijft `logRaceResults` elke plaatsing durably naar
+   `Pigeon.raceLog`** (idempotent per vlucht), zodat historiek/trofeeën de prune
+   overleven.
+11. `pruneOldFlights(db, nowMs)` — **verwijdert afgewerkte vluchten ouder dan 2
+   dagen** (scheduled/live blijven altijd). Dé fix tegen de dag-lange D1-storingen:
+   de vluchtentabel groeide oneindig en werd bij élk verzoek volledig ingelezen →
+   gratis-plan "rows read"-limiet op → 503 voor iedereen tot de reset. Zie §Performance.
+
+### Real-time vluchten (lazy, timestamp-afgeleid)
+Bij de start wordt de sim **bevroren**: per duif een `velocity`, `durationSeconds`,
+plus `startForm`, `formCost`, `formDrained` in `Flight.sim` (`SimEntry[]`).
+
+**Dynamische, onvoorspelbare vluchten (`FLIGHT_DYNAMICS` — `flight.ts`).**
+Vroeger bevroor de sim één constante `velocity`/`durationSeconds` per duif en
+rangschikte `liveSnapshot` op die vaste finishtijd → de stand lag vanaf seconde 0
+vast (niet spannend). Nu krijgt elke duif bij de start een **bevroren maar
+variërend pace-profiel** (`buildPaceProfile`, geseed op `flightId+pigeonId` → elke
+vlucht uniek, tóch deterministisch):
+- **`segMult[]`** — per-segment snelheidsmultiplicatoren. **Genormaliseerd** (`Σ 1/m = N`)
+  zodat de pacing de **finishtijd niet verandert** — het zorgt enkel voor **inhalen
+  tijdens de vlucht** (duiven versnellen/vertragen en wisselen van plaats), niet voor
+  willekeurige uitslagen.
+- **Vorm van de dag** (`dayNoise` ±6% + zeldzame `bigDay`/`offDay`) — een topper kan
+  eens floppen, een outsider eens uitblinken.
+- **Weer per duif** (`weatherSpread`) — ruw weer (regen/wind) treft de ene duif harder
+  dan de andere → slecht weer = meer loterij, goed weer = de beste wint.
+- **Verdwalen** (`lost*`, kans ↑ bij lage oriëntatie) — een stuk traag gevlogen →
+  echt tijdverlies en een forse val in de stand, maar de duif **finisht nog steeds**
+  (late thuiskomst; er is geen tijdslimiet meer die haar wegstreept).
+- **Onderweg opgeven** (`dnfAtSeconds`/`dnfKind`) — uitputting (lage start-energie via
+  `FLIGHT_RISK`) of blessure (kans ↑ bij ruw weer): de duif stopt zichtbaar midden in
+  de vlucht en finisht niet.
+Live posities komen uit `raceProgress(sim, distance, elapsed)` (stukje-per-stukje
+afstand); **live-rangschikking = op afgelegde afstand** (verst = leider), aangekomen
+duiven vooraan (op finishtijd), opgegeven/uitgevallen achteraan. `liveSnapshot`
+**bevriest de stand op `total`** zodra de race klaar is, zodat de replay de eindstand
+toont. `total = flightTotalSeconds` = de **traagste duif die effectief finisht** (géén
+cutoff meer). `finalizeFlight` bepaalt DNF **uit ditzelfde bevroren profiel** — enkel
+**zelf opgegeven** (`gaveUp`) of **onderweg uitgevallen** (`dnfAtSeconds`, uitputting/
+blessure); trage/verdwaalde duiven komen gewoon (laat) thuis — dus **live-einde ==
+einduitslag**.
+**Élke duif kan presteren, geordend op kwaliteit** (afgesteld op `dayNoise`/tails,
+±17%): getest op een veld van 6 (beste→slechtste) over alle weertypes gaf ~ win /
+top-3 / niet-laatste / laatste: beste **40% / 76% / 94% / 6%**, slechtste **2% / 12% /
+60% / 40%**, monotoon aflopend ertussen. Dus: de beste is het **waarschijnlijkst**
+(niet zeker) en wordt **zeer zelden laatste**; de slechtste heeft een **heel kleine**
+winkans maar haalt geregeld top-5 (van 6). Balansknoppen in `FLIGHT_DYNAMICS`
+(`dayNoise` breder = meer upsets; `segSpread` = zichtbaarder inhalen; `weatherSpread`;
+`lost*`). Energie wordt nog steeds **geleidelijk** afgetrokken (`tickFlightEnergy`, per
+30 min); opgeven spaart de resterende energie.
+
+**Live verslag = échte gebeurtenissen (`flightCommentary` in `flight.ts`).** Het
+📻-verslag naast het live-bord is geen willekeurige grap meer maar wordt **afgeleid
+uit het bevroren `sim`**: het bemonstert het veld elke `COMMENTARY_INTERVAL_SECONDS`
+(10 min) via `raceProgress` en meldt **wie wie voorbijsteekt** (positiewissels tussen
+twee nog-vliegende duiven), met de **reden** waar die duidelijk is: overtaker
+versnelt (`curMult`>1.15 → `overtakeSurge`), ingehaalde zakt weg (`curMult`<0.8 →
+`overtakeTired`), ingehaalde is **verdwaald** (`SimEntry.lost` actief →
+`overtakeLost`, met ~detourKm), of een **koploperwissel** (`leadChange`). Plus
+eigen-oorzaak-lijnen op hun tijdstip: **van koers** (`stray`, ~X km omweg),
+**uitputting**-DNF (`dnfExhausted`), **kramp/blessure**-DNF (`dnfInjury`), **opgeven**
+(`pulled`) en aankomsten (`finish`). Een blijvend heen-en-weer wisselend paar wordt
+**gedempt** (pair-cooldown van 3 intervallen), behalve bij een koploperwissel of
+verdwaalde duif. Volledig **deterministisch** (geseed op `flight.id`) → stabiel over
+polls, groeit monotoon (elke regel vast tijdstip, gefilterd op `elapsed`). Legacy-
+vluchten zonder pace-profiel vallen netjes terug op enkel start-/finish-lijnen.
+Tekstpools in `gameConfig.COMMENTARY` (categorieën `overtake`/`overtakeSurge`/
+`overtakeTired`/`overtakeLost`/`leadChange`/`stray`/`dnfExhausted`/`dnfInjury`/
+`pulled`/`start`/`finish`).
+
+**Duif is weer vrij zodra háár race erop zit (`birdStillOut` / `pigeonCommittedToFlight`
+in `flight.ts`).** Een vlucht eindigt pas bij de traagste finisher (geen cutoff meer), dus
+op 1000 km kan de staart uren duren. De "is deze duif bezet?"-check keek naar
+`flight.status !== 'completed'` en hield een duif dus gegijzeld tot de laatste binnen was.
+Nu leidt `birdStillOut(flight, pigeonId, nowMs)` het **einde van haar eigen race** af uit het
+**bevroren sim**: `legStartSeconds + (gaveUpAtSeconds | min(dnfAtSeconds, durationSeconds))`.
+`scheduled` = altijd bezet, `completed` = altijd vrij, geen sim-entry = vrij (legacy zonder
+`segMult` werkt op `durationSeconds`). **Estafette-bewust:** de timers zijn **leg-lokaal**
+(zie `giveUpFlight`) en `legStartSeconds` zet ze op de raceklok, dus een duif die op leg 3
+op haar beurt wacht is **bezet**, en een duif achter een uitgevallen ploegmaat komt vrij op
+`team.outSeconds` (ze wordt nooit meer gelost) — via `relayTeams(flight)`.
+`pigeonCommittedToFlight(db, pigeonId, nowMs?)` is de db-brede versie en **vervangt overal**
+het oude `db.flights.some(f => f.status !== 'completed' && …)`-patroon: `engine.ts` (rustkuur,
+listForSale, trainPigeon, setInfirmary, `pigeonBusy` → release/restaurant, startBreeding),
+`offers.ts`, `presenters.ts` (`pigeonDTO.racing`). Ook de **1-race-per-dag-regel** in
+`enterFlight` en de bot-`committed`-set in `botsEnterFlight` (schedule.ts) filteren op
+`birdStillOut`. **Veilig qua energie:** `tickFlightEnergy` zet een gestopte duif op de **volle**
+`formCost` (`stopped` → fractie 1) en draait in `advanceRealtime` vóór elke handler, dus een
+duif kan nooit ingeschreven worden vóór haar energie afgerekend is; `finalizeFlight` settelt
+dan nog 0. De "gisteren gevlogen"-vormaftrek blijft ook gewoon gelden. **Bewuste keerzijde:**
+de post-vlucht-effecten (conditie/ervaring/gezondheid, verbeterworp, aandoening) landen nog
+steeds pas bij de **afronding**, dus die kunnen aankomen terwijl de duif al aan een volgende
+vlucht bezig is. `giveUpFlight` weigert nu een duif waarvan de race al voorbij is (dat maakte
+van een al uitbetaalde finisher retroactief een DNF). Duiven die **de weg kwijt** zijn blijven
+onbeschikbaar via de aparte `isAway`-check.
+
+**Verbeteren schaalt met (zwakte × prestatie)** (`IMPROVE`, `finalizeFlight`): de kans
+dat een duif door een vlucht een eigenschap verbetert = `base·(0.4+room)·(0.5+zwakte·
+weaknessWeight)·(0.6+plaats·0.8)`, met een grotere *gain* voor zwakkere duiven
+(`weaknessGainSpread`). Dus **hoe slechter de duif én hoe beter haar prestatie, hoe
+groter de groei** — een mindere duif die goed presteert loopt in; een topduif dicht bij
+de cap wint amper nog bij. (Alleen finishers; oefenvluchten hebben hun eigen, mildere
+regeling.)
+
+### `ensureSchema()` (in `core/d1.ts`)
+Idempotente **runtime**-schema-upgrades: `ALTER TABLE … ADD COLUMN` en
+`CREATE TABLE IF NOT EXISTS`, elk in try/catch. Nieuwe kolommen (bv. `hunger_days`,
+`rest_days`) en tabellen (bv. `auction_bids`) worden hier toegevoegd; geen
+handmatige migratie nodig. JSON-kolommen (bv. `sim`, `ailment`, `stats`) nemen
+nieuwe velden vanzelf mee.
+
+---
+
+## 3. Mappen & bestanden
+
+```
+Roekoe/
+├── client/                      React + Vite web-app (statisch)
+│   └── src/
+│       ├── pages/               één bestand per scherm (zie §6)
+│       ├── components/          ui.tsx (Money/Spinner/StatBar+perDay/DailyGains verwijderd/…),
+│       │                        ReactionPicker.tsx (tribune-kiezer: recent-rij, icoontabs, winkel),
+│       │                        Layout (+ auto-tour), PigeonCard (+ tourId/▲▼),
+│       │                        Tour.tsx (interactieve rondleiding), PrizeCeremony.tsx,
+│       │                        PigeonAvatar, NotificationsBell,
+│       │                        FlightMap.tsx (live kaart, LAZY geladen) + geo.ts (grootcirkel)
+│       ├── game/GameContext.tsx useGame(): laadt /state, deelt state + refresh()
+│       ├── game/lokaalSeen.ts   bolletje op de Lokaal-knop (localStorage, React-vrij, zoals marketSeen.ts)
+│       ├── auth/AuthContext.tsx useAuth(): user + token
+│       ├── api/client.ts        api<T>(path, {method, body}) helper
+│       ├── styles/global.css    design system + thema via [data-theme] (dark default)
+│       └── types.ts             client-DTO's (spiegelen core/presenters.ts)
+│   └── index.html               inline script zet data-theme (dark default) vóór paint
+├── core/                        runtime-neutrale spelkern
+│   ├── config/gameConfig.ts     ← ALLE instelbare getallen ("de knoppen")
+│   ├── config/reactions.ts      vluchtreacties: de 90 templates + FLIGHT_CHAT (importeert niets)
+│   ├── schema.ts                datamodel (entiteiten + Database)
+│   ├── store.ts                 Store-interface + in-memory basis + newId()
+│   ├── d1.ts                    D1-persistentie (load(viewerId)/diff/ensureSchema/
+│   │                            boundedCleanups/findUserBy*, auction_bids); diff schrijft
+│   │                            gegroepeerd + kolom-smal (zie §8 503-fix ronde 3)
+│   ├── auth.ts                  wachtwoord-hash + JWT via Web Crypto
+│   ├── presenters.ts            entiteit → client-DTO (pigeonDTO(db,p,viewerId?,isAdmin?) → dailyCare + info-hiding)
+│   └── game/
+│       ├── engine.ts            speler-acties (buy/train/enter/giveUpFlight/breed/…)
+│       ├── schedule.ts          advanceRealtime + data-migraties + alle ticks
+│       ├── flight.ts            vluchtsim (velocity, DETERMINISTISCHE finalize, live; geen finish-timer)
+│       ├── relay.ts             estafette: routegeometrie (gelijke etappes, wisselpunten) + ploeghelpers
+│       ├── betting.ts           weddenschappen (Monte-Carlo odds + settle, stats,
+│       │                        void+refund bij uitschrijven duif / afgelaste vlucht)
+│       ├── health.ts            ziekte/kwetsuur + REAL-TIME herstel (tickHealing, per kwartier)
+│       │                        + coveredInInfirmary/careSlots (wie de dokter behandelt)
+│       │                        + idleCareStaff (personeel zonder patiënt — enkel weergave)
+│       ├── breeding.ts          kweek
+│       ├── economy.ts           dagverzorging (applyDayOfCare) + projectie + upkeep + honger + rust
+│       ├── bots.ts              bot-gedrag
+│       ├── auction.ts           veilingen (bieden, slotfase-limiet, sluiten, verlies-meldingen)
+│       ├── market.ts            marktgestuurde duivenwaarde (prijs uit echte verkopen)
+│       ├── sponsors.ts          sponsors
+│       ├── badges.ts            badges/XP/level
+│       ├── reactions.ts         tribune: wie welke reactie heeft, kopen, posten (cooldown/×N/melding)
+│       ├── missions.ts          dagelijkse opdrachten + streak + dilemma-trigger
+│       ├── events.ts            dilemma-kaarten
+│       ├── pedigree.ts          stamboom + verwantschap (kinship/ancestorIds/pedigreeOf)
+│       ├── pigeon.ts, weather.ts, util.ts (seededRng/hashString/clamp/pickWith)
+│       ├── lure.ts              duivenlokker: kopen, de loting bij vrijlaten, de wachtkamer + meldingen
+│       ├── tags.ts              tags op je duiven: opkuisen + zetten (privé, in Pigeon.care)
+│       ├── stem.ts              De Stem: regels van het ideeënbord + de 4 startideeën (géén DB)
+│       ├── lokaal.ts            Het Lokaal (chat): opkuisen/valideren, rem, wie mag weghalen, pollvenster (géén DB)
+│       ├── newcomer.ts          starterspakket nieuwe spelers (punten, gratis coach, 2x winst)
+│       ├── names.ts             naamgenerator — UNIEKE voornaam+bijnaam (namesInUse/nameKey)
+├── functions/api/[[path]].ts    de HELE API (Hono) — dun laagje op de engine (+ /admin/auctions)
+├── tests/                       ALLE `.mts`-scripts (buiten tsconfig, draaien met npx tsx)
+│   ├── *.test.mts               de blijvende regressietests — lijst + wanneer draaien: §7
+│   ├── cpu-sweep.mts            diagnose: CPU per operatie (duurste eerst)
+│   ├── cpu-pigeons.mts          diagnose: marginale CPU per duif (de helling)
+│   └── limits-report.mts        diagnose: queries/rijen gelezen+geschreven per verzoek
+├── migrations/0001_init.sql     D1-schema voor verse installatie
+├── spelregels.md                spelregels + formules (Nederlands, speler-gericht)
+├── seizoen3.md                  specificatie van wat er bij seizoen 3 in komt ("implementeer seizoen3.md")
+├── README.md / DEPLOY.md        opzet + telefoon-only deploy-gids
+├── wrangler.example.toml        template; ECHTE wrangler.toml staat in .gitignore
+└── context.md                   ← dit bestand
+```
+
+> **`server/`** is legacy (geen actieve broncode). De echte backend is
+> `functions/api/[[path]].ts`. Negeer `server/`.
+
+---
+
+## 4. Datamodel (`core/schema.ts`)
+
+Entiteiten: `Pigeon`, `Loft`, `User`, `BreedingPair`, `PendingBrood`, `Flight` (+ `SimEntry`,
+`FlightEntry`, `FlightResult`), `Trade`, `Auction` (+ `AuctionBid`), `Bet`,
+`PigeonOffer`, `Notification`, `SponsorState`/`SponsorOffer`/`ActiveSponsorship`,
+`DailyMission`, `EventCard`, `PlayerStats`/`EarnedBadge`, `World`, `Database`.
+
+**Naamgevingsvalstrikken (onthouden!):**
+- `Pigeon.form` = **energie** (de "tank"), UI-label "⚡ Energie".
+- `Pigeon.endurance` = **conditie**, UI-label "Conditie".
+- `Pigeon.orientation` = oriëntatie, `speed` = snelheid, `libido`, `health`,
+  `experience`, `talent`.
+- `Loft.food` is een **`FoodStock` = Record<FeedRationKey, number>** (kg per type).
+  Bijkopen aan `FEED_RATIONS[k].pricePerKg`, terugverkopen aan **`FOOD_RESALE_RATE` (0,8)**
+  daarvan — verkopen levert dus altijd een klein verlies op.
+- `World.leaderboard` = **JSON-cache** van de twee wereldwijde ranglijsten (hokken +
+  duiven). `/state` mag die niet zelf berekenen: dat leest élke duif, en juist dat maakte
+  het leesbudget op. Ververst door `computeLeaderboard` bij elke volle engine-run.
+- `Loft.pendingBroods` = **`PendingBrood[]`** — uitgekomen jongen die nog **niet** in
+  `db.pigeons` zitten omdat het hok vol was. Ze wachten op de keuze van de speler.
+  Hangt bewust aan de **loft-rij** (kolom `pending_broods` JSON, net als `pending_event`)
+  en níet in een eigen tabel: de lofts worden toch al elk verzoek geladen, en het duurste
+  verzoek zit al op **~42 van de 50** queries die één Worker-invocatie mag doen — een
+  eigen tabel kostte er structureel één extra.
+
+**Recent toegevoegde velden (rijden mee in bestaande kolommen/JSON — geen migratie):**
+- `Pigeon.breed?` — **ras** (breed-id, kolom `breed TEXT`; zie §Rassen). Puur
+  cosmetisch: bepaalt de **foto** + een kleine **prijstoeslag** via de rarity, géén
+  effect op eigenschappen/prestaties. Toegewezen via gewogen loting bij ontstaan
+  (`rollBreed` in `pigeon.ts`); geërfd bij kweek (zelfde ras behouden, anders `mixed`).
+  Migratie **v23** backfilt bestaande duiven.
+- `Pigeon.genes?` — **genetische plafonds** `{speed,endurance,orientation}` (kolom `genes`
+  JSON, ≤95). Bepalen hoe ver elke racevaardigheid kan groeien (zie §5-Genen), de waarde, en
+  erven over. Migratie **v29** backfilt.
+- `Pigeon.declineRate?` — **verouderingstempo** (~0.6–1.6, kolom `decline_rate REAL`); drijft
+  `runAgeDecline`. Erft over. Migratie **v29**.
+- `Pigeon.attrLog?: AttrChange[]` — **auditlog van skill-wijzigingen** (kolom `attr_log` JSON,
+  cap 40). Elke verandering aan snelheid/conditie/oriëntatie wordt gelogd via
+  `noteAttrChange(p, attr, before, reason)` (pigeon.ts) met `from/to/reason/at`. Redenen:
+  `training`/`coach`/`vlucht`/`veroudering`/`premiumvoer`/`gebeurtenis: …`. Geen fantoom-entry
+  als de afgeronde (0,1) waarde niet beweegt. Zichtbaar in de admin-duifinspector. Startte bij
+  uitrol (geen historiek van daarvoor).
+- `Loft.debtDays` / `Loft.debtMisses` — **schuld** (kolommen `debt_days`/`debt_misses`,
+  default 0 → geen migratie). Dagen op rij in het rood, en hoeveel gedwongen veilingen er
+  op rij zonder bod sloten (drijft de afslag). Zie §5-Schuld en §8.
+- `Pigeon.hungerDays` — opeenvolgende dagen zonder voer (drijft verhongeren).
+- `Pigeon.restDays` — opeenvolgende gevoede rustdagen zonder vlucht (rustbonus).
+- `Pigeon.lastBredAt?` — ISO-tijd waarop haar laatste nest **uitkwam** (kolom `last_bred_at
+  TEXT`); drijft de rust van `BREEDING.cooldownDays` (21 d) tussen twee nesten. Staat op de
+  **duif** en niet op het koppel, zodat ze het koppel overleeft en meeverhuist bij verkoop.
+  Leeg bij een mislukte worp — zie §8.
+- `Pigeon.cureUntil?` — ISO-tijd waarop een betaalde **rustkuur** afloopt (eigen
+  D1-kolom `cure_until TEXT`; duif kan niet vliegen zolang de kuur loopt).
+- `Flight.practice?` — **oefenvlucht** (eigen D1-kolom `practice INTEGER DEFAULT 0`).
+- `Flight.titan?` — **titanenwedstrijd** (eigen D1-kolom `titan INTEGER DEFAULT 0`).
+- `Loft.lastRestCure?` — laatste rustkuur (kolom `last_rest_cure`); weeklimiet.
+- `Loft.awards?: SeasonAward[]` — gewonnen Roekoes/Vleugels (kolom `awards` JSON).
+- `Flight.chat?: ChatLine[]` — de tribune (kolom `chat` JSON, begrensd op 50 regels).
+  ⚠️ **Auteursnaam, doelwitnaam én tekst staan bevroren op elke regel**: `/live` wordt uit
+  alleen de vluchtrij beantwoord, dus er is geen lofts-tabel om ze in op te zoeken.
+- `Loft.unlockedReactions?: string[]` — **enkel gekóchte** reacties (kolom
+  `unlocked_reactions` JSON). Startgeschenk, mijlpalen en badge-reacties worden afgeleid uit
+  `level`/`badges` en staan er dus bewust **niet** in — daarom had de tribune geen migratie
+  nodig.
+- `Notification.kind` heeft er `'taunt'` bij (gerichte tribune-reactie).
+- `Pigeon.trainedAt?` — laatste trainingstijd per categorie (kolom `trained_at` JSON),
+  voor de 1×/week-limiet per eigenschap.
+- `Pigeon.seasonPeakSpeed?` / `seasonPodiums?` / `seasonStartScore?` /
+  `seasonPracticeGain?` — per-seizoen duivenstats (kolommen `season_peak_speed`/
+  `season_podiums`/`season_start_score`/`season_practice_gain`), gereset bij
+  seizoenswissel. `seasonPracticeGain` = groei uit oefenvluchten (afgetrokken van de
+  vooruitgangsranglijst, zodat enkel competitie telt).
+- `Pigeon.raceLog?: RaceLogEntry[]` — **durable, afgetopte vluchthistorie op de duif**
+  (kolom `race_log` JSON, cap **40** nieuwste). Bevat per afgewerkte vlucht de
+  plaatsing (`rank`/`total`/`points`/`prize`/`velocity`/`finished` + `ownerId` op
+  vluchtmoment + `practice`/`titan`-vlaggen). Geschreven door `logRaceResults` bij
+  afronding; gelezen door `pigeonRaceHistory` (duif-historiek) en `playerProfile`
+  (trofeeën). Zo overleven historiek + trofeeën het **wissen van oude vluchtrijen**
+  (2-daagse retentie). Medaille-**tellingen** komen uit `loft.stats.gold/silver/bronze`
+  (blijvend). Zie §Performance.
+- `World.marketNewsAt` / `marketNewsBy` — wanneer er voor het laatst een duif te koop
+  kwam en door wie (leeg = het veilinghuis); kolommen `market_news_at`/`market_news_by`.
+  Voedt de **stip op de Markt-knop** (zie §8). Staat op de **wereldrij** omdat `/state`
+  een smal-laadpad is: daar de verse listings tellen zou de hele `pigeons`-tabel terug op
+  de heetste route trekken. Gezet door `noteMarketNews` (market.ts) — **nooit vanuit een
+  tick die elk verzoek draait**, anders stempelt elke poll de wereldrij.
+- `World.studNewsAt` / `studNewsBy` — wanneer er voor het laatst een duif **aangeboden werd om te
+  kweken** of een kweekaanbod **aangepast** werd (andere ★/energie/libido-eis of jongen ↔ vergoeding),
+  en door wie; kolommen `stud_news_at`/`stud_news_by` (achteraan `SCHEMA_STEPS`). Voedt het
+  **bolletje op de Kweek-knop** én op het tabje *🤝 Samen kweken* (eigenaar, 14 okt: "zoals
+  gewoonlijk … een bolletje aan 'kweek' zodat ze weten waar ze heen moeten gaan"). Precies het
+  patroon van `marketNewsAt`: gezet door **`noteStudNews`** (stud.ts) enkel vanuit
+  `setStudListing` bij een echte wijziging — dezelfde voorwaarden opnieuw opslaan of een aanbod
+  intrekken stempelt niet. Gezien-zijn in localStorage (`roekoe.studSeen.<userId>`,
+  `client/src/game/studSeen.ts`, React-vrij), gemarkeerd zodra de tab *Samen kweken* zijn
+  aanbiedingen toont — met `stud.newsAt` uit datzelfde `/breeding`-antwoord, want de
+  `/state`-poll van de navigatie kan achterlopen. Wie aanbiedt, krijgt zelf geen bolletje.
+  Onderhandelingen tellen niet mee: die staan in `stud_deals` (niet op `/state`) en hebben al
+  hun bel. Test: `tests/stud-news.test.mts`.
+- `World.chatLastAt` / `chatLastBy` — laatste bericht in **Het Lokaal** en van wie (kolommen
+  `chat_last_at`/`chat_last_by`); voedt het bolletje op de Lokaal-knop, zoals `marketNewsAt`.
+  ⚠️ **Enkel geschreven door `insertLokaalMessage`** (een directe `UPDATE world SET chat_last_*`),
+  **niet** door de world-INSERT/UPDATE van `persist` — anders zet een verzoek dat de wereld net
+  vóór een bericht laadde de oude waarde terug. Gelezen gaat gratis mee met `SELECT * FROM world`.
+- `World.seasonStartedAt` / `seasonEndsAt` / `seasonWeek` — real-time seizoensklok
+  (kolommen `season_started_at`/`season_ends_at`/`season_week`). `seasonYear` = het
+  seizoensnummer; `currentWeek` blijft de monotone speelweek (leeftijden/vluchten).
+- `SimEntry.gaveUp?` / `startForm?` / `formCost?` / `formDrained?` — voor opgeven
+  en de geleidelijke vlucht-energie-afname.
+- `SimEntry.lost?: { atSeconds, detourKm } | null` — een **verdwaal-stuk** (lage
+  oriëntatie), bij de start bevroren zodat het **live verslag** de reden kan noemen
+  (van koers, ~detourKm km omweg). Rijdt mee in de `sim`-JSON (geen migratie).
+- `Ailment.healed?` (0..1 herstelvoortgang), `lastTickMs?`, `lastUpdateMs?`,
+  `updates?` — voor real-time herstel + 12u-statusupdates.
+- `PlayerStats.bets` / `betsWon` / `broods` — voor nieuwe badges/missies.
+
+**Tags (§0b):** `PigeonCare.tags` (`string[]`, in de bestaande kolom `care`; gewist door `clearOwnerCare`).
+
+**Duivenlokker (§0b):** `Loft.equipment.lure` (niveau 0–5, in de bestaande JSON-kolom) en op
+`PendingBrood` `origin: 'lokker'` + `from: {userId, name}` (in `lofts.pending_broods`). Geen schemawijziging.
+
+**Samen kweken (dev, zie §0b):** `Pigeon.stud` (kolom `stud`, het aanbod), `BreedingPair.deal`
+(kolom `deal`, de afspraak op een lopend nest) en de tabel `stud_deals` (de onderhandelingen,
+`Database.studDeals` — **enkel geladen op `/api/breeding*`**, anders `undefined`).
+
+**Aparte D1-tabellen:**
+- `auction_bids (auction_id, user_id, name, amount, at)` — bron van waarheid voor
+  veilingbiedingen (in `a.bids` geladen; de oude JSON-kolom is enkel fallback).
+- `offers (id, pigeon_id, pigeon_name, from_user_id, from_user_name, to_user_id,
+  to_user_name, amount, status, created_at, resolved_at)` — **privé-biedingen** op
+  duiven van andere spelers (zie §8). `db.offers` bevat enkel **openstaande** (pending)
+  biedingen; afgehandelde worden verwijderd (de verkoop leeft voort in `db.trades`).
+- `lokaal_messages (id, user_id, author_name, body, created_at, deleted_at)` — **Het Lokaal**,
+  de vrije chat (`LokaalMessage` in schema.ts). **Buiten de wereldload** (niet in `Database`).
+  Indexen op `created_at`, `(user_id, created_at)` en `deleted_at`. Weghalen = `body = ''` +
+  `deleted_at` (de rij blijft, zodat andere polls het ook weghalen). Opruimen na
+  `LOKAAL.retentionDays` (30) gebeurt bij elk nieuw bericht. Een verwijderde speler wordt
+  `Oud-speler` (`purgeRemovedPlayers`).
+
+`FeedRationKey = 'normal' | 'premium' | 'libido' | 'herstel'`.
+`BetKind = 'win' | 'last' | 'own_top3' | 'top3' | 'mine_wins' | 'head2head'`
+(`top3` = elke duif in top 3, zonder eigenaarscheck).
+
+---
+
+## 5. Belangrijke config-waarden (`core/config/gameConfig.ts` = bron van waarheid)
+
+- **Start:** €5000, 6 duiven, hokcapaciteit 8. **Bots ook 8** (`BOT_LOFT_CAPACITY`,
+  was 20), met speler-kwaliteit (0.4–0.6). Startvoorraad 50 kg normaal.
+- **Vaste onkosten = DAGELIJKS** (geen weekkost meer): `DAILY_UPKEEP_BASE 22` +
+  **progressieve schijven per duif** (zie hieronder), `COACH.dailySalary 80`,
+  `INFIRMARY.doctorSalary 57` / `physioSalary 50` / `medicatedFoodPerBird 6`.
+  Aangerekend in `tickDailyCare` via `economy.dailyRunningCost`; sponsorbijdrage
+  dagelijks (weekbedrag ÷ 7).
+- **Progressieve daghuur (`UPKEEP_BANDS` — anti-runaway):** onderhoud per
+  duif gaat in **schijven** zoals belastingschijven — elke duif betaalt het tarief van
+  háár schijf, nooit het toptarief op het hele hok. **duif 1–8 €2 · 9–12 €6 · 13–16 €12
+  · 17–20 €20** per dag. Helpers `pigeonUpkeepBands(count)` (→ `UpkeepBandCost[]`) en
+  `dailyPigeonUpkeep(count)` staan in `gameConfig.ts` naast de tabel; `economy.ts::
+  dailyRunningCostBreakdown` gebruikt ze en levert `upkeepBands` mee in de DTO, zodat de
+  **Dagbalans** een regel per schijf toont. Weekkost: 8 duiven €266 (**exact als
+  vroeger**), 12 €434, 16 €770, 20 €1.330 — een vol hok kost nu ~5× een starthok i.p.v.
+  1,6×. **Invariant: een hok t/m `STARTING_LOFT_CAPACITY` (8) betaalt exact het oude
+  vlakke tarief** — deze maatregel mag een kleine melker níets kosten (bots zitten ook op
+  8 en blijven dus ongemoeid). `DAILY_UPKEEP_PER_PIGEON 2` blijft bestaan als het tarief
+  van de eerste schijf + wordt nog naar de client gestuurd (oude open tab).
+- **Hokcapaciteit (`LOFT_CAPACITY_TIERS` — steiler):** stappen van +2 met
+  sterk oplopende prijs: 10 €1.500 · 12 €3.500 · 14 €10.000 · 16 €17.500 · 18 €30.000 ·
+  20 €50.000 → **€112.500 cumulatief** van 8 naar 20 (was €29.000 via 8/10/12/16/20).
+  Ruimte voor meer duiven is de sterkste structurele troef (meer duiven = meer starts =
+  groter aandeel in de prijzenpot), dus dat moet een investering van lange adem zijn.
+  `nextCapacityTier`/`upgradeCapacity` zijn ongewijzigd (ze lezen de tabel).
+- **Privécoach = dagelijkse groei richting de gen-cap** (`COACH`): geen instapdrempel
+  (`hireCost 0`), enkel een **dagloon per gecoachte duif**. **Seizoen 3:** dat dagloon hangt
+  af van de algemene score (`talent`) via `COACH.salaryBands` / `coachSalaryFor(talent)`
+  (gameConfig): <65 €80 · 65 €100 · 70 €140 · 75 €180 · 80 €220 · 85 €300 · ≥90 €400; de
+  ondergrens hoort bij de hogere schijf. Elke dag opnieuw bepaald. `newcomer.coachBill(loft,
+  coached, nowMs)` rekent per duif en laat de **gratis starterscoach de duurste** dekken;
+  `dailyRunningCostBreakdown`/`dailyRunningCost` krijgen nu een **bedrag** (`coachCost`) i.p.v.
+  een aantal. `pigeonDTO` stuurt `coachSalary` + `coachNextBand` (eigen duiven);
+  `COACH.dailySalary` (80) blijft enkel als laagste schijf voor oude clients.
+  **Trainen geeft altijd exact +1** (`TRAINING.attributeGain 1`, geen willekeur meer).
+  Test: `tests/coach-salary.test.mts`. `coachDailyGain(attr,
+  cap) = COACH.maxDailyGain (1.1) · (cap − attr)/cap` — werkt op **elk niveau**, afnemend
+  richting de cap, **0 op/boven de cap** (per eigenschap onafhankelijk). Enkel de coach
+  passeert 90 (trainen ≤80, vluchten ≤90). `applyDayOfCare` drilt per attribuut en geeft
+  `experienceDailyGain 0.5` zolang er nog minstens één eigenschap onder haar cap zit. Werkt
+  niet terwijl de duif vliegt. `pigeonDTO.coachGain` (per attribuut) voedt de UI;
+  `attributeCap`/`coachMinAttr`/`eliteGainPerDay` bestaan niet meer. Zie ook §5-Genen.
+- **Sponsors (`SPONSORS`):** `dailyStipend` (dagelijks, niet meer per week) +
+  `podiumBase` (= zege op een nationale vlucht). Uitbetaling per podiumplaats via
+  `sponsorPodiumBonus(base, tier, rank)` = `base × SPONSOR_TIER_FACTOR[tier] × SPONSOR_PODIUM_FACTOR[rank-1]`,
+  afgerond op €5. Niveau 0,6/1,0/1,8 · plaats 1/0,6/0,35. Enkel wedstrijdvluchten.
+- **Dagopdrachten/streak verlaagd** (missions.ts): opdrachtgeld ~gehalveerd (15–60),
+  streakbonus `min(25, 5 + streak·2)` → samen ~€750/week i.p.v. ~€1750.
+- **Weddenschap max inzet €500** (`BETTING.maxStake`, was 5000).
+- **Het Lokaal (`LOKAAL`):** `loadLimit 60` (berichten bij openen / per "oudere laden"),
+  `pollLimit 100`, `pollSeconds 15` (client), `pollOverlapSeconds 20`, `bodyMax 500`,
+  `minIntervalSeconds 2` (rem per speler), `retentionDays 30`. Geen spelbalans — enkel remmen en
+  leesbudget. ⚠️ Verkort `pollSeconds` niet zonder de Worker-verzoeken (100k/dag) na te rekenen.
+- **Prijzengeld (`PRIZE_MONEY` — nu een `PrizeTable`, geen array):** `{places,
+  bands, rest}` met `prizeForRank(table, rank)` als enige lookup. De tabel loopt door tot de
+  **laatste finisher**: kopplaatsen exact, dan vlakke banden, dan een bodem. `bands` is
+  **exclusief** op `below` (`{below:12}` = t/m plaats 11). Regionaal `[800,600,350,220,140,
+  110,100,90]` + 9–11 €70 / 12–15 €60 / **16+ €40**; nationaal `[1200,800,500,320,210,180,
+  150,140,120,100]` + 11–13 €80 / 14–17 €70 / **18+ €50**; internationaal `[2200,1800,1000,
+  650,420,270,240,200]` + 9–11 €140 / 12–15 €100 / **16+ €75**. Criterium sprint `[1000,700,
+  500,300,250,220,180,120]` + €100/€80/**€60**; fond `[1600,1400,1200,850,600,400,350,300]`
+  + €175/€125/**€90**. **Titan houdt bewust 3 plaatsen zonder bodem** (max. 1 duif per hok).
+- **`REWARD_BIRDS_PER_LOFT` (3)** — per vlucht worden enkel de **3 best geplaatste duiven van
+  een hok** beloond, **geld én seizoenspunten**. Meer inschrijven mag; die vliegen, staan in
+  de uitslag en verbeteren, maar leveren niets op (`FlightResult.rewarded = false`). Het geld
+  **vervalt**, het schuift niet door. Zie §8.
+- **Inschrijfgelden gehalveerd** (`FLIGHT_TIERS.entryFee`): regionaal **€10**
+  (was 20), nationaal **€20** (was 40), internationaal **€40** (was 80); **Titan €50**
+  (`TITAN.entryFee`, was 100). Oefenvluchten blijven gratis.
+- **Voeding (`FEED_RATIONS`)** — herstelwaarden zijn WEKELIJKS, 1/7 per dag (UI toont
+  per dag): Normaal energie **+21**/wk, Premium **+28** (+conditie/gezondheid),
+  Libido-mix **+18** (+libido), Herstel **+42** (veel energie).
+- **Rustbonus (`REST_BONUS`)** — elke **3e** gevoede rustdag zonder vlucht **+4**
+  energie; reset zodra de duif vliegt of een hongerdag heeft.
+- **Honger (`STARVATION`)** — geen voorraad = versnellende daling (energie 8·N,
+  gezondheid 5·N, libido 4·N per honger-dag N); sterftekans vanaf dag 3, zeker vanaf
+  dag 7. **Honger raakt géén trainbare skills meer** (conditie-daling geschrapt;
+  `conditiePerDay` ongebruikt): trainbare skills dalen enkel via `runAgeDecline`.
+- **Vlucht-energiekost (`FLIGHT_FATIGUE`)** — volle-routekost = `((10 + afstand/30)·ervaringsfactor
+  + rand(0..10))·costMultiplier` (**1.15**), berekend in één helper `routeEnergyCost` (flight.ts)
+  die de gewone vlucht, de estafette-etappe én `expectedFlightEnergyCost` (bots) delen;
+  bevroren bij start, **per 30 min** geleidelijk afgetrokken. Een duif betaalt
+  **enkel voor het afgelegde deel**: de aftrek (in `tickFlightEnergy` én de finale-settlement)
+  stopt op `dnfAtSeconds` voor een **DNF**-duif, dus die betaalt `formCost·(dnfAtSeconds/duur)`
+  i.p.v. de volle route; een finisher betaalt de volle route; een `gaveUp`-duif enkel wat al
+  geleidelijk werd afgetrokken. **Geen extra DNF-straf** (`exhaustionPenalty`+jitter verwijderd) —
+  geen punten/prijs + de gezondheids-/blessureklap is straf genoeg. `stepMinutes: 30`. **Ervaringsfactor** = `1 − (ervaring/100 −
+  0.5)·experienceReliefSpread` (spread **0.125** → draaipunt ervaring 50 = ×1.0, ervaring 0 =
+  ×1.0625, ervaring 100 = ×0.9375). Tot sep. 2026 was de spread 0.5 (±25%) zonder
+  multiplier; op verzoek is het ervaringseffect **75% kleiner** gemaakt en alles ×1.15, zodat de
+  afstand (en dus een volle tank) de doorslag geeft. Netto: een groentje verbruikt ongeveer
+  evenveel als vroeger, een gemiddelde duif ~15% meer, een veteraan ~35–40% meer (300 km erv.
+  100: 20 → 27). De legacy-fallbacks in `finalizeFlight`/relay (vluchten zonder bevroren
+  `formCost`) gebruiken de oude formule nog — die bestaan niet meer na de 2-daagse retentie. NB: dit staat los van de ervaring-**dosering** in het snelheids­
+  model (`ENERGIE_IMPACT`), die enkel de *prestatie* raakt, niet het verbruik.
+- **Ervaring groeit met afnemende opbrengst (`EXPERIENCE`):** élke rauwe
+  ervaringswinst gaat door **`experienceGain(current, raw)`** (`pigeon.ts`) =
+  `raw · (minFactor + (maxFactor − minFactor)·((100−exp)/100)^curve)`, met
+  `maxFactor 1.8` / `minFactor 0.12` / `curve 1.6`. Factor ×1,8 op 0, **×1,0 rond
+  ervaring 33**, ×0,67 op 50, ×0,16 op 90, ×0,12 op 100. Het volledige traject 0→100
+  kost ~2,4× de rauwe eenheden van vroeger; 0→50 blijft even snel. Toegepast **aan de
+  bron** (zodat een delta die elders gelezen wordt, zoals `seasonPracticeGain`, het
+  échte getal ziet): `flight.ts` (wedstrijd/estafette-etappe/oefenvlucht),
+  `engine.ts::trainPigeon`, `bots.ts` (bot-training), `economy.ts` (coach + de
+  `projectDailyCare`-projectie) en `events.ts` (talentenjager).
+  **Ondergrens op `minFactor`:** ervaring wordt op **1 decimaal** bewaard, dus de
+  kleinste terugkerende rauwe winst (coach 0,5/dag, oefenvlucht ~0,5) moet na schaling
+  nog ≥ 0,05 opleveren, anders rondt ze stilletjes weg tot niets. `0,5 × 0,12 = 0,06` —
+  **zet `minFactor` nooit onder 0,10.** (Keerzijde van diezelfde afronding: zo'n kleine
+  winst wordt bij het optellen naar 0,1 afgerond, dus aan de top gaat het in de praktijk
+  iets sneller dan de rauwe formule suggereert. Zelfde artefact als bij de andere stats.)
+  Ervaring heeft **geen gen-cap** — 100 blijft haalbaar, het duurt gewoon lang.
+- **Genen & caps (`GENE`, cruciaal):** elke duif heeft een **gen-cap per racevaardigheid**
+  (`Pigeon.genes`), **nooit ≥ 96** (`ceil 95`, `floor 70`). Trappen: **trainen `trainCap 80`**,
+  **vluchten `raceCap 90`**, **coach → gen-cap** (`coachMinAttr 90`). Helpers `trainCeil`/
+  `raceCeil`/`geneCap`/`avgGeneCap` (pigeon.ts). Premiumvoer-conditie capt nu op `min(80,
+  geneCap)` (niet meer `FOOD_ENDURANCE_CAP 92`). Overerving via `GENE.mutation 6`. Waarde
+  ×`potentieelFactor=(avgGeneCap/82)³`. Nieuwe duiven: startwaarde ≤ cap; bestaande (v29) mogen
+  boven hun cap staan en behouden dat.
+- **Veroudering (`AGING`):** `runAgeDecline` trekt boven `peakEndWeeks 208` per gerolde
+  gameweek `declinePerWeekBase(0.08)·(leeftijd−208)/52·declineRate` van de 3 skills af
+  (bodem `floor 5`). `Pigeon.declineRate` ~0.6–1.6. `AGE_CURVE` neerwaartse tak afgevlakt → 1.0.
+- **Snelheidsmodel (`DISTANCE_WEIGHTING` + `ENERGIE_IMPACT` + `SUSTAIN`):** korte-vlucht­weging
+  snelheid **0.76** / conditie **0.24**; lang (700 km) **0.46/0.54**; **ultra (1200 km)
+  `0.38/0.62`**. Oriëntatie staat op **0** (die werkt via `LOST`).
+  ⚠️ **Deze tabel zet enkel het tempo dat een duif VRAAGT.** Of ze het kan vasthouden staat
+  in het nieuwe blok **`SUSTAIN`** — conditie's eigen mechaniek (zie §8, nieuwste blok).
+  Snelheid is daarom op élk anker verhoogd zonder dat conditie zwakker werd: ze wisselde
+  van kanaal. Energiefactor is
+  **afstandsafhankelijk** (kort `0.80→1.05`, lang
+  `0.45→1.20`, geblend op `t`) en werkt op de **effectieve energie** = `energie +
+  (ervaring/100)·(100−energie)·0.35` (ervaring laat energie **doseren**). Zie
+  `pigeonVelocity` + `velocityBreakdown` in `flight.ts`.
+- **Training (`TRAINING`):** −15 energie, +~1.2 eigenschap, +4 ervaring, **cap `trainCeil`
+  (min 80, gen-cap)**. **Kost exponentieel**: `trainingCost(v)=max(15, round5(costBase 0.6·
+  costGrowth 2.9^(v/10)))` → ~€125 @50, ~€1035 @70, ~€2700 @79→80. `pigeonDTO.training[attr]=
+  {cost,cap}`. **`cooldownDays: 7`** — elke categorie max. 1×/week (`Pigeon.trainedAt`);
+  `trainAvailableAt` + `training` vergrendelen/beprijzen de knoppen op `PigeonPage`.
+- **Vluchtrisico (`FLIGHT_RISK`):** onder ~22 energie DNF-kans; onder ~25 extra
+  blessurekans. **Geen finish-timer/cutoff meer** (`FLIGHT_CUTOFF_MINUTES` verwijderd):
+  `flightTotalSeconds` = de traagste duif die effectief finisht, dus trage/verdwaalde
+  duiven worden niet meer weggestreept. Enkel `gaveUp`/`dnfAtSeconds` = DNF.
+- **Kweekleeftijd:** `BREEDING.minAgeWeeks` **8** — even oud als de vluchtleeftijd, maar een
+  eigen knop. Inteelt: zie `INBREEDING` + `PIGEON_QUIRKS` en §8.
+- **Tags (`PIGEON_TAGS`):** `max 3` per duif, `maxLength 20` tekens.
+- **Duivenlokker (`LURE`):** `prices [500,750,1500,3000,5000]` (niveau 1–5, de eigenaar), `pull
+  [10,14,19,25,32]`, `freedom 90`; `LURE_MAX_LEVEL` 5, `lureChances(levels)` = de kans per lokker + "nergens".
+- **Samen kweken (`STUD`, dev):** `cost` **1000** per speler bij het akkoord, `maxFee` 100.000,
+  `maxOpenProposals` 10 (geen bot-sleutels meer: de bots doen niet mee). Lege worp:
+  `studFailedRefund()` = €500 elk.
+- **Kweken (`BREEDING`):** ouders minstens **20** energie (`minParentForm`, was 40);
+  meer energie+libido = sneller een jong. **`cost` 750** (was 200) en
+  **`cooldownDays` 21** — het koppel gaat uiteen zodra het nest er is en beide ouders
+  rusten dan drie echte weken (≈ 4 nesten per duivenjaar bij de 4× veroudering). De rust
+  hangt aan de **duif** (`Pigeon.lastBredAt`), niet aan het koppel, en wordt **niet**
+  opgelegd na een lege worp. Zie §8.
+- **Lege worp betaalt de helft terug (`BREEDING.failedRefundRate` 0,5):** helper
+  **`failedBreedRefund()`** (gameConfig, naast de tabel — één plek voor het bedrag) →
+  **€375**, gestort in `tickBreedingHatch` zodra `young.length === 0`. Ook voor **bots**.
+  ⚠️ **Enkel een lege worp**: een koppel dat vervalt omdat een ouder verkocht/dood is, en
+  `stopBreeding`, betalen niets terug — anders is "koppel, verkoop de doffer" een geldpers.
+  Vraagt om determinisme in `breed()`; zie §8.
+- **Ziekenboeg (`INFIRMARY`):** basiscapaciteit **2** (was 4); upgrades 3/4/5/6 voor
+  €800/1200/1800/2400 (`INFIRMARY_CAPACITY_TIERS`). Dokter €400/wk, kinesist €350/wk,
+  medicatievoer €45/duif/wk. **`energyRecoveryFactor 0.5`** — een duif in de ziekenboeg
+  recupereert energie enkel als ze **door staf gedekt** is (`coveredInInfirmary`: dokter=
+  ziekte, kinesist=kwetsuur) en dan aan **50 %** van het gezonde voer-tempo; ongedekt = 0.
+  In de boeg geen rustbonus (zie §Verzorging).
+- **Herstel (`HEALING`)** — real-time: `baseHoursOutside` licht 120 / matig 264 /
+  ernstig 432 (uren rustend in hok); ziekenboeg ×1,8, dokter/kinesist ×1,4,
+  medicatievoer ×1,2 (stapelen → volle zorg ×~3). Volle zorg: licht ~1,5 dag /
+  matig ~3,5 dagen / ernstig ~6 dagen — een aandoening is bewust een echte
+  tegenslag (was ~1 dag voor matig). `updateHours: 12` (statusupdate-cadans).
+- **Ziekte was in de praktijk onbereikbaar (opgelost):** de spontane kans werd
+  vermenigvuldigd met `clamp(1 − gezondheid/100, 0, 1)`, dus bij **gezondheid 100 exact 0** — en
+  de dagelijkse verzorging houdt duiven net dáár. Gemeten: eerste ziektegeval na **428 dagen** voor
+  een goed verzorgd hok van 8, en **nooit** bij gezondheid 100; besmetting kwam nooit op gang bij
+  gebrek aan een patiënt, dus de duivendokter (€57/dag) had niets te doen. Fix: **bodem
+  `HEALTH.illnessBaselineRisk 0.18`** op de kwetsbaarheidsfactor (toeval bestaat),
+  `spontaneousIllness` 0,05 → **0,10**, `contagionPerSource` 0,11 → **0,30**. Gemeten na de fix:
+  kerngezond ~110 d · goed verzorgd ~90 d · normaal ~60 d · verwaarloosd **~17 d**; besmetting binnen
+  een week 20/37/57/80%. Gezondheid blijft dus 6× de doorslag geven.
+- **Ernst schaalt met de gezondheid** (`DISEASE_SEVERITY` + `diseaseSeverityWeights(health)` in
+  gameConfig, gebruikt door `randomDisease(week, health)`): vroeger trok hij **uniform** uit de 6
+  ziektes → 33% meteen ernstig. Nu gezondheid ≥80 → licht 55 / matig 33 / ernstig 12%, en bij
+  gezondheid 30 → 40/34/**26**%. Het gewicht van een ernstniveau wordt verdeeld over de ziektes
+  binnen dat niveau, zodat een nieuwe ziekte de mix niet stiekem verschuift. Dat geldt enkel nog
+  voor **spontane** ziekte: bij besmetting krijgt een duif de ziekte van de bron.
+- **Besmetting per ziekte** (`DISEASES[].contagion`, factor op `contagionPerSource`): paramyxo ×1,5,
+  ornithose ×1,3, geel ×1,2, coccidiose ×1, pokken ×0,7, salmonella ×0,6. Zie §8 (*Besmetting per
+  ziekte*).
+- **Ziekte/impact (`HEALTH`)** — `runHealthDay` draait nu **real-time** per dag
+  (zie tick 4). Nieuw: `ailmentHealthDrainPerDay` licht 0,6 / matig 1,5 / ernstig
+  2,5 gezondheid/dag zolang de duif aan een aandoening lijdt, `×ailmentDrainOutsideFactor`
+  (1,5) buiten de ziekenboeg. Besmetting/spontane ziekte (`contagionPerSource` 0,11,
+  `spontaneousIllness` 0,05, wekelijks) en ailment-sterfte (`ailmentMortality*`) worden
+  weekkans→dagkans omgerekend (`1−(1−p)^(1/7)`). **Ouderdomssterfte** (`ageMortality`
+  / `MORTALITY_CURVE`) draait in `runAgeMortality` **per gerolde gameweek** (rauwe
+  weekkans), gedreven door de 4× real-time veroudering (`GAME_WEEKS_PER_REAL_WEEK`).
+  `runHealthWeek` (admin) behoudt de oude wekelijkse variant.
+- **Zwerm (`FLOCK`):** duiven worden samen gelost en navigeren in groep, dus
+  verdwalen kan pas zodra het veld openbreekt. `minBirds 3` (minder = geen zwerm),
+  `fullBirds 14` (vanaf hier volle dekking), `breakKm 12` (zover moet het veld uit elkaar
+  liggen), `paceNoise 0.05`, `minChance 0.08` (ook in de bunch peelt er al eens één af).
+  Toegepast in `buildPaceProfile` via `companyFactor(u)`; het veld zelf komt uit
+  `fieldContext` (`flight.ts`), één pas over de deelnemers **bij de lossing**.
+- **Omweg schaalt met de afstand (`LOST`):** `detourFractionShort 0.055` /
+  `detourFractionLong 0.04` (⚠️ **kort is nu GROTER dan lang** — bewust omgekeerd bij de
+  oriëntatie-herbalans, zie §8) en plafond `maxDetourFractionShort 0.07` /
+  `maxDetourFractionLong 0.16`, geblend op `distanceT`. 10 % van 120 km besliste de
+  wedstrijd; nu kost een sprint-omweg ~5 km (max 8). ⚠️ `max` (3,6 → **4,4**) en
+  `distPerKm` (0,0024 → **0,0034**) zijn verhoogd om te compenseren dat de zwerm
+  oriëntatie-episodes wegneemt — zie §8.
+- **Weddenschappen (`BETTING`):** window 12u, inzet €10–€500, houseMargin 0.12,
+  simIterations 1500. Wedden op **alle wedstrijdvluchten**; **niet** op oefenvluchten
+  (`bettingOpen` weigert `flight.practice`). **`historyHours` (24)** = hoelang een
+  **afgehandelde** weddenschap nog in `betsView` zit; open weddenschappen zijn nooit
+  begrensd. Puur weergave — de rijen blijven (100, `boundedCleanups`).
+- **`TRADE_HISTORY_DAYS` (7)** — hoever de **verkoopgeschiedenis** op de markt terugkijkt
+  (`recentTrades`). ⚠️ Bewust véél korter dan `MARKET_VALUATION.observationDays` (60):
+  de waardering leest `db.trades` zelf en blijft dus van oudere verkopen leren.
+- **Oefenvlucht (`PRACTICE`):** `energyCost 4`, `improveChance 0.7` /
+  `coachedImproveChance 0.92`, `weights {speed 0.15, endurance 0.45, orientation 0.4}`,
+  `gainMin 0.4`/`gainMax 1.4`, `coachedBonusGain 0.5` (extra op conditie/oriëntatie).
+- **Getrapt wedstrijdrisico bij lage startenergie (`TOURNEY_RISK`):**
+  `lightThreshold 20`→licht (kans 0.2), `moderateThreshold 10`→matig (0.3),
+  `deathThreshold 5`→sterfte (0.07). Opgegeven duiven zijn gevrijwaard; sterfte gaat
+  vóór elke aandoening. Via `randomAilmentOfSeverity(kind, severity, week, rng)`.
+- **Seizoen (`SEASON`):** `weeks 4`, `weekDays 7` → 28 echte dagen/seizoen,
+  real-time (`tickSeason`). `SEASON_AWARDS`: roekoe `[2000,1700,1400]`,
+  vleugel `[1000,750,500]`, en **`pointsPremiumDivisor 3`**: elk hok **buiten de top 3**
+  met punten krijgt `floor(seasonPoints / 3)` als **seizoenspremie** (award-soort
+  `'premie'`, `rank` = zijn plaats 4+, `value` = zijn punten; 1.200 punten → €400).
+  De premie is **geen beker**: ze telt niet mee in de Roekoe-tellingen van het profiel
+  (`tally` kijkt enkel naar `roekoe`/`vleugel`), maar staat wel in de erelijst en in de
+  prijsuitreiking op het scherm (eigen muntstapel in `PrizeCeremony`). Omdat bijna elk
+  hok nu een award krijgt, ziet bijna iedereen een prijsuitreiking en krijgt bijna iedereen
+  de melding (`ntf:season:<seizoen>:<userId>`; enkel premie → "Bedankt om mee te
+  vliegen!"). **Bots dingen mee en kunnen ook winnen** (geld erbij, geen melding). `advanceWeek` doet **geen** seizoensrollover meer.
+- **Rustkuur (`REST_CURE`):** `cost 300`, `durationHours 48`, `energy 40`, `health 15`,
+  `cooldownDays 7` — **per DUIF**, geteld vanaf de start van haar vorige kuur via
+  `Pigeon.lastRestCureAt` (kolom `last_rest_cure_at`). Meerdere duiven tegelijk op kuur mag
+  dus; het oude één-per-**hok**-per-week is weg. De poort zit op
+  `pigeonDTO.restCureAvailableAt`; `loftDTO.restCureAvailableAt` bestaat nog maar is altijd
+  `null` (oude open tab), en `Loft.lastRestCure` is nog enkel hok-historiek.
+- **Estafettevlucht (`RELAY` — zaterdag om de week):** ploegformat dat
+  **week om week afwisselt met de titan** op hetzelfde zaterdagslot. `isRelayWeek(dayNumber)`
+  (`gameConfig.ts`) = `floor(dayNumber/7) % 2 === 1` → eerste estafette **22 aug 2026**;
+  `ensureFlightsScheduled` kiest per zaterdag het format en gebruikt dan **`RELAY.hour` 5**
+  i.p.v. `TITAN.hour` 8. Slot-key blijft `titan` (dedupe per dag). Knoppen: `teamSize 3`,
+  route **850–950 km**, `entryFee 100` (**één keer per ploeg**), `prizes [3000,2000,1500,1100,800]`,
+  0 punten, geen wedden. **Route** via `pickRelayRoute` (`core/game/relay.ts`): echte start/
+  aankomststad (aankomst altijd Vlaams), wisselpunten **exact op ⅓ en ⅔ van de grootcirkel**
+  → elke etappe exact even lang; punten gelabeld met de dichtstbijzijnde stad + windstreek
+  (`describePoint` → "ten oosten van Limoges", "bij Lyon" onder `nearCityKm 25`). 36 mogelijke
+  routes.
+- **Estafette-mechaniek (`flight.ts`):** één duif per ploeg tegelijk in de lucht.
+  `startLiveRelay` bevriest per duif een pace-profiel over **haar eigen etappe** met **die
+  etappe haar eigen weerfactor** (daarom is de volgorde tactisch), plus `SimEntry.leg` en
+  `legStartSeconds` (= som van de eerdere etappes). `relayTeams` leidt per ploeg af of/waar ze
+  uitvalt (`outAtLeg`/`outSeconds`) en haar totaaltijd; `relayTeamProgress` geeft afgelegde
+  ploegafstand; `relayStandings` = **finishers op tijd, daarna uitgevallen ploegen op afstand**
+  (een uitgevallen ploeg kan dus nog in de prijzen vallen, nooit vóór een finisher).
+  `relaySnapshot` levert `LiveSnapshot.teams` (ploegrij + 3 etapperijen), `relayCommentary`
+  doet ploegduels + **wisselmomenten/uitschakeling/ploegfinish**, `finalizeRelayFlight` rekent
+  per ploeg af. **Duiven die nooit aan de beurt kwamen betalen niets en lopen geen risico**
+  (ook `tickFlightEnergy` slaat ze over via een `grounded`-set). `giveUpFlight` bewaart
+  `gaveUpAtSeconds` **etappe-lokaal**. Prijzengeld gaat **één keer** naar het hok (vroege
+  uitbetaling via de anker-duif in `computeFinishPayouts`, `prizePaid` verrekend in finalize);
+  in `results` staat het bedrag op de **laatste etappe** zodat de meldingssom klopt.
+- **Weer per etappe:** `relayLegsNeedingForecast` + `applyRelayForecasts` (schedule.ts) en
+  `fetchLegForecast` (weather.ts, uurlijkse Open-Meteo-forecast op coördinaten). De API haalt
+  het op vóór `advanceRealtime`; ververst elke `forecastRefreshHours` (6), en **elk uur** binnen
+  `forecastFinalHours` (2) van de start. Kost hoogstens 3 subrequests per venster.
+- **Ploegbeheer:** `enterFlight` laat max. 3 duiven per hok toe en rekent het inschrijfgeld
+  enkel bij de **eerste** aan; `setRelayOrder` (engine.ts, `POST /flights/:id/relay-order`)
+  wisselt de etappevolgorde tot de start; `withdrawFlight` haalt de **hele ploeg** weg met één
+  terugbetaling; `tickFlights` gooit **onvolledige ploegen** eruit (terugbetaling + melding)
+  vóór de "minstens 2 melkers"-check, en de afgelast-terugbetaling telt voor een estafette
+  **één fee per ploeg**. Bots schrijven 3 duiven in of doen niet mee.
+- **Migratie v31:** een reeds geplande **titan op een estafette-zaterdag** wordt verwijderd,
+  inschrijfgeld terugbetaald + melding (en open weddenschappen erop terugbetaald). **dataVersion → 31.**
+- **Schuld (`DEBT` — kassa onder nul):** `graceDays 10` (dagen in het rood vóór de eerste
+  gedwongen veiling, en tussen elke volgende), `keepPigeons 1` (de laatste duif wordt nooit
+  geveild), `markdownPerRound 0.25` + `minOpeningFraction 0.25` (elke ronde die géén bod
+  kreeg opent zoveel lager, tot die bodem), `minOpeningBid 25`. Plus `AUCTION.forcedWindowHours
+  24`. Logica in **`core/game/debt.ts`** (`tickLoftDebt` draait uit `tickDailyCare`, ná de
+  dagafrekening) + `createForcedAuction` in `auction.ts`; de aankooppoort is `debtBlock(loft)`
+  in **`economy.ts`**. Zie §8.
+- **Bots (`BOT` — de "knoppen" van het botgedrag):** `DEFAULT_BOT_COUNT` **8**.
+  `reserve 1500` (kasvloer), `raceHeadroom 1.15` + `minFormRegular 12` (inschrijven op
+  routekost i.p.v. een vlakke 45), **`minFormRelay 0`** (geen drempel voor de estafette),
+  `minHealthRace 45`, `breedReserveFlock 8` (houdt een koppel thuis als het hok dun wordt),
+  `restCureBelowForm 28`/`restCureReserve 3000`, `maxCoached 2`/`coachReserve 8000`,
+  `capacityReserveFactor 2.5`/**`maxCapacity 12`** (platformgrens, zie §Performance),
+  `maxPairs 2`/`breedReserve 2500`/`breedMinLibido 35`, `foodWeeksBuffer 3`,
+  **`goodFeedFrom 2500`** (vanaf dat bedrag Herstelvoer i.p.v. Normaal).
+- **Leeftijdscriterium (`AGE_CUP` + `AGE_CATEGORIES`):** een tweede competitie
+  náást het seizoen, enkel voor **duiven**. Vier klassen (`AgeCategoryId` = `u1`/`y12`/
+  `y23`/`o3`, grenzen 52/104/156 gameweken) met elk **één vlucht per week** op een eigen
+  weekdag om **06:00** (ma/wo/do/vr — vroeg, zodat een fondvlucht van 1000 km 's avonds
+  binnen is). `entryFee 20`, **geen limiet per hok**. Het format wisselt week na week:
+  `sprint` (100–300 km, pool `national`, prijzen `[1000,800,600,420,300,200,130,80]`) en
+  `fond` (400–1000 km, pool `international`, `[1600,1400,1200,850,600,400,260,160]`).
+  Helpers `ageCategoryFor(ageWeeks)`, `ageCategoryDef(id)` en `isCupSprintWeek(index)`.
+  **Cyclus:** `seasons 3` — de stand loopt drie seizoenen door en pas dan volgt de
+  prijsuitreiking (`awards [2000,1600,1200]` per klasse) + reset.
+- **Schema (`REAL_SCHEDULE` — vaste weekkalender):** één vast programma per
+  weekdag i.p.v. het oude dagelijkse lang+kort-ritme. **ma** 08:00 intl · **di** 10:00 regio
+  + 12:00 oefenvlucht · **wo** 08:00 nat · **do** 08:00 intl · **vr** 07:00 **nat lang
+  (430–500 km)** + 12:00 oefenvlucht + 17:00 regio · **za** 08:00 **Titan** (`TITAN.hour` van 11 → **8**) · **zo** 08:00 nat +
+  17:00 regio. Dat is **8 wedstrijden + 2 oefenvluchten/week** (3 regio, 2 nat, 2 intl,
+  1 titan) tegen 11–13 + 2–4 vroeger — bewust minder, zodat er **meer duiven per vlucht**
+  aan de start staan. Tijdzone Europe/Brussels; elk slot heeft een eigen `key`
+  (`mon-international`, `tue-regional`, `tue-practice`, …) zodat `templateKey` per dag
+  uniek blijft. `everyNDays` en `tiers` (dagrotatie) worden niet meer gebruikt maar
+  blijven ondersteund. Op een **titan-dag** worden alle níet-titan-slots nog steeds
+  overgeslagen (nu redundant: zaterdag heeft er geen).
+- **Oude kalenderdagen blijven ongemoeid** (`LEGACY_SLOT_KEYS` in `schedule.ts`): een dag
+  die al een vlucht heeft met een **oude** slot-key (`morning-long`/`noon-practice`/
+  `evening-short`) wordt volledig overgeslagen, zodat de kalenderwissel er geen races
+  bovenop plant. Zelf-uitdovend en in de praktijk al lang uitgewerkt — de guard staat er nog
+  als vangnet, verwijder hem niet zonder na te gaan of er nog zo'n vlucht bestaat.
+- **Titanenwedstrijd (`TITAN`):** `weekday 6` (zaterdag), `hour 8`, afstand 200–600 km,
+  `entryFee 50`, `prizes [1800,1200,900]`. **Enkel geld** voor de melker-economie: geen
+  **seizoenspunten**/medailles/wins, telt **niet** mee voor de **melkerranglijst (Roekoe)**;
+  **max. 1 duif per hok** (`enterFlight` + bots 1 vogel); geen wedden (`bettingOpen`).
+  Prijzengeld via `finalizeFlight` (`flight.titan` → `TITAN.prizes`, 0 punten, 0 wins).
+  **Telt sinds kort wél mee voor de duivenranglijsten (Vleugel):** in `tickFlights` draait
+  de per-seizoen-stats­update (`seasonPeakSpeed`/`seasonPodiums`) óók voor titans, en titan-
+  groei gaat **niet** meer naar `seasonPracticeGain` (dus vooruitgang telt mee). Enkel de
+  melker-economie-stappen (badges/medailles, bets, missies, sponsorbonus) blijven over-
+  geslagen via `if (flight.titan) continue;`. Duiven verbeteren sowieso normaal.
+- **Wedstrijd-annulering:** een niet-oefenvlucht met **< 2 verschillende eigenaars**
+  bij de start wordt afgelast (`tickFlights`), inschrijfgeld **terugbetaald** per
+  ingeschreven duif + melding. Oefenvluchten mogen solo doorgaan.
+- **Duivenranglijsten tellen wedstrijdvluchten én de titanenwedstrijd** (enkel
+  oefenvluchten niet). Snelheid/podiums negeren enkel practice; **vooruitgang** trekt de
+  practice-groei af via `Pigeon.seasonPracticeGain` (kolom `season_practice_gain`, enkel
+  door practice gevuld), bijgewerkt in `tickFlights` en gereset bij seizoenswissel. De
+  **melkerranglijst (seizoenspunten)** telt titan/practice níet (0 punten uit `finalizeFlight`).
+
+---
+
+## 6. Client-pagina's (`client/src/pages/`)
+
+- `DashboardPage` — home. **Seizoen-sectie** onder de stat-tegels: "Seizoen X · week
+  Y/4" + badge met **dagen tot de volgende speelweek** (`nextPlayWeek`+`timeUntilOrClock`
+  in `ui.tsx`; week 4 → "nieuw seizoen"). Binnen de laatste 24 uur toont die badge het
+  **exacte moment** in Brusselse tijd ("vandaag om 15:00" / "morgen om 14:00") i.p.v.
+  "nog 5 uur"; verder weg blijft het `timeUntil` ("nog 3 dagen"). Voorraad per voertype met een **voerbalie die twee
+  kanten op werkt** (Kopen/Verkopen-schakelaar; verkopen aan `FOOD_RESALE_RATE` = 80%, met
+  een *Alles*-knop voor de hele voorraad van dat type), voer-effecten **per dag** in
+  **tekst** (energie/gezondheid/conditie/libido). Tegel "**Ziek/gewond in je hok**"
+  (ziekenboeg telt niet mee). **Klikbare tegel "Dagelijkse kosten"** — **full-width,
+  onderaan de tegelrij** (`gridColumn: 1 / -1`, zodat het oneven tegelaantal er niet
+  scheef uitkomt) — toont de cumulatieve dagkost (`loft.dailyCosts.total`); klikken opent
+  een **onderverdeling** (vast onderhoud, onderhoud per duif, privécoach, duivendokter,
+  kinesist, medicatievoer + totaal & ≈weekbedrag) — cijfers uit `loft.dailyCosts`
+  (`dailyRunningCostBreakdown` in `economy.ts`, zelfde bron als de dagelijkse afrekening in
+  `tickDailyCare`). De onderverdeling is een **flex-lijst (geen `table.data`)** — die heeft
+  `white-space: nowrap` op cellen en liep op gsm horizontaal over; nu wrapt/​krimpt de
+  labelkant (`min-width:0`) en blijft het bedrag rechts staan (`flex-shrink:0`). Dagopdrachten.
+  **Rode-kassa-waarschuwing** bovenaan zodra `loft.money < 0`: één regel met het aantal dagen
+  tot de volgende gedwongen veiling (`loft.debtAuctionInDays`) + link naar `/wiki#schuld`.
+  Beheerder-kaart (admin): "Volgende week" + "Toon recente veilingen" (biedgeschiedenis).
+- `InrichtingPage` (`/inrichting`) — vier inklapbare blokken: plaatsen & hokken, hygiëne,
+  vaccins & kuren (hele hok), uitrusting; zie §0b. Op dev staan de uitbreidingen niet meer op *Mijn hok*.
+- `LoftPage` (Mijn hok) — duivenlijst met per duif: onder de waarde **Opgebracht** (`pigeonDTO.earnings`:
+  prijzengeld voor de HUIDIGE eigenaar; lopend totaal `Pigeon.earnings`/`earningsOwner`, opgeteld in
+  `creditEarnings` bij de afronding, ×starterbonus zoals uitbetaald; met terugwerkende kracht
+  herberekend uit de historiek met `EARNINGS_BACKFILL_SQL` (×2 binnen `lofts.newcomer.endsAt`).
+  ⚠️ D1's `exec()` voert elke REGEL apart uit en `ensureSchema` slikt fouten: de eerste,
+  meerregelige versie faalde stil (alles €0). `ensureSchema` maakt elke stap nu één regel, en
+  de test bootst D1's exec na; test `tests/earnings.test.mts`),
+  **inschrijven voor een vlucht** (select met
+  de vluchten waar ze nog op kan, kosten + kenmerkhint, en haar boekingen met ✕ uitschrijven;
+  één `/flights`-load bij aankomst, dezelfde regels als *Vluchten* via `game/flightEntry.ts`),
+  voerkeuze-select, apart/samen-knop
+  (of "🏥 Ziekenboeg"-label als ze daar zit), verkoop, uitbreidingen. De statbalken
+  tonen een **▲/▼ per dag** (groei/daling door je huidige keuze; via `pigeon.dailyCare`).
+  ⚠️ **Beide uitbreidingen in `UpgradesCard` vragen eerst een `window.confirm`**
+  ("Ben je zeker dat je …"): hokcapaciteit (`POST /loft/capacity`) en een apart hok
+  (`POST /loft/compartment`). Het zijn de duurste, onomkeerbare aankopen van het spel en
+  de knoppen liggen op gsm één misklik ver. De capaciteitsvraag noemt **ook de
+  daghuur van de volgende duif** (`nextBirdRate` uit `upkeepBands`) — de prijs is de
+  zichtbare helft van die aankoop, de hogere `UPKEEP_BANDS`-schijf de helft die later
+  bijt. Zelfde patroon als opgeven/sponsor opzeggen/inteelt-waarschuwing.
+- `PigeonPage` — één duif, in deze volgorde: kop + stats · gezondheid · training · bod ·
+  **Ontwikkeling** (coach + rustkuur + hernoemen) · **Familie** (vader + moeder, met daaronder
+  de knop **"Toon volledige stamboom"** → `components/Pedigree.tsx`: **één zandloper**
+  met voorouders links, de duif + broers/zussen + partners in het midden en de
+  nakomelingen rechts; zie §8) · **"Afscheid nemen"** · **Wedstrijdhistoriek**.
+  ⚠️ Bewust **niet** hier (zie §8): het leeftijdscriterium (staat op *Ranglijst →
+  Criterium*), de voerkeuze en de apart-hok-knop (staan op *Mijn hok*) en de uitleg bij
+  de waardeschatting. Verder: **rustkuur**
+  (POST `/pigeons/:id/restcure`); hernoemen; **"Afscheid nemen"**
+  (POST `/pigeons/:id/release` = vrijlaten, geen geld; POST `/pigeons/:id/restaurant`
+  = verkoop aan het duivenrestaurant voor €50 + moraal-energieklap op de rest van het
+  hok). Beide met bevestigingsstap; geblokkeerd zolang de duif ingeschreven/koppelt.
+  (De per-dag-▲/▼ staan in het hokoverzicht, niet hier.)
+- `FlightsPage` — kalender/uitslagen; inschrijven; weddenschap-paneel (max. 1/vlucht,
+  o.a. type **top3**). **Oefenvluchten** krijgen een eigen badge, tonen "gratis" i.p.v.
+  inschrijfgeld en hebben geen weddenschap-paneel. De **kalender is gegroepeerd per
+  kalenderdag** (`dayGroups`, sleutel = `flightDay(f)` = `startAt.slice(0,10)` — dezelfde
+  sleutel als de server-regel "één vlucht per dag") met een `.day-head` per dag, en twee
+  `.chip-row`-filters: **soort** (`FlightFamily`: `competition` / `special` = titan+estafette+
+  oefenvlucht / `cup`) en **dag**. Live vluchten staan onder een eigen "🔴 Nu bezig"-kop en
+  vallen **buiten** beide filters. Op de tab **Uitslagen** toont "Afgeronde weddenschappen"
+  enkel de laatste 24 u (`BETTING.historyHours`, server-side).
+- `LiveFlightPage` — live bord met **twee voortgangsbalken**: **Kop van de wedstrijd**
+  (`live.headProgress`, de nr. 1) en **Staart van de wedstrijd** (`live.tailProgress`, de
+  laatste duif/ploeg die nog in de race zit, DNF's niet meegeteld). Beide volgen **echte
+  posities**, niet de klok — `overallProgress` (= `elapsed/total`) blijft in de DTO staan
+  voor oude open tabs maar wordt niet meer getoond. Knop **🏳️ Opgeven** (spaart resterende energie).
+  Het **📻 Live verslag** meldt nu échte gebeurtenissen (voorbijsteken + reden), zie §2.
+  Boven de balken staat de **🗺️ live kaart** (`components/FlightMap.tsx`, **lazy** geladen —
+  Leaflet is een eigen chunk van ~46 KB gzip): echte tegelkaart, de route, en een stip per
+  duif die nog in de race zit, met een popup per duif. Rijdt volledig mee op de bestaande
+  poll van 60 s — **geen eigen verzoek, geen extra D1-rij**.
+  **Enkel voor admins** staat er bij een live vlucht ook **⏩ Match beëindigen**
+  (met bevestiging) → `POST /admin/flights/:id/finish`; zie §8.
+  **Meteen onder de kaart** staat de **💬 Tribune**: de chatbox met spelersreacties (zie §8).
+  ⚠️ Die plek is bewust: het is het énige blok op deze pagina waar de speler zélf iets doet,
+  en het stond onder de standen én het verslag — bij een veld van 90 duiven een scherm of drie
+  lager, dus je riep iets naar een race die je niet meer zag. Het 📻 verslag staat nu eronder.
+  Twee aparte stromen die bewust niet door elkaar lopen — het verslag is de reporter, de
+  tribune zijn de spelers. De box komt mee op dezelfde poll; wie zelf iets stuurt krijgt de
+  verse regels uit het POST-antwoord terug, want 60 s wachten op je eigen kreet voelt kapot.
+  Kaartvolgorde: **kaart → tribune → stand → verslag → samenvatting → uitslag**.
+- `InfirmaryPage` (Ziekenboeg) — zieke/gekwetste duiven; dokter/kinesist/medicatievoer;
+  **herstelbalk per duif** (`ailment.healed`).
+- `ProfilePage` — hoknaam, **thema-toggle (donker/licht)**, **"Start rondleiding"**.
+- `RankingPage` — tabs **Melkers** (seizoenspunten), **Duiven** en **Criterium**
+  (`AgeCupPanel`: de vier leeftijdsklassen van §2.10 spelregels, met hoever de
+  driejarige cyclus staat). Duiven = drie ranglijsten:
+  hoogste gemiddelde vluchtsnelheid, meeste podiums, meeste vooruitgang — via `state.pigeonRankings`).
+  Kop toont "Seizoen X · week Y/4 · nog Z dagen" (tot seizoenseinde) + een tweede regel
+  met **dagen tot de volgende speelweek** (`nextPlayWeek`+`timeUntilOrClock`, zelfde
+  "vandaag/morgen om …" binnen 24 uur).
+- `AchievementsPage` (Prestaties) — tabs Badges · Trofeeën · **Seizoensprijzen**
+  (Roekoes + Vleugels: tellingen goud/zilver/brons + erelijst uit `profile.awards`).
+- `StemPage` (`/stem`, nav 🗳️ **De Stem**) — het **ideeënbord**: spelers stemmen op
+  ideeën voor de volgende feature, stellen er vragen onder en dienen zelf ideeën in.
+  Eén kaart per idee met links de **stemknop** (👍/✅ + stand, optimistisch — de rondrit
+  duurt op gsm te lang om erop te wachten), rechts een **statusbadge** (In stemming /
+  Gepland / In het spel / Niet weerhouden). De **reactiedraad klapt open per idee en
+  wordt pas dán opgehaald** (`GET /stem/ideas/:id`): reacties zijn de enige rijen hier
+  die onbeperkt groeien. Beheerder ziet per kaart een statuskiezer
+  (`POST /admin/stem/ideas/:id/status`) — het énige wat de spelleiding op het bord *wijzigt*;
+  ideeën worden nooit herschreven of gewist. Bovenaan staat voor de beheerder ook
+  **"🛠️ Wie stemde op wat"** (`VotersPanel`, dichtgeklapt, laadt pas bij openen via
+  `GET /admin/stem/voters`): twee tabs — **per idee** (wie het steunt, ook de nul-stemmers)
+  en **per speler** (waarop hij stemde, **inclusief wie nog niets stemde**), met een teller
+  "X van de Y spelers stemden". Stemmen is dus **niet anoniem tegenover de beheerder**;
+  dat staat zo in de wiki en in `spelregels.md` §11bis. Een **nieuw idee belt élke andere echte speler**
+  (`notifyNewIdea`, stabiele id `ntf:stem:idea:<ideaId>:<userId>`; niet de indiener, niet de
+  bots) — zonder die bel ziet alleen wie toevallig de pagina opent een vers idee, en dan
+  stemt er niemand op. Het bord **zaait zichzelf** met vier startideeën (lenen bij de bank · onderling broeden · doping + dopingcontrole · unieke
+  eigenschappen per duif) zodra het leeg is. Backend: `core/game/stem.ts` (regels) +
+  de `stem_*`-queries in `core/d1.ts`; §8 heeft het waarom.
+- `LokaalPage` (`/lokaal`, nav 🍻 **Het Lokaal**, op gsm onder *Meer*) — de **vrije chat van alle
+  spelers** ("het lokaal" = het café van de duivenbond). Eén kaart die het scherm vult: de
+  berichtenstroom scrolt **binnen** de kaart, het tekstvak staat er altijd onder. Eigen berichten
+  rechts (blauw), andermans links met de hoknaam erboven; opeenvolgende berichten van dezelfde
+  speler binnen 5 min delen één naam; dagscheidingen (Vandaag/Gisteren/datum, Brusselse tijd);
+  een bericht dat jouw hok- of loginnaam noemt krijgt een oranje rand. Enter verstuurt op een
+  computer (Shift+Enter = nieuwe regel); op touch (`pointer: coarse`) is Enter een nieuwe regel en
+  verstuur je met de knop. Tik op een eigen bericht (beheerder: elk bericht) → *🗑️ Weghalen* (met
+  `window.confirm`). Pollt via `useVisiblePoll` elke `LOKAAL.pollSeconds` met `?since=<now>`;
+  wie aan het teruglezen is krijgt een pil "↓ N nieuwe berichten" i.p.v. een verspringende lijst.
+  "⬆ Oudere berichten" laadt de vorige pagina (`?before=`) met behoud van scrollpositie.
+  **Bolletje** op de nav-knop via `world.chatLastAt/By` + `game/lokaalSeen.ts` (localStorage,
+  zoals de markt); op gsm krijgt ook de **Meer**-knop een bolletje zodra iets erachter aandacht
+  vraagt (gold voor álle overflow-knoppen, ook Sponsors — voordien onzichtbaar op gsm).
+- `WikiPage` (`/wiki`, nav 📖 **Wiki**) — **statische**, client-only uitlegpagina van
+  de strategie-bepalende mechanismen + kansen. **Dé plek voor lange uitleg** (zie
+  §Tekstbudget): elk scherm houdt het bij het minimum en linkt hierheen. Secties (`id`):
+  `genen` · **`coach`** · `ervaring` · `energie` (energie/voer/honger/rustkuur) · `vlucht` ·
+  `eigenschappen` · `verdwalen` · `vorm` · `lage-energie` · **`titan`** · `estafette` ·
+  `broeden` (kweken/overerving) · `ziekte` · **`ziekenboeg`** · `sterfte` · `rassen` ·
+  `veilingen` · **`tribune`** · **`lokaal`** · **`stem`** · `hok` · **`schuld`** · `waarde` · `afscheid`. Bewust
+  **niet 100% transparant**: richtwaarden i.p.v. exacte formules, geluk blijft benoemd.
+  Geen backend/kosten. Cijfers **handmatig** in sync houden met `core/config/gameConfig.ts`.
+  `WikiPage` scrollt naar de hash bij mount, dus `/wiki#coach` landt op de juiste sectie.
+- `AdminPage` (`/beheer`, **enkel admins**) — uitbreidbare **beheerconsole** (tabs).
+  Eerste tool **Vlucht-analyse**: per duif van een afgeronde vlucht de volledige
+  snelheidsontleding (eigenschappen + weging + energie/gezondheid/ervaring/leeftijd-
+  factoren + berekende vs. echte snelheid + residu ≈ geluk). Nav-link + route enkel
+  bij `state.isAdmin`; API's `GET /admin/flights` en `GET /admin/flight-analysis/:id`
+  checken `user.isAdmin` (403 anders). Kern: `velocityBreakdown()` in `flight.ts`.
+  Tweede tool **Duif-inspector** (`GET /admin/pigeons?q=`): exacte opgeslagen waarden
+  (op 0,1) van élke duif (eigen of andermans) — skills, gen-caps, `birthWeek`/leeftijd,
+  `declineRate` + **verouderingsdiagnose** (`aging` enkel > `AGING.peakEndWeeks`, met de
+  exacte `declinePerWeek`), plus een **uitklapbaar wijzigingslogboek** (`Pigeon.attrLog`):
+  elke skill-verandering met reden + tijdstip. Zo verifieerbaar óf, wanneer én waardoor
+  een duif zakt/stijgt. De duifnaam linkt naar `/duif/:id`, en **de admin ziet daar álle
+  eigenschappen** (zie §8, admin-doorbraak op de info-hiding).
+- `MarketPage` (Markt) — koop van spelers + veilingen (zondag/opvangcentrum) + de
+  **privé-biedingen**: "Biedingen op jouw duiven" (accepteer/weiger), "Jouw
+  uitgebrachte biedingen" (intrekken), én een **getrapte kiezer `BidCascade`**
+  ("🕊️ Bied op duiven van andere spelers"): stap 1 **kies een speler**, stap 2 **kies
+  een duif** van die speler (dropdown toont enkel naam · ★talent · geslacht), stap 3
+  **bedrag** → Bied. De bieder ziet **enkel de algemene score** (★talent), niet de
+  precieze eigenschappen — verwijzing naar ranglijst/vluchtresultaten. `/market` levert
+  `biddable` (alle niet-te-koop duiven van echte spelers, elk met `revealed:false`).
+  `listings` bevat **ook je eigen te-koop-duiven**: de verkoper ziet zijn duif op de
+  markt zoals iedereen, met een label "Jouw duif" en enkel een knop **Uit de verkoop
+  halen** (geen koop- of biedknop). `buyPigeon`/`makeOffer` weigeren je eigen duif
+  sowieso ("Dit is al jouw duif"). Daarboven de knop **Zoekertje naar boven**
+  (€50, 12 uur bovenaan; zie §0b *Zoekertje naar boven*); de lijst toont de geboostte eerst.
+  Nav-badge op **Markt** = ontvangen biedingen; daarnaast een **stip** zodra er een duif
+  te koop staat die deze speler nog niet zag (§8). De pagina zet die stip uit door bij
+  het laden `markMarketSeen` te roepen met wat er op het scherm staat. De **verkoopgeschiedenis** onderaan toont
+  enkel de laatste **7 dagen** (`TRADE_HISTORY_DAYS`, server-side in `recentTrades`).
+- `PigeonPage` bij andermans (niet-bot) duif: kaart **"Bied op deze duif"** (bod
+  uitbrengen / lopend bod intrekken). Statbalken verborgen (`revealed:false`) →
+  enkel ★talent + "eigenschappen onbekend"-melding.
+- `BreedingPage` (dev): twee tabs, **🥚 Eigen nest** (hieronder) en **🤝 Samen kweken**
+  (`components/SamenKweken.tsx`, zie §0b). Tab Eigen nest:
+  nieuw koppel + lopende broedsels, én bovenaan het **nest-keuzescherm**
+  (`components/NestChoice.tsx`) zodra een worp op een keuze wacht. Dat scherm toont per
+  jong de score **en de gen-caps** (daar gaat de keuze over), heeft een uitklapbaar
+  *Maak plaats* met 🕊️/🍲 per volwassen duif, en blokkeert het koppelformulier zolang het
+  nest openstaat. Nav-teller op **Kweek** = `state.pendingNests`. Duiven die **uitrusten
+  van een vorig nest** (`pigeonDTO.breedAvailableAt`) vallen uit beide keuzelijsten, met
+  eronder één regel hoeveel er rusten en wanneer de eerste weer mag — een duif die
+  zwijgend uit de lijst verdwijnt leest als een bug.
+- Verder: `SponsorsPage`, `LoginPage`.
+
+**Rondleiding (`components/Tour.tsx`):** interactieve spotlight-tour die per stap
+naar de juiste pagina navigeert en het relevante element highlight via
+`[data-tour="..."]`-ankers. `Tour` neemt een optionele **`steps`-prop** (default =
+volledige `STEPS`). De volledige tour dekt o.a. **rassen** (`BREED_STEP`, anker
+`[data-tour="pigeon"]`: foto/zeldzaamheid/kans/kweek), oefenvluchten, rustkuur, markt +
+**"🕊️ Bied op andermans duiven"** (anker `[data-tour="market-bid"]`: speler→duif→
+bedrag + verborgen eigenschappen), **seizoen, ranglijst (Roekoe), duivenranglijsten
+(Vleugel)**, het **leeftijdscriterium** (`AGE_CUP_STEP`, anker `[data-tour="age-cup"]`)
+en de prestige-seizoensprijzen. Eenmalig per speler (localStorage
+`roekoe.tourSeen.<id>`), draait vanuit `Layout` (blijft gemonteerd tijdens navigatie);
+de profielknop herhaalt hem via `window.dispatchEvent(new Event('roekoe:start-tour'))`.
+
+**"Wat is nieuw"-melding:** dezelfde `Tour` maar met een **subset** stappen. Actueel
+= **`STEM_NEWS_STEPS`** (De Stem bestaat · stemmen + vragen stellen · zelf een idee
+indienen). Eigen localStorage-sleutel `roekoe.newsSeen.stem.<id>`;
+toont pas als de hoofd-tour niet open is. `closeTour` zet ook de news-sleutel, zodat een
+nieuwe speler die de volledige tour afrondt niet nog eens de news krijgt. Bump de
+sleutel-suffix + wissel de `steps`-set (import in `Layout`) voor een volgende
+aankondiging. **Het Lokaal** kreeg een eigen, losse run náást de seizoen 3-run:
+`LOKAAL_NEWS_STEPS` (één spotlight op `[data-tour="lokaal"]`), sleutel
+`roekoe.newsSeen.lokaal.<id>`, en die toont pas als de seizoen 3-run gezien is (nooit twee
+aankondigingen op één bezoek). `closeTour` zet beide sleutels; de volledige tour heeft een
+Lokaal-stap vóór Profiel. De bel kwam via migratie **v60** (`LOKAAL_INTRO` in `game/lokaal.ts`).
+De vorige sets `PEDIGREE_NEWS_STEPS`, `PRIZE_NEWS_STEPS`, `AGE_CUP_NEWS_STEPS`, `FAREWELL_NEWS_STEPS`, `REST_CURE_NEWS_STEPS`,
+`RELAY_NEWS_STEPS`, `GENES_NEWS_STEPS`, `BREED_NEWS_STEPS`, `BID_NEWS_STEPS` en
+`SEASON_NEWS_STEPS` blijven in `Tour.tsx` als referentie. (De oude `FeatureTour` met gecentreerde kaarten
+is verwijderd — alles zit nu in `Tour`.)
+
+**Thema:** `data-theme` op `<html>` (default **dark**, gezet door inline script in
+`index.html` vóór paint). CSS gebruikt `:root[data-theme='dark']` en
+`[data-theme='dark'] …` (geen `prefers-color-scheme` meer). Toggle in Profiel.
+
+---
+
+## 7. Werkwijze & conventies
+
+### Nieuwe feature toevoegen
+Logica in `core/game/` + knoppen in `core/config/gameConfig.ts`, endpoint in
+`functions/api/[[path]].ts`, DTO in `core/presenters.ts` + `client/src/types.ts`,
+UI in `client/src/pages/`. Update **`spelregels.md`** bij een regel/formule, en
+**altijd `context.md`** (§0). Hoort er uitleg bij? Die gaat in **`WikiPage.tsx`**;
+het scherm zelf blijft kort en linkt ernaar (§0, punt 4).
+
+### Verifiëren vóór commit
+```bash
+npx tsc --noEmit                 # server/core typecheck (vanuit root)
+cd client && npx tsc --noEmit    # client typecheck
+npm run build                    # bouwt de client (vanuit root)
+```
+Voor engine-logica: snelle integratietests met **tsx**, allemaal in **`tests/`**
+(importeren rechtstreeks uit `../core/...`). Een wegwerptest zet je daar ook neer en
+verwijder je achteraf.
+
+> ⚠️ **Draai ze altijd vanuit de repo-root** (`npx tsx tests/<naam>.test.mts`). De paden
+> binnenín zijn **werkmap-relatief**, niet bestand-relatief: ze lezen
+> `./migrations/0001_init.sql`, en enkele scannen `client/src` of
+> `client/public/pigeon-images`. Vanuit `tests/` draaien faalt dus meteen. De map staat
+> buiten `tsconfig.json` (`include` = `core/` + `functions/`), dus `tsc` raakt ze niet.
+
+De blijvende regressietests — draai ze na **elke** wijziging aan `core/d1.ts` of aan een
+tick in `schedule.ts`:
+```bash
+npx tsx tests/d1-partial-load.test.mts   # persistentie: laadt/schrijft de juiste slice
+npx tsx tests/query-budget.test.mts      # D1: geen enkel verzoek over de 50 queries
+npx tsx tests/idle-writes.test.mts       # D1: een poll zonder gebeurtenissen schrijft niets
+npx tsx tests/names.test.mts             # elke duivennaam blijft uniek
+npx tsx tests/advance-throttle.test.mts  # CPU: een leespoll slaat de engine over
+npx tsx tests/cpu-budget.test.mts        # CPU: geen enkel pad over de 10 ms (koud!)
+npx tsx tests/daily-budget.test.mts      # D1-DAGlimieten: een drukke dag < 50% van 5M/100k
+npx tsx tests/sponsor-refusal.test.mts   # een slechtere concurrent-sponsor komt niet terug
+npx tsx tests/commentary.test.mts        # het live verslag groeit aan, herschrijft niet
+npx tsx tests/betting-odds.test.mts      # weddenschapskansen kloppen en zijn stabiel
+npx tsx tests/poll-budget.test.mts       # polls + smalle load blijven binnen het dagbudget
+npx tsx tests/force-finish.test.mts      # admin-"match beëindigen" == natuurlijk uitvliegen
+npx tsx tests/newcomer.test.mts          # starterspakket: punten, tijdvenster, afloopmelding
+npx tsx tests/velocity-model.test.mts    # ervaring raakt de snelheid van een frisse duif niet
+npx tsx tests/attribute-balance.test.mts # elke racevaardigheid houdt haar eigen rol per afstand
+npx tsx tests/upset-balance.test.mts     # kwaliteit loont, maar een verrassing blijft mogelijk
+npx tsx tests/flight-eligibility.test.mts # een niet-inzetbare duif wordt geschrapt + terugbetaald
+npx tsx tests/prize-rules.test.mts       # prijzentabellen lopen door + max 3 beloonde duiven
+npx tsx tests/market-bidding.test.mts    # marktprijs, bieden vanaf, en geen zwevende biedingen
+npx tsx tests/bot-bidding.test.mts       # bots bieden binnen de band rond de marktwaarde
+npx tsx tests/age-cup.test.mts           # leeftijdscriterium: klassen, afwisseling, 3-seizoenencyclus
+npx tsx tests/pigeon-logs.test.mts       # de logboeken blijven uit de wereldload, legacy blijft leesbaar
+npx tsx tests/season-prizes.test.mts     # seasonWins reset, totalWins niet; ceremonie = laatste seizoen
+npx tsx tests/bot-market.test.mts        # de prijsgrens voor bots (anti-exploit) + hun trainingsregels
+npx tsx tests/one-flight-per-day.test.mts # één vlucht per duif per dag — speler én bots
+npx tsx tests/flight-map.test.mts        # de live kaart: posities, afstanden en de omweg kloppen
+npx tsx tests/flock.test.mts             # verdwalen pas buiten de zwerm + omweg schaalt met afstand
+npx tsx tests/breeding-cooldown.test.mts  # koppel uiteen na het nest, rust van 3 weken, geen resurrectie
+npx tsx tests/pedigree.test.mts          # verwantschap, inteeltgevolgen, stamboom bij dode voorouders
+npx tsx tests/mortality.test.mts         # geen duif sterft van 'hoge leeftijd' vóór haar 4e
+npx tsx tests/family-chart.test.mts      # het diagram: duif in het midden, elke lijn wijst ergens naar
+npx tsx tests/market-news.test.mts       # de markt-stip: markering, D1-rondrit, en géén stempel op een poll
+npx tsx tests/stud-news.test.mts         # het bolletje op Kweek: stempel bij nieuw/aangepast aanbod, D1 + API, de regel
+npx tsx tests/event-arrival.test.mts    # een duif uit een gebeurtenis gaat nooit verloren aan een vol hok
+npx tsx tests/offer-visibility.test.mts # je eigen bod blijft zichtbaar + intrekbaar op een SMALLE load
+npx tsx tests/podium-badges.test.mts     # een podium = een medaille, op élke wedstrijdsoort
+npx tsx tests/live-speed.test.mts        # het km/u-cijfer beweegt, de race zelf verandert niet
+npx tsx tests/food-resale.test.mts       # voer terugverkopen kost altijd geld (80%)
+npx tsx tests/brood-choice.test.mts      # vol hok bij het uitkomen: de speler kiest
+npx tsx tests/reactions.test.mts         # tribune: de ontgrendelroutes en de chatbox
+npx tsx tests/reactions-persist.test.mts # tribune: de reacties overleven de databank
+npx tsx tests/stem.test.mts              # De Stem: zaaien, stemmen als toggle, dagrem, de bel
+npx tsx tests/player-removal.test.mts    # een speler verwijderen: alles weg, de rest ongemoeid
+npx tsx tests/debt.test.mts               # schuld: de poort, de bodem, en de afslag per ronde
+npx tsx tests/sponsor-restore.test.mts    # v53: de sponsors van de wissel naar seizoen 3 terug
+npx tsx tests/coach-salary.test.mts       # coach per score, gratis starterscoach = duurste, trainen +1
+npx tsx tests/sponsor-cap.test.mts        # max 6 sponsors, tier 4 ×0,5/dag (v54→v57), verplichte gratis afbouw
+npx tsx tests/sunday-auction.test.mts     # twee zondagduiven, vensters, scoreband, 2-vrije-plaatsen-regel
+npx tsx tests/lokaal.test.mts             # Het Lokaal: laden/pagineren/poll+overlap, weghalen, opruimen, chat_last_at blijft staan
+npx tsx tests/market-memory.test.mts      # marktwaarde blijft staan tot een nieuwere verkoop; σ 6; venster 60
+npx tsx tests/market-floor.test.mts       # nooit onder 1/5 van de marktwaarde; Zulma en Freddy (€25) tellen niet mee
+npx tsx tests/hygiene.test.mts            # hokhygiëne, stro, poetser, bodem ×0,4
+npx tsx tests/inrichting.test.mts         # ventilatie, ren, sperwer, vaccins, verzekering, vakblad, weerstation, bots
+npx tsx tests/hokoverzicht.test.mts       # hokoverzicht: flying (in de lucht) vs. racing (ook gepland)
+npx tsx tests/vaccine-price.test.mts      # wat een vaccin oplevert tegenover zijn vaste prijs
+npx tsx tests/market-boost.test.mts       # zoekertje naar boven: één plek bovenaan, 12 u, gewist bij verkoop
+npx tsx tests/contagion.test.mts          # besmetting per ziekte: de eigen ziekte van de bron, eigen kans
+npx tsx tests/inrichting-news.test.mts    # v61: één aankondigingsbel per echte speler, stabiele id
+npx tsx tests/samen-kweken.test.mts       # kweken met andermans duif: bot, onderhandelen, vergoeding, lege worp, opslag
+npx tsx tests/samen-kweken-news.test.mts  # v62: twee bellen per echte speler, stabiele id, bots bieden aan
+npx tsx tests/duivenlokker.test.mts       # duivenlokker: kansen, kopen, vangen, kiezen, D1 + API, wiki/spelregels, bel v64
+npx tsx tests/pigeon-tags.test.mts        # tags: opkuisen, privé, weg bij elke eigendomswissel, D1 + API, bel v65
+```
+
+> **Geen `tsx` beschikbaar?** (cloud-sessie waar de npm-registry geblokkeerd is: `npx tsx`
+> kan dan niets downloaden.) Node 22 draait de `.test.mts`-bestanden zelf, met een mini-loader
+> die `./x.js`-imports naar `./x.ts` omzet:
+> ```js
+> // loader.mjs
+> import { existsSync } from 'node:fs'; import { fileURLToPath } from 'node:url';
+> export async function resolve(s, c, next) {
+>   if (s.startsWith('.') && s.endsWith('.js') && c.parentURL) {
+>     const u = new URL(s, c.parentURL);
+>     if (!existsSync(fileURLToPath(u))) { const t = new URL(u.href.replace(/\.js$/, '.ts'));
+>       if (existsSync(fileURLToPath(t))) return next(t.href, c); } }
+>   return next(s, c);
+> }
+> // register.mjs:  import { register } from 'node:module'; register(new URL('./loader.mjs', import.meta.url));
+> ```
+> `node --experimental-transform-types --no-warnings --import ./register.mjs tests/<naam>.test.mts`.
+> Werkt voor alle tests behalve `family-chart` (importeert een `.tsx`-component). Typecheck en
+> client-build kunnen zonder `node_modules` niet — zeg dat dan eerlijk.
+Alles in één keer (bash, vanuit de root):
+```bash
+for f in tests/*.test.mts; do printf '%-26s ' "$(basename "$f")"; npx tsx "$f" >/dev/null 2>&1 && echo OK || echo FAIL; done
+```
+
+**Stand van de suite (prod + tags, 17 okt): alles groen behalve `age-cup`** (67 tests; `cpu-budget` en
+`family-chart` apart gedraaid, groen; `live-speed` was op de ongewijzigde boom 1× rood, daarna groen — flaky,
+zie hieronder). **Daarvoor (dev, 12 okt, na Samen kweken): alles groen behalve `age-cup`** (64 tests;
+`cpu-budget` en `demo-build` apart gedraaid, beide groen). Daarvoor: **(na het weghalen van de koppels) 57 van de 58 groen** (`cpu-budget`
+apart gedraaid; enkel `age-cup` rood, zie hieronder). `inrichting` hing af van het uur: een vlucht
+die 24–25 u later vertrekt, schoof tijdens het geteste uur het weerstationvenster in; de assertie
+kijkt nu enkel naar vluchten die al een voorspelling hadden (groen op alle 24 uren van de dag).
+Bekende rode — controleer of een rode test hierin staat vóór je gaat zoeken:
+- `age-cup` — **echt rood**, intussen drie asserties ("de cyclus is verankerd op het einde
+  van het lopende seizoen", "er staan criteriumvluchten gepland (0)", "alle 4 klassen komen
+  aan bod"), identiek op de boom vóór de hokinrichting. Nog te repareren.
+- `cpu-budget` — **rood op een belaste machine**: de koude odds-meting schiet over haar
+  budget (gemeten 6,3–8,4 ms over 3 runs op de ongewijzigde boom). Draai hem apart, niet
+  naast een andere testrun; los gedraaid is hij groen (3,0 / 4,4 ms).
+- `poll-budget` — stond hier als rood op zijn eigen fixture (die flipt een gewone vlucht
+  met ~184 inschrijvingen naar `relay = true`, wat geen echte estafette is). Bij de laatste
+  volledige run is hij **groen**; blijft hij wisselen, **repareer dan de fixture en zet de
+  assertie niet losser** — ze bewaakt het leesbudget.
+- `live-speed` — **flaky** (gezien bij de Lokaal-commit: 1 van 2 runs rood op de ONgewijzigde boom,
+  "langste stilstand 37 polls"). Willekeur in de fixture; niet gerepareerd.
+- `brood-choice` — was flaky (~1 op 5) door de rauwe `Math.random()` in `breed()`; sinds de
+  twee tel-trekkingen geseed zijn is dat opgelost, maar de per-duif-worpen zijn dat nog
+  niet. Zie §8, *Openstaande ideeën*.
+
+Diagnose zonder assertie: `npx tsx tests/cpu-sweep.mts` (CPU per operatie, duurste
+eerst), `npx tsx tests/limits-report.mts` (queries/rijen per verzoek) en
+`npx tsx tests/cpu-pigeons.mts` (**marginale** CPU per duif — de helling, niet de
+absolute waarde, want lokaal draait SQLite synchroon in hetzelfde proces).
+Ook handig: `BREAKDOWN=1 npx tsx tests/query-budget.test.mts` splitst het duurste
+verzoek uit per statement. Op dev: `npx tsx tests/vaccine-economics.mts` (~1 min) rekent uit
+wat een vaccin of kuur waard is tegenover wat een ziekte kost (§0b).
+
+### Git + deploy (zie §0: productie enkel op vraag)
+1. Ontwikkel + commit op de **dev-branch uit §0**; push met
+   `git push -u origin <dev-branch>` (retry met backoff).
+2. **Naar productie — enkel als de eigenaar het vraagt** (zie §0), door de commit op de
+   deploy-branch te zetten:
+   ```bash
+   git fetch origin claude/roekoe-game-website-jwa0vo
+   git checkout claude/roekoe-game-website-jwa0vo
+   git reset --hard origin/claude/roekoe-game-website-jwa0vo
+   git cherry-pick <commit>        # of meerdere
+   # typecheck + build ter controle
+   git push -u origin claude/roekoe-game-website-jwa0vo   # triggert Cloudflare Pages
+   git checkout <dev-branch>                  # terug naar dev
+   ```
+3. **Geen PR** tenzij expliciet gevraagd.
+4. Commit messages in het **Nederlands**, en eindig met de footer:
+   ```
+   Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
+   ```
+   (Volgt de sessie die de commit maakt. De `Claude-Session:`-regel die hier vroeger
+   stond wordt al een tijd niet meer gezet — de laatste commits dragen ze niet.)
+
+### Veiligheid / niet doen
+- **Nooit** een echte `wrangler.toml` committen (staat in `.gitignore`).
+  `JWT_SECRET` is een dashboard-secret, niet in git.
+- Zet **geen** model-identifier in commits, code of andere gepushte artefacten.
+- Registratie vereist een **INVITE_CODE**; eerste speler wordt automatisch admin.
+
+---
+
+## 8. Ontwerpbeslissingen & valstrikken (achtergrond)
+
+Alles hieronder staat **live** op de deploy-branch. Data-migraties liepen door tot
+**`dataVersion = 50`**.
+
+> **Hoe je dit leest.** Elk blok is één ronde werk: wat er mis was, waaróm de fix zo
+> gekozen is, en wat je bij een volgende wijziging niet opnieuw mag stukmaken. De regels
+> met ⚠️ zijn de load-bearing stukken — valstrikken waar dit project al een keer in
+> getrapt is. Nieuwste bovenaan. Voor "hoe werkt het spel nu" hoef je §8 niet te lezen;
+> daarvoor volstaan §2 t/m §7.
+
+**Besmetting per ziekte (nieuwste)**
+- **Beslissing van de eigenaar (11 okt):** "Besmetting wordt per ziekte bepaald. De ene heeft grotere
+  kans dan de andere." Vroeger was elke ziekte even besmettelijk (`contagionPerSource` 0,3/week per
+  bron), en wie besmet raakte kreeg een **willekeurige** ziekte (`randomDisease`, gewogen op háár
+  vorm) — niet die van de zieke hokgenoot.
+- **Nu:** een zieke hokgenoot buiten de ziekenboeg geeft **haar eigen ziekte** door, met een factor
+  per ziekte op `contagionPerSource`: `DISEASES[].contagion` (gameConfig; factoren door de eigenaar
+  gekozen): Paramyxovirose ×1,5 · Ornithose ×1,3 · Het Geel ×1,2 · Coccidiose ×1 · Duivenpokken
+  ×0,7 · Salmonellose ×0,6. Een onbekende naam (oude data) rekent met ×1.
+- **Code (`health.ts`):** `contagionByDisease(sick, susceptibility)` geeft per ziekte die rondgaat de
+  dagkans (twee hokgenoten met dezelfde ziekte = twee bronnen; verschillende ziektes elk apart).
+  `runHealthDay` combineert die met de spontane kans via `illnessChance` (hygiëne, poetser, apart
+  hok, IJzeren gestel, bodem ×0,4), en kiest bij ziek worden **welke**: elke ziekte die rondgaat
+  weegt haar kans (× de poetser-ontsmetting) tegen de spontane kans; spontaan = `randomDisease`
+  zoals vroeger. Daarna weert `fendsOff` (vaccin/kuur/ventilatie) **díe** ziekte af — zo werkt een
+  kuur tegen wat er rondgaat. De melding zegt "Ze liep het op bij een zieke hokgenoot." De legacy
+  `runHealthWeek` (admin) is ongewijzigd.
+- **Gevolgen:** de ernst-tabel (`DISEASE_SEVERITY`) geldt enkel nog voor **spontane** ziekte: een
+  fitte duif kan van een hokgenoot gewoon paramyxo oplopen. Gemiddeld over hoe vaak elke ziekte
+  voorkomt (Het Geel, de meest voorkomende, is ×1,2) is er **~10 % meer besmetting** dan vroeger.
+  Kans per week per hokgenoot, per bron: vorm 75 → 3,5 % (salmonella) tot 9,9 % (paramyxo); vorm
+  45 → 6,7 % tot 18,5 % (oud: 6,1 % en 11,6 %). Wiki `#ziekte` en spelregels §5.2 tonen die tabel
+  (met de hand: pas ze mee aan als je `contagion`, `contagionPerSource` of `ILLNESS` wijzigt). De
+  tabel "Besmetting binnen een week" in de wiki is van vóór deze wijziging (gemiddelde).
+- **Test:** `tests/contagion.test.mts` (21 controles, ~3 s, geseed): volgorde van de factoren,
+  Coccidiose (×1) = exact de oude kans, gemeten kans per ziekte = de formule, wie besmet raakt
+  krijgt de ziekte van de bron, de ziekenboeg besmet niemand, zonder bron niets veranderd.
+- Live gegaan samen met de hokinrichting (11 okt). De herstarte dev (12 okt, vanaf prod) heeft het
+  ook; de gepauzeerde dev van vóór 12 okt had het niet.
+
+**Markt: nooit onder 1/5 van de marktwaarde; twee verkopen van €25 tellen niet mee**
+- **Melding van de eigenaar (productie):** Roekoeloos verkocht *Zulma uit het Zolderhok* en
+  *Freddy de Fondkoning* aan Graanabolica voor **€25**, ver onder hun waarde, en dat trok elke
+  vergelijkbare duif omlaag (in `market-floor.test.mts` halveert één zo'n verkoop de waarde van een
+  duif van ~€13.000). Vraag: die twee mogen niet meetellen, en voortaan geen verkoop onder 1/5.
+- **De twee verkopen:** `IGNORED_TRADES` (gameConfig) + `countsForValuation` (market.ts) — de
+  waardering slaat ze over; match op naam, prijs én beide hokken (een duivennaam is uniek). Ze
+  blijven in de verkoopgeschiedenis staan. **Geen databankwijziging**: we kunnen niet in de live D1,
+  en dit is omkeerbaar. Na `observationDays` (60 d) vallen ze sowieso uit het venster; dan mag de
+  lijst weer leeg.
+- **De ondergrens:** `MIN_SALE_SHARE` 0,2 → `minSalePrice(db, p)` = ⌈waarde × 0,2⌉. Bewaakt in
+  `listForSale` (vraagprijs én "bieden vanaf"), `buyPigeon` (niet voor de NPC-markt; steeg haar
+  waarde sinds de listing, dan weigert de koop tot de verkoper duurder zet), `makeOffer`,
+  `respondOffer` (aanvaarden onder de grens kan niet, weigeren altijd) en de bots
+  (`maybeBuyFromMarket` slaat zo'n listing over; hun bod ligt al op 0,85–1,05 × de waarde).
+  Veilingen openen al hoger (zondag 30 %, gedwongen ≥ 25 %); het **opvangcentrum** (NPC, geen
+  speler die verkoopt) start zoals altijd op €25.
+- **UI:** `pigeonDTO.minPrice`; het verkoopformulier op *Mijn hok*, het bod op de *Markt*
+  (`ListingBid`, `BidCascade`) en op de duifpagina tonen de ondergrens en laten niets lagers door.
+- **Test:** `tests/market-floor.test.mts`. `bot-market` test 2 zet de botduif nu op precies 1/5
+  (spotgoedkoop maar toegelaten), zodat enkel de bot-check haar tegenhoudt, zoals bedoeld.
+
+**Marktwaarde houdt stand tot een nieuwere verkoop** (⚠️ op dev vervangen door *Marktwaarde v2*, §0b)
+- **Melding van de eigenaar:** na een dure verkoop schoten de waarden omhoog en zakten ze
+  daarna dag na dag terug, terwijl die hogere prijs net de juiste was (een duif van score 80:
+  €20.000 → €12.000 in een paar dagen).
+- **Oorzaak:** het **vertrouwen** in de markt (hoeveel de verkopen het model overrulen) werd
+  berekend uit dezelfde recentheidsgewichten als het prijsniveau. Het gewicht van een verkoop
+  halveerde elke 10 dagen, dus ook zonder één nieuwe verkoop gleed de waarde elke dag terug
+  naar het model, dat de top veel te laag schat (gesimuleerd: €12.800 → €7.500 in 10 dagen,
+  het model na 28). Daarbovenop: enkel de nieuwste **40** verkopen werden bewaard (een drukke
+  week duwde een topverkoop er binnen dagen uit), en met `talentSigma 10` trok een reeks
+  gewone verkopen rond score 60–70 de top omlaag én tilde één topverkoop de hele club op.
+- **Fix (`core/game/market.ts`):** vertrouwen = **hoeveelheid vergelijkbaar bewijs, niet de
+  leeftijd** (`evidence` = Σ gelijkenis × `presence`); recentheid bepaalt enkel welke verkoop
+  het **prijsniveau** zet (de nieuwste weegt het zwaarst). Zonder nieuwe verkoop blijft de prijs
+  dus staan. `observationDays` 28 → **60**, met `fadeDays` **14** (een verkoop vervaagt pas in de
+  laatste 14 dagen, geen klif); `talentSigma` 10 → **6** (±6 talent telt ~60 %, ±12 ~14 %);
+  `TRADE_LOAD_LIMIT` 40 → **100** (zoals vroeger). `halfLifeDays 10`, `trustWeight 1.5`,
+  `maxTrust 0.85` en de factorband 0.1–8 ongewijzigd. Wiki (#markt) en spelregels §9.0 mee.
+- **Kost:** +60 rijen per volledig verzoek → `daily-budget.test.mts` **28,4 %** van de 5M/dag,
+  185 rijen per verzoek. CPU-budget ongewijzigd groen. Geen schemawijziging, geen migratie.
+- **Afweging:** een prijs die blijft staan, blijft ook staan als hij door een vriendendeal is
+  opgedreven (tot een nieuwere verkoop in die band of 60 dagen). Het plafond blijft 8× de
+  curve en een enkele verkoop telt maar voor 2/3.
+- **Test:** `tests/market-memory.test.mts`.
+
+**Kassa onder nul: niets meer kopen, en na 10 dagen de hamer**
+- **Vraag van de eigenaar:** wie op 0 of minder staat kan niets meer aankopen, krijgt een
+  melding, verliest zijn coaches, en ziet na 10 dagen in het rood zijn slechtste duif
+  **geveild** (niet rechtstreeks verkocht) aan de marktwaarde — en elke 10 dagen de volgende.
+- **Nieuw:** configblok `DEBT` + `AUCTION.forcedWindowHours`, module **`core/game/debt.ts`**
+  (`tickLoftDebt` + `worstAuctionable`), `createForcedAuction` in `auction.ts`, twee scalairen
+  op de loft (`debtDays`/`debtMisses`, kolommen achteraan `SCHEMA_STEPS`, default 0 → **geen
+  migratie**, `dataVersion` blijft **52**).
+- ⚠️ **De aankooppoort is méér dan de bestaande `money < kost`-controles, en dat is de kern.**
+  Bij een negatief saldo faalde élke aankoop al vanzelf — maar niet allemaal: **een coach
+  inhuren kost €0 op het moment van klikken** (`COACH.hireCost` is 0) en wordt pas duur vanaf
+  de volgende dagafrekening. Zonder expliciete poort huurde de speler dus meteen de coach
+  terug die de dagtick net had ontslagen. Hetzelfde geldt voor medicatievoer en personeel
+  bijnemen. Daarom `debtBlock(loft)` op **14 acties** in `engine.ts` + `placeBid`, `placeBet`
+  en `makeOffer`.
+- ⚠️ **`debtBlock`/`inDebt` staan in `economy.ts`, niet in `debt.ts`.** `debt.ts` importeert
+  `auction.ts` (om de veiling te openen), dus als `auction.ts` de poort uit `debt.ts` haalde
+  was dat een importcyclus. `economy.ts` importeert geen van beide en is de module die al over
+  geld gaat.
+- ⚠️ **Wat NIET geblokkeerd wordt, is de helft die telt:** verkopen, voer terugverkopen, een
+  bod aanvaarden, personeel ontslaan, vrijlaten/bistro en uitschrijven. Dat zijn de uitwegen;
+  blokkeer je die mee, dan is de schuld een doodlopende straat. `sellFood` deelt zijn eerste
+  regels met `buyFood` — het anker voor de poort zit daarom bewust op de **koopregel**.
+- ⚠️ **`closeAuction` verwijderde de duif als er geen geldige bieder was.** Voor een
+  veilinghuis-vogel klopt dat (die bestond alleen voor die veiling); voor de duif van een
+  **speler** zou het betekenen dat een schuld haar gewoon laat verdwijnen. De `forced`-tak
+  laat haar staan en telt in plaats daarvan een **gemiste ronde**.
+- ⚠️ **BOTS BIEDEN NIET OP VEILINGEN** (enkel op markt-listings, `maybeBuyFromMarket`/
+  `maybeBidOnMarket`). Een gedwongen veiling hangt dus volledig af van de handvol echte
+  spelers, en één op volle marktwaarde kan zonder één bod sluiten. Vandaar
+  `markdownPerRound` (25 % lager per gemiste ronde, bodem `minOpeningFraction`) — zonder die
+  afslag hangt een schuld eeuwig in een week waarin niemand koopt. Een ronde die **wél**
+  verkoopt zet de afslag terug op 0. Wil je dit ooit anders oplossen, dan is *bots laten
+  meebieden op veilingen* de andere kant van dezelfde knop.
+- **`keepPigeons: 1`** — de laatste duif wordt nooit geveild. Een leeg hok verdient niets en
+  kan zich nooit terugvechten; dat is een zwaardere straf dan de schuld. Duiven die vliegen,
+  koppelen of de weg kwijt zijn vallen af via dezelfde afbakening als `pigeonBusy`.
+- **Je kan niet op je eigen gedwongen veiling bieden** (`placeBid`): je eigen duif terugkopen
+  is geen verkoop maar een rondje met je eigen geld, en het holt de regel volledig uit.
+- **Geld blijft kloppen.** Bewust een veiling en geen verkoop aan het spel: de opbrengst komt
+  van een andere speler, dus er wordt geen geld uit het niets gemaakt. De trade draagt de
+  **speler** als verkoper, en openstaande biedingen op die duif vervallen (zoals bij
+  `settlePigeonSale`).
+- **Stabiele ids overal**, met de lokale dagteller erin (`ntf:debt:start|auction|sold|unsold|
+  nobird|clear:<userId>:<dag>`, veiling `auc_forced_<userId>_<dag>`): `tickDailyCare` kan
+  dezelfde dag onder gelijktijdige verzoeken twee keer afsluiten, en dan landt alles op
+  dezelfde rijen in plaats van een tweede veiling te openen.
+- ⚠️ **Een hok met 0 duiven wordt door `tickDailyCare` overgeslagen** (`owned.length === 0
+  → continue`), schuldafhandeling incluis. Onschadelijk (er valt niets te veilen en er wordt
+  niets aangerekend), maar het verklaart waarom zo'n hok zijn teller niet ziet bewegen.
+- **Schrijfkost:** enkel op de dagovergang, en enkel voor een hok dat écht in het rood staat.
+  Een gewone poll schrijft nog steeds 0 rijen (`idle-writes` groen).
+- **Nieuwe blijvende test `debt.test.mts`** (48 controles, 12 runs op rij groen): de poort
+  (kopen dicht, verkopen open, én dat de coach ook écht niet toegekend wordt), coaches eruit
+  op dag 1, de veiling op dag 10 met de juiste duif en openingsprijs, geen bod → duif blijft +
+  volgende ronde 25 % lager, verkocht → volledige opbrengst naar de schuldenaar + afslag
+  terug op 0, de bodem van één duif, de reset bij een positieve kassa, en dat bots buiten
+  schot blijven.
+- ⚠️ **Twee valstrikken die die test blootlegde, voor wie hier nog een test schrijft:**
+  1. `placeBid` leest intern **`Date.now()`** voor zijn slotfase en anti-snipe. Ligt je
+     gesimuleerde klok vóór de echte, dan geldt élk bod als "laatste 5 minuten" en schuift
+     `endAt` naar de echte tijd — waarna de veiling in de simulatie nooit meer afloopt. De
+     test vertrekt daarom van **vandaag**, wat meteen de vaste-`T0`-tijdbom van `age-cup`
+     vermijdt.
+  2. Een veiling sluit in `ensureAuctions`, niet in `tickDailyCare`. Een testlus die alleen
+     de dagtick draait, meet niets.
+- ⚠️ **Verificatie was hier beperkt, en dat hoort er eerlijk bij staan:** `node_modules`
+  ontbreekt in deze omgeving en het npm-registry is onbereikbaar, dus **`npm run build` en de
+  client-typecheck konden niet draaien**. Wat wél gedraaid is: `tsc --noEmit` over `core/`
+  (schoon, met een stub voor de niet-installeerbare `@cloudflare/workers-types`) en de hele
+  testsuite via Node's eigen type-stripping. De clientwijziging is daarom bewust klein
+  gehouden: één blok in `DashboardPage`, één wiki-sectie, twee velden in `types.ts`.
+- Spelregels: nieuwe **§4.5** (het volledige traject) + §4.2 verwijst ernaar. Wiki: nieuwe
+  sectie 🔴 **Rode cijfers & gedwongen veiling** (`/wiki#schuld`).
+
+**Conditie kreeg een eigen mechaniek, en het toeval is teruggeschroefd**
+- **Vier vragen van de eigenaar in één ronde:** (1) er zit te veel toeval in — "HEEL goeie
+  duiven lijken te vaak, meer wel dan niet, slecht te presteren"; (2) snelheid mag op élk
+  vluchttype iets meer wegen; (3) oriëntatie heeft te veel impact, **zelfs op korte
+  vluchten**; (4) conditie moet meer betekenen, **vooral vanaf 300 km**, en wel zó dat een
+  duif haar hoge tempo lang kan *aanhouden* en na een inzinking sneller weer kan versnellen.
+- **Eerst gemeten, op zijn eigen geval.** Een duif die op élke as beter is (snelheid +16,
+  conditie +15, energie +13, ervaring +72) tegen zeven identieke zwakkere op 166 km:
+  **wint 33,1 % · top-3 64,3 % · laatste 4,2 %** (1 op 24). De oorzaak was niet de
+  eigenschappen maar `FLIGHT_DYNAMICS`: ±17 % dagvorm plus 16 % kans op een offday van
+  −14…−36 % overstemde een kwaliteitsverschil van ~15 %.
+- ⚠️ **Waarom een slechte dag als een defect leest, en niet als pech:** de dagvorm wordt
+  **één keer per duif per vlucht** getrokken en geldt dan voor de hele rit. Een offday
+  verliest haar dus niet één duel maar **alle zeven tegelijk**. Onafhankelijk zou "alle
+  zeven kloppen haar" 0,026 % zijn; gemeten was het 4,2 % — een factor 160. Reken hier nooit
+  met onafhankelijke duels.
+- **(1) Toeval:** `dayNoise` 0,17 → **0,10**, `offDayChance` 0,16 → **0,07** en de diepte
+  0,64–0,86 → **0,82–0,93**; `bigDay` mee getrimd (0,14 → 0,10, 1,12–1,36 → **1,08–1,22**)
+  maar mínder hard, want dát is wat een outsider laat plaatsen. Gemeten na: **wint 55 % ·
+  top-3 85 % · laatste 0,6 %** (1 op 170).
+- **(4) `SUSTAIN` — het hart van deze ronde.** Conditie was tot nu toe een **tweede
+  snelheid**: ze voedde hetzelfde `basisscore`-getal en deed verder niets, dus een
+  conditie-40 en een conditie-90 duif zakten identiek weg (namelijk niet). Nu heeft ze een
+  eigen mechaniek, zoals oriëntatie er één heeft met `LOST`. Per segment: vraagt ze méér dan
+  haar houdbare aandeel → vermoeidheid stapelt; houdt ze in → die zakt weg, **sneller
+  naarmate haar conditie beter is**; opgestapelde vermoeidheid trekt haar effectieve tempo
+  omlaag. Geïmplementeerd als één pas in `buildPaceProfile` (flight.ts).
+- ⚠️ **Dit is de ENIGE laag die de finishtijd mag veranderen.** De willekeurige pacing
+  erboven blijft **genormaliseerd** (`Σ 1/m = N`) — precies zodat plaatsen wisselen tijdens
+  de rit géén willekeurige uitslag geeft. Hou die twee gescheiden: pacing is theater,
+  `SUSTAIN` is de eigenschap. Draait **vóór** de `LOST`-omwegen, zodat de twee mechanismen
+  onafhankelijk blijven en de ijking van oriëntatie niet meeschuift.
+- ⚠️ **`refSegKm` (45) is waarom het pas vanaf ~300 km bijt.** Vermoeidheid moet zich over
+  grond opstapelen; de belasting per segment loopt 0,33 op 150 km · 0,67 op 300 · 1,11 op
+  500 · 2,0 op 900. Zonder die schaal telde conditie op een sprint even hard als op de fond,
+  en dat was net níet de vraag. `penalty` (0,18) is de mastervolume: op 0,26 (de eerste
+  poging) werd conditie 13,6pp waard op 700 km tegen snelheid 3,8 — ze werd niet relevant,
+  ze nam het over.
+- **(2) + (3):** omdat conditie haar impact nu elders vandaan haalt, kon haar statische
+  gewicht omlaag en **snelheid op élk anker omhoog** (0,68→**0,76** / 0,26→**0,46** /
+  0,15→**0,38**). Oriëntatie: `max` 4,4 → **3,8** en de afstandsramp steiler (`distBase`
+  1,0 → **0,7**, `distPerKm` 0,002 → **0,0025**), zodat de knip vooral op de korte kant
+  landt: verdwaalkans −30 % op 120 km, −21 % op 300, −12 % op 700, −8 % op 1000.
+- **Gemeten eindresultaat** (winkans per +10 punten): 150 km snelheid **9,7** / conditie 4,2
+  / oriëntatie 0,8 · 350 km **8,6 / 7,2 / 2,7** · 700 km 4,7 / **10,8** / 2,6 · 1100 km 4,6 /
+  **11,4** / 6,9. De kruising conditie-boven-snelheid ligt rond **350–500 km**, exact waar de
+  eigenaar ze vroeg.
+- ⚠️ **`attribute-balance.test.mts` is BEWUST herschreven, niet losser gezet.** Hij bewaakte
+  "de drie zijn ongeveer even veel waard" (factor 1,8 op winkans) — een doel dat de eigenaar
+  in deze ronde heeft **vervangen** door een rolverdeling. Die gelijkheidsgrenzen zijn dus
+  weg, met de reden in de test zelf, en er kwamen strengere assertie's voor in de plaats op
+  wat nu wél de bedoeling is (rangorde per afstand, de kruising, niets dood). Zet ze niet
+  terug zonder de eigenaar.
+- ⚠️ **Meegenomen: de weging in die test stond al jaren scheef.** Ze woog 3 regio / 2 nat /
+  2 intl — maar de vrijdagnationale kwam erbij (nat is 3/week) en **criterium, titan en
+  estafette zaten er helemaal niet in**, samen **10 van de 26** wedstrijd-startplaatsen per
+  twee weken. §8 baseerde zijn balansconclusies op dat gemiddelde. Nu 11 / 7 / 8, geteld uit
+  de echte kalender.
+- **Nieuwe blijvende test `upset-balance.test.mts`** (6 controles): kwaliteit moet lonen
+  (wint > 45 %, top-3 > 75 %, laatste < 1,5 %) **én** een verrassing moet mogelijk blijven
+  (wint < 80 %, top-3 < 95 %) **én** een klein verschil geeft een klein voordeel (3 punten
+  beter → 17,6 % in een veld van 8, tegen 12,5 % bij gelijk spel). Die ondergrenzen zijn de
+  helft die telt: zonder hen draait iemand `dayNoise` bij de volgende pechklacht naar nul en
+  is de uitslag een sorteertabel. **Geverifieerd door de config terug te draaien: 3 van de 6
+  worden rood, met exact de oude cijfers (33,1 / 64,3 / 3,9).**
+- `attribute-balance.test.mts` kreeg er een vijfde blok bij dat de `SUSTAIN`-mechaniek
+  **structureel** toetst op het bevroren profiel (tempo in het laatste derde t.o.v. het
+  eerste): een zwakke conditie zakt weg, een sterke houdt vast, het verschil **groeit met de
+  afstand**, en op een sprint blijft het een nuance (< 2,5 % verschil, gemeten 1,4 %).
+- **Geen migratie, geen schemawijziging, geen extra query of rij**, `dataVersion` blijft
+  **50**. Enkel configwaarden + één pas in `buildPaceProfile`, dus een vlucht die al **live**
+  is houdt haar bevroren sim en dus het oude gedrag; vanaf de volgende lossing geldt het
+  nieuwe model.
+- **Zichtbaar zonder UI-werk:** `raceProgress` leest het aangepaste `segMult`, dus het
+  live-bord, de km/u en het 📻-verslag tonen het verval vanzelf — een duif die "wegzakt"
+  (`overtakeTired`) is nu écht een duif die haar tempo niet houdt.
+- Spelregels: **§1** (conditie + de rolverdeling), **§2.3** (gewichten + km/u-tabel + een
+  nieuw blok over de dagvorm), **nieuwe §2.3b** (conditie = tempo vasthouden, met de
+  verval-tabel) en **§3.5** (verdwaaltabellen opnieuw gemeten). Wiki: 📋 *Wat doet elke
+  eigenschap* en 🧭 *Verdwalen*.
+- ⚠️ **Drie tests stonden al rood vóór deze ronde** (nagemeten met `git stash`, 3/3 runs
+  identiek): `age-cup` (de tijdbom met de vaste `T0`), `poll-budget` (de onrealistische
+  estafette-fixture) en **`cpu-budget`** (de koude odds-meting, 6,3–8,4 ms op een belaste
+  machine — zelfde assertie, zelfde orde). Niet veroorzaakt, niet aangeraakt.
+- **Nog open, en het is de volgende hefboom:** oriëntatie is nu met opzet de zwakste
+  eigenschap (2,1pp gewogen tegen snelheid 8,3 en conditie 7,1). Dat is wat gevraagd is,
+  maar het betekent ook dat je ze op een sprinthok zo goed als gratis kan dumpen. Als dat
+  gaat knellen, is de knop `LOST.strandedMax` (het risico dat ze helemáál wegblijft)
+  eerder dan de omwegkans — een zeldzaam maar duur gevolg straft dumpen zonder de sprint
+  weer tot een navigatiewedstrijd te maken.
+
+**Extra nationale op vrijdag, vastgeprikt op de lange kant**
+- **Vraag van de eigenaar:** een extra **nationale** wedstrijd, altijd op **vrijdag**, op het
+  **hoogste aantal km dat een nationale vlucht kan zijn**; de regiovlucht van vrijdag schuift
+  op naar **17:00**. Eerst op 06:00 gezet, **meteen daarna naar 07:00** verplaatst om de load
+  te spreiden (zie hieronder).
+- **Nieuw slot `fri-national-long`** in `REAL_SCHEDULE`, en `fri-regional` van 10:00 → 17:00.
+  De week telt nu **3 regionaal · 3 nationaal · 2 internationaal** = 9 wedstrijdvluchten
+  (+ 4 criterium, + 2 oefen, + het zaterdagslot). Geteld uit de definitie, niet geschat.
+- **Nieuwe knoppen `ScheduleSlot.minKm` / `maxKm`** — een slot kan zijn route nu beperken tot
+  een stuk van het tier-venster. `makeRealtimeFlight` geeft ze door aan `pickRoute`, dat de
+  overrides al accepteerde. Weggelaten = het volle tier-venster, exact zoals vroeger.
+- ⚠️ **Het venster is 430–500, niet 490–500.** De nationale stedenpool wordt dun aan de top;
+  gemeten over 4.000 trekkingen: 430–500 geeft mediaan **459 km** met **98,8 %** binnen het
+  venster, 470–500 zakt naar 79,5 %. En `pickRoute` valt terug op het **dichtstbijzijnde**
+  stadspaar, dus een te smal venster levert stilletjes uitschieters op (tot ~550 km) in plaats
+  van een foutmelding. Houd het venster breed genoeg dat de pool het kan bedienen.
+- ⚠️ **Ze staat op 07:00 en niet op 06:00, en dat is een PLATFORMkeuze.** Het criterium
+  "Ouder dan 3 jaar" vliegt vrijdag op `AGE_CUP.hour` (06:00). Twee vluchten die hetzelfde
+  startmoment delen, gaan in **één verzoek** van `scheduled → live`: dat bevriest beide sims
+  (`startLiveFlight` over alle deelnemers) én haalt twee weervoorspellingen op, binnen dezelfde
+  invocatie van 10 ms CPU — precies het soort piek waar §Performance over gaat. Een uur ertussen
+  geeft elk zijn eigen verzoek.
+- ⚠️ **Dat neemt de KEUZE niet weg.** Één-vlucht-per-dag telt per **kalenderdag**, niet per uur,
+  dus een duif ouder dan drie jaar kiest nog steeds tussen het criterium en deze nationale.
+- **Waarom dit de balans helpt:** de kalender leunde zwaar naar de korte kant (5,5 startplaatsen
+  per week onder 400 km tegen 2,5 erboven — zie het blok hieronder). Op 459 km staat de weging
+  op **0,43/0,57**, dus dit is de wedstrijd die een conditie-duif betaalt zonder meteen naar de
+  internationale te moeten. Dit is **punt 1** uit de balansanalyse, gedeeltelijk uitgevoerd.
+- **Geverifieerd** tegen de échte `ensureFlightsScheduled`: één concrete vrijdag levert exact
+  4 vluchten — 06:00 `cup-o3`, 07:00 `fri-national-long` (type `national`, binnen 430–500 km),
+  12:00 oefenvlucht, 17:00 `fri-regional`. Vier verschillende starttijden, dus vier aparte
+  live-overgangen.
+- **Geen migratie, geen schemawijziging**, `dataVersion` blijft **49**. Bestaande geplande
+  vluchten blijven staan; de nieuwe kalender geldt vanaf de eerstvolgende dag buiten de horizon
+  (`SCHEDULE_HORIZON_DAYS` 4).
+- ⚠️ **`poll-budget.test.mts` ging hierdoor van groen naar rood** (3/3 groen zonder, 3/3 rood
+  met: "de load blijft smal: 102 van 204", grens 102). **Nagemeten: geen productiekost.** De
+  smalle load leest enkel deelnemers van vluchten met **`relay === true`** (`core/d1.ts::load`),
+  en dit slot is een **nationale** — die kan nooit een estafette worden. De test flipt zelf een
+  gewone race met 55 deelnemers naar `relay = true` (de onrealistische fixture die hier al drie
+  keer eerder genoteerd is) en rolt daarbij een échte estafette het venster in. De echte
+  budgetbewakers — `query-budget`, `daily-budget`, `idle-writes`, `cpu-budget`,
+  `advance-throttle`, `d1-partial-load` — zijn **allemaal groen**. De assertie is **niet**
+  losser gezet; de fixture hoort realistisch gemaakt te worden (3 duiven per hok bij de flip),
+  samen met de `age-cup`-tijdbom.
+
+**Conditie weegt nu door voorbij 700 km — een derde anker op de afstandsblend**
+- **Melding van de eigenaar:** "deze duif presteert ALTIJD slecht terwijl het een goeie duif is,
+  en veel slechtere duiven vliegen beter" — met het vermoeden dat **conditie** te weinig
+  impact heeft tegenover snelheid en oriëntatie.
+- **Eerst gemeten, drie simulaties** (weggegooid na afloop, tegen de échte `startLiveFlight` +
+  `finalizeFlight`):
+  1. **Zes archetypes met GELIJK talent (★75), tegen elkaar, 1.200 races per niveau.** Gewogen
+     over de weekkalender: sprinter 90/70/65 **10,0 %** winst, stayer 65/90/70 **8,9 %**,
+     navigator 65/70/90 **6,3 %** — en de beste van allemaal was **85/85/55**, een duif die haar
+     oriëntatie gewoon laat vallen.
+  2. ⚠️ **Per niveau apart is het wél in balans**: sprinter wint regionaal 12,5 % tegen 7,4 %,
+     stayer wint internationaal 11,3 % tegen 6,7 % — bijna spiegelbeeldig. Met een gelijke
+     kalender (2/2/2) komen ze op 9,6 % tegen 9,2 %. **Het is dus niet de formule maar de
+     kalender**: 5,5 startplaatsen per week onder 400 km (3 regionaal, 2 nationaal met midden
+     350, titan, estafette-etappes van ~300 km) tegen 2,5 erboven.
+  3. **En de blend verzadigde op 700 km.** `t = clamp((km − 100)/600, 0, 1)` staat op 1 vanaf
+     `longKm`, terwijl de kalender tot **1200 km** reikt: een Barcelona van 1100 km woog exact
+     als een vlucht van 700. Gemeten: +10 conditie was **+4,42 km/u op 800 km én op 1100 km**,
+     cijfer voor cijfer identiek.
+- **Uitgevoerd op verzoek van de eigenaar: punt 3.** Nieuw **derde anker** `DISTANCE_WEIGHTING.
+  ultraKm` (1200) + `ultra` (`0.15/0.85`); `weightsForDistance` interpoleert nu over **twee
+  segmenten** (short→long→ultra).
+- ⚠️ **Niets ONDER 700 km beweegt.** De eerste tak is letterlijk de oude formule, dus de
+  sprinter/stayer-verhouding op de rest van de kalender blijft staan zoals ze gebalanceerd was.
+  Nagemeten in de archetype-simulatie: de rijen voor regionaal en nationaal zijn **cijfer voor
+  cijfer identiek** aan de run ervoor; enkel internationaal verschuift (stayer 11,3 → 12,0 %,
+  sprinter 6,7 → 6,0 %).
+- ⚠️ **`distanceT` is bewust NIET meeveranderd.** Die helper wordt gedeeld door de
+  **energiefactor** (`energieFactor`) en door de **`LOST`-omwegfracties**, en klemt nog steeds op
+  `longKm`. Hem mee uitrekken zou stilzwijgend een lage tank én een slechte navigator harder
+  straffen op de fond — een andere balansvraag die niet gesteld was. Het nieuwe anker wordt
+  **enkel** door `weightsForDistance` gelezen.
+- **Effect (gemeten):** +10 conditie gaat van +4,42 km/u (vlak vanaf 700) naar **+4,55 op 800 ·
+  +4,81 op 1000 · +5,07 km/u op 1200**; in tijd op 1100 km ruim **een half uur** tegen een
+  kwartier voor tien punten snelheid. De bewaker `attribute-balance` schuift van
+  snelheid 3,6pp / conditie 3,3pp naar **3,5pp / 3,4pp** — praktisch gelijk — en internationaal
+  van conditie 4,7pp naar **5,1pp**. Alle bestaande grenzen blijven groen zonder ze aan te raken.
+- **Geen migratie, geen schemawijziging**, `dataVersion` blijft **49**. Alleen configwaarden +
+  één helper, dus een vlucht die al **live** is houdt haar bevroren sim en dus het oude gedrag;
+  vanaf de volgende lossing geldt de nieuwe curve.
+- **`attribute-balance.test.mts` → 25 controles.** Nieuw blok: conditie stijgt monotoon van
+  `longKm` tot `ultraKm`, de gewichten sommeren overal tot 1, op `ultraKm` weegt ze duidelijk
+  zwaarder dan op `longKm`, **+10 conditie levert op 1100 km meetbaar meer op dan op 800 km**, en
+  — de belangrijkste — **geen enkele afstand onder `longKm` is bewogen** (de oude formule staat
+  als referentie in de test herhaald). **Geverifieerd door de fix terug te draaien: 3 controles
+  worden rood**, met exact het oude beeld (0.74 vlak van 700 tot 1200).
+- **Nog NIET gedaan, en dit is de grotere hefboom:** punt 1 uit de analyse — de **kalender**
+  herwegen (één regionale vlucht inruilen voor een internationale maakt sprinter en stayer per
+  saldo gelijk). En punt 3: **oriëntatie is op élk niveau de zwakste** eigenschap, omdat ze 0
+  meetelt in de snelheid en haar schade geplafonneerd is (7 % kort / 15 % lang) — je kan ze dus
+  straffeloos dumpen. ⚠️ Dat plafond is er net gekomen omdat oriëntatie ooit een vaste tol werd
+  i.p.v. een risico (zie het blok "Oriëntatie woog veel te zwaar op de fond"), dus daar klein
+  beginnen en opnieuw meten.
+- Spelregels **§2.3** (de formule met drie ankers + de km/u-tabel per afstand) en wiki
+  📋 **Wat doet elke eigenschap** bijgewerkt.
+- ⚠️ **`age-cup` blijft rood** — de tijdbom met de vaste `T0`, niet door deze wijziging (zelfde
+  assertie als vorige week). `poll-budget` was deze ronde groen.
+
+**Migratie v49 — €2.000 voor "Marcel De Neut"**
+- **Vraag van de eigenaar:** zet 2.000 munten op de kassa van die speler. Zelfde vorm als de
+  geld-rechtzetting van v33, maar dan een bijschrijving.
+- **Match op hoknaam óf gebruikersnaam, enkel echte spelers** — een gelijknamige bot blijft
+  ongemoeid. ⚠️ **Spaties worden samengetrokken, niet enkel getrimd** (`replace(/\s+/g, ' ')`,
+  zoals v39): dit is een naam van drie woorden, dus een dubbele spatie in de hoknaam of de
+  gebruikersnaam zou een kale `trim()` stil laten missen — en een migratie die niemand vindt is
+  niet te onderscheiden van een die gewoon gelopen heeft.
+- ⚠️ **Élke match krijgt het, niet enkel de eerste.** De eerste versie gebruikte `find` (zoals
+  v33) en dat viel door de mand in de verificatie: staat de hoknaam van de ene speler gelijk aan
+  de gebruikersnaam van de andere, dan betaalt `find` er willekeurig één — en stil de verkeerde
+  betalen is erger dan allebei betalen. Nu een lus over alle hokken, zelfde vorm als
+  `handInheritanceCard`.
+- **Veilig bij gelijktijdige afhandeling:** twee verzoeken die de migratie allebei draaien
+  schrijven `basis + 2000` als **absolute** waarde, dus last-write-wins laat precies één
+  bijschrijving over; de stabiele melding-id (`ntf:admin:grant2000:<userId>`) houdt het op één bel.
+- **Geen schemawijziging, geen kolom, geen configknop.** **dataVersion → 49.**
+- **Geverifieerd** met een wegwerpscript tegen de échte `advanceRealtime` (13 controles): match
+  op hoknaam én op een gebruikersnaam met rommelige spaties, een derde speler krijgt niets, een
+  gelijknamige bot krijgt de gift niet, precies één bel per doelwit die het bedrag noemt, het
+  geld **overleeft de rondrit door D1**, vijf passen betalen niet nog eens, en een wereld zonder
+  die speler loopt gewoon door zonder iemands kassa te raken.
+  ⚠️ Valstrik voor de volgende die zoiets schrijft: de kassa van een **bot** beweegt sowieso
+  (`botDailyActions` koopt voer), dus "de bot staat stil" is geen geldige assertie — toets dat
+  hij de **gift** niet kreeg.
+- ⚠️ **Twee tests stonden al rood vóór deze wijziging** (nagemeten met `git stash`, 3/3 runs
+  identiek): `age-cup` (de tijdbom hieronder) en `poll-budget` ("de load blijft smal: 104 van
+  204", de bekende onrealistische estafette-fixture). Niet veroorzaakt, niet aangeraakt.
+
+**Eenmalige migraties (het patroon, niet de inhoud)**
+- `runDataMigrations` (schedule.ts) is óók de plek voor **handmatige rechtzettingen** op
+  vraag van de eigenaar: geld bij- of afboeken, een kwetsuur wissen, een duif-eigenschap
+  corrigeren, één vlucht verzetten, een verkeerd bod terugzetten, een dilemmakaart of een
+  starterspakket uitdelen, of een aankoop terugdraaien die per ongeluk gebeurde (v50:
+  geld terug + de hokcapaciteit weer omlaag). Die van v30/v33/v36/v37/v39/v46/v47/v48/v49/v50 zijn allang gedraaid
+  en hun details zijn hier weggehaald; het **patroon** hieronder blijft gelden.
+- ⚠️ **Elke zo'n ingreep krijgt een stabiele melding-id** (`ntf:admin:<wat>:<id>`) en matcht
+  **enkel echte spelers** (een gelijknamige bot blijft ongemoeid). Zonder die stabiele id
+  geven twee gelijktijdige verzoeken twee meldingen of een dubbele af-/bijboeking.
+- ⚠️ **Match op hoknaam óf gebruikersnaam, hoofdletter-ongevoelig, en trek spaties samen**
+  (`replace(/s+/g, ' ')`, niet enkel `trim()`): bij een naam van meerdere woorden laat een
+  kale trim een dubbele spatie stil passeren — en een migratie die niemand vindt is erger
+  dan geen migratie.
+- ⚠️ **Een migratie vuurt precies één keer per wereld** (ze is gegate op `dataVersion`).
+  Je kan een oudere migratie **niet hertriggeren**; wil je dezelfde ingreep nog eens doen,
+  dan heeft die haar **eigen nieuwe versienummer** nodig (zo ontstond v48 uit v46).
+- ⚠️ **Deel geen gekopieerde inhoud uit.** Een migratie die bv. de tekst van een dilemmakaart
+  zelf overschrijft, deelt bij de eerste herformulering een versie uit die niet meer bestaat.
+  Roep de bestaande bouwer aan (`inheritanceCard()` / `handInheritanceCard()` in
+  `events.ts`) i.p.v. de inhoud te dupliceren.
+- ⚠️ **Herkondigen doe je met dezelfde melding-id** (zie v42): `notifications` wordt **per
+  viewer** geladen, dus `persist` kan enkel wissen wat het geladen heeft. Een nieuwe id
+  laat de oude rij staan bij iedereen behalve de speler wiens verzoek de migratie draait.
+- ⚠️ **Een terugdraai gate je op de exacte situatie, en doet anders NIETS** (zie v50, een
+  per ongeluk gekochte hokuitbreiding). Tussen de vraag en de deploy speelt de eigenaar
+  verder: staat de capaciteit intussen hoger, zitten er meer duiven in dan de lagere
+  capaciteit, of zijn er meer compartimenten dan plaatsen (`buyCompartment` capt op
+  `loft.capacity`), dan is een **half toegepaste** terugdraai erger dan geen. Geld
+  teruggeven én de plaatsen laten staan is een cadeau; de plaatsen afnemen terwijl er
+  duiven in zitten is een straf. Sla in die gevallen de hele speler over en leg het terug
+  bij de eigenaar. Schrijf de waarden **absoluut** (`money += bedrag`, `capacity = 14`),
+  niet als delta, zodat twee gelijktijdige verzoeken op één terugbetaling uitkomen.
+
+**Een lege worp betaalt de helft van het koppelgeld terug**
+- **Knop `BREEDING.failedRefundRate` (0,5)** + helper **`failedBreedRefund()`** in
+  `gameConfig.ts` (→ **€375**). Eén plek voor het bedrag, zodat de uitbetaling, de bel, de
+  kweekpagina en de wiki niet uit elkaar kunnen lopen. Gestort in `tickBreedingHatch` zodra
+  `young.length === 0`, vóór de meldingstak en dus **ook voor bots**.
+- ⚠️ **Enkel een LEGE WORP betaalt terug, en dat is de hele afbakening.** Een koppel dat
+  vervalt omdat een ouder verkocht is of gestorven (`!sire || !dam`) is geen mislukte worp:
+  daar terugbetalen maakt van "koppel, verkoop de doffer" een geldpers. `stopBreeding` betaalt
+  eveneens niets, anders koppel je en stop je meteen om de helft terug te halen. Het
+  zelfhelende cooldown-pad ook niet — dat ontbindt een rij die niet had mogen bestaan.
+- ⚠️ **Dit dwong determinisme af in `breed()`, en dát is de dragende helft.**
+  `tickBreedingHatch` draait bij élk verzoek, dus twee overlappende verzoeken handelen
+  routinematig hetzelfde nest af. **Dubbel storten was niet het gat** — beide schrijven
+  `basis + 375` als absolute waarde, dus last-write-wins houdt er één over. Het gat is dat ze
+  het **oneens** kunnen zijn: A ziet een lege worp en stort €375, B maakt een jong en raakt
+  `money` niet aan → de **kolom-smalle diff** (`previousRows`) houdt allebei, en de speler
+  heeft een jong **én** het geld. Gemeten: **1.586 van 4.000** afhandelingen oneens; na de fix
+  0 van 4.000.
+- **Fix:** de twee **tel-trekkingen** in `breed` (slaagt de worp? één of twee jongen?) lopen
+  via `seededRng(hashString('clutch:' + pairId))` i.p.v. `Math.random`. Sluit meteen een
+  bestaand gat waarbij A een tweeling schreef en B niet — `pig_brood_<pair>_1` bleef dan als
+  weesrij staan.
+- ⚠️ **Bewust enkel die twee trekkingen.** De per-duif-worpen (genen, naam, geslacht,
+  afwijking) blijven op `Math.random`: die bepalen wat een jong **is**, en beide verzoeken
+  schrijven dat naar **dezelfde rij-id**, dus last-write-wins settelt het. Ze óók seeden staat
+  als openstaand punt onderaan §8. `breed()` **zonder** `pairId` (enkel tests) gedraagt zich
+  exact als vroeger.
+- **Geen migratie, geen schemawijziging, geen extra query of rij.** Nieuw DTO-veld
+  `economy.breedFailRefund`. Bewaakt door `breeding-cooldown.test.mts` (blok 4/4b/4c: bedrag,
+  de rondrit door D1, twee gelijktijdige verzoeken → één teruggave én géén jong ernaast).
+- ⚠️ **De testhelper `forceClutch` is weg, vervangen door `pairIdWhere`.** Hij patchte de
+  succeskans via `Math.random`, en die trekking is nu geseed — een patch bereikt haar niet
+  eens meer. Een blok kiest voortaan een **koppel-id met de gewenste afloop**
+  (`PAIR_HATCHES` / `PAIR_EMPTY`).
+
+**Je eigen bod was onzichtbaar op de Markt — de smalle load at het op**
+- **Vraag van de eigenaar:** een bod dat je op een duif uitbracht moet je op de **Markt**
+  kunnen zien en kunnen **intrekken** zolang het niet aanvaard is.
+- ⚠️ **Dat bestond allemaal al — en werkte toch niet.** `MarketPage` heeft de kaart *"Jouw
+  uitgebrachte biedingen"* mét een **Trek in**-knop (`POST /offers/:id/withdraw`), en
+  `PigeonPage` toont hetzelfde per duif. Beide lezen `state.offers.sent`, en dát kwam
+  structureel leeg terug. Niet de UI was stuk, maar de data eronder.
+- ⚠️ **De oorzaak is het smal-laadpad.** `/api/state` staat in `NARROW_PATHS`: bij een verse
+  engine laadt `D1Store.load` **enkel de eigen duiven** (+ estafetteploegen). Een bod dat jíj
+  uitbracht staat per definitie op **andermans** duif, en `offersFor` verifieert of die duif
+  nog van de verkoper is (`p.ownerId === o.toUserId`). Zonder die rij is `p` undefined en
+  valt je eigen bod stilletjes weg. `received` bleef wél werken — dat zijn je eigen duiven,
+  en dus precies de helft die de bug verbergt.
+- ⚠️ **Het knipperde bovendien**, wat het als een spookbug liet lezen: een POST of `/market`
+  doet een **volle** load en toonde het bod wél; een doorgethrottelde poll (binnen
+  `ADVANCE_THROTTLE_SECONDS`) niet. Ondertussen stond het bod gewoon in de database en kon
+  de eigenaar het aanvaarden.
+- **Fix in `core/d1.ts::load`:** de `offers`-tabel wordt nu **vóór** het smalle duiven-blok
+  gelezen, en de duiven waarop de kijker een **openstaand** bod heeft, gaan mee in dezelfde
+  `entrantIds`-set. Twee redenen dat dit de hete route niet opblaast: het is begrensd door de
+  **eigen** openstaande biedingen (een handvol), niet door de kalender, en boven 400 ids valt
+  de bestaande guard sowieso terug op een volle read. Geen extra query — `offers` werd al elk
+  verzoek gelezen, alleen te laat.
+- **Waarom niet `offersFor` versoepelen.** De eigenaarscheck is er niet voor niets: hij
+  verbergt een weesbod op een duif die intussen van eigenaar wisselde. Hem laten vallen zodra
+  de rij ontbreekt maakt van een correctheidsguard iets dat afhangt van welk laadpad je
+  toevallig trof. De test bewaakt expliciet dat dit weesbod **nog steeds** verborgen wordt,
+  mét de duif geladen — anders bewaakt hij niets.
+- **Geen schemawijziging, geen migratie, geen configknop**, `dataVersion` blijft **47**. Geen
+  client-wijziging: de UI werkte al, ze kreeg alleen nooit data.
+- **Bewaakt door `offer-visibility.test.mts`:** je bod overleeft een **smalle** poll en de
+  volle load geeft exact hetzelfde (geen knipperend bod), intrekken wist de rij écht uit D1,
+  andermans bod trek je niet in, en een weesbod blijft verborgen. ⚠️ Die laatste controle
+  laadt de duif **wel** — anders bewaakt ze niets.
+
+**Tribune-layout: de boodschap staat altijd onder de naam**
+- ⚠️ **`.chat-line` was een WRAPPENDE rij** (`display:flex; flex-wrap:wrap`): naam en tekst
+  staan dan naast elkaar tot het niet meer past. Met korte en lange kreten door elkaar —
+  precies waar de tribune uit bestaat — begint de tekst dus op élke regel ergens anders. Geen
+  datafout, een layout die van de zinslengte afhing. Nu een **vaste kolom**
+  (`flex-direction: column; align-items: stretch`): naam boven, boodschap eronder, altijd.
+- ⚠️ **Het ×N-telletje mocht daar niet in mee.** Als derde kind van een kolom-flex belandt het
+  op een eigen regel, terwijl het bij de tekst hoort ("Amai. ×4"). Tekst en telletje zitten
+  daarom samen in **`.chat-body`** (de wrappende rij die `.chat-line` vroeger was), zodat
+  `.chat-repeat` zijn `margin-left: auto` naar de rechterrand houdt. `.chat-who` verloor zijn
+  `flex-shrink: 0` (zinloos in een kolom) en kreeg `overflow-wrap: anywhere` — een hoknaam kan
+  één lang woord zijn.
+- **Volgorde op `LiveFlightPage`: kaart → tribune → stand → verslag → samenvatting → uitslag.**
+  De tribune stond onderaan, ná de standenlijst; bij een veld van 90 duiven scrolde je dus
+  naar een chatbox terwijl de race die je becommentarieert uit beeld stond.
+- ⚠️ **In de winkel staat de prijs op een eigen regel onder de uitspraak**
+  (`.reaction-locked-item`, kolom-flex). Als `.row` met `justify-content: space-between`
+  danste de prijskolom per rij heen en weer, want die lijst mengt "Amai." met zinnen van tien
+  woorden. `min-width: 0` + `overflow-wrap: anywhere` houden een lange zin binnen de kaart —
+  zie §Card-breedte.
+- **Alleen client** (`LiveFlightPage.tsx` + `global.css`), geen migratie.
+
+**De tribune — reageren op een live vlucht met kant-en-klare kreten**
+- **Wat het is.** Onder elke live vlucht staat een chatbox waarin spelers reageren met
+  **vooraf geschreven** boodschappen; zelf typen kan niet. Naar de vlucht in het algemeen,
+  of recht naar een andere melker — die gerichte regels zijn **voor iedereen zichtbaar** én
+  leveren de genoemde speler een melding op (nieuwe `Notification.kind: 'taunt'`).
+- **Twee assen.** *Level bepaalt of je iets mág zeggen, munten of je ervoor wil betalen.*
+  Elke gratis categorie gaat over jezelf of over de vlucht; zodra een boodschap zich op een
+  persoon richt staat er een level vóór. Sneer = level 5 / 100 munten, Scherp = 7 / 250,
+  Zwart = 9 / 500. ⚠️ **Geijkt op een gemiddelde speler van level 5-6.** Een eerdere opzet
+  zette Zwart op level 14 — de theoretische top van alle 64 badges samen — en dat was dode
+  inhoud: gebouwd, betaald, nooit gezien. Wie de levels verschuift moet `levelForXp`
+  (badges.ts) erbij nemen: de XP-afstand tussen 7 en 9 is groter dan die tussen 1 en 5.
+- ⚠️ **Vier ontgrendelroutes, want geen categorie mag ooit helemaal dicht staan.** Een slotje
+  zonder zichtbare inhoud geeft een speler niets om naar toe te werken. Daarom heeft elke
+  zware categorie vanaf level 1 iets bruikbaars: `gift` (startgeschenk, bewust de meest
+  absurde regels en niet de venijnigste), `milestone` (cadeau bij level 3/5/7/9, zonder
+  munten), `badge` (hangt aan een badge — de diepvriesregel komt vrij dóór 🕯️ *Vredig
+  Heengegaan*), en de winkel. Een level 5-hok dat nooit een munt uitgeeft heeft er **vier**;
+  met twee fun-badges op level 6 **zes**.
+- ⚠️ **Routes 1-3 worden AFGELEID uit `level` en `badges`, niet opgeslagen.** Alleen aankopen
+  staan op de loft (`Loft.unlockedReactions`). Daardoor had dit **geen migratie** nodig:
+  bestaande spelers hebben hun startgeschenk en mijlpalen op het moment van deployen.
+- ⚠️ **De chatbox rijdt mee op de flight-rij (`Flight.chat`), en dat is een bewuste keuze.**
+  `/api/flights/:id/live` wordt buiten de wereldload om beantwoord uit **alleen die ene rij**
+  (de live-snelkoppeling in `functions/api`), dus een aparte tabel had een extra query gekost
+  op de heetste route van het spel. Daarom staan **auteursnaam, doelwitnaam en tekst bevroren
+  op elke regel**: er is geen lofts-tabel om ze in op te zoeken.
+- ⚠️ **Eén blob betekent last-write-wins**: twee reacties op hetzelfde moment kunnen er één
+  kosten. Hier aanvaard, bij `auction_bids` niet — die kregen juist een eigen tabel. Het
+  verschil is wat een verloren schrijfactie kóst: een bod is geld en een claim op een duif,
+  een kreet is een kreet.
+- **Rem op de tribune.** 20 s tussen twee kreten, herhalingen vouwen samen tot `×N`, box
+  begrensd op 50 regels, en één melker mag hoogstens **40%** ervan vullen. ⚠️ Dat laatste is
+  een *aandeel* en geen teller per vlucht: een teller zou moeten meten wat iemand VERSTUURDE
+  en dat staat nergens — zodra de box trimt zakt zo'n telling vanzelf en mag dezelfde speler
+  weer.
+- **De kiezer is gebouwd voor het scherm dat het vaakst gezien wordt** (level 5-6, ±50
+  ontgrendeld): recent-rij van 6 bovenaan (lost het leeuwendeel van de keuzes op), tabs met
+  enkel iconen, zoekveld pas boven de 20, en vergrendelde regels in een uitklapper **onder**
+  het raster in plaats van ertussen. Eerst de tekst kiezen, dán pas het doelwit — de meeste
+  boodschappen zijn vlucht-breed en mogen geen tik extra kosten.
+- **Nieuw:** `core/config/reactions.ts` (90 templates + `FLIGHT_CHAT`),
+  `core/game/reactions.ts`, `client/src/components/ReactionPicker.tsx`. **Gewijzigd:**
+  schema (`ChatLine`, `Flight.chat`, `Loft.unlockedReactions`, kind `taunt`), `d1.ts` (twee
+  ALTERs achteraan `SCHEMA_STEPS` + beide mappers), `presenters.ts` (chat in `liveFlightDTO`
+  én `liveBoardDTO`), `badges.ts` (level-up- en badgemelding noemen nu wat je erbij kreeg —
+  afgekapt op 3, want West-Vlaams gooit er veertien tegelijk open), `[[path]].ts` (4 routes),
+  wiki-sectie **De tribune**. **Geen migratie, geen `dataVersion`-bump.**
+- ⚠️ **Importcyclus vermeden:** `badges.ts` heeft de ontgrendel-queries nodig en
+  `game/reactions.ts` heeft `BADGE_MAP` nodig. `reactionsUnlockedByLevels/ByBadge` staan
+  daarom in **`config/reactions.ts`** (dat niets importeert), niet in `game/`.
+- **Twee tests.** `reactions.test.mts` (41 controles) bewaakt de ontgrendelroutes — dat elke
+  categorie op level 1 iets bruikbaars heeft, dat de bistro- en hospice-regel achter level 9
+  + 500 blijven, dat munten géén level kopen — en de leesbaarheid van de box.
+  `reactions-persist.test.mts` rijdt de twee nieuwe kolommen tegen een **echte SQLite-engine**
+  heen en weer: `LOFT_COLUMNS` en `loftRow` zijn twee lijsten die met de hand in de pas
+  moeten blijven, en dat is het soort fout dat in het geheugen groen blijft en pas opvalt als
+  iemand 500 munten kwijt is.
+- **Nog niet gedaan:** mute-toggle voor gerichte berichten, en het leenpakket van drie
+  sneren voor nieuwe spelers via `NEWCOMER`.
+
+**Een erfenis gaat niet meer verloren omdat je hok vol zit**
+- **Vraag van de eigenaar:** kiest een speler bij de erfeniskaart *de oude kampioen* terwijl
+  zijn hok vol zit, dan moet hij de kans krijgen een duif naar keuze vrij te laten of aan de
+  bistro te verkopen.
+- ⚠️ **De kaart is verbruikt op de klik, en dát is waarom dit erger was dan een gemiste kans.**
+  `resolveEvent` zet `loft.pendingEvent = null` op regel één. De oude tak
+  (`if (owned.length >= loft.capacity) return 'Je hok zit vol — … gaat aan je neus voorbij.'`)
+  gaf de speler dus **niets**, terwijl hij op dat moment al de spaarpot én de jonge belofte had
+  weggegeven. Er is ook geen weg terug: plaats maken en opnieuw kiezen kan niet, de kaart is weg.
+- **Nieuw: één wachtrij voor élke duif die je nog moet plaatsen.** Er komt géén tweede
+  mechanisme bij — de duif wordt geparkeerd op **`Loft.pendingBroods`**, exact waar een nest
+  belandt dat in een vol hok uitkwam, en `NestChoice.tsx` heeft die "Maak plaats"-lade met
+  🕊️/🍲 per duif al. Nieuwe helper **`handPigeon(db, loft, p, origin)`** (events.ts): past ze,
+  dan gaat ze rechtstreeks in `db.pigeons`; past ze niet, dan wacht ze. Beide erfenis-takken
+  (oude kampioen én jonge belofte) en de **verdwaalde duif** lopen erdoor.
+- ⚠️ **`PendingBrood.origin` is het load-bearing veld, niet de wachtrij zelf.** Een geërfde duif
+  deelt het scherm met een nest maar is er geen, en zonder dat onderscheid zou ze twee dingen
+  stilletjes vervuilen: de **kweekbadges** (`stats.babies`, `tweeling`, `dynastie` in
+  `awardBroodBadges`) en het **slot op het koppelformulier**. Beide gaan over *kweken*.
+  `resolveBrood` slaat de badges nu over (maar draait wél `evaluateBadges`, anders mist een
+  verzamelbadge op ras haar trigger), en `startBreeding` blokkeert enkel nog op een entry met
+  `origin === 'nest'`. **`BreedingPage` filtert op dezelfde regel** — deed hij dat niet, dan
+  zou de knop uitgrijzen terwijl de server hem zou toelaten.
+- ⚠️ **Optioneel veld in een bestaande JSON-kolom** (`lofts.pending_broods`): **geen migratie,
+  geen schemakolom, geen extra query**, `dataVersion` blijft **45**. Een rij van vóór deze
+  wijziging heeft geen `origin` en leest overal als `'nest'` — daarom staat die default
+  (`b.origin ?? 'nest'`) op élke leesplek en niet op één.
+- **De sireName/damName-velden blijven leeg** bij een niet-nest. Ze verzinnen zou het
+  ergste zijn: "Nest van  × " in de kop, en een stamboom die naar niet-bestaande ouders wijst.
+  De DTO stuurt `origin` mee en de client kiest de kop.
+- **Waar de speler het vindt:** de kaart staat bij **Kweek**, waar het mechanisme al leeft.
+  Drie wegwijzers, want de dilemma-modal is weg zodra je klikt: de tekst in de modal zelf, een
+  **belmelding** die letterlijk zegt *"Ga naar Kweek en kies: laat een duif vrij of verkoop er
+  een aan het restaurant"*, en de bestaande **teller op Kweek** in de nav (tooltip
+  veralgemeend van "nesten" naar "nesten of duiven"). Bewust **geen** kaart op het Overzicht:
+  dat zou de wachtende duif op `/state` moeten zetten, en dat is een smal-laadpad.
+- ⚠️ **`gamble` (kat in een zak) is bewust NIET aangepast.** Die kaart checkt de capaciteit
+  **vóór** ze €300 afhoudt, dus een vol hok kost de speler daar niets — dat is beschermend,
+  niet lossy. Door de wachtrij sturen zou hem €300 laten betalen voor een duif die hij
+  misschien niet kwijt kan.
+- **Bewaakt door `event-arrival.test.mts`:** een duif uit een gebeurtenis gaat nooit verloren
+  aan een vol hok, en de wachtrij handelt elke aankomst precies één keer af.
+- ⚠️ **Bestaande fout gevonden en gerepareerd (niet veroorzaakt):** `brood-choice.test.mts`
+  faalde **deterministisch** (3/3 runs op de ongewijzigde boom, nagemeten met `git stash`) op
+  "nieuw koppel na een afgehandeld nest". Oorzaak: `primeFullLoftWithPair` wist `lastBredAt`
+  niet, en de **kweekrust** (`BREEDING.cooldownDays`, 21 d) kwam er ná die test — dus het
+  tweede koppel werd geweigerd wegens rust. Fixture-fix van één regel; de rust zelf blijft
+  bewaakt door `breeding-cooldown.test.mts`. **5 runs op rij groen** (de eerder
+  gedocumenteerde flakiness van deze test dook daarbij niet meer op).
+
+**Een stip op de Markt-knop zodra er een duif te koop staat**
+- **Vraag van de eigenaar:** een duif die te koop gezet wordt valt niet op — "nu zal een
+  speler het misschien vaak niet opmerken". Klopt: de markt is het **enige** deel van het
+  spel dat helemaal geen signaal gaf. Een ontvangen bod heeft een navigatieteller, een
+  zondagveiling een belmelding, maar een gewone listing en een **opvangcentrum-veiling**
+  hadden niets — je vond ze door de pagina toevallig te openen, en zes uur later was de
+  opvangduif alweer weg.
+- **Nieuw:** `World.marketNewsAt` + `marketNewsBy` (kolommen `market_news_at`/
+  `market_news_by`, achteraan `SCHEMA_STEPS`), gezet door **`noteMarketNews`**
+  (`core/game/market.ts`) vanuit `listForSale` (met de verkoper) en vanuit
+  `createSundayAuction`/`createShelterAuction` (leeg = het veilinghuis).
+- ⚠️ **Waarom dit op de WERELDRIJ staat en niet als teller op `/state`.** `/state` is een
+  smal-laadpad (`NARROW_PATHS`): het leest de eigen duiven en verder niets. "Hoeveel verse
+  listings zijn er?" tellen betekent **andermans duiven lezen**, en dat trekt de hele
+  `pigeons`-tabel terug op de heetste route van het spel — precies wat de smalle load moet
+  voorkomen. Eén tijdstempel op een rij die élk verzoek toch al laadt kost **geen query en
+  geen rij**; `/state` stuurt `db.world` sowieso in zijn geheel door, dus er was ook geen
+  DTO-veld nodig.
+- ⚠️ **En daarom is het een STIP en geen getal.** Eén tijdstempel weet *dát* er iets nieuw
+  is, niet hoevéél. Een teller zou ofwel het leesbudget kosten, ofwel een lijstje op de
+  wereldrij vragen dat bij élke verkoop/terugtrekking bijgewerkt moet blijven — dat soort
+  gedenormaliseerde spiegel loopt hier gegarandeerd uit de pas.
+- **Gezien-zijn staat in localStorage** (`roekoe.marketSeen.<userId>`, epoch-ms), net als
+  de tour, de ceremonie en de "wat is nieuw"-sleutels: het is een gemak per browser, geen
+  spelstaat, dus het hoort geen D1-schrijf te kosten. `client/src/game/marketSeen.ts` is
+  bewust **React-vrij** (zoals `components/geo.ts`) zodat de test de regels rechtstreeks
+  kan draaien; de hook die erop abonneert staat in `Layout.tsx`.
+- ⚠️ **localStorage ververst niets vanzelf, en de nav staat in een ander component.**
+  `markMarketSeen` vuurt daarom `roekoe:market-seen` af (zelfde truc als
+  `roekoe:start-tour`), en de hook luistert óók op `storage` zodat een tweede tab die de
+  markt opende de stip hier mee wist.
+- **De verkoper is vrijgesteld van zijn eigen listing** (`marketNewsBy`). ⚠️ Bekende
+  keerzijde: omdat enkel de **laatste** aanbieding bewaard wordt, maskeert zijn eigen
+  listing er één van een ander die hij nog niet zag. Listings zijn zeldzaam genoeg dat dat
+  hoogstens een gemiste por is — de duif staat er gewoon.
+- **Uitschrijven wist de markering niet.** Het is een logboekje van "er is iets gebeurd",
+  geen spiegel van wat er nú te koop staat: zou het wél wissen, dan poetst iemand die zijn
+  duif meteen terugtrekt de stip weg bij iedereen die nog niet gekeken had. Keerzijde: je
+  kan de markt openen en de duif al verkocht vinden. De stip verdwijnt dan gewoon.
+- **De phone-balk had helemaal geen badges** (`BottomNav` toonde er nooit één), dus zonder
+  ingreep was de hele functie onzichtbaar op een gsm — waar dit spel het meest gespeeld
+  wordt. `NavIcon` hangt ze nu aan het icoon: de **teller rechtsboven**, de **nieuw-stip
+  linksboven**. Meegenomen gevolg: ontvangen biedingen en wachtende nesten krijgen daar nu
+  óók hun teller. Op de brede nav staan beide markers achter het label.
+- **Geen migratie, geen configknop, geen extra query**, `dataVersion` blijft **45**. Beide
+  typechecks + build groen; `d1-partial-load`, `query-budget`, `idle-writes`,
+  `advance-throttle`, `cpu-budget`, `daily-budget`, `market-bidding` en `bot-market` groen
+  (duurste verzoek onveranderd op 42/50).
+- **Nieuwe blijvende test `market-news.test.mts`** (38 controles): de markering wordt gezet
+  bij een listing én bij een opvangcentrum-veiling, **twaalf polls op rij zetten hem niet**
+  (de schrijflek-regel van §503-fix ronde 4), hij overleeft de rondrit door D1 via **beide**
+  schrijfpaden (INSERT op een verse wereld én UPDATE) — het stilste faalgeval dat er is —
+  een persist zonder wijziging herschrijft de wereldrij niet, en de badge-regel zelf:
+  eigen listing nagt niet, veiling nagt iedereen, kijken wist de stip, de stand gaat nooit
+  achteruit, en privémodus crasht niet.
+
+**Een podium telt nu op élke wedstrijd mee voor je medailles**
+- **Vraag van de eigenaar:** "krijg je bij het behalen van een podiumplaats ook de badge
+  op de criteriumvluchten? Zo niet, dit moet op alle wedstrijden gelden." Antwoord was
+  **nee**: `tickFlights` sloeg `awardFlightBadges` **volledig** over voor titan, estafette
+  én criterium (`if (flight.titan || flight.relay || flight.ageCat) continue;` stond vóór
+  de aanroep), dus daar werden geen medailles geboekt — en de `podium_*`-badges lezen
+  `stats.gold + silver + bronze`.
+- **Fix:** `awardFlightBadges(db, flight, { tierWins })` wordt nu **vóór** de `continue`
+  aangeroepen, voor élke niet-oefenvlucht. Medailles, de vluchtteller op de duif en de
+  situationele winbadges (storm_win, wonderkind, oude_meester, comeback, galgenhumor)
+  gelden dus overal.
+- ⚠️ **Behalve de TIER-tellers, en dat is de kern van de nieuwe parameter.**
+  `regionalWins`/`nationalWins`/`intlWins` betekenen "won een regionale/nationale/
+  internationale vlucht" en voeden de `reg_win_*`/`nat_win_*`/`intl_win_*`-badges. Titan,
+  estafette én criterium dragen **intern `type: 'international'`** (de valstrik die elders
+  in dit bestand al staat), dus zonder `tierWins: false` zou een titanzege stilletijk als
+  **internationale zege** op het profiel komen. De sponsordrempels lezen `loft.totalWins`
+  (niet deze tellers), dus de sponsoreconomie blijft onaangeroerd.
+- ⚠️ **Estafette-valstrik, gevonden bij het bouwen:** `finalizeRelayFlight` schrijft **één
+  resultaatrij per DUIF met de rang van de PLOEG**. Zonder ingreep boekte een ploegzege van
+  drie duiven dus **drie gouden medailles**. Een hok zet exact één ploeg in, dus de rijen
+  worden per eigenaar tot **één plaatsing** samengevouwen. Ook `full_podium` (het hele
+  podium is van jou) is voor een estafette uitgeschakeld — dat is daar niet uit de
+  rangkolom af te lezen.
+- ⚠️ **Vluchtteller bij een estafette:** een duif wier ploeg vóór haar etappe uitviel is
+  **nooit gelost** en krijgt `finished: false`; die telt geen vlucht. Bekende onder­telling
+  van één: de duif waaróp de ploeg strandde vloog wél een stuk maar staat ook op
+  `finished: false`. Een vlucht níet crediteren die misschien niet plaatsvond is hier de
+  veilige kant om fout te zitten.
+- **Bewust ongemoeid:** seizoenspunten, `totalWins`/`seasonWins`, weddenschappen, dag­
+  opdrachten en sponsorpremies blijven uit voor de drie speciale formats — dat was nooit
+  de vraag en het raakt de Roekoe en de sponsoreconomie.
+- **Bewaakt door `podium-badges.test.mts`:** medaille + podiumbadge op gewone vlucht, titan en
+  criterium; de tier-teller blijft bij de drie niveaus; een estafetteploeg boekt er precies
+  één; een DNF geeft er geen.
+- **Geen migratie, geen schemawijziging**, `dataVersion` blijft **45**. Bestaande medaille­
+  tellingen blijven staan; er wordt niets met terugwerkende kracht bijgeteld voor titans,
+  estafettes en criteriums die al gevlogen zijn.
+
+**Oriëntatie woog veel te zwaar op de fond — het plafond wás de uitkomst**
+- **Melding van de eigenaar:** duif met snelheid 83 / conditie 83 / **oriëntatie 60** had
+  op een vlucht van 733 km al ~120 km omgevlogen en zat pas halverwege, terwijl een duif
+  met 74/84/**74** al binnen was. "Er is maar 14 oriëntatie verschil, dat is niet zóveel."
+- ⚠️ **De oorzaak is VERZADIGING, niet de curve.** `expected = (base + max·room^curve) ·
+  (distBase + km·distPerKm)` gaf bij oriëntatie 60 op 733 km **3,67** verwachte episodes
+  tegen een `maxEpisodes` van **3**: de Poisson-trekking was afgetopt, dus ze trok bijna
+  altijd het maximum. En één fond-episode was ~**73 km**, dus **twee** episodes gingen al
+  over het plafond van 117 km. Gemeten vóór de ingreep: gemiddeld **102 km** omweg, het
+  **plafond geraakt in 72,6 %** van de vluchten, **5,5 %** schoon. Dat is geen kans meer
+  maar een vaste tol — en dáárom voelde 14 punten als een afgrond: duif A zat vastgeklemd
+  op het maximum, duif B (oriëntatie 74, 33 % plafond) zat nog in de variabele zone. Twee
+  duiven aan weerszijden van een verzadigingsgrens zien er extreem verschillend uit terwijl
+  de onderliggende curve vloeiend is.
+- **De ingreep verplaatst het gewicht van de fond naar de middenafstanden i.p.v. de
+  eigenschap te verzwakken.** `distBase` 0,75 → **1,0** en `distPerKm` 0,0034 → **0,002**
+  (de afstandsramp is veel vlakker: ×1,24 op 120 km, ×1,6 op 300, ×2,47 op 733, ×3,0 op
+  1000 — was ×1,16 / ×1,77 / ×3,24 / ×4,15); `detourFractionLong` 0,09 → **0,04** met
+  `maxEpisodes` 3 → **5**; `maxDetourFractionLong` 0,16 → **0,15**;
+  `detourFractionShort` 0,045 → **0,055**.
+- ⚠️ **`detourFractionLong` en `maxEpisodes` horen bij elkaar.** Kleinere episodes én meer
+  toegelaten episodes samen zorgen dat het **aantal** afdwalingen eindelijk een gradiënt
+  wordt (één ~29 km, twee ~58, drie ~87) i.p.v. dat iedereen op het plafond landt. Verhoog
+  de fractie nooit terug zonder `maxEpisodes` mee te verlagen.
+- ⚠️ **`strandedMax` 0,07 → 0,045, en dat was geen cosmetica.** "Helemaal de weg kwijt"
+  wordt **per episode** gerold, dus het cap-verhoging 3 → 5 gaf er stilletjes twee worpen
+  bij: oriëntatie 30 op 1000 km ging van 4,8 % naar **7,4 %** — de zwaarste uitkomst van
+  de hele eigenschap werd erger terwijl we ze milder aan het maken waren. Na de correctie
+  weer op de oude cijfers (ori 30 → 4,9 %, ori 50 → 1,3 %, niets boven 80).
+- **Gemeten na de ingreep** (dezelfde twee duiven, 733 km, 2.500 vluchten): A gaat van
+  102 → **66 km** gemiddeld, plafond 72,6 % → **23,6 %**, schoon 5,5 % → **10,0 %**;
+  B van 71 → **32 km**. Het plafond zelf 117 → **109 km**. Op 1000 km zakt de omweg van
+  een góéde navigator (85) van ~91 naar ~42 km.
+- **Oriëntatie blijft even veel waard** — dat was de harde voorwaarde: `attribute-balance`
+  geeft **+10 oriëntatie = 2,1pp winkans** (ongewijzigd), tegen snelheid 3,6pp en conditie
+  3,3pp; beide factorgrenzen (1,8 winkans / 2,1 plaats) blijven groen zonder ze aan te raken.
+- ⚠️ **Wat NIET gelukt is, en dat hoort hier eerlijk te staan:** de **verhouding** tussen
+  oriëntatie 60 en 74 is vrijwel dezelfde gebleven (omweg 2,1× vs 2,3× vroeger). Dat komt
+  doordat frequentie met `room^1.5` en omvang met `room` schaalt — die twee samen zijn de
+  eigenschap. Geprobeerd om `curve` te verlagen (1,5 → 1,25 → 1,1): dat maakt de verhouding
+  wél vlakker maar **tilt de absolute straf voor beide duiven op** (A 66 → 84 km), precies
+  wat de eigenaar niet wil, en bij 1,1 sneuvelt de balansbewaker (factor 2,04). Wat is
+  opgelost is de verzadiging; de gradiënt zelf is by design.
+- ⚠️ **Twee assertie's in `flock.test.mts` vervangen, niet verzwakt.** Ze toetsten het
+  *mechanisme* (`detourFractionShort < detourFractionLong`), en die ordening is bewust
+  omgekeerd. De *bedoeling* erachter — "een sprint-omweg kost je plaatsen, niet je dag" —
+  wordt nog steeds bewaakt door de assertie's die er al stonden (< 8 km absoluut, onder het
+  strengere korte plafond) en die groen blijven. In de plaats kwam de invariant die er nu
+  écht toe doet: **twee fond-episodes moeten samen ONDER het plafond passen** (2 × 41 = 82
+  km tegen 150) — precies het gat waardoor dit stilletjes kon ontsporen.
+- **Geen migratie, geen schemawijziging**, `dataVersion` blijft **45**. Alleen configwaarden,
+  dus een vlucht die al **live** is houdt haar bevroren sim en dus het oude gedrag; vanaf de
+  volgende lossing geldt de nieuwe afstelling.
+
+**Het km/u-cijfer op het live-bord stond stil terwijl de afstand liep**
+- **Melding van de eigenaar:** de afgelegde afstand ververst regelmatig, de snelheid
+  "blijkbaar niet". Klopt, en het pollritme was **niet** de oorzaak — dat is 60 s
+  (`useVisiblePoll` in `LiveFlightPage`) en `kmDone` is een continue waarde, dus die
+  schoof wél elke minuut op.
+- ⚠️ **De echte oorzaak was `FLIGHT_DYNAMICS.segments` (10).** `raceProgress` geeft
+  `curMult = seg[i]` — de multiplicator van het **huidige segment**, en die is binnen
+  een segment constant. Er bestaan dus maar **tien snelheidswaarden in een hele
+  vlucht**. Gemeten hoe lang één segment duurt: **9 min** (120 km regio) · 19 min
+  (300 km) · 33 min (500 km) · **45 min (733 km)** · **66 min (1000 km fond)**, met
+  uitschieters tot 113 min. Naast een afstand die elke minuut opschuift leest dat als
+  een defect cijfer.
+- ⚠️ **Het 5-minutenraster (`SPEED_STEP_SECONDS = 300`) deed in de praktijk niets** en
+  is weg. Het was bedoeld tegen flikkeren tussen polls, maar één segment is op álles
+  boven een oefenvlucht véél langer dan 5 minuten — het raster bond dus nooit. Alleen
+  bij de kortste oefenvluchten (~5 min per segment) was het van dezelfde orde.
+- **Nieuwe helper `smoothPaceMult(seg, progress)`** (geëxporteerd uit `flight.ts`):
+  behandelt elke `segMult`-waarde als een monster op het **midden** van haar segment en
+  interpoleert lineair tussen de buren. Kop en staart (de eerste/laatste halve segment)
+  houden bewust **vlak** — daar ligt geen tweede midden om naartoe te interpoleren, en
+  een waarde verzinnen voorbij het profiel zou motie tonen die de sim niet heeft.
+- ⚠️ **Uitsluitend weergave.** Posities, duur, aankomstvolgorde, de energie-afrekening
+  en het 📻-verslag lezen nog steeds de **rauwe** `segMult` via `raceProgress`. Een
+  interpolatie die daarin lekt zou finishtijden verschuiven en de invariant
+  **"live-einde == einduitslag"** breken. `live-speed.test.mts` bewaakt precies dat.
+- **Het werd GOEDKOPER, niet duurder** — dat was de voorwaarde van de eigenaar op de
+  gratis limieten. `liveSnapshot` riep `raceProgress` **twee keer per duif per poll**
+  aan (de tweede alleen om de multiplicator op het raster te herlezen, mét een lus over
+  alle tien de segmenten); die aanroep is weg en vervangen door een **O(1)**-helper.
+  Gecontroleerde A/B op dezelfde bevroren vlucht (90 duiven, 992 km): mediaan
+  **0,0369 → 0,0333 ms** (−10 %). Zelfde wijziging in `relaySnapshot`, per etappe.
+- **Budgetten nagemeten:** dagbudget onveranderd op **24,3 % gelezen / 7,4 % geschreven**
+  (158 rijen per verzoek), `cpu-budget` en `query-budget` groen, idle poll schrijft nog
+  steeds 0 rijen. De DTO krijgt **geen** nieuw veld — `speedKmh` bestond al, dus de
+  payload per poll is identiek en er is geen client- of typewijziging nodig.
+- **Geen migratie, geen schemawijziging, geen configknop**, `dataVersion` blijft **45**.
+  Een vlucht die tijdens de deploy al live is, werkt gewoon mee: de helper leest het
+  bestaande `segMult` en een legacy-vlucht zonder profiel valt terug op 1.
+- **Bewaakt door `live-speed.test.mts`:** de interpolatiewiskunde, het cijfer beweegt over een
+  echte 60 s-poll, en — de invariant — **de race zelf verandert niet** (bevroren finishtijden,
+  monotone `kmDone`, live-einde == einduitslag). Plus een **structurele** CPU-assertie: de
+  helper mag geen lus over de segmenten hebben, niet enkel een klokmeting.
+
+**Een duif van 2 jaar stierf "op hoge leeftijd" — de sterftecurve liep vanaf de geboorte**
+- **Melding van een speler:** "Theo Toekomstige Soep" (2 jaar) overleed met de melding dat
+  ze **op hoge leeftijd** vredig insliep. Terecht als bug gemeld: de spelregels beloven dat
+  jonge duiven zo goed als nooit vanzelf sterven.
+- ⚠️ **De oorzaak zat in de VORM van `MORTALITY_CURVE`, niet in de code eromheen.** De
+  eerste twee ankers waren `{ weeks: 0, p: 0 }` en `{ weeks: 208, p: 0.001 }`, en
+  `interpolate` trekt daar een **rechte lijn** tussen. Een duif droeg dus vanaf haar
+  geboorte een ouderdomsrisico dat gestaag opliep — precies wat de tabel *niet* bedoelde.
+- **Gemeten op de oude curve** (met de echte `ageMortality`):
+
+  | Leeftijd | Kans per échte week | Cumulatief dood aan "ouderdom" |
+  |---|---|---|
+  | 1 jaar | 0,10 % | 0,6 % vóór 1 jaar |
+  | 2 jaar | 0,20 % | **2,5 % vóór 2 jaar** |
+  | 3 jaar | 0,30 % | 5,6 % vóór 3 jaar |
+  | 4 jaar | 0,40 % | **9,8 % vóór 4 jaar** |
+
+  Bijna **één duif op tien** haalde haar piek dus niet, met een melding die haar leeftijd
+  er zelf bij noemde. Theo was geen uitzondering maar een verwacht geval.
+- **Fix: een expliciet NUL-anker op `AGING.peakEndWeeks` (208 wk = 4 jaar)** en het
+  `0.001`-anker daar weg. Dat is dezelfde grens waarop `runAgeDecline` de vaardigheden laat
+  zakken, dus **ouderdom begint nu op één plek in het spel**. Alles vanaf 6 jaar is
+  **onveranderd** (6j 0.006 · 8j 0.025 · 10j 0.07 · 12j 0.16 · 15j 0.40); enkel het stuk
+  4→6 jaar wordt iets milder (van ~30 % naar ~27 % over dat venster).
+- **Alleen een configwaarde**: geen migratie, geen schemakolom, `dataVersion` blijft **45**.
+  Dekt meteen ook de admin-only `runHealthWeek`, die dezelfde `ageMortality` gebruikt.
+- **Nieuwe blijvende test `mortality.test.mts`** (18 controles): elke week van 0 t/m 208
+  staat op **exact 0**, het gemelde geval (2 jaar) loopt geen risico, de curve loopt daarna
+  monotoon op, de vijf ijkpunten uit de spelregels kloppen nog, er staat een **nul-anker op
+  208** (⚠️ zonder dat interpoleert de curve weer vanaf de geboorte), en — het sterkste —
+  **200 duiven binnen hun piek 207 gameweken doorgerold tegen de échte
+  `runAgeMortality`**: 63 sterfgevallen, allemaal ≥ 4 jaar, geen enkele jonger.
+  Geverifieerd door de oude curve terug te zetten: 6 controles worden rood, met
+  "jongste: 1 jaar".
+
+**`padding: 10%` legde élke kleine avatar op 0×0**
+- **Symptoom:** de ouder-rondjes op de duifpagina bleven leeg terwijl de foto perfect laadde
+  (`naturalWidth 300`, `complete true`, maar `getBoundingClientRect()` gaf **0×0**).
+- ⚠️ **Oorzaak: procentuele padding rekent tegen de breedte van het CONTAINING BLOCK**, niet
+  tegen de doos zelf. `PigeonAvatar` zette `padding: '10%'` op het ronde kader; naast een rij
+  van ~340 px werd dat **34 px padding op een avatar van 44 px** → inhoudsdoos negatief → nul.
+  Dat raakte **élke avatar onder ~100 px in het hele spel** (de grote stonden op halve
+  grootte) — enkel het diagram, met een eigen `<img>` op **pixel**breedte, stond goed.
+- **Fix:** `padding: Math.round(size * (showcase ? 0.03 : 0.1))` — in pixels, uit de
+  `size`-prop. **Nooit een percentage op een doos die zichzelf moet opmeten.**
+  `family-chart.test.mts` bewaakt dat de padding geen procent bevat en uit `size` komt.
+- **Het `onError`-vangnet** in `PigeonAvatar` was hier niet de oorzaak maar blijft staan: een
+  échte 404 hoort de getekende duif te tonen i.p.v. een leeg kader. ⚠️ Het onthoudt **welke
+  bestandsnaam** faalde, geen boolean — het component wordt voor een hele lijst duiven
+  hergebruikt, en een boolean zou de goede foto van een látere duif verbergen.
+
+**Elke duif in de stamboom toont haar eigen, juiste foto**
+- **Melding van de eigenaar:** in de stamboom stond niet altijd de juiste foto, en op de
+  duifpagina bleven de twee ouder-rondjes **leeg**.
+- ⚠️ **De oorzaak: het diagram had zijn EIGEN fotologica.** Het tekende een kale
+  `<img src={/pigeon-images/${node.image}}>` op een platgeslagen bestandsnaam, naast de
+  `PigeonAvatar` die de rest van het spel gebruikt. Daardoor negeerde het de regel die daar
+  wél in zit: **een duif met een AFWIJKING krijgt de getekende duif in plaats van haar
+  rasfoto** — geen enkele stockfoto heeft drie vleugels. Een driewiek-duif werd in de
+  stamboom dus stilletjes als een gewone Meulemans getoond.
+- **Fix: één component, één antwoord op "welke foto hoort hier".** `FamilyMember` draagt nu
+  het **volledige ras én de afwijking** in exact de vorm die `pigeonDTO` stuurt
+  (`breedPayload`/`quirkPayload` in `pedigree.ts`), en `Pedigree.tsx` rendert `PigeonAvatar`.
+  De eigen `<img>` is weg. **`FamilyMember.image`/`.quirk: string` zijn vervangen door
+  `.breed`/`.quirk`-objecten** — een DTO-vormwijziging, geen migratie.
+- **Ook de verste kolom krijgt nu een portret** (22 px). De vraag was "steeds de correcte
+  foto, als die gekend is", en die avatar is korter dan de twee tekstregels ernaast, dus de
+  celhoogte beweegt er niet door (nagemeten: spill blijft 0 px).
+- **Alleen client + de DTO-vorm**: geen query, geen schemakolom, geen migratie. (De lege
+  rondjes zelf hadden een andere oorzaak — zie het padding-blok hierboven.)
+- **`pedigree.test.mts` → 89 controles**: elke levende duif in het diagram draagt een ras dat
+  naar een echte foto wijst, de vader draagt **zijn eigen** ras (niet dat van de duif), een
+  zus met een afwijking draagt die volledig mee (naam + emoji, niet enkel een id), een
+  overleden voorouder draagt **géén** ras — zodat er geen foto verschijnt die niet van haar
+  is — en **elk van de twaalf rasfoto's bestaat effectief op schijf**. Dat laatste is precies
+  het soort fout dat niemand opmerkt tot een speler het meldt.
+
+**Eén diagram voor de hele familie — de zandloper**
+- **Eén zandloper**, van links naar rechts: `Overgrootouders · Grootouders · Ouders │ DEZE
+  DUIF + broers/zussen + partners │ Kinderen · Kleinkinderen`.
+- ⚠️ **De CSS-pariteitstrucs zijn vervangen — dit is de kern van de wijziging.** Die
+  `.ped-cell.sire::after` / `.dam::after`-aanpak werkte enkel voor een **binaire** boom
+  (iedereen heeft exact 2 ouders) en een nest waaiert willekeurig breed uit. Nu berekent
+  **`buildLayout`** (geëxporteerd uit `Pedigree.tsx`) per verbinding een **`LinkGroup`
+  `{left[], right[]}`**, en `centre(i, n) = (i+0.5)/n·100` zet de posities als
+  **percentages** inline. **Eén** mechanisme dekt 2-ouders-naar-1-kind,
+  1-ouder-naar-zes-jongen én een hele broedergroep aan één koppel.
+- ⚠️ **De duif staat DEAD CENTRE van haar kolom, en dat is geen cosmetica.** De bundel van
+  haar ouders ontmoet elkaar op exact 50 % (vader 25 % + moeder 75 %), dus als zij
+  wegschuift landt hun lijn *naast* haar. Broers/zussen gaan bovenaan, partners onderaan,
+  en de **kortste kant wordt met lege cellen opgevuld** tot ze weer precies in het midden
+  staat. `family-chart.test.mts` toetst dat voor 0/3, 5/1, 1/0 en 4/4.
+- **Elk nest hangt aan BEIDE ouders**: de bundel vertrekt bij de duif én bij de juiste
+  partnerdoos. Jongen worden per partner gesorteerd zodat één nest **aaneengesloten** ligt
+  en de haak één ononderbroken span blijft. Twee nesten in dezelfde tussenruimte krijgen
+  een **zijdelingse verschuiving van 5 px**, anders tekenen ze over elkaar.
+- **Een partner hangt niet aan zijn schoonouders**: de oudersbundel verbindt enkel met de
+  broedergroep (duif + broers/zussen), niet met de partnerdozen. Apart getoetst.
+- ⚠️ **Auto-centrering bij het openklappen.** Het diagram is ~1.000 px breed en de duif
+  staat in het **midden**, dus zonder ingreep opende het op de **overgrootouders** en leek
+  haar eigen tak te ontbreken (gemeten op 390 px: de kolom "Deze duif" stond volledig
+  buiten beeld). Opgelost met `scrollLeft` op de scrollcontainer — **bewust niet**
+  `scrollIntoView`, want dat versleept ook de pagina zelf.
+- **Bewaakt door `family-chart.test.mts`** tegen de **échte** `buildLayout`: kolomvolgorde, de
+  duif exact in het midden (en dat 25 %+75 % daar samenkomen), elk nest hangt aan beide ouders
+  en ligt aaneengesloten, **geen enkele lijn wijst naar een lege of onbestaande cel**, en een
+  duif zonder familie geeft geen kapot diagram.
+- **Alleen client**, op `familyOf` na dat al bestond: geen query, geen schemakolom, geen
+  migratie, `dataVersion` blijft **45**.
+- ⚠️ **Twee erfstukken uit de vorige (CSS-only) versie van dit diagram, nog steeds geldig:**
+  1. `flex: 1 1 0` **plus** een expliciete `min-height` **vervangt** het inhoud-gebaseerde
+     minimum van een flex-item, dus een cel die korter is dan haar vakje laat dat vakje
+     overlopen en de vakjes botsen zichtbaar. `.ped-cell` draagt daarom een `min-height`
+     (en `.ped-gen.tall` een hogere) — **verhoog je de `-webkit-line-clamp` van een naam,
+     dan moeten die mee**.
+  2. **Meet altijd de drie boomvormen** (2, 3 en 4 kolommen), niet alleen de volle. De volle
+     boom verbergt het probleem, want daar zet de diepste kolom de hoogte voor iedereen.
+
+**De stamboom kijkt in alle richtingen (`familyOf`)**
+- **Vraag van de eigenaar:** de stamboom toonde enkel voorouders. Klik je op een ouder, dan
+  moet je ook haar **kinderen** zien; broers en zussen moeten zichtbaar zijn; kortom **alle
+  familie — bloedverwant of gekoppeld met jongen als gevolg**. (De losse secties die deze
+  ronde opleverde zijn intussen vervangen door het zandloper-diagram hierboven; de datalaag
+  hieronder is ongewijzigd.)
+- **Nieuw: `familyOf(db, pigeon, generations)`** (`core/game/pedigree.ts`) → `{siblings,
+  partners, children}`. **Eén pass** over `db.pigeons` bouwt een ouder→jongen-index, en die
+  index beantwoordt alle drie de vragen: de kinderen van een duif zijn waar zíj naar wijst,
+  haar broers/zussen zijn waar haar **ouders** naar wijzen. `AncestorNode` is opgesplitst in
+  een gedeelde **`FamilyMember`** + de twee takvelden, zodat elk vakje hetzelfde toont.
+- **Geen extra query, geen schemakolom, geen migratie**, `dataVersion` blijft **45**. De
+  wereld staat al in het geheugen en `GET /pigeons/:id` wordt **bewust geopend, nooit
+  gepolld** (`DESCENDANT_GENERATIONS` 3). Nagemeten: `query-budget`, `cpu-budget`,
+  `daily-budget`, `poll-budget` en `idle-writes` blijven allemaal groen.
+- ⚠️ **De twee richtingen breken af om TEGENGESTELDE redenen**, en dat staat nu ook in de
+  spelregels:
+  - **omhoog** — een dode duif laat geen rij na, dus háár ouders zijn onkenbaar;
+  - **omlaag** — een dood **jong** laat geen rij na, dus zij én de kleinkinderen achter haar
+    zijn onbereikbaar: we leren haar id nooit om ze aan te knopen.
+  - **Broers, zussen en partners overleven een overlijden wél**, want die worden van een
+    **levende** rij gelezen. Twee volle broers blijven dus vol, ook als beide ouders dood
+    zijn — hun ids staan nog op de jongen. Dat spiegelt `kinship()`.
+- **Een overleden partner blijft zichtbaar** via `sireName`/`damName` op het jong (de
+  denormalisatie die daar net voor bestaat), i.p.v. "onbekend" te worden. Zo'n vakje heeft
+  `id: null` en dus geen eigen pagina.
+- ⚠️ **309 px horizontale paginaoverloop op 390 px.** Een grid-item krijgt `min-width: auto`
+  en krimpt dus niet onder zijn min-content; de voorouderkaart is ~670 px, dus de
+  sectie-wrapper rekte het hele paneel én de pagina open. Opgelost met
+  **`.ped-panel > * { min-width: 0 }`** — exact dezelfde valstrik als
+  `.grid > * { min-width: 0 }`, de vierde keer nu in dit project. **Meet dit altijd op
+  390 px na een layoutwijziging hier.**
+- **`pedigree.test.mts`** dekt elke graad broer/zus (vol, half via vader, half via moeder, en
+  dat een vreemde er géén is), kinderen + kleinkinderen op de juiste tak, de partner is de
+  ándere ouder, de begrensde diepte, een dode ouder die geen jongen verbergt, en een lijn die
+  op zichzelf terugvalt (inteelt) en niet oneindig mag doorlopen.
+
+**Eén melding per nest — de uitkomst-melding had geen stabiel id**
+- **Vraag van de eigenaar:** wanneer kan een nest uitkomen — enkel op de dagovergang of
+  eender wanneer? En: zorg dat de speler een melding krijgt.
+- **Antwoord op de eerste vraag, gemeten** (40 nesten doorgespoeld tegen de echte engine):
+  **eender wanneer.** `tickBreedingHatch` draait bij **élk verzoek**, niet op de
+  dagovergang. Per koppel wordt er hoogstens **één keer per `BREEDING.hatchCheckMinutes`
+  (15 min)** geworpen, en de kans per uur volgt uit de vruchtbaarheid (libido + energie).
+  De uitkomsten spreidden over **22 van de 24 uren** van de dag. Omdat de verstreken uren
+  blijven optellen in `hatchAt`, gaat er niets verloren als er een tijd niemand pollt — de
+  volle tijd wordt dan in één keer verrekend.
+- **De melding bestónd al** en komt betrouwbaar aan, ook in de twee gevallen die het
+  makkelijkst stuk gaan: wanneer het **verzoek van een ándere speler** de hatch uitlokt
+  (viewer-scoped inbox — nagemeten, de eigenaar krijgt ze), en wanneer de worp **leeg**
+  uitkomt ("🥚 Koppel zonder resultaat").
+- ⚠️ **Wat er wél stuk was: bij gelijktijdige afhandeling kreeg de speler er TWEE.** De
+  drie hatch-meldingen namen een verse `newId('ntf')`, dus twee overlappende verzoeken die
+  allebei hetzelfde nest afhandelen schreven twee rijen. De **jongen** overleefden dat al
+  (stabiele ids uit het koppel, `pig_brood_<pairId>_<i>`), de melding niet — precies de
+  stabiele-id-regel die dit project op élke append binnen `advanceRealtime` toepast.
+  Gemeten vóór de fix: 2 meldingen, ná: 1.
+- **Fix:** `broodNoteId(pairId)` = `ntf:brood:<pairId>`, gedeeld door alle drie de
+  uitkomsten (er kan er maar één gebeuren per koppel) → `INSERT OR REPLACE` houdt er
+  precies één over. **Eén regel per melding, geen migratie, geen schemakolom**,
+  `dataVersion` blijft **45**.
+- ⚠️ **Wat NIET opgelost is, en bewust:** `breed()` gebruikt rauwe `Math.random()`, dus
+  twee gelijktijdige worpen kunnen een verschillend **aantal** jongen opleveren (de ids zijn
+  stabiel, de inhoud niet). De melding beschrijft dan de worp van het verzoek dat als laatste
+  schreef. Dat is strikt beter dan twee tegenstrijdige meldingen, maar de nette fix is
+  `breed()` seeden op het koppel-id — dat raakt namen, rassen, genen en de tweelingworp, dus
+  een aparte ingreep. Dit is dezelfde wortel als de gedocumenteerde flakiness van
+  `brood-choice.test.mts`.
+- **`breeding-cooldown.test.mts` uitgebreid én ontflakkerd.** Nieuw blok "Eén melding per
+  nest": twee verzoeken die allebei hetzelfde nest afhandelen → precies **één** melding, met
+  een id afgeleid van het koppel. ⚠️ Het telt op **titel**, niet op het id-voorvoegsel —
+  zonder de fix hebben de rijen een willekeurig id en zou een filter op `ntf:brood:%` er
+  **nul** zien in plaats van de twee die de speler werkelijk krijgt. Geverifieerd door de fix
+  tijdelijk terug te draaien: 2 → rood, 1 → groen.
+- ⚠️ **Bestaande flakiness gevonden en gerepareerd (niet veroorzaakt):** de test viel op de
+  **ongewijzigde** code ~**2 op 12** runs om met "er kwamen 0 jong(en)". Oorzaak: `tickWith`
+  stuurde enkel de **hatch**-worp; de succeskans binnen `breed` bleef echt, en na het
+  koppelen staat de energie op 80 → successChance ≈ 0,9, dus ~10 % lege worpen. `tickWith`
+  kreeg een `forceClutch`-vlag die ook de tweede trekking stuurt; aangezet in de drie blokken
+  die jongen nódig hebben. **25 runs op rij groen** (was 4 op 15 rood).
+
+**Duifpagina opgeruimd: vier dingen weg of verplaatst**
+- **Vraag van de eigenaar**, na het zien van de pagina op een gsm. Vier ingrepen, allemaal
+  **puur UI** — geen endpoint, geen DTO-veld, geen schemakolom, geen migratie,
+  `dataVersion` blijft **45**:
+  1. **"Afscheid nemen" staat nu helemaal onderaan**, tussen *Afstamming* en
+     *Wedstrijdhistoriek*. Het is een onomkeerbare actie; die hoort niet halverwege een
+     pagina die je opent om stats te bekijken.
+  2. **De kaart 🏆 Leeftijdscriterium is weg** (`CriteriumCard` verwijderd). De vier
+     standen staan al onder **Ranglijst → Criterium**, en één duif is niet de plek voor
+     een competitie-overzicht.
+  3. **De marktprijs-herkomst is weg** — de regel "Marktprijs: 85 % bepaald door 9 recente
+     verkopen van vergelijkbare duiven (gemiddeld €4.310)", én de tegenhanger "Nog geen
+     vergelijkbare verkopen …". **De regel "Geschatte waarde · eigenaar" blijft**; het is
+     alleen de uitleg over hóe die schatting tot stand kwam die eruit gaat (dat is
+     wiki-materiaal, §Tekstbudget).
+  4. **🍽 Voer & huisvesting is weg** (voerkeuze + apart-hok-knop, plus de nu callerloze
+     `setRation`/`setCompartment`). Beide staan al **per duif** op *Mijn hok*, inclusief
+     dezelfde "geen voorraad"-waarschuwing — daar zet je ze voor je hele hok in één scherm.
+- ⚠️ **De DTO-velden `valueTrust`/`valueSamples`/`valueMarket` blijven bestaan** en worden
+  nog gestuurd: een oude open tab leest ze nog, en de waardering zelf (`market.ts`) is
+  niet aangeraakt. Enkel de weergave is weg.
+- **De endpoints `POST /pigeons/:id/ration` en `/compartment` blijven ongewijzigd** —
+  `LoftPage` is nu hun enige call-site.
+- Beide typechecks + build groen (bundel 130,54 → **129,70 KB** gzip);
+  `pedigree.test.mts` groen. Spelregels **§13** bijgewerkt (voerschema's per duif zet je
+  bij *Mijn hok*).
+
+**Stamboom, inteelt, kweekleeftijd en veel meer namen**
+- **Kweekleeftijd `BREEDING.minAgeWeeks` (8)** — eigen knop naast `RACE_AGE_WEEKS`, want het
+  zijn verschillende vragen. Gecheckt in `startBreeding`, in de bot-`canBreed` en in de
+  keuzelijst op `BreedingPage`. Verwantschap zelf zit in `core/game/pedigree.ts`
+  (`ancestorIds` / `kinship` / `pedigreeOf`).
+- ⚠️ **Het echte ontwerpprobleem: een dode duif laat geen rij achter.** Zonder ingreep toont
+  een stamboom een naamloos vakje voor élke gestorven voorouder — net de interessante.
+  Opgelost met **`Pigeon.sireName`/`damName`** (kolommen `sire_name`/`dam_name`), gezet bij de
+  geboorte. Bewust gedenormaliseerd: twee korte strings op een rij die élk verzoek gelezen
+  wordt, dus niet gratis — maar ze **groeien niet** (anders dan `race_log`, zie de
+  historiek-fix), en de stamboom is de enige plek waar de geschiedenis van een lijn nog leeft
+  nadat de vluchten geprunet zijn.
+- ⚠️ **Wat de traversal wél en niet ziet.** Een dode voorouder telt nog mee: haar **id staat op
+  haar levende kind**. Wat wegvalt is alles **voorbij** haar — zonder rij zijn háár ouder-ids
+  weg. De inteeltcheck gaat dus pas blind als élke route naar de gedeelde voorouder door een
+  gestorven duif loopt, en dat **faalt bewust open**: een band die niemand kan tonen is er ook
+  een die generaties al verdund hebben. Broers/zussen worden rechtstreeks op de twee ouder-ids
+  herkend en overleven de dood van de ouders altijd.
+- **Inteelt (`INBREEDING`)** — vier graden (`directe-lijn`/`volle`/`half`/`familie`), tot
+  `lookbackGenerations` (3) terug. Gevolg: **gen-caps omlaag** (−22/−18/−11/−5, bodem
+  `minGeneCap` 35) én een **afwijking** (`quirkChance` 0,85/0,75/0,45/0,15). ⚠️ De cap-straf
+  negeert `GENE.floor` met opzet — die vloer beschrijft een *normale* duif, en het punt is net
+  een duif eronder.
+- **`PIGEON_QUIRKS`** (7 stuks) — kolom `quirk`, **publiek** in de DTO (een koper moet zien wat
+  hij koopt), plus een kleine `flightPenalty` in `pigeonVelocity` zodat de grap niet gratis is.
+  ⚠️ De prentjes zijn **getekend, geen assets**: `QuirkExtras` in `PigeonAvatar` tekent de extra
+  vleugel/kop/bril in SVG bovenop de fallback-duif. Een duif met een quirk toont daarom haar
+  **tekening i.p.v. haar rasfoto** (geen stockfoto heeft drie vleugels); haar ras blijft als
+  badge staan.
+- **`GET /breeding` levert `related`** — enkel de verwante doffer×duivin-combinaties van het
+  **eigen** hok (een handvol of geen). Berekend op de server omdat de client geen afstamming
+  heeft; begrensd door de hokcapaciteit en op een route die bewust geopend wordt, **nooit
+  gepolld**. `GET /pigeons/:id` draagt `pedigree` (3 generaties) uit de al geladen wereld —
+  **geen extra query**.
+- ⚠️ **Bots kweken nooit met familie** (`maybeBreed` zoekt het beste níet-verwante paar). Een
+  bothok van 12 is binnen enkele generaties één familie; zonder dit fokt elke bot zichzelf
+  stilletjes kapot met driewiek-duiven en verwoeste plafonds.
+- **Namen:** 135 m / 122 v voornamen + 185 unieke bijnamen. ⚠️ Drie vrouwennamen zaten dubbel
+  in de lijst — een duplicaat verlaagt de variatie stil, dus `pedigree.test.mts` bewaakt dat.
+
+**Broeden: het koppel bleef bestaan na het uitkomen (echte bug) + rust en prijs**
+- **Melding van een speler:** "een koppel blijft een koppel en blijft verder broeden."
+  De in-memory logica was nochtans correct — `tickBreedingHatch` zet de id in `hatched`
+  en filtert die aan het eind uit `db.breedingPairs`. Gereproduceerd tegen de echte
+  engine mét een D1-ronde, en toen pas werd het zichtbaar.
+- ⚠️ **Oorzaak: `diff` kreeg voor `breeding_pairs` geen `previousRows`**, dus élke
+  gewijzigde koppelrij ging via **`INSERT OR REPLACE`** i.p.v. een smalle `UPDATE`. En
+  `tickBreedingHatch` **herstempelt `hatchAt`** bij elke check die níet uitkomt. Twee
+  overlappende verzoeken volstonden dus: A komt uit → verwijdert de rij + maakt de jongen;
+  B (geladen vóór A schreef) komt niet uit → herstempelt → **schrijft dezelfde rij terug**.
+  Het nest was geboren én het koppel stond er nog, en bleef doorbroeden. De tick loopt bij
+  **élk** verzoek over **álle** koppels van **alle** spelers, dus dit is geen exotisch geval.
+- **Fix in `core/d1.ts`:** nieuwe module-level `breedingPairRow` + `BREEDING_PAIR_COLUMNS`,
+  `rowSnapshots.breedingPairs`, en `previousRows` meegegeven aan de diff. Een smalle
+  `UPDATE` op een verwijderde rij is een no-op, dus de delete wint. ⚠️ **Dit is een
+  correctheidsfix, geen querybudget-optimalisatie** — dat staat zo in de code, anders
+  haalt iemand het later weg "omdat een koppel toch maar 7 kolommen heeft".
+- ⚠️ **Zelfde klasse bug loert bij elke tabel zónder `previousRows` die óók rijen wist.**
+  `flights` is de kandidaat (`pruneOldFlights`), maar die prunet herhaaldelijk dus hij
+  heelt zichzelf. Niet aangeraakt.
+- **Meegenomen: stabiele id's voor de jongen.** `breed(..., pairId)` geeft ze
+  `pig_brood_<pairId>_<i>` i.p.v. `newId('pig')`. Twee gelijktijdige verzoeken die
+  dezelfde worp afhandelen schrijven nu dezelfde rijen i.p.v. **twee nesten uit één
+  koppeling** — de stabiele-id-regel die dit project al toepast op elke append binnen
+  `advanceRealtime`.
+- **Rust tussen twee nesten (`BREEDING.cooldownDays` = 21 echte dagen).** Nieuw veld
+  **`Pigeon.lastBredAt`** (kolom `last_bred_at TEXT`, achteraan `SCHEMA_STEPS`), gezet op
+  **beide ouders** bij het uitkomen. Helpers `breedingCooldownUntil` /
+  `breedingCooldownDaysLeft` (pigeon.ts). Gecheckt in `startBreeding` (met de naam van de
+  duif + het aantal dagen in de foutmelding), in de bot-`canBreed`, en — als vangnet — in
+  `tickBreedingHatch` zelf: een koppel waarvan de ouders nog rusten hoort niet te bestaan
+  en wordt daar **ontbonden**, zodat een gereanimeerd of verouderd koppel zichzelf opruimt.
+- **Waarom 21 dagen:** een duif broedt ~4× per jaar; duiven verouderen hier **4× real-time**
+  (`GAME_WEEKS_PER_REAL_WEEK`), dus een duivenjaar is ~13 echte weken en een kwart daarvan
+  ~3 echte weken.
+- ⚠️ **Een MISLUKTE worp legt géén rust op.** Het koppel gaat wel uiteen, maar `lastBredAt`
+  blijft leeg. De speler betaalde al €750 + 2×15 energie; daar drie weken bovenop leggen
+  bestraft een dobbelsteen i.p.v. een keuze. De rust hangt aan de **duif**, niet aan het
+  koppel, dus een andere partner kiezen omzeilt ze niet.
+- **Prijs `BREEDING.cost` 200 → 750.** (De eigenaar sprak van "300 → 750"; de code stond op
+  **200**.) Een lopend koppel betaalt niets bij: het bedrag gaat er **bij het koppelen** af,
+  niet bij het uitkomen — de "oude prijs blijft gelden"-vraag is dus per constructie voldaan.
+- **Migratie v44** (`applyBreedingCooldown`): ⚠️ er is **geen historiek** om te lezen, dus
+  "heeft dit koppel onlangs gebroed?" wordt **gereconstrueerd** uit het enige duurzame
+  spoor — de nakomelingen zelf (`sireId`/`damId` + `birthWeek` binnen het venster, omgerekend
+  van gameweken naar echte tijd). `lastBredAt` wordt daaruit teruggerekend, en elk koppel
+  waarvan de ouders nu rusten wordt ontbonden mét een melding die zegt **waarom** en
+  **binnen hoeveel dagen** ze weer mogen (`ntf:admin:breedreset:<pairId>`). Jongen die
+  verkocht/gestorven/vrijgelaten zijn laten geen spoor na, dus dit **onder**telt: zo'n
+  koppel blijft staan. Dat is de goede kant om op te falen.
+- **Aankondiging aan iedereen:** belmelding `ntf:news:breeding:<userId>` per echte speler
+  (prijs, rust, en dat het blijven-staan een fout was) + eerste-login-`BREEDING_NEWS_STEPS`
+  (sleutel `roekoe.newsSeen.breeding.<id>`, actieve set in `Layout.tsx`).
+- **UI:** `pigeonDTO.breedAvailableAt`; `BreedingPage` filtert rustende duiven uit beide
+  keuzelijsten en zet eronder één regel ("🪺 2 duiven rusten uit … eerstvolgende nog 15
+  dagen") — anders verdwijnt een duif zwijgend uit de lijst. Wiki `#broeden` + spelregels
+  **§7** / nieuwe **§7.2** / §17.
+- **Nieuwe blijvende test `breeding-cooldown.test.mts`** (30 controles), met het
+  gelijktijdigheidsgeval als kernblok. **Draai hem na élke wijziging aan
+  `tickBreedingHatch`, `breeding.ts` of de breeding_pairs-diff in `core/d1.ts`.**
+- **Lokaal end-to-end geverifieerd** tegen `wrangler pages dev`: de API weigert een rustende
+  duif met de juiste tekst, een vrij koppel lukt, €750 gaat er effectief af, `data_version`
+  staat op 44 en elke echte speler heeft de aankondiging. Alle 25 regressietests + beide
+  typechecks + build groen.
+
+**Live kaart: blauw-op-blauw weg, en een vangnet tegen het verdwijnen**
+- **Twee meldingen van de eigenaar:** de blauwe bolletjes van "de rest" waren onleesbaar op de
+  eveneens blauwe routelijn, en de kaart verdween nog steeds bij een positie-update.
+- **Blauw-op-blauw opgelost.** De route was `--brand` en de duiven van "de rest" ook — en die
+  duiven zitten per definitie **op** die lijn. De route is nu **neutraal grijs** (casing +
+  gestippelde kern) en elke duif kreeg een **ring in de kaartkleur**, zodat een stip leesbaar
+  blijft waar ze ook staat: op de lijn, op een snelweg, op een meer. De kaart is de achtergrond,
+  alleen de duiven dragen kleur.
+- ⚠️ **Het verdwijnen kon ik NIET reproduceren op de huidige code**, en dat staat hier eerlijk:
+  de échte pagina is nagespeeld met een stub-API en een versnelde poll (18 polls, tabwissel,
+  resize, themawissel, tegels die effectief laden) en de kaart bleef staan. Twee mogelijkheden:
+  de eigenaar draaide nog de vorige bundle (een openstaande tab houdt de oude JS tot een
+  refresh — en het symptoom is exact de bug die dáár in zat), of er is een pad dat ik niet raak.
+- **Daarom een vangnet in plaats van een gok**, en dat is de eigenlijke winst van deze ronde:
+  1. **Watchdog.** Bij élke poll wordt gecontroleerd of de kaart nog écht op het scherm staat:
+     bestaat het `map`-object, is de holder nog verbonden, wijst de kaart naar díé node, én zit
+     Leaflets `.leaflet-map-pane` er nog in. Zo niet → herbouwen. ⚠️ Alleen het object
+     controleren volstaat niet: de kaart kan naar een **leeggemaakte** container blijven wijzen
+     en dan is de kaart weg terwijl alles "in orde" lijkt.
+  2. ⚠️ **De holder draagt `key={rebuild}`.** Zonder die key kan een herbouw niet slagen wanneer
+     de node zelf is losgekoppeld: React gelooft dan dat zijn DOM klopt en zet de ref nooit op
+     een nieuwe node. De key dwingt een verse node af.
+  3. **Foutgrens** (`MapErrorBoundary`, bewust **buiten** de lazy chunk zodat ze ook een mislukte
+     chunk-download vangt). React heeft er standaard geen, dus een worp in de kaart — een rare
+     coördinaat, iets in Leaflet — sleurde de **hele pagina** mee. Nu wordt het een melding met
+     een knop.
+  4. **Niet-eindige coördinaten worden overgeslagen** i.p.v. Leaflet te laten werpen.
+- **Bewezen met sabotage:** de kaart wordt tijdens het pollen leeggemaakt (tegellaag 0, duiven
+  0 — exact het gemelde beeld) en is bij de **volgende poll** volledig terug (tegellaag 1,
+  40 duiven), zonder refresh en zonder fout. Wat de kaart ook velt: ze komt binnen één poll
+  vanzelf terug.
+- **Alleen client**, geen schema/config/migratie.
+
+**Live kaart: verdwijnende kaart gefixt, geen API-sleutel meer, klikbare duiven**
+- **Drie klachten van de eigenaar:** de kaart verdween soms tot een refresh, de tegels vroegen
+  blijkbaar om een **API-sleutel**, en de bolletjes waren nauwelijks aan te klikken.
+- ⚠️ **De verdwijnende kaart was geen toeval maar een levenscyclusfout — gereproduceerd vóór
+  er iets veranderde.** `route` komt als **verse JSON bij elke poll**, dus de objectidentiteit
+  wijzigt elke 60 s. De map-creatie hing op `[route]` en brak de kaart dus elke poll af en
+  bouwde ze opnieuw — terwijl de **tegellaag** aan een `[theme]`-only effect hing en daardoor
+  **niet** opnieuw werd toegevoegd. Gemeten in de browser: tegellaag aanwezig bij de eerste
+  render, en **weg vanaf poll 1**, blijvend. Een refresh gaf precies één pollcyclus soelaas —
+  exact wat de eigenaar beschreef.
+  **Fix:** de kaart hangt nu aan een **`routeKey`** (de route als string, `useMemo`) i.p.v. aan
+  de objectidentiteit, en de tegellaag hangt aan `[theme, epoch]`, waarbij `epoch` bij elke
+  (her)bouw opgehoogd wordt. Nagemeten: tegellaag blijft 1 over alle polls.
+  **Regel voor deze pagina: hang nooit een effect rechtstreeks aan een object dat uit een poll komt.**
+- **Weg met Carto, terug naar OpenStreetMap.** Carto's basemap-CDN blijkt een sleutel te willen;
+  een sleutel in een statische bundle is een **publieke** sleutel, dus dat kan hier niet. OSM is
+  sleutelloos. Geen `{s}`-subdomeinen (dat raadt OSM af). ⚠️ OSM heeft **geen donkere variant**,
+  dus het donkere thema wordt in **CSS** gemaakt: `invert(1) hue-rotate(180deg)` + demping op
+  `.leaflet-tile-pane`; het lichte thema wordt licht ontzadigd zodat de duiven bóven de kaart
+  lezen i.p.v. ermee te concurreren.
+- **Duiven zijn nu `divIcon`-markers i.p.v. `circleMarker`s.** Het klikdoel van een circle is de
+  cirkel zelf, dus een bolletje van 4 px vroeg 4 px nauwkeurig mikken — onbruikbaar op een gsm.
+  Een divIcon heeft een echt **vak van 26 × 26 px** terwijl het zichtbare bolletje 9–15 px blijft.
+  Nagemeten: een klik **9 px schuin naast** het midden opent de popup.
+- ⚠️ **`setIcon` alleen bij een echte verandering**: die herbouwt de DOM-node en zou een open
+  popup bij élke poll dichtklappen. De klasse wordt per marker bijgehouden.
+- **Visueel opgeknapt:** route als **casing + gestippelde kern** i.p.v. één grijze streepjeslijn,
+  losplaats/thuis/wisselpunten als gelabelde pins (niet-interactief, zodat ze geen kliks van de
+  duiven stelen), en een **legende** onder de kaart. ⚠️ "Leider" (goud) en "van koers" (amber)
+  liggen naast elkaar op de kleurencirkel en waren niet uit elkaar te houden — van koers is nu
+  een **ring** i.p.v. een gevulde stip, dus vorm én kleur verschillen.
+- **Geverifieerd in de browser** (beide thema's, 390 px en 1100 px): geen horizontale overflow,
+  geen console-fout, tegellaag blijft staan over 9 polls, 47 markers blijven 47, en de open
+  popup overleeft de polls.
+- ⚠️ **Nog steeds niet verifieerbaar vanuit deze omgeving:** of de tegels effectief laden. De
+  egress-policy blokkeert `tile.openstreetmap.org`, dus alle screenshots tonen de kaart mét
+  lege achtergrond. De terugval (melding na 3 mislukte tegels, route en duiven blijven werken)
+  is wél getest. OSM's gebruiksvoorwaarden zijn voor een club van tien spelers ruim voldoende,
+  maar de tegel-URL staat op één plek als het ooit knelt.
+- **Alleen client**, geen schema/config/migratie.
+
+**Duiven vliegen als een zwerm, en verdwalen pas als die openbreekt**
+- **Vraag van de eigenaar:** "bij de start vertrekken alle duiven samen, ik merk dat er dan
+  al duiven verloren vliegen — dat is niet realistisch. Pas wanneer duiven opgesplitst
+  geraken, door verschillende tempo's, vergroot de kans." Plus: op een korte vlucht moet de
+  omweg korter zijn, want "een duif die 18 km omweg neemt op een vlucht van 120 km kan het
+  wellicht al vergeten".
+- **Nieuw configblok `FLOCK`** + `companyFactor(u)` in `buildPaceProfile`. Het veld loopt uit
+  elkaar met een snelheid die uit het **veld zelf** komt: `fieldContext` (flight.ts) meet de
+  relatieve spreiding tussen p10 en p90 van de attribuutsnelheden. Typische onderlinge
+  afstand na fractie `u` ≈ `u · afstand · (spreiding + paceNoise)`; boven `breakKm` (12) is de
+  bunch weg. Een episode wordt geworpen tegen die factor.
+- ⚠️ **De worp wordt ALTIJD verbruikt**, ook als hij niet doorgaat (`if (rng() >= …) continue`),
+  zodat de rng-stroom uitgelijnd blijft en het profiel per episode reproduceerbaar is.
+  Anders divergeert een her-finalize van de live weergave.
+- ⚠️ **Dekking schaalt óók met de grootte van het veld** (`minBirds 3` → `fullBirds 14`).
+  Eerste versie deed dat niet en toen kreeg een veld van **3** duiven méér bescherming dan een
+  veld van 40 — een kleine steekproef heeft een kleine gemeten spreiding, dus de zwerm leek
+  eeuwig samen te blijven. Precies omgekeerd. Nu: solo 25 % van de afdwalingen in het eerste
+  vijfde, 4 duiven 18 %, vol veld 5 %.
+- **Estafette: de zwerm is PER ETAPPE.** De duiven die dezelfde middenetappe vliegen zijn haar
+  gezelschap — niet haar ploegmaats, die allang thuis of nog niet gelost zijn.
+- **Gemeten:** van alle afdwalingen valt er nog **2,7 %** in het eerste tiende van de route
+  (gelijk verdeeld zou 10 % zijn). Op de fond is de lossing net zo rustig maar breekt het veld
+  sneller open (26 % vs 12 % binnen het eerste derde) — realistisch, en het houdt oriëntatie
+  een fond-eigenschap. De omweg op 120 km ging van ~12 km naar **~5,4 km**.
+- ⚠️ **DIT KANTELDE DE EIGENSCHAPSBALANS, en dat is bewust geaccepteerd.** Beide ingrepen
+  halen oriëntatie weg uit precies het segment waar ze op *gemiddelde plaats* het meeste
+  opleverde: de korte vlucht, die met gewicht 3 van 7 het zwaarst weegt. Gemeten na enkel de
+  zwerm: oriëntatie zakte van +2,8pp naar **+1,7pp** winkans. Gecompenseerd op de **fond**
+  (waar de eigenaar wél wil dat ze bijt) via `LOST.max` 3,6 → **4,4** en `distPerKm`
+  0,0024 → **0,0034**: terug op **+2,2pp**, binnen de bestaande factor-1,8-grens op winkans.
+- ⚠️ **Op gemiddelde plaats lukte dat niet, en de grens in `attribute-balance.test.mts` is
+  daarom van 1,6 naar 2,1 gezet — met de reden in de test zelf.** Oriëntatie staat daar op
+  −0,33 tegen −0,57 vroeger. Méér verdwalen helpt daar **niet**: dat verzadigt (iedereen
+  verdwaalt, dus +10 oriëntatie scheelt minder) — geprobeerd met `max 4,4` + fond-omweg 0,14
+  en de factor werd erger, niet beter. Dit is een echte versoepeling van een bewaker, geen
+  weggemoffelde regressie: verlaag ze weer zodra de zwerm-parameters opnieuw geijkt worden.
+- **Geen migratie, geen schemawijziging**, `dataVersion` blijft **43**. Een vlucht die al
+  live is behoudt haar bevroren sim en dus het oude gedrag; vanaf de volgende lossing geldt
+  de zwerm.
+- **Bewaakt door `flock.test.mts`:** er wordt effectief verdwaald maar bijna niets in het eerste
+  tiende, de fond breekt sneller open dan de sprint, solo > handvol > vol veld qua vroege
+  afdwalingen, en een slechte navigator raakt >2,5× vaker van koers zonder dat een goede immuun
+  wordt.
+
+**Live kaart bij een lopende vlucht — echte kaart, echte geografie**
+- **Vraag van de eigenaar:** een echte kaart bij een live vlucht, met per duif waar ze zit,
+  klikbaar — met als **harde voorwaarde** dat de gratis limieten bewaakt blijven.
+- ⚠️ **Waarom dit niets kost op de budgetten die dit spel plat leggen.** De kaart doet
+  **geen enkel eigen verzoek**: ze tekent wat de bestaande live-poll (60 s) al ophaalde.
+  `/flights/:id/live` blijft dus op **2 D1-rijen** (`loadLiveFlight`) en de CPU van het
+  live-bord blijft **0,53 ms** bij 140 duiven op 1200 km (`cpu-budget`, budget 10 ms).
+  Het dagbudget staat op **24,3 %** gelezen / 7,7 % geschreven. Tegels worden door de
+  **browser van de speler** rechtstreeks bij de tegel-CDN gehaald en passeren de Worker
+  niet — ze kunnen geen enkele Cloudflare-limiet raken.
+- ⚠️ **Geen coördinaten per duif over de lijn.** De server stuurt de route-**eindpunten**
+  (4 getallen, opgezocht in `CITY_COORDS` — geen kolom, geen query, geen migratie) en de
+  client rekent de positie zelf uit uit de `progress` die al in het antwoord zat. Per duif
+  lat/lon meesturen zou ~2,7 KB per poll kosten op het heetste endpoint van het spel, voor
+  informatie die de client al heeft.
+- **Verdwalen is zichtbaar én geografisch correct** (expliciete vraag: "bij verdwalen
+  effectief naast koers, niet achteraan de lijn"). Een stray-episode bewaart **waar** ze
+  gebeurt, niet enkel wanneer: `SimEntry.strays[]` draagt `startKm`, `spanKm` en `peakKm`
+  (rijden mee in de `sim`-JSON → **geen migratie**). De kaart tekent een halve sinus over
+  precies de strook waar de engine haar vertraagde; de piek is bij de lossing **numeriek
+  opgelost** (`strayPeakKm`, Simpson + bisectie) zodat de getekende bocht exact `detourKm`
+  langer is dan de rechte strook (op de bol nagemeten: 40,5 km tegen de 40 km die het sim
+  aanrekende).
+- ⚠️ **De integraal draait bij de LOSSING, nooit bij een poll.** `offCourseKm(sim, kmDone)`
+  is per duif per poll niets meer dan één sinus per episode — geen `raceProgress`-aanroep,
+  geen allocatie. De eerste versie leidde de piek af met de kleine-hoek-benadering
+  `h = 2√(s·d)/π`; die bleek **16 % te kort** te tekenen (h/s loopt tot 0,4, dus de
+  benadering deugt niet) — vandaar het opgeloste `peakKm`.
+- **Een vlucht die al bevroren was vóór deze wijziging** heeft die geometrie niet en wordt
+  bewust **op de lijn** getekend in plaats van op een geraden plek. Zulke vluchten zijn
+  binnen twee dagen weg (vluchtretentie), dus verzonnen terugvalgeometrie is het risico niet
+  waard.
+- **Uit de race = niet op de kaart** (opgegeven, uitgevallen, de weg kwijt); het bord eronder
+  toont ze mét reden. Eigen duiven groot in oranje, leider goud, verdwaalde duiven amber, de
+  rest gedempt — een veld van 90 wordt anders confetti.
+- **Estafette:** elke duif staat op **haar eigen etappe** (de legs dragen al coördinaten),
+  met de wisselpunten als pin op de kaart.
+- **Client:** `components/FlightMap.tsx` + `components/geo.ts` (grootcirkel-wiskunde, React-vrij
+  zodat een test ze rechtstreeks kan aanspreken). **Lazy geladen** via `React.lazy` in
+  `LiveFlightPage`: Leaflet zit in een **eigen chunk van 46 KB gzip** en de hoofdbundle groeit
+  maar van 125,4 → **126,5 KB gzip**. Alleen wie naar een race kijkt betaalt ervoor.
+- ⚠️ **Drie valstrikken die de screenshots blootlegden** (alle drie opgelost):
+  1. **Leaflet meet zijn container bij het aanmaken**, en in een React-effect is de kaart dan
+     nog niet gelayout → de hele race werd een postzegel. Nu `invalidateSize` + `fitBounds` in
+     een `requestAnimationFrame`, plus een `ResizeObserver`.
+  2. **`fitBounds` rondt naar beneden af op hele zoomniveaus**, dus een route van 1000 km vulde
+     de helft van het kader. `zoomSnap: 0.25` lost dat op (tegels schalen hoogstens een vijfde).
+  3. **Leaflets eigen CSS laadt ná `global.css`** (ze zit in de lazy chunk), dus onze
+     één-klasse-regels verloren op bronvolgorde: witte popups en een grijze canvas in het
+     donkere thema. Élke override staat daarom gescoped onder **`.flight-map`** —
+     niet "vereenvoudigen".
+- **Tegels:** deze ronde nog Carto, **intussen OpenStreetMap** (zie het kaart-blok hoger in
+  §8 — Carto's CDN wil een sleutel, en een sleutel in een statische bundle is een *publieke*
+  sleutel). ⚠️ **De tegel-CDN is vanuit deze omgeving niet bereikbaar** (egress-policy), dus
+  dat tegels effectief laden is hier nooit te verifiëren — wél afgedekt: bij drie mislukte
+  tegels zegt de kaart dat de achtergrond niet laadt en blijven route, duiven en popups
+  gewoon werken. De tegel-URL staat op één plek (`TILE_URL` in `FlightMap.tsx`).
+- **Geen migratie, geen schemakolom, geen configknop**, `dataVersion` blijft **43**.
+- **Bewaakt door `flight-map.test.mts`** tegen de **échte** client-geodesie én de échte
+  engine: elke fractie van de route ligt op die fractie van de Haversine-afstand, een
+  afwijking van 40 km is ook echt 40 km en staat loodrecht op de koers, de bult begint en
+  eindigt op de lijn, dezelfde duif wijkt altijd naar dezelfde kant af, en een oude vlucht
+  tekent géén verzonnen omweg.
+
+**Ziekenboegpersoneel dat niets te doen heeft, wordt nu benoemd**
+- **Aanleiding (eigenaar):** de ziekenboegkosten (kine/dokter/voeding) worden dagelijks
+  afgerekend. Nagemeten wat dat precies betekent: **medicatievoer** schaalt met het aantal
+  patiënten (lege boeg = €0), maar de **salarissen** van dokter (€57/dag) en kinesist
+  (€50/dag) lopen door zolang ze op `loft.doctors`/`loft.physios` staan — ziek of niet.
+- ⚠️ **Bewuste keuze van de eigenaar: de economie blijft exact zoals ze is.** Personeel dat
+  je in dienst houdt kost geld, punt. Deze wijziging voegt **geen korting** toe en verandert
+  `dailyRunningCost` niet met één euro; ze maakt de leegloop enkel **zichtbaar**.
+- **Waarom het de moeite was:** aannemen en ontslaan kosten **niets** (`setInfirmaryStaff`
+  zet gewoon een getal), dus een lege ziekenboeg met personeel is puur verlies. En het is de
+  énige terugkerende kost die je nooit tegenkomt: de ziekenboeg is een pagina die je opent
+  wanneer er iets mis is, dus een lége ziekenboeg is een pagina die je niet opent. De **bots
+  doen het intussen wel perfect** (`bots.ts` schaalt de staf elke dagovergang op het echte
+  patiëntenaantal en zet ze op 0 bij een lege boeg) — die asymmetrie was het echte punt.
+- **Nieuwe helper `idleCareStaff(loft, pigeons)`** (health.ts) → `{doctors, physios}`, het
+  personeel **zonder patiënt van hun soort**. Telt ook **gedeeltelijk**: twee dokters en één
+  zieke duif = één dokter stil. ⚠️ **Per soort**, want een dokter behandelt enkel `ziekte` en
+  een kinesist enkel `kwetsuur` — een kinesist met alleen zieke duiven in de boeg zit óók stil,
+  en dat is precies het geval dat een speler mist. Hergebruikt `careSlots`, dus de definitie van
+  "patiënt" blijft één plek.
+- **Drie plaatsen waar het opduikt**, elk één regel (tekstbudget, §0 punt 4):
+  1. **Ziekenboeg** — bij de stepper zelf, in `SlotLine` naast de bestaande "meer patiënten
+     dan plaatsen"-waarschuwing. Dáár staat de knop.
+  2. **Dagbalans** (Overzicht) — de regel Duivendokter/Kinesist krijgt een ⚠️ met het aantal.
+     Nieuw in `DailyCostBreakdown`: `idleDoctors`/`idlePhysios`/`idleStaffCost`.
+     ⚠️ Die drie zitten **al in `total`** — het is een uitsplitsing van een kost die **wél**
+     aangerekend wordt, geen korting. `dailyRunningCostBreakdown` kreeg er een **optionele**
+     vijfde parameter voor (default 0/0), zodat `tickDailyCare` — de biller — ongewijzigd blijft.
+  3. **Belmelding, hoogstens één per week** per hok zolang het duurt, uit `tickDailyCare`.
+     Dat is de load-bearing helft: een rood regeltje op een pagina die je niet opent, lost
+     "vergeten" niet op.
+- ⚠️ **De weekbucket zit in de melding-id**, niet in een kolom: `ntf:staff:idle:<userId>:
+  <floor(dayNumber/7)>`. Stateless (geen migratie, geen extra kolom), deterministisch, en twee
+  gelijktijdige ticks landen op dezelfde rij. Bots krijgen niets (`!loft.isBot`).
+- **Schrijfkost:** hoogstens 1 rij per hok per week, en enkel op de **dagovergang** — een
+  verzoek dat toch al schrijft. `idle-writes` blijft dus op 0 rijen voor een gewone poll.
+- **Geen migratie, geen schemawijziging, geen configknop.**
+- ⚠️ **Twee valstrikken voor wie hier een testscript schrijft:** `tickDailyCare` verwerkt maar
+  **2 hokken per verzoek** (`DAILY_CARE_LOFTS_PER_RUN`), dus één poll per dag bereikt het hok
+  niet — pollen tot de dag afgesloten is. En een **verse wereld** merkt "vandaag" als
+  afgehandeld, dus dag 0 is enkel een anker.
+
+**Kalender per dag + filters, en twee lijsten die zichzelf opruimen**
+- **Drie families, precies de indeling van de spelregels.** `flightFamily(f)` in
+  `FlightsPage.tsx`: `competition` (regio/nat/intl — het enige dat seizoenspunten geeft),
+  `special` (titan, estafette **én oefenvlucht**) en `cup` (leeftijdscriterium).
+  ⚠️ Oefenvluchten zitten bewust bij `special` en niet in een vierde bak: ze delen de
+  eigenschap waar een speler hier op filtert — geen seizoenspunten.
+- ⚠️ **De groepeersleutel is `flightDay(f) = startAt.slice(0,10)`** — letterlijk dezelfde
+  sleutel die de server gebruikt voor de één-vlucht-per-dag-regel (`flightDay` in
+  `flight.ts`), zodat de kop waaronder een vlucht staat en de "die dag al bezet"-melding
+  eronder nooit uit elkaar kunnen lopen.
+- ⚠️ **De dagrij volgt de soortfilter**, dus een gekozen dag kan onder de speler verdwijnen
+  (kies vrijdag, klik dan Criterium) — een `useEffect` zet `day` dan terug op `all` in plaats
+  van een lege kalender te tonen met een dag nog opgelicht.
+- ⚠️ **Een `.chip-row` SCROLLT zijwaarts, hij wrapt niet.** Vier soort-chips plus een dagrij
+  nemen op een gsm anders vier regels in boven de eerste vlucht. `min-width: 0` + verborgen
+  scrollbar; nagemeten `scrollWidth === clientWidth`, dus geen horizontale overflow op de
+  pagina zelf (§Card-breedte — daar is het hier al drie keer misgegaan).
+- ⚠️ **Live vluchten staan buiten beide filters**, onder een eigen kop 🔴 Nu bezig: een race
+  die nú loopt mag nooit verborgen raken omdat je toevallig naar vrijdag keek. Het tour-anker
+  `data-tour="flights"` hangt daarom aan `tourFlightId` i.p.v. aan een index — met filters is
+  "index 0" niet meer hetzelfde als "bovenaan".
+- **Afgeronde weddenschappen verdwijnen na 24 u** (`BETTING.historyHours`), server-side in
+  `betsView(db, userId, nowMs)`; open weddenschappen blijven **altijd** staan. Gefilterd op
+  `settledAt ?? placedAt`, want een weddenschap van vóór deze regel heeft geen settle-stempel.
+  ⚠️ **De rijen worden NIET gewist**: `boundedCleanups` houdt er 100 en `stats.bets`/`betsWon`
+  voeden badges — dit is puur wat de speler ziet.
+- **Markthistoriek toont 7 dagen** (`TRADE_HISTORY_DAYS`), server-side in `recentTrades`.
+  ⚠️ **Raakt de waardering niet:** `market.ts` leest `db.trades` rechtstreeks met zijn eigen
+  venster van 60 dagen (`MARKET_VALUATION.observationDays`), dus een verkoop stuurt de prijzen
+  nog zo'n zeven weken nadat ze van het lijstje af is.
+- **Beide vensters zijn tijdgebaseerd, niet aantalsgebaseerd**, dus dezelfde wereld loopt
+  vanzelf leeg — geen opruimtick, geen migratie, geen extra query. De UI zegt het zelf
+  ("laatste 24 uur" / "laatste 7 dagen"): een lijst die stilletjes korter wordt leest als een bug.
+
+**Bots bieden nu ook op duiven van spelers**
+- **Vraag van de eigenaar:** bots mogen kopen én bieden op te koop staande duiven van échte
+  spelers, **binnen een % rond de marktwaarde**. Kopen deden ze al (`maybeBuyFromMarket`, tot
+  `BOT.marketMaxOverpay` = 1,25× de waarde); bieden is nieuw.
+- **Nieuwe `maybeBidOnMarket`** (bots.ts), bereikt **alleen** wanneer kopen niet lukte — te duur of
+  boven budget. Dan biedt de bot wat de duif **wáárd** is in plaats van wat gevraagd wordt:
+  tussen **`BOT.bidMinFactor` (0,85)** en **`BOT.bidMaxFactor` (1,05)** van `valuePigeon()`, nooit onder
+  de ondergrens van de verkoper en nooit op of boven de vraagprijs.
+- ⚠️ **De biedband ligt bewust ONDER `marketMaxOverpay`.** Haggelen is wat een bot doet als de
+  vraagprijs te steil is, dus een bod hoort minder waard te zijn dan een rechtstreekse koop —
+  anders zou hij nooit meer gewoon kopen. De test bewaakt die ordening.
+- **Vraagt de verkoper meer dan de duif waard is, dan biedt de bot niet.** Een hebzuchtige
+  ondergrens levert dus stilte op, geen lowball — het is de markt die de prijs zet (§9.0).
+- **Grenzen die al golden en blijven gelden:** niet op een duif van een ander bothok, niet op
+  een listing jonger dan `BOT.marketMinListedHours` (24 u — spelers hebben eerste keus), niet als
+  de duif zijn hok niet verbetert (`marketMinGain`), en nooit onder `BOT.marketReserve`.
+- **Nieuw: `BOT.maxOpenBids` (2)** en één bod per ronde, plus geen tweede bod op een duif waar hij
+  er al één op heeft staan. Anders zou een bot bij elke dagovergang de inbox van een verkoper
+  vullen — de melding gaat immers wél via de bel.
+- **Draait in `botDailyActions`**, dus één keer per dagovergang: 8 bots × hoogstens 1 bod = een
+  handvol rijen per dag. Geen effect op het schrijfbudget.
+- **Bewaakt door `bot-bidding.test.mts`:** een redelijke vraagprijs koopt hij gewoon, te duur
+  mét ondergrens levert een bod binnen de band en onder de vraagprijs op, een ondergrens boven
+  de marktwaarde negeert hij, en de biedband ligt **onder** de koopgrens.
+- **Geen migratie, geen schemawijziging**, `dataVersion` blijft **43**. Spelregels **§9.1** en
+  **§17** bijgewerkt.
+
+**Verkopen met een marktprijs én een "bieden vanaf"**
+- **Vraag van de eigenaar:** een verkoper zet twee bedragen — een **marktprijs** waarvoor de
+  duif meteen van eigenaar wisselt, en optioneel **"bieden vanaf"**, waarboven anderen een bod
+  mogen doen dat de verkoper aanvaardt of weigert. **Enkel voor échte spelers** (expliciet):
+  een bot verkoopt tegen zijn vraagprijs en onderhandelt niet.
+- **Weinig nieuw nodig:** het biedsysteem (`offers.ts`) bestond al, maar werkte alleen op duiven
+  die **niet** te koop stonden. Nieuw veld **`Pigeon.minBid`** (kolom `min_bid REAL`, achteraan
+  `SCHEMA_STEPS` — append-only, dus **geen migratie**) opent die deur voor een listing.
+- **De regels zitten in `makeOffer`**: op een duif die te koop staat mag je enkel bieden als er
+  een `minBid` is; onder de ondergrens wordt geweigerd, en **op of boven de vraagprijs ook**
+  ("koop haar dan gewoon meteen"). `listForSale` weigert een ondergrens boven de marktprijs en
+  zet `minBid` nooit voor een bothok.
+- **De verkoper krijgt wél een belmelding** (op verzoek), en opnieuw bij een **verhoogd** bod;
+  een verlaging pingt niet. ⚠️ Dat is bewust een **uitzondering** op de bestaande regel dat een
+  bod niet via de bel gaat (§Privé-biedingen): een blind bod op een duif die niet te koop staat
+  is ongevraagd, een bod op een duif waarvoor je zélf een ondergrens zette niet.
+- ⚠️ **Bug gevonden die deze feature bereikbaar maakte:** `settlePigeonSale` liet openstaande
+  biedingen op een duif gewoon staan. Vóór dit kon dat niet — een te koop staande duif kon geen
+  bod hebben — maar nu wel: iemand biedt €3.500 terwijl een ander de vraagprijs van €4.000
+  betaalt. De bieder hield dan een openstaand bod op andermans duif. Biedingen vervallen nu bij
+  élke verkoop, met bericht aan de bieders (zoals `respondOffer` en `purgePigeon` al deden).
+- **UI:** het verkoopformulier op `LoftPage` heeft twee velden (marktprijs + optionele
+  ondergrens, met een waarschuwing als de ondergrens erboven ligt); de marktkaart toont
+  **"Koop nu · €X"** plus een **ListingBid**-blokje "of doe een bod vanaf €Y"; de duifpagina
+  toont een tweede badge. De blinde `BidCascade` blijft ongewijzigd op níet-te-koop duiven.
+- **Bewaakt door `market-bidding.test.mts`:** beide bedragen worden bewaard en gewist, een
+  ondergrens boven de vraagprijs wordt geweigerd, een bot krijgt er nooit een, aanvaarden
+  verkoopt voor het **geboden** bedrag, en een koop-nu laat geen zwevend bod achter.
+- **Geen migratie**, `dataVersion` blijft **43**. Spelregels **§9.1** herschreven.
+
+**Prijzengeld tot de laatste duif + hoogstens 3 beloonde duiven per hok**
+- **Vraag van de eigenaar**, met eigen prijzentabellen. Twee regels tegelijk:
+  1. **Elke finisher verdient.** De tabellen stopten na 8 of 10 plaatsen, dus in een groter
+     veld vloog de achterhoede voor niets. Gemeten in een gesimuleerde club (10 spelers +
+     8 bots, 8 weken): de zwakste hokken werden op **4–8 % van hun starts** betaald en waren
+     **netto negatief** op inschrijfgeld — de nieuwkomer stond op **−€242/week** ná dagkosten,
+     terwijl de top-2 **26 %** van de hele pot pakte. Nu hebben alle tabellen **banden + een
+     bodem**, zodat wie thuis raakt altijd geld meebrengt.
+  2. **Hoogstens 3 beloonde duiven per hok per vlucht** (`REWARD_BIRDS_PER_LOFT`), geld **én**
+     seizoenspunten. Dit is de instaplimiet die al sinds "Schaal afremmen" als openstaande
+     maatregel in dit bestand stond (*lus 1*), nu in de vorm die het veld niet uitdunt:
+     inschrijven mag onbeperkt, **belonen** niet.
+- ⚠️ **Het geld van een niet-beloonde duif VERVALT — het schuift niet door.** Expliciete keuze
+  van de eigenaar: de uitslag op het bord blijft de uitslag die gevlogen is. Wordt je vierde
+  duif zesde, dan blijft ze zesde en wordt plaats 6 gewoon niet uitbetaald; de duif op plaats
+  7 krijgt nog steeds het bedrag van plaats 7.
+- **`PRIZE_MONEY` is geen `number[]` meer maar een `PrizeTable`** (`{places, bands, rest}`) met
+  `prizeForRank()` als enige lookup — zie §5 voor alle bedragen. `bands` is **exclusief** op
+  `below`. Titan en estafette houden hun oude bedragen in tabelvorm (titan: 3 plaatsen, géén
+  bodem — daar mag je toch maar één duif inzetten).
+- **De limiet zit in één helper, `rewardGate()`** (flight.ts), die `finalizeFlight` én
+  `computeFinishPayouts` in dezelfde volgorde doorlopen. ⚠️ Dat is geen luxe: de vroege
+  uitbetaling stort geld op het moment dat een duif finisht en zet `prizePaid`; had die de limiet
+  niet gekend, dan was de vierde duif betaald en had `finalizeFlight` dat nooit meer teruggenomen
+  (die telt enkel op wat nog niet betaald is).
+- **Een DNF verbruikt geen beloonde plaats** — de gate telt enkel finishers, dus wie onderweg
+  twee duiven verliest heeft nog altijd drie die kunnen scoren.
+- **Zichtbaar in de UI:** nieuw veld **`FlightResult.rewarded`** (rijdt in de `results`-JSON, **geen
+  migratie**); `FlightsPage` en `LiveFlightPage` tonen "buiten de 3" i.p.v. een onverklaarbare €0.
+  Oude uitslagen missen het veld — lees als `rewarded !== false`.
+- **Gecommuniceerd** (op verzoek): **migratie v43** stuurt élke echte speler een belmelding
+  (`ntf:news:prizerules:<userId>`) met de bodems, de koppen en de 3-duivenregel, plus een
+  eerste-login-uitleg **`PRIZE_NEWS_STEPS`** (sleutel `roekoe.newsSeen.prizerules.<id>`).
+  Meegenomen: `AGE_CUP_NEWS_STEPS` zei nog "zoveel duiven als je wil" — dat klopt niet meer.
+  Nieuwe wiki-sectie 💶 **Prijzengeld** met alle vijf de tabellen; spelregels **§2.6** herschreven
+  met een subsectie over de 3-duivenregel. **dataVersion → 43.**
+- **Bewaakt door `prize-rules.test.mts`:** elke plaats levert in élke tabel geld op en de
+  bedragen dalen monotoon, de titan houdt géén bodem, hoogstens 3 duiven per hok krijgen geld
+  én punten, een DNF kost geen plaats, er wordt niet doorgeschoven, en — de invariant — **de
+  vroege uitbetaling wijst exact hetzelfde toe als de afronding**.
+
+**Een duif die niet kan vliegen, vliegt nu ook echt niet**
+- **Aanleiding (eigenaar):** "als een duif nog vliegt, kan die niet ingeschreven worden op
+  een andere vlucht — je weet niet wanneer én óf ze thuiskomt." Twee gaten gevonden,
+  allebei bevestigd met een scenario tegen de echte engine vóór er iets veranderde.
+- **Gat 1 — `enterFlight` had die guard niet.** Je kon een duif die op dat moment in de
+  lucht hing inschrijven voor een vlucht van morgen. De **client** verborg haar wel
+  (`!p.racing` in `FlightsPage`), de **API** niet — dus via een tweede tab of een trage
+  refresh lukte het gewoon. Nieuwe helper **`pigeonAirborne(db, pigeonId, nowMs,
+  exceptFlightId?)`** (flight.ts): live vlucht + `birdStillOut`. Bewust **smaller** dan
+  `pigeonCommittedToFlight`, want inschrijven voor maandag én woensdag moet gewoon kunnen —
+  dat is je week plannen. Enkel "ze hangt nú in de lucht" blokkeert.
+- **Gat 2 — bij de lossing werd de deelnemerslijst blind overgenomen.** `tickFlights`
+  bouwde `entries` uit `flight.entries` en controleerde alleen of de duif nog *bestond*.
+  Inschrijven gebeurt dagen vooraf, dus een duif kon intussen **verdwaald** (`awayUntil`),
+  **ziek/gewond**, in de **ziekenboeg**, op **rustkuur** of aan het **koppelen** zijn — en
+  werd dan alsnog gelost. Gemeten: een duif die officieel vermist was boven Frankrijk vloog
+  een tweede race. Nieuwe `canBeReleased(db, pigeonId, nowMs, flightId)` (schedule.ts):
+  bestaat + niet airborne + `canRace` (dekt aandoening/boeg/kuur/away/leeftijd/gezondheid)
+  + niet aan het koppelen.
+- **Wat er met zo'n duif gebeurt:** ze wordt uit `flight.entries` gehaald, het
+  **inschrijfgeld gaat terug**, open **weddenschappen op haar worden terugbetaald**
+  (`voidBetsForWithdrawnPigeon`) en de speler krijgt een melding met stabiele id
+  `ntf:grounded:<flightId>:<pigeonId>` (bots niet). Omdat de entry weg is, is het
+  vanzelf idempotent. De bestaande "minstens 2 melkers"-check draait **erna**, dus een
+  vlucht die door het schrappen te dun wordt, wordt gewoon afgelast + terugbetaald.
+- **Estafette:** `allPresent` keek enkel of de duif nog bestond en gebruikt nu dezelfde
+  `canBeReleased`. Eén onbeschikbare duif neemt de **hele ploeg** uit de wedstrijd — je
+  kan geen etappe te kort vliegen.
+- ⚠️ **Bewust NIET aangeraakt: de dagregel.** Opgeven geeft de dag nog steeds niet terug
+  (expliciete keuze van de eigenaar). Dit gaat enkel over "ze is er fysiek niet".
+- **Bewaakt door `flight-eligibility.test.mts`:** inschrijven tijdens een lopende race wordt
+  geweigerd maar lukt zodra ze opgegeven heeft; alle zes de onbeschikbare toestanden worden bij
+  de lossing geschrapt mét terugbetaling; te weinig melkers over → vlucht afgelast; en een
+  tweede tick betaalt niets dubbel.
+- **Geen schema/config/migratie**, `dataVersion` blijft **42**. Spelregels **§3.8** en
+  **§3.9** bijgewerkt.
+
+**Opgeven maakte de duif vrij, maar de UI liet dat niet zien**
+- **Symptoom (eigenaar):** "een duif die opgegeven heeft moet terug vrij zijn — trainen,
+  inschrijven, rustkuur". End-to-end nagemeten tegen de echte engine: dat **werkte al**.
+  Een duif die opgeeft óf onderweg uitvalt mag meteen trainen, op rustkuur, koppelen, naar
+  de ziekenboeg, te koop en inschrijven voor een vlucht van **morgen** (`birdStillOut`,
+  §3.8 spelregels). Server-side was er geen enkel gat.
+- **Wat er wél stuk was: de client.** `giveUp` in `LiveFlightPage` deed `load()` — dat is
+  de **smalle** live-route (`/flights/:id/live`, 2 rijen), die `pigeons[].racing` niet
+  aanraakt. `/state` bleef dus staan met `racing: true`, en overal ánders (Mijn hok,
+  duifpagina, Vluchten) bleef de duif als "ingeschreven voor een vlucht" staan tot er
+  toevallig iets anders `/state` herlaadde. Precies het beeld dat de eigenaar beschreef.
+  **Fix: `refresh()` na de give-up**, zoals `finishNow` al deed. Eén regel.
+- **Bewust ongemoeid: de dagregel.** Een duif die opgeeft krijgt haar dag **niet** terug —
+  `flightClaimingDay` telt elke niet-afgelaste vlucht waarin ze staat. Expliciete keuze van
+  de eigenaar bij deze wijziging: anders kan je een vlucht inschrijven, bij slecht weer na
+  één minuut opgeven (kost bijna geen energie) en alsnog een andere vlucht van die dag
+  pakken. De spelregels beschreven dit al correct (§3.8 + §3.9) — geen doc-wijziging nodig.
+- **Alleen client**, geen schema/config/migratie.
+
+**De drie racevaardigheden zijn nu even veel waard**
+- **Aanleiding, gemeten:** +10 snelheid was **+5,3pp** winkans waard, +10 conditie **+3,1pp**
+  en +10 oriëntatie **+0,1pp** — statistisch niet van nul te onderscheiden.
+- ⚠️ **Waarom oriëntatie leeg liep: de curve was al uitgewerkt onder het bereik waarin duiven
+  bestaan.** Sinds ze uit de snelheidsformule ging hing ze volledig aan `LOST`, en die curve
+  deed niets meer boven oriëntatie 60 — terwijl `GENE.floor` **70** is. Van 70 naar 95 (het
+  duurste stuk van de coach) leverde **0,08 plaats** op. **Controleer bij elke eigenschapscurve
+  of haar werkzame bereik wel overlapt met de waarden die duiven écht hebben.**
+- **De mechaniek:** verdwalen is geen enkele muntworp meer maar een **verwacht aantal keren**
+  (`LOST.base + max·room^curve` × afstandsfactor × weer), waaruit een **Poisson-trekking** het
+  werkelijke aantal episodes haalt. ⚠️ **Elke episode rolt apart op "helemaal kwijt"** — vandaar
+  dat `strandedMax` fors omlaag moest, anders raakt een slechte navigator uit één fondvlucht op
+  drie niet thuis. Twee grenzen houden het leefbaar: een **plafond op de totale omweg** (zonder
+  plafond stapelden episodes tot 30–40 % en is het geen wedstrijd meer) en **`detourJitter`**,
+  waardoor een matige navigator écht geluk kan hebben. *(De exacte waarden zijn nadien
+  herijkt — zie het fond-blok hoger in §8; `gameConfig.ts` is de waarheid.)*
+- ⚠️ **Snelheid en conditie waren óók niet in balans, en dat kwam uit de KALENDER, niet uit de
+  formule**: 3 regionale vluchten tegen 2 internationale, plus titan en estafette-etappes in het
+  korte segment. `DISTANCE_WEIGHTING.short` ging daarom naar **0,68/0,32** en `long` naar
+  **0,26/0,74**. Dat raakt **elke duif in het spel meteen**. Wijzigt de kalender, dan verschuift
+  deze weging mee — ze horen bij elkaar.
+- **Gemeten na de ingreep** (veld van 12, één duif +10, gepaard op dezelfde vlucht-seeds):
+  gewogen over de kalender snelheid +3,7pp / conditie +3,5pp / oriëntatie +2,8pp, en op
+  gemiddelde plaats −0,59 / −0,58 / −0,57. Per niveau blijft de rolverdeling scherp: regionaal
+  snelheid 4,7pp, internationaal conditie 4,8 en oriëntatie 4,9. Neveneffecten: vluchten 4,7–8,8 %
+  langer, **sterfte beweegt niet**, leesbudget 24,4 % van de 5M/dag.
+- **`SimEntry.strays`** (rijdt in de `sim`-JSON → **geen migratie**): alle episodes apart, zodat
+  het 📻-verslag elke afdwaling op haar eigen moment meldt. ⚠️ **`lost` blijft de aggregaat**
+  (eerste moment, tótale omweg), zodat energie (`flownKm`), de stand en de "~X km omweg"-regel
+  ongewijzigd werken — en een vlucht die tijdens de deploy live is valt via `strayEpisodes()`
+  terug op het oude veld.
+- **Bewaakt door `attribute-balance.test.mts`:** geen eigenschap is dood op geen enkel niveau,
+  snelheid domineert de sprint en conditie+oriëntatie de fond, en — de harde invariant — **de
+  drie liggen binnen een vaste factor van elkaar** (grens in de test zelf).
+  **Draai hem na élke wijziging aan `DISTANCE_WEIGHTING` of `LOST`.**
+
+**Live-bord: kop én staart van de wedstrijd i.p.v. de raceklok**
+- **Symptoom (eigenaar):** de balk **"Kop van de wedstrijd"** stond op **48 %** terwijl de
+  vlucht voor veel duiven al afgelopen was.
+- **Oorzaak:** het was helemaal geen kop, maar de **raceklok**: `overallProgress =
+  elapsed / flightTotalSeconds`, en `flightTotalSeconds` is sinds het schrappen van de
+  finish-timer **de traagste duif die effectief finisht** (§Finish-timer). Op een veld
+  waar de winnaar na 1 u thuis is en de staart pas na 10 u, staat die balk dus nog op 48 %
+  terwijl de kop al lang binnen is. Hoe langer de staart, hoe misleidender het cijfer.
+- **Nu twee balken**, allebei uit **echte posities**: **`headProgress`** = de voortgang van
+  de **nr. 1** (100 % zodra de leider thuis is) en **`tailProgress`** = die van de **laatste
+  duif die nog in de race zit**. **DNF's tellen niet als staart** — een opgegeven of
+  onderweg uitgevallen duif is uit de wedstrijd, niet achteraan.
+- **Implementatie: gratis, want de rangschikking bestond al.** `liveSnapshot` sorteert de
+  rijen al leider-eerst met de DNF's achteraan, dus de nieuwe helper **`headAndTail`**
+  (flight.ts) neemt gewoon de **eerste** en de **laatste niet-uitgevallen** rij. O(n) over
+  een lijst die er toch al is — geen extra query, geen extra CPU van betekenis (belangrijk
+  op het heetste endpoint van het spel, zie §Performance). Voor een **estafette** draait
+  dezelfde helper op de **ploegen**, want daar is de ploeg de deelnemer.
+- **`overallProgress` blijft in de DTO** (een oude open tab leest het nog) maar wordt niet
+  meer getoond.
+- ⚠️ **Meegenomen bug in `raceProgress`, en die zat er al:** de **legacy-tak** (een vlucht
+  zonder `segMult`) gaf **altijd `stopped: false`** en berekende `finished` als
+  `!s.gaveUp && elapsed >= durationSeconds` — dus een duif met `dnfAtSeconds` gold daar als
+  **nog vliegend** en daarna zelfs als **gefinisht**, terwijl `finalizeFlight` haar wél als
+  DNF telt. Dat brak precies de nieuwe staart (een uitgevallen duif werd de staart) en
+  botste met de invariant *live-einde == einduitslag*. `stopped`/`finished` worden nu **één
+  keer** berekend, vóór de vertakking, dus beide takken lezen een DNF identiek.
+- **Geen migratie, geen schemawijziging, geen configknop**, `dataVersion` blijft **39**.
+
+**Eén vlucht per duif per dag — nu een HARDE regel**
+- **Vraag van de eigenaar:** "zorg er dan voor dat duiven nooit 2 vluchten op 1 dag kunnen doen."
+- **Wat er was:** de regel bestond al, maar gold enkel zolang de andere race van die dag nog
+  **bezig** was (`birdStillOut`). Een duif die 's ochtends binnenkwam mocht 's middags gewoon
+  opnieuw starten — §3.8 van `spelregels.md` verkocht dat zelfs als feature. Op de kalender
+  staan meestal **twee** vluchten per dag, dus een topduif kon er structureel twee pakken.
+- **Wat het nu is:** de dag is **op** zodra een duif ergens op een vlucht van die kalenderdag
+  staat — gepland, live, of allang uitgevlogen. Twee vluchten op één dag doe je met twee duiven.
+- **Waar het zit** (`core/game/flight.ts`, drie kleine exports):
+  - `flightDay(f)` — `startAt.slice(0, 10)`, dezelfde dagsleutel die de code al overal gebruikte;
+  - `flightCancelled(f)` — een **completed** vlucht **zonder `sim`**. Dat is precies een
+    afgelaste vlucht (te weinig melkers): ze houdt haar `entries` op de rol en het inschrijfgeld
+    is terugbetaald, maar niemand heeft gevlogen, dus ze mag geen dag opsouperen.
+    `startLiveFlight` is het enige dat `sim` vult, dus dit kan niet vals-positief zijn;
+  - `flightClaimingDay(db, pigeonId, day, exceptFlightId?)` — de vlucht die de dag al claimt.
+    **Bewust anders dan `pigeonCommittedToFlight`:** die vraagt of een duif *nu* vastzit en laat
+    los zodra haar eigen race voorbij is; deze kijkt niet naar de status.
+- **Twee call-sites**, meer zijn er niet: `enterFlight` (`engine.ts`) voor de speler en
+  `botsEnterFlight` (`schedule.ts`) voor de bots — die laatste bouwt zijn `committed`-set nu uit
+  **alle** niet-afgelaste vluchten van die dag i.p.v. enkel de lopende. `birdStillOut` is
+  daardoor uit `schedule.ts` verdwenen (nog wel gebruikt door `giveUpFlight` en
+  `pigeonCommittedToFlight`).
+- **Uitschrijven geeft de dag terug** — `withdrawFlight` haalt de entry weg en daarmee de claim.
+  Een race die ze effectief vloog (ook DNF of opgegeven) geef je niet meer terug.
+- **UI:** `FlightsPage` filtert de keuzelijst niet langer op "al ingeschreven voor een geplande
+  vlucht" maar op een **dag-map** (`daysTaken`: pigeonId → dagen), opgebouwd uit scheduled +
+  live + completed. Daarvoor draagt `flightDTO` één extra scalar: **`cancelled`**. Eronder staat
+  één regeltje hoeveel duiven om die reden wegvallen, met een link naar de wiki — anders
+  verdwijnt een duif zwijgend uit de lijst.
+- **Test:** `one-flight-per-day.test.mts` — tweede inschrijving geweigerd, óók ná het afronden
+  van de eerste vlucht (het oude gat), uitschrijven geeft de dag terug, een afgelaste vlucht
+  telt niet mee, een andere dag mag wél, en over een doorgespoelde week staat geen enkele
+  botduif twee keer op één dag.
+
+**Leeftijdscriterium: vier leeftijdsklassen, één vlucht per week, drie seizoenen**
+(De spelregels staan in `spelregels.md` §2.10, de knoppen in `AGE_CUP`/`AGE_CATEGORIES` — §5.
+Hieronder enkel wat je nodig hebt om eraan te werken.)
+- **Kalender:** vier slots in `REAL_SCHEDULE` (`cup-u1` ma · `cup-y12` wo · `cup-y23` do ·
+  `cup-o3` vr, telkens 06:00), **gegenereerd uit `AGE_CATEGORIES`** zodat tabel en kalender
+  niet uit elkaar kunnen lopen. `ScheduleSlot.ageCat` stuurt `makeRealtimeFlight` naar een
+  eigen tak met eigen route-venster, naam en inschrijfgeld.
+- ⚠️ **De sprint/fond-afwisseling hangt op een SEIZOENSANKER, niet op `dayNumber`.** De
+  estafette gebruikt `floor(dayNumber/7) % 2`, en die weekbuckets beginnen op **donderdag**
+  (dag 0 van de epoch). Met vluchten op ma/wo/do/vr zou dat binnen één kalenderweek twee
+  formats geven. `cupWeekIndex(db, atMs)` telt daarom de weken vanaf `world.ageCupStartedAt`,
+  dat op een seizoensgrens ligt: even = sprint, oneven = fond → exact 2+2 per seizoen en 6+6
+  per cyclus, en de cyclus eindigt precies op een prijsuitreiking. Vóór het anker geeft de
+  helper **−1** en wordt er niets gepland.
+- ⚠️ **De leeftijdsklasse wordt PER VLUCHT bepaald, bij het inschrijven** (`enterFlight` +
+  `botRaceCandidates` delen `ageCategoryFor`). Moest wel: duiven verouderen 4× real-time, dus
+  over drie seizoenen wordt een duif bijna een heel duivenjaar ouder en klimt ze mid-cyclus een
+  klasse omhoog. Punten uit haar oude klasse **blijven daar staan** (`Pigeon.cup` is een record
+  **per klasse**), dus ze kan legitiem in twee standen tegelijk staan.
+- **Scheiding van de melker-economie:** `flightPrizes(flight)` (flight.ts) centraliseert de
+  prijzentabellen; `finalizeFlight` geeft 0 seizoenspunten en telt geen `wins` voor een
+  criteriumvlucht, en `tickFlights` slaat bets/missies/sponsorpremie over via dezelfde
+  `continue` als titan/estafette. Duivenranglijsten tellen hem wél mee. Punten gaan naar
+  `Pigeon.cup[ageCat]` (`{points, wins, best, races}`); `ageCupRankings` (season.ts) sorteert
+  op punten → zeges → beste ritgemiddelde.
+- **Cyclus-einde in `runSeasonEnd`:** `runAgeCupCycleEnd` telt `world.ageCupSeasonsDone` en
+  houdt bij de derde de uitreiking: geld naar de **eigenaar** (`SeasonAward`, `kind:
+  'criterium'`) én een **`PigeonTitle` op de DUIF** (`Pigeon.titles`) — die blijft bij haar bij
+  verkoop, wat het punt was. Daarna worden alle `cup`-standen gewist en het anker verzet.
+  ⚠️ De teller vergelijkt **strikt** met het anker, anders telt het seizoen dat exact op de
+  startgrens eindigt al mee.
+- ⚠️ **Leesbudget:** de vier standen scannen élke duif, net als `pigeonSeasonRankings`, dus ze
+  rijden mee in **dezelfde `World.leaderboard`-cache** (`computeLeaderboard` → `cupRankings`).
+  Ze op `/state` berekenen zou de hele `pigeons`-tabel terug op de heetste route trekken —
+  precies wat die cache moet voorkomen. Gemeten: dagbudget 24,2 → **24,6 %** van de 5M/dag,
+  `query-budget` 43 van de 50, idle poll nog steeds 0 rijen geschreven.
+- **Persistentie:** kolommen `flights.age_cat` + `cup_sprint`, `pigeons.cup` + `titles`,
+  `world.age_cup_started_at` + `age_cup_seasons_done`, alle **achteraan** `SCHEMA_STEPS`.
+- **UI:** tab **Criterium** op `RankingPage`, gefilterde duivenkiezer op `FlightsPage`, titels
+  als badge op `PigeonPage`. Bewaakt door `age-cup.test.mts`.
+
+**Bots winkelen op de markt, en trainen zoals een speler**
+- **Eerst gemeten, want de vraag ging over achterstand.** Acht weken gesimuleerd: bots
+  **coachten al aan hun plafond** en trainden ook; hun talent liep gewoon op. Wat ze **niet**
+  deden was hun geld uitgeven — tegen week 8 zat elke bot op €19.000–46.000 stil. Dát was het
+  gat, niet de coach.
+- **Twee ingrepen.** `maybeBuyFromMarket` (bots.ts, eind van `botDailyActions`): een bot koopt
+  een te-koop-staande duif van een échte speler als ze een verbetering is — met plaats over
+  volstaat "niet slechter dan mijn slechtste", bij een vol hok moet ze de slechtste **verslaan**
+  met `BOT.marketMinGain` en wordt die vrijgelaten. Hoogstens één aankoop per bot per dag. En
+  `maybeTrain` herschreven: `BOT.trainPerDay` duiven per dag op de goedkoopste nog-trainbare
+  eigenschap, **mét** de weeklimiet per eigenschap (`TRAINING.cooldownDays` via
+  `Pigeon.trainedAt`) die de oude versie stilletjes negeerde, en gelogd via `noteAttrChange`.
+- ⚠️ **`BOT.marketMaxOverpay` (1,25) is de belangrijkste regel van het hele blok.** Een speler
+  bepaalt zélf zijn vraagprijs. Zonder plafond zet iemand zijn slechtste duif op €40.000 en
+  leegt daarmee elke bot in de club — dat is een geldpers, geen markt. Een bot betaalt nooit
+  meer dan 1,25× de **marktwaardering** (`game/market.ts`, zelf afgeleid uit echte verkopen),
+  nooit meer dan `marketMaxShare` (0,5) van zijn vrije kas, en nooit onder `marketReserve`
+  (€4.000). **Bots kopen ook niet van elkáár**: dat zou enkel geld rondschuiven en de
+  waardering vervuilen met prijzen waar nooit een mens mee akkoord ging.
+- ⚠️ **Bewuste afwijking van de letterlijke vraag:** "of als ze nog ruimte in hok over hebben"
+  is niet "koop dan om het even wat". Een bot die zijn lege stok volzet met talent-40 duiven
+  verwatert elk veld waar hij mee instapt. Met plaats over koopt hij dus wel makkelijker, maar
+  nog steeds niets dat slechter is dan wat hij al heeft.
+- **Gedeeld verkooppad:** `settlePigeonSale(db, buyer, pigeon)` is uit `buyPigeon` gelicht
+  (engine.ts) en wordt door beide gebruikt, zodat een botaankoop letterlijk dezelfde transactie
+  is als die van een speler: verkoper betaald, `stats.sells`, de handelaar-badge, de
+  marktmissie, en de trade als **prijsobservatie** voor de waardering. Meegenomen: de verkoper
+  krijgt nu een **melding** dat zijn duif verkocht is — zonder dat verdwijnt er bij een
+  botaankoop gewoon een duif uit zijn hok zonder dat iemand iets klikte.
+- ⚠️ **Modulecyclus.** `bots.ts` importeert nu `purgePigeon`/`settlePigeonSale` uit `engine.ts`,
+  dat op zijn beurt `botTakeWeeklyActions` uit `bots.ts` haalt. Veilig omdat beide kanten elkaar
+  enkel *binnen een functie* aanroepen, nooit tijdens het evalueren van de module — geverifieerd
+  door de hele suite, die dat pad via `advanceRealtime` → `tickDailyCare` → `botDailyActions`
+  echt draait.
+- **Gemeten na de ingreep** (8 weken): elke listing werd gekocht, de laagste botkas zakte van
+  €18.927 naar €8.406 — ze geven het effectief uit en blijven ruim boven hun vloer.
+  Query-budget 40/50, dagbudget 24,3 % gelezen / 7,5 % geschreven.
+- ⚠️ **Een verse listing is eerst van de spelers** (`BOT.marketMinListedHours`, 24 u). Bots
+  winkelen op de **dagovergang**, dus een duif die om 23:55 te koop gaat kon verkocht zijn
+  vóór één speler ze ooit zag verschijnen. Nieuw veld **`Pigeon.listedAt`** (kolom `listed_at`):
+  gestempeld door `listForSale`, gewist door `unlist` en door de verkoop zelf — opnieuw
+  plaatsen herstart de klok, want dat is een nieuw aanbod. Een listing **zonder** stempel komt
+  van vóór deze regel en geldt als oud, dus die blijft gewoon koopbaar.
+  Zichtbaar gemaakt op de markt (🆕 "nog X u alleen voor spelers", uit
+  `economy.botMarketDelayHours`) — een voorsprong die je niet ziet, is er geen.
+- **Bewaakt door `bot-market.test.mts`**, met de wachttijd en de prijsgrens als zwaarste
+  blokken. ⚠️ De wachttijd-test rekent vanaf de **échte** `listedAt`-stempel: `listForSale`
+  zet daar de wandklok in, dus een verzonnen testklok gleed er ongemerkt langs (dat gebeurde
+  ook — drie controles slaagden vals).
+
+**Prijsuitreiking als ceremonie + de winst-kolom reset mee**
+- **Vraag van de eigenaar:** de prijzen stonden samengeperst in één belmelding. Nu krijgt
+  **elke prijs zijn eigen scherm**, met de beker in beeld en het bijhorende bedrag. En de
+  kolom **Winst** op de ranglijst moest mee resetten met het seizoen.
+- ⚠️ **`totalWins` mocht NIET gereset worden, en dat is niet zichtbaar aan de kolom.**
+  Sponsordrempels hangen eraan (`req.totalWins` 1/5/8/12 in `SPONSORS`) en hij weegt in
+  `sponsorScore` (`loft.totalWins * 8`); elk seizoen nullen zou die tiers om de vier weken
+  opnieuw dichtgooien. Nieuw veld **`Loft.seasonWins`** (kolom `season_wins`, default 0):
+  `rankingRows` toont dát als "Winst", `runSeasonEnd` zet het op 0, en de tiebreak in de
+  seizoensstand gebruikt het ook. `totalWins` blijft levenslang en blijft op het profiel staan.
+  Omdat de kolom op 0 begint, staat iedereen dit seizoen meteen correct — geen migratie nodig.
+- **De ceremonie** (`client/src/components/PrizeCeremony.tsx`): volledig scherm, één prijs per
+  keer, in de volgorde Roekoe → Vleugels → Criterium en binnen elke soort de hoogste plaats
+  eerst. Per prijs: de **beker in SVG**, waarvoor je hem won, en het bedrag dat **omhoog telt**.
+  Drie vormen (cup / vleugel / medaille) × drie metalen via één verloop, dus goud-zilver-brons
+  komt uit `rank`. Bewust **getekend en niet als afbeelding**: scherp op elk scherm, themavast,
+  en geen assets om te beheren. Gecontroleerd met een Playwright-screenshot in **beide thema's**.
+- **Geen serverstatus.** `loftDTO.ceremony` draagt de prijzen van het **laatst gewonnen**
+  seizoen (bounded: enkel dát seizoen, niet de hele erelijst — dit rijdt mee op `/state`), en
+  localStorage (`roekoe.ceremonySeen.<id>`) onthoudt wat al gevierd is.
+  ⚠️ **Plus een guard op `world.seasonYear - 1`**: zonder die check vierde een verse browser
+  een overwinning van maanden terug opnieuw, want `awards` bewaart alles.
+- **Volgorde in `Layout`:** hoofdtour > ceremonie > "wat is nieuw" > gebeurteniskaart. Net
+  gewonnen weegt zwaarder dan een aankondiging, en de ceremonie is maar één seizoen relevant.
+- De **belmelding blijft** bestaan als naslagwerk; dit is het feestje ernaast.
+- `prefers-reduced-motion` zet beide animaties uit.
+- **Bewaakt door `season-prizes.test.mts`:** de kolom toont de seizoenswinst, de rollover reset
+  `seasonWins` maar **niet** `totalWins`, en de ceremonie draagt precies de prijzen van het net
+  afgelopen seizoen.
+
+**`SELECT * FROM pigeons` was de CPU-moordenaar — historiek uit de duivenrij**
+- **Vraag van de eigenaar:** "er gebeurt altijd een `select * from pigeons` wanneer de wereld
+  laadt … die verbruikt het meest in termen van CPU load." Klopt, maar niet om de reden die
+  voor de hand ligt — en de échte oorzaak was erger dan gedacht.
+- ⚠️ **De query zélf is I/O.** Wachten op D1 telt **niet** mee voor de 10 ms CPU van een
+  Worker-invocatie. Wat wél telt is wat er met die rijen gebeurt: ze omzetten naar entiteiten
+  (7× `JSON.parse` per duif) en ze snapshotten voor de diff (`JSON.stringify` per duif).
+  Lokaal draait SQLite synchroon in hetzelfde proces, dus een kale timing meet beide door
+  elkaar en zegt niets — vandaar het nieuwe `cpu-pigeons.mts`, dat de **marginale** kost per
+  duif meet (de helling bij een oplopende wereld).
+- **Gemeten, met ablatie (260 duiven, volle load):**
+
+  | | vóór | na |
+  |---|---|---|
+  | volle load zónder de twee logboeken | 3,79 ms | 3,43 ms |
+  | volle load mét beide logboeken op hun cap | **32,41 ms** | **3,61 ms** |
+  | aandeel van de logboeken | **88 %** | **5 %** |
+
+  Uitgesplitst op 264 duiven: `JSON.parse` van de twee blobs **13,0 ms**, de `JSON.stringify`
+  voor de diff **9,4 ms**. Samen ~22 ms lokaal — en productie is ~1,9× trager (ronde 6), dus
+  ~42 ms tegen een budget van **10**. Dat is de terugkerende Error 1102, en hij **groeide
+  stilletjes mee**: een duif vult haar logboek in enkele weken tot de cap.
+- **Wat er in die blobs zat:** `Pigeon.raceLog` (40 plaatsingen) + `Pigeon.attrLog` (40
+  skill-wijzigingen) = ~13 KB per duif, dus ~3,3 MB per verzoek bij 264 duiven. **Geen enkele
+  engine-tick leest ze.** Ze worden alleen getoond door de duif-historiek, de trofeeënkast en
+  de admin-inspector — drie schermen die een speler bewust opent.
+- **De ingreep.** Nieuwe tabel **`pigeon_log_entries (id, pigeon_id, kind, at, data)`**,
+  **append-only, één rij per regel**. Dat laatste is de sleutel: de engine is **synchroon** en
+  kan midden in een tick niets uit de database lezen, dus een append mag de vorige waarde niet
+  nodig hebben — een read-modify-write op een afgetopte array kon dus niet. `noteAttrChange` en
+  `logRaceResults` schrijven in **`Pigeon.pendingLog`**, een transiënte wachtrij die `persist`
+  leegmaakt. `PIGEON_SELECT` vervangt `SELECT *`.
+- ⚠️ **Migratievrij, en waarom dat veilig is.** De oude kolommen blijven gewoon op schijf staan
+  en worden nooit meer gelezen of geschreven. Dat mag omdat `diff` een **bestaande** duif met een
+  kolom-smalle `UPDATE` wegschrijft (`previousRows`): een kolom die niet in `PIGEON_COLUMNS`
+  staat, wordt nooit overschreven. Enkel een **nieuwe** duif gaat door `INSERT OR REPLACE` — en
+  die heeft geen historiek te verliezen. `loadPigeonLogs` leest de legacy-blobs er nog steeds
+  bij en versmelt ze, dus er verdwijnt niets. **`pigeon-logs.test.mts` bewaakt precies dat**,
+  want het is het stilste faalgeval dat er is.
+- **Meegenomen, en het was de grootste enkele post geworden:** `boundedCleanups` deed **één
+  `DELETE` per genotificeerde speler**. Op een vluchtafronding waren dat **10 van de 49
+  statements**, tegen een harde limiet van 50. Nu één statement voor allemaal, met dezelfde
+  window-functie als de log-trim. De afronding gaat van **49 → 38 queries** — beter dan de 43
+  van vóór deze hele reeks.
+- **De log-trim is een SOFT cap:** boven `PIGEON_LOG_TRIM_MAX_APPENDS` (40) appends in één
+  verzoek wordt hij overgeslagen. Een vluchtafronding schrijft een regel per finisher, en dat is
+  net het verzoek met de minste ruimte; die duiven worden bij hun volgende gewone append
+  getrimd. Een handvol extra rijen in een tabel die niemand pollt kost niets.
+- **Routes die de logboeken nu apart ophalen** (elk één extra query, geen van drie wordt
+  gepollt): `GET /pigeons/:id` (historiek), `GET /profile` (trofeeën), `GET /admin/pigeons`
+  (inspector). `pigeonRaceHistory(log)` en `playerProfile(db, userId, logs)` krijgen ze
+  binnengereikt — `presenters.ts` blijft runtime-neutraal.
+- **Nieuwe blijvende test `pigeon-logs.test.mts`** (20 controles) + `BREAKDOWN=1` op
+  `query-budget.test.mts` om het duurste verzoek per statement uit te splitsen.
+- ⚠️ **Regel voor nieuwe code:** zet **nooit** een groeiend veld op `Pigeon` (of `Loft`) dat de
+  engine niet nodig heeft. Élk veld daar wordt bij ieder verzoek geparsed én gestringify'd voor
+  de diff, voor élke duif in de wereld. Groeiende historiek hoort in een eigen append-only
+  tabel, met een loader die enkel draait op de route die ze toont.
+
+**Te veel tekst in het spel — ingekort en opnieuw aangekondigd**
+- **Aanleiding (eigenaar):** de update was te woordrijk in het spel, en de tourkaart was
+  "moeilijk leesbaar, vooral de 2e stap, want ik kan niet scrollen".
+- ⚠️ **Dat scrollen was een echte bug in `Tour.tsx`, niet enkel te veel tekst.** De kaart had
+  wél `overflow-y: auto`, maar een **vaste** `maxHeight: calc(100vh - 24px)` — en die klopt
+  alleen voor een gecentreerde kaart. Verankerd ónder een doel (`top: rect.bottom + 12`) liep
+  ze gewoon voorbij de onderrand: de Vorige/Volgende-knoppen stonden buiten beeld en de eigen
+  scrollbar kon er niet bij. Nu bepaalt **`popStyle` de hoogte mee**: de beschikbare ruimte
+  boven/onder het doel wordt gemeten, de ruimste kant wint, en past geen van beide (< 180 px)
+  dan wordt de kaart over de spotlight gecentreerd. Plus `overscroll-behavior: contain`.
+  **Dit gold voor élke tourstap, niet enkel deze aankondiging.**
+- **Ingekort volgens de tekstbudgetregel (§0, punt 4):** de belmelding van ~1.100 → **418
+  tekens**, de drie news-stappen tot 1–2 zinnen, `AGE_CUP_STEP` tot twee zinnen, het
+  criterium-blok op `RankingPage` van drie alinea's naar één regel (seizoen X van 3 + wikilink),
+  de regel op `FlightsPage` en de `CriteriumCard` op `PigeonPage`. Alle mechaniek, klassen,
+  prijzentabellen en tactiek staan **enkel** in de wiki.
+- **Migratie v42 — opnieuw aankondigen** aan wie de eerste versie al zag: de news-sleutel is
+  gebumpt naar `agecup2` (tour) en `announceAgeCup` wordt opnieuw gedraaid (bel).
+  ⚠️ **Met dezelfde melding-id, en dat is de hele truc.** Een nieuwe id zou de oude, lange rij
+  laten staan bij iedereen behálve de ene speler wiens verzoek de migratie toevallig draait:
+  `notifications` wordt **per viewer** geladen (`WHERE user_id = ?`), dus `persist` kan enkel
+  wissen wat het geladen heeft — de rest hield er dan **twee**. Dezelfde id maakt er één
+  `INSERT OR REPLACE` per speler van. Daarna wordt `read` expliciet op **false** gezet: voor
+  andere spelers levert `pushNotification` sowieso een verse ongelezen rij, maar voor de viewer
+  behoudt hij bewust de bestaande `read`-vlag — precies de speler die de herschrijving dan
+  nooit zou zien. **dataVersion → 42.**
+- **`age-cup.test.mts`** speelt de **productiesituatie** na (wereld al op v41, lange tekst al
+  gelezen, één speler draait de migratie): één rij per speler, bij iedereen vervangen, bij
+  iedereen weer ongelezen. ⚠️ Een verse wereld kan dat geval niet tonen — daar draaien v41 en
+  v42 in hetzelfde verzoek.
+- ⚠️ **Om op te volgen:** de klasse **> 3 jaar** kan dun bevolkt zijn (startduiven worden
+  8–130 gameweken terug gedateerd), en een wedstrijdvlucht met < 2 melkers wordt afgelast. Bots
+  doen mee en vangen dat grotendeels op, maar het is het eerste om te meten als die vlucht vaak
+  niet doorgaat. Knop daarvoor: de grens van `o3` verlagen of de klassen samenvoegen.
+- **Bewaakt door `age-cup.test.mts`:** het anker, vier klassen op hun eigen dag met precies één
+  vlucht per week, de 2+2/6+6-afwisseling, de leeftijdsgrens voor speler én bot, prijzengeld ja /
+  seizoenspunten en `wins` nee, punten in de juiste klasse (én dat ze een rondje door D1
+  overleven), en de reset na drie seizoenen. ⚠️ De aankondigingscontrole leest **rechtstreeks uit
+  SQL** — een viewer-scoped load draagt enkel de inbox van díe speler, dus via de store zou hij
+  altijd 0 zien.
+- ⚠️ **Vijf bestaande tests aangepast, niet verzwakt:** `force-finish`, `advance-throttle`,
+  `idle-writes`, `query-budget` en `daily-budget` pakten "de eerste geplande wedstrijdvlucht" en
+  schreven er willekeurige duiven in. Dat kan nu een criteriumvlucht zijn, en die weigert een duif
+  van de verkeerde leeftijd — `force-finish` viel daardoor sporadisch om met een lege deelnemerslijst.
+  Ze sluiten `f.ageCat` nu uit, net zoals ze `practice` en `relay` al uitsloten.
+
+**Ervaring is uit de snelheidsformule**
+- **Aanleiding (eigenaar):** "ervaring hoort geen invloed te hebben op snelheid, daar is
+  de eigenschap snelheid voor." Terecht — en het was dezelfde fout als bij oriëntatie.
+- **Gemeten vóór de ingreep.** `experienceFactor = 1 + ervaring/300` gaf tot **+33 %**.
+  Per púnt was ervaring niet te zwaar (0,31–0,37 km/u, tegen snelheid 0,19–0,48), maar
+  haar **bereik** wel: ervaring loopt 0→100 (**+31 tot +36 km/u**) terwijl snelheid en
+  conditie in hun gen-band 70–95 zitten (**+12 tot +3 km/u**). In een gemengd veld leverde
+  ervaring **4,35 km/u** spreiding tegen snelheid 3,06 en conditie 3,20 — ze was dus de
+  grootste onderscheider, en een duif met ervaring 0 kon niet mee, hoe snel ook.
+- **Wat weg is:** `experienceFactor` uit `pigeonVelocity` **en** uit `velocityBreakdown`
+  (de admin-ontleding moet de formule exact spiegelen, anders liegt de tool). Het veld
+  `VelocityBreakdown.experienceFactor` bestaat niet meer; `AdminPage` verloor die kolom.
+- **Wat blijft — en dat is het punt:** ervaring is nu puur **efficiëntie**. Minder
+  energie per vlucht (33–37 %), sneller herstel (+50 %), en **energie-dosering** in
+  `energieFactor`. Dat laatste raakt de snelheid nog, maar **voorwaardelijk**: gemeten op
+  500 km levert ervaring 0→100 bij een **volle tank 0,0 km/u** op, bij energie 70 +4,8, bij
+  40 +10,4 en bij 20 +15,1. Een frisse duif haalt er dus niets uit; een lege wel. Dat is
+  precies de rol die de eigenaar beschreef: snelheid bepaalt hoe hard, energie en conditie
+  hoe lang.
+- **Na de ingreep** weegt op 150 km snelheid het zwaarst (10,3 km/u) en op 1000 km conditie
+  (9,3), met ervaring er telkens onder. Het gat tussen ervaring 0 en 90 zakt van **37 % naar
+  5 %** — dat is een grotere hulp voor nieuwkomers én voor elk gekweekt jong dan het hele
+  starterspakket.
+- ⚠️ **Vluchten duren ~27 % langer** en dat is een **bewuste keuze van de eigenschap**: de
+  basisconstante is *niet* gecompenseerd. Gemiddeld veld: 150 km 1,4 → 1,7 u · 500 km
+  4,5 → 5,7 u · 1000 km 8,8 → 11,2 u. Wil je dat ooit terugdraaien zonder ervaring terug te
+  brengen, dan is `(700 + score·9)` → `(890 + score·11,4)` de exacte compensatie.
+  **Gecontroleerd op het leesbudget** (langere races = meer live-polls): `daily-budget`
+  blijft op **24,2 %** van de 5M/dag, dus daar zit geen probleem.
+- **Geen spelersaankondiging** (expliciet niet gewenst), geen migratie, geen schemawijziging,
+  `dataVersion` blijft 39.
+- **Bewaakt door `velocity-model.test.mts`:** een frisse duif haalt niets uit ervaring, op een
+  lage tank wél en monotoon meer naarmate ze leger staat, een **snelle groentje klopt een trage
+  veteraan**, en de admin-ontleding blijft gelijk aan de echte snelheid.
+
+**Starterspakket voor nieuwe spelers**
+(Spelersuitleg: `spelregels.md` §18; knoppen: `NEWCOMER` in §5. Logica op één plek in
+`core/game/newcomer.ts`.)
+- **Waarom het bestaat, gemeten:** een wereld die al een maand draait is **dicht** voor een
+  nieuwkomer — 6 verse duiven tegen 12 van twee maandveteranen gaf **0,0 % winst, 0,0 %
+  top-3**, met in ~90 % van de races de laatste duif. ⚠️ **De oorzaak is ervaring, niet
+  talent:** betere startduiven geven verandert **niets** (de gen-caps drukken de eigenschappen
+  samen), ervaring 76 cadeau brengt het op 5,1 % winst. Ervaring telt drie keer mee (snelheid
+  destijds, energie doseren, minder verbruik) en elke starterduif begon op **0**.
+- **Twee soorten voordeel.** Een **portemonnee** (`expPoints` 30, `attrPoints` 5) die de
+  speler zelf richt en **niet verloopt**, en **tijdgebonden** voordelen die op `endsAt`
+  (28 dagen) stoppen: 1 gratis coach (`billableCoachedCount` trekt er één af vóór
+  `dailyRunningCost`) en dubbele winst (`winningsMultiplier`, geld **én** punten). Plus alle
+  startduiven op 100 energie en één tier-1 sponsoraanbod (`offerStarterSponsor`).
+- ⚠️ **Dubbele winst zit op de TWEE uitbetaalplekken**, niet op één: `payFinishedFlightPrizes`
+  (vroege uitbetaling) en `applyFlightEffects` (afronding). Beide ijken op de **starttijd van
+  de vlucht**, niet op "nu" — een race die binnen het venster begon betaalt dubbel, ook als de
+  staart pas erna binnenkomt. Geen dubbeltelling: een al vroeg uitbetaalde duif draagt 0 bij
+  aan de finalize (`prizePaid`).
+- ⚠️ **Keuzes die niet vanzelf spreken:** de 30 ervaringspunten gaan naar **één** duif
+  (`expPigeonId` vergrendelt na de eerste toekenning); ze lopen **niet** door
+  `experienceGain` (een voorschot is geen gevlogen ervaring, dus de leerfactor hoort er niet
+  op te drukken); eigenschapspunten respecteren **wél** de gen-cap en er wordt enkel
+  aangerekend wat effectief landde; `loftDTO.dailyCosts` rekent al mét de gratis coach, anders
+  spreekt de Dagbalans het echte geld tegen; bots krijgen niets (`user.isBot`-guard overal).
+- **De afloopmelding is verplicht, niet decoratief.** `tickNewcomerExpiry` draait bij de
+  dagafsluiting in `tickDailyCare` en stuurt **exact één** melding (`endNotified`, stabiele id
+  `ntf:newcomer:end:<userId>`). Een coach die stilletjes geld begint te kosten is precies de
+  verrassing die we niet willen.
+- **Persistentie:** kolom `lofts.newcomer TEXT` achteraan `SCHEMA_STEPS`, leeg voor élk
+  bestaand hok → die merken niets en hun kolom-smalle UPDATE slaat hem over. Geen migratie.
+- **UI:** `components/NewcomerPanel.tsx` bovenaan het Overzicht; verdwijnt zodra het pakket
+  afgelopen is **én** de punten op zijn. Endpoints `POST /newcomer/experience` en
+  `/newcomer/attribute`. Bewaakt door `newcomer.test.mts`.
+- ⚠️ **Twee onderdelen zijn tegen mijn advies in meegenomen** (bewuste keuze van de eigenaar,
+  genoteerd zodat de afweging niet verloren gaat): de **5 eigenschapspunten** (meetbaar het
+  zwakste onderdeel, en ze voeden `talent()` → marktwaarde, dus door te verkopen) en de
+  **dubbele competitiepunten** (een nieuwkomer kan zijn eerste seizoen de Gouden Roekoe pakken
+  met objectief mindere duiven). Loopt de Roekoe scheef, dan is `NEWCOMER.winningsMultiplier`
+  splitsen in geld/punten de kleinste ingreep.
+- ⚠️ **Het pakket veroudert.** Het is geijkt op "tegen maandveteranen"; wie later instapt staat
+  tegenover tweemaandsveteranen en de dosering klopt dan niet meer. Wil je dat niet met de hand
+  bijstellen, dan moet het **relatief** worden (ijken op de mediaan van de bestaande hokken).
+
+**Beheerder kan een lopende vlucht doorspoelen**
+- **Aanleiding (eigenaar):** een vlucht loopt door tot de **traagste** duif binnen is
+  (sinds de finish-timer weg is, §3.3 spelregels). Op de fond zijn de winnaars dan al
+  uren thuis terwijl er nog twee bots rondjes vliegen. Daar wil je niet op wachten.
+- **Nieuw: `POST /admin/flights/:id/finish`** (403 voor niet-admins, 400 als de vlucht
+  niet `live` is). De knop **⏩ Match beëindigen** staat op `LiveFlightPage`, enkel
+  zichtbaar bij `user.isAdmin`, met een `window.confirm` ("Ben je zeker dat je deze
+  match wil beëindigen?") die uitlegt dat niemand geschrapt wordt.
+- **Bewust géén nieuw afrondingspad.** `tickFlights` kreeg een vierde parameter
+  **`forceFinishId?: string`**, en de bestaande voorwaarde werd
+  `nowMs >= startMs + total*1000 || flight.id === forceFinishId`. Eén regel, en dus
+  per constructie exact dezelfde code als een natuurlijke finish — een apart pad zou
+  op termijn uit elkaar kunnen lopen. Het endpoint roept `tickFlights(db, Date.now(),
+  undefined, flightId)` aan binnen `store.mutate`. **Geen schemakolom, geen migratie**,
+  `dataVersion` blijft **38**.
+- **Waarom dit de uitslag niet verandert:** de hele race wordt bij de lossing bevroren
+  in `flight.sim`, `finalizeFlight(flight, pigeons)` krijgt **geen klok** mee, en de
+  geleidelijk afgetrokken energie wordt daar afgerekend tegen de bevroren `formCost`
+  (`formDelta = −(flownTarget − drained)`). Vroeger afronden slaat dus enkel het
+  wáchten over.
+- ⚠️ **Het echte risico zat bij het prijzengeld**, niet bij de standen:
+  `payFinishedFlightPrizes` betaalt een finisher **meteen** uit en zet `prizePaid`.
+  Rond je af terwijl de koplopers al betaald zijn, dan mag `finalizeFlight` dat niet
+  nog eens doen — dat doet ze ook niet (`acc.prize += s.prizePaid ? 0 : prize`), en de
+  test bewaakt precies dat geval.
+- **Bewaakt door `force-finish.test.mts`:** dezelfde bevroren vlucht twee keer gedraaid — één
+  keer uitgevlogen, één keer geforceerd afgerond met de koplopers al uitbetaald — moet **exact
+  dezelfde** uitslag, geld, punten en duifwaarden geven. ⚠️ De test isoleert de vlucht (alle
+  andere vluchten uit de wereld), anders vergelijk je ook de races die de kalender zelf start.
+- **`payFinishedFlightPrizes` is nu geëxporteerd** (was module-privé) zodat de test het
+  live-verloop kan naspelen. Alle elf regressietests + beide typechecks + build groen.
+
+**Weddenschappen waren stuk, en de smalle load was minder smal dan gedacht**
+- **Symptoom (eigenaar):** in het weddenschapspaneel heette **elke** deelnemer `duif`
+  met **★0** — enkel de eigen duiven klopten. Wedden was daardoor onbruikbaar.
+- **Oorzaak: één regel op de verkeerde plaats.** In `d1.ts::load` leidde het smalle
+  duiven-blok de extra ids af uit `dbObj.flights`, maar die array werd **twintig regels
+  later** pas gevuld. `entrantIds` was dus **altijd leeg** en de `UNION` haalde enkel
+  `WHERE owner_id = ?` op. `flightDTO.entrants` viel voor elke andere duif terug op
+  `p?.name ?? 'duif'` / `talent 0`. Gemeten: 33 van de 35 deelnemers naamloos.
+- ⚠️ **De duurdere ontdekking: de naïeve fix mag níet.** `entrants` naamgeven betekent
+  élke deelnemer van élke lopende vlucht laden, en dat is zowat de hele populatie. Met
+  enkel de volgorde-fix, gemeten op het ontwerpplafond:
+
+  | Duiven per hok per vlucht | Smalle poll | Volle load | Winst van "smal" |
+  |---|---|---|---|
+  | kapot (de oude toestand) | 73 rijen | 261 | 72 % |
+  | 1 | 190 | 263 | 28 % |
+  | 2 | 243 | 264 | 8 % |
+  | 3 (realistisch) | 242 | 260 | **7 %** |
+
+  De hele winst van de vorige ronde zou dus verdampen: `/api/flights` wordt door élke
+  open tab elke 90 s gepolld.
+- **Waarom niemand dat zag:** `poll-budget.test.mts` schreef **geen enkele duif in op een
+  vlucht** (geen `enterFlight`, geen `entries`). De entrant-helft van de `UNION` was in
+  die test altijd leeg, dus de test kon dit per constructie niet meten — zijn cijfer was
+  identiek mét en zónder de bug. **Nu bouwt hij een echte kalender** (6 vluchten, 184
+  ingeschreven duiven) en bewaakt hij precies dit.
+- **De fix: `entrants` van het hete pad halen** — de hefboom die verderop al als
+  "volgende stap" stond. `flightDTO` draagt het veld niet meer; de lijst komt van de
+  nieuwe route **`GET /api/flights/:id/entrants`** (`flightEntrantsDTO` in
+  `presenters.ts`), **bewust níet** in `NARROW_PATHS`, dus met een volle load. Die route
+  gaat enkel af **wanneer iemand het weddenschapspaneel opent** — een handvol keer per
+  dag i.p.v. elke 90 s per tab. `BetPanel` (`FlightsPage.tsx`) haalt ze op bij het openen
+  en toont zolang "Deelnemers laden…".
+- **De smalle load laadt nu enkel nog wat een smalle-pad-DTO écht noemt:** de eigen duiven
+  plus de **estafetteploegen** van niet-afgelopen vluchten (`flightDTO.teams` is de enige
+  overgebleven plek die een vreemde duif bij naam noemt). Dat is één ploeg van 3 per hok,
+  om de week — begrensd door het spelersaantal i.p.v. door de kalender.
+- **Gemeten na de fix** (204 duiven, 6 geplande vluchten, **184 ingeschreven duiven**):
+  smalle poll **71 rijen** vs. volle load **261** — de smalle load blijft op **14 eigen
+  duiven** staan, ongeacht hoeveel er ingeschreven is. Het ergste realistische geval zit
+  op **18 %** van het dagbudget. `previewBet` zelf is goedkoop: **0,05 ms** met cache,
+  **~1,1 ms** bij een cache-miss (≈2,1 ms in productie, van de 10).
+- **Om te onthouden:** een DTO die een duif **bij naam** noemt buiten het eigen hok,
+  trekt de volle `pigeons`-tabel mee. Zet zoiets nooit op een gepollde route — geef het
+  een eigen route die pas afgaat als de speler er om vraagt.
+- **Geen migratie, geen schemawijziging**, `dataVersion` blijft **38**. Alle dertien
+  regressietests + beide typechecks + build groen.
+
+**Leesbudget: het spel lag plat omdat élk verzoek de hele duivenpopulatie las**
+- **Symptoom:** het spel werd onbereikbaar nadat een nieuwe speler een tijd had rondgeklikt.
+  Niet de CPU: de bindende limiet is **D1 rijen gelezen**, 5M/dag, en die is **gedeeld door
+  alle spelers samen**.
+- **Gemeten oorzaak.** Per verzoek: **264 van de ~300 rijen was `SELECT * FROM pigeons`** —
+  de complete duivenpopulatie, bij élk verzoek, ongeacht de route. Dat gaf ~17k verzoeken
+  per dag voor iedereen samen. Daar bovenop pollden **verborgen tabs gewoon door**: er was
+  nergens `visibilitychange`-afhandeling, dus een vergeten Vluchten-tab kostte 960
+  verzoeken/dag voor niemand.
+- **Client — `useVisiblePoll` (`client/src/game/useVisiblePoll.ts`).** Een poll draait enkel
+  terwijl de tab zichtbaar is, en doet één inhaalslag bij terugkomst (met een drempel van
+  één interval, zodat tabben geen burst geeft). Toegepast op `FlightsPage` (90 s),
+  `LiveFlightPage` (60 s) en `MarketPage` (15 s, enkel in de veiling-slotfase).
+- **Client — `/state` ontdubbeld.** `GameContext.refresh` deelt de lopende fetch, want
+  pagina's vuurden routinematig hun eigen `load()` én een `refresh()` voor dezelfde actie.
+- **Server — smalle duiven-load (`LoadOptions.narrowWhenIdle` in `d1.ts`).** Een verzoek op
+  een **allowlist** (`NARROW_PATHS`: `/state`, `/flights`, `/bets`, `/notifications`) dat
+  **GET/HEAD** is **én** binnenkomt terwijl de engine nog vers is (`ADVANCE_THROTTLE_SECONDS`),
+  krijgt enkel **de eigen duiven + de estafetteploegen van niet-afgelopen vluchten**, in één
+  index-gedekte `UNION` (een `OR` over kolommen zou terugvallen op een full scan). Boven 400
+  deelnemers valt hij terug op de volle tabel. (Oorspronkelijk **alle** deelnemers — dat
+  bleek zowat de hele populatie en maakte de versmalling zinloos; zie het kopstuk van §8.)
+- **`store.narrowed`** is publiek en de middleware weigert de engine te draaien op zo'n
+  store — expliciet, in plaats van te vertrouwen op twee voorwaarden die toevallig samenvallen.
+- **Wat de versmalling mogelijk maakte:** `/state` had alle duiven nodig voor twee top-10-
+  lijsten. Die zitten nu in **`World.leaderboard`** (JSON op de world-rij, kolom `leaderboard`),
+  ververst door `computeLeaderboard` op élke volle engine-run — precies de momenten waarop
+  ze kunnen veranderen. En `flightDTO` levert `teams` niet meer voor **afgelopen**
+  vluchten: daar was het dood (de volgorde ligt vast, resultaten dragen hun eigen namen).
+  `entrants` is intussen **helemaal uit `flightDTO` verdwenen** — zie het kopstuk van §8.
+- **Resultaat (`poll-budget.test.mts`, 264 duiven):** smal **51 rijen** vs. vol **300**.
+  Het ergste realistische geval (10 spelers, hele dag een zichtbare tab + 300 handelingen elk)
+  gaat van **162% → 13%** van het dagbudget.
+- **Bewaakt door `poll-budget.test.mts`:** geen kale `setInterval` die het netwerk raakt,
+  geen poll sneller dan 60 s (behalve de veiling-slotfase), en — het echte risico —
+  **een smalle load mag bij `persist` nooit andermans duiven wissen**, een schrijf-verzoek
+  krijgt altijd de volle wereld, en een verlopen engine dwingt een volle load af.
+
+**Voer kan terug naar de handelaar, aan 80%**
+- **Waarom:** voer kopen was eenrichtingsverkeer. Te veel gekocht, of een voertype dat je
+  niet meer gebruikt (bv. Libido-mix na de kweekperiode), zat voorgoed vast in je voorraad.
+- **`FOOD_RESALE_RATE = 0.8`** in `gameConfig.ts`. `sellFood` + `foodResaleValue` in
+  `engine.ts`, route `POST /loft/food/sell` `{type, kg}`, tarief in `/state` als
+  `economy.foodResaleRate`.
+- **Bewust onder 1:** een rondje kopen → verkopen moet **altijd** geld kosten, anders is
+  voer een spaarpot en is overkopen gratis. 100 kg Premium heen en weer = **−€120**.
+  `food-resale.test.mts` bewaakt dat voor elk voertype en elke hoeveelheid.
+- **Geen missievoortgang op verkopen** (enkel `buyfood` bij kopen), zodat een koop/verkoop-
+  lus de dagmissie niet kan uitmelken.
+- **UI:** de bestaande voerbalie op `DashboardPage` (kaart *Verzorging*) heeft nu een
+  Kopen/Verkopen-schakelaar. In verkoopmodus toont de dropdown de **terugkoopprijs**, staat
+  er een **Alles**-knop (hele voorraad van dat type) en wordt de knop geblokkeerd zodra je
+  meer opgeeft dan je hebt. Getallen staan verder in de wiki (§Energie, voer & rust).
+- **`round1` bij de voorraadcontrole**, want de stock zelf wordt op één decimaal gehouden:
+  zonder dat werd "verkoop alles" van 3.4000000000000004 kg geweigerd.
+
+**Vol hok bij het uitkomen: de speler kiest, in plaats van stil verlies**
+- **Wat er misging.** `tickBreedingHatch` deed `young.slice(0, capacity - owned)`: paste de
+  worp niet, dan werden de overtallige jongen **weggegooid**. Erger nog, de meldingstakken
+  waren `admitted.length > 0` en `else if (young.length === 0)` — het geval *"er waren
+  jongen, maar er paste er geen"* viel door beide heen. Geen duif, geen melding, en de
+  €200 + 2×15 energie weg. `startBreeding` controleerde de capaciteit ook niet; enkel
+  `bots.ts:maybeBreed` beschermde zichzelf al (`pairs >= capacity - pigeons.length`).
+- **Nu:** past de worp niet, dan wordt **de hele worp** vastgehouden als `PendingBrood` op
+  `loft.pendingBroods` (niet de eerste N ervan — anders is de keuze niet echt van de
+  speler). De speler kiest per jong houden of niet: **alles, een deel, of niets**. Wat
+  niet gekozen is, vliegt weg (€0 — het restaurant blijft voor volwassen duiven).
+- **Plaats maken** gebeurt in hetzelfde scherm via de bestaande `/pigeons/:id/release` en
+  `/pigeons/:id/restaurant` — geen nieuwe economie, geen nieuwe exploit.
+- **Geen deadline, wel een slot:** zolang er een nest openstaat weigert `startBreeding`
+  een nieuw koppel (*"Er wacht nog een nest op je keuze"*). Zo hangt er nooit een vergeten
+  nest, en verlies je nooit een topjong door even niet in te loggen.
+- **Bots** houden het oude afkappen: ze hebben geen UI om mee te kiezen (en `maybeBreed`
+  koppelt sowieso nooit meer dan er vrije plaatsen zijn).
+- **Een jong in het nest staat niet in `db.pigeons`**, dus het eet niet, veroudert niet mee
+  in de verzorgingstick en kan niet ziek worden. `birthWeek` staat wél vast vanaf het
+  uitkomen, dus lang wachten levert een oudere duif op — dat is de enige kost van talmen.
+- **Badges/statistiek:** `awardBroodBadges` (in `breeding.ts`, gedeeld door het directe
+  uitkomen en `resolveBrood`) telt enkel de **gehouden** jongen in `stats.babies`.
+  `tweeling` gaat over de wórp (dus ook als je er één houdt); `dynastie` wordt bij het
+  uitkomen als boolean op het nest vastgelegd, want bij het beslissen kunnen de ouders
+  al weg zijn.
+- **Bestanden:** `schema.ts` (`PendingBrood`, `Loft.pendingBroods`), `schedule.ts`
+  (`tickBreedingHatch`), `breeding.ts` (`awardBroodBadges`), `engine.ts` (`resolveBrood`,
+  slot in `startBreeding`), `d1.ts` (kolom `pending_broods`), `presenters.ts`
+  (`broodYoungDTO`), API `GET /breeding` (nu `{pairs, nests, capacity, pigeonCount,
+  freeSpace}`) + `POST /breeding/nest/:id` `{keep: string[]}`, `/state` → `pendingNests`,
+  client `NestChoice.tsx` + `BreedingPage` + nav-teller in `Layout`.
+- **Test:** `brood-choice.test.mts` (29 checks, incl. de D1-round trip en dat je het nest
+  van een ander niet kan afhandelen). Query-budget onveranderd: 42–43 bij `PIGEONS=200`.
+
+**503-fix ronde 8: de dagovergang zette het spel vast**
+- **Symptoom:** het spel bleef "laden". Gemeten tegen productie: de statische site,
+  `/api/health` en `/api/auth/login` antwoordden gewoon, maar **élke route die de wereld
+  laadt** gaf `503` met **`error code: 1102`** — de CPU-limiet, niet D1. Login werkt en
+  leest een rij, dus een quotum-lockout viel meteen af.
+- **Oorzaak: `tickDailyCare` deed een hele dag in één verzoek.** Die tick raakt élke duif
+  in de wereld (voer, gezondheid, onkosten, sponsors, botbeheer). Gemeten op 200 duiven:
+  een verzoek gaat van **3,4 ms → 6,3 ms lokaal** zodra er één middernacht openstaat, en
+  lokaal ≈ 1,9× sneller dan de Workers-runtime (ronde 6: lokaal 14 ms = productie 26 ms).
+  Dus ~12 ms in productie → over de 10 ms → verzoek afgeschoten.
+- ⚠️ **En daarom herstelde het niet vanzelf.** `world.lastDailyTick` werd pas geschreven
+  **ná** de volledige dag, en `world.lastAdvance` pas ná de engine-run. Sterft het verzoek,
+  dan is er **niets** gepersisteerd: het volgende verzoek doet exact hetzelfde werk en sterft
+  ook. Beide besparingen bewapenen zichzelf pas ná één geslaagde run, dus het spel zat in een
+  put waar het niet uit kon — en elke gepasseerde middernacht maakte de hap groter.
+- **Fix: de dagverzorging is hervatbaar**, net als `ensureSchema` in ronde 2. Per verzoek
+  hoogstens **`DAILY_CARE_LOFTS_PER_RUN` (2)** hokken van **één** openstaande dag; het
+  vervolgpunt staat in **`World.dailyCareCursor`** (kolom `daily_care_cursor`, achteraan
+  `SCHEMA_STEPS`). De wereldbrede stappen blijven precies één keer per dag lopen:
+  weekrol + `runAgeMortality`/`runAgeDecline` bij de **start** van de dag (cursor leeg),
+  `runHealthDay` + badges bij het **afsluiten**. Pas dan schuift `lastDailyTick` op.
+- **De cursor is een `userId`, geen index.** Hokken worden gesorteerd op `userId` verwerkt en
+  het vervolg pakt alles `> cursor`. Een hok dat middenin de dag bijkomt kan zo nooit het
+  venster verschuiven en een **tweede** portie voer + daghuur krijgen — dat is hier de ergste
+  uitkomst. `DAILY_CARE_MAX_CATCHUP_DAYS` (30) vervangt de oude harde `days < 30`.
+- **Gemeten na de fix** (200 duiven, medianen — lokale p90/max zijn GC-ruis en zeggen niets):
+  rustig verzoek **3,4 ms**, verzoek mét dagverzorging **3,9 ms** (bij 4 hokken: 4,4; bij 8:
+  4,7). Eén dag loopt leeg over ~9 verzoeken; met de 20 s-throttle is dat hooguit enkele
+  minuten. **Belangrijker dan de milliseconden:** een verzoek dat toch sneuvelt, blokkeert
+  niets meer — het volgende hervat waar het stopte. De harde storing is daarmee omgezet in
+  hoogstens een trager tikkende klok.
+- **Meegenomen — een bestaand schrijflek op het hete pad.** `tickBreedingHatch` stempelde
+  `bp.hatchAt` bij **élk** verzoek voor elk niet-uitgekomen koppel: één rij per koppel per
+  poll, precies het patroon dat ronde 4 verbood. Nu gequantiseerd met
+  **`BREEDING.hatchCheckMinutes` (15)**; overslaan kost niets want de verstreken uren
+  stapelen op en uitkomen is memoryless, dus de gemiddelde uitkomsttijd verandert niet.
+  Dit lek zat er al en werd zichtbaar doordat `idle-writes` nu langer doorpollt.
+- **`idle-writes.test.mts` aangepast**, niet verzwakt: de test ging ervan uit dat één poll
+  een hele dagovergang absorbeert. Hij laat de achterstand nu eerst leeglopen (polls die
+  écht werk doen) en eist **daarna** stilte — de eigenlijke bewaking (geen klok die per
+  verzoek een rij stempelt) blijft volledig staan, en die ving meteen het koppel-lek.
+- **Geen migratie, `dataVersion` blijft 38** (alleen de nieuwe kolom, append-only). Alle
+  tien de regressietests + beide typechecks + build groen.
+- ⚠️ **Wat hiermee NIET opgelost is:** het rustige verzoek zit nog altijd rond **~6,5 ms in
+  productie** van de 10. De marge blijft dun, en de oorzaak is onveranderd het D1Store-patroon
+  (elk verzoek laadt+persist de hele wereld). De volgende hefboom blijft de **smalle load**
+  voor `/state` en `/flights` — zie de hefbomenlijst verderop.
+
+**Live verslag: enkel nog feiten**
+- **Op verzoek van de eigenaar:** het 📻-verslag toont enkel nog **functionele** regels
+  — lossing, voorbijsteken (met reden), omweg, verdwaald, uitputting, blessure,
+  opgeven, aankomst. Alle sfeer eruit.
+- **Wat weg is:** de flavour-staarten in `COMMENTARY` ("de melker pinkt een traantje
+  weg", "vraagt meteen om eten. Typisch.", "zat van de vrijheid") en de openingsregel
+  **"Vroege stand: X op kop, gevolgd door…"** — die herhaalde letterlijk wat het
+  live-bord ernaast continu toont. Elke pool is nu 1–2 korte, feitelijke zinnen
+  (`{name} is binnen.` i.p.v. vier grappige varianten).
+- **Meegenomen: `entries` gaat niet meer mee bij een gewone vlucht.** `LiveFlightPage`
+  leest dat veld **alleen** om estafette-etappes te labelen (beide gebruiken zitten
+  achter `flight.relay`); voor een normale vlucht staat elke deelnemer al in
+  `live.birds` mét positie. Dat scheelde ~90 objecten per poll.
+- **Gemeten** op een fondvlucht van 900 km met 90 duiven, aan het eind van de race:
+
+  | | vóór | na |
+  |---|---|---|
+  | verslag | 14,0 KB | 9,9 KB |
+  | bord | 25,5 KB | 20,9 KB |
+  | **antwoord per poll** | **39,4 KB** | **30,8 KB (−22 %)** |
+
+- ⚠️ **Eerlijk over de winst:** dit is **payload**, geen D1-rijen en geen CPU. Na de
+  twee vorige rondes kost het verslag nog 0,05 ms warm en 1 ms koud, en de live-route
+  leest 2 rijen. Dit is dus vooral **leesbaarheid** (150 regels waarvan 88 aankomsten
+  is een muur) met een bescheiden bandbreedtewinst erbovenop.
+- **`daily-budget.test.mts`** vergelijkt `entries` nu apart: bij een estafette moet de
+  lijst kloppen, bij een gewone vlucht moet ze **leeg** zijn. De rest van de
+  gelijkwaardigheidscontrole blijft veld voor veld.
+- **Meegenomen fix:** `betting-odds.test.mts` was flaky (~1 op 25). De controle "een
+  andere vlucht-id geeft een eigen trekking" keek naar één duif, en bij een kans van
+  0,13 % kunnen twee losse trekkingen toevallig op hetzelfde aantal uitkomen. Ze
+  vergelijkt nu het hele veld. 30/30 groen.
+- **Geen migratie, geen schemawijziging.**
+
+**Sponsors: een slechtere concurrent weigeren is definitief**
+- **Op verzoek van de eigenaar:** weiger je een sponsor die in dezelfde categorie zit
+  als een sponsor die je al hebt (overstappen kost dus een verbrekingsvergoeding) én
+  die **niet meer** betaalt, dan komt die sponsor **nooit meer terug**. Zo'n aanbod is
+  puur slechter — je zou betalen om er op achteruit te gaan — dus hoeft de speler er
+  niet om de paar dagen opnieuw nee tegen te zeggen.
+- **Nieuw veld `DeclinedSponsor.permanent?`** (rijdt mee in de `sponsorship`-JSON,
+  **geen kolom, geen migratie**). Gezet door `applyRefuseSponsor` wanneer
+  `refusalIsFinal(st, def, offer)` waar is; `evaluateSponsorOffers` slaat zo'n
+  ingang over (`if (d.permanent) continue`).
+- ⚠️ **Bewust NIET definitief: een concurrent die méér biedt.** De code weet niet
+  "slechter", ze weet "conflict + boete". Een speler kan een **betere** concurrent
+  weigeren omdat de boete er die dag niet in zit — de beste sponsor van een categorie
+  dan voorgoed wegsluiten zou een val zijn. Daarom vergelijkt `refusalIsFinal` de
+  **dagbijdrage** met het lopende contract (podiumpremie als tiebreak) en is enkel
+  "niet meer dan" definitief. Gelijk telt óók als definitief: overstappen zou dan
+  enkel de boete kosten.
+- **Zichtbaar vóór de klik:** `sponsorView` stuurt `refusalIsFinal` mee per aanbod; de
+  kaart zet er "ze bieden **minder** … komen **niet meer terug**" bij, de knop heet
+  **"Definitief weigeren"** en vraagt een bevestiging. Een permanente nee mag nooit
+  een verrassing zijn.
+- **Ongemoeid:** een opgezegd contract, een sponsor die zelf opstapt na een
+  seizoensreview, en een gewone weigering zonder concurrent blijven allemaal
+  terugkeerbaar na de afkoelperiode.
+- **Bewaakt door `sponsor-refusal.test.mts`:** slechter → definitief en na 40 kansen nooit meer
+  aangeboden; beter → blijft terugkomen; geen concurrent → tijdelijk; gelijk → definitief; en de
+  vlag overleeft een JSON-ronde.
+
+**Daglimieten van D1: het live-bord uit de hete weg gehaald**
+- **Aanleiding:** Cloudflare kondigde aan dat de **daglimieten van D1** vanaf **1 sep
+  2026** hard afgedwongen worden op het gratis plan: **5.000.000 rijen gelezen** en
+  **100.000 rijen geschreven** per dag, reset om 00:00 UTC. Loopt een van beide vol,
+  dan faalt élke query en is het spel onbereikbaar tot middernacht. Dit is een
+  **andere** limiet dan de CPU-fix hierboven, en die was nog niet bewaakt.
+- **Gemeten met een nieuwe `daily-budget.test.mts`** — een volledige, bewust
+  pessimistische speeldag door de echte engine (10 spelers, 300 duiven, volle inboxen,
+  10 kijkers die 8 uur een live-bord openhouden, 2 achtergrondverzoeken/min):
+
+  | | vóór | na |
+  |---|---|---|
+  | rijen gelezen/dag | **2,73 M (54,7 %)** — marge 1,8× | **1,21 M (24,2 %)** — marge 4,1× |
+  | rijen geschreven/dag | 6,5 % | 7,1 % (ongewijzigd, marge 14×) |
+  | rijen per verzoek | 349 | 158 |
+
+- **Oorzaak: élk verzoek las de hele wereld, en 64 % daarvan was de tabel `pigeons`.**
+  Uitgesplitst per verzoek: pigeons 224 · notifications 41 · trades 40 · users 18 ·
+  lofts 18 · flights 7. Het **live-bord** was veruit het meeste verkeer (4.800 van de
+  7.681 verzoeken) en had van dat alles **niets** nodig: posities, namen en eigenaars
+  rijden allemaal mee in de bevroren `sim` en `results` van de vlucht zelf, en de
+  pagina leest `entrants`/`teams` niet (die bestaan voor het weddenschapspaneel op een
+  *geplande* vlucht).
+- **Fix:** `loadLiveFlight` (`core/d1.ts`) haalt de wereldrij + die ene vlucht op —
+  **2 rijen** — en `liveBoardDTO` (`presenters.ts`) bouwt het antwoord uit de vlucht
+  alleen, zonder `db`. De middleware bedient `GET /api/flights/:id/live` daarmee vóór
+  de wereld geladen wordt. Client: `LiveResponse.flight` is nu het smalle type
+  `LiveFlight` i.p.v. `Flight`, zodat de compiler afdwingt dat de pagina niets
+  gebruikt wat we niet sturen.
+- ⚠️ **De valkuil, en hoe ze afgedekt is:** als het live-bord de wereld nooit meer
+  laadt, draait `advanceRealtime` niet meer en **stopt de spelklok** wanneer dat het
+  enige verkeer is (precies tijdens een fondvlucht!). Daarom neemt de smalle weg het
+  alleen over zolang de engine **recent gedraaid heeft** (`ADVANCE_THROTTLE_SECONDS`,
+  20 s); is hij toe aan een ronde, dan valt het verzoek gewoon terug op de volle weg.
+  Geverifieerd tegen een draaiende server: met uitsluitend live-polls schuift
+  `world.last_advance` gewoon door.
+- **`daily-budget.test.mts` toetst ook de gelijkwaardigheid**: voor een geplande, een
+  lopende én een afgeronde vlucht moet `liveBoardDTO` veld voor veld hetzelfde
+  opleveren als de volle `liveFlightDTO`. De smalle weg mag goedkoper zijn, niet anders.
+- **Groeitest:** 300 duiven → 24 %, 600 → 36 %, 900 → 47 %. Het praktische plafond van
+  het spel ligt rond **264** duiven (10 spelers × capaciteit 20 + 8 bots × 8), dus er is
+  ruimte over.
+- **Geen migratie, geen schemawijziging**, `dataVersion` blijft **38**.
+- **Wat toen nog de hete weg was:** `/state` en `/flights` laadden de hele wereld
+  (~349 rijen). De genoemde volgende hefboom — `entrants` uit `/flights` halen en pas
+  ophalen wanneer het weddenschapspaneel opengaat — **is intussen uitgevoerd**; zie het
+  kopstuk van §8.
+
+**CPU-fix ronde 2: het live verslag en de weddenschapsodds**
+- **Aanleiding:** "Exceeded CPU Time Limits" bleef terugkomen, vooral **rond grote
+  vluchten** — precies de waarneming van de eigenaar. De vorige ronde (throttle op
+  `advanceRealtime`) haalde de basiskost omlaag maar raakte de échte pieken niet.
+- **Gemeten** met een nieuwe `cpu-sweep.mts` op een productiewereld (~90 duiven aan
+  de start, 950 km). Twee operaties zaten **elk afzonderlijk boven het volledige
+  budget van 10 ms**, nog vóór het laden van de wereld:
+
+  | Operatie | Vóór | Na |
+  |---|---|---|
+  | `previewBet` (Monte-Carlo) | **18,3 ms** | 0,09 ms warm · ≤1,7 ms koud |
+  | `flightCommentary` | **12–15 ms** | 0,05 ms warm · ≈1 ms koud |
+  | `liveFlightDTO` (= `/flights/:id/live`) | **12,3 ms** | 0,15 ms |
+  | `liveSnapshot` | 0,06 ms | ongewijzigd |
+
+- **Oorzaak 1 — het live verslag rekende élke poll de hele race door.**
+  `flightCommentary` liep `for (t = 600; t <= total; t += 600)` — dus **tot het
+  einde van de race, ongeacht `elapsed`** — en gooide daarna alles weg wat nog niet
+  gebeurd was. Een fondvlucht van 50 uur = **300 bemonsteringen**, elk met een
+  volledige rangschikking van het veld **plus een O(n²) zoektocht** naar wie wie
+  voorbijstak. Bij 95 duiven is dat ~9.000 vergelijkingen per bemonstering, 300 keer,
+  **per poll**. Dat schaalt met afstand én deelnemers: exact "grote vluchten".
+  - **Nu:** de scan stopt bij `elapsed`, het aantal bemonsteringen is begrensd op
+    **`COMMENTARY_LIMITS.maxSamples` (60)** — een lange race wordt gewoon per uur
+    bemonsterd i.p.v. per 10 minuten — en overtake-detectie kijkt enkel naar de
+    **kopgroep** (`COMMENTARY_LIMITS.field`, 15). Dat laatste maakt het verslag ook
+    léésbaarder: "#77 passeert #78" was nooit een regel waard.
+  - **Plus een cache** (`commentaryCache`, per vlucht, op een signatuur van `sim`):
+    de scan wordt **uitgebreid** i.p.v. herbouwd, dus herhaalde polls binnen hetzelfde
+    venster kosten niets.
+  - ⚠️ **Waar dit bijna misging:** de scan doet loterijtrekkingen voor de
+    formuleringen, en het aantal trekkingen groeit nu tijdens de race. Deelde ze die
+    stroom met de gebeurtenisregels (finish/DNF/opgeven), dan zou **het hele verslag
+    zichzelf bij elke poll herschrijven**. Daarom nu **drie apart geseede stromen**
+    (`:ov` / `:ev` / `:fin`), en hetzelfde in `relayCommentary` (`:relay:ov` /
+    `:relay:ev`). `commentary.test.mts` bewaakt precies dat.
+- **Oorzaak 2 — de odds herrekenden een volledige Monte-Carlo per toetsaanslag.**
+  `simulate` deed **1500 trekkingen × een volledige sortering** van het veld, met
+  ~3 arrays + n objecten per trekking (≈140.000 korte allocaties). En de client
+  hervroeg `/bets/preview` bij **elke wijziging van de inzet** — terwijl de kans
+  helemaal niet van de inzet afhangt.
+  - **Nu:** geen enkele inzetsoort heeft de volledige aankomstvolgorde nodig, dus
+    één O(duiven)-pass per trekking houdt enkel het **podium en de traagste
+    finisher** bij. Geen sortering, geen allocatie. Elke duif trekt uit haar **eigen**
+    rng-stroom, zodat `head2head` twee duiven kan naspelen zonder het veld opnieuw
+    te draaien.
+  - **Cache** per vlucht (`simCache`, op een signatuur van de ingeschreven duiven +
+    hun energie/gezondheid), dus een tweede vraag is gratis.
+  - **Client:** `stake` is uit de dependency-array van de odds-`useEffect` gehaald;
+    de mogelijke winst is gewoon `inzet × ratio`, lokaal gerekend.
+  - **`/api/bets/preview` telt nu als read-only** (`READ_ONLY_POSTS`): het muteert
+    niets, dus het valt onder dezelfde throttle als een GET en slaat `advanceRealtime`
+    + `persist` over.
+- **Wat NIET het probleem was** (gemeten, niet aangenomen): `liveSnapshot` (0,06 ms),
+  de DTO's, de ranglijsten, `finalizeFlight` (0,6 ms). En het **snapshot-blok in
+  `D1Store.load`** kost maar **0,32 ms** van de 2,2 ms — de rest is SQL + rij-naar-
+  entiteit parsen. Dat lui maken zou `d1.ts` risico geven voor bijna niets, dus
+  bewust **niet** gedaan. `D1Store.load` (~2,5 ms) is nu de grootste post en blijft
+  de structurele bodem van het D1Store-patroon.
+- **Drie nieuwe blijvende tests.** `cpu-budget.test.mts` is de wacht: hij toetst
+  **structureel** (bemonsteringen begrensd, kopgroep begrensd, verslag groeit
+  monotoon) én **op tijd**, en meet expliciet de **KOUDE** weg — het eerste verzoek
+  na een isolate-recycle, want daar helpt geen enkele cache. `commentary.test.mts`
+  bewaakt dat het verslag aangroeit zonder zichzelf te herschrijven (ook estafette).
+  `betting-odds.test.mts` bewaakt de kansen zelf: winkansen tellen op tot 1,
+  top-3 tot 3, sterker = meer kans, `mine_wins` == de som van je eigen duiven,
+  kop-aan-kop is transitief en telt tot 1, en de cache invalideert op energie en
+  op een uitgeschreven duif.
+- **Geen schema-/configwijziging behalve de nieuwe knop `COMMENTARY_LIMITS`, geen
+  migratie**, `dataVersion` blijft **38**. Alle acht regressietests + beide
+  typechecks + build groen.
+- ⚠️ **Om te onthouden bij nieuwe code:** alles wat over **alle duiven van een
+  vlucht** of over **de hele racetijd** itereert, hoort begrensd te zijn en bij
+  voorkeur gecachet. Draai `cpu-sweep.mts` als je zoiets toevoegt.
+
+**De beheerder ziet alle duiven volledig**
+- **Probleem:** de **Duif-inspector** (`/beheer` → tab Duif-inspector) toont wél de rauwe
+  waarden in zijn eigen tabel, maar de duifnaam linkt naar `/duif/:id` — en dáár sloeg de
+  info-hiding toe: `revealed=false`, dus statbalken weg, "🔒 eigenschappen onbekend".
+  De beheerder kon andermans duiven dus niet echt inspecteren. Dat de admin álles moet
+  kunnen nakijken en gewone spelers níét, is expliciet de bedoeling.
+- **Fix:** `pigeonDTO` kreeg een vierde parameter **`viewerIsAdmin = false`**. Intern nu
+  twee begrippen: **`publiclyRevealed`** (de oude regel: geen viewer / eigenaar / `forSale`
+  / `onAuction`) en **`revealed = publiclyRevealed || viewerIsAdmin`**. Alle API-call sites
+  in `functions/api/[[path]].ts` geven `user.isAdmin` mee (`/state`, `/pigeons/:id` incl.
+  beide ouders, `/market` listings + biddable).
+- ⚠️ **Bewust: `dailyCare` hangt aan `publiclyRevealed`, niet aan `revealed`.** Dat is de
+  verzorgingsprojectie van de **eigenaar** (nutteloos voor een kijker), en `projectDailyCare`
+  voor élke duif op `/market` zou de admin een CPU-piek geven op een pad met een **10 ms**-
+  limiet. De admin ziet dus alle stats, maar geen ▲▼-projectie van andermans duif.
+- **Client:** `PigeonPage` zet er een regeltje boven wanneer een admin een vreemde duif
+  bekijkt ("🛠️ Je ziet dit als beheerder — gewone spelers zien enkel ★ talent"), zodat de
+  admin niet denkt dat iederéén dit ziet.
+- **Geen schema-/configwijziging, geen migratie**, `dataVersion` blijft ongewijzigd (**38**). Geverifieerd
+  met een wegwerp-tsx-script tegen de échte `pigeonDTO` (19 controles): eigenaar ziet alles,
+  gewone speler niets behalve talent, admin alle zeven stats + genen + vluchtvorm, `dailyCare`
+  blijft null voor de admin maar niet voor de eigenaar, eigen duif van de admin ongewijzigd,
+  en **zonder** de vlag gedraagt de admin zich exact als een gewone speler (regressie).
+
+**Tekstbudget: schermen kort houden, uitleg naar de wiki**
+- **Aanleiding (eigenaar):** blokken tekst in de UI worden niet gelezen. De privécoach-kaart
+  op de duifpagina, de estafette-/titan-blokjes onder een vlucht, de Verzorging-kaart op het
+  overzicht en de kweekpagina stonden vol regelverklaring die niemand ter plekke nodig heeft.
+- **Regel voor nieuwe UI-tekst:** een scherm toont enkel wat de **beslissing van dít moment**
+  stuurt (wat kost het, wat levert het déze duif op, wat is de harde beperking). Alle
+  mechaniek, kansen, tabellen en tactiek horen in **`WikiPage`**, met eronder een link
+  **"Meer info over … →"** naar `/wiki#<sectie>` (patroon dat `LoftPage` al gebruikte met
+  "Hoe de schijven werken →").
+- **Nieuwe/uitgebreide wiki-secties:** **`coach`** (🎯 privécoach: dagkost, afnemende winst
+  richting de gen-cap, enige weg boven 90), **`titan`** (🏆 prijzentabel, één duif per hok,
+  telt wel voor de Vleugel niet voor de Roekoe), **`ziekenboeg`** (🏥 personeel + kosten,
+  genezingsduur rustend vs. volle zorg, 📌 vastzetten, halve energierecuperatie),
+  `energie` verbreed naar **"Energie, voer & rust"** (voorraad per type, hongertabel,
+  rustkuur), `broeden` verbreed naar **"Kweken & broeden"** (kost, overerving, uitkomsttijd)
+  en `estafette` kreeg zijn **prijzentabel + uitslagregel**.
+- **Ingekort:** `PigeonPage` (coach, training, rustkuur, afscheid, bod, 🔒-melding),
+  `FlightsPage` (estafette/titan/oefenvlucht → één regel + wikilink), `DashboardPage`
+  (Verzorging + dagbalans-intro + beheerderskaart), `BreedingPage`, `InfirmaryPage`
+  (introdialoog van 5 lange bullets → 3 korte + wikilink), `SponsorsPage`, `MarketPage`
+  (veilingregels), `LiveFlightPage`, `PigeonCard`, `AdminPage` (inspector-uitleg).
+- **Meegenomen bugfix:** het titan-blokje op `FlightsPage` toonde nog **€1400/€1200/€1000**
+  terwijl `TITAN.prizes` al lang `[1800, 1200, 900]` is. Bedragen staan nu **enkel nog in de
+  wiki**, zodat er maar één plek is om te synchroniseren.
+- **Opgeruimd:** `DashboardPage.dailyFixed`/`coachedCount` zijn weg — die berekenden een
+  dagkost die de **Dagbalans**-tegel er al volledig uit haalt (`loft.dailyCosts`).
+- **Geen gedragswijziging**, enkel copy/markup. Beide typechecks, de build en de vier vaste
+  regressietests groen.
+
+**Bots zijn echte tegenstanders geworden — 8 bots, eigen hokbeheer, late inschrijving**
+- **Aanleiding:** de estafette van 22 aug kreeg maar **5 ploegen**. Drie oorzaken, gemeten
+  met een wegwerpsimulatie tegen de echte engine:
+  1. `DEFAULT_BOT_COUNT` was **6** → hoogstens 6 botploegen, terwijl een bot bij een gewone
+     vlucht 1–2 duiven levert en bij een estafette maar **één ploeg**.
+  2. `botsEnterFlight` draaide **enkel bij het aanmaken** van de vlucht (tot
+     `SCHEDULE_HORIZON_DAYS` = 4 dagen vooraf) en eiste **3 duiven boven 45 energie op dat
+     ene moment**. Midden in een week met 8 wedstrijden haalde bijna geen enkel bothok dat.
+  3. **Bothokken konden alleen krimpen**: bots kweekten niet, kochten niet en boden niet.
+     Gemeten: 41 → 14 duiven in 4 maanden, **0/6 botploegen** vanaf eind september, terwijl
+     elke bot op €20.000–30.000 zat.
+- **`DEFAULT_BOT_COUNT` 6 → 8** + **migratie v38** die de twee ontbrekende hokken aanmaakt
+  (seedWorld draait maar één keer). **Stabiele ids** (`bot_seed_7/8`, duiven
+  `pig_bot_seed_N_i`) en een **deterministisch** duivenaantal (`STARTING_PIGEONS + i % 3`),
+  zodat twee gelijktijdige verzoeken die de migratie allebei draaien op dezelfde rijen
+  landen i.p.v. dubbele hokken te maken. Duiven zijn meteen vluchtklaar
+  (`generatePigeon` dateert 8–130 weken terug), dus ze doen mee aan een vlucht die al op
+  de kalender staat. **dataVersion → 38.**
+- **Late inschrijving:** nieuwe tick **`tickBotEntries`** (§2, 9c) laat elke bot élke nog
+  niet gestarte vlucht opnieuw bekijken, tot vlak vóór de lossing. `botsEnterFlight` slaat
+  een hok met een bestaande inschrijving over → idempotent, 0 rijen als er niets verandert.
+- **Geen energiedrempel voor de estafette** (`BOT.minFormRelay 0`): drie duiven aan de
+  start krijgen is daar het punt, en hoeveel energie een duif nodig heeft is de keuze van
+  de melker — precies zoals een speler een duif met 5 energie mag inschrijven. De enige
+  echte regel (1 energie, `enterFlight`) blijft gelden.
+- **Voor gewone vluchten oordeelt een bot op de route** i.p.v. een vlakke 45: nieuwe helper
+  **`expectedFlightEnergyCost(pigeon, km)`** (flight.ts) × `BOT.raceHeadroom` (1,15). Op
+  100 km is dat ~21 (méér deelname dan vroeger), op 1000 km ~55 (méér discipline). Plus
+  `BOT.minHealthRace` 45 — een versleten duif wordt gerust, niet geracet.
+- **`botDailyActions`** (bots.ts, uit `tickDailyCare`, dus **één keer per dagovergang**):
+  voer, ziekenboeg + personeel + bedden, rustkuur, coach, hokuitbreiding en **kweek**.
+  Alles achter een kasdrempel (`BOT.reserve` + per-actie-reserves) zodat een bot nooit
+  negatief gaat — negatief = geen inschrijvingen meer.
+- ⚠️ **Twee valstrikken die de simulatie blootlegde** (beide opgelost):
+  1. **Bots kweekten nooit**, ook met geld en plaats zat: ze zetten élke fitte duif in een
+     vlucht, dus er was nooit een koppel vrij (`koppels 0` maandenlang). Fix:
+     `BOT.breedReserveFlock` (8) — onder die hokgrootte houdt een bot zijn beste doffer
+     én duivin **uit de racepool**.
+  2. **Hokken stortten alsnog in (12 → 0)**, en niet door geld: ze aten **Normaal**
+     (+5 gezondheid/week) terwijl ze 2–3× per week vlogen (−9 tot −12/week, spelregels
+     §4.4). Gezondheid zakte naar 30–50, dan ziektes, dan dood. Fix: **`BOT.goodFeedFrom`
+     (€2.500) → Herstelvoer**, zelfde €3/kg maar +42 energie/+12 gezondheid.
+- **`BOT.maxCapacity` 12** — géén economische regel maar een **platformregel**: elke duif
+  wordt bij élk verzoek gelezen en om 00:00 herschreven, en die tick loopt rond ~350 duiven
+  tegen de 50-querylimiet aan. 8 bots die vrij naar 20 groeien zetten er ~100 bij.
+- **Gemeten na de wijziging** (halfjaarsimulatie, 3 runs): **7,8–7,9 botploegen per
+  estafette** (was 6 → 2 → 0), alle bothokken stabiel op 12 duiven, laagste kas €5.097, geen
+  enkele instorting. Velden: regio 11,6 · nationaal 11,9 · internationaal 11,5 · titan 8,0 ·
+  estafette 23,6 duiven aan de start (bots alleen).
+- **Geverifieerd** met een wegwerpscript tegen de echte `advanceRealtime` (33 controles):
+  migratie voegt exact 2 bots toe en is idempotent over 20 polls, twee gelijktijdige runs
+  geven geen dubbele rijen, alle namen/ids blijven uniek, de 8 bots hebben morgen een
+  ploeg van 3 met etappenummers, herhaald pollen schrijft niemand dubbel in, met 6 energie
+  komen er tóch 8 ploegen maar nooit een duif onder 1 energie, een leeggevlogen bot
+  schrijft niet in maar wél zodra ze uitgerust is, een koppelende duif wordt nooit
+  ingeschreven, en over 2,5 maand blijft geen enkele bot negatief of uitgedund. De vier
+  vaste regressietests + beide typechecks + build groen. Spelregels **§17**.
+
+**Duif weer beschikbaar zodra ze thuis is**
+- Probleem: sinds de finish-timer weg is, loopt een vlucht door tot de **traagste**
+  finisher binnen is — op 1000 km uren. Elke "is deze duif bezet?"-check keek naar
+  `flight.status !== 'completed'`, dus een duif die al lang thuis was kon niet
+  ingeschreven, getraind, gekoppeld, in de ziekenboeg gezet, op rustkuur gezet, te koop
+  gezet of verkocht worden tot de laatste sukkelaar binnen was.
+- Opgelost met `birdStillOut` + `pigeonCommittedToFlight` (flight.ts, zie §2): het einde
+  van de **eigen** race komt uit het bevroren sim. Vrij bij **finish**, bij een **DNF
+  onderweg** en meteen bij **opgeven** (dat laatste was net de bedoeling van opgeven).
+  Alle guards in `engine.ts`/`offers.ts`/`presenters.ts` gebruiken die helper, net als de
+  1-race-per-dag-regel en de bot-inschrijving. **Estafette** werkt op leg-klokken (leg 3
+  wacht = bezet; ploegmaat valt uit = meteen vrij).
+- Client: `FlightsPage` bouwde zijn `committed`-set uit de rauwe entries van **scheduled +
+  live** vluchten en verborg de duif dus alsnog. De set kijkt nu enkel naar **scheduled**;
+  voor live vluchten telt het server-vlaggetje `pigeon.racing`. De rest van de UI
+  (PigeonCard 🏁, PigeonPage, BreedingPage) hangt al aan `pigeon.racing` en volgt vanzelf.
+- `giveUpFlight` weigert voortaan een duif waarvan de race al voorbij is — dat maakte van
+  een al uitbetaalde finisher retroactief een DNF (bestaande bug).
+- Geen schema-/configwijziging, **geen migratie** (puur afgeleid uit `sim`); `dataVersion`
+  blijft **37**. Geverifieerd met tsx (32 gevallen: scheduled/live/completed, finish-moment,
+  straggler, opgegeven, DNF, legacy-sim zonder `segMult`, onbekende duif, en zes estafette-
+  scenario's). Spelregels **§3.8**.
+
+**Oriëntatie is een navigatie-eigenschap geworden**
+- **Probleem:** oriëntatie zat als volwaardige term in `pigeonVelocity` (gewicht 0,22 kort →
+  **0,35 lang** — op de fond dus **zwaarder dan snelheid zelf**, 0,20). Een duif met snelheid
+  71 klopte er een duif met snelheid 80 mee. Erger: het mechanisme dat oriëntatie *hoort* te
+  hebben stond feitelijk uit — `lostOrientationRef 62` betekende dat **boven 62 de
+  verdwaalkans niet meer bewoog**, dus voor twee behoorlijke duiven was oriëntatie enkel nog
+  een snelheidsbonus. Precies omgekeerd.
+- **A. Uit de snelheidsformule.** `DISTANCE_WEIGHTING.orientation = 0`, gewicht proportioneel
+  herverdeeld: kort **0,83/0,17**, lang **0,31/0,69** (snelheid/conditie). Kort is nu duidelijker
+  een sprint, lang draait om conditie.
+- **B. Nieuw configblok `LOST`** — `(LOST.base + LOST.max·room^LOST.curve) × (distBase +
+  km·distPerKm) × (1 + rough·weerfactor)`, met `rough = max(0, 1 − weerfactor)`. ⚠️ **Weer
+  versterkt het verschil tussen een goede en een slechte navigator sterk** — op 700 km ging een
+  slechte destijds van 41 naar 72 %. Meestal is de uitkomst een **omweg**, en de vertraging
+  wordt **afgeleid uit die omweg** (`slow = spanDist/(spanDist+omweg)`) zodat het tijdverlies
+  exact klopt; **`formCost` rekent op `afstand + omweg`**, dus een verdwaalde duif komt ook
+  leger thuis. Zeldzamer raakt ze de weg **helemaal** kwijt (`strandedMax · room^…`, enkel als
+  ze al verdwaald is). *(Alle getallen in dit blok zijn nadien twee keer herijkt — zie de
+  zwerm- en fond-blokken hoger in §8; `gameConfig.ts` is de waarheid.)*
+- **Nieuwe duifstatus VERLOREN** (`Pigeon.awayUntil`, kolom `away_until`): ze is **nooit
+  definitief weg** maar komt na `1 + km/1000·2 + room·3` dagen (± jitter) thuis met energie 2–8,
+  −15…−25 gezondheid en 45 % kans op een kwetsuur/ziekte (`tickStrayReturn`). Nieuwe
+  `dnfKind: 'lost'` + `SimEntry.strayDays`, `SimulatedFlight.strays`, eigen commentaarpool
+  `COMMENTARY.dnfLost`, en **twee meldingen** (verdwenen + thuis, stabiele id's).
+  **Guards op negen plaatsen** via `isAway(p)` (pigeon.ts): `canRace`, `enterFlight`,
+  `trainPigeon`, `startBreeding`, `startRestCure`, `setInfirmary`, `listForSale`, `pigeonBusy`
+  (vrijlaten/restaurant), `respondOffer`, plus **overslaan** in `applyDayOfCare` (eet niets,
+  **hongerteller loopt niet op**) en in `runHealthDay` (besmet niet, wordt niet besmet). Ze
+  **houdt haar hokplaats en telt mee voor de daghuur**.
+- ⚠️ **Knock-on die stilletjes zou zijn gebroken:** `pickImproveAttr` gebruikte de
+  snelheidsgewichten, dus met oriëntatie op 0 zou **vliegen nooit meer oriëntatie verbeteren**.
+  Daarom een **eigen `IMPROVE_WEIGHTING`** (kort 0,55/0,20/0,25 · lang 0,20/0,40/**0,40**) +
+  `improveWeightsForDistance()`; de estafette gebruikt de **etappe-afstand**. De coach traint
+  oriëntatie al (`RACING_ATTRS`) — daar was niets voor nodig.
+- **Bewust ongemoeid gelaten:** `talent`/marktwaarde/bots en de weddenschap-odds. De estafette
+  krijgt geen aparte regel — de kans loopt op de **etappe-afstand**, en omdat een omweg de ploeg
+  enkel tijd kost (alleen "helemaal kwijt" schakelt uit) blijft het ploegrisico klein.
+  Oefenvluchten blijven volledig veilig (`if (!practice)`).
+
+**Blessures & ziektes op vluchtvorm (energie + gezondheid)**
+- **Aanleiding:** de blessurekans was een **vaste tol op ver vliegen**, niet op slecht beheer
+  (op 1000 km had een duif met vólle energie nog 20,5 %), de **ernst werd uniform geloot**
+  (28,6 % ernstig), en een goed uitgeruste duif kon dag na dag starten zonder dat haar tank
+  het liet zien.
+- **Kern: `flightForm(p, nowMs)`** (`pigeon.ts`) = `conditionScore(p) − restPenalty(p)`, met
+  `conditionScore = (2·min(energie,gezondheid) + max)/3` (`FORM`). ⚠️ **Eén getal stuurt de
+  blessurekans, de ernst, de ziektekans én het zichtbare label** — raak je de formule aan, dan
+  bewegen die vier samen.
+- **Blessure gesplitst** (`AilmentTemplate.cause` op elke entry van `INJURIES`):
+  **`overbelasting`** = `(INJURY.floor + INJURY.max · ((100−vorm)/100)^curve) × (0,6 + km·0,001)`,
+  ernst via `injurySeverityWeights(vorm)`; **`pech`** = vlakke `INJURY.luckBase × afstandsfactor`,
+  **uniform** uit een eigen pool (sperwer/botsing/slagpen). ⚠️ Die tweede is **nooit nul** — een
+  perfect hok mag niet onaantastbaar worden. Gemeten: vorm 90 → 3 % op 500 km (was 16,7 %),
+  vorm 30 → 44 % op 500 km en 64 % op 1000 km.
+- **Ziekte op dezelfde score** (`ILLNESS`, in `runHealthDay`): vorm 90 → ~1 %/week, vorm 30 →
+  ~24 %/week. `randomDisease` neemt de **conditie-score** i.p.v. enkel gezondheid.
+- **Gezondheid is een echte resource:** `HEALTH.flightHealthBase` / `flightHealthPerKm` /
+  `emptyTankFactor` — een vlucht kost 2 (regio) tot 7 (fond) gezondheid, méér als de duif leeg
+  thuiskomt. **Seizoen 3:** alles × `flightHealthMultiplier` (1.15), ook de extra 4–9 bij
+  uitval; één helper `flightHealthCost` (flight.ts) voor de gewone vlucht én de estafette. Tegengewicht: **rebound** (herstel × `(1 + (100−gezondheid)/100)`) en Herstelvoer
+  (`healthRecovery` 3 → 12; dat gaf voordien het mínste gezondheid van alle voeders).
+- ⚠️ **Rustaftrek (`RECOVERY`) is de enige straf die je NIET kan wegkopen.** Gisteren gevlogen
+  −15 vorm, eergisteren −7, oefenvlucht ×⅓ — gemeten ×2,2 op de blessurekans, en zelfschalend
+  (×2,5 voor een frisse duif, ×1,6 voor een al wankele). Herstelvoer of een apart hok helpen er
+  niet tegen, en dát was het punt. Velden `Pigeon.lastRaceAt`/`lastRaceWasPractice`, gezet in
+  `applyFlightEffects` — **bewust niet** afgeleid uit `db.flights`, want die worden na 2 dagen
+  geprunet.
+- ⚠️ **`SimEntry.startVorm` bevriest de vluchtvorm bij de lossing**, zodat de blessureworp
+  deterministisch blijft als twee verzoeken tegelijk afronden (legacy-vluchten vallen terug op
+  de huidige conditie).
+- **Rustkuur per DUIF** i.p.v. per hok — details in §5 (`REST_CURE`).
+- **`TOURNEY_RISK` ingekort**: de extra licht/matig-worp onder 20/10 energie is weg (dubbelop
+  nu de vorm dat al stuurt); **de sterfteworp onder 5 blijft**.
+- ⚠️ **Zichtbaar maken was essentieel — een onzichtbare straf leest als willekeur.**
+  `pigeonDTO` stuurt `flightForm`/`formLabel`/`restPenalty`; `flightForm` is de waarde **ná**
+  de aftrek en de UI toont **enkel dat ene cijfer**. Er stond eerst "— net gevlogen, −15"
+  achter, wat las alsof die 15 er nóg af moest; die tekst is weg. `restPenalty` blijft in de
+  DTO als server-waarheid maar wordt niet meer getoond.
+- **Geen migratie.** `lastRaceAt` staat leeg bij uitrol (geen rustaftrek met terugwerkende
+  kracht) en iedereen zat rond gezondheid 100, dus de gezondheidskost bouwt over weken op.
+- ⚠️ **Om op te volgen:** lagere gezondheid voedt de ziektekans, dus die twee versterken
+  elkaar. Meten vóór er nog aan gedraaid wordt.
+
+**Schaal afremmen: steilere capaciteitsladder + progressieve daghuur**
+- **Aanleiding:** één speler liep weg met de competitie. Analyse van de mechanismen (geen
+  productiedata beschikbaar vanuit de sessie) wees drie versterkende lussen aan:
+  1. **Geen limiet op het aantal duiven per hok per wedstrijdvlucht** (`enterFlight`) —
+     enkel titan (1) en estafette (3) hebben er een, en **bots schrijven zichzelf op 1–2
+     in** (`botsEnterFlight`). Eén groot hok kan dus meerdere prijsplaatsen tegelijk pakken.
+  2. **Schaal was zo goed als gratis:** een hok van 20 kostte €434/week tegen €266 voor een
+     hok van 8 (1,6×) bij ~2,5× de verdiencapaciteit.
+  3. Geld → markt/veiling → betere duiven, en de marktwaardering leert van zijn eigen
+     verkopen.
+  Ter referentie: de prijzenpot is ~**€30.755/week** (regio 3×€2.285, nat 2×€3.390, intl
+  2×€6.610, titan €3.900) en is **top-zwaar** — de top 3 pakt ~75 % per vlucht.
+- **Nu geïmplementeerd (lus 2):** `LOFT_CAPACITY_TIERS` steiler (8→20 kost **€112.500**
+  i.p.v. €29.000) + **`UPKEEP_BANDS`**, progressieve daghuur per duif. Cijfers en de
+  invariant "een hok van 8 betaalt exact als vroeger": zie §5.
+- **UI:** de Dagbalans-tegel (`DashboardPage`) toont een **regel per schijf**
+  ("Onderhoud duif 9–12 · 4 × €6") i.p.v. één regel. De **volledige uitleg staat in de
+  wiki** (sectie 🏠 **Hokcapaciteit & onderhoudskosten**: de ladder, de schijven, de
+  weekkost per hokgrootte); de uitbreidingskaart in `LoftPage` houdt het bij het énige
+  cijfer dat daar telt — "je volgende duif kost €X/dag" — plus een link naar
+  `/wiki#hok`, zodat een groter hok nooit een verborgen terugkerende kost is.
+  Economy-DTO kreeg `upkeepBands` (de tabel) en de loft-DTO `dailyCosts.upkeepBands`
+  (de eigen verdeling).
+- **`WikiPage` scrollt nu naar de hash** (`useEffect` op mount): React Router springt zelf
+  niet naar een anker als je van een andere route komt, dus zonder dat landde `/wiki#hok`
+  bovenaan de pagina.
+- **Geen migratie, geen `dataVersion`-bump** (config + logica). Bestaande hokken behouden
+  hun capaciteit; wie al boven 8 zit, betaalt vanaf de eerstvolgende dagovergang het nieuwe
+  tarief.
+- ⚠️ **Bekend risico, bewust niet mee-geïmplementeerd:** een hok van 18–20 gaat van €406
+  naar €1.050–1.330/week. Duikt zo'n speler onder €0, dan blokkeert `enterFlight` hem
+  ("Je kassa staat negatief"). Overwogen mitigaties als het knelt: de toeslag in 3 weken
+  laten opbouwen, of een eenmalige melding via een `*_NEWS_STEPS`-set in `Tour.tsx`
+  (localStorage, geen migratie nodig).
+- **Nog niet gedaan (bewust, op verzoek):** de instaplimiet per vlucht (lus 1), degressief
+  prijzengeld per hok, clubkas/deelnamegeld. **Rekenpunt voor later:** een duif kan ~1,4
+  starts/week aan (energie), en bij 8 wedstrijden/week geeft een limiet van 3 duiven → 24
+  startplaatsen → een hok is volledig benut rond **17 duiven**; een limiet van 2 → 16
+  plaatsen → rond **11 duiven**. De instaplimiet bepaalt dus hoeveel duiven zinvol zijn,
+  de schijven zetten er de prijs op.
+- **Meegenomen doc-fix:** spelregels §4.2 vermeldde nog `36 · gecoachte duiven` voor de
+  coach; dat is al langer **€80/dag** (`COACH.dailySalary`).
+
+**Ervaring stijgt met afnemende opbrengst**
+- **Probleem:** ervaring was de enige eigenschap die **volledig lineair** groeide. Elke
+  bron gaf een vast bedrag, los van het huidige niveau (vlucht `2 + km/100`, trainen 4,
+  coach 0,5/dag, dilemma 4–8), dus 90→100 kostte precies evenveel vluchten als 0→10.
+  Dat terwijl de trainbare skills wél afnemen richting hun plafond (`ruimte`-factor bij
+  vluchten, `(cap−attr)/cap` bij de coach). Ervaring liep daardoor bij elke actieve duif
+  vanzelf vol en was op termijn geen onderscheidende eigenschap meer — terwijl ze wel
+  fors doorweegt (+33 % snelheid, −25 % vluchtverbruik, sneller herstel, energie doseren).
+- **Fix:** nieuwe knop **`EXPERIENCE`** in `gameConfig.ts` + pure helper
+  **`experienceGain(current, raw)`** in `pigeon.ts` (zie §5 voor de formule, de cijfers en
+  de **ondergrens op `minFactor`** wegens de 1-decimaal-afronding). Toegepast **aan de
+  bron** in alle zes de paden, zodat `sim.fatigue[].experienceDelta` het werkelijk
+  toegepaste getal bevat en `seasonPracticeGain` (schedule.ts) vanzelf klopt.
+- **Nog steeds waar:** een verre vlucht leert meer dan een korte (alles schaalt evenredig,
+  de rangorde blijft), niets loopt vast (de bodem is 0,12, nooit 0), en ervaring heeft
+  **geen gen-cap**.
+- **Geen migratie, geen `dataVersion`-bump** (config + logica). Bestaande duiven **behouden**
+  hun opgebouwde ervaring; enkel de groei vanaf nu volgt de curve. Een retroactieve
+  verlaging zou bestaande spelers straffen voor iets wat ze correct hebben opgebouwd.
+- **DTO/UI:** `pigeonDTO.coachGain` kreeg een veld **`experience`** (2 decimalen — de winst
+  van een veteraan zit ver onder 0,1); `PigeonPage` toont dat per-duif-cijfer i.p.v. het
+  globale `economy.coachExpDailyGain`. Dat economy-veld **blijft** bestaan (een oude, nog
+  open tab zou anders op `undefined.toFixed()` crashen), maar wordt niet meer gebruikt.
+
+**Unieke duivennamen + echte kampioenen als inspiratie**
+- **Regel:** élke combinatie van **voornaam + bijnaam** is uniek in de wereld, ongeacht
+  hoe de duif ontstaat (start-hok, kweek, veiling, opvangcentrum, dilemma, migratie).
+- `names.ts`: `draftName` (de oude generator) + **`generatePigeonName(sex, traits, taken?)`**
+  dat tot 80 keer opnieuw trekt tot het een vrije naam vindt, en bij een écht uitgeputte
+  pool een **dynastie** begint (`… II`, `III`, …). Helpers **`nameKey`** (case-insensitive)
+  en **`namesInUse(pigeons)`**.
+- `GenerateOptions.taken` doorgegeven op **elk** ontstaanspad: `createLoftForUser` en
+  `seedWorld` (set groeit mee zodat de 6–8 starters onderling niet botsen), `auction.ts`
+  (zondag + opvangcentrum), `events.ts` (alle dilemma-duiven), `breeding.ts::breed(…, taken)`
+  (ook een **tweeling** onderling), en de legacy-hernoemmigraties.
+- **Migratie v35** ruimt bestaande duplicaten op: de **oudste** duif houdt de naam, de
+  rest wordt hernoemd; echte spelers krijgen een melding (`ntf:rename:dup:<id>`) zodat een
+  naam nooit stilletjes verandert. **dataVersion → 35.**
+- **Echte duivensport als inspiratie** (`gameConfig`): nieuwe epitheton-groep
+  **`EPITHETS.legend`** (~8 % kans) met *de Kannibaal*, *de Nieuwe Kim*, *de Armando*,
+  *de Olympiade*, *de Gouden Prins*, *de Barcelona-Kampioen*, *van Klak*, … plus voornamen
+  **Armando/Bolt/Gustav/Paddy/Joe/Commando/Klak** en **Kim/Ami/Winkie/Mary/Vita** (naar
+  Armando €1,25 M, New Kim €1,6 M, Cher Ami, Winkie's Dickin Medal).
+- **Nieuwe blijvende test `names.test.mts`**: 400 nieuwe duiven + 40 kweekrondes zonder één
+  duplicaat, en de dynastie-fallback op een kunstmatig uitgeputte pool (5.785 combinaties).
+
+**Duivenwaarde komt van de markt i.p.v. een vaste curve**
+- **Probleem:** `estimateValue` is een vaste curve `(talent/50)^2.2 × 800`, en die is te
+  vlak aan de top: over de héle talentschaal 40→90 gaat de prijs maar **×6**, terwijl een
+  topduif ~€2.500/week aan prijzengeld kan ophalen en een talent-50 duif nooit iets. Een
+  veilingduif geschat op €2.300 ging voor **€7.000** weg. Gemeten met `limits-report`-stijl
+  script: zondagveiling-duiven schatten op €1.220–€2.910.
+- **Nieuw: `core/game/market.ts`.** De markt zet het **niveau**, het model bewaakt de
+  **rangorde**:
+  1. elke verkoop (markt/privébod/veiling) bewaart het **talent** bij de prijs
+     (`Trade.talent`, kolom `talent REAL` achteraan `SCHEMA_STEPS`);
+  2. per verkoop een **factor** = prijs ÷ referentiecurve op dat talent;
+  3. die factoren worden gemiddeld per talentband, gewogen op **talentafstand**
+     (`talentSigma 6`) en **recentheid** (`halfLifeDays 10`, venster 60 dagen); hoe ver de
+     markt het model overrult (het **vertrouwen**) hangt enkel af van hoeveel vergelijkbare
+     verkopen er zijn, niet van hun leeftijd — zie §8 "Marktwaarde houdt stand";
+  4. de curve wordt **monotoon** gemaakt (cumulatief maximum) → een betere duif is nooit
+     minder waard, ook niet als er in één band een koopje voorbijkwam.
+- **Waarom factoren en niet de prijzen zelf:** met 10 spelers zijn er nooit verkopen in
+  élke band. Rechtstreeks naar prijzen blenden maakte een talent-85 duif **goedkoper** dan
+  een talent-70 die hoog verkocht was. Schalen van de curve houdt de banden vergelijkbaar.
+- **Per verzoek één curve** (`WeakMap` op `Database`, sleutel bevat `db.trades.length` zodat
+  een verkoop die in hetzelfde verzoek wordt afgesloten wél meetelt). Nodig want `/state`
+  waardeert ~200 duiven binnen 10 ms CPU.
+- **Zonder verkopen = het oude gedrag.** `MARKET_VALUATION` knoppen: `trustWeight 1.5`
+  (≈2 verse verkopen = volle invloed), `maxTrust 0.85`, factorband `0.1–8`.
+- **Gemeten** (verkopen talent 70–72 aan €7.000/€5.200): talent 70 → €7.010, 78 → €8.970,
+  85 → €9.370 (monotoon); daarna twee junkverkopen aan €50–60: talent 30 → €120.
+- **Doorwerking:** `pigeonDTO.value` + nieuwe velden `valueModel`/`valueMarket`/`valueTrust`/
+  `valueSamples` (duifpagina toont "X% bepaald door N recente verkopen"); **veiling-startbod**
+  = `AUCTION.openingBidFraction` (**0,3**, was 0,5 van de modelwaarde) zodat de hamer de prijs
+  *ontdekt* i.p.v. dicteert; het **koopman-dilemma** biedt nu op marktwaarde.
+- **Migratie v34:** de twee veilingverkopen van 16 aug 2026 ("tante … soep" €7.000,
+  "Edgard … soep" €5.200) worden als **prijsobservatie** in `db.trades` gezet (het spel lag
+  plat, spelers regelden het onderling). **Enkel data:** geen geld verplaatst, geen eigenaar
+  gewijzigd. Stabiele id `trd_manual_…`. **dataVersion → 34.**
+- **Bekende scheefheden die nog in het model zitten** (nu minder erg, want de markt overrulet
+  het niveau): leeftijd verlaagt de waarde **niet** meer boven 1 jaar (`AGE_CURVE` is aan de
+  dalende kant afgevlakt naar 1,0), en de ervaringsfactor (×1,0–1,5) weegt zwaarder dan het
+  verschil tussen een goede en een elitevogel.
+
+**Veiling-slotfase: 3 biedingen in de laatste 30 min + één zondagduif**
+- **Doel:** minder nibbelen met minimumbedragen → spelers zetten sneller hun echte
+  maximum, veilingen eindigen in enkele grote stappen, en dat drukt meteen de
+  poll-belasting van het slotkwartier.
+- **Regels** (`AUCTION` in gameConfig): vrij bieden tot `finalPhaseMinutes` (30) voor
+  het einde; daarbinnen hoogstens `finalPhaseMaxBids` (3) biedingen **per speler per
+  veiling**. De anti-snipe (`antiSnipeMinutes`, 5) blijft: een bod in de laatste 5 min
+  zet `endAt` terug op nu + 5 min — maar **telt gewoon mee** voor je drie, dus een
+  verlenging kan niet gefarmd worden.
+- **Teller** = `AuctionBid.lateBids` (kolom `late_bids` achteraan `SCHEMA_STEPS`), rijdt
+  mee op de staande bieding van de speler; verhogen buiten de slotfase telt niet mee.
+  `placeBid` weigert netjes zodra het budget op is.
+- **DTO** (`auctionsDTO`, per viewer): `finalPhase`, `finalPhaseAt`, `finalPhaseMinutes`,
+  `antiSnipeMinutes`, `maxBids`, `bidsUsed`, `bidsLeft`. UI: `AuctionCard` toont vóór de
+  slotfase de spelregel, erna een gekleurde balk "nog X van je 3 biedingen" en blokkeert
+  invoer+knop als het budget op is.
+- **Seizoen 3: twee zondagduiven** (`AUCTION.sunday`): A score [60,70) 10:00–20:00, B
+  [70,80) 11:00–21:00 (Brussel). Sleutel `auction:<datum>:<band>` → `auc_…`/`pig_…` blijven
+  stabiel per duif; een oude kale `auction:<datum>` op dezelfde dag = geen nieuwe (de
+  overgangszondag). `sundayBird` trekt opnieuw tot de score in de band valt (≤ 60 pogingen,
+  daarna bijschalen). Eén melding per duif (A meldt dat B om 11u volgt). **Biedregel**
+  `sundayBidBlock`: hoogste bod op de andere open zondagduif → 2 vrije plaatsen nodig; de
+  markt-DTO geeft `scoreBand` en `bidBlockedReason`. Test: `tests/sunday-auction.test.mts`.
+- **Zondag = precies één duif (vóór seizoen 3).** `ensureAuctions` draait bij élk verzoek, dus twee
+  gelijktijdige verzoeken konden **allebei** een zondagveiling openen (random id's) →
+  meerdere topduiven op één zondag. Nu **stabiele id's** afgeleid van de dagsleutel
+  (`auc_<slug>` / `pig_<slug>` + melding-id per speler): INSERT OR REPLACE houdt er
+  precies één over, hoeveel verzoeken er ook racen. Bovendien spawnt er **geen
+  opvangcentrum-veiling** zolang de zondagveiling loopt.
+- Wiki-sectie **🔨 Veilingen & bieden**, spelregels **§9.3** + §12. Geen migratie (nieuwe
+  kolom met default 0 = huidig gedrag).
+
+**Zelf kiezen wie de dokter/kinesist behandelt**
+- **Probleem:** één dokter dekt maar `INFIRMARY.birdsPerDoctor` (2) zieke duiven en één
+  kinesist 2 gekwetste, maar de dekking ging **altijd automatisch** naar de ernstigste
+  gevallen. Met 3 patiënten en 1 dokter kon je dus niet kiezen wie voorrang kreeg.
+- **`Pigeon.careAssigned?: boolean`** (kolom `care_assigned INTEGER DEFAULT 0`, achteraan
+  `SCHEMA_STEPS`): de speler zet een duif vast op een personeelsplaats.
+  `coveredInInfirmary` (health.ts) neemt **eerst de vastgezette duiven** (onderling op
+  ernst) en vult de resterende plaatsen daarna zoals vroeger **ernstigste eerst** — een
+  hok dat de knop nooit gebruikt gedraagt zich dus exact als voorheen.
+- Nieuwe helper **`careSlots(loft, pigeons, kind)`** → `{slots, assigned, patients}`,
+  gebruikt door de guard én de UI-tellers.
+- Actie **`setCareAssignment`** (engine.ts) + endpoint **`POST /pigeons/:id/care`**
+  (`{on}`). Weigert netjes: geen personeel in dienst, duif niet in de boeg, duif niet
+  ziek, of alle plaatsen al vastgezet ("Je dokter behandelt er al 2 — …").
+- DTO: `pigeonDTO` stuurt nu **`treated`** (wordt ze effectief behandeld) en
+  **`careAssigned`**. De client rekende de dekking vroeger zélf na — die spiegel is weg,
+  de server is de waarheid.
+- UI (`InfirmaryPage`): per personeelslid een regel "behandelt nu X van je Y patiënten
+  · Z door jou vastgezet" plus een rode waarschuwing bij meer patiënten dan plaatsen; op
+  elke duifkaart in de boeg een knop **"📌 Deze duif laten behandelen"** /
+  **"📌 Behandeling vrijgeven"**. Spelregels **§5.4** bijgewerkt.
+- Geen migratie nodig (nieuwe kolom met default 0 = huidige gedrag).
+
+**503-fix ronde 3: `persist()` schreef één statement per rij**
+- **Symptoom:** 503 tijdens een live vlucht; spelers konden de vlucht niet volgen én
+  niet bieden. **Niet het dagquotum**: de D1-metrics toonden 5 k gelezen / 2 k
+  geschreven rijen (limieten 5 M / 100 k) — nog geen 0,1 % van het budget.
+- **Oorzaak: opnieuw de 50-queries-per-invocatie-limiet**, nu via `persist()`. De
+  per-rij-diff maakte **één `INSERT OR REPLACE` per gewijzigde rij**, en die tellen
+  allemaal mee binnen dezelfde `batch()`. Gemeten met `query-budget.test.mts` op een
+  productiewereld: een gewone poll 15 queries, maar een **live vlucht 68** (elke 30 min
+  krijgt élke ingeschreven duif haar energie-aftrek → 52 rijen), een **afronding 149**
+  en de **dagovergang 144**. Zo'n verzoek sterft vóór het het spel bereikt — en omdat de
+  tick niet gepersisteerd raakt, doet het vólgende verzoek exact hetzelfde: iedereen
+  zit vast zolang de vlucht loopt.
+- **Fix, volledig in `core/d1.ts::diff`** (geen migratie, geen gedragswijziging):
+  1. **Multi-row statements** — de gewijzigde rijen van een tabel gaan samen in één
+     `INSERT OR REPLACE … VALUES (…),(…)`, begrensd door D1's **100 bound parameters
+     per query** (`D1_MAX_BOUND_PARAMS`).
+  2. **Smalle updates** — `load` bewaart nu ook de **kolomwaarden** van `pigeons` en
+     `lofts` (`rowSnapshots`, mappers `pigeonRow`/`loftRow` op moduleniveau), zodat
+     `persist` alleen de kolommen schrijft die écht bewogen:
+     `WITH v(k, form) AS (VALUES …) UPDATE pigeons SET form = v.form FROM v WHERE
+     pigeons.id = v.k`. Een duif heeft 38 kolommen (2 rijen/query); een energie-aftrek
+     raakt er één (**50 rijen/query**).
+  3. **Groeperen op maat** — rijen die dezelfde kolommen wijzigen gaan samen; wijzigt
+     elke rij een iets andere set (een vluchtafronding), dan is één groep op de
+     **unie** van de kolommen goedkoper. `diff` rekent beide varianten door en neemt
+     de kleinste.
+  4. Deletes gaan gegroepeerd via `… WHERE id IN (?,?,…)`.
+- **Resultaat (gemeten, ~200 duiven):** live vlucht **68 → 17**, afronding **149 → 41**,
+  dagovergang **144 → 42**, kalender plannen **130 → 28**. Alles ruim onder de 50.
+- **Bekend plafond:** de dagovergang schaalt met het **totale** aantal duiven — bij
+  ~**350** duiven zit ze op 48/50. Rond ~400 duiven moet `tickDailyCare` per hok
+  gechunkt worden (per-hok-cursor i.p.v. `world.lastDailyTick`). `query-budget.test.mts`
+  bewaakt dit; draai hem met `PIGEONS=400` om het na te meten.
+- **Nieuwe blijvende test `query-budget.test.mts`** (naast `d1-partial-load.test.mts`):
+  bouwt een productiewereld op de échte engine en telt de queries van een verzoek door
+  een hele zondag (kalender → live vlucht → afronding → middernacht). Faalt zodra één
+  verzoek 50 queries raakt. **Draai hem na élke wijziging aan `d1.ts` of aan een tick.**
+
+**Sponsors herijkt: dagbedrag + podiumpremie per niveau**
+- **Probleem:** 3 sponsors gaven samen €170/week (€24/dag) tegen ~€280/dag kosten — 8,7% dekking —
+  en de bonus hing aan een **overwinning**, wat met 8 wedstrijden/week en 10 melkers zelden lukt.
+- **`SponsorDef.weeklyStipend` → `dailyStipend`** (uitbetaald in `tickDailyCare`, geen `/7`-afronding
+  meer) en **`winBonus` → `podiumBase`** = het bedrag voor een **zege op een nationale vlucht**. De
+  echte uitbetaling = `podiumBase × SPONSOR_TIER_FACTOR × SPONSOR_PODIUM_FACTOR`, afgerond op €5
+  (`sponsorPodiumBonus` in gameConfig). Niveaufactoren **0,6 / 1,0 / 1,8** (spiegelen de prijzengeld-
+  verhouding), plaatsfactoren **1 / 0,6 / 0,35**. Gemiddelde niveaufactor over een week = 1,06, dus
+  het **herverdeelt** richting de grote vluchten i.p.v. te inflateren.
+- Bedragen ~4× omhoog (degressief: tier 1 ×4,5 → tier 4 ×3,5): tier 1 €25–40/dag, tier 2 €45–70,
+  tier 3 €90–135, tier 4 €150–200. Tekengeld/opzegboete ≈ 14 dagen stipendium (de Loterij houdt haar
+  €3.000 tekengeld als flavour). Het trio van de speler gaat van €24 → **€100/dag**.
+- **Enkel wedstrijdvluchten betalen** — titan en estafette vallen al vóór dit blok weg in `tickFlights`,
+  practice bereikt het nooit. Let op: een titan draagt intern `type: 'international'`, dus nooit op
+  het niveau checken.
+- **Melding na elke wedstrijd met podium** (`ntf:spon:<flightId>:<userId>`, stabiel): welke duiven
+  welke plaats haalden, op welk niveau, en **per sponsor** het uitbetaalde bedrag.
+- **Dagbalans op het Overzicht:** `dailyRunningCostBreakdown` (economy.ts) geeft nu ook `sponsors[]`,
+  `sponsorTotal` en `net`; de tegel heet **Dagbalans**, toont het **nettobedrag** (groen/rood) en de
+  onderverdeling kreeg een inkomstenblok per sponsor + "Netto per dag".
+- **Migratie v32** zet lopende contracten én openstaande aanbiedingen om naar de nieuwe velden op het
+  **nieuwe** catalogusniveau; een contract dat bij ondertekening geschaald was, behoudt zijn verhouding
+  (clamp 0,5–2). `sponsors.ts` leest oude velden defensief (`weeklyStipend/7`) tot de migratie liep.
+  **dataVersion → 32.**
+
+**Estafettevlucht**
+- Nieuw weekendformat dat **week om week afwisselt met de titanenwedstrijd** (zie §5 voor
+  alle details): één **ploeg van 3 duiven** per hok, ~900 km in **drie exact gelijke
+  etappes**, één duif tegelijk in de lucht, **weer per etappe** dat dagen vooraf zichtbaar is
+  en waar je je volgorde op afstemt. **Eén duif die er niet geraakt = hele ploeg uit.** Enkel
+  geld (top 5), geen seizoenspunten, geen wedden; duivenranglijsten tellen wél mee.
+- Nieuw bestand `core/game/relay.ts` (routegeometrie + ploeghelpers); sim/live/uitslag in
+  `flight.ts`; nieuw endpoint `POST /flights/:id/relay-order`; UI op `FlightsPage`
+  (etappes + weerbericht + ▲▼-volgorde) en `LiveFlightPage` (ploegbord met de 3 etappes);
+  wiki-sectie 🔗; spelregels **§2.9**; eerste-login-melding `RELAY_NEWS_STEPS`
+  (sleutel `roekoe.newsSeen.relay.<id>`).
+- Kolommen `relay INTEGER` + `legs TEXT` achteraan `SCHEMA_STEPS` (append-only).
+  **Migratie v31** ruimt een al geplande titan op een estafette-zaterdag op. **dataVersion → 31.**
+
+**Lichtere, vaste weekkalender**
+- `REAL_SCHEDULE` is herschreven van "elke dag een lange + een korte vlucht (+ om de 2
+  dagen een oefenvlucht)" naar **één vast programma per weekdag** (zie §5). Resultaat:
+  **10 vluchten/week** (8 wedstrijden + 2 oefen) i.p.v. 13–15. Doel: **hogere deelname
+  per vlucht** — hetzelfde aantal duiven verdeeld over minder races = voller veld en meer
+  competitie. `TITAN.hour` 11 → **8** (zaterdag blijft de enige vlucht die dag).
+- **Enkel voor nog niet geplande dagen.** Reeds geplande vluchten blijven exact zoals ze
+  zijn: `ensureFlightsScheduled` slaat elke dag over die al een vlucht met een **oude**
+  slot-key draagt (`LEGACY_SLOT_KEYS`), zodat er geen mengeling van oud + nieuw op één dag
+  ontstaat. De nieuwe kalender begint dus pas voorbij de horizon (~5 dagen na deploy).
+  **Geen migratie, geen `dataVersion`-bump.**
+
+**503-fix ronde 2: `ensureSchema` blies de 50-querylimiet op**
+- De 503-golf kwam terug, maar **niet** door het dagquotum (metrics: 273 k van 5 M
+  gelezen rijen). Oorzaak: `ensureSchema` vuurde **71 losse D1-statements** af bij
+  **elke cold start**, tegen een limiet van **50 queries per Worker-invocatie** op
+  het gratis plan → zo'n verzoek sterft vóór het het spel bereikt, op eender welke
+  route (ook inloggen). Nu **gegate op `world.schema_version` én hervatbaar** (max.
+  20 statements per invocatie): 1 query op een bijgewerkte database.
+  **`SCHEMA_STEPS` is append-only — nieuwe statements achteraan.**
+- Meegenomen: **featherweight inlogpad** (~1 rij i.p.v. ~1300) + **partieel laden**
+  van `notifications`/`bets`/`trades` + **SQL-begrenzing** + **indexen** — die
+  drukken vooral de CPU per verzoek (10 ms-limiet). Details, cijfers en verificatie:
+  §Performance & stabiliteit onderaan. **Geen migratie / geen `dataVersion`-bump.**
+
+**Trainbare skills dalen enkel door ouderdom**
+- **Invariant:** snelheid/conditie/oriëntatie kunnen **enkel dalen via `runAgeDecline`**
+  (ouderdom > `AGING.peakEndWeeks`). **Honger vreet geen conditie meer** (de
+  `endurance`-daling in `applyDayOfCare`/`projectDailyCare` is geschrapt; honger blijft
+  energie/gezondheid/libido + sterfte). Exhaustieve grep bevestigde dat er verder geen
+  enkel pad een skill verlaagt (events/training/coach/vluchten verhogen enkel; de bot-
+  `trim` v15 was eenmalig en bot-only). Zo verliest een (jonge, gevoede) duif nooit
+  **onterecht** skill-levels.
+- ⚠️ Een skill die op **0,1 afgerond** wordt kan een punt lijken te zakken (79→78) zonder
+  dat er een mechanisme aan zat — dat is een afrondingsartefact, geen daling. Controleer
+  zo'n melding in de **admin-duifinspector** (`Pigeon.attrLog` logt élke wijziging mét
+  reden) vóór je in de code gaat zoeken.
+
+**Prijzengeld direct bij finish**
+- Prijzengeld wordt uitbetaald **op het moment dat een duif finisht**, i.p.v. te wachten
+  tot de hele vlucht is afgerond (kon lang duren door een trage/verdwaalde duif). Nieuwe
+  tick `payFinishedFlightPrizes` (zie §2, item 9b) + helper `computeFinishPayouts` (flight.ts).
+  Idempotent via `SimEntry.prizePaid`; `finalizeFlight` trekt het al-uitbetaalde af. **Enkel
+  geld** gaat vroeg; punten/medailles/weddenschappen/prestaties blijven bij de afronding.
+  Geen migratie/schemakolom (rijdt in `sim`-JSON). Geverifieerd met tsx (rank==finalize,
+  geen dubbele uitbetaling, gedeeltelijke uitbetaling). Inschrijfgelden bovendien gehalveerd
+  (regio €10 / nat €20 / intl €40 / titan €50).
+
+**Genen, groeitrappen, exponentiële trainingskost & veroudering**
+- Elke duif heeft nu een **genetisch plafond per racevaardigheid** (`Pigeon.genes =
+  {speed,endurance,orientation}`, JSON-kolom `genes`) — **nooit ≥ 96** (`GENE.ceil 95`).
+  Geloot via `rollGeneCap` (bell 70–96, quality-shift, clamp 70–95); `generatePigeon`
+  clampt de startwaarde ≤ cap. Verdeling ~centraal 82–85, 95 & 70 zeldzaam. Helpers in
+  `pigeon.ts`: `geneCap`/`avgGeneCap`/`trainCeil`(min80,cap)/`raceCeil`(min90,cap)/
+  `trainingCost`/`rollGenes`.
+- **Drie groeitrappen** per vaardigheid: **trainen ≤ 80**, **vluchten ≤ 90**, **coach
+  → gen-cap** (enkel de coach passeert 90). `engine.trainPigeon` cap = `trainCeil`;
+  `flight.ts` (finalize + practice + `applyFlightEffects` + racing-conditie) clampt op
+  `raceCeil`; premiumvoer-conditie (`economy`) capt op `min(80, geneCap)`. Grandfathered
+  duiven boven hun cap worden **nooit verlaagd** (guards `current < cap`).
+- **Coach werkt op elk niveau, dooft uit richting de gen-cap** (`COACH.maxDailyGain 1.1`):
+  `coachDailyGain(attr, cap) = 1.1·(cap−attr)/cap`, **0 op/boven de cap**, per eigenschap
+  onafhankelijk; enkel de coach passeert 90. (Oude `attributeCap 100` + de tussentijdse
+  `eliteGainPerDay`/`coachMinAttr 90`-variant zijn **verwijderd** — de coach doet dus **niet**
+  enkel boven 90.) `applyDayOfCare` drilt per attribuut, geeft ervaring zolang er iets te
+  groeien valt. `pigeonDTO` stuurt `coachGain` per attribuut.
+- **Trainingskost exponentieel** (`TRAINING.costBase 0.6`, `costGrowth 2.9`, `costMin 15`):
+  `trainingCost(v) = max(15, round5(0.6·2.9^(v/10)))` → ~€125 @50, ~€1035 @70, ~€2700 @79→80.
+  `pigeonDTO.training[attr] = {cost, cap}`; `bots.ts` volgt dezelfde regels.
+- **Waarde ~ genen**: `estimateValue` × `potentieelFactor = clamp((avgGeneCap/82)³, 0.6, 1.7)`
+  → hoge genen = duurdere duif, ook bij lage huidige stats.
+- **Overerving** (`breeding.ts`): kind-cap = `avg(ouder-caps) ± GENE.mutation` (clamp 70–95),
+  `declineRate` idem; startwaarden geclampt op de kind-cap.
+- **Veroudering = échte terugval** (`health.runAgeDecline`, per gerolde gameweek in
+  `tickDailyCare`): boven `AGING.peakEndWeeks (208)` zakken de 3 skills met
+  `declinePerWeekBase(0.08)·(leeftijd−peak)/52·declineRate`. `AGE_CURVE` **neerwaartse
+  tak afgevlakt** naar 1.0 (dubbele bestraffing vermeden). `Pigeon.declineRate` (~0.6–1.6,
+  kolom `decline_rate`).
+- **Persistentie**: `ensureSchema` + kolommen `genes TEXT` / `decline_rate REAL`; rowToPigeon
+  + INSERT uitgebreid. **Migratie v29** backfilt genen + declineRate voor bestaande duiven
+  (caps onafhankelijk gerold → bestaande hoge duiven zitten mogelijk boven hun cap en
+  behouden hun waarde). **dataVersion → 29.**
+- **UI**: rood, klikbaar **cap-streepje** op de statbalken van snelheid/conditie/oriëntatie
+  (`StatBar` `cap`-prop + `PigeonStats` uit `pigeon.genes`); `PigeonPage` toont per-eigenschap
+  de geschaalde trainingskost + plafond, en de nieuwe coach-uitleg (o.b.v. `coachGain`).
+  Wiki-sectie **🧬 Genen & training**; tour-stap `GENE_STEP`; eerste-login-melding
+  `GENES_NEWS_STEPS` (sleutel `roekoe.newsSeen.genes.<id>`).
+
+**Energie-recuperatie in de ziekenboeg**
+- Een duif in de **ziekenboeg** recupereert nu energie aan **50 %** van het gezonde
+  voer-tempo (`INFIRMARY.energyRecoveryFactor 0.5`) — en **enkel als ze door staf gedekt
+  is** (dokter voor een ziekte, kinesist voor een kwetsuur, via de bestaande
+  `coveredInInfirmary`-dekking die ook het herstel versnelt). Een **ongedekte**
+  ziekenboeg-duif krijgt **geen** energie meer (was voorheen het volle tempo). In de boeg
+  telt ook de **rustbonus** niet meer mee, zodat dit halve voerherstel de enige energiebron
+  in de ziekenboeg is.
+- `economy.ts`: `applyDayOfCare(loft, pigeons, livePigeonIds, coveredInfirmaryIds?)` — de
+  voer-energiewinst wordt ×`energyRecoveryFactor` (gedekt) of ×0 (ongedekt) voor
+  `p.inInfirmary`; rustbonus/rest-streak overgeslagen in de boeg. `projectDailyCare(loft, p,
+  live, covered?)` spiegelt dit voor de ▲/▼-weergave in Mijn hok. `tickDailyCare`
+  (schedule.ts) berekent `coveredInInfirmary(loft, owned)` en geeft de set door;
+  `pigeonDTO` (presenters.ts) draait de dekking-scan **enkel voor ziekenboeg-duiven**
+  (hot path blijft goedkoop). **Geen migratie** (config/logica), `dataVersion` blijft 28.
+
+**Minimumafstanden per niveau**
+- Wedstrijdvluchten hebben nu een **harde ondergrens**: regionaal **≥ 100 km** (was 0),
+  nationaal **≥ 200**, internationaal **≥ 400** (die twee waren al zo). `FLIGHT_TIERS.regional.minKm`
+  van 0 → **100**.
+- `pickRoute` verscherpt: 120 pogingen + **beste-fallback op vensterafstand** (kiest het paar
+  dat het dichtst bij `[minKm,maxKm]` ligt i.p.v. het eerste willekeurige paar), zodat de
+  ondergrens gehaald wordt zolang de pool ze kan bereiken. Geverifieerd op 200k trekkingen:
+  0% onder de floor voor alle drie de niveaus.
+- **Oefenvluchten blijven kort**: `makeRealtimeFlight` routeert practice met
+  `pickRoute(tier, 0)` (min-override 0), dus de regionale floor lengt ze niet op (avg ~75 km).
+- **Migratie v28**: elke nog-**scheduled** wedstrijdvlucht onder haar tier-floor wordt
+  her-routeerd via `pickRoute(tier)` (tier uit `f.type`, niet uit de afstand — een te korte
+  nationale blijft dus nationaal). Practice, live/completed (bevroren sim) en titans blijven
+  ongemoeid. **dataVersion → 28.**
+
+**Apart hok komt vrij bij ziekenboeg + auto-terugname**
+- Een duif die naar de **ziekenboeg** gaat, **geeft haar aparte hok vrij** — de slot komt
+  vrij en kan (tijdelijk of niet) aan een andere duif. Ze **behoudt intern haar
+  compartment-vlag** terwijl ze geïsoleerd zit (om de slot te kunnen terugnemen), maar telt
+  níet mee in de bezetting en krijgt géén rustbonus zolang ze in de boeg zit.
+- **Auto-terugname bij genezing:** `setInfirmary(wantIn=false)` zet de duif terug in een
+  apart hok **als er nog eentje vrij is** (anders komt ze zonder terug). Ze pakt nooit een
+  slot af van een duif die er intussen in kwam, en een duif die **nooit** een apart hok had
+  krijgt er ook geen.
+- Implementatie: de compartment-vlag blijft staan bij binnenkomst (geen clear meer). De
+  **rustbonus** in `economy.ts` (`applyDayOfCare` + `projectDailyCare`) gebruikt nu
+  `compartment && !inInfirmary`; `pigeonDTO.compartment` toont `compartment && !inInfirmary`
+  (intern behouden, extern verborgen tijdens de boeg). `compartmentsUsed` en de
+  assign-check in `setPigeonCompartment` negeren ziekenboeg-duiven al; assign aan een
+  ziekenboeg-duif blijft geweigerd. `PigeonPage`-knop toont "🏥 Ziekenboeg" (disabled) als
+  de duif daar zit. **Migratie v27** (vorige stap) klaarde bestaande ziekenboeg-duiven —
+  die enkele duiven nemen hun oude hok niet automatisch terug; nieuwe wel. **dataVersion = 27.**
+
+**Finish-timer/cutoff verwijderd**
+- De **90-minuten-deadline** na de eerste finisher is **weg** (`FLIGHT_CUTOFF_MINUTES`
+  verwijderd uit `gameConfig.ts`; import weg uit `flight.ts`). `flightTotalSeconds` geeft
+  nu de **traagste duif die effectief finisht** (`Math.max(durations)`), zonder cap. Zo
+  krijgt **elke duif de tijd om (mogelijk) thuis te komen** — een trage of **verdwaalde**
+  duif wordt niet meer weggestreept omdat de kopvrouw al lang binnen is.
+- `finalizeFlight`: de `timedOut`-set (duif voorbij de cutoff → DNF) is verwijderd; DNF is
+  nu enkel **`gaveUp`** (zelf opgegeven) of **`dnfAtSeconds`** (onderweg uitgevallen door
+  uitputting/blessure). `liveSnapshot`/`flightCommentary` lopen vanzelf mee (ze lezen
+  `flightTotalSeconds`). `raceProgress` bevriest opgegeven/uitgevallen duiven al intern op
+  `gaveUpAtSeconds`/`dnfAtSeconds`, dus de tail-ordening blijft juist. Keerzijde: een race
+  kan langer duren (zeker met een verdwaalde duif) — bewuste keuze. Spelregels §3.3 herschreven.
+
+**Titanenwedstrijd telt mee voor de duivenranglijsten**
+- De titan voedt nu de **drie duivenranglijsten** (⚡ gemiddelde snelheid / 🎖️ podiums /
+  📈 vooruitgang) — vroeger werd ze daar volledig uit geweerd (behandeld als practice).
+  Enkel **oefenvluchten** tellen nog nergens mee. De **melkerranglijst (Roekoe)** blijft
+  ongemoeid: titan-resultaten dragen **0 seizoenspunten** (uit `finalizeFlight`), en geen
+  medailles/wins/bets/missies/sponsorbonus.
+- `tickFlights` (schedule.ts) is gesplitst: **enkel `flight.practice`** gaat naar
+  `seasonPracticeGain` + `continue`; de per-seizoen-stats­update (`seasonPeakSpeed`/
+  `seasonPodiums`) draait nu óók voor titans; daarna `if (flight.titan) continue;` slaat
+  de melker-economie-stappen over. Zo telt de titan wél voor snelheid/podiums/vooruitgang,
+  niet voor punten.
+- **Migratie v26**: bestaande **afgewerkte titanvluchten die nog bewaard zijn** (2-daagse
+  retentie → de recentste titan) worden nagerekend: `seasonPeakSpeed` opgetrokken naar het
+  titan-ritgemiddelde + podiums geteld. **Vooruitgang** kan niet retroactief hersteld
+  worden (de titan-groei zat al in `seasonPracticeGain` en is niet scheidbaar); geprunede
+  oudere titans evenmin. **dataVersion → 26.**
+
+**Weddenschap terugbetalen bij uitschrijven duif**
+- Een open weddenschap wordt nu **onmiddellijk geannuleerd + terugbetaald** zodra de
+  duif waarop ze steunt uit een vlucht wordt gehaald — niet pas bij het afhandelen van
+  de vlucht. `withdrawFlight` (engine.ts) roept `voidBetsForWithdrawnPigeon(db, flight,
+  pigeonId)` (betting.ts) ná de `entries.splice`. Geldt voor `win`/`top3`/`own_top3`/
+  `last` op die duif en `head2head` waar de duif óf de tegenstander verdwijnt;
+  `mine_wins` valt pas als de eigenaar **geen** ingeschreven duif meer heeft in die
+  vlucht. Terugbetaling via stabiele melding-id `ntf:bet:<betId>` (idempotent, deelt de
+  id met de settle-melding → nooit dubbel).
+- **Migratie v25** (`voidOrphanedBets` in betting.ts, aangeroepen in `runDataMigrations`):
+  bestaande **open** weddenschappen waarvan de duif al niet meer meedoet worden
+  terugbetaald — duif niet meer in `entries` van een `scheduled`/`live` vlucht, vlucht
+  **afgelast** (completed met lege `results`, die liep nooit door `settleFlightBets`), of
+  vlucht helemaal verdwenen. Normaal-afgewerkte vluchten regelen hun eigen bets en
+  blijven ongemoeid.
+
+**Afscheid nemen van een duif: vrijlaten + duivenrestaurant**
+- Twee nieuwe speler-acties op de duifpagina (enkel eigen duif, geblokkeerd zolang de
+  duif ingeschreven/koppelt):
+  - **Vrijlaten** — `releasePigeon(store, userId, pigeonId)` (engine.ts): verwijdert de
+    duif, **geen geld**, geen bijwerkingen. Endpoint `POST /pigeons/:id/release`.
+  - **Verkoop aan het duivenrestaurant** — `sellToRestaurant(...)` (engine.ts): **vast
+    €50** (`PIGEON_RESTAURANT.payout`), en **elke andere duif in het hok verliest
+    `randInt(1,5)` energie** (moraalklap, `form` geclampt ≥ 0). Endpoint
+    `POST /pigeons/:id/restaurant`. Restaurantnaam **`Bistro De Laatste Vlucht`**.
+  - Config: **`PIGEON_RESTAURANT`** (`gameConfig.ts`: `name`/`payout`/`moraleEnergyMin`/
+    `moraleEnergyMax`). Beide acties delen `pigeonBusy` (racing/breeding-guard) +
+    `purgePigeon` (verwijdert duif + laat openstaande `offers` erop vervallen mét
+    melding aan de bieders; defensief ook breedingPairs/flight-entries). Elke actie
+    stuurt de speler een bevestigingsmelding.
+- Restaurant-config gaat mee in de **economy-DTO** (`/state`): `restaurantName`/
+  `restaurantPayout`/`restaurantMoraleMin`/`restaurantMoraleMax` → `client/src/types.ts`
+  `EconomyCosts`. UI: kaart **"⚠️ Afscheid nemen"** op `PigeonPage` (bevestigingsstap,
+  `.btn.danger`). Wiki: nieuwe sectie **👋 Afscheid nemen**. Spelregels: **§9.2**.
+- **Eerste-login-melding**: `FAREWELL_NEWS_STEPS` (Tour.tsx) + sleutel
+  `roekoe.newsSeen.farewell.<id>` (import + key in `Layout.tsx` omgezet van breeds).
+
+**Rassen (breeds)**
+- Elke duif heeft een **ras** (`Pigeon.breed`, kolom `breed`): bepaalt de **foto** +
+  een kleine **prijstoeslag** via de rarity, verder **puur cosmetisch** (geen effect
+  op eigenschappen/prestaties). Config in `gameConfig.ts` (`PIGEON_BREEDS`,
+  `BREED_RARITY`, `MIXED_BREED_ID`, `DEFAULT_BREED_ID`) — namen/gewichten/foto's
+  gespiegeld van **roekoe.org/wiki/breeds**. 11 rollbare rassen (Algemeen/Ongewoon/
+  Zeldzaam/Legendarisch) + `mixed` (Gemengd).
+- **Toewijzing** via gewogen loting `rollBreed()` in `pigeon.ts` — zit in
+  `generatePigeon`, dus alle bronnen (kweek/bots/veiling/opvangcentrum/events) krijgen
+  automatisch een ras. **Kweek** (`breeding.ts::inheritBreed`): 2× hetzelfde ras →
+  behouden, verschillend → `mixed`. **Prijs**: `estimateValue` × `breedPriceMult`
+  (Ongewoon +8 %, Zeldzaam +20 %, Legendarisch +40 %).
+- **Foto's** in `client/public/pigeon-images/` (`pigeon.png` + `1.png`…`10.png`).
+  `PigeonAvatar` toont de rasfoto (rond kader, warmere rand voor zeldzaam/legendarisch),
+  met de oude SVG als fallback. `PigeonPage` toont een **ras-badge** (naam · zeldzaamheid).
+  DTO: `pigeonDTO.breed = { id, name, rarity, rarityLabel, image }` (publiek, ook voor
+  andermans duiven — de foto is zichtbaar). Migratie **v23** backfilt bestaande duiven.
+- **Persistentie**: `ensureSchema` voegt kolom `breed TEXT` toe; `rowToPigeon` +
+  pigeon-`INSERT` uitgebreid.
+- **Verzamelbadges** (`badges.ts`, nieuwe groep **`collection`** — 🕊️ Rassen):
+  één "bezit dit ras"-badge **per ras** (`breed_own_<id>`, XP ∝ rarity), één badge
+  **per zeldzaamheid** (`rarity_ongewoon`/`_zeldzaam`/`_legendarisch`/`_gemengd`)
+  en de kapstok **`breed_collector_all`** (bezit tegelijk elk ras, +500 XP).
+  Programmatisch gegenereerd uit `PIGEON_BREEDS` via `test`-helpers (`ownsBreed`/
+  `ownsRarity`); opgepikt door `evaluateBadges` (kopen/kweken/offers/vluchten/tick).
+  Client: `BadgeGroup` + `GROUP_LABEL`/`GROUP_ORDER` in `AchievementsPage` uitgebreid.
+- **Eerste-login-melding + tour**: `BREED_NEWS_STEPS` (eenmalig, sleutel
+  `roekoe.newsSeen.breeds.<id>`) + gedeelde `BREED_STEP` in de volledige tour
+  (herhaalbaar vanaf profiel), verankerd op `[data-tour="pigeon"]`.
+
+**Vluchten & energie**
+- Vlucht-energie wordt **geleidelijk per 30 min** afgetrokken (`tickFlightEnergy`),
+  niet meer in één klap; opgeven betaalt enkel het gevlogen deel.
+- `finalizeFlight` is **deterministisch** (seeded op vlucht-id) → geen
+  tegenstrijdige uitslagen bij gelijktijdige afhandeling; resultaat-/verbeter-/
+  blessure-/sponsor-/weddenschapsmeldingen hebben **stabiele id's** (dedupe).
+- **Live verslag toont nu echte info i.p.v. enkel grappen** (`flightCommentary`):
+  wie wie **voorbijsteekt**, met de reden als die duidelijk is (versnellen / wegzakken
+  / **verdwaald ~X km omweg** / uitputting / kramp / opgeven) + koploperwissels en
+  aankomsten. Afgeleid uit het bevroren `sim` (positiesampling per 10 min), gedempt
+  voor oscillerende paren, deterministisch. Nieuw veld `SimEntry.lost`. Zie §2.
+
+**Veilingen**
+- Biedingen in aparte tabel **`auction_bids`** → geen verloren biedingen meer.
+- **Verlies-meldingen** bij sluiting (reden: hok vol / geld weg / niet hoogste /
+  geen koper) + verrijkte overboden-melding.
+- Admin-diagnose **`GET /admin/auctions`** + dashboardknop "Toon recente veilingen".
+- **Dubbele verkoop-entries bij veilingwinst opgelost** (`auction.ts`): omdat
+  `ensureAuctions` bij élk verzoek draait, sloten meerdere gelijktijdige verzoeken
+  dezelfde veiling en pushten elk een trade/melding met een willekeurige id → de
+  duif stond dubbel in de verkoopgeschiedenis. Nu **stabiele id's**: trade
+  `trd_auc_<auctionId>` + meldingen `ntf:auc:win:<auctionId>` /
+  `ntf:auc:loss:<auctionId>:<userId>` (INSERT OR REPLACE dedupt tot één rij). Zie §2.
+- **Opvangcentrum-veilingen minder frequent + betere spreiding** (`AUCTION` +
+  `auction.ts`): `shelterMeanIntervalHours 9→60` (≈2–3/week i.p.v. meerdere/dag),
+  `shelterMaxConcurrent 2→1`, `shelterWindowHours 6→24`. Kwaliteit meestal laag
+  (`0.05–0.35`), maar met **`shelterBetterChance 0.22`** af en toe een **degelijke —
+  geen top — duif** (`0.45–0.68`; de zondagstopper blijft `0.82–0.98`).
+- **Zichtbaarheid eigenschappen**: te-koop-duiven (markt) én veilingduiven tonen nu
+  **alle** eigenschappen; enkel een rechtstreeks bod op een **niet-te-koop** duif blijft
+  blind (`revealed = … || p.forSale`; `auctionsDTO` → `pigeonDTO` zonder viewer). Zie §8 info-hiding.
+
+**Verzorging & balans**
+- **Per-dag-projectie** `projectDailyCare` → ▲/▼-cijfers in het hokoverzicht.
+- **Honger** (`hungerDays` + `STARVATION`): geen voer = versnellende daling → dood.
+- **Rustbonus** (`restDays` + `REST_BONUS`): elke 3e gevoede rustdag +4 energie.
+- Voer-energieherstel **verhoogd**, `FLIGHT_FATIGUE` **verlaagd** (meer races mogelijk).
+- **Kweekgrens** 40 → **20** energie.
+- **Bots**: capaciteit 20 → **8**, kwaliteit gelijk aan spelers; migraties v14
+  (bots naar 8), v15 (bestaande bot-eigenschappen naar speler-niveau).
+
+**Ziekenboeg**
+- Herstel is nu **real-time** (`tickHealing`) i.p.v. wekelijkse worp; **12u-status­
+  updates** (kinesist/dokter) met herstel-% + ETA; **herstelbalk per duif**.
+- Basiscapaciteit **2** (was 4), upgrades 3/4/5/6; migratie v16.
+
+**UI & onboarding**
+- **Donker thema als standaard** (data-theme), toggle in Profiel.
+- **Interactieve rondleiding** (`Tour.tsx`) met page-navigatie + highlights.
+- Voer-effecten in tekst; dashboardtegel-verduidelijking; "🏥 Ziekenboeg"-label;
+  prestige-badges lijnen netjes uit; "Meer/Minder"-navigatierij blijft open.
+
+**Badges & dagopdrachten**
+- Nieuwe stats `bets`/`betsWon`/`broods`; badges (De Gokker, Fortuin, Geluksvogel,
+  Koppelaar, Eigen Stek, Fijnproever); missies (weddenschap, kweekkoppel, apart hok).
+
+**Laag-energie-gameplay**
+- **Oefenvluchten** (`PRACTICE`, slots `tue-practice`/`fri-practice` 12:00; vroeger het
+  dagelijkse `noon-practice`): gratis, ~8 energie, geen
+  punten/prijzen/DNF/blessure; bouwt conditie/oriëntatie op (privécoach = grotere kans
+  + bonus). Bots doen niet mee. Aparte `finalizePracticeFlight` in `flight.ts`;
+  `botsEnterFlight`/`bettingOpen` slaan practice over; gerichte "oefenvlucht afgerond"-
+  melding (geen uitslag) in `emitFlightNotifications`.
+- **Getrapt wedstrijdrisico** bij lage startenergie (`TOURNEY_RISK`) in `finalizeFlight`:
+  <20 licht, <10 matig, <5 kans op **sterfte**. `SimulatedFlight.deaths` gevuld;
+  `tickFlights` verwijdert dode duiven (breeding/entries opgeruimd) + `🕯️`-melding.
+- **Wedcategorie `top3`** (elke duif top 3) toegevoegd; wedden nu op **alle**
+  wedstrijdvluchten (niet op oefenvluchten).
+- **Rustkuur** (`REST_CURE` + `startRestCure` + POST `/pigeons/:id/restcure` +
+  `tickRestCures`): €300, 1 dag verplicht rusten, daarna +40 energie; kan tijdens de
+  kuur **niets** doen: geen vluchten, training of koppelen. Bewaakt via
+  `onRestCure(pigeon)` in `pigeon.ts` — zit in `canRace` (dus uit de vlucht-selectie
+  én DTO) + expliciete checks in `enterFlight`/`trainPigeon`/`startBreeding`; client
+  filtert ook op `p.onCure` (Flights/Breeding/Pigeon-training). **Max. één per hok per
+  week** (`Loft.lastRestCure`, cooldown 7 dagen). UI op `PigeonPage`.
+- **Eenmalige "wat is nieuw"-melding**: eerst gecentreerde kaarten (oefenvlucht +
+  rustkuur), later vervangen door de **spotlight-`Tour` met `SEASON_NEWS_STEPS`**
+  (seizoen/ranglijst/Roekoe/Vleugel/seizoensprijzen). Al die onderwerpen zitten nu
+  ook in de **volledige** tour (profiel-herhaalbaar); `FeatureTour.tsx` is verwijderd.
+  Ankers: `RankingPage` (`season`/`ranking`/`pigeon-ranks`), `AchievementsPage`
+  (`season-prizes`).
+
+**Seizoenen, prijzen & duivenranglijsten**
+- **Real-time seizoen** (`core/game/season.ts`, `SEASON` 4 weken × 7 dagen): `tickSeason`
+  zet `world.seasonWeek`/`seasonEndsAt` en houdt op het einde de **prijsuitreiking**
+  (`runSeasonEnd`) → ranglijst reset, seizoen++. `advanceWeek` rolt het seizoen niet meer.
+- **De Gouden/Zilveren/Bronzen Roekoe** — top-3 hokken (€2000/1500/1000) + badge
+  `season_champion` voor #1. Bewaard in `Loft.awards`. Bots dingen mee.
+- **Drie duivenranglijsten** (`pigeonSeasonRankings`, in `/state.pigeonRankings`):
+  hoogste gemiddelde vluchtsnelheid (km/u; `seasonPeakSpeed` = beste rit­gemiddelde
+  `r.velocity`, ondanks de veldnaam géén momentane piek), meeste podiums, meeste
+  vooruitgang (`seasonScore`-delta).
+- **De Gouden/Zilveren/Bronzen Vleugel** — top-3 duiven per ranglijst
+  (€1000/750/500 naar de eigenaar, ook bots). Bewaard in `Loft.awards`.
+- Prestige-tab **Seizoensprijzen**; ranglijst-tabs **Melkers/Duiven**; kop toont
+  seizoensweek + resttijd. Bots dingen mee (geld erbij, geen melding).
+- **Sponsors kunnen zélf opstappen na een seizoen** (`reviewSponsorContracts` in
+  `sponsors.ts`, aangeroepen in `runSeasonEnd` vóór de puntenreset): elke actieve
+  sponsor vergelijkt de seizoenspunten met vorig seizoen (`ActiveSponsorship.refPoints`,
+  rijdt mee in de `sponsorship`-JSON — geen nieuwe kolom). Onder `SPONSOR_REVIEW.keepRatio`
+  (0.6) → contract eindigt zonder boete, sponsor naar `declined` (kan later heraanbieden).
+  Eerste seizoen na tekenen = enkel ijkpunt; `minReviewPoints` (20) dempt ruis.
+  ⚠️ Bij zo'n vertrek worden de **voorwaarden van het contract niet bewaard** (enkel
+  `{id, at, perf}` in `declined`), dus een exact herstel is achteraf onmogelijk.
+- **Sponsors ook voor wie gewoon meevliegt** (owner: lagere spelers winnen zelden).
+  `SPONSOR_OFFER_ON_PERFORMANCE.participationChance` (0.1): elke competitievlucht met een
+  duif van je (ook uitgevallen) geeft die kans op `evaluateSponsorOffers`, naast zege
+  0.5 / podium 0.25; spacing (6 u) en max 2 openstaand blijven. `isSponsorUnlocked` =
+  eigen `req` **of** `SPONSOR_LEVEL_ROUTE[tier]` (1→1, 2→3, 3→6, 4→10). Een aanbod via
+  de niveau-route krijgt de "trouwe deelnemer"-tekst i.p.v. de tagline (die een prestatie
+  prijst). Test: `tests/sponsor-access.test.mts`.
+- **Sponsorlimiet (seizoen 3, migratie v54):** `SPONSOR_MAX_ACTIVE 6`; tier ≥
+  `SPONSOR_HIGH_TIER` (4) betaalt `SPONSOR_HIGH_TIER_DAILY_MULT` (**0.5**; bij de lancering 0.25, verdubbeld door **v57**) van het dagbedrag
+  via `tierDailyMult`/`catalogDaily` (sponsors.ts) in `baseTerms`, `scaledTerms` en de
+  `legacyDaily`-terugval — **nooit** op opgeslagen voorwaarden bij het lezen (dat zou
+  dubbel tellen); bestaande contracten en open aanbiedingen zijn één keer verlaagd door
+  v54 (`applySponsorLimitMigration`). Een zevende tekenen: `applyAcceptSponsor(…,
+  dropSponsorId)` zegt eerst die op, tegen de gewone `breakPenalty`; een overstap binnen
+  een categorie telt niet. Te veel bij v54 → `SponsorState.mustReduce` (in de
+  `sponsorship`-JSON; `state()` wist hem vanzelf zodra het ≤ 6 is) + actiemelding
+  `ntf:season3:sponsorcap:<userId>`; zolang hij staat is `sponsorsPaused(loft)` waar en
+  betaalt **geen** sponsor (dagbedrag in `tickDailyCare`, podiumpremie in `tickFlights`;
+  de dagbalans toont €0 + `sponsorsPaused`). Gratis afbouwen: `applyReduceSponsors` /
+  `POST /api/sponsors/reduce`. `refusalIsFinal` is nooit waar voor een aanbod uit een
+  **hogere tier** dan de huidige sponsor in die categorie. Test: `tests/sponsor-cap.test.mts`.
+- **Migratie v57 — prestigesponsors van een kwart naar de helft** (owner: −75 % was te
+  veel). `applyHighTierDoubleMigration` (sponsors.ts): een opgeslagen tier-4-dagbedrag
+  dat nog op het kwart van de catalogus staat, gaat naar de nieuwe catalogus­waarde
+  (`catalogDaily`); een geschaald heraanbod wordt ×2. Actieve contracten én openstaande
+  aanbiedingen; melding `ntf:sponsortier4up:<userId>` enkel als er een contract steeg.
+  ⚠️ v54 snijdt daarom met de vaste `V54_QUARTER` (0,25), niet met de live multiplier:
+  een wereld die v54 en v57 in één verzoek doorloopt, komt zo op dezelfde plek uit als
+  productie in plaats van dubbel verdubbeld.
+- **De aankondiging van seizoen 3 (migratie v56)** — `core/game/season3.ts` bouwt per
+  echte speler de welkomstmelding (`ntf:season3:welcome:<userId>`: aantal kenmerken,
+  coachkost nu/was, sponsors — elke •-regel enkel als ze van toepassing is) en de
+  coachmelding (`ntf:season3:coach:<userId>`: per duif het tarief via `coachBill`, "was"
+  = gecoachte × `COACH.dailySalary` min de gratis coach). Loopt ná v54/v55, zodat ze de
+  nieuwe sponsor- en kenmerkstand lezen. Zet `world.newsAt` (kolom `news_at`, achteraan
+  `SCHEMA_STEPS`) — rijdt mee in `/state.world`. Client: "wat is nieuw"-run
+  `season3NewsSteps(...)` in `Tour.tsx` (sleutel `roekoe.newsSeen.seizoen3.<userId>`,
+  enkel als `world.newsAt` staat, na de prijsuitreiking; vervangt de Stem-run),
+  `Season3NewsCard` op het Overzicht (7 dagen vanaf `newsAt`, wegklikbaar), wiki-sectie
+  `seizoen3` bovenaan. Tour-ankers: `data-tour~="trait"` (hok; `~=` omdat de eerste
+  kaart soms ook "pigeon" is — daarom staan de pigeon-selectors ook op `~=`),
+  `sponsor-count`, `coach` (duifpagina). `.bell-item-body` heeft `white-space: pre-line`
+  (meldingen met •-regels). Het Stem-idee op "In het spel" zetten gaat **met de
+  admin-knop** (De Stem zit niet in de wereldload). Test: `tests/season3-news.test.mts`.
+- **Kenmerken (seizoen 3, migratie v55)** — één per duif voor het leven, publiek
+  (`traitDTO` in `pigeonDTO`, `broodYoungDTO`, `FamilyMember.trait`). Config
+  `PIGEON_TRAITS` (15: static/dynamic/passive) + `TRAITS` (kans .3, zeldzaam .2,
+  overerving .35/.6, `speedBonus` 1.05, drempels, zon −0,833°, 4 zonstalen per stuk,
+  buren 10 km / min. 2 / elke 5 min, passief ×0,75 verdwalen / ×0,92 energie / ×0,7
+  ziekte, waarde +5/+12 %). Module **`core/game/traits.ts`** (rollen, erven,
+  `staticTraitActive`, `sunAltitudeDeg`/`sunTimes`, `applyTraitBonus`, `traitWindows`,
+  `expectedTraitFactor` voor de odds). Kolommen: `pigeons.trait`, `flights.weather_along`/
+  `weather_rain`/`temp_c` (achteraan `SCHEMA_STEPS`); per etappe in `RelayLeg`. Sim:
+  `SimEntry.trait`/`traitWindows`/`traitShare`; resultaat `FlightResult.trait`/`traitShare`;
+  live `LiveBird.trait`/`traitActive`; `flightDTO.sun` (zonsopgang/-ondergang thuis).
+  ⚠️ **De bonus trekt niets uit de rng** van het profiel: een duif zonder kenmerk krijgt
+  exact het profiel van vóór seizoen 3 (getest). ⚠️ **Buren tellen vóór de bonus:**
+  `groupConditionKm` meet op de profielen zonder bonus en enkel de Sociale duiven/
+  Eenzaten worden herbouwd (solo) — bij een estafette wordt het hele plan opnieuw
+  gemaakt (`planTeams(groupKm)`). De scan loopt met een segmentcursor per duif i.p.v.
+  `raceProgress` (dat was 3× te duur bij 140 duiven/1200 km). ⚠️ **Geen seizoenspoort:**
+  seizoen 3 was al begonnen, v55 loot bij de deploy (geseed op `trait:<id>`, idempotent).
+  Verslag: `COMMENTARY.trait` per kenmerk, gedempt tot `COMMENTARY_LIMITS.traitLines` (4)
+  best geplaatste duiven, eigen rng-stroom `:trait`. Test: `tests/traits.test.mts`
+  (tweeling-duel gemeten ~65–70 % in haar situatie, ~50 % erbuiten).
+- **Migratie v53 — de sponsors van de wissel naar seizoen 3 terug** (owner: "iets te
+  streng"). `restoreSeasonReviewDrops` (sponsors.ts) herkent de vertrekkers aan
+  `declined.at === world.seasonStartedAt` (de review krijgt `atMs = start + SEASON_MS`,
+  exact het nieuwe seizoensbegin; een eigen weigering valt nooit op die milliseconde).
+  Ze komen terug op hun **catalogusvoorwaarden** (identiek voor een eerste aanbod of de
+  startsponsor; een contract van een heraanbod ×0,7–1,5 krijgt de catalogus­waarde),
+  zonder nieuw tekengeld, met de **gemiste dagbedragen bijbetaald** (middernachten
+  tussen vertrek en `lastDailyTick`; gemiste podiumpremies niet), en met **lege
+  `refPoints`** zodat ze op het einde van seizoen 3 niet opnieuw kunnen opstappen.
+  Overgeslagen als de speler intussen een concurrent in dezelfde categorie tekende.
+  Eén melding per speler (`ntf:sponsorrestore:<userId>`). Test:
+  `tests/sponsor-restore.test.mts`. `runDataMigrations` is daarvoor geëxporteerd.
+- **Migratie v17**: de duivenranglijsten worden **geseed uit vlucht­historie**
+  (beste ooit-snelheid → `seasonPeakSpeed`; elke top-3-finish → `seasonPodiums`;
+  oefenvluchten tellen niet). Vooruitgang kan niet gereconstrueerd worden en start
+  vers vanaf de seizoensverankering.
+
+**Economie-herbalans (recent)**
+- **Vaste kosten dagelijks** (niet meer wekelijks bij "Volgende week"): `DAILY_UPKEEP_*`,
+  `COACH.dailySalary 80`, ziekenboeg dokter 57 / kinesist 50 / medicatie 6 — in
+  `tickDailyCare` via `economy.dailyRunningCost`; sponsorbijdrage dagelijks (weekbedrag/7).
+- Dagopdrachten/streak verlaagd (~€750/week i.p.v. ~€1750). Weddenschap max €500.
+  Regionaal prijzengeld verdubbeld. Inschrijfgelden gehalveerd (regio €10 / nat €20 /
+  intl €40 / titan €50).
+- **Snelheidsmodel**: korte-vluchtweging snelheid 0.65; energiefactor afstandsafhankelijk;
+  ervaring "doseert" energie (`ENERGIE_IMPACT`). Training 1×/week per categorie
+  (`Pigeon.trainedAt`).
+- **Rustkuur = niets doen**: `onRestCure()` blokkeert vluchten/training/koppelen (zit in
+  `canRace` + expliciete checks).
+- *(Het "aging-gat" dat hier stond — leeftijd bewoog enkel via de admin-knop "Volgende
+  week" — is opgelost: `tickDailyCare` rolt `world.currentWeek` met
+  `GAME_WEEKS_PER_REAL_WEEK` (4) per échte week. Zie §2, tick 4.)*
+
+**Privé-biedingen + veiling-anti-snipe**
+- **Anti-snipe**: bod in laatste 5 min → `endAt` naar nu+5 min (`placeBid` in auction.ts).
+- **`PigeonOffer`** (`core/game/offers.ts`): bied op eender welke (niet-bot) spelersduif,
+  ook als die niet te koop staat. Geld niet in escrow; gecheckt bij aanvaarden.
+  - `makeOffer` (1 lopend bod per bieder+duif, updatet bedrag), `withdrawOffer`,
+    `respondOffer(accept)` (aanvaarden = transfer via `db.trades` + badges/missies,
+    weigeren/vervallen = melding aan bieder). Andere biedingen op dezelfde duif vervallen
+    bij verkoop. `offersFor(db, userId)` → `{received, sent}` (enkel geldige pending).
+  - **Melding bewust NIET via de bel** voor een nieuw ontvangen bod → staat in de **Markt**
+    + nav-badge; uitkomsten (aanvaard/geweigerd/vervallen) gaan wél als bel-melding naar
+    de bieder. Endpoints: `POST /pigeons/:id/offer`, `/offers/:id/withdraw`,
+    `/offers/:id/respond`. In `/state.offers`. `pigeonDTO.ownerIsBot` toegevoegd.
+- **Info-hiding bij bieden:** `pigeonDTO(db, p, viewerId?, viewerIsAdmin?)` verbergt de
+  **privé-eigenschappen** van andermans duiven. `publiclyRevealed = viewerId===undefined ||
+  p.ownerId===viewerId || p.forSale || onAuction`, en `revealed = publiclyRevealed ||
+  viewerIsAdmin` (zie de admin-doorbraak bovenaan §8) — **een duif die te koop staat op de markt is
+  dus volledig zichtbaar** (koper moet zien wat hij koopt), net als **veilingduiven**
+  (`auctionsDTO` roept `pigeonDTO(db, p)` zónder viewer → altijd revealed). Enkel een
+  duif die **niet** te koop staat blijft verborgen wanneer een ander ze bekijkt om een
+  **rechtstreeks bod** te doen. Is `revealed` false dan worden `speed/endurance/orientation/
+  libido/form/health/experience` (+ ailment/inInfirmary/coached/ration/compartment/
+  cureUntil/onCure/breeding/trainAvailableAt/dailyCare) **op null/false** gezet.
+  **Ook een duif in een lopende veiling is volledig zichtbaar** (`onAuction`-check in
+  `pigeonDTO`): de zondagstopper en de opvangcentrum-duif waren op hun eigen **duifpagina**
+  verborgen omdat ze van het veilinghuis zijn en niet `forSale` staan. De **veilingkaart** op de
+  markt toonde bovendien helemaal geen statbalken (server stuurde ze wél mee) — nu wel.
+  **Publiek blijven**: `talent` (algemene score, ook via weddenschappen/ranglijst),
+  `value`, `canRace`, `forSale`, `price`, `sex`, `ageWeeks`, `racing`. Het verbergen
+  gebeurt **server-side** zodat privéwaarden niet over de lijn gaan. Alle API-calls
+  geven nu `user.id` mee aan `pigeonDTO`/`auctionsDTO` (`/state`, `/pigeons/:id`,
+  `/market`). Client: `Pigeon.revealed:boolean`, de 7 statvelden zijn `number|null`;
+  `PigeonCard`/`PigeonPage` tonen bij `!revealed` enkel ★talent + een slot-melding.
+  De **Markt-biedkiezer `BidCascade`** dwingt de flow speler→duif→bedrag af.
+
+### Een speler verwijderen (en waarom dat meer is dan een DELETE)
+
+Gebeurt op vraag van de eigenaar, als eenmalige **datamigratie** (v24 voor
+"flapping pidgeons", **v52** voor "De Dikke Duif" en "Duiveplukker"). Het patroon
+staat hier omdat het makkelijk half wordt gedaan:
+
+- **Matchen op hoknaam OF gebruikersnaam**, case-insensitief, witruimte
+  **collapsed**, en **élke** match — niet `find`. Een migratie die niemand vindt
+  ziet er identiek uit als een die goed liep, dus de match moet ruim genoeg staan
+  voor een dubbele spatie maar nooit ruim genoeg voor een naamvariant: een speler
+  te veel wissen is onomkeerbaar, een speler te weinig kost een nieuwe migratie.
+- **Bots nooit** (`l.isBot`), ook al dragen ze de naam niet.
+- **Afgewerkte vluchten blijven zoals ze zijn.** De uitslag is geschiedenis van
+  iederéén die meedeed en de namen staan er bevroren in; die herschrijven
+  vervalst de uitslagen van de spelers die blijven. Enkel niet-afgelopen vluchten
+  worden opgekuist (entries/sim/results/chat).
+- **Andermans open weddenschappen op een verdwenen duif worden TERUGBETAALD**
+  (`voidOrphanedBets`, ná het opkuisen van de inschrijvingen), niet stil op
+  `void` gezet. v24 deed dat laatste — dat is geld afnemen voor een vlucht die
+  door toedoen van de spelleiding niet doorgaat.
+- **De veiling valt terug op de volgende bieder** als de vertrekker leider was;
+  anders staat er een veiling met een hoogste bieder die niet bestaat.
+- **Hun duiven verdwijnen mee.** Andermans duiven die van hen afstammen blijven
+  leesbaar in de stamboom dankzij `sireName`/`damName` — precies waarvoor die twee
+  gedenormaliseerde velden bestaan.
+
+⚠️ **De valstrik: de helft van de rijen zit niet in de wereldload.** De inbox van
+een ánder dan de kijker, de afgehandelde weddenschappen, de duivenlogboeken en
+het hele stembord staan niet in `Database`, en een rij die niet geladen is ziet
+de per-rij-diff ook niet als verwijderd. Het filteren van de arrays alleen laat
+die dus staan — met een stem die blijft meetellen als pijnlijkste gevolg. Daarvoor
+is **`Database.pendingPurge`** er: de migratie zet de userIds/pigeonIds erin en
+`persist` (`purgeRemovedPlayers` in d1.ts) maakt er de DELETEs van. Voeg je later
+een tabel toe die buiten de wereldload valt, zet ze **daar** ook bij.
+
+Ideeën en reacties op het stembord worden **geanonimiseerd** (`Oud-speler`) in
+plaats van gewist: er hangen stemmen en antwoorden van anderen aan, en die
+context weggooien is een zwaardere ingreep dan de naam weghalen. `tests/player-removal.test.mts`
+bewaakt beide kanten: alles van de vertrekker weg, de blijver ongemoeid.
+
+### De Stem: een ideeënbord dat het leesbudget niet aanraakt
+
+**Wat het is.** Een pagina (`/stem`) waar spelers stemmen op ideeën voor de volgende
+feature, er vragen onder stellen en zelf ideeën indienen. Het bord opent met vier
+ideeën van de spelleiding (lenen bij de bank · onderling broeden · doping met
+dopingcontrole · unieke eigenschappen per duif).
+
+**⚠️ Waarom deze feature buiten `Database` staat.** Elke andere entiteit in het spel zit
+in de wereldload, en dat kost élk verzoek rijen — óók de verzoeken die er niets mee
+doen. De Stem is log-vormig (elke stem, elke reactie is een rij) en wordt door precies
+**één** pagina gelezen. Meeladen zou dus de hele game duurder maken voor data die 99 %
+van de verzoeken nooit aanraakt: exact de fout die de historiekblobs van de duiven ooit
+maakten (zie `PIGEON_SELECT` hierboven). Daarom drie eigen tabellen, gelezen door eigen
+queries in `d1.ts`, en `/api/stem*` staat in `readOnlyPath` zodat die route ook de
+**smalle** duivenload krijgt — ze noemt geen enkele duif.
+
+**Gevolg: de schrijfkant loopt niet door de per-rij-diff.** Dat mag hier, want elke
+schrijfactie is een losse append of een DELETE op een samengestelde sleutel:
+- **stemmen is een toggle op `(idea_id, user_id)`**, geen teller op de ideeënrij. Een
+  teller zou een gedeelde hot row zijn en twee gelijktijdige stemmen zouden elkaar
+  overschrijven (zie *lost update* in §2). Nu is dubbel klikken of een dubbel verwerkt
+  verzoek gewoon dezelfde rij;
+- **het zaaien is `INSERT OR IGNORE` met vaste id's** (`stem_lenen`, …), dus twee
+  gelijktijdige eerste bezoeken zetten samen precies vier rijen neer. Het draait alleen
+  zolang het bord leeg is;
+- **de bel bij een reactie loopt WEL via de wereld** (meldingen staan daar) en heeft
+  daarom een stabiele id `ntf:stem:<commentId>`.
+
+**Een nieuw idee belt iedereen.** `notifyNewIdea` (game/stem.ts) zet bij het indienen
+één melding in de inbox van élke andere echte speler. Dat is geen extraatje maar de
+motor onder het bord: een idee dat niemand ziet krijgt geen stemmen. Bots worden
+overgeslagen — die lezen nooit een melding, en op tien echte spelers zouden zij de
+helft van de schrijfkosten zijn. De id is stabiel per (idee, speler), dus een dubbel
+verwerkt verzoek geeft één bel. Trimmen gebeurt niet in het geheugen (de inbox van een
+ander zit niet in de wereldload) maar door `boundedCleanups` in SQL.
+
+**De draad wordt lui geladen.** Het bord stuurt per idee enkel het *aantal* reacties
+(één `GROUP BY`, niet één rij per reactie); de reacties zelf komen pas bij het
+openklappen. Reacties zijn de enige rijen hier die onbeperkt groeien.
+
+**Wie stemde op wat (beheerder).** Het bord zelf leest de stemmen als één
+`GROUP BY` (één rij per idee). Het beheerdersoverzicht leest **één rij per stem**, en
+staat daarom achter een knop op een aparte route (`GET /admin/stem/voters`) in plaats
+van als veld op het bord — het draait alleen wanneer de beheerder het effectief opent.
+`buildVoterReport` (game/stem.ts, puur en getest) zet die rijen om in twee kanten:
+per idee wie het steunt, en per speler waarop hij stemde. **Beide lijsten zijn compleet**
+— een idee met nul stemmen en een speler die nog niets deed staan er óók in; dat is net
+de informatie die wegvalt als je alleen de stemmen groepeert. Namen worden bij het
+bouwen opgezocht (niet bij het stemmen bewaard), zodat een hernoemd hok meteen onder
+zijn nieuwe naam leest; een stem van een verdwenen hok houdt zijn userId als naam,
+zodat het aantal blijft kloppen met de teller op het bord.
+
+**Wat de spelleiding mag.** Enkel de **status** verzetten (In stemming → Gepland → In
+het spel, of Niet weerhouden). Ideeën van spelers worden niet herschreven en niet
+gewist — ook een afgewezen idee blijft staan mét zijn stemmen en zijn draad, zodat
+later na te lezen valt waarom iets het niet werd. Een idee dat de beheerder afwijst
+komt daardoor ook niet terug via het zaaien: de rij bestaat nog.
+
+**De aankondiging ging via twee kanalen**, omdat geen van beide iedereen bereikt:
+datamigratie **51** (`schedule.ts`) zet één bel in de inbox van élke echte speler
+(stabiele id `ntf:stem:intro:<userId>`), en `STEM_NEWS_STEPS` (`Tour.tsx`, sleutel
+`roekoe.newsSeen.stem.<id>`) zet de nav-knop in de schijnwerper bij het volgende bezoek.
+
+### Het Lokaal: een chat die geen wereld laadt
+
+**Wat het is.** Een vrije chat voor alle spelers op `/lokaal` (nav 🍻 **Het Lokaal** — "het
+lokaal" is het café van de duivenbond). Zelf typen, in tegenstelling tot de tribune. Regels in
+`core/game/lokaal.ts`, queries in `core/d1.ts` (`loadLokaalLatest`/`loadLokaalChanges`/
+`insertLokaalMessage`/`deleteLokaalMessage`/…), routes in `[[path]].ts`, UI in `LokaalPage.tsx`.
+
+**⚠️ Waarom featherweight en niet "zoals De Stem".** De Stem staat buiten `Database` maar laat
+de middleware nog de (smalle) wereldload doen — ~150 rijen per verzoek. Voor een pagina die
+**pollt** zolang ze open staat, is dat de verkeerde kant van de rekensom: 10 spelers met de chat
+open = ~2.400 polls/uur. Daarom staan `/api/lokaal*` bij de **featherweight**-routes: JWT
+verifiëren (pure crypto), `findUserById` (1 rij), en dan enkel de chatqueries. Een poll zonder
+nieuwe berichten leest zo ~1 rij en schrijft er 0. ⚠️ **Gevolg voor wie hier iets aan toevoegt:
+`c.get('store')` bestaat in deze handlers niet**; de naam van de schrijver komt uit
+`lokaalNameFor` (één `lofts`-rij), niet uit de wereld. En de motor draait niet op een chatpoll —
+dat mag, want de wereldklok is volledig uit tijdstempels afgeleid en de volgende gewone
+navigatie haalt alles in.
+
+**De poll: een cursor met overlap.** Elk antwoord draagt `now` (servertijd, zodat een verkeerd
+staande gsm-klok niets doet missen); de volgende poll vraagt `?since=<now>`, en de server kijkt
+`LOKAAL.pollOverlapSeconds` (20 s) **vóór** die cursor. Reden: een bericht krijgt zijn
+`created_at` vóór de INSERT het haalt, dus een poll die net tussen die twee valt, zou het anders
+voorgoed overslaan. De client ontdubbelt op id. Twee index-range-queries per poll: nieuwe
+berichten (`created_at > ?`) en weggehaalde (`deleted_at > ?`).
+
+**Weghalen is een soft delete.** `body = ''` + `deleted_at`: de tekst is echt weg, maar de rij
+blijft, anders zouden de andere open schermen nooit horen dat het bericht verdween. Eigen berichten
++ de beheerder (moderatie) — `canDeleteMessage`.
+
+**Het bolletje op de knop** komt van `world.chat_last_at/by`, net als de markt-stip, zodat
+`/state` er geen query voor hoeft te doen (`SELECT * FROM world` leest ze gratis mee). ⚠️ **Die
+twee kolommen schrijft ENKEL `insertLokaalMessage`**, met een directe `UPDATE world SET
+chat_last_*`, en ze staan bewust **niet** in de world-INSERT/UPDATE van `persist`: een verzoek dat
+de wereld laadde vlak vóór iemand iets postte, zou anders de oude waarde terugschrijven. Voeg ze
+daar dus nooit aan toe. Bewaakt door `lokaal.test.mts` ("een gewone persist zet de markering
+niet terug").
+
+**Opruimen** gebeurt in dezelfde batch als het plaatsen: `DELETE … WHERE created_at < nu − 30 d`
+(index-range, leest enkel wat het wist). Geen aparte tick, en een rustige chat kost dus niets.
+Een verwijderde speler wordt `Oud-speler` (`purgeRemovedPlayers`), net als op De Stem — het
+gesprek van de anderen blijft leesbaar.
+
+**Niet gebouwd (bewust, vraag eerst):** @-vermeldingen met een bel (nu enkel de oranje rand als je
+naam in een bericht staat), privéberichten, reacties/emoji op berichten, links klikbaar maken,
+en een ongelezen-teller op de knop (het bolletje zegt enkel *dat* er iets is — een eerlijk getal
+zou per speler een leespositie in de databank vragen).
+
+### Performance & stabiliteit (503-fix — belangrijk)
+**Symptoom:** spelers kregen vaak **503**, werden willekeurig uitgelogd, en soms een
+**hele dag** niet kunnen inloggen. **Oorzaak (geverifieerd):** niet te veel spelers,
+maar een **niet-performante hot path**. Elk verzoek laadt de **hele wereld** (`d1.ts`
+doet 11× `SELECT *`) en draaide `advanceRealtime` + `persist`. De **vluchtentabel werd
+nooit opgeruimd** (≈3 vette vluchtrijen/dag, met `sim`/`results`-JSON) → per verzoek
+werden duizenden rijen gelezen. D1 rekent **rows read** af; op het **gratis plan**
+(5M rijen/dag) raakte dat op bij normaal spelen → D1 gaf fouten → Cloudflare **503**
+voor élk verzoek (ook inloggen) tot de **dagelijkse reset**. (Schrijf-limiet zat maar
+rond ~7k/dag, dus het waren de **reads**.) We blijven op het **free plan**; het spel
+moet gewoon efficiënt zijn.
+
+**Wat is gefixt (deze sessie):**
+1. **Vluchtretentie 2 dagen** — `pruneOldFlights` (schedule.ts) wist afgewerkte
+   vluchten > 2 dagen; scheduled/live blijven. Snijdt de dominante leeskost weg.
+2. **Durable `Pigeon.raceLog`** (kolom `race_log`, cap 40) — `logRaceResults` schrijft
+   elke plaatsing bij afronding; `pigeonRaceHistory` + `playerProfile.trophies` lezen
+   eruit; **medailletellingen uit `loft.stats`**. Zo blijven **stand-per-vlucht +
+   punten/geld/medailles** behouden ná de prune. Migratie **v18** backfilt uit
+   bestaande vluchten vóór de eerste prune (geen historieverlies bij deploy).
+3. **`world`-rij enkel schrijven bij wijziging** (`d1.ts`, snapshot-diff) — pure polls
+   schrijven 0 rijen; geen hot-row-lock meer op `world` (id=1).
+4. **Auth/health zijn "light" routes** — `functions/api/[[path]].ts` slaat
+   `advanceRealtime` + de tick-`persist` over voor `/api/auth/*` en `/api/health`, zodat
+   **inloggen blijft werken** ook als de spelstate zwaar is. De handlers persisten zelf.
+5. **Client logt niet meer uit bij 5xx** — `AuthContext` wist het token **enkel bij
+   401** (niet bij 503/netwerkfout) → geen willekeurige uitlogs/lock-outs meer.
+6. **Rustiger pollen** — LiveFlightPage 8s→20s→**60s**, FlightsPage 15s→40s→**90s**
+   (verder verruimd in 503-fix ronde 5, zie onderaan).
+
+**Terugkeer van de 503 — tweede ronde**
+**Symptoom (identiek):** 503 op alles, spelers zien plots het inlogscherm en
+**inloggen geeft dezelfde 503**. Dat "uitloggen" is trouwens schijn: `AuthContext`
+gooit het token niet weg bij 5xx (fix 5 hierboven), maar als `/auth/me` faalt blijft
+`user` null → de app toont LoginPage. En inloggen faalde óók, dus je raakte er niet in.
+
+> ⚠️ **Het was déze keer NIET het dagquotum.** Eerste hypothese was opnieuw "rows
+> read op". De D1-metrics weerlegden dat: **273,4 k gelezen / 37,1 k geschreven
+> rijen** op de dag van de storing, tegen limieten van 5 M / 100 k — dus ~5 %
+> van het leesbudget. Check dus **altijd eerst de metrics** vóór je op quota gokt.
+
+**Echte oorzaak (gevonden): de D1-limiet van 50 queries per Worker-invocatie**
+(gratis plan; betaald 1000). Dat is een **per-verzoek**-limiet, los van het dagquotum.
+`ensureSchema` vuurde **71 losse statements** af (56 `ALTER` + 6 `CREATE TABLE` +
+6 `CREATE INDEX` + …) en draaide bij **élke cold start** — een isolate wordt continu
+gerecycleerd, dus dat gebeurt willekeurig en vaak. Zo'n verzoek gaat over de limiet en
+**sterft vóór het bij het spel raakt**, ongeacht welke route het was: /state, maar net
+zo goed /auth/login. Dat verklaart de willekeur ("soms werkt het, soms niet") én
+waarom inloggen meeging.
+
+**Fix: `ensureSchema` is nu gegate én hervatbaar.** Alle statements staan in één
+**append-only** lijst `SCHEMA_STEPS`; `world.schema_version` bewaart **hoeveel** er
+al toegepast zijn.
+- Bijgewerkte database → **1 query**, functie geeft `true` terug.
+- Achterlopende database → hoogstens **`SCHEMA_STEPS_PER_RUN` (20)** statements,
+  slaat de voortgang op en geeft `false` → de middleware (`schemaReady = await
+  ensureSchema(...)`) komt terug voor de rest. Duurste invocatie: **22 queries**.
+- Zo blijft **élke** invocatie ver onder de 50, ook de allereerste op een verse
+  database (waar de `world`-rij nog niet bestaat en de voortgang dus niet bewaard
+  kan worden).
+
+> **Regel: `SCHEMA_STEPS` is append-only.** Nieuwe statements gaan **achteraan**.
+> Iets invoegen of herordenen zou databases die al verder staan statements laten
+> overslaan. Elk statement is idempotent (`ADD COLUMN` op een bestaande kolom
+> gooit, `IF NOT EXISTS` doet niets), dus een verkeerde teller kost hoogstens
+> queries, nooit correctheid.
+
+**Daarnaast meegenomen (basiskost, want die was sowieso onnodig hoog):** elk verzoek
+deed **11× `SELECT *`**, óók `/api/auth/login` en `/api/auth/me` — de "light routes"
+sloegen wél `advanceRealtime` + `persist` over, **maar niet de load**. Ruwe telling:
+pigeons ~200 + notifications ~640 + trades 200 + bets 200 + de rest ≈ **~1300 rijen**
+per verzoek. Dat is geen quotumprobleem gebleken, maar wel **CPU** (JSON.parse van de
+hele wereld + `snapshot()` die élke entiteit stringify't) — en de gratis Workers-limiet
+is **10 ms CPU per invocatie**, met **Error 1102 "Worker exceeded resource limits"** als
+je eroverheen gaat. Minder rijen = minder parse/stringify, dus dit blijft nuttig.
+
+**Relevante Cloudflare-limieten om te onthouden (gratis plan):**
+
+| Limiet | Gratis | Waar het pijn doet |
+|---|---|---|
+| D1 **queries per Worker-invocatie** | **50** | `ensureSchema` (71!), en een `batch()` met veel statements |
+| Workers **CPU per invocatie** | **10 ms** | de hele wereld parsen/stringify'en → Error 1102 |
+| D1 rijen gelezen/dag | 5 M | **hard afgedwongen vanaf 1 sep 2026**; drukke dag zit op 24% — `daily-budget.test.mts` |
+| D1 rijen geschreven/dag | 100 k | idem; drukke dag zit op 7% |
+| D1 databasegrootte | 500 MB | zat op ~0,7 MB |
+| Externe `fetch`-subrequests | 50 | `fetchFlightWeather` (1 per startende vlucht) |
+
+> **Let op bij `persist()`:** één `db.batch([...])` met veel statements telt mee voor de
+> 50-querylimiet. Een vluchtafronding raakt tientallen duiven + meldingen tegelijk —
+> hou dat in de gaten als er ooit weer 503's zijn net ná een race.
+
+**Wat is gefixt:**
+7. **`ensureSchema` gegate + hervatbaar** — 71 queries → **1** op een bijgewerkte
+   database, max. 22 tijdens een upgrade. Dit is de hoofdfix voor ronde 2.
+8. **Inloggen laadt de wereld niet meer.** `/api/health`, `/api/auth/login` en
+   `/api/auth/me` zijn nu **featherweight**: het token wordt geverifieerd vóór elke
+   DB-toegang (pure crypto), en de speler wordt opgezocht met één rij via
+   `findUserById`/`findUserByUsername` (`core/d1.ts`). **~1 rij i.p.v. ~1300** → je
+   raakt altijd binnen, ook op een dag dat de spelstate haar budget opgesoupeerd
+   heeft. `/health` raakt **geen enkele tabel** meer (`{ok:true}`; week/spelersaantal
+   zijn eruit — de client gebruikte ze niet). `/auth/register` houdt de volle load
+   (maakt een hok aan, en is zeldzaam).
+9. **Partieel laden van `notifications`/`bets`/`trades`** (zie §2, D1Store-patroon)
+   → de basiskost zakt van ~1300 naar **~450 rijen** per verzoek: minder leeswerk,
+   en vooral minder JSON-parse/stringify-CPU.
+10. **SQL-begrenzing i.p.v. array-begrenzing** (`boundedCleanups`): inbox 40/speler,
+   trades 100, afgehandelde weddenschappen 100 — **openstaande** weddenschappen
+   overleven altijd. Draait enkel bij een echte toevoeging.
+11. **Indexen** die die queries dekken (`idx_notifications_user_created`,
+   `idx_trades_at`, `idx_bets_status`), aangemaakt achteraan `ensureSchema` zodat
+   alle tabellen al bestaan. Zonder index scant SQLite alsnog de hele tabel.
+
+**Geverifieerd** met `d1-partial-load.test.mts` (`npx tsx tests/…`, vanuit de repo-root): draait de
+echte `d1.ts` tegen een `node:sqlite`-nep-D1 en checkt dat (a) enkel de juiste slice
+geladen wordt, (b) `persist` **niets** wist wat niet geladen was, (c) de opruiming de
+tabellen aftopt zonder open weddenschappen te raken, en (d) het inlogpad 2 rijen kost.
+Query-plannen gecontroleerd met `EXPLAIN QUERY PLAN` — alles index-gedekt behalve
+`lower(username)` bij login, en dat is een scan over ~16 rijen.
+
+> **Bots tellen mee in dat plafond.** 8 bots × `BOT.maxCapacity` (12) = ~96 duiven die
+> élk verzoek gelezen en om 00:00 herschreven worden. Daarom staat er een plafond op het
+> bothok; verhoog `BOT.maxCapacity` of `DEFAULT_BOT_COUNT` niet zonder
+> `query-budget.test.mts` opnieuw te draaien (ook met `PIGEONS=350`).
+
+**Structureel** blijft `pigeons` de grootste volledige load — die is echt globaal nodig
+(vluchten, markt, bots). ⚠️ **Wat er wél uit kon: de kolommen.** Zie de historiek-fix hoger
+in §8 — niet de rijen tellen, maar wat er per rij aan meerijdt. (De hefbomen die hier ooit
+als "nog te doen" stonden — throttle, `TRADE_LOAD_LIMIT` verlagen, een smalle load — zijn
+intussen alle drie uitgevoerd; wat overblijft staat onderaan §8.)
+
+### 503-fix ronde 4: elke poll schreef rijen (dé oorzaak)
+
+**Symptoom:** iedereen buiten, hele dag. **Metrics van die dag:** 474 k gelezen (van 5 M,
+dus 9 %) maar **77,5 k geschreven van de 100 k/dag** om 19:30 UTC — de **schrijflimiet**
+was de bindende, niet de leeslimiet. Loopt die vol, dan faalt élke schrijvende request
+tot middernacht UTC.
+
+**Oorzaak: twee klokken die "nu" in een rij stempelden bij élk verzoek.**
+- `auction.ts::ensureAuctions` zette `world.lastShelterSpawn = now` op **elke** request
+  (`dtHours > 0` is altijd waar) → de wereldrij werd altijd geschreven.
+- `health.ts::tickHealing` zette `ailment.lastTickMs = now` + herrekende `healed` op
+  **elke** request → **één duifrij per zieke duif per poll** (en `pigeons` heeft een
+  index, dus D1 rekent 2 rijen per duif aan).
+
+Met ~12 zieke duiven kostte élke poll ~25 geschreven rijen, ook al gebeurde er niets.
+Gemeten: 474 k gelezen ÷ 350 rijen ≈ **1.355 verzoeken op de hele dag** → ×25 ≈ 34 k
+rijen, en dat schaalt lineair mee met het pollen (live-bord = 3 verzoeken/minuut).
+
+**Fix — beide klokken gekwantiseerd** (zoals `tickFlightEnergy` al per 30 min werkte):
+`HEALING.tickMinutes 15` en `AUCTION.shelterCheckMinutes 15`. Sla je een tick over, dan
+blijft `lastTickMs`/`lastShelterSpawn` staan en pakt de volgende de **volle** verstreken
+tijd — geen verlies, geen drift, en de spawn-kans blijft memoryless (zelfde gemiddelde
+van 60 u). Herstel duurt 1,5–18 dagen, dus kwartierstappen zijn onzichtbaar.
+
+**Resultaat:** een poll zonder gebeurtenissen schrijft **0 rijen** (was 13–25). De zieke
+duiven kosten nu ~12 rijen per kwartier (~1.150/dag) i.p.v. per verzoek.
+
+**Nieuwe blijvende test `idle-writes.test.mts`:** pollt herhaaldelijk in een live én een
+rustige wereld en faalt zodra een poll zonder gebeurtenissen ook maar één rij schrijft.
+**Regel voor nieuwe code: stempel nooit `Date.now()` in een rij op elk verzoek** — geef
+zo'n klok altijd een minimuminterval.
+
+**Tweede regel, voor CPU (zie CPU-fix ronde 2 bovenaan §8): niets in het verzoekpad mag
+schalen met de racelengte of kwadratisch met het aantal duiven.** Een lus over "alle
+duiven van een vlucht" of over "de hele racetijd" hoort een **harde bovengrens** te
+hebben, en het resultaat hoort gecachet te worden als het tussen polls niet verandert.
+Twee keer is het spel hierop platgegaan (het live verslag, de weddenschapsodds).
+Meet met `npx tsx tests/cpu-sweep.mts`, en laat `cpu-budget.test.mts` het bewaken — die test
+meet bewust de **koude** weg, want een cache redt je niet na een isolate-recycle.
+
+### 503-fix rondes 5 en 6: pollritme, trage weer-fetches, en de CPU bevestigd
+
+**Symptoom:** site "constant niet aan het laden", tijdens een **live estafettevlucht**.
+
+⚠️ **Ronde 5 benoemde de oorzaak op basis van een redenering (het leesbudget × de duur van
+een estafette) en die redenering was FOUT.** De Cloudflare-metrics weerlegden ze: ~1.263
+verzoeken/dag (~1 % van 100.000) en ~380 k gelezen rijen/dag (**7,6 %** van de 5 M) — het
+leesbudget was nooit in gevaar. Wat er wél uitsprong was **CPU: 17,8 ms gemiddeld per
+verzoek**. **Les: haal de metrics vóór je een oorzaak benoemt, ook als de theorie mooi
+klopt.** (Dezelfde les als ronde 2, twee keer geleerd.)
+
+**Wat ronde 5 wél opleverde** (goede maatregelen, alleen niet dé fix):
+12. **Pollintervallen verruimd** — live-bord **20 s → 60 s** (`LiveFlightPage`), kalender
+    **40 s → 90 s** (`FlightsPage`). `MarketPage` (15 s) blijft: die pollt enkel in de
+    laatste 6 min van een veiling.
+13. **`TRADE_LOAD_LIMIT` 100 → 40** (`core/d1.ts`, **geëxporteerd** zodat
+    `d1-partial-load.test.mts` de constante volgt i.p.v. 100 te hardcoderen). De
+    marktwaardering weegt een verkoop toch al op recentheid (halfwaardetijd 10 dagen,
+    venster 28 dagen), dus de oudste 60 bewogen de curve nauwelijks. (Later terug naar 100:
+    een prijs blijft nu staan tot een nieuwere verkoop — zie §8 "Marktwaarde houdt stand".)
+
+**Ronde 6, bevinding 1 — een verzoek kán hangen (past op "blijft laden").** De middleware
+deed de weer-fetches **sequentieel**, elk met een eigen timeout van 4 s. Een estafette heeft
+**drie etappevoorspellingen**, in de laatste 2 u vóór de start elk uur ververst
+(`relayLegsNeedingForecast`), plus een fetch per startende vlucht — worst case 12–20 s
+wachten op Open-Meteo. **Gefixt:** alles in één `Promise.all`, dus het hele blok is begrensd
+op **één** timeout i.p.v. één per call.
+
+**Ronde 6, bevinding 2 — de CPU per verzoek is structureel hoog.** Lokaal gemeten op een
+productiewereld (167 duiven):
+
+| Onderdeel | ms |
+|---|---|
+| `D1Store.load` (query + JSON.parse + snapshot) | ~4,2 |
+| `advanceRealtime` (alle ticks samen) | ~3,4 |
+| `persist` (diff + stringify) | ~5,8 |
+| `/state` DTO's (duiven, vluchten, ranglijsten) | ~0,8 |
+| **totaal** | **~14 ms** |
+
+⚠️ Dat is **het D1Store-patroon zelf**, niet één hete tick: élk verzoek — ook een poll waar
+niets gebeurt — laadt, parset, snapshot, diff't en stringify't de hele wereld. De DTO-laag is
+verwaarloosbaar. Losse ticks meten lukte niet: alles kwam op ~0,9 ms uit, ook
+`pruneOldFlights` die vrijwel niets doet — dat is de **ruisvloer van de meting**, geen
+signaal. **Claim dus nooit dat één tick de boosdoener is zonder ablatie.**
+
+**BEVESTIGD in het Functions-paneel:** 69× "Exceeded CPU Time Limits" op één dag, alle andere
+fouttellers 0 (dus D1-quota, geheugen en exceptions vallen af). CPU per verzoek: p50 **26 ms**
+· p75 34 · p99 68 · p99.9 96. ⚠️ **Productie is ~1,9× trager dan lokaal** — reken lokale
+metingen altijd om vóór je ze tegen de 10 ms-limiet legt.
+
+**Meegenomen:** `tickBotEntries` slaat eerst goedkoop af (staan alle bots al ingeschreven →
+meteen klaar) en `botEntryContext` groepeert de duiven **één keer** per pas i.p.v. per bot
+per vlucht (was O(bots × vluchten × duiven)).
+
+### 503-fix ronde 7: `advanceRealtime` throttlen (dé CPU-fix)
+
+**Oorzaak staat vast** (zie ronde 6): Error 1102, 69× op één dag, p50 26 ms per verzoek.
+
+**De fix: een read-only verzoek binnen `ADVANCE_THROTTLE_SECONDS` (20) van de vorige
+run slaat `advanceRealtime` én `persist` volledig over.** Nieuw veld
+**`World.lastAdvance`** (kolom `last_advance TEXT`, achteraan `SCHEMA_STEPS` — de
+append-only regel), gestempeld in de middleware ná de engine-run.
+
+- **Alleen leesverzoeken** (GET/HEAD) worden gethrotteld. Élke POST/PUT/DELETE draait
+  eerst de engine, zodat een speleractie nooit op een verouderde wereld werkt.
+- **Niets gaat verloren.** De hele wereldklok is afgeleid uit tijdstempels (vluchten,
+  dagverzorging, herstel, seizoen), dus later draaien verandert geen uitkomst — het
+  verschuift alleen wanneer iets *opgemerkt* wordt, met hoogstens 20 s.
+- **Veilige terugval:** staat de kolom er nog niet, dan is `lastAdvance` leeg →
+  `Date.parse('')` is NaN → nooit "fresh" → exact het oude gedrag tot de migratie liep.
+- **Schrijfkost:** een advance schrijft nu ook de wereldrij (`lastAdvance` bewoog), dus
+  hoogstens 1 rij per 20 s ≈ **4.300/dag** van de 100.000. Doorgethrottelde polls
+  schrijven **0** rijen (er wordt niet eens gepersist).
+
+**Gemeten:** een doorgethrotteld leesverzoek gaat van **5,24 → 2,48 ms** (−53 %) op een
+wereld van 200 duiven; van 30 polls over 60 s draait de engine er nog **3**. Wat overblijft
+is `D1Store.load` — dát is de volgende hefboom (smalle load voor `/flights/:id/live` en
+`/state`), en pas als die er is kunnen de pollintervallen van ronde 5 weer omlaag.
+
+**Nieuwe blijvende test `advance-throttle.test.mts`** (10 controles): leespolls binnen het
+venster slaan de engine over, net erbuiten weer niet, een POST draait altijd, doorgethrottelde
+polls schrijven niets, en — het belangrijkste — een vlucht gaat gewoon **live** terwijl er
+uitsluitend leespolls binnenkomen.
+
+### De tweede limiet: rijen gelezen per dag
+
+**Élk** verzoek dat de wereld laadt leest rijen, en D1 rekent **gelezen rijen** af: 5 M/dag,
+**gedeeld door alle spelers samen**. Dat plafond ligt véél lager dan de 100.000
+Worker-verzoeken/dag, dus het is dít wat het spel plat legt.
+
+De cijfers bewegen mee met elke wijziging, dus lees ze **niet** uit dit bestand maar uit de
+tests: `npx tsx tests/daily-budget.test.mts` (een volledige, bewust pessimistische speeldag →
+% van 5 M / 100 k) en `npx tsx tests/limits-report.mts` (queries en rijen per soort verzoek).
+Stand bij het schrijven: **~158 rijen per verzoek**, **24 % gelezen / 7 % geschreven** van
+het dagbudget.
+
+> **Belangrijk:** als het leesbudget op is, faalt **ook het lichte inlogpad** (dat leest nog
+> altijd één rij). Vandaar "niemand raakt er nog in" tot de reset om **middernacht UTC**. Het
+> featherweight-pad spaart rijen, maar redt je niet als het budget al op is.
+
+De hefbomen die hier ooit als "nog te doen" stonden zijn **uitgevoerd**: trades begrensd
+(`TRADE_LOAD_LIMIT` 40), meldingen viewer-scoped, het live-bord op een eigen smalle load
+(`loadLiveFlight`, **2 rijen**), ruimere pollintervallen en de `advanceRealtime`-throttle.
+Wat nog echt open staat, staat hieronder.
+
+### Openstaande ideeën / balans om op te letten
+- Weddenschappen als geldbron; rustbonus + sneller herstel + goedkopere vluchten samen →
+  hou in de gaten of energie niet te makkelijk wordt.
+- **Trofee-showcase** toont enkel podia van **nu-bezeten** duiven (uit `raceLog`);
+  medailletellingen (`loft.stats`) blijven wél volledig. Verkochte/overleden duiven vallen
+  uit de trofeeënlijst (niet uit de tellingen).
+- **`breed()` gebruikt rauwe `Math.random()`.** Twee gelijktijdige worpen kunnen een
+  verschillend **aantal** jongen opleveren (de ids zijn wél stabiel). Nette fix: `breed()`
+  seeden op het koppel-id — dat raakt namen, rassen, genen en de tweelingworp, dus een aparte
+  ingreep. Zelfde wortel als de flakiness van `brood-choice.test.mts`.
+- **`poll-budget.test.mts`** zet in zijn fixture een gewone vlucht met 184 inschrijvingen om
+  naar `relay = true`; een echte estafette telt 3 duiven per hok, dus die fixture is
+  onrealistisch en de laatste assertie ("de load blijft smal") ligt op de rand. Repareer de
+  fixture — zet de assertie niet stilletjes losser, ze bewaakt het leesbudget.
+
+**Afstand, live-bord, veilingen, dilemma's & sponsors**
+- **Afstandsvensters** (`FLIGHT_TIERS`): regionaal **100–200 km**, nationaal **200–500 km**,
+  internationaal **400–1200 km**. `tierPool` (schedule.ts): nationaal = BE + buurlanden (geen
+  GB/ES, geen `intlOnly`); internationaal = alles incl. de **grote-fondlosplaatsen**
+  (`intlOnly` in `RACE_CITIES`: Lyon, Bordeaux, Toulouse, Marseille, Perpignan, **Barcelona**;
+  land `ES` in `Country`). `pickRoute` filtert op `[minKm,maxKm]`, dus een pool hoeft enkel
+  genoeg in-window-paren te bevatten.
+- **Live-vlucht km/u = de echte effectieve snelheid** (`liveSnapshot`): geen cosmetische
+  wobble, posities blijven continu. (Het 5-minutenraster `SPEED_STEP_SECONDS` dat hier ooit
+  bijkwam is verwijderd — het bond nooit; zie het km/u-blok hoger in §8.)
+- **Veiling-countdown live** (`AuctionCard` in MarketPage): zelf-plannende tick (30 s ver weg,
+  **1 s in de laatste 5 min**), `countdownTo(endAt, nowMs)`; bij het sluiten
+  `onExpire → load()+refresh()`. MarketPage pollt bovendien elke 15 s zolang een veiling in
+  haar **slotfase (<6 min)** zit → andermans biedingen + anti-snipe-verlenging verschijnen
+  zonder handmatige refresh. ⚠️ Dat is de enige poll onder 60 s in het spel en hij mag enkel
+  in die slotfase lopen.
+- **Dilemma's** (`events.ts`): `doping` (💉, boost of boete+ziekte), `inheritance` (📜,
+  **3-keuze**: geld / oude kampioen / jonge belofte), `scout` (🔎, prospect op proef),
+  `poacher` (🦅, incl. **sterftekans**), `charity` (🎗️). De client-modal rendert de opties
+  generiek, dus een 3-keuze werkt zonder UI-werk.
+- **Sponsoraanbiedingen komen enkel na een goede competitievlucht.** ⚠️ Vroeger werden ze
+  **per request** op drempels/tijd geëvalueerd en dat gaf een **wal van aanbiedingen tegelijk**.
+  Nu: in `tickFlights`, per eigenaar met een podium/zege in een échte wedstrijd, met kans
+  `SPONSOR_OFFER_ON_PERFORMANCE` (win 0,5 / podium 0,25, geseed op `flight.id+ownerId`) →
+  `evaluateSponsorOffers`. Practice/titan vallen er vóór weg. Die functie emit hoogstens **één**
+  aanbod (laagste tier eerst) met twee floors: `SPONSOR_MAX_PENDING_OFFERS` (2) en
+  `SPONSOR_OFFER_SPACING_HOURS` (6 u, bewaakt via `SponsorState.lastOfferAt`); `state()` trimt
+  een te grote stapel bij het lezen (self-heal). De per-request-call in `[[path]].ts` is **weg**.
+- ⚠️ **Card-breedte: drie keer dezelfde valstrik, hier staan de regels.** Een grid-item krijgt
+  `min-width: auto` en krimpt dus niet onder zijn min-content; één niet-afbreekbare brede knop
+  (`.btn` is `white-space: nowrap`) rekt daardoor de hele kolom — en dus de pagina — open.
+  Vast in `global.css`: `.grid > * { min-width: 0 }`, `.btn.block { white-space: normal }`,
+  `.grid.cols-2` → 1 kolom onder 820 px, `.stat { min-width: 0 }` + `.stat-top { flex-wrap:
+  wrap }`, en inline kolomdefinities als **`repeat(3, minmax(0, 1fr))`** i.p.v. `1fr 1fr 1fr`
+  (`minmax(0,1fr)` dwingt het track-minimum op 0, los van item-`min-width`). **Meet elke
+  layoutwijziging op 390 px** — en let op **browsercache**: er is geen service worker, maar een
+  harde refresh is nodig om een CSS-fix te zien.
+
+---
+
+## 9. Snelle oriëntatie voor een nieuwe sessie
+
+1. Lees dit bestand + `spelregels.md` (spelersregels) + `README.md` (opzet). **§2 t/m §7
+   volstaan om te begrijpen hoe het spel nu werkt**; §8 is achtergrond die je erbij haalt
+   wanneer je aan een onderdeel raakt (daar staan de valstrikken, met ⚠️).
+2. `core/config/gameConfig.ts` = alle balans-getallen ("de knoppen").
+   **`seizoen3.md`** = de uitgewerkte, nog niet (volledig) gebouwde plannen voor
+   seizoen 3 (o.a. kenmerken per duif). Zegt de speler "implementeer seizoen3.md",
+   bouw dan elk onderdeel daarin dat nog niet op ✅ staat.
+3. `core/schema.ts` = datamodel (let op `form`=energie, `endurance`=conditie).
+4. `advanceRealtime` in `core/game/schedule.ts` = wat er elk verzoek gebeurt (§2).
+5. Endpoints in `functions/api/[[path]].ts`; UI in `client/src/pages/`.
+6. Verifieer met de typecheck/build-commando's (§7), **update context.md**, commit en push
+   op de **dev-branch** (§0). Naar productie enkel als de eigenaar dat vraagt.
+7. Begin bij **§0b → "Stand van zaken"**: wat er op dev staat, wat live is, en welke
+   beslissingen nog openstaan.

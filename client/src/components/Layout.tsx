@@ -1,0 +1,596 @@
+/** App chrome: sticky top bar with navigation, money purse and admin control. */
+
+import { NavLink, Link, Outlet } from 'react-router-dom';
+import { useEffect, useRef, useState } from 'react';
+import { useAuth } from '../auth/AuthContext';
+import { useGame } from '../game/GameContext';
+import { MARKET_SEEN_EVENT, hasMarketNews, marketSeenAt } from '../game/marketSeen';
+import { LOKAAL_SEEN_EVENT, hasLokaalNews, lokaalSeenAt } from '../game/lokaalSeen';
+import { STUD_SEEN_EVENT, hasStudNews, studSeenAt } from '../game/studSeen';
+import { api } from '../api/client';
+import { useToast } from './ui';
+import { NotificationsBell } from './NotificationsBell';
+import { INRICHTING_NEWS_STEPS, LOKAAL_NEWS_STEPS, Tour, lureNewsSteps, season3NewsSteps, studNewsSteps, tagNewsSteps } from './Tour';
+import { PrizeCeremony } from './PrizeCeremony';
+
+interface NavItem { to: string; label: string; short: string; icon: string; end?: boolean }
+
+/**
+ * What a nav button nags about. Two different things, so two markers:
+ * `count` is a numbered pill for items waiting on a decision of yours (a bid on
+ * your bird, a nest, a sponsor offer), `news` a plain dot for "something new to
+ * look at" — no action needed, and no honest number to put on it.
+ */
+interface NavBadge { count: number; news: boolean; title: string }
+
+/**
+ * When this player last looked at the market. The value lives in localStorage
+ * (game/marketSeen.ts), which re-renders nothing on its own, so this listens for
+ * the event the market page fires — and for `storage`, so a second tab that
+ * looked clears the dot here too.
+ */
+function useMarketSeenAt(userId: string | null | undefined): number {
+  const [at, setAt] = useState(() => marketSeenAt(userId));
+  useEffect(() => {
+    const sync = () => setAt(marketSeenAt(userId));
+    sync();
+    window.addEventListener(MARKET_SEEN_EVENT, sync);
+    window.addEventListener('storage', sync);
+    return () => {
+      window.removeEventListener(MARKET_SEEN_EVENT, sync);
+      window.removeEventListener('storage', sync);
+    };
+  }, [userId]);
+  return at;
+}
+
+/** Same, for Het Lokaal (game/lokaalSeen.ts): until when this player read the chat. */
+function useLokaalSeenAt(userId: string | null | undefined): number {
+  const [at, setAt] = useState(() => lokaalSeenAt(userId));
+  useEffect(() => {
+    const sync = () => setAt(lokaalSeenAt(userId));
+    sync();
+    window.addEventListener(LOKAAL_SEEN_EVENT, sync);
+    window.addEventListener('storage', sync);
+    return () => {
+      window.removeEventListener(LOKAAL_SEEN_EVENT, sync);
+      window.removeEventListener('storage', sync);
+    };
+  }, [userId]);
+  return at;
+}
+
+/** Same, for Samen kweken (game/studSeen.ts): until when this player saw the breeding offers. */
+function useStudSeenAt(userId: string | null | undefined): number {
+  const [at, setAt] = useState(() => studSeenAt(userId));
+  useEffect(() => {
+    const sync = () => setAt(studSeenAt(userId));
+    sync();
+    window.addEventListener(STUD_SEEN_EVENT, sync);
+    window.addEventListener('storage', sync);
+    return () => {
+      window.removeEventListener(STUD_SEEN_EVENT, sync);
+      window.removeEventListener('storage', sync);
+    };
+  }, [userId]);
+  return at;
+}
+
+const NAV: NavItem[] = [
+  { to: '/', label: 'Overzicht', short: 'Start', icon: '🏠', end: true },
+  { to: '/hok', label: 'Mijn hok', short: 'Hok', icon: '🕊️' },
+  { to: '/inrichting', label: 'Inrichting', short: 'Inricht.', icon: '🧰' },
+  { to: '/vluchten', label: 'Vluchten', short: 'Vlucht', icon: '🏁' },
+  { to: '/markt', label: 'Markt', short: 'Markt', icon: '🛒' },
+  { to: '/kweek', label: 'Kweek', short: 'Kweek', icon: '🥚' },
+  { to: '/ziekenboeg', label: 'Ziekenboeg', short: 'Zieken', icon: '🏥' },
+  { to: '/sponsors', label: 'Sponsors', short: 'Sponsor', icon: '🤝' },
+  { to: '/prestaties', label: 'Prestaties', short: 'Prestige', icon: '🎖️' },
+  { to: '/ranglijst', label: 'Rang', short: 'Rang', icon: '🏆' },
+  { to: '/lokaal', label: 'Het Lokaal', short: 'Lokaal', icon: '🍻' },
+  { to: '/stem', label: 'De Stem', short: 'Stem', icon: '🗳️' },
+  { to: '/wiki', label: 'Wiki', short: 'Wiki', icon: '📖' },
+  { to: '/profiel', label: 'Profiel', short: 'Profiel', icon: '👤' },
+];
+
+// Only admins see the beheer-console link.
+const ADMIN_NAV: NavItem = { to: '/beheer', label: 'Beheer', short: 'Beheer', icon: '🛠️' };
+
+// On phones the bottom bar shows the first PRIMARY items; the rest hide behind
+// a "› Meer" button so the bar has room to grow with new sections. Six fit
+// (with "Meer" that is seven equal slots, ~51 px each on a 360 px phone); the
+// sixth is the Ziekenboeg, which the owner wanted out of the overflow row.
+const PRIMARY = 6;
+
+export function Layout() {
+  const { user, logout } = useAuth();
+  const { state, refresh } = useGame();
+  const toast = useToast();
+  const [advancing, setAdvancing] = useState(false);
+
+  // One-time welcome tour, remembered per player (per browser). Closing it —
+  // even early — counts as seen, so it never returns on its own. The profile
+  // page can restart it via a 'roekoe:start-tour' event (this component stays
+  // mounted while the tour navigates between pages).
+  const tourKey = user?.id ? `roekoe.tourSeen.${user.id}` : null;
+  const [showTour, setShowTour] = useState(false);
+  const autoStarted = useRef(false);
+  useEffect(() => {
+    if (autoStarted.current) return;
+    if (tourKey && state?.loft && !localStorage.getItem(tourKey)) {
+      autoStarted.current = true;
+      setShowTour(true);
+    }
+  }, [tourKey, state?.loft]);
+  useEffect(() => {
+    const start = () => setShowTour(true);
+    window.addEventListener('roekoe:start-tour', start);
+    return () => window.removeEventListener('roekoe:start-tour', start);
+  }, []);
+  // One-time "what's new" announcement — reuses the tour's spotlight mechanism
+  // with just the new steps (currently: SEIZOEN 3 — kenmerken, sponsorlimiet,
+  // coachtarieven, zwaardere vluchten). Separate key so it also reaches players
+  // who already finished the main welcome tour or an earlier announcement. Bump
+  // the key suffix + swap the steps for a next one.
+  //
+  // This run is the SECOND half of the announcement: the bell notifications
+  // (data migration 56, see schedule.ts) reach everyone including the players
+  // who never open a tour. Only shown once v56 has run (`world.newsAt`).
+  const newsKey = user?.id ? `roekoe.newsSeen.seizoen3.${user.id}` : null;
+  const [showNews, setShowNews] = useState(false);
+
+  function closeTour() {
+    if (tourKey) { try { localStorage.setItem(tourKey, '1'); } catch { /* private mode */ } }
+    // A brand-new player just saw everything in the full tour — don't also pop
+    // the "what's new" runs at them afterwards.
+    if (newsKey) { try { localStorage.setItem(newsKey, '1'); } catch { /* private mode */ } }
+    if (user?.id) { try { localStorage.setItem(`roekoe.newsSeen.lokaal.${user.id}`, '1'); } catch { /* private mode */ } }
+    if (user?.id) { try { localStorage.setItem(`roekoe.newsSeen.inrichting.${user.id}`, '1'); } catch { /* private mode */ } }
+    if (user?.id) { try { localStorage.setItem(`roekoe.newsSeen.samen.${user.id}`, '1'); } catch { /* private mode */ } }
+    if (user?.id) { try { localStorage.setItem(`roekoe.newsSeen.lokker.${user.id}`, '1'); } catch { /* private mode */ } }
+    if (user?.id) { try { localStorage.setItem(`roekoe.newsSeen.tags.${user.id}`, '1'); } catch { /* private mode */ } }
+    setShowTour(false);
+  }
+
+  useEffect(() => {
+    let seen = true;
+    try { seen = !!newsKey && !!localStorage.getItem(newsKey); } catch { /* private mode: treat as seen */ }
+    if (newsKey && state?.loft && state.world?.newsAt && !showTour && !seen) {
+      setShowNews(true);
+    }
+  }, [newsKey, state?.loft, state?.world?.newsAt, showTour]);
+
+  // The coach step names what THIS player's coaches cost now (same rule as the
+  // daily bill: every coached bird its own band, the free starter coach on the
+  // dearest) next to the old flat rate.
+  const newsSteps = (() => {
+    const mine = state?.pigeons ?? [];
+    const coached = mine.filter((p) => p.coached && p.coachSalary != null)
+      .map((p) => p.coachSalary as number).sort((a, b) => b - a);
+    const nc = state?.loft?.newcomer;
+    const free = nc?.active ? nc.freeCoaches : 0;
+    const now = coached.slice(free).reduce((a, b) => a + b, 0);
+    const was = Math.max(0, coached.length - free) * (state?.economy?.coachSalary ?? 80);
+    const target = mine.find((p) => p.coached) ?? mine[0] ?? null;
+    return season3NewsSteps({ coach: coached.length ? { now, was } : null, coachPigeonId: target?.id ?? null });
+  })();
+  function closeNews() {
+    if (newsKey) { try { localStorage.setItem(newsKey, '1'); } catch { /* private mode */ } }
+    setShowNews(false);
+  }
+
+  // Aankondiging van HET LOKAAL (de chat): één spotlight op de pagina, met een
+  // eigen sleutel. Wacht bewust tot de seizoen 3-run hierboven gezien is — twee
+  // aankondigingen na elkaar op één bezoek is er één te veel; die volgt dan bij
+  // het volgende bezoek. Wie de volledige rondleiding doet, ziet Het Lokaal daar
+  // al (closeTour zet deze sleutel ook).
+  const lokaalNewsKey = user?.id ? `roekoe.newsSeen.lokaal.${user.id}` : null;
+  const [showLokaalNews, setShowLokaalNews] = useState(false);
+  const [lokaalNewsDone, setLokaalNewsDone] = useState(false);
+  useEffect(() => {
+    if (!lokaalNewsKey || !state?.loft || showTour || showNews || lokaalNewsDone) return;
+    let seen = true;
+    let season3Pending = false;
+    try {
+      seen = !!localStorage.getItem(lokaalNewsKey);
+      season3Pending = !!newsKey && !!state.world?.newsAt && !localStorage.getItem(newsKey);
+    } catch { /* private mode: treat as seen */ }
+    if (!seen && !season3Pending) setShowLokaalNews(true);
+  }, [lokaalNewsKey, newsKey, state?.loft, state?.world?.newsAt, showTour, showNews, lokaalNewsDone]);
+  function closeLokaalNews() {
+    if (lokaalNewsKey) { try { localStorage.setItem(lokaalNewsKey, '1'); } catch { /* private mode */ } }
+    setShowLokaalNews(false);
+    setLokaalNewsDone(true);
+  }
+
+  // Aankondiging van de HOKINRICHTING & co (hokoverzicht, pagina Inrichting,
+  // zoekertje naar boven, besmetting per ziekte): vier spotlights, eigen sleutel.
+  // Zelfde regel als hierboven: pas als de vorige aankondigingen gezien zijn,
+  // nooit twee runs op één bezoek. De bel (migratie v61) bereikt iedereen meteen.
+  const inrichtingNewsKey = user?.id ? `roekoe.newsSeen.inrichting.${user.id}` : null;
+  const [showInrichtingNews, setShowInrichtingNews] = useState(false);
+  useEffect(() => {
+    if (!inrichtingNewsKey || !state?.loft || showTour || showNews || showLokaalNews || lokaalNewsDone) return;
+    let seen = true;
+    let earlierPending = false;
+    try {
+      seen = !!localStorage.getItem(inrichtingNewsKey);
+      earlierPending = (!!lokaalNewsKey && !localStorage.getItem(lokaalNewsKey))
+        || (!!newsKey && !!state.world?.newsAt && !localStorage.getItem(newsKey));
+    } catch { /* private mode: treat as seen */ }
+    if (!seen && !earlierPending) setShowInrichtingNews(true);
+  }, [inrichtingNewsKey, lokaalNewsKey, newsKey, state?.loft, state?.world?.newsAt, showTour, showNews, showLokaalNews, lokaalNewsDone]);
+  const [inrichtingNewsDone, setInrichtingNewsDone] = useState(false);
+  function closeInrichtingNews() {
+    if (inrichtingNewsKey) { try { localStorage.setItem(inrichtingNewsKey, '1'); } catch { /* private mode */ } }
+    setShowInrichtingNews(false);
+    setInrichtingNewsDone(true);
+  }
+
+  // Aankondiging van SAMEN KWEKEN + de vergeten melding over vaccins en verzekering
+  // per duif (twee spotlights, eigen sleutel). Zelfde regel: pas als de vorige
+  // aankondigingen gezien zijn, nooit twee runs op één bezoek. Bellen: migratie v62.
+  const samenNewsKey = user?.id ? `roekoe.newsSeen.samen.${user.id}` : null;
+  const [showSamenNews, setShowSamenNews] = useState(false);
+  useEffect(() => {
+    if (!samenNewsKey || !state?.loft || showTour || showNews || showLokaalNews || showInrichtingNews || lokaalNewsDone || inrichtingNewsDone) return;
+    let seen = true;
+    let earlierPending = false;
+    try {
+      seen = !!localStorage.getItem(samenNewsKey);
+      earlierPending = (!!inrichtingNewsKey && !localStorage.getItem(inrichtingNewsKey))
+        || (!!lokaalNewsKey && !localStorage.getItem(lokaalNewsKey))
+        || (!!newsKey && !!state.world?.newsAt && !localStorage.getItem(newsKey));
+    } catch { /* private mode: treat as seen */ }
+    if (!seen && !earlierPending) setShowSamenNews(true);
+  }, [samenNewsKey, inrichtingNewsKey, lokaalNewsKey, newsKey, state?.loft, state?.world?.newsAt, showTour, showNews, showLokaalNews, showInrichtingNews, lokaalNewsDone, inrichtingNewsDone]);
+  const [samenNewsDone, setSamenNewsDone] = useState(false);
+  function closeSamenNews() {
+    if (samenNewsKey) { try { localStorage.setItem(samenNewsKey, '1'); } catch { /* private mode */ } }
+    setShowSamenNews(false);
+    setSamenNewsDone(true);
+  }
+  const samenNewsSteps = studNewsSteps(state?.pigeons?.[0]?.id ?? null);
+
+  // Aankondiging van de DUIVENLOKKER (twee spotlights, eigen sleutel). Zelfde regel:
+  // pas als de vorige aankondigingen gezien zijn, nooit twee runs op één bezoek.
+  // Bel: migratie v64.
+  const lureNewsKey = user?.id ? `roekoe.newsSeen.lokker.${user.id}` : null;
+  const [showLureNews, setShowLureNews] = useState(false);
+  useEffect(() => {
+    if (!lureNewsKey || !state?.loft || showTour || showNews || showLokaalNews || showInrichtingNews || showSamenNews
+      || lokaalNewsDone || inrichtingNewsDone || samenNewsDone) return;
+    let seen = true;
+    let earlierPending = false;
+    try {
+      seen = !!localStorage.getItem(lureNewsKey);
+      earlierPending = (!!samenNewsKey && !localStorage.getItem(samenNewsKey))
+        || (!!inrichtingNewsKey && !localStorage.getItem(inrichtingNewsKey))
+        || (!!lokaalNewsKey && !localStorage.getItem(lokaalNewsKey))
+        || (!!newsKey && !!state.world?.newsAt && !localStorage.getItem(newsKey));
+    } catch { /* private mode: treat as seen */ }
+    if (!seen && !earlierPending) setShowLureNews(true);
+  }, [lureNewsKey, samenNewsKey, inrichtingNewsKey, lokaalNewsKey, newsKey, state?.loft, state?.world?.newsAt, showTour, showNews,
+    showLokaalNews, showInrichtingNews, showSamenNews, lokaalNewsDone, inrichtingNewsDone, samenNewsDone]);
+  const [lureNewsDone, setLureNewsDone] = useState(false);
+  function closeLureNews() {
+    if (lureNewsKey) { try { localStorage.setItem(lureNewsKey, '1'); } catch { /* private mode */ } }
+    setShowLureNews(false);
+    setLureNewsDone(true);
+  }
+  const lureSteps = lureNewsSteps(state?.pigeons?.[0]?.id ?? null);
+
+  // Aankondiging van de TAGS OP JE DUIVEN (twee spotlights, eigen sleutel). Zelfde
+  // regel: pas als de vorige aankondigingen gezien zijn, nooit twee runs op één
+  // bezoek. Bel: migratie v65.
+  const tagsNewsKey = user?.id ? `roekoe.newsSeen.tags.${user.id}` : null;
+  const [showTagsNews, setShowTagsNews] = useState(false);
+  useEffect(() => {
+    if (!tagsNewsKey || !state?.loft || showTour || showNews || showLokaalNews || showInrichtingNews || showSamenNews
+      || showLureNews || lokaalNewsDone || inrichtingNewsDone || samenNewsDone || lureNewsDone) return;
+    let seen = true;
+    let earlierPending = false;
+    try {
+      seen = !!localStorage.getItem(tagsNewsKey);
+      earlierPending = (!!lureNewsKey && !localStorage.getItem(lureNewsKey))
+        || (!!samenNewsKey && !localStorage.getItem(samenNewsKey))
+        || (!!inrichtingNewsKey && !localStorage.getItem(inrichtingNewsKey))
+        || (!!lokaalNewsKey && !localStorage.getItem(lokaalNewsKey))
+        || (!!newsKey && !!state.world?.newsAt && !localStorage.getItem(newsKey));
+    } catch { /* private mode: treat as seen */ }
+    if (!seen && !earlierPending) setShowTagsNews(true);
+  }, [tagsNewsKey, lureNewsKey, samenNewsKey, inrichtingNewsKey, lokaalNewsKey, newsKey, state?.loft, state?.world?.newsAt, showTour,
+    showNews, showLokaalNews, showInrichtingNews, showSamenNews, showLureNews, lokaalNewsDone, inrichtingNewsDone, samenNewsDone, lureNewsDone]);
+  function closeTagsNews() {
+    if (tagsNewsKey) { try { localStorage.setItem(tagsNewsKey, '1'); } catch { /* private mode */ } }
+    setShowTagsNews(false);
+  }
+  const tagSteps = tagNewsSteps(state?.pigeons?.[0]?.id ?? null);
+
+  // Prijsuitreiking: de prizes of the season that just ended, one screen each.
+  // No server state — `loft.ceremony` carries the last season's awards and this
+  // remembers which season was already celebrated. A player who wins nothing has
+  // no awards for that season, so nothing pops up.
+  const ceremony = state?.loft?.ceremony ?? null;
+  const ceremonyKey = user?.id ? `roekoe.ceremonySeen.${user.id}` : null;
+  const [ceremonyDone, setCeremonyDone] = useState(false);
+  const showCeremony = (() => {
+    if (!ceremony || !ceremonyKey || ceremonyDone || ceremony.awards.length === 0) return false;
+    // Alleen het seizoen dat NET is afgelopen. `loft.ceremony` draagt de laatste
+    // prijzen die dit hok won, en dat kan seizoenen geleden zijn — zonder deze
+    // check vierde een verse browser een overwinning van maanden terug opnieuw.
+    if (ceremony.season !== (state?.world.seasonYear ?? 0) - 1) return false;
+    try { return Number(localStorage.getItem(ceremonyKey) ?? '0') < ceremony.season; } catch { return false; }
+  })();
+  function closeCeremony() {
+    if (ceremonyKey && ceremony) {
+      try { localStorage.setItem(ceremonyKey, String(ceremony.season)); } catch { /* private mode */ }
+    }
+    setCeremonyDone(true);
+  }
+
+  async function advanceWeek() {
+    setAdvancing(true);
+    try {
+      const res = await api<{ summary: { hatched: number; seasonRolledOver: boolean } }>(
+        '/admin/advance-week',
+        { method: 'POST' },
+      );
+      toast.show('Nieuwe week! Onkosten verrekend en gezondheid bijgewerkt.', 'ok');
+      await refresh();
+    } catch (e) {
+      toast.show(e instanceof Error ? e.message : 'Mislukt', 'err');
+    } finally {
+      setAdvancing(false);
+    }
+  }
+
+  const initial = (user?.username ?? '?').charAt(0).toUpperCase();
+  const navItems = state?.isAdmin ? [...NAV, ADMIN_NAV] : NAV;
+
+  // A bird going up for sale had no signal at all: the market sends no bell
+  // notification, so you only found out by opening the page on the off chance.
+  // The dot stays until this player has actually looked (per browser — see
+  // game/marketSeen.ts; it is a convenience, not game state).
+  const marketSeenAt = useMarketSeenAt(user?.id);
+  const marketNews = hasMarketNews(
+    state?.world.marketNewsAt, state?.world.marketNewsBy, user?.id, marketSeenAt,
+  );
+  // Same idea for Het Lokaal: a dot until this player has read the newest message.
+  const lokaalSeen = useLokaalSeenAt(user?.id);
+  const lokaalNews = hasLokaalNews(state?.world.chatLastAt, state?.world.chatLastBy, user?.id, lokaalSeen);
+  // And for Kweek: a bird put up to breed (or an offer that changed) not seen yet.
+  const studSeen = useStudSeenAt(user?.id);
+  const studNews = hasStudNews(state?.world.studNewsAt, state?.world.studNewsBy, user?.id, studSeen);
+
+  function badgeFor(n: NavItem): NavBadge {
+    if (n.to === '/sponsors') {
+      const count = state?.loft?.sponsorOfferCount ?? 0;
+      return { count, news: false, title: `${count} nieuw aanbod` };
+    }
+    if (n.to === '/markt') {
+      const count = state?.offers?.received.length ?? 0;
+      const parts = [];
+      if (count > 0) parts.push(`${count} nieuw bod op je duiven`);
+      if (marketNews) parts.push('nieuw op de markt — er staat een duif te koop die je nog niet zag');
+      return { count, news: marketNews, title: parts.join(' · ') };
+    }
+    if (n.to === '/lokaal') {
+      return { count: 0, news: lokaalNews, title: lokaalNews ? 'nieuwe berichten in Het Lokaal' : '' };
+    }
+    if (n.to === '/kweek') {
+      // Anything waiting for a perch nags here: a held clutch (which also blocks
+      // new pairs) or a bird an event handed over into a full loft.
+      const count = state?.pendingNests ?? 0;
+      const parts = [];
+      if (count > 0) parts.push(`${count} ${count === 1 ? 'nest of duif wacht' : 'nesten of duiven wachten'} op je keuze — kies wie een plaats krijgt`);
+      if (studNews) parts.push('nieuw bij Samen kweken — er is een duif aangeboden of een aanbod aangepast');
+      return { count, news: studNews, title: parts.join(' · ') };
+    }
+    return { count: 0, news: false, title: '' };
+  }
+
+  return (
+    <div className="app">
+      <header className="topbar">
+        <div className="container topbar-inner">
+          <Link to="/" className="brand">
+            <span className="logo">🕊️</span> Roekoe
+          </Link>
+          <nav className="nav">
+            {navItems.map((n) => {
+              const badge = badgeFor(n);
+              return (
+                <NavLink key={n.to} to={n.to} end={n.end} className={({ isActive }) => (isActive ? 'active' : '')}>
+                  {n.label}
+                  {badge.count > 0 && <span className="nav-dot" title={badge.title}>{badge.count}</span>}
+                  {badge.news && (
+                    <span className="nav-dot plain" title={badge.title} aria-label={badge.title} />
+                  )}
+                </NavLink>
+              );
+            })}
+          </nav>
+          <div className="topbar-right">
+            {state && (
+              <span className="chip week" title="Seizoensweek">
+                {`Week ${state.world.seasonWeek}/4`}
+              </span>
+            )}
+            {state?.loft && (
+              <span className="chip money" title="Kassa">
+                <span className="coin">◎</span> {state.loft.money.toLocaleString('nl-NL')}
+              </span>
+            )}
+            {state && <NotificationsBell />}
+          </div>
+        </div>
+      </header>
+
+      <div className="subhead">
+        <div className="container subhead-inner">
+          <div className="row" style={{ gap: 10 }}>
+            <span className="muted">
+              {state && <>Seizoen {state.world.seasonYear} · week {state.world.seasonWeek}/4</>}
+            </span>
+            {state?.isAdmin && (
+              <button className="btn accent sm" onClick={advanceWeek} disabled={advancing}>
+                {advancing ? 'Bezig…' : 'Volgende week ›'}
+              </button>
+            )}
+          </div>
+          <div className="who">
+            <span className="avatar-dot">{initial}</span>
+            <span className="muted">{user?.username}</span>
+            <button className="btn ghost sm" onClick={logout}>Uitloggen</button>
+          </div>
+        </div>
+      </div>
+
+      <main className="container page">
+        {/* Seizoen 3 sponsor limit: too many contracts → none pays until the player
+            has chosen. Shown on every page until it is resolved. */}
+        {state?.loft?.sponsorsMustReduce && (
+          <div className="card" style={{ borderColor: 'var(--bad)', background: 'var(--bad-soft)', marginBottom: 14 }}>
+            ⚠️ <strong>Je hebt te veel sponsors.</strong> Tot je er een paar (gratis) laat gaan, betaalt geen enkele
+            sponsor uit. <Link to="/sponsors">Kies je sponsors →</Link>
+          </div>
+        )}
+        <Outlet />
+      </main>
+
+      {/* Bottom tab bar — only shown on phones (see global.css). */}
+      <BottomNav items={navItems} badgeFor={badgeFor} />
+
+      {showTour && <Tour onClose={closeTour} />}
+      {/* De ceremonie gaat vóór de "wat is nieuw"-run: net gewonnen weegt zwaarder
+          dan een aankondiging, en ze is maar één seizoen relevant. */}
+      {showCeremony && !showTour && ceremony && (
+        <PrizeCeremony season={ceremony.season} awards={ceremony.awards} onClose={closeCeremony} />
+      )}
+      {showNews && !showTour && !showCeremony && <Tour steps={newsSteps} onClose={closeNews} />}
+      {showLokaalNews && !showNews && !showTour && !showCeremony && (
+        <Tour steps={LOKAAL_NEWS_STEPS} onClose={closeLokaalNews} />
+      )}
+      {showInrichtingNews && !showLokaalNews && !showNews && !showTour && !showCeremony && (
+        <Tour steps={INRICHTING_NEWS_STEPS} onClose={closeInrichtingNews} />
+      )}
+      {showSamenNews && !showInrichtingNews && !showLokaalNews && !showNews && !showTour && !showCeremony && (
+        <Tour steps={samenNewsSteps} onClose={closeSamenNews} />
+      )}
+      {showLureNews && !showSamenNews && !showInrichtingNews && !showLokaalNews && !showNews && !showTour && !showCeremony && (
+        <Tour steps={lureSteps} onClose={closeLureNews} />
+      )}
+      {showTagsNews && !showLureNews && !showSamenNews && !showInrichtingNews && !showLokaalNews && !showNews && !showTour && !showCeremony && (
+        <Tour steps={tagSteps} onClose={closeTagsNews} />
+      )}
+      {state?.pendingEvent && !showTour && !showNews && !showLokaalNews && !showInrichtingNews && !showSamenNews && !showLureNews && !showTagsNews && !showCeremony && <EventModal />}
+    </div>
+  );
+}
+
+function EventModal() {
+  const { state, refresh } = useGame();
+  const toast = useToast();
+  const [busy, setBusy] = useState(false);
+  const event = state?.pendingEvent;
+  if (!event) return null;
+
+  async function choose(i: number) {
+    setBusy(true);
+    try {
+      const res = await api<{ result: string }>('/event/choose', { method: 'POST', body: { choice: i } });
+      toast.show(res.result || 'Afgehandeld', 'ok');
+      await refresh();
+    } catch (e) {
+      toast.show(e instanceof Error ? e.message : 'Mislukt', 'err');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="modal-overlay">
+      <div className="modal">
+        <h2 style={{ marginTop: 0 }}>{event.icon} {event.title}</h2>
+        <p className="muted">{event.text}</p>
+        <div className="stack" style={{ marginTop: 12, gap: 8 }}>
+          {event.options.map((o, i) => (
+            <button key={i} className="btn block" disabled={busy} onClick={() => choose(i)}>{o.label}</button>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * The icon of a bottom-bar tab, with its markers pinned to it. The phone bar has
+ * no room for a label badge, so the count rides the top-right corner and the
+ * "something new" dot the top-left — the same two signals as the desktop nav.
+ */
+function NavIcon({ icon, badge }: { icon: string; badge: NavBadge }) {
+  return (
+    <span className="ico">
+      {icon}
+      {badge.news && <span className="bn-dot news" aria-label={badge.title} />}
+      {badge.count > 0 && <span className="bn-dot" aria-label={badge.title}>{badge.count}</span>}
+    </span>
+  );
+}
+
+function BottomNav({ items, badgeFor }: { items: NavItem[]; badgeFor: (n: NavItem) => NavBadge }) {
+  const [open, setOpen] = useState(false);
+  const primary = items.slice(0, PRIMARY);
+  const overflow = items.slice(PRIMARY);
+  // A marker on a button hidden behind "Meer" was invisible on a phone (a new
+  // chat message, a sponsor offer), so the closed Meer button carries a dot of
+  // its own whenever something behind it wants attention.
+  const overflowBadge: NavBadge = (() => {
+    const flagged = overflow.map((n) => badgeFor(n)).filter((b) => b.count > 0 || b.news);
+    return { count: 0, news: flagged.length > 0, title: flagged.map((b) => b.title).filter(Boolean).join(' · ') };
+  })();
+  return (
+    <>
+      {/* The overflow row stays open while you navigate; it only collapses when
+          you tap "Minder" (no scrim, no auto-close on a nav tap). */}
+      {open && (
+        <div className="bottomnav-sheet">
+          {overflow.map((n) => (
+            <NavLink
+              key={n.to}
+              to={n.to}
+              end={n.end}
+              className={({ isActive }) => (isActive ? 'active' : '')}
+            >
+              <NavIcon icon={n.icon} badge={badgeFor(n)} />
+              <span>{n.short}</span>
+            </NavLink>
+          ))}
+        </div>
+      )}
+      <nav className="bottomnav">
+        {primary.map((n) => (
+          <NavLink key={n.to} to={n.to} end={n.end} className={({ isActive }) => (isActive ? 'active' : '')}>
+            <NavIcon icon={n.icon} badge={badgeFor(n)} />
+            <span>{n.short}</span>
+          </NavLink>
+        ))}
+        {overflow.length > 0 && (
+          <button
+            type="button"
+            className={`morebtn ${open ? 'active' : ''}`}
+            onClick={() => setOpen((o) => !o)}
+            aria-label={open ? 'Minder' : 'Meer'}
+          >
+            <span className="ico">
+              {open ? '▾' : '›'}
+              {!open && overflowBadge.news && <span className="bn-dot news" aria-label={overflowBadge.title} />}
+            </span>
+            <span>{open ? 'Minder' : 'Meer'}</span>
+          </button>
+        )}
+      </nav>
+    </>
+  );
+}
