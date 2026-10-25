@@ -119,14 +119,14 @@ import { rollAnyTrait, rollTrait } from './traits.js';
 import { season3CoachNote, season3Welcome } from './season3.js';
 import { LOKAAL_INTRO } from './lokaal.js';
 import { CARE_NEWS, INRICHTING_NEWS, LEAGUE_NEWS, LURE_NEWS, PRIZE_RULE_NEWS, STUD_NEWS, TAGS_NEWS } from './news.js';
-import { bell, clamp, hashString, haversineKm, pick, randFloat, round1, seededRng } from './util.js';
+import { bell, clamp, dateTimeFormat, hashString, haversineKm, pick, randFloat, round1, seededRng } from './util.js';
 
 // --- Time-zone helpers -----------------------------------------------------
 
 interface Parts { y: number; m: number; d: number; }
 
 function tzDateParts(tz: string, atMs: number): Parts {
-  const dtf = new Intl.DateTimeFormat('en-US', {
+  const dtf = dateTimeFormat('en-US', {
     timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit',
   });
   const map: Record<string, string> = {};
@@ -136,7 +136,7 @@ function tzDateParts(tz: string, atMs: number): Parts {
 
 /** Milliseconds `tz` is ahead of UTC at the given instant. */
 function tzOffsetMs(tz: string, atMs: number): number {
-  const dtf = new Intl.DateTimeFormat('en-US', {
+  const dtf = dateTimeFormat('en-US', {
     timeZone: tz, hourCycle: 'h23', year: 'numeric', month: '2-digit', day: '2-digit',
     hour: '2-digit', minute: '2-digit', second: '2-digit',
   });

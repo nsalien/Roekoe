@@ -27,6 +27,7 @@ import {
 } from '../config/gameConfig.js';
 import type { Pigeon } from '../schema.js';
 import { interpolatePoint, type GeoPoint } from './relay.js';
+import { dateTimeFormat } from './util.js';
 
 // --- Rolling -----------------------------------------------------------------
 
@@ -132,7 +133,7 @@ export function isDark(lat: number, lon: number, atMs: number): boolean {
 
 /** YYYY-MM-DD of a moment in Brussels time. */
 const brusselsDate = (ms: number) =>
-  new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Brussels', year: 'numeric', month: '2-digit', day: '2-digit' })
+  dateTimeFormat('en-CA', { timeZone: 'Europe/Brussels', year: 'numeric', month: '2-digit', day: '2-digit' })
     .format(new Date(ms));
 
 const sunCache = new Map<string, { rise: string | null; set: string | null }>();

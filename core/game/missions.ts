@@ -8,11 +8,11 @@ import type { Database, DailyMission, Loft } from '../schema.js';
 import { newId } from '../store.js';
 import { grantXp } from './badges.js';
 import { makeEvent } from './events.js';
-import { hashString, seededRng } from './util.js';
+import { dateTimeFormat, hashString, seededRng } from './util.js';
 
 const TZ = 'Europe/Brussels';
 function dayKey(ms: number): string {
-  const dtf = new Intl.DateTimeFormat('en-CA', { timeZone: TZ, year: 'numeric', month: '2-digit', day: '2-digit' });
+  const dtf = dateTimeFormat('en-CA', { timeZone: TZ, year: 'numeric', month: '2-digit', day: '2-digit' });
   return dtf.format(new Date(ms)); // yyyy-mm-dd
 }
 

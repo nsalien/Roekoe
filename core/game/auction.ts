@@ -20,7 +20,7 @@ import { generatePigeon, talent } from './pigeon.js';
 import { debtBlock } from './economy.js';
 import { marketValue, noteMarketNews, saleQuality } from './market.js';
 import { namesInUse } from './names.js';
-import { clamp, randFloat, round1 } from './util.js';
+import { clamp, dateTimeFormat, randFloat, round1 } from './util.js';
 
 export const AUCTION_HOUSE_ID = 'auction_house';
 export const SHELTER_ID = 'shelter_center';
@@ -39,7 +39,7 @@ export function auctionKind(a: Auction): AuctionKind {
 
 // --- Time-zone helpers (Brussels) ------------------------------------------
 function tzOffsetMs(atMs: number): number {
-  const dtf = new Intl.DateTimeFormat('en-US', {
+  const dtf = dateTimeFormat('en-US', {
     timeZone: TZ, hourCycle: 'h23', year: 'numeric', month: '2-digit', day: '2-digit',
     hour: '2-digit', minute: '2-digit', second: '2-digit',
   });
@@ -49,7 +49,7 @@ function tzOffsetMs(atMs: number): number {
   return asUTC - atMs;
 }
 function tzParts(atMs: number): { y: number; m: number; d: number } {
-  const dtf = new Intl.DateTimeFormat('en-US', { timeZone: TZ, year: 'numeric', month: '2-digit', day: '2-digit' });
+  const dtf = dateTimeFormat('en-US', { timeZone: TZ, year: 'numeric', month: '2-digit', day: '2-digit' });
   const map: Record<string, string> = {};
   for (const p of dtf.formatToParts(new Date(atMs))) map[p.type] = p.value;
   return { y: +map.year, m: +map.month, d: +map.day };
@@ -59,7 +59,7 @@ function wallToUtcMs(y: number, m: number, d: number, hh: number): number {
   return guess - tzOffsetMs(guess);
 }
 function brusselsWeekday(ms: number): number {
-  const wd = new Intl.DateTimeFormat('en-US', { timeZone: TZ, weekday: 'short' }).format(new Date(ms));
+  const wd = dateTimeFormat('en-US', { timeZone: TZ, weekday: 'short' }).format(new Date(ms));
   return ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].indexOf(wd);
 }
 

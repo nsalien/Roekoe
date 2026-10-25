@@ -108,6 +108,12 @@
   ⚠️-kop "ENKEL OP DEV": dev = productie + eigen stappen. Twee wankele testfixtures vastgezet
   (`market-memory`: vast ras; `pigeon-tags`: vraagprijs = de 1/5-grens i.p.v. €400). Vroegere pauzes:
   11 en 12 okt (`dea321f`, `2ea049c`).
+- **CPU-fix ronde 3 — LIVE op 25 okt (prod `d423c1b`)** (eigenaar: "Er zijn weer exceeded cpu time limits
+  momenteel"): (1) `util.dateTimeFormat` — de tijdzonehelpers bouwden bij elke aanroep een nieuwe
+  `Intl.DateTimeFormat` (~13 % van een verzoek); (2) `D1Store` houdt van duiven/hokken/koppels geen JSON-snapshot
+  meer, `diff` vergelijkt die op hun rij (`previousRows`). Volledig motorverzoek bij ~325 duiven lokaal: vóór de
+  leagues 8,97 ms, prod 9,85 ms, met de fix 5,53 ms. De leagues maakten het niet duurder per duif; de bijvulling
+  van de bots (meer duiven) duwde verzoeken over de grens. Details in de `context.md` op prod (§8).
 - **Voorstel (25 okt) — ⚠️ ENKEL OP DEV: de coachprijs schaalt mee met score + ervaring + leeftijd.** Eigenaar: "Als
   je een coach wilt pakken op iemand met hogere leeftijd en veel ervaring maar 80 score, kost die coach even veel als
   voor een baby van 0 weken oud met 0 ervaring maar ook 80 score. Dat is niet volledig logisch. Coach prijs zou denk
