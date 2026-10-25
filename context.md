@@ -73,6 +73,10 @@
 > Het voorstel (met alle getallen en de sketch) staat in de artifact "Roekoe Hokinrichting".
 
 ### Stand van zaken (12 okt 2026) — lees dit eerst
+- **CPU-fix ronde 3 — 25 okt** (eigenaar: "Er zijn weer exceeded cpu time limits momenteel"): tijdzone-formatters
+  gecachet en de dubbele JSON-snapshot van duiven/hokken/koppels weg; een volledig verzoek bij ~325 duiven ging
+  lokaal van 9,85 naar 5,53 ms. Zie §8 *CPU-fix ronde 3*. Meegenomen: de testfixes van dev voor `samen-kweken`
+  (willekeurige dagopdracht) en `bot-fill` (querymarge, namen onder gelijktijdige verzoeken).
 - **Bots bijgevuld tot 10 duiven — 24 okt, migratie v68** (eigenaar: "Indien er bots zijn die minder dan 10 duiven
   hebben op dit moment, vul hun aantal duiven bij. Random score tussen 60 en 75 (kleinere kans op hoge score,
   grotere kans tussen 60 en 70). Dit op productie."). `fillBotFlocks` (bots.ts): gewone gegenereerde duiven
@@ -4479,6 +4483,27 @@ Hieronder enkel wat je nodig hebt om eraan te werken.)
   (~349 rijen). De genoemde volgende hefboom — `entrants` uit `/flights` halen en pas
   ophalen wanneer het weddenschapspaneel opengaat — **is intussen uitgevoerd**; zie het
   kopstuk van §8.
+
+**CPU-fix ronde 3 (25 okt): tijdzone-formatters en de dubbele snapshot**
+- **Aanleiding:** "Er zijn weer exceeded cpu time limits momenteel" — de dag na de leagues (v67) en de
+  bijvulling van de bots (v68, tot 10 duiven per bot).
+- **Gemeten** (`tests/zz-prof`-achtig scratchscript, niet in de repo: een wereld van ~325 duiven een week laten
+  draaien, dan een volledig motorverzoek — load + `advanceRealtime` + leaderboard + persist — met de SQLite-tijd
+  eraf, beste van 3 × 150): **vóór de leagues 8,97 ms · prod nu 9,85 ms · met deze fix 5,53 ms** (lokaal; prod is
+  trager). De leagues zelf maakten een verzoek niet duurder per duif; de kost groeit met het aantal duiven, en de
+  bijvulling van de bots duwde een verzoek dat al tegen de 10 ms zat erover.
+- **Fix 1 — `dateTimeFormat` (util.ts):** elke tijdzonehelper (`tzOffsetMs`/`tzDateParts` in schedule.ts en
+  auction.ts, `brusselsWeekday`, `dayKey` in missions.ts, `brusselsDate` in traits.ts) bouwde **bij elke aanroep**
+  een nieuwe `Intl.DateTimeFormat` — ~13 % van alle CPU van een verzoek (de kalender rekent tientallen tijdstippen
+  om). Nu één formatter per optieset per isolate. De motor ging van ~2,5 naar ~0,8 ms.
+- **Fix 2 — geen JSON-snapshot meer voor duiven, hokken en koppels (d1.ts):** `D1Store` hield van die drie
+  tabellen zowel een `JSON.stringify` van elke entiteit (bij het laden) als de kolomwaarden (`rowSnapshots`), en
+  stringify'de bij `persist` elke entiteit opnieuw om te zien of ze veranderd was. Die JSON-vergelijking was enkel
+  een snelweg vóór exact dezelfde kolomvergelijking. `diff` vergelijkt deze tabellen nu rechtstreeks op hun rij
+  (`snap` undefined → `previousRows`); nieuw = niet in `previousRows`, verdwenen = in `previousRows` maar niet meer
+  geladen. Zelfde schrijfgedrag (`idle-writes`, `query-budget`, `daily-budget` groen).
+- **Om te onthouden:** de CPU per volledig verzoek schaalt lineair met het aantal duiven (~20 µs/duif lokaal voor
+  load+persist, `tests/cpu-pigeons.mts`). Meer duiven in de wereld (bots bijvullen, `BOT.maxCapacity`) = meten.
 
 **CPU-fix ronde 2: het live verslag en de weddenschapsodds**
 - **Aanleiding:** "Exceeded CPU Time Limits" bleef terugkomen, vooral **rond grote

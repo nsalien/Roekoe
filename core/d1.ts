@@ -733,11 +733,11 @@ export class D1Store implements Store {
         dbObj.studDeals = [];
       }
     }
+    // Pigeons, lofts and breeding pairs have no JSON snapshot: they are compared on
+    // their column values (`rowSnapshots` below), which is all `diff` needs —
+    // see there.
     const snapshots: Record<string, Map<string, string>> = {
       users: snapshot(dbObj.users, (u) => u.id),
-      lofts: snapshot(dbObj.lofts, (l) => l.userId),
-      pigeons: snapshot(dbObj.pigeons, (p) => p.id),
-      breedingPairs: snapshot(dbObj.breedingPairs, (bp) => bp.id),
       flights: snapshot(dbObj.flights, (f) => f.id),
       notifications: snapshot(dbObj.notifications, (nt) => nt.id),
       trades: snapshot(dbObj.trades, (t) => t.id),
@@ -1928,7 +1928,7 @@ const D1_MAX_BOUND_PARAMS = 100;
  * capping (see `boundedCleanups`).
  */
 function diff<T>(
-  snap: Map<string, string>,
+  snap: Map<string, string> | undefined,
   current: T[],
   key: (t: T) => string,
   ops: {
@@ -1963,10 +1963,23 @@ function diff<T>(
   for (const it of current) {
     const id = key(it);
     seen.add(id);
-    if (snap.get(id) === JSON.stringify(it)) continue; // untouched
-    if (!snap.has(id)) ops.onInsert?.(it);
-    const row = ops.row(it);
-    const before = snap.has(id) ? ops.previousRows?.get(id) : undefined;
+    let row: unknown[];
+    let before: unknown[] | undefined;
+    if (snap) {
+      if (snap.get(id) === JSON.stringify(it)) continue; // untouched
+      if (!snap.has(id)) ops.onInsert?.(it);
+      row = ops.row(it);
+      before = snap.has(id) ? ops.previousRows?.get(id) : undefined;
+    } else {
+      // No JSON snapshot (pigeons, lofts, pairs): compare the row itself. The JSON
+      // compare above is only a fast path in front of the very same column check
+      // below, and for these tables it was the dearest part of a request — a
+      // JSON.stringify of every entity at load AND at persist (~1/3 of a full
+      // request's CPU at ~330 birds, profiled 25 okt). One row per entity instead.
+      before = ops.previousRows!.get(id);
+      if (!before) ops.onInsert?.(it);
+      row = ops.row(it);
+    }
     if (!before) {
       inserts.push(row);
       continue;
@@ -1981,7 +1994,7 @@ function diff<T>(
     group.rows.push({ id, row });
     bySignature.set(sig, group);
   }
-  for (const id of snap.keys()) if (!seen.has(id)) gone.push(id);
+  for (const id of (snap ?? ops.previousRows!).keys()) if (!seen.has(id)) gone.push(id);
 
   // Two ways to pack the updates, and which one is cheaper depends on the tick.
   // Daily care moves the same few columns on every bird → the per-signature

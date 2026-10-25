@@ -160,6 +160,9 @@ assert(r.status === 400, 'een tegenvoorstel met hetzelfde bedrag wordt geweigerd
 r = await call(`/breeding/stud/${deal.id}/counter`, 'POST', { fee: 200 });
 assert(r.status === 200, 'afdingen: €200');
 assert(await asP3((w) => counterStud(w, P3, deal.id, 250)) === null, 'Hok Drie blijft bij €250');
+// The day's missions are drawn at random, and "Start een kweekkoppel" pays its
+// reward inside this very request — clear them: this check is about the fee alone.
+{ const s = await D1Store.load(d1, ME); s.mutate((x) => { x.lofts.find((l) => l.userId === ME)!.missions = []; }); await s.persist(); }
 const before = (await D1Store.load(d1, ME)).data;
 const myMoney0 = money(before, ME);
 const p3Money0 = money(before, P3);

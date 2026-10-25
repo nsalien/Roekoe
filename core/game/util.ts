@@ -83,3 +83,21 @@ export function haversineKm(
     Math.cos(toRad(a.lat)) * Math.cos(toRad(b.lat)) * Math.sin(dLon / 2) ** 2;
   return 2 * R * Math.asin(Math.min(1, Math.sqrt(s)));
 }
+
+/**
+ * A shared Intl.DateTimeFormat for these options. Building one is the dearest part
+ * of a time-zone lookup — a profiled request (25 okt, ~330 birds) spent ~13 % of
+ * its CPU constructing formatters, because the calendar converts dozens of
+ * wall-clock times per request and every helper made a fresh one per call. The
+ * option sets are few and fixed, so each is built once per isolate.
+ */
+const DATE_FORMATS = new Map<string, Intl.DateTimeFormat>();
+export function dateTimeFormat(locale: string, options: Intl.DateTimeFormatOptions): Intl.DateTimeFormat {
+  const key = `${locale}|${JSON.stringify(options)}`;
+  let f = DATE_FORMATS.get(key);
+  if (!f) {
+    f = new Intl.DateTimeFormat(locale, options);
+    DATE_FORMATS.set(key, f);
+  }
+  return f;
+}
