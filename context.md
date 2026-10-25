@@ -108,6 +108,23 @@
   ⚠️-kop "ENKEL OP DEV": dev = productie + eigen stappen. Twee wankele testfixtures vastgezet
   (`market-memory`: vast ras; `pigeon-tags`: vraagprijs = de 1/5-grens i.p.v. €400). Vroegere pauzes:
   11 en 12 okt (`dea321f`, `2ea049c`).
+- **Voorstel (25 okt) — ⚠️ ENKEL OP DEV: de coachprijs schaalt mee met score + ervaring + leeftijd.** Eigenaar: "Als
+  je een coach wilt pakken op iemand met hogere leeftijd en veel ervaring maar 80 score, kost die coach even veel als
+  voor een baby van 0 weken oud met 0 ervaring maar ook 80 score. Dat is niet volledig logisch. Coach prijs zou denk
+  ik mee moeten schalen met score + ervaring + leeftijd." → de scoreschijven (`COACH.salaryBands`, €80–€400) zijn nu
+  de **basis**; daarbovenop **+3 % per 10 ervaring** (`experienceSurcharge` 30, max +30 %) en **+10 % per
+  duivenjaar** (`ageSurchargePerYear` 10, max `ageSurchargeMax` 20 vanaf 2 jaar), afgerond op €10
+  (`coachSalaryParts` in gameConfig, `coachSalaryOf` in newcomer.ts). Bij ★80: pas geboren €220, 1 j/ervaring 30
+  €260, 2 j/60 €300, 4 j/90 €320; duurst ★90+/100/2+ j **€600** (was €400). Elke dag opnieuw berekend, zoals de
+  schijf al was; de gratis starterscoach dekt nog altijd de duurste gecoachte duif. `coachBill(loft, coached,
+  nowMs, week)` kreeg de spelweek erbij. Duifpagina: "€320/dag — basis €220 voor haar score, +27 % voor haar
+  ervaring, +20 % voor haar leeftijd" (`pigeonDTO.coachSalaryParts`). Wiki `#coach` + spelregels §13 met een
+  voorbeeldtabel. Geen bel (niet gevraagd; bij live zetten voorstellen). Test: `coach-salary` (32 controles).
+  Meegenomen (tests, niet het spel): `samen-kweken` viel om op dagen dat de dagopdracht "Start een kweekkoppel"
+  getrokken werd (+€25 in hetzelfde verzoek als het akkoord) → de opdrachten van die speler worden vóór de controle
+  geleegd; `bot-fill` kreeg wat meer ruimte op de querymeting en controleert de namen tegen de duiven van vóór de
+  migratie (onder twee gelijktijdige testverzoeken kan een later aangemaakte duif een naam herhalen). Beide fixes
+  staan nog niet op prod.
 - **Voorstel (24 okt) — ⚠️ ENKEL OP DEV: geld voor élke duif + hogere leagueprijzen per vlucht.** Eigenaar: "Zorg
   voor alle matchen dat de eerste 3 duiven enkel seizoenspunten krijgen, maar alle duiven krijgen wel sowieso hun
   geld beloning naargelang hun plaatsing. Communiceer dit ook." en "Stel voor de league vluchten bij dat de laagste

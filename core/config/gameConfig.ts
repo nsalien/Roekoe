@@ -325,16 +325,41 @@ export const COACH = {
     { minTalent: 85, salary: 300 },
     { minTalent: 90, salary: 400 },
   ],
+  // 25 okt (owner): a bird with ervaring and years behind her costs more than a
+  // fresh one of the same score — "coach prijs zou mee moeten schalen met score +
+  // ervaring + leeftijd". On top of the score band (now the BASE salary):
+  experienceSurcharge: 30, // +% at ervaring 100 (linear: ervaring 50 = +15 %)
+  ageSurchargePerYear: 10, // +% per duivenjaar (52 game weeks)…
+  ageSurchargeMax: 20, // …up to this (from 2 years on)
   maxDailyGain: 1.1, // peak gain/day (at attr 0), scaled down by the room to the cap
   experienceDailyGain: 0.5, // flat ervaring/day while the coach still has an attribute to raise
 } as const;
 
-/** A coach's daily salary for a bird with this algemene score (talent). The lower
- *  bound belongs to the higher band: 64.9 → €80, 65.0 → €100. */
+/** The BASE of a coach's daily salary: the band of the bird's algemene score
+ *  (talent). The lower bound belongs to the higher band: 64.9 → €80, 65.0 → €100.
+ *  The full salary adds her ervaring and age on top — see `coachSalaryParts`. */
 export function coachSalaryFor(talent: number): number {
   let salary: number = COACH.salaryBands[0].salary;
   for (const b of COACH.salaryBands) if (talent >= b.minTalent) salary = b.salary;
   return salary;
+}
+
+/**
+ * A coach's daily salary for ONE bird, and how it is built: the base of her score
+ * band, plus `experiencePct` for her ervaring and `agePct` for her age (whole
+ * percents, so the page can show exactly what is charged), rounded to €10. A
+ * fresh bird pays the base; ervaring 100 at 2+ years pays half again.
+ */
+export function coachSalaryParts(
+  talent: number,
+  experience: number,
+  ageWeeks: number,
+): { salary: number; base: number; experiencePct: number; agePct: number } {
+  const base = coachSalaryFor(talent);
+  const experiencePct = Math.round((COACH.experienceSurcharge * Math.min(100, Math.max(0, experience))) / 100);
+  const agePct = Math.round(Math.min(COACH.ageSurchargeMax, (COACH.ageSurchargePerYear * Math.max(0, ageWeeks)) / 52));
+  const salary = Math.round((base * (100 + experiencePct + agePct)) / 100 / 10) * 10;
+  return { salary, base, experiencePct, agePct };
 }
 
 /** The next salary band above this score (null in the top band), for the UI. */

@@ -1265,7 +1265,7 @@ wekelijks/handmatig):
 ```
 onkosten/dag = 22                                    (vast, ongeacht hokgrootte)
              + onderhoud per duif (in schijven, zie hieronder)
-             + dagloon per gecoachte duif           (coach, volgens haar score — §13)
+             + dagloon per gecoachte duif           (coach, volgens score, ervaring en leeftijd — §13)
              + 57 · dokters + 50 · kinesisten        (ziekenboegstaf, §5)
              + 6  · duiven_in_boeg (met medicatievoer)
              + hokinrichting en verzekeringspremies   (§5.2bis/§5.2ter)
@@ -2637,10 +2637,11 @@ Verdiend geld kan je investeren in je hok en je duiven (bij *Mijn hok*, de
   (verhoogt de voortplantingsdrang). Ze verbruiken meer voer.
 - **Privécoach.** Huur een coach voor één specifieke duif tegen een **dagsalaris**
   (geen instapkost, dagelijks afgerekend). **Een betere duif vraagt een betere
-  coach:** het dagloon hangt af van de algemene score van de duif en wordt elke
-  dag opnieuw bepaald.
+  coach:** het dagloon hangt af van de **algemene score**, de **ervaring** en de
+  **leeftijd** van de duif, en wordt elke dag opnieuw bepaald. De score bepaalt de
+  **basis**:
 
-  | Algemene score | Coach per dag |
+  | Algemene score | Basis per dag |
   |---|---|
   | lager dan 65 | €80 |
   | 65 tot 70 | €100 |
@@ -2649,7 +2650,20 @@ Verdiend geld kan je investeren in je hok en je duiven (bij *Mijn hok*, de
   | 80 tot 85 | €220 |
   | 85 tot 90 | €300 |
   | 90 en hoger | €400 |
- Hij traint haar **elke dag** in
+
+  Daarbovenop komt een toeslag: **+3 % per 10 ervaring** (tot +30 % bij ervaring
+  100) en **+10 % per duivenjaar** (tot +20 %, vanaf 2 jaar). Afgerond op €10. Een
+  jonge duif zonder ervaring betaalt dus de basis; een ervaren duif van 2 jaar of
+  ouder tot de helft meer. Voorbeeld bij score 80 (basis €220):
+
+  | Duif | Toeslag | Coach per dag |
+  |---|---|---|
+  | 0 weken, ervaring 0 | — | €220 |
+  | 1 jaar, ervaring 30 | +9 % +10 % | €260 |
+  | 2 jaar, ervaring 60 | +18 % +20 % | €300 |
+  | 4 jaar, ervaring 90 | +27 % +20 % | €320 |
+
+  De duifpagina toont het bedrag en hoe het is opgebouwd. Hij traint haar **elke dag** in
   snelheid, conditie én oriëntatie (plus ervaring) — puur om te racen, nooit libido.
   De coach werkt op **elk niveau** (of de duif nu 50 of 92 heeft) en duwt elke
   vaardigheid richting haar **gen-cap** (nooit hoger). De **dagwinst wordt kleiner

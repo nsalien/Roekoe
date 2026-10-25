@@ -6,7 +6,7 @@
 
 import type { Database, Flight, Loft, Notification, Pigeon, RaceLogEntry, Trade } from './schema.js';
 import type { PigeonLogs } from './d1.js';
-import { AUCTION, BREED_RARITY, MIN_SALE_SHARE, CITY_COORDS, COACH, DEBT, coachSalaryFor, nextCoachBand, LEAGUE, leagueDef, leagueFor, leaguePrizes, compartmentCost, EQUIPMENT, EQUIPMENT_LEVELS, cleanerWage, hygieneIllnessMult, irBoxPrice, VACCINES, type VaccineKey, quirkById, strawCost, RELAY, REST_CURE, TRADE_HISTORY_DAYS, TRAINING } from './config/gameConfig.js';
+import { AUCTION, BREED_RARITY, MIN_SALE_SHARE, CITY_COORDS, COACH, DEBT, coachSalaryParts, nextCoachBand, LEAGUE, leagueDef, leagueFor, leaguePrizes, compartmentCost, EQUIPMENT, EQUIPMENT_LEVELS, cleanerWage, hygieneIllnessMult, irBoxPrice, VACCINES, type VaccineKey, quirkById, strawCost, RELAY, REST_CURE, TRADE_HISTORY_DAYS, TRAINING } from './config/gameConfig.js';
 import {
   ageInWeeks,
   breedInfo,
@@ -149,7 +149,10 @@ export function pigeonDTO(db: Database, p: Pigeon, viewerId?: string, viewerIsAd
     coached: revealed ? (p.coached ?? false) : false,
     // What a coach costs for THIS bird per day (its score band), and from which
     // score the next, dearer band starts — own birds only.
-    coachSalary: revealed ? coachSalaryFor(talent(p)) : null,
+    // The salary and how it is built (score band + ervaring + age), so the page can
+    // say why this bird costs what it costs. The next band is the next BASE.
+    coachSalary: revealed ? coachSalaryParts(talent(p), p.experience, ageInWeeks(p, week)).salary : null,
+    coachSalaryParts: revealed ? coachSalaryParts(talent(p), p.experience, ageInWeeks(p, week)) : null,
     coachNextBand: revealed ? nextCoachBand(talent(p)) : null,
     ration: revealed ? (p.ration ?? 'normal') : 'normal',
     // Hokinrichting: vaccins, verzekering (owner only),
@@ -360,7 +363,7 @@ export function loftDTO(db: Database, loft: Loft) {
     dailyCosts: dailyRunningCostBreakdown(
       loft,
       pigeons.length,
-      coachBill(loft, pigeons.filter((p) => p.coached), Date.now()).total,
+      coachBill(loft, pigeons.filter((p) => p.coached), Date.now(), db.world.currentWeek).total,
       infirmary.length,
       // Staff being paid with nothing of their kind to treat. The bill is
       // unchanged; the Dagbalans just says so out loud.

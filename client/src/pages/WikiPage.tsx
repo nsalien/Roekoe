@@ -405,10 +405,11 @@ export function WikiPage() {
           instapkost</strong>: je betaalt enkel een <strong>dagloon</strong> zolang hij in dienst is, automatisch van
           je kassa. Ontslaan kan op elk moment.
         </p>
-        <p><strong>Een betere duif vraagt een betere coach.</strong> Het dagloon hangt af van de algemene score van de
-          duif, en wordt elke dag opnieuw bepaald: stijgt ze over een grens, dan betaal je vanaf de volgende dag meer.</p>
+        <p><strong>Een betere duif vraagt een betere coach.</strong> Het dagloon hangt af van de <strong>algemene
+          score</strong>, de <strong>ervaring</strong> en de <strong>leeftijd</strong> van de duif, en wordt elke dag
+          opnieuw bepaald. De score bepaalt de basis:</p>
         <MiniTable
-          head={['Algemene score', 'Coach per dag']}
+          head={['Algemene score', 'Basis per dag']}
           rows={[
             ['lager dan 65', '€80'],
             ['65 tot 70', '€100'],
@@ -417,6 +418,18 @@ export function WikiPage() {
             ['80 tot 85', '€220'],
             ['85 tot 90', '€300'],
             ['90 en hoger', '€400'],
+          ]}
+        />
+        <p>Daarbovenop: <strong>+3 % per 10 ervaring</strong> (tot +30 %) en <strong>+10 % per duivenjaar</strong> (tot
+          +20 %, vanaf 2 jaar), afgerond op €10. Een jonge duif zonder ervaring betaalt de basis, een ervaren duif van 2
+          jaar of ouder tot de helft meer. Bij score 80 (basis €220):</p>
+        <MiniTable
+          head={['Duif', 'Toeslag', 'Coach per dag']}
+          rows={[
+            ['0 weken, ervaring 0', '—', '€220'],
+            ['1 jaar, ervaring 30', '+9 % +10 %', '€260'],
+            ['2 jaar, ervaring 60', '+18 % +20 %', '€300'],
+            ['4 jaar, ervaring 90', '+27 % +20 %', '€320'],
           ]}
         />
         <p><strong>Hij duwt richting de gen-cap, en dooft daar uit.</strong> De dagwinst is het grootst bij een lage
@@ -441,7 +454,7 @@ export function WikiPage() {
           <li><strong>Op de duifpagina staat het exacte cijfer</strong> voor déze duif, per eigenschap per dag — zit
             alles al op de cap, dan zegt de pagina dat een coach niets meer toevoegt.</li>
         </ul>
-        <p><strong>Strategie:</strong> een coach op een topduif kost ± €2.000–2.800 per week — dat is echt geld. Zet een coach op duiven die
+        <p><strong>Strategie:</strong> een coach op een topduif kost ± €2.000–4.200 per week — dat is echt geld. Zet een coach op duiven die
           genetisch nog ruimte hebben (zeker boven 90, waar niets anders werkt) en ontsla hem zodra de winst tot
           bijna niets herleid is. Op een duif die al op haar cap zit, verbrand je puur budget.</p>
       </Section>

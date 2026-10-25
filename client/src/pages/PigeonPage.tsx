@@ -385,9 +385,15 @@ export function PigeonPage() {
                     Traint deze duif elke dag richting haar genetische plafond — de enige weg <strong>boven 90</strong>.
                     {p.coachSalary != null ? (
                       <>
-                        {' '}Voor {p.name}: <strong><Money value={p.coachSalary} />/dag</strong>, geen instapkost.
+                        {' '}Voor {p.name}: <strong><Money value={p.coachSalary} />/dag</strong>, geen instapkost
+                        {p.coachSalaryParts && (p.coachSalaryParts.experiencePct > 0 || p.coachSalaryParts.agePct > 0) ? (
+                          <> — basis <Money value={p.coachSalaryParts.base} /> voor haar score
+                            {p.coachSalaryParts.experiencePct > 0 && <>, +{p.coachSalaryParts.experiencePct} % voor haar ervaring</>}
+                            {p.coachSalaryParts.agePct > 0 && <>, +{p.coachSalaryParts.agePct} % voor haar leeftijd</>}.
+                          </>
+                        ) : <>.</>}
                         {p.coachNextBand && (
-                          <> Vanaf score {p.coachNextBand.minTalent}: <Money value={p.coachNextBand.salary} />/dag.</>
+                          <> Vanaf score {p.coachNextBand.minTalent} wordt de basis <Money value={p.coachNextBand.salary} />.</>
                         )}
                       </>
                     ) : state?.economy && <> <Money value={state.economy.coachSalary} />/dag, geen instapkost.</>}

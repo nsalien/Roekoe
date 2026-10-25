@@ -62,8 +62,8 @@ crowded.sponsorship.active = eight.map((s) => contract(s.id)) as never;
 
 // Snapshot what the daily bill will say, BEFORE the migration (v54 may touch sponsors, not coaches).
 const nowMs = Date.now();
-const billCoach = coachBill(coach, birdsOf(coach).filter((p) => p.coached), nowMs);
-const billVet = coachBill(vet, birdsOf(vet).filter((p) => p.coached), nowMs);
+const billCoach = coachBill(coach, birdsOf(coach).filter((p) => p.coached), nowMs, db.world.currentWeek);
+const billVet = coachBill(vet, birdsOf(vet).filter((p) => p.coached), nowMs, db.world.currentWeek);
 
 db.world.dataVersion = 53; // v54 (sponsors), v55 (traits), v56 (this)
 runDataMigrations(db);

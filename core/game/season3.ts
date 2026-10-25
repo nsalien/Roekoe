@@ -22,8 +22,8 @@ import { talent } from './pigeon.js';
 export const euro = (n: number) => `€${Math.round(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.')}`;
 
 /** What this loft's coaches cost per day, now and under the old flat rate. */
-export function coachCostNowAndBefore(loft: Loft, coached: Pigeon[], nowMs: number) {
-  const bill = coachBill(loft, coached, nowMs);
+export function coachCostNowAndBefore(loft: Loft, coached: Pigeon[], nowMs: number, week: number) {
+  const bill = coachBill(loft, coached, nowMs, week);
   const before = Math.max(0, coached.length - freeCoachCount(loft, nowMs)) * COACH.dailySalary;
   return { now: bill.total, before, perPigeon: bill.perPigeon };
 }
@@ -46,7 +46,7 @@ export function season3Welcome(db: Database, loft: Loft, nowMs: number): { title
     ? `• ✨ ${n === 1 ? 'Eén van je duiven kreeg' : `${n} van je duiven kregen`} een kenmerk — kijk in je hok wanneer ze in hun element ${n === 1 ? 'is' : 'zijn'}.`
     : '• ✨ Geen van je duiven kreeg een kenmerk — jongen uit je kweek of een aankoop kunnen er wel een hebben.');
   if (coached.length > 0) {
-    const c = coachCostNowAndBefore(loft, coached, nowMs);
+    const c = coachCostNowAndBefore(loft, coached, nowMs, db.world.currentWeek);
     lines.push(`• 🎓 Je coaches kosten nu samen ${euro(c.now)} per dag (was ${euro(c.before)}) — de prijs hangt af van hoe goed de duif is. Zie de coachmelding.`);
   }
   if (sponsors > 0 && sponsors <= SPONSOR_MAX_ACTIVE) {
@@ -73,7 +73,7 @@ export function season3CoachNote(db: Database, loft: Loft, nowMs: number): { tit
       body: `Vanaf seizoen 3 hangt de prijs van een coach af van de algemene score van je duif, van ${euro(min)} tot ${euro(max)} per dag.${bestLine} Alle tarieven: Wiki → De privécoach.`,
     };
   }
-  const c = coachCostNowAndBefore(loft, coached, nowMs);
+  const c = coachCostNowAndBefore(loft, coached, nowMs, db.world.currentWeek);
   const byId = new Map(coached.map((p) => [p.id, p]));
   const rows = c.perPigeon.map((r) => ({ ...r, p: byId.get(r.pigeonId)! }));
   const SHOW = 6;

@@ -3208,9 +3208,9 @@ export function tickDailyCare(db: Database, nowMs: number): void {
       const alive = db.pigeons.filter((p) => p.ownerId === loft.userId);
       if (alive.length > 0) {
         const infirmaryBirds = alive.filter((p) => p.inInfirmary).length;
-        // Each coached bird pays the salary of its own score band; a newcomer's
-        // free coach covers the most expensive one (see coachBill).
-        const coaches = coachBill(loft, alive.filter((p) => p.coached), nowMs).total;
+        // Each coached bird pays her own salary (score band + ervaring + age); a
+        // newcomer's free coach covers the most expensive one (see coachBill).
+        const coaches = coachBill(loft, alive.filter((p) => p.coached), nowMs, db.world.currentWeek).total;
         const pairs = db.breedingPairs.filter((bp) => bp.ownerId === loft.userId).length;
         const insurance = insuranceCost(alive, db.world.currentWeek);
         loft.money -= dailyRunningCost(loft, alive.length, coaches, infirmaryBirds, { pairs, insurance });

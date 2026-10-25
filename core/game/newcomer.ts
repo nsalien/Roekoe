@@ -14,11 +14,11 @@
  * A coach silently starting to cost €80/day would be a nasty surprise.
  */
 
-import { COACH, NEWCOMER, coachSalaryFor } from '../config/gameConfig.js';
+import { COACH, NEWCOMER, coachSalaryParts } from '../config/gameConfig.js';
 import type { RacingAttr } from '../config/gameConfig.js';
 import type { Database, Loft, NewcomerPerks, Pigeon } from '../schema.js';
 
-import { geneCap, noteAttrChange, talent } from './pigeon.js';
+import { ageInWeeks, geneCap, noteAttrChange, talent } from './pigeon.js';
 import { clamp, round1 } from './util.js';
 
 const RACING_ATTRS: RacingAttr[] = ['speed', 'endurance', 'orientation'];
@@ -79,19 +79,26 @@ export function billableCoachedCount(loft: Loft, coachedCount: number, nowMs: nu
   return Math.max(0, coachedCount - freeCoachCount(loft, nowMs));
 }
 
+/** A coach's daily salary for THIS bird: her score band, plus her ervaring and age
+ *  (`coachSalaryParts`). `week` is the world's current game week. */
+export function coachSalaryOf(p: Pigeon, week: number): number {
+  return coachSalaryParts(talent(p), p.experience, ageInWeeks(p, week)).salary;
+}
+
 /**
- * What a loft's coaches cost today. Every coached bird pays the salary of its
- * own score band (COACH.salaryBands). A newcomer's free coach covers the MOST
- * EXPENSIVE coached bird — the kindest reading of "your first coach is free",
- * and it means a rising bird never springs a surprise on a new player.
+ * What a loft's coaches cost today. Every coached bird pays her own salary
+ * (score band + ervaring + age, see coachSalaryOf). A newcomer's free coach covers
+ * the MOST EXPENSIVE coached bird — the kindest reading of "your first coach is
+ * free", and it means a rising bird never springs a surprise on a new player.
  */
 export function coachBill(
   loft: Loft,
   coached: Pigeon[],
   nowMs: number,
+  week: number,
 ): { total: number; perPigeon: { pigeonId: string; salary: number; free: boolean }[] } {
   const rows = coached
-    .map((p) => ({ pigeonId: p.id, salary: coachSalaryFor(talent(p)), free: false }))
+    .map((p) => ({ pigeonId: p.id, salary: coachSalaryOf(p, week), free: false }))
     .sort((a, b) => b.salary - a.salary);
   const free = freeCoachCount(loft, nowMs);
   for (let i = 0; i < Math.min(free, rows.length); i++) rows[i].free = true;
