@@ -1757,12 +1757,28 @@ export const FLIGHT_TIERS: Record<FlightTier, TierConfig> = {
 };
 
 /**
- * Auctions. A single top pigeon is auctioned every Sunday (see auction.ts).
- * On top of that, rescue-centre ("opvangcentrum") birds pop up at random,
- * regular moments: low-quality pigeons that still fetch a starting bid of €25
- * because a new owner can always train them up.
+ * Auctions. Two top pigeons are auctioned every Sunday (see auction.ts). On top
+ * of that, rescue-centre ("opvangcentrum") birds pop up at random, regular
+ * moments, opening at €25.
+ *
+ * The market follows the game (eigenaar, 27 okt: "Zorg dat de duiven die te koop
+ * staan dynamisch meegaan het spel en de spelers"). Every bird the game itself
+ * puts up gets a score band RELATIVE to the average algemene score of all birds
+ * in a loft, players and bots (`marketReference` in auction.ts): a club around
+ * ★65 is offered birds around ★65, not ★40 that nobody bids on.
  */
 export const AUCTION = {
+  /**
+   * The average every band is pitched against: rounded to whole points (so a band
+   * reads "60–70"), clamped into [min, max] so a band never leaves sane ground,
+   * and `fallback` for a world without birds. At 65 the Sunday bands are exactly
+   * the fixed ones of seizoen 3 (60–70 and 70–80).
+   */
+  reference: { fallback: 65, min: 40, max: 78 },
+  /** A bird for a band is drawn at a quality aimed at the band's centre and
+   *  re-drawn until she lands in it; after this many misses her skills are
+   *  scaled into it. */
+  bandMaxAttempts: 60,
   /** Rescue-centre auctions: mean hours between appearances (memoryless). ~60h
    *  gives roughly 2–3 per week instead of several a day. */
   shelterMeanIntervalHours: 60,
@@ -1793,28 +1809,26 @@ export const AUCTION = {
   /**
    * Seizoen 3: every Sunday TWO top birds go under the hammer, each with a
    * guaranteed algemene score (talent) band and its own window (Brussels hours).
-   * Birds are drawn at `quality` and re-drawn until the score lands in the band
-   * (≤ sundayMaxAttempts; the fallback scales the skills into the band).
+   * The band is [reference + fromAvg, reference + toAvg) — see `reference`; both
+   * lots of one Sunday share the reference the first one opened at.
    * While you hold the top bid on one, bidding on the other needs TWO free places.
    */
   sunday: [
-    { key: 'a', minTalent: 60, maxTalent: 70, openHour: 10, closeHour: 20, qualityMin: 0.68, qualityMax: 0.88 },
-    { key: 'b', minTalent: 70, maxTalent: 80, openHour: 11, closeHour: 21, qualityMin: 0.88, qualityMax: 1.0 },
+    { key: 'a', fromAvg: -5, toAvg: 5, openHour: 10, closeHour: 20 },
+    { key: 'b', fromAvg: 5, toAvg: 15, openHour: 11, closeHour: 21 },
   ],
-  sundayMaxAttempts: 60,
-  /** A Sunday/shelter auction opens at this fraction of the bird's market value. */
+  /** A Sunday auction opens at this fraction of the bird's market value. */
   openingBidFraction: 0.3,
   finalPhaseMinutes: 30,
   finalPhaseMaxBids: 3,
   antiSnipeMinutes: 5,
-  /** Quality range for rescue birds (they are no racers). */
-  shelterQualityMin: 0.05,
-  shelterQualityMax: 0.35,
-  /** Now and then a rescue bird is a cut above — still no Sunday-topper, just a
-   *  decent project. Chance + its (higher) quality range. */
+  /** Score band of a rescue bird, relative to `reference`: a little under the
+   *  club average, a project to train up (her gene caps leave room to grow). */
+  shelterBand: { fromAvg: -10, toAvg: -3 },
+  /** Now and then a rescue bird is a cut above — about an average bird, still no
+   *  Sunday-topper. Chance + its band. */
   shelterBetterChance: 0.22,
-  shelterBetterQualityMin: 0.45,
-  shelterBetterQualityMax: 0.68,
+  shelterBetterBand: { fromAvg: -3, toAvg: 3 },
   /** How long a FORCED (debt) auction stays open — see DEBT. */
   forcedWindowHours: 24,
 } as const;

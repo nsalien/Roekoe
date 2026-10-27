@@ -17,7 +17,7 @@
 |-----|--------|------|
 | **Dev** | `claude/demo-hokinrichting` | Alle ontwikkeling/commits komen hier **eerst**. ⏸️ **Gepauzeerd sinds 12 okt** (tweede keer, op vraag van de eigenaar; pauzecommit `dea321f`, enkel een pauzepagina). De volledige Dev-stand is `6be40c3` (herstart vanaf prod + demo + Marktwaarde v2 + samen kweken); hoe je hem terugzet staat in de `context.md` óp die branch. Ook `claude/breeding-other-player-pigeons-7314iz` (zelfde commits) is gepauzeerd. Van dev staat alles live **behalve Marktwaarde v2 en de demomodus**. |
 | **Dev (sessie 15 okt)** | `claude/duivenlokker-feature-mhf3yb` | Sessiebranch van de **duivenlokker**, vertrokken van prod `9e2a79a` (geen demo, geen Marktwaarde v2). De eigenaar vroeg meteen "implementeren op productie": de feature-commit staat hier als `fc0a933` (met `[CF-Pages-Skip]`, want een preview-build van een prod-tak kan aan de live `roekoe-db` hangen) en staat op prod als **`b4f3ab8`** (zelfde boom, boodschap zonder skip). De gepauzeerde `claude/demo-hokinrichting` heeft de lokker **niet**. Op 17 okt kwamen hier de **tags op je duiven** bij (§0b, `13f6571`), dezelfde dag op vraag van de eigenaar naar prod ("zet op productie"). |
-| **Dev (sessie 27 okt)** | `claude/adoring-bell-7zvxzk` | Sessiebranch van de **erfenis voor drie spelers** (migratie v69, zie *Stand van zaken*), vertrokken van prod `d423c1b` (geen demo, geen Marktwaarde v2). Commits met `[CF-Pages-Skip]`, om dezelfde reden als hierboven. |
+| **Dev (sessie 27 okt)** | `claude/adoring-bell-7zvxzk` | Sessiebranch van de **erfenis voor drie spelers** (migratie v69) en **de markt volgt het spel** (zie *Stand van zaken*), vertrokken van prod `d423c1b` (geen demo, geen Marktwaarde v2). Commits met `[CF-Pages-Skip]`, om dezelfde reden als hierboven. |
 | **Prod** | `claude/roekoe-game-website-jwa0vo` | Elke commit wordt hierheen **gecherry-pickt**; deze branch triggert de **Cloudflare Pages**-deploy naar productie. |
 
 > Vorige dev-branches (niet meer gebruiken): `ccr-9c78dbf3-rdb1ea`, `claude/hallo-nno7pb`, `claude/hallo-r1wgvn`, `claude/hallo-ca55co`, `claude/hallo-qz9tmx`, `claude/hallo-fsp9nx`, `claude/hallo-mzjn0e`, `claude/hallo-su75jy`, `claude/hallo-rkr49f`, `claude/hallo-pvwabx`,
@@ -74,6 +74,26 @@
 > Het voorstel (met alle getallen en de sketch) staat in de artifact "Roekoe Hokinrichting".
 
 ### Stand van zaken (12 okt 2026) — lees dit eerst
+- **De markt volgt het spel — 27 okt** (eigenaar: "Zorg ervoor dat de duiven die op de markt doorheen de week of
+  weekend verschijnen, wat relevant zijn qua score vergeleken met de gemiddelde scores van alle duiven in het spel
+  … Zorg dus dat de duiven die te koop staan dynamisch meegaan het spel en de spelers"). Staat op de sessiebranch;
+  **nog niet op prod**. Het spel zelf biedt enkel veilingduiven aan (bots zetten niets te koop, gedwongen veilingen
+  zijn duiven van spelers). Die krijgen nu een scoreband **relatief tot `marketReference(db)`** (auction.ts): het
+  gemiddelde `talent` van elke duif in een hok (spelers + bots; veilinghuis/opvangcentrum tellen niet), afgerond,
+  begrensd op `AUCTION.reference` [40, 78], 65 zonder duiven. Banden (`[ref + fromAvg, ref + toAvg)`):
+  zondag A −5…+5, B +5…+15 (bij 65 exact de oude 60–70 / 70–80); opvangcentrum `shelterBand` −10…−3, met
+  `shelterBetterChance` 0,22 `shelterBetterBand` −3…+3 (was kwaliteit 0,05–0,35 → ~★40, nu bij 65: ★55–68).
+  `birdInBand` (vervangt `sundayBird`) mikt de kwaliteit op het midden van de band (`generatePigeon` scoort
+  ~52,5 + (q − 0,5)·40), trekt opnieuw bij een misser (gemeten: gemiddeld ~2 trekkingen, schalen nooit nodig) en
+  houdt zo natuurlijke duiven (geen kunstmatige allrounders). **Zondag:** de band rijdt mee in de sleutel
+  (`auction:<datum>:<a|b>:<min>-<max>`); ids blijven die zonder band (`auc_auction_<datum>_a`), zodat racende
+  verzoeken op dezelfde rij uitkomen. B neemt de referentie over die A's sleutel vastlegde (`sundayReference`), want
+  A's bel beloofde B's band. `sundayBandLabel` leest de band uit de sleutel; een oude sleutel zonder band = de band
+  bij 65. Opvangduiven starten nog altijd op **€25**. ⚠️ Hun verkoop telt mee voor de marktwaarde (een trade met
+  `talent`): gaat een ★58-opvangduif spotgoedkoop weg, dan trekt dat de waarde van ★55–62-duiven omlaag — vroeger
+  raakte dat enkel de ★40-klasse. Zie ook de open vraag hieronder over het opvangcentrum en de marktwaarde. Teksten:
+  spelregels §12, wiki `#veilingen` (+ het seizoen-3-blokje), de opvangkaart op de Markt. Test:
+  `tests/market-reference.test.mts`; `sunday-auction` leest de band nu uit de sleutel.
 - **De erfenis voor drie spelers — 27 okt, migratie v69** (eigenaar: "Geef de spelers 'marcel de neut', 'roekoeloos'
   en 'graanabolica' het event van de erfenis van een oude melker waarbij ze kunnen kiezen tussen oud kampioen of
   jonge belofte. Zorg dat de duif die ze nemen altijd een algemene score heeft tussen 75 en 80."). Staat op de
@@ -2119,6 +2139,7 @@ npx tsx tests/pigeon-tags.test.mts        # tags: opkuisen, privé, weg bij elke
 npx tsx tests/season-close.test.mts       # v66: seizoen 3 afsluiten (of enkel het criterium) + v67 erna; prod zoals ze is
 npx tsx tests/bot-fill.test.mts           # v68: bots tot 10 duiven, ★60–75, in stappen van 3, vaste ids, querykost
 npx tsx tests/erfenis-v69.test.mts        # v69: erfenis zonder spaarpot voor drie spelers, gekozen duif altijd ★75–80, D1 + API
+npx tsx tests/market-reference.test.mts   # veilingduiven volgen het gemiddelde: referentie, zondagbanden (+ gedeeld per dag), opvangcentrum
 ```
 
 > **Geen `tsx` beschikbaar?** (cloud-sessie waar de npm-registry geblokkeerd is: `npx tsx`
@@ -4965,9 +4986,11 @@ Hieronder enkel wat je nodig hebt om eraan te werken.)
   slotfase de spelregel, erna een gekleurde balk "nog X van je 3 biedingen" en blokkeert
   invoer+knop als het budget op is.
 - **Seizoen 3: twee zondagduiven** (`AUCTION.sunday`): A score [60,70) 10:00–20:00, B
-  [70,80) 11:00–21:00 (Brussel). Sleutel `auction:<datum>:<band>` → `auc_…`/`pig_…` blijven
+  [70,80) 11:00–21:00 (Brussel). ⚠️ Sinds 27 okt zijn die banden **relatief tot het gemiddelde**
+  van het spel (zie *De markt volgt het spel* in §0b) en staat de band achter in de sleutel. Sleutel
+  `auction:<datum>:<band>` → `auc_…`/`pig_…` blijven
   stabiel per duif; een oude kale `auction:<datum>` op dezelfde dag = geen nieuwe (de
-  overgangszondag). `sundayBird` trekt opnieuw tot de score in de band valt (≤ 60 pogingen,
+  overgangszondag). `sundayBird` (nu `birdInBand`) trekt opnieuw tot de score in de band valt (≤ 60 pogingen,
   daarna bijschalen). Eén melding per duif (A meldt dat B om 11u volgt). **Biedregel**
   `sundayBidBlock`: hoogste bod op de andere open zondagduif → 2 vrije plaatsen nodig; de
   markt-DTO geeft `scoreBand` en `bidBlockedReason`. Test: `tests/sunday-auction.test.mts`.
@@ -5341,7 +5364,9 @@ Hieronder enkel wat je nodig hebt om eraan te werken.)
   `auction.ts`): `shelterMeanIntervalHours 9→60` (≈2–3/week i.p.v. meerdere/dag),
   `shelterMaxConcurrent 2→1`, `shelterWindowHours 6→24`. Kwaliteit meestal laag
   (`0.05–0.35`), maar met **`shelterBetterChance 0.22`** af en toe een **degelijke —
-  geen top — duif** (`0.45–0.68`; de zondagstopper blijft `0.82–0.98`).
+  geen top — duif** (`0.45–0.68`; de zondagstopper blijft `0.82–0.98`). ⚠️ Sinds 27 okt
+  vervangen door scorebanden ten opzichte van het gemiddelde (`shelterBand`/`shelterBetterBand`,
+  zie *De markt volgt het spel* in §0b).
 - **Zichtbaarheid eigenschappen**: te-koop-duiven (markt) én veilingduiven tonen nu
   **alle** eigenschappen; enkel een rechtstreeks bod op een **niet-te-koop** duif blijft
   blind (`revealed = … || p.forSale`; `auctionsDTO` → `pigeonDTO` zonder viewer). Zie §8 info-hiding.

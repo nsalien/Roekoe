@@ -79,6 +79,87 @@ function notify(db: Database, loft: Loft, title: string, body: string, id?: stri
   else db.notifications.push(note);
 }
 
+/** A score band [min, max), in whole points. */
+interface ScoreBand { min: number; max: number }
+
+/**
+ * The average algemene score of every bird in a loft — players and bots — that
+ * the game's own lots are pitched against (AUCTION.reference). Birds of the
+ * auction house and the shelter are not in a loft and do not count. Whole points,
+ * clamped, and the fallback for a world without birds.
+ */
+export function marketReference(db: Database): number {
+  const { fallback, min, max } = AUCTION.reference;
+  const lofts = new Set(db.lofts.map((l) => l.userId));
+  let sum = 0, n = 0;
+  for (const p of db.pigeons) {
+    if (!lofts.has(p.ownerId)) continue;
+    sum += talent(p);
+    n++;
+  }
+  return n === 0 ? fallback : Math.round(clamp(sum / n, min, max));
+}
+
+/** A band at `reference`, from its offsets in AUCTION. */
+function bandAt(reference: number, offsets: { fromAvg: number; toAvg: number }): ScoreBand {
+  return { min: reference + offsets.fromAvg, max: reference + offsets.toAvg };
+}
+
+/**
+ * A fresh bird whose algemene score lands in [band.min, band.max).
+ * `generatePigeon` scores ~52.5 + (quality − 0.5)·40 on average (its bell(25, 80)
+ * shifted by quality), so draw at the quality aimed at the band's centre, with a
+ * little spread, and re-draw on a miss; after `bandMaxAttempts` misses, scale the
+ * three racing skills into the band (raising a gene cap where needed, never above
+ * GENE.ceil). Re-drawing rather than setting the score keeps a natural mix of
+ * sprinters, stayers and all-rounders.
+ */
+function birdInBand(db: Database, ownerId: string, band: ScoreBand, week: number): Pigeon {
+  const taken = namesInUse(db.pigeons);
+  const target = (band.min + band.max) / 2;
+  const aim = 0.5 + (target - 52.5) / 40;
+  const draw = () => generatePigeon({ ownerId, currentWeek: week, quality: aim + randFloat(-0.1, 0.1), taken });
+  const inBand = (x: Pigeon) => talent(x) >= band.min && talent(x) < band.max;
+  let p = draw();
+  for (let i = 1; i < AUCTION.bandMaxAttempts && !inBand(p); i++) p = draw();
+  if (inBand(p)) return p;
+  const f = target / Math.max(1, talent(p));
+  for (const attr of ['speed', 'endurance', 'orientation'] as const) {
+    p[attr] = round1(clamp(p[attr] * f, 1, GENE.ceil));
+    if (p.genes && p.genes[attr] < p[attr]) p.genes = { ...p.genes, [attr]: Math.min(GENE.ceil, Math.ceil(p[attr])) };
+  }
+  return p;
+}
+
+/**
+ * The reference both lots of one Sunday share. Lot B opens an hour after lot A,
+ * and the average can tick over in between; lot A's bell already promised B's
+ * band, so B takes the reference A's key recorded. A lot opened before the bands
+ * followed the game (no band in its key) promised the fixed bands, which are the
+ * bands at the fallback reference. Without a lot yet: the current average.
+ */
+function sundayReference(db: Database, day: string): number {
+  for (const a of db.auctions) {
+    const lot = sundayLotOf(a, day);
+    const offsets = lot && AUCTION.sunday.find((b) => b.key === lot.key);
+    if (!lot || !offsets) continue;
+    return lot.band ? lot.band.min - offsets.fromAvg : AUCTION.reference.fallback;
+  }
+  return marketReference(db);
+}
+
+/**
+ * A Sunday lot's key is `auction:<date>:<band key>:<min>-<max>` — the band it
+ * opened with rides along, since the reference moves with the game. Keys from
+ * before (no band) still parse, without one. Null when `a` is no lot of `day`.
+ */
+function sundayLotOf(a: Auction, day: string): { key: string; band: ScoreBand | null } | null {
+  if (!a.templateKey.startsWith(`${day}:`)) return null;
+  const [key, range] = a.templateKey.slice(day.length + 1).split(':');
+  const m = /^(\d+)-(\d+)$/.exec(range ?? '');
+  return { key, band: m ? { min: Number(m[1]), max: Number(m[2]) } : null };
+}
+
 /**
  * Put ONE top pigeon under the Sunday hammer and tell every player.
  *
@@ -89,37 +170,17 @@ function notify(db: Database, loft: Loft, title: string, body: string, id?: stri
  * (INSERT OR REPLACE), so exactly one auction, one bird and one notification per
  * player survive however many requests race.
  */
-/**
- * A top bird whose algemene score lands in [band.minTalent, band.maxTalent).
- * `generatePigeon` spreads widely, so draw at the band's quality and re-draw;
- * after `sundayMaxAttempts` misses, scale the three racing skills into the band
- * (raising a gene cap where needed, never above GENE.ceil).
- */
-function sundayBird(db: Database, band: SundayBand, week: number): Pigeon {
-  const taken = namesInUse(db.pigeons);
-  let p = generatePigeon({ ownerId: AUCTION_HOUSE_ID, currentWeek: week, quality: randFloat(band.qualityMin, band.qualityMax), taken });
-  for (let i = 1; i < AUCTION.sundayMaxAttempts; i++) {
-    const t = talent(p);
-    if (t >= band.minTalent && t < band.maxTalent) return p;
-    p = generatePigeon({ ownerId: AUCTION_HOUSE_ID, currentWeek: week, quality: randFloat(band.qualityMin, band.qualityMax), taken });
-  }
-  const t = talent(p);
-  if (t >= band.minTalent && t < band.maxTalent) return p;
-  const target = (band.minTalent + band.maxTalent) / 2;
-  const f = target / Math.max(1, t);
-  for (const attr of ['speed', 'endurance', 'orientation'] as const) {
-    p[attr] = round1(clamp(p[attr] * f, 1, GENE.ceil));
-    if (p.genes && p.genes[attr] < p[attr]) p.genes = { ...p.genes, [attr]: Math.min(GENE.ceil, Math.ceil(p[attr])) };
-  }
-  return p;
-}
-
-function createSundayAuction(db: Database, key: string, startMs: number, endMs: number, band: SundayBand): void {
+function createSundayAuction(
+  db: Database, key: string, startMs: number, endMs: number, band: SundayBand, reference: number,
+): void {
   const week = db.world.currentWeek;
+  // Ids come from the key WITHOUT the band: two requests that race on opening
+  // write the same rows even if they saw a different average.
   const slug = key.replace(/[^a-z0-9-]/gi, '_');
   const pigeonId = `pig_${slug}`;
   if (db.pigeons.some((x) => x.id === pigeonId)) return; // already opened this Sunday
-  const p = sundayBird(db, band, week);
+  const range = bandAt(reference, band);
+  const p = birdInBand(db, AUCTION_HOUSE_ID, range, week);
   p.id = pigeonId;
   p.forSale = false;
   db.pigeons.push(p);
@@ -128,7 +189,7 @@ function createSundayAuction(db: Database, key: string, startMs: number, endMs: 
   const val = marketValue(db, p, week);
   const minBid = Math.max(300, Math.round((val * AUCTION.openingBidFraction) / 10) * 10);
   db.auctions.push({
-    id: `auc_${slug}`, templateKey: key, pigeonId: p.id,
+    id: `auc_${slug}`, templateKey: `${key}:${range.min}-${range.max}`, pigeonId: p.id,
     startAt: new Date(startMs).toISOString(), endAt: new Date(endMs).toISOString(),
     minBid, minIncrement: Math.max(25, Math.round((minBid * 0.05) / 5) * 5),
     currentBid: 0, currentBidderId: null, currentBidderName: null, bids: [], status: 'open',
@@ -139,8 +200,9 @@ function createSundayAuction(db: Database, key: string, startMs: number, endMs: 
     if (!loft.isBot) {
       const closes = `${band.closeHour}u`;
       const other = AUCTION.sunday.find((b) => b.key !== band.key);
-      const tail = band.key === AUCTION.sunday[0].key && other
-        ? ` Om ${other.openHour}u volgt een tweede topduif (score ${other.minTalent}–${other.maxTalent}).`
+      const next = other && bandAt(reference, other);
+      const tail = band.key === AUCTION.sunday[0].key && other && next
+        ? ` Om ${other.openHour}u volgt een tweede topduif (score ${next.min}–${next.max}).`
         : '';
       notify(db, loft, '🔨 Zondagveiling geopend!',
         `Topduif ${p.name} (score ${talent(p)}) gaat onder de hamer tot ${closes}.${tail} Bied mee op de markt!`,
@@ -149,15 +211,14 @@ function createSundayAuction(db: Database, key: string, startMs: number, endMs: 
   }
 }
 
-/** Put a rescue bird up for auction, opening at €25. Usually a low-quality
- *  project; now and then (shelterBetterChance) a decent — but not top — bird. */
+/** Put a rescue bird up for auction, opening at €25. Usually a project a little
+ *  under the club average; now and then (shelterBetterChance) about an average
+ *  bird — both relative to `marketReference`. */
 function createShelterAuction(db: Database, nowMs: number): void {
   const week = db.world.currentWeek;
   const better = Math.random() < AUCTION.shelterBetterChance;
-  const quality = better
-    ? randFloat(AUCTION.shelterBetterQualityMin, AUCTION.shelterBetterQualityMax)
-    : randFloat(AUCTION.shelterQualityMin, AUCTION.shelterQualityMax);
-  const p = generatePigeon({ ownerId: SHELTER_ID, currentWeek: week, quality, taken: namesInUse(db.pigeons) });
+  const band = bandAt(marketReference(db), better ? AUCTION.shelterBetterBand : AUCTION.shelterBand);
+  const p = birdInBand(db, SHELTER_ID, band, week);
   p.forSale = false;
   db.pigeons.push(p);
   db.auctions.push({
@@ -367,7 +428,8 @@ export function ensureAuctions(db: Database, nowMs: number): void {
   }
 
   // Sunday auctions (seizoen 3): two per Sunday, each live in its own window
-  // (AUCTION.sunday). Keys `auction:<date>:<band>` keep them idempotent.
+  // (AUCTION.sunday). Keys `auction:<date>:<band key>` keep them idempotent; the
+  // score band they opened with rides along behind it (see sundayLotOf).
   if (brusselsWeekday(nowMs) === 0) {
     const p = tzParts(nowMs);
     const day = `auction:${p.y}-${p.m}-${p.d}`;
@@ -379,8 +441,8 @@ export function ensureAuctions(db: Database, nowMs: number): void {
         const startMs = wallToUtcMs(p.y, p.m, p.d, band.openHour);
         const endMs = wallToUtcMs(p.y, p.m, p.d, band.closeHour);
         if (nowMs < startMs || nowMs >= endMs) continue; // not inside this band's window
-        const key = `${day}:${band.key}`;
-        if (!db.auctions.some((a) => a.templateKey === key)) createSundayAuction(db, key, startMs, endMs, band);
+        if (db.auctions.some((a) => sundayLotOf(a, day)?.key === band.key)) continue;
+        createSundayAuction(db, `${day}:${band.key}`, startMs, endMs, band, sundayReference(db, day));
       }
     }
   }
@@ -458,11 +520,19 @@ export function sundayBidBlock(db: Database, a: Auction, loft: Loft): string | n
   return `Je hebt al het hoogste bod op ${leadName}. Om ook op ${thisName} te bieden heb je 2 vrije plaatsen nodig.`;
 }
 
-/** The score band of a Sunday lot ("60–70"), from its key; null for other lots. */
+/**
+ * The score band of a Sunday lot ("60–70"), from its key; null for other lots.
+ * A lot opened before the bands followed the game has no band in its key: it was
+ * drawn in the fixed band, which is the band at the fallback reference.
+ */
 export function sundayBandLabel(a: Auction): string | null {
-  const key = a.templateKey.split(':')[2];
-  const band = AUCTION.sunday.find((b) => b.key === key);
-  return band ? `${band.minTalent}–${band.maxTalent}` : null;
+  if (auctionKind(a) !== 'sunday') return null;
+  const day = a.templateKey.split(':').slice(0, 2).join(':');
+  const lot = sundayLotOf(a, day);
+  const offsets = lot && AUCTION.sunday.find((b) => b.key === lot.key);
+  if (!lot || !offsets) return null;
+  const band = lot.band ?? bandAt(AUCTION.reference.fallback, offsets);
+  return `${band.min}–${band.max}`;
 }
 
 export function placeBid(db: Database, userId: string, auctionId: string, amount: number): string | null {

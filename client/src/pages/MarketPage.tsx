@@ -612,7 +612,7 @@ function AuctionCard({
 
       {shelter && (
         <p className="faint" style={{ margin: '8px 0 0', fontSize: '0.85rem' }}>
-          Geen renduif, maar met wat training en geduld groeit die er wel bovenop — en later weer te koop.
+          Rond of net onder het clubgemiddelde, maar met wat training en geduld groeit die er wel bovenop — en later weer te koop.
         </p>
       )}
 
