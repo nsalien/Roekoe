@@ -2712,6 +2712,17 @@ export function runDataMigrations(db: Database, nowMs = Date.now()): void {
     }
     db.world.dataVersion = 69;
   }
+
+  // `=== 69` for the same reason as v69's `=== 68`: v69 can stay open over
+  // several requests (it waits on v68 and skips flight requests).
+  if ((db.world.dataVersion ?? 0) === 69 && !startsOrFinishesFlight(db, nowMs)) {
+    // Eigenaar, 27 okt: "Geef het evenement ook aan speler 'onlyflaps' voor de
+    // erfenis" — the same card as v69: no spaarpot, the bird lands on ★75–80.
+    // v69 has fired on production already, so this needs its own version.
+    // Its own notification id (`erfenis4`), so it can never overwrite an earlier bell.
+    handInheritanceCard(db, 'onlyflaps', 'ntf:admin:erfenis4', { cash: false, score: [75, 80] });
+    db.world.dataVersion = 70;
+  }
 }
 
 /**

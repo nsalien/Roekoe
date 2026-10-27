@@ -103,6 +103,11 @@
   raakte dat enkel de ★40-klasse. Zie ook de open vraag hieronder over het opvangcentrum en de marktwaarde. Teksten:
   spelregels §12, wiki `#veilingen` (+ het seizoen-3-blokje), de opvangkaart op de Markt. Test:
   `tests/market-reference.test.mts`; `sunday-auction` leest de band nu uit de sleutel.
+- **Dezelfde erfenis voor OnlyFlaps — 27 okt, migratie v70** (eigenaar: "Geef het evenement ook aan speler
+  'onlyflaps' voor de erfenis"). Live op prod (de vaste regel uit §0). v69 had op prod al gevuurd en vuurt maar één
+  keer, dus een eigen versie: `handInheritanceCard(db, 'onlyflaps', 'ntf:admin:erfenis4', { cash: false, score: [75,
+  80] })` — dezelfde kaart (geen spaarpot, ★75–80), eigen bel-id. Gegate op **`=== 69`** en niet in een vluchtverzoek,
+  om dezelfde reden als v69. Test: blok 5c van `tests/erfenis-v69.test.mts`.
 - **De erfenis voor drie spelers — 27 okt, migratie v69** (eigenaar: "Geef de spelers 'marcel de neut', 'roekoeloos'
   en 'graanabolica' het event van de erfenis van een oude melker waarbij ze kunnen kiezen tussen oud kampioen of
   jonge belofte. Zorg dat de duif die ze nemen altijd een algemene score heeft tussen 75 en 80."). **Live op prod
@@ -121,7 +126,8 @@
   bel-id `erfenis3` (Roekoeloos had al `erfenis` van v46 en `erfenis2` van v48). ⚠️ Gegate op **`dataVersion ===
   68`** (niet `< 69`): v68 kan over meerdere verzoeken openstaan, en een latere migratie die erover springt zou de
   bots voorgoed half gevuld laten. Net als v68 slaat v69 een verzoek over dat een vlucht start of afrondt
-  (`startsOrFinishesFlight`, schedule.ts, nu door beide gebruikt). **Een volgende migratie (v70) gate je op `=== 69`**
+  (`startsOrFinishesFlight`, schedule.ts, nu door beide gebruikt). **Een volgende migratie gate je op `=== <vorige>`**
+  (v70 doet dat al op `=== 69`, dus v71 op `=== 70`)
   om dezelfde reden. Test: `tests/erfenis-v69.test.mts`.
 - **CPU-fix ronde 3 — 25 okt** (eigenaar: "Er zijn weer exceeded cpu time limits momenteel"): tijdzone-formatters
   gecachet en de dubbele JSON-snapshot van duiven/hokken/koppels weg; een volledig verzoek bij ~325 duiven ging
@@ -1069,7 +1075,7 @@ krijgen.**
 `core/game/schedule.ts` → `advanceRealtime(db, nowMs, weatherByFlight)` roept in
 volgorde:
 1. `runDataMigrations(db)` — eenmalige datafixes, **gated op `world.dataVersion`**
-   (staat nu op **69** — v69 = de erfenis zonder spaarpot (★75–80) voor Marcel De Neut, Roekoeloos en Graanabolica (27 okt), v68 = bots bijvullen tot 10 duiven (24 okt, in stappen), v67 = de leagues i.p.v. het leeftijdscriterium (§0b, 24 okt), v66 = seizoen 3 afsluiten + criterium uitreiken (24 okt, zie *Stand van zaken*), v65 = de bel van de tags (`TAGS_NEWS`), v64 = de bel van de duivenlokker (`LURE_NEWS`), v63 = de bots uit samen kweken (hun aanbod gewist, geen bel), v62 = de bellen van samen kweken en van vaccins/verzekering per duif, v61 = de aankondigingsbel van de hokinrichting & co (`core/game/news.ts`), v60 = die van Het Lokaal; nieuwe migratie = nieuw `if ((db.world.dataVersion ?? 0) < N)`
+   (staat nu op **70** — v70 = dezelfde erfenis voor OnlyFlaps (27 okt), v69 = de erfenis zonder spaarpot (★75–80) voor Marcel De Neut, Roekoeloos en Graanabolica (27 okt), v68 = bots bijvullen tot 10 duiven (24 okt, in stappen), v67 = de leagues i.p.v. het leeftijdscriterium (§0b, 24 okt), v66 = seizoen 3 afsluiten + criterium uitreiken (24 okt, zie *Stand van zaken*), v65 = de bel van de tags (`TAGS_NEWS`), v64 = de bel van de duivenlokker (`LURE_NEWS`), v63 = de bots uit samen kweken (hun aanbod gewist, geen bel), v62 = de bellen van samen kweken en van vaccins/verzekering per duif, v61 = de aankondigingsbel van de hokinrichting & co (`core/game/news.ts`), v60 = die van Het Lokaal; nieuwe migratie = nieuw `if ((db.world.dataVersion ?? 0) < N)`
    blok + `db.world.dataVersion = N`). De oudere migraties hebben hun werk gedaan en
    zijn enkel nog van belang als **patroon** — zie §8, kop *Eenmalige migraties*.
 2. `ensureFlightsScheduled(db, nowMs)` — plant vluchten volgens `REAL_SCHEDULE`.
@@ -2147,7 +2153,7 @@ npx tsx tests/duivenlokker.test.mts       # duivenlokker: kansen, kopen, vangen,
 npx tsx tests/pigeon-tags.test.mts        # tags: opkuisen, privé, weg bij elke eigendomswissel, D1 + API, bel v65
 npx tsx tests/season-close.test.mts       # v66: seizoen 3 afsluiten (of enkel het criterium) + v67 erna; prod zoals ze is
 npx tsx tests/bot-fill.test.mts           # v68: bots tot 10 duiven, ★60–75, in stappen van 3, vaste ids, querykost
-npx tsx tests/erfenis-v69.test.mts        # v69: erfenis zonder spaarpot voor drie spelers, gekozen duif altijd ★75–80, D1 + API
+npx tsx tests/erfenis-v69.test.mts        # v69 + v70: erfenis zonder spaarpot (drie spelers + OnlyFlaps), gekozen duif altijd ★75–80, D1 + API
 npx tsx tests/market-reference.test.mts   # veilingduiven volgen het gemiddelde: referentie, zondagbanden (+ gedeeld per dag), opvangcentrum
 ```
 

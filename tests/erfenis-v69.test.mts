@@ -3,7 +3,7 @@
  * "Geef de spelers 'marcel de neut', 'roekoeloos' en 'graanabolica' het event van
  * de erfenis van een oude melker waarbij ze kunnen kiezen tussen oud kampioen of
  * jonge belofte. Zorg dat de duif die ze nemen altijd een algemene score heeft
- * tussen 75 en 80.").
+ * tussen 75 en 80."), en migratie v70 — dezelfde erfenis voor 'onlyflaps' (blok 5c).
  *
  * Gedekt:
  *  1. de gewone erfeniskaart is ongewijzigd (spaarpot, kampioen, belofte);
@@ -196,7 +196,7 @@ console.log('\n5b. v69 wacht tot v68 klaar is, en slaat een vluchtverzoek over')
   let n = 1;
   while ((db.world.dataVersion ?? 0) < 69 && n < 100) advanceRealtime(db, NOW + 1000 * n++);
   const full = [...botIds].every((id) => db.pigeons.filter((p) => p.ownerId === id).length >= 10);
-  ok(db.world.dataVersion === 69 && full, `na ${n} verzoeken: elke bot op 10 duiven, en dan pas v69`);
+  ok((db.world.dataVersion ?? 0) >= 69 && full, `na ${n} verzoeken: elke bot op 10 duiven, en dan pas v69`);
   ok(loft.pendingEvent?.data?.noCash === 1, 'en dan krijgt Graanabolica de erfenis');
 }
 {
@@ -214,7 +214,57 @@ console.log('\n5b. v69 wacht tot v68 klaar is, en slaat een vluchtverzoek over')
   advanceRealtime(db, NOW);
   ok(db.world.dataVersion === 68 && loft.pendingEvent?.data?.noCash === undefined, 'een verzoek dat een vlucht afrondt, deelt niets uit');
   advanceRealtime(db, NOW + 1000);
-  ok(db.world.dataVersion === 69 && loft.pendingEvent?.data?.noCash === 1, 'het volgende verzoek wel');
+  ok((db.world.dataVersion ?? 0) >= 69 && loft.pendingEvent?.data?.noCash === 1, 'het volgende verzoek wel');
+}
+
+// ---------------------------------------------------------------------------
+console.log('\n5c. v70: dezelfde erfenis voor OnlyFlaps');
+{
+  // Production after v69: the three already had theirs (and Roekoeloos answered).
+  const store = new MemoryStore(emptyDatabase());
+  seedWorld(store);
+  const db = store.data;
+  advanceRealtime(db, NOW - 60000);
+  db.world.dataVersion = 69;
+  const only = addPlayer(store, 'OnlyFlaps', 'Het Fladderhok');       // gebruikersnaam, hoofdletters
+  const only2 = addPlayer(store, 'flapper', ' onlyflaps ');           // hoknaam, spaties
+  const roekoe = addPlayer(store, 'roekoeloos', 'Het Roekoehok');
+  const other = addPlayer(store, 'jan', 'Jan zijn hok');
+  const bot = addPlayer(store, 'onlyflaps-bot', 'OnlyFlaps', true);
+  const loftOf = (id: string) => db.lofts.find((l) => l.userId === id)!;
+  advanceRealtime(db, NOW);
+  ok(db.world.dataVersion === 70, `de migratie liep (dataVersion ${db.world.dataVersion})`);
+  for (const [id, who] of [[only, 'gebruikersnaam "OnlyFlaps"'], [only2, 'hoknaam " onlyflaps "']] as const) {
+    const ev = loftOf(id).pendingEvent;
+    ok(ev?.key === 'inheritance' && ev.options.length === 2 && ev.data?.noCash === 1 && ev.data?.scoreMin === 75 && ev.data?.scoreMax === 80,
+      `${who}: de erfenis zonder spaarpot, ★75–80`);
+    const bells = db.notifications.filter((n) => n.userId === id && n.id.startsWith('ntf:admin:erfenis'));
+    ok(bells.length === 1 && bells[0].id === `ntf:admin:erfenis4:${id}`, `${who}: één bel, eigen id (erfenis4)`);
+  }
+  ok(loftOf(roekoe).pendingEvent?.data?.noCash === undefined, 'Roekoeloos krijgt ze niet nog eens');
+  ok(loftOf(other).pendingEvent?.data?.noCash === undefined, 'een andere speler krijgt niets');
+  ok(loftOf(bot).pendingEvent?.data?.noCash === undefined, 'een bot met de naam "OnlyFlaps" krijgt niets');
+  const r = take(db, loftOf(only), 1);
+  ok(!!r.bird && inRange(talent(r.bird)), `kiezen geeft een duif van ★${r.bird ? talent(r.bird) : '?'}`);
+  advanceRealtime(db, NOW + 60000);
+  ok(loftOf(only).pendingEvent?.data?.noCash === undefined, 'ze vuurt één keer');
+}
+{
+  // v70 waits while v69 is still open (a flight request), like v69 waits on v68.
+  const store = new MemoryStore(emptyDatabase());
+  seedWorld(store);
+  const db = store.data;
+  advanceRealtime(db, NOW - 60000);
+  db.world.dataVersion = 68;
+  const only = addPlayer(store, 'onlyflaps', 'X');
+  const f = db.flights.find((x) => x.status === 'scheduled' && !x.practice)!;
+  f.status = 'live';
+  f.startAt = new Date(NOW - 3 * 86400000).toISOString();
+  advanceRealtime(db, NOW);
+  const loft = db.lofts.find((l) => l.userId === only)!;
+  ok(db.world.dataVersion === 68 && loft.pendingEvent?.data?.noCash === undefined, 'een vluchtverzoek: v69 en v70 wachten');
+  advanceRealtime(db, NOW + 1000);
+  ok(db.world.dataVersion === 70 && loft.pendingEvent?.data?.noCash === 1, 'het volgende verzoek: v69 en dan v70');
 }
 
 // ---------------------------------------------------------------------------

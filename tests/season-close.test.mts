@@ -85,7 +85,7 @@ console.log('\n1. Een verse wereld (seizoen 1) blijft ongemoeid');
   const db = store.data;
   advanceRealtime(db, NOW);
   const started = db.world.seasonStartedAt;
-  ok(db.world.dataVersion === 69 && db.world.seasonYear === 1, `v66–v69 gelopen, nog altijd seizoen ${db.world.seasonYear}`);
+  ok(db.world.dataVersion === 70 && db.world.seasonYear === 1, `v66–v70 gelopen, nog altijd seizoen ${db.world.seasonYear}`);
   advanceRealtime(db, NOW + 60000);
   ok(db.world.seasonStartedAt === started && db.lofts.every((l) => (l.awards ?? []).length === 0), 'geen uitreiking, de klok staat waar ze stond');
 }
