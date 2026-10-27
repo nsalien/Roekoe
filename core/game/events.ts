@@ -8,9 +8,9 @@ import { insurancePayout } from './inrichting.js';
 import type { BroodOrigin, Database, EventCard, Loft, Pigeon } from '../schema.js';
 import { newId } from '../store.js';
 import { EVENTS } from '../config/gameConfig.js';
-import { estimateValue, experienceGain, generatePigeon, noteAttrChange } from './pigeon.js';
+import { estimateValue, experienceGain, generatePigeon, noteAttrChange, shapeToScore } from './pigeon.js';
 import { marketValue } from './market.js';
-import { namesInUse } from './names.js';
+import { generatePigeonName, namesInUse } from './names.js';
 import { applyAilment, randomAilmentOfSeverity, randomDisease, randomInjury } from './health.js';
 import { clamp, pick, randFloat, randInt, round1 } from './util.js';
 
@@ -24,12 +24,25 @@ function owendBy(db: Database, loft: Loft): Pigeon[] {
  *
  * Deliberately free of random values: two concurrent requests that both write it
  * land on the same card instead of two different ones.
+ *
+ * `opts` shapes a hand-out (v69): `cash: false` leaves out the spaarpot, so the
+ * choice is between the two birds only, and `score` pins the algemene score of
+ * the bird they pick into [min, max]. Both ride on the card's `data`, so
+ * `resolveEvent` reads them from the card itself; a card from `makeEvent` carries
+ * neither and plays as it always did.
  */
-export function inheritanceCard(): EventCard {
+export function inheritanceCard(opts: { cash?: boolean; score?: [number, number] } = {}): EventCard {
+  const data: Record<string, number> = {};
+  if (opts.cash === false) data.noCash = 1;
+  if (opts.score) [data.scoreMin, data.scoreMax] = opts.score;
+  const birds = [{ label: 'De oude kampioen' }, { label: 'De jonge belofte' }];
   return {
     key: 'inheritance', icon: '📜', title: 'Erfenis van een oude melker',
-    text: 'Een overleden dorpsgenoot liet jou iets na — maar je mag maar één ding kiezen: zijn spaarpot, zijn laatste kampioen (sterke genen, maar op leeftijd), of zijn jonge belofte (goedkoop gehouden, niemand weet wat erin zit). Kiezen is verliezen.',
-    options: [{ label: `De spaarpot (€${EVENTS.inheritanceCash.toLocaleString('nl-BE')})` }, { label: 'De oude kampioen' }, { label: 'De jonge belofte' }],
+    text: opts.cash === false
+      ? 'Een overleden dorpsgenoot liet jou zijn duiven na — maar je mag er maar één kiezen: zijn laatste kampioen (sterke genen, maar op leeftijd) of zijn jonge belofte (goedkoop gehouden, niemand weet wat erin zit). Kiezen is verliezen.'
+      : 'Een overleden dorpsgenoot liet jou iets na — maar je mag maar één ding kiezen: zijn spaarpot, zijn laatste kampioen (sterke genen, maar op leeftijd), of zijn jonge belofte (goedkoop gehouden, niemand weet wat erin zit). Kiezen is verliezen.',
+    options: opts.cash === false ? birds : [{ label: `De spaarpot (€${EVENTS.inheritanceCash.toLocaleString('nl-BE')})` }, ...birds],
+    ...(Object.keys(data).length > 0 ? { data } : {}),
   };
 }
 
@@ -326,13 +339,25 @@ export function resolveEvent(db: Database, loft: Loft, choice: number, week: num
       return 'Er kwam een controle — boete €150. Zuur, en niets aan overgehouden.';
     }
     case 'inheritance': {
-      if (choice === 0) {
+      // A hand-out without the spaarpot (inheritanceCard, `cash: false`) shows
+      // only the two birds, so its buttons are one place to the left. Anything
+      // but its first button is the jonge belofte — never the cash it left out.
+      const option = d.noCash ? (choice === 0 ? 1 : 2) : choice;
+      // A hand-out with a fixed range: the bird lands on a score inside it.
+      const shaped = typeof d.scoreMin === 'number' && typeof d.scoreMax === 'number';
+      const shape = (p: Pigeon) => {
+        if (!shaped) return;
+        shapeToScore(p, round1(randFloat(d.scoreMin as number, d.scoreMax as number)));
+        p.name = generatePigeonName(p.sex, p, namesInUse(db.pigeons));
+      };
+      if (option === 0) {
         loft.money += EVENTS.inheritanceCash;
         return `Je koos de spaarpot: €${EVENTS.inheritanceCash.toLocaleString('nl-BE')} rijker.`;
       }
-      if (choice === 1) {
+      if (option === 1) {
         // Old champion: strong genes but old (frail, low value, higher mortality).
         const p = generatePigeon({ ownerId: loft.userId, currentWeek: week, quality: randFloat(0.82, 0.96), birthWeek: week - randInt(280, 430) , taken: namesInUse(db.pigeons) });
+        shape(p);
         if (handPigeon(db, loft, p, 'erfenis')) {
           notify(db, loft, '🏆 Een oude kampioen', `${p.name} — ooit een topper, nu op leeftijd — verhuist naar jouw hok.`);
           return `Je koos de oude kampioen: ${p.name}. Sterke genen, maar tel wel haar jaren.`;
@@ -340,9 +365,10 @@ export function resolveEvent(db: Database, loft: Loft, choice: number, week: num
         notify(db, loft, '🏆 Een oude kampioen — je hok zit vol', waitingBody(p.name));
         return `Je koos de oude kampioen: ${p.name}. Je hok zit vol, dus ze wacht bij Kweek tot je plaats maakt.`;
       }
-      // Young prospect: unknown quality.
-      const lucky = Math.random() < 0.45;
+      // Young prospect: unknown quality — unless the hand-out fixed her score.
+      const lucky = shaped || Math.random() < 0.45;
       const p = generatePigeon({ ownerId: loft.userId, currentWeek: week, quality: lucky ? randFloat(0.7, 0.9) : randFloat(0.2, 0.45), birthWeek: week - randInt(8, 20) , taken: namesInUse(db.pigeons) });
+      shape(p);
       if (handPigeon(db, loft, p, 'erfenis')) {
         notify(db, loft, lucky ? '🌟 Een ruwe diamant' : '🐣 Een gewone jong', `Uit de erfenis kwam ${p.name}.`);
         return lucky ? `De jonge belofte ${p.name} blijkt veel in haar mars te hebben!` : `De jonge belofte ${p.name} is voorlopig maar gewoontjes.`;

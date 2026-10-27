@@ -2688,15 +2688,44 @@ export function runDataMigrations(db: Database, nowMs = Date.now()): void {
     if ((db.world.seasonYear ?? 1) < 4) {
       db.world.dataVersion = 68;
     } else {
-      const busy = db.flights.some((f) => {
-        const start = Date.parse(f.startAt ?? '');
-        if (Number.isNaN(start) || nowMs < start) return false;
-        if (f.status === 'scheduled') return true;
-        return f.status === 'live' && nowMs >= start + flightTotalSeconds(f) * 1000;
-      });
-      if (!busy && fillBotFlocks(db, 10, 3) === 0) db.world.dataVersion = 68;
+      if (!startsOrFinishesFlight(db, nowMs) && fillBotFlocks(db, 10, 3) === 0) db.world.dataVersion = 68;
     }
   }
+
+  // ⚠️ `=== 68`, not `< 69`: v68 can stay open over several requests, and a later
+  // migration that ran past it would set the version above 68 and leave the bots
+  // unfilled for good. So v69 waits until v68 is done — and, like v68, skips a
+  // request that starts or finishes a flight.
+  if ((db.world.dataVersion ?? 0) === 68 && !startsOrFinishesFlight(db, nowMs)) {
+    // Eigenaar, 27 okt: "Geef de spelers 'marcel de neut', 'roekoeloos' en
+    // 'graanabolica' het event van de erfenis van een oude melker waarbij ze
+    // kunnen kiezen tussen oud kampioen of jonge belofte. Zorg dat de duif die ze
+    // nemen altijd een algemene score heeft tussen 75 en 80."
+    // → the erfeniskaart WITHOUT the spaarpot, and whichever bird they pick lands
+    // on ★75–80 (inheritanceCard / resolveEvent in events.ts).
+    //
+    // Its own notification id (`erfenis3`): Roekoeloos already had `erfenis`
+    // (v46) and `erfenis2` (v48), and reusing one would overwrite that old bell
+    // instead of ringing a new one (see handInheritanceCard).
+    for (const target of ['marcel de neut', 'roekoeloos', 'graanabolica']) {
+      handInheritanceCard(db, target, 'ntf:admin:erfenis3', { cash: false, score: [75, 80] });
+    }
+    db.world.dataVersion = 69;
+  }
+}
+
+/**
+ * Whether this request starts or finishes a flight. Those requests already sit at
+ * ~45 of D1's 50 queries, so a migration that writes rows of its own leaves them
+ * alone and runs on the next request instead (v68, v69).
+ */
+function startsOrFinishesFlight(db: Database, nowMs: number): boolean {
+  return db.flights.some((f) => {
+    const start = Date.parse(f.startAt ?? '');
+    if (Number.isNaN(start) || nowMs < start) return false;
+    if (f.status === 'scheduled') return true;
+    return f.status === 'live' && nowMs >= start + flightTotalSeconds(f) * 1000;
+  });
 }
 
 /**
@@ -2704,6 +2733,11 @@ export function runDataMigrations(db: Database, nowMs = Date.now()): void {
  *
  * Matched on loft name OR username, case-insensitive, real players only — a bot
  * that happens to share the name is untouched (same shape as v33/v39/v46).
+ * Whitespace is collapsed, not just trimmed (like v49): with a name of several
+ * words a stray double space would otherwise make the match miss silently.
+ *
+ * `card` goes to `inheritanceCard` as is (v69: no spaarpot, a fixed score range);
+ * the bell then only names the choices that card offers.
  *
  * The card comes from `inheritanceCard()` rather than being written out here, so
  * a reworded or reworked dilemma can never leave a hand-out quoting a version of
@@ -2721,18 +2755,21 @@ export function runDataMigrations(db: Database, nowMs = Date.now()): void {
  * quietly overwrite that bell instead of ringing a new one — and a player who
  * already read the first would never see that a second erfenis arrived.
  */
-function handInheritanceCard(db: Database, target: string, noteId: string): void {
+function handInheritanceCard(
+  db: Database, target: string, noteId: string, card: Parameters<typeof inheritanceCard>[0] = {},
+): void {
+  const norm = (s: string) => s.trim().toLowerCase().replace(/\s+/g, ' ');
   for (const loft of db.lofts) {
     if (loft.isBot) continue;
     const user = db.users.find((u) => u.id === loft.userId);
-    if (![loft.name, user?.username ?? ''].some((n) => n.trim().toLowerCase() === target)) continue;
-    loft.pendingEvent = inheritanceCard();
+    if (![loft.name, user?.username ?? ''].some((n) => norm(n) === target)) continue;
+    loft.pendingEvent = inheritanceCard(card);
     pushNotification(
       db, loft.userId, 'info',
       '📜 Er ligt een erfenis op je te wachten',
-      'Een overleden dorpsgenoot liet jou iets na. Open het Overzicht en kies: de spaarpot, ' +
-        'de oude kampioen of de jonge belofte. Zit je hok vol? Dan wacht de duif bij Kweek tot ' +
-        'je plaats maakt — ze gaat niet verloren.',
+      'Een overleden dorpsgenoot liet jou iets na. Open het Overzicht en kies: ' +
+        (card.cash === false ? 'de oude kampioen of de jonge belofte' : 'de spaarpot, de oude kampioen of de jonge belofte') +
+        '. Zit je hok vol? Dan wacht de duif bij Kweek tot je plaats maakt — ze gaat niet verloren.',
       null,
       `${noteId}:${loft.userId}`,
     );

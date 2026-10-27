@@ -443,7 +443,7 @@ for (const seasonsDone of [1, 0]) {
   db = await M.tick(T0 + 60000);
   const loft = db.lofts.find((l) => l.userId === M.humans[0])!;
   const p0 = db.pigeons.find((p) => p.id === mine[0].id)!;
-  ok(db.world.dataVersion === 68, `(${seasonsDone} seizoen(en) gelopen) de migratie liep (en alles erna)`);
+  ok((db.world.dataVersion ?? 0) >= 67, `(${seasonsDone} seizoen(en) gelopen) de migratie (v67) liep`);
   if (seasonsDone >= 1) {
     ok(loft.money === moneyBefore + 20 + 2000 + 1600, `de lopende stand is uitgereikt: €2.000 + €1.600, plus €20 terug (kassa +€${Math.round(loft.money - moneyBefore)})`);
     ok((p0.titles ?? []).some((t) => t.kind === 'criterium' && t.rank === 1 && t.label === 'Gouden Criteriumduif 1–2 j'), 'de kampioen draagt haar criteriumtitel');
@@ -507,7 +507,7 @@ for (const seasonsDone of [1, 0]) {
   db.flights.push(live);
   await s.persist();
   db = await M.tick(Date.parse(monday.startAt) + 1800000);
-  ok(db.world.dataVersion === 68, 'de migratie liep terwijl er een criteriumvlucht in de lucht hing');
+  ok((db.world.dataVersion ?? 0) >= 67, 'de migratie (v67) liep terwijl er een criteriumvlucht in de lucht hing');
   ok(db.flights.find((f) => f.id === live.id)?.status === 'live', 'die vlucht vliegt gewoon verder');
   ok(!db.flights.some((f) => f.league && f.startAt.slice(0, 10) === live.startAt.slice(0, 10)), 'en die maandag krijgt er geen league bij');
   ok(db.flights.some((f) => f.league === 'l70'), 'de volgende leaguedag (woensdag) wel');
