@@ -305,8 +305,8 @@ export function WikiPage() {
 
         <h3>🔨 Zondagveiling</h3>
         <p>
-          Voortaan <strong>twee topduiven</strong> op zondag: één met score 60–70 (10:00–20:00) en één met score 70–80
-          (11:00–21:00). Om op beide te bieden heb je twee vrije plaatsen in je hok nodig.{' '}
+          Voortaan <strong>twee topduiven</strong> op zondag: één rond het gemiddelde van het spel (10:00–20:00) en één
+          daarboven (11:00–21:00). Om op beide te bieden heb je twee vrije plaatsen in je hok nodig.{' '}
           <a href="#veilingen">Meer over veilingen →</a>
         </p>
 
@@ -1722,12 +1722,22 @@ export function WikiPage() {
       <Section id="veilingen" icon="🔨" title="Veilingen: bieden, slotfase & anti-snipe">
         <p className="muted" style={{ marginTop: 0 }}>
           Elke <strong>zondag</strong> gaan er <strong>twee</strong> topduiven onder de hamer, elk met een gegarandeerde
-          algemene score. Daarnaast duikt er af en toe een duif uit het <strong>opvangcentrum</strong> op (maar niet
-          terwijl een zondagveiling loopt).
+          algemene score. Daarnaast duikt er 2 à 3 keer per week een duif uit het <strong>opvangcentrum</strong> op
+          (maar niet terwijl een zondagveiling loopt).
+        </p>
+        <p>
+          <strong>De markt volgt het spel.</strong> Die scores hangen af van het <strong>gemiddelde van alle duiven in
+          het spel</strong> (spelers én computermelkers, tussen 40 en 78). Wordt de club sterker, dan ook de
+          veilingduiven. De veilingkaart toont de band van die dag.
         </p>
         <MiniTable
-          head={['Zondagduif', 'Algemene score', 'Loopt van', 'tot']}
-          rows={[['Duif 1', '60 – 70', '10:00', '20:00'], ['Duif 2', '70 – 80', '11:00', '21:00']]}
+          head={['Veilingduif', 'Algemene score', 'Bij gemiddelde 65', 'Loopt']}
+          rows={[
+            ['Zondagduif 1', 'gemiddelde −5 tot +5', '60 – 70', 'zo 10:00–20:00'],
+            ['Zondagduif 2', 'gemiddelde +5 tot +15', '70 – 80', 'zo 11:00–21:00'],
+            ['Opvangcentrum', 'gemiddelde −10 tot −3', '55 – 62', '24 uur, vanaf €25'],
+            ['Opvangcentrum (1 op 5)', 'gemiddelde −3 tot +3', '62 – 68', '24 uur, vanaf €25'],
+          ]}
         />
         <p className="notice" style={{ marginTop: 10 }}>
           ⚠️ <strong>Op beide bieden vraagt 2 vrije plaatsen.</strong> Heb je het hoogste bod op de ene zondagduif, dan

@@ -2471,13 +2471,22 @@ typ je hier zelf wat je wil.
   op), een **sperwer** in de buurt (van niets doen tot een dode duif) of een
   **liefdadigheidsvlucht** met je ace. Elke keuze heeft gevolgen — soms winst,
   soms flink risico.
+- **De markt volgt het spel.** De duiven die het spel zelf aanbiedt (de zondagveiling
+  en het opvangcentrum) krijgen een algemene score **ten opzichte van het gemiddelde
+  van alle duiven in het spel** — die van de spelers én van de computermelkers,
+  afgerond op een heel getal. Wordt de club sterker, dan worden ook de veilingduiven
+  sterker. Dat gemiddelde telt tussen **40** en **78** (daarbuiten blijft het op die
+  grens staan).
 - **Zondagveiling.** Elke **zondag** gaan er **twee** topduiven onder de hamer op
   de markt, elk met een gegarandeerde algemene score:
 
-  | Zondagduif | Algemene score | Loopt van | tot (Brussel) |
-  |---|---|---|---|
-  | Duif 1 | 60 – 70 | 10:00 | 20:00 |
-  | Duif 2 | 70 – 80 | 11:00 | 21:00 |
+  | Zondagduif | Algemene score | Bij een gemiddelde van 65 | Loopt van | tot (Brussel) |
+  |---|---|---|---|---|
+  | Duif 1 | gemiddelde −5 tot +5 | 60 – 70 | 10:00 | 20:00 |
+  | Duif 2 | gemiddelde +5 tot +15 | 70 – 80 | 11:00 | 21:00 |
+
+  Beide duiven van dezelfde zondag gaan uit van **hetzelfde gemiddelde**: dat van het
+  moment waarop duif 1 opent. De melding en de veilingkaart tonen de band van die dag.
 
   Wie duif 1 om 20:00 verliest, heeft nog een uur voor duif 2. **Heb je het hoogste
   bod op de ene, dan kan je pas op de andere bieden met 2 vrije plaatsen in je hok**
@@ -2496,11 +2505,13 @@ typ je hier zelf wat je wil.
     duif naar een ander en zeggen we je dat. Zo verdwijnt een duif waarop je bood
     nooit meer zonder uitleg. Hou dus plaats én genoeg geld vrij tot de veiling sluit.
 - **Opvangcentrum-veiling.** Op willekeurige maar regelmatige momenten (gemiddeld
-  ~1 per 9 uur) duikt er een duif uit het opvangcentrum op de markt op. Het is
-  geen renduif — de eigenschappen zijn matig — maar met training groeit ze en kan
-  je ze later opnieuw verkopen. **Startbod: €25**, venster van 6 uur. Er komt geen
-  belmelding van, maar je ziet het **stipje** op de Markt-knop (§9) — het venster is
-  kort, dus zonder dat liep zo'n duif geregeld af zonder dat iemand ze zag.
+  ~1 per 60 uur, dus 2 à 3 per week) duikt er een duif uit het opvangcentrum op de
+  markt op. Meestal scoort ze **net onder het gemiddelde** (gemiddelde −10 tot −3,
+  bij een gemiddelde van 65 dus 55 – 62); ongeveer **1 op 5** keer is het een duif
+  **rond het gemiddelde** (−3 tot +3, dus 62 – 68). Haar genen laten ruimte om te
+  groeien: met training wordt ze beter en kan je ze later opnieuw verkopen.
+  **Startbod: €25**, venster van 24 uur. Er komt geen belmelding van, maar je ziet
+  het **stipje** op de Markt-knop (§9).
 - **Sponsors.** Er is **niets beschikbaar tot je het verdient**. Zodra je duiven
   en resultaten een drempel halen (bv. je eerste overwinning, veel deelnames, een
   getalenteerde duif, seizoenspunten, niveau of gouden medailles) — **of** je
