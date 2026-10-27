@@ -17,7 +17,7 @@
 |-----|--------|------|
 | **Dev** | `claude/demo-hokinrichting` | Alle ontwikkeling/commits komen hier **eerst**. ⏸️ **Gepauzeerd sinds 12 okt** (tweede keer, op vraag van de eigenaar; pauzecommit `dea321f`, enkel een pauzepagina). De volledige Dev-stand is `6be40c3` (herstart vanaf prod + demo + Marktwaarde v2 + samen kweken); hoe je hem terugzet staat in de `context.md` óp die branch. Ook `claude/breeding-other-player-pigeons-7314iz` (zelfde commits) is gepauzeerd. Van dev staat alles live **behalve Marktwaarde v2 en de demomodus**. |
 | **Dev (sessie 15 okt)** | `claude/duivenlokker-feature-mhf3yb` | Sessiebranch van de **duivenlokker**, vertrokken van prod `9e2a79a` (geen demo, geen Marktwaarde v2). De eigenaar vroeg meteen "implementeren op productie": de feature-commit staat hier als `fc0a933` (met `[CF-Pages-Skip]`, want een preview-build van een prod-tak kan aan de live `roekoe-db` hangen) en staat op prod als **`b4f3ab8`** (zelfde boom, boodschap zonder skip). De gepauzeerde `claude/demo-hokinrichting` heeft de lokker **niet**. Op 17 okt kwamen hier de **tags op je duiven** bij (§0b, `13f6571`), dezelfde dag op vraag van de eigenaar naar prod ("zet op productie"). |
-| **Dev (sessie 27 okt)** | `claude/adoring-bell-7zvxzk` | Sessiebranch van de **erfenis voor drie spelers** (migratie v69) en **de markt volgt het spel** (zie *Stand van zaken*), vertrokken van prod `d423c1b` (geen demo, geen Marktwaarde v2). Commits met `[CF-Pages-Skip]`, om dezelfde reden als hierboven. |
+| **Dev (sessie 27 okt)** | `claude/adoring-bell-7zvxzk` | Sessiebranch van de **erfenis voor drie spelers** (migratie v69) en **de markt volgt het spel** (zie *Stand van zaken*), vertrokken van prod `d423c1b` (geen demo, geen Marktwaarde v2). Commits met `[CF-Pages-Skip]`, om dezelfde reden als hierboven. Beide live op 27 okt: `f26ae4f` → prod `ca78889`, `0f127f6` → prod `610f362`. |
 | **Prod** | `claude/roekoe-game-website-jwa0vo` | Elke commit wordt hierheen **gecherry-pickt**; deze branch triggert de **Cloudflare Pages**-deploy naar productie. |
 
 > Vorige dev-branches (niet meer gebruiken): `ccr-9c78dbf3-rdb1ea`, `claude/hallo-nno7pb`, `claude/hallo-r1wgvn`, `claude/hallo-ca55co`, `claude/hallo-qz9tmx`, `claude/hallo-fsp9nx`, `claude/hallo-mzjn0e`, `claude/hallo-su75jy`, `claude/hallo-rkr49f`, `claude/hallo-pvwabx`,
@@ -30,13 +30,21 @@
 > de prod-branch hierboven verandert nooit.
 
 **Workflow per wijziging (zie §7 voor de exacte commando's):**
-1. Commit op **dev** (zie de tabel hierboven) + push. De eigenaar test in de **demo-preview**
-   van die branch (§0b).
-2. **Enkel als de eigenaar het uitdrukkelijk vraagt** ("zet dit op productie"):
-   `git checkout` **prod** → `git cherry-pick <commit>` → push naar prod
-   (`claude/roekoe-game-website-jwa0vo`) → Cloudflare bouwt. Nooit uit jezelf, en nooit de
-   dev-only onderdelen van §0b mee.
-3. Terug naar **dev**.
+
+> **Vaste regel sinds 27 okt 2026 (eigenaar):** *"Zet altijd op productie tenzij ik expliciet
+> zeg dat niet te doen of het op dev te publiceren."* Elke afgewerkte, geverifieerde wijziging
+> gaat dus **meteen** naar prod, zonder het te vragen. Enkel als de eigenaar zegt "niet op
+> productie" of "op dev" blijft ze op dev.
+
+1. Commit op **dev** (zie de tabel hierboven) + push, met `[CF-Pages-Skip]` als het een
+   prod-tak is (een preview-build van een prod-tak kan aan de live `roekoe-db` hangen).
+2. **Meteen daarna naar productie** (tenzij de eigenaar dat uitdrukkelijk uitsloot):
+   `git checkout` **prod** → `git cherry-pick <commit>` (boodschap **zonder** `[CF-Pages-Skip]`,
+   anders bouwt Cloudflare niet) → push naar prod (`claude/roekoe-game-website-jwa0vo`) →
+   Cloudflare bouwt. Nooit de dev-only onderdelen van §0b mee.
+3. Terug naar **dev**. Een commit die enkel `context.md` bijwerkt (bv. de live-hashes) gaat met
+   `[CF-Pages-Skip]` naar beide branches, **in een aparte push ná** de feature-push: Cloudflare
+   kijkt naar de bovenste commit van een push, dus samen gepusht zou ze de build overslaan.
 
 > Als een sessie een andere ontwikkelbranch opgeeft, geldt **deze** tabel. Ontwikkel
 > nooit rechtstreeks op prod behalve voor de cherry-pick-stap.
@@ -51,9 +59,9 @@
 1. **Update dit `context.md` direct** bij élke aanpassing die je doet — voeg de
    nieuwe context/feature toe of pas de betrokken sectie aan, in dezelfde commit
    als de wijziging. Dit bestand moet altijd de actuele waarheid zijn.
-2. **Productie enkel op vraag van de eigenaar.** Werk en push op dev; de eigenaar test in
-   de demo-preview en zegt zelf wanneer iets live mag (dan de flow van §7). Vroeger stond hier
-   "deploy direct" — dat geldt niet meer sinds de dev-branch met de demomodus bestaat.
+2. **Altijd op productie, tenzij de eigenaar expliciet zegt dat niet te doen of het op dev te
+   publiceren** (sinds 27 okt 2026). Werk en push op dev en zet het daarna meteen live (de flow
+   van §7). Van 11 tot 27 okt gold het omgekeerde ("productie enkel op vraag"); dat is voorbij.
 3. Verifieer altijd met typecheck + build (§7) vóór je commit + deployt.
 4. **Tekstbudget in de UI.** Een scherm toont enkel wat de beslissing van dít moment
    stuurt (kost, opbrengst voor déze duif, harde beperking). Mechaniek, kansen,
@@ -76,8 +84,9 @@
 ### Stand van zaken (12 okt 2026) — lees dit eerst
 - **De markt volgt het spel — 27 okt** (eigenaar: "Zorg ervoor dat de duiven die op de markt doorheen de week of
   weekend verschijnen, wat relevant zijn qua score vergeleken met de gemiddelde scores van alle duiven in het spel
-  … Zorg dus dat de duiven die te koop staan dynamisch meegaan het spel en de spelers"). Staat op de sessiebranch;
-  **nog niet op prod**. Het spel zelf biedt enkel veilingduiven aan (bots zetten niets te koop, gedwongen veilingen
+  … Zorg dus dat de duiven die te koop staan dynamisch meegaan het spel en de spelers"). **Live op prod sinds
+  27 okt** (`610f362` = dev `0f127f6`). Open vraag aan de eigenaar: opvangduif blijven openen op €25, of op 30 % van
+  haar marktwaarde zoals de zondagduiven (zie ⚠️ hieronder)? Het spel zelf biedt enkel veilingduiven aan (bots zetten niets te koop, gedwongen veilingen
   zijn duiven van spelers). Die krijgen nu een scoreband **relatief tot `marketReference(db)`** (auction.ts): het
   gemiddelde `talent` van elke duif in een hok (spelers + bots; veilinghuis/opvangcentrum tellen niet), afgerond,
   begrensd op `AUCTION.reference` [40, 78], 65 zonder duiven. Banden (`[ref + fromAvg, ref + toAvg)`):
@@ -96,8 +105,8 @@
   `tests/market-reference.test.mts`; `sunday-auction` leest de band nu uit de sleutel.
 - **De erfenis voor drie spelers — 27 okt, migratie v69** (eigenaar: "Geef de spelers 'marcel de neut', 'roekoeloos'
   en 'graanabolica' het event van de erfenis van een oude melker waarbij ze kunnen kiezen tussen oud kampioen of
-  jonge belofte. Zorg dat de duif die ze nemen altijd een algemene score heeft tussen 75 en 80."). Staat op de
-  sessiebranch; **nog niet op prod** (wacht op "zet op productie"). `handInheritanceCard(db, naam,
+  jonge belofte. Zorg dat de duif die ze nemen altijd een algemene score heeft tussen 75 en 80."). **Live op prod
+  sinds 27 okt** (`ca78889` = dev `f26ae4f`). `handInheritanceCard(db, naam,
   'ntf:admin:erfenis3', { cash: false, score: [75, 80] })` voor elk van de drie (hoknaam óf gebruikersnaam, enkel
   echte spelers; sinds v69 trekt de match ook dubbele spaties samen, zoals v49). `inheritanceCard(opts)` (events.ts)
   maakt dan de kaart **zonder spaarpot** (twee knoppen, eigen tekst) met `data = {noCash: 1, scoreMin: 75, scoreMax:
@@ -2203,11 +2212,12 @@ Ook handig: `BREAKDOWN=1 npx tsx tests/query-budget.test.mts` splitst het duurst
 verzoek uit per statement. Op dev: `npx tsx tests/vaccine-economics.mts` (~1 min) rekent uit
 wat een vaccin of kuur waard is tegenover wat een ziekte kost (§0b).
 
-### Git + deploy (zie §0: productie enkel op vraag)
+### Git + deploy (zie §0: altijd op productie, tenzij de eigenaar dat uitsluit)
 1. Ontwikkel + commit op de **dev-branch uit §0**; push met
    `git push -u origin <dev-branch>` (retry met backoff).
-2. **Naar productie — enkel als de eigenaar het vraagt** (zie §0), door de commit op de
-   deploy-branch te zetten:
+2. **Naar productie — standaard, meteen na de dev-push** (zie §0; enkel niet als de eigenaar
+   "niet op productie" of "op dev" zegt), door de commit op de deploy-branch te zetten
+   (boodschap zonder `[CF-Pages-Skip]`):
    ```bash
    git fetch origin claude/roekoe-game-website-jwa0vo
    git checkout claude/roekoe-game-website-jwa0vo
