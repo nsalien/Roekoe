@@ -343,6 +343,29 @@ export function talent(pigeon: Pigeon): number {
 }
 
 /**
+ * Set a bird's three racing skills around `score` so their average — her
+ * algemene score, `talent()` — is exactly that score, with each gene cap a few
+ * points above its skill (never below the cap she already rolled) so she can
+ * still grow. Used where a bird must land on a given score: the bot top-up (v68)
+ * and a hand-out erfenis with a fixed range (v69).
+ *
+ * `score` must carry at most one decimal: the third skill takes the remainder,
+ * so the average comes out exact rather than a rounding step off.
+ */
+export function shapeToScore(p: Pigeon, score: number): void {
+  p.speed = round1(score + (Math.random() - 0.5) * 8);
+  p.endurance = round1(score + (Math.random() - 0.5) * 8);
+  p.orientation = round1(3 * score - p.speed - p.endurance);
+  const capAbove = (gene: number, skill: number) =>
+    Math.min(GENE.ceil, Math.max(gene, round1(skill + 3 + Math.random() * 7)));
+  p.genes = {
+    speed: capAbove(p.genes?.speed ?? 0, p.speed),
+    endurance: capAbove(p.genes?.endurance ?? 0, p.endurance),
+    orientation: capAbove(p.genes?.orientation ?? 0, p.orientation),
+  };
+}
+
+/**
  * A pigeon's overall development score — the sum of every attribute it can grow
  * through racing, training and breeding. Used to measure a bird's progress over
  * a season (current score minus its score at the season's start).

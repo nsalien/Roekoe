@@ -24,7 +24,6 @@
 import {
   BOT,
   EQUIPMENT,
-  GENE,
   strawCost,
   BREEDING,
   FEED_RATIONS,
@@ -48,7 +47,7 @@ import { equipmentOf } from './hygiene.js';
 import { purgePigeon, settlePigeonSale } from './engine.js';
 import { minSalePrice, valuePigeon } from './market.js';
 import { makeOffer } from './offers.js';
-import { ageInWeeks, breedingCooldownUntil, canRace, experienceGain, generatePigeon, isAway, noteAttrChange, onRestCure, seasonScore, talent, trainCeil, trainingCost } from './pigeon.js';
+import { ageInWeeks, breedingCooldownUntil, canRace, experienceGain, generatePigeon, isAway, noteAttrChange, onRestCure, seasonScore, shapeToScore, talent, trainCeil, trainingCost } from './pigeon.js';
 import { generatePigeonName, namesInUse } from './names.js';
 import { kinship } from './pedigree.js';
 import { clamp, round1 } from './util.js';
@@ -105,17 +104,7 @@ export function fillBotFlocks(db: Database, target: number, maxBirds: number): n
       const p = generatePigeon({ ownerId: loft.userId, currentWeek: week, quality: 0.6 });
       p.id = `pig_botfill_${loft.userId}_${slot}`;
       ids.add(p.id);
-      const score = rollBotFillScore();
-      p.speed = round1(score + (Math.random() - 0.5) * 8);
-      p.endurance = round1(score + (Math.random() - 0.5) * 8);
-      p.orientation = round1(3 * score - p.speed - p.endurance);
-      const capAbove = (gene: number, skill: number) =>
-        Math.min(GENE.ceil, Math.max(gene, round1(skill + 3 + Math.random() * 7)));
-      p.genes = {
-        speed: capAbove(p.genes?.speed ?? 0, p.speed),
-        endurance: capAbove(p.genes?.endurance ?? 0, p.endurance),
-        orientation: capAbove(p.genes?.orientation ?? 0, p.orientation),
-      };
+      shapeToScore(p, rollBotFillScore());
       p.name = generatePigeonName(p.sex, p, taken);
       taken.add(p.name);
       p.seasonStartScore = seasonScore(p);
