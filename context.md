@@ -18,6 +18,7 @@
 | **Dev** | `claude/demo-hokinrichting` | Alle ontwikkeling/commits komen hier **eerst**. ⏸️ **Gepauzeerd sinds 12 okt** (tweede keer, op vraag van de eigenaar; pauzecommit `dea321f`, enkel een pauzepagina). De volledige Dev-stand is `6be40c3` (herstart vanaf prod + demo + Marktwaarde v2 + samen kweken); hoe je hem terugzet staat in de `context.md` óp die branch. Ook `claude/breeding-other-player-pigeons-7314iz` (zelfde commits) is gepauzeerd. Van dev staat alles live **behalve Marktwaarde v2 en de demomodus**. |
 | **Dev (sessie 15 okt)** | `claude/duivenlokker-feature-mhf3yb` | Sessiebranch van de **duivenlokker**, vertrokken van prod `9e2a79a` (geen demo, geen Marktwaarde v2). De eigenaar vroeg meteen "implementeren op productie": de feature-commit staat hier als `fc0a933` (met `[CF-Pages-Skip]`, want een preview-build van een prod-tak kan aan de live `roekoe-db` hangen) en staat op prod als **`b4f3ab8`** (zelfde boom, boodschap zonder skip). De gepauzeerde `claude/demo-hokinrichting` heeft de lokker **niet**. Op 17 okt kwamen hier de **tags op je duiven** bij (§0b, `13f6571`), dezelfde dag op vraag van de eigenaar naar prod ("zet op productie"). |
 | **Dev (sessie 27 okt)** | `claude/adoring-bell-7zvxzk` | Sessiebranch van de **erfenis voor drie spelers** (migratie v69) en **de markt volgt het spel** (zie *Stand van zaken*), vertrokken van prod `d423c1b` (geen demo, geen Marktwaarde v2). Commits met `[CF-Pages-Skip]`, om dezelfde reden als hierboven. Beide live op 27 okt: `f26ae4f` → prod `ca78889`, `0f127f6` → prod `610f362`. |
+| **Dev (sessie 31 okt)** | `ccr-9f062ea2-reeikx` | Sessiebranch van **de erfenis voor De Vluchtige Vleugel** (migratie v71), vertrokken van prod `32c2e02` (geen demo, geen Marktwaarde v2). Commits met `[CF-Pages-Skip]`, om dezelfde reden als hierboven; daarna naar prod (de vaste regel). |
 | **Prod** | `claude/roekoe-game-website-jwa0vo` | Elke commit wordt hierheen **gecherry-pickt**; deze branch triggert de **Cloudflare Pages**-deploy naar productie. |
 
 > Vorige dev-branches (niet meer gebruiken): `ccr-9c78dbf3-rdb1ea`, `claude/hallo-nno7pb`, `claude/hallo-r1wgvn`, `claude/hallo-ca55co`, `claude/hallo-qz9tmx`, `claude/hallo-fsp9nx`, `claude/hallo-mzjn0e`, `claude/hallo-su75jy`, `claude/hallo-rkr49f`, `claude/hallo-pvwabx`,
@@ -82,6 +83,16 @@
 > Het voorstel (met alle getallen en de sketch) staat in de artifact "Roekoe Hokinrichting".
 
 ### Stand van zaken (12 okt 2026) — lees dit eerst
+- **De gewone erfenis voor De Vluchtige Vleugel — 31 okt, migratie v71** (eigenaar: "Geef de speler 'de vluchtige
+  Vleugel' het evenement van de erfenis van een oude melker met keuze tussen geld, oud kampioen of jonge belofte").
+  Live op prod (de vaste regel uit §0). Anders dan v69/v70 is dit de **gewone** kaart: `handInheritanceCard(db, 'de
+  vluchtige vleugel', 'ntf:admin:erfenis5')` zonder opties = `inheritanceCard()` met **drie knoppen** (spaarpot
+  €2.000 · oude kampioen · jonge belofte) en **geen vaste scoreband** (de kampioen kwaliteit 0,82–0,96, de belofte 45 %
+  ruwe diamant, zoals elke erfenis). De eigenaar noemde geen score, dus geen band. Eigen bel-id `erfenis5`. Gegate op
+  **`=== 70`**, niet in een vluchtverzoek (zoals v69/v70); **v72 gate je op `=== 71`**. Een open dilemma wordt
+  overschreven (zelfde ruil als altijd). Test: blok 5d van `tests/erfenis-v69.test.mts` (hoknaam én gebruikersnaam,
+  dubbele spatie, bot met dezelfde naam, één bel, spaarpot = €2.000, knop 2 = een oude kampioen, één keer, vluchtverzoek
+  wacht); `season-close` verwacht nu `dataVersion` 71 op een verse wereld.
 - **De markt volgt het spel — 27 okt** (eigenaar: "Zorg ervoor dat de duiven die op de markt doorheen de week of
   weekend verschijnen, wat relevant zijn qua score vergeleken met de gemiddelde scores van alle duiven in het spel
   … Zorg dus dat de duiven die te koop staan dynamisch meegaan het spel en de spelers"). **Live op prod sinds
@@ -127,7 +138,7 @@
   68`** (niet `< 69`): v68 kan over meerdere verzoeken openstaan, en een latere migratie die erover springt zou de
   bots voorgoed half gevuld laten. Net als v68 slaat v69 een verzoek over dat een vlucht start of afrondt
   (`startsOrFinishesFlight`, schedule.ts, nu door beide gebruikt). **Een volgende migratie gate je op `=== <vorige>`**
-  (v70 doet dat al op `=== 69`, dus v71 op `=== 70`)
+  (v70 doet dat op `=== 69`, v71 op `=== 70`, dus v72 op `=== 71`)
   om dezelfde reden. Test: `tests/erfenis-v69.test.mts`.
 - **CPU-fix ronde 3 — 25 okt** (eigenaar: "Er zijn weer exceeded cpu time limits momenteel"): tijdzone-formatters
   gecachet en de dubbele JSON-snapshot van duiven/hokken/koppels weg; een volledig verzoek bij ~325 duiven ging
@@ -1075,7 +1086,7 @@ krijgen.**
 `core/game/schedule.ts` → `advanceRealtime(db, nowMs, weatherByFlight)` roept in
 volgorde:
 1. `runDataMigrations(db)` — eenmalige datafixes, **gated op `world.dataVersion`**
-   (staat nu op **70** — v70 = dezelfde erfenis voor OnlyFlaps (27 okt), v69 = de erfenis zonder spaarpot (★75–80) voor Marcel De Neut, Roekoeloos en Graanabolica (27 okt), v68 = bots bijvullen tot 10 duiven (24 okt, in stappen), v67 = de leagues i.p.v. het leeftijdscriterium (§0b, 24 okt), v66 = seizoen 3 afsluiten + criterium uitreiken (24 okt, zie *Stand van zaken*), v65 = de bel van de tags (`TAGS_NEWS`), v64 = de bel van de duivenlokker (`LURE_NEWS`), v63 = de bots uit samen kweken (hun aanbod gewist, geen bel), v62 = de bellen van samen kweken en van vaccins/verzekering per duif, v61 = de aankondigingsbel van de hokinrichting & co (`core/game/news.ts`), v60 = die van Het Lokaal; nieuwe migratie = nieuw `if ((db.world.dataVersion ?? 0) < N)`
+   (staat nu op **71** — v71 = de gewone erfenis (spaarpot, kampioen, belofte) voor De Vluchtige Vleugel (31 okt), v70 = dezelfde erfenis voor OnlyFlaps (27 okt), v69 = de erfenis zonder spaarpot (★75–80) voor Marcel De Neut, Roekoeloos en Graanabolica (27 okt), v68 = bots bijvullen tot 10 duiven (24 okt, in stappen), v67 = de leagues i.p.v. het leeftijdscriterium (§0b, 24 okt), v66 = seizoen 3 afsluiten + criterium uitreiken (24 okt, zie *Stand van zaken*), v65 = de bel van de tags (`TAGS_NEWS`), v64 = de bel van de duivenlokker (`LURE_NEWS`), v63 = de bots uit samen kweken (hun aanbod gewist, geen bel), v62 = de bellen van samen kweken en van vaccins/verzekering per duif, v61 = de aankondigingsbel van de hokinrichting & co (`core/game/news.ts`), v60 = die van Het Lokaal; nieuwe migratie = nieuw `if ((db.world.dataVersion ?? 0) < N)`
    blok + `db.world.dataVersion = N`). De oudere migraties hebben hun werk gedaan en
    zijn enkel nog van belang als **patroon** — zie §8, kop *Eenmalige migraties*.
 2. `ensureFlightsScheduled(db, nowMs)` — plant vluchten volgens `REAL_SCHEDULE`.
@@ -2153,7 +2164,7 @@ npx tsx tests/duivenlokker.test.mts       # duivenlokker: kansen, kopen, vangen,
 npx tsx tests/pigeon-tags.test.mts        # tags: opkuisen, privé, weg bij elke eigendomswissel, D1 + API, bel v65
 npx tsx tests/season-close.test.mts       # v66: seizoen 3 afsluiten (of enkel het criterium) + v67 erna; prod zoals ze is
 npx tsx tests/bot-fill.test.mts           # v68: bots tot 10 duiven, ★60–75, in stappen van 3, vaste ids, querykost
-npx tsx tests/erfenis-v69.test.mts        # v69 + v70: erfenis zonder spaarpot (drie spelers + OnlyFlaps), gekozen duif altijd ★75–80, D1 + API
+npx tsx tests/erfenis-v69.test.mts        # v69 + v70: erfenis zonder spaarpot (drie spelers + OnlyFlaps), gekozen duif altijd ★75–80, D1 + API; v71: de gewone erfenis voor De Vluchtige Vleugel
 npx tsx tests/market-reference.test.mts   # veilingduiven volgen het gemiddelde: referentie, zondagbanden (+ gedeeld per dag), opvangcentrum
 ```
 

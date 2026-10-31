@@ -3,7 +3,9 @@
  * "Geef de spelers 'marcel de neut', 'roekoeloos' en 'graanabolica' het event van
  * de erfenis van een oude melker waarbij ze kunnen kiezen tussen oud kampioen of
  * jonge belofte. Zorg dat de duif die ze nemen altijd een algemene score heeft
- * tussen 75 en 80."), en migratie v70 — dezelfde erfenis voor 'onlyflaps' (blok 5c).
+ * tussen 75 en 80."), migratie v70 — dezelfde erfenis voor 'onlyflaps' (blok 5c), en
+ * migratie v71 — de GEWONE erfenis (spaarpot, kampioen, belofte) voor 'de vluchtige
+ * Vleugel' (blok 5d).
  *
  * Gedekt:
  *  1. de gewone erfeniskaart is ongewijzigd (spaarpot, kampioen, belofte);
@@ -233,7 +235,7 @@ console.log('\n5c. v70: dezelfde erfenis voor OnlyFlaps');
   const bot = addPlayer(store, 'onlyflaps-bot', 'OnlyFlaps', true);
   const loftOf = (id: string) => db.lofts.find((l) => l.userId === id)!;
   advanceRealtime(db, NOW);
-  ok(db.world.dataVersion === 70, `de migratie liep (dataVersion ${db.world.dataVersion})`);
+  ok((db.world.dataVersion ?? 0) >= 70, `de migratie liep (dataVersion ${db.world.dataVersion})`);
   for (const [id, who] of [[only, 'gebruikersnaam "OnlyFlaps"'], [only2, 'hoknaam " onlyflaps "']] as const) {
     const ev = loftOf(id).pendingEvent;
     ok(ev?.key === 'inheritance' && ev.options.length === 2 && ev.data?.noCash === 1 && ev.data?.scoreMin === 75 && ev.data?.scoreMax === 80,
@@ -264,7 +266,71 @@ console.log('\n5c. v70: dezelfde erfenis voor OnlyFlaps');
   const loft = db.lofts.find((l) => l.userId === only)!;
   ok(db.world.dataVersion === 68 && loft.pendingEvent?.data?.noCash === undefined, 'een vluchtverzoek: v69 en v70 wachten');
   advanceRealtime(db, NOW + 1000);
-  ok(db.world.dataVersion === 70 && loft.pendingEvent?.data?.noCash === 1, 'het volgende verzoek: v69 en dan v70');
+  ok((db.world.dataVersion ?? 0) >= 70 && loft.pendingEvent?.data?.noCash === 1, 'het volgende verzoek: v69 en dan v70');
+}
+
+// ---------------------------------------------------------------------------
+console.log('\n5d. v71: de gewone erfenis (spaarpot, kampioen, belofte) voor De Vluchtige Vleugel');
+{
+  // Production after v70.
+  const store = new MemoryStore(emptyDatabase());
+  seedWorld(store);
+  const db = store.data;
+  advanceRealtime(db, NOW - 60000);
+  db.world.dataVersion = 70;
+  const vv = addPlayer(store, 'vleugel', 'De Vluchtige  Vleugel');       // hoknaam, dubbele spatie
+  const vv2 = addPlayer(store, 'De vluchtige Vleugel', 'Een ander hok'); // gebruikersnaam
+  const only = addPlayer(store, 'onlyflaps', 'Het Fladderhok');
+  const other = addPlayer(store, 'jan', 'Jan zijn hok');
+  const bot = addPlayer(store, 'vv-bot', 'De Vluchtige Vleugel', true);
+  const loftOf = (id: string) => db.lofts.find((l) => l.userId === id)!;
+  advanceRealtime(db, NOW);
+  ok(db.world.dataVersion === 71, `de migratie liep (dataVersion ${db.world.dataVersion})`);
+  for (const [id, who] of [[vv, 'hoknaam "De Vluchtige  Vleugel"'], [vv2, 'gebruikersnaam "De vluchtige Vleugel"']] as const) {
+    const ev = loftOf(id).pendingEvent;
+    ok(JSON.stringify(ev) === JSON.stringify(inheritanceCard()), `${who}: de gewone erfeniskaart (drie keuzes, geen vaste score)`);
+    const bells = db.notifications.filter((n) => n.userId === id && n.id.startsWith('ntf:admin:erfenis'));
+    ok(bells.length === 1 && bells[0].id === `ntf:admin:erfenis5:${id}` && bells[0].body.includes('spaarpot'),
+      `${who}: één bel, eigen id (erfenis5), noemt de spaarpot`);
+  }
+  ok(loftOf(only).pendingEvent === null, 'OnlyFlaps krijgt niet nog een kaart');
+  ok(loftOf(other).pendingEvent === null, 'een andere speler krijgt niets');
+  ok(loftOf(bot).pendingEvent === null, 'een bot met de naam "De Vluchtige Vleugel" krijgt niets');
+  ok(!db.notifications.some((n) => n.id.startsWith('ntf:admin:erfenis5') && [only, other, bot].includes(n.userId)), 'en ook geen bel');
+
+  const loft = loftOf(vv);
+  const money = loft.money;
+  resolveEvent(db, loft, 0, db.world.currentWeek);
+  ok(loft.money === money + EVENTS.inheritanceCash, `knop 1 = de spaarpot (€${EVENTS.inheritanceCash})`);
+  // Resolve the card the migration put there (not `take`, which swaps in the v69 card).
+  const loft2 = loftOf(vv2);
+  const before = new Set(db.pigeons.map((p) => p.id));
+  const money2 = loft2.money;
+  resolveEvent(db, loft2, 1, db.world.currentWeek);
+  const champ = db.pigeons.filter((p) => !before.has(p.id));
+  ok(champ.length === 1 && champ[0].ownerId === vv2 && ageInWeeks(champ[0], db.world.currentWeek) >= 280 && loft2.money === money2,
+    `knop 2 = de oude kampioen (${champ[0]?.name}, ${champ[0] ? ageInWeeks(champ[0], db.world.currentWeek) : '?'} weken, geen geld)`);
+  ok(loft2.pendingEvent === null, 'na de keuze is de kaart weg');
+  advanceRealtime(db, NOW + 60000);
+  ok(loft.pendingEvent === null, 'ze vuurt één keer: na de keuze komt de kaart niet terug');
+  ok(db.notifications.filter((n) => n.userId === vv && n.id.startsWith('ntf:admin:erfenis5')).length === 1, 'en er komt geen tweede bel');
+}
+{
+  // Like v69/v70: a request that finishes a flight hands nothing out.
+  const store = new MemoryStore(emptyDatabase());
+  seedWorld(store);
+  const db = store.data;
+  advanceRealtime(db, NOW - 60000);
+  db.world.dataVersion = 70;
+  const vv = addPlayer(store, 'vleugel', 'De Vluchtige Vleugel');
+  const f = db.flights.find((x) => x.status === 'scheduled' && !x.practice)!;
+  f.status = 'live';
+  f.startAt = new Date(NOW - 3 * 86400000).toISOString();
+  advanceRealtime(db, NOW);
+  const loft = db.lofts.find((l) => l.userId === vv)!;
+  ok(db.world.dataVersion === 70 && loft.pendingEvent === null, 'een vluchtverzoek: v71 wacht');
+  advanceRealtime(db, NOW + 1000);
+  ok(db.world.dataVersion === 71 && loft.pendingEvent?.key === 'inheritance', 'het volgende verzoek: v71');
 }
 
 // ---------------------------------------------------------------------------

@@ -2723,6 +2723,17 @@ export function runDataMigrations(db: Database, nowMs = Date.now()): void {
     handInheritanceCard(db, 'onlyflaps', 'ntf:admin:erfenis4', { cash: false, score: [75, 80] });
     db.world.dataVersion = 70;
   }
+
+  // `=== 70` for the same reason as v70's `=== 69`.
+  if ((db.world.dataVersion ?? 0) === 70 && !startsOrFinishesFlight(db, nowMs)) {
+    // Eigenaar, 31 okt: "Geef de speler 'de vluchtige Vleugel' het evenement van
+    // de erfenis van een oude melker met keuze tussen geld, oud kampioen of jonge
+    // belofte" — the ORDINARY card (spaarpot included, no fixed score range), not
+    // the v69/v70 variant.
+    // Its own notification id (`erfenis5`), so it can never overwrite an earlier bell.
+    handInheritanceCard(db, 'de vluchtige vleugel', 'ntf:admin:erfenis5');
+    db.world.dataVersion = 71;
+  }
 }
 
 /**
