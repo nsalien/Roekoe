@@ -18,7 +18,7 @@
 | **Dev** | `claude/demo-hokinrichting` | Alle ontwikkeling/commits komen hier **eerst**. ⏸️ **Gepauzeerd sinds 12 okt** (tweede keer, op vraag van de eigenaar; pauzecommit `dea321f`, enkel een pauzepagina). De volledige Dev-stand is `6be40c3` (herstart vanaf prod + demo + Marktwaarde v2 + samen kweken); hoe je hem terugzet staat in de `context.md` óp die branch. Ook `claude/breeding-other-player-pigeons-7314iz` (zelfde commits) is gepauzeerd. Van dev staat alles live **behalve Marktwaarde v2 en de demomodus**. |
 | **Dev (sessie 15 okt)** | `claude/duivenlokker-feature-mhf3yb` | Sessiebranch van de **duivenlokker**, vertrokken van prod `9e2a79a` (geen demo, geen Marktwaarde v2). De eigenaar vroeg meteen "implementeren op productie": de feature-commit staat hier als `fc0a933` (met `[CF-Pages-Skip]`, want een preview-build van een prod-tak kan aan de live `roekoe-db` hangen) en staat op prod als **`b4f3ab8`** (zelfde boom, boodschap zonder skip). De gepauzeerde `claude/demo-hokinrichting` heeft de lokker **niet**. Op 17 okt kwamen hier de **tags op je duiven** bij (§0b, `13f6571`), dezelfde dag op vraag van de eigenaar naar prod ("zet op productie"). |
 | **Dev (sessie 27 okt)** | `claude/adoring-bell-7zvxzk` | Sessiebranch van de **erfenis voor drie spelers** (migratie v69) en **de markt volgt het spel** (zie *Stand van zaken*), vertrokken van prod `d423c1b` (geen demo, geen Marktwaarde v2). Commits met `[CF-Pages-Skip]`, om dezelfde reden als hierboven. Beide live op 27 okt: `f26ae4f` → prod `ca78889`, `0f127f6` → prod `610f362`. |
-| **Dev (sessie 31 okt)** | `ccr-9f062ea2-reeikx` | Sessiebranch van **de erfenis voor De Vluchtige Vleugel** (migratie v71), vertrokken van prod `32c2e02` (geen demo, geen Marktwaarde v2). Commits met `[CF-Pages-Skip]`, om dezelfde reden als hierboven; daarna naar prod (de vaste regel). |
+| **Dev (sessie 31 okt)** | `ccr-9f062ea2-reeikx` | Sessiebranch van **de erfenis voor De Vluchtige Vleugel** (migratie v71), vertrokken van prod `32c2e02` (geen demo, geen Marktwaarde v2). Commits met `[CF-Pages-Skip]`, om dezelfde reden als hierboven. Live op 31 okt: `408d282` → prod `c644026`. |
 | **Prod** | `claude/roekoe-game-website-jwa0vo` | Elke commit wordt hierheen **gecherry-pickt**; deze branch triggert de **Cloudflare Pages**-deploy naar productie. |
 
 > Vorige dev-branches (niet meer gebruiken): `ccr-9c78dbf3-rdb1ea`, `claude/hallo-nno7pb`, `claude/hallo-r1wgvn`, `claude/hallo-ca55co`, `claude/hallo-qz9tmx`, `claude/hallo-fsp9nx`, `claude/hallo-mzjn0e`, `claude/hallo-su75jy`, `claude/hallo-rkr49f`, `claude/hallo-pvwabx`,
@@ -85,7 +85,7 @@
 ### Stand van zaken (12 okt 2026) — lees dit eerst
 - **De gewone erfenis voor De Vluchtige Vleugel — 31 okt, migratie v71** (eigenaar: "Geef de speler 'de vluchtige
   Vleugel' het evenement van de erfenis van een oude melker met keuze tussen geld, oud kampioen of jonge belofte").
-  Live op prod (de vaste regel uit §0). Anders dan v69/v70 is dit de **gewone** kaart: `handInheritanceCard(db, 'de
+  **Live op prod sinds 31 okt** (`c644026` = dev `408d282`). Anders dan v69/v70 is dit de **gewone** kaart: `handInheritanceCard(db, 'de
   vluchtige vleugel', 'ntf:admin:erfenis5')` zonder opties = `inheritanceCard()` met **drie knoppen** (spaarpot
   €2.000 · oude kampioen · jonge belofte) en **geen vaste scoreband** (de kampioen kwaliteit 0,82–0,96, de belofte 45 %
   ruwe diamant, zoals elke erfenis). De eigenaar noemde geen score, dus geen band. Eigen bel-id `erfenis5`. Gegate op
