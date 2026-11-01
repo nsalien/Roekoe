@@ -112,6 +112,8 @@ export function DashboardPage() {
     // Hokinrichting: one row per item that costs per day, plus the insurance premiums.
     ...(costs.equipment ?? []).map((l) => ({ key: `eq-${l.key}`, label: l.label, detail: 'hokinrichting', amount: l.amount })),
     ...(costs.insurance ? [{ key: 'insurance', label: 'Verzekering', detail: 'premies van je verzekerde duiven', amount: costs.insurance }] : []),
+    // De bank: tonight's instalments (charged at midnight like everything above).
+    ...(costs.loans ? [{ key: 'loans', label: '🏦 Afbetaling lening', detail: 'aan de bank, met rente', amount: costs.loans }] : []),
   ];
   // How many pigeons eat each food type, and which types are running out.
   const rationCounts = { normal: 0, premium: 0, libido: 0, herstel: 0 } as Record<FeedRation, number>;

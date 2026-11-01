@@ -21,12 +21,19 @@ import { generatePigeon } from '../../core/game/pigeon.js';
 import { applyAilment, randomDisease } from '../../core/game/health.js';
 import { nameKey, namesInUse } from '../../core/game/names.js';
 import { computeLeaderboard } from '../../core/presenters.js';
+import { noteIncome } from '../../core/game/bank.js';
 import type { DemoD1 } from './d1';
 
 export const DEMO_USER_ID = 'usr_demo';
 export const DEMO_USERNAME = 'demo';
 /** The owner's wish: the demo account always has at least this much (see topUpDemoMoney). */
 export const DEMO_MONEY = 100_000;
+/**
+ * De bank lends on the income of the last 14 full days, and a fresh world has
+ * none — so the demo player gets two weeks behind him (yesterday first), averaging
+ * ~€660 a day: a limit of €6.500, about what a middling loft earns (bank.ts).
+ */
+export const DEMO_INCOME = [820, 450, 1150, 600, 0, 980, 720, 540, 1300, 380, 760, 0, 890, 610];
 
 const DEMO_CAPACITY = 12;
 const DEMO_COMPARTMENTS = 2;
@@ -104,6 +111,8 @@ export async function createDemoWorld(d1: DemoD1): Promise<void> {
     loft.doctors = 1;
     // Straw strewn six days ago: the meter is low, so fresh straw shows its effect.
     loft.equipment = { hygiene: 58, lastStrawAt: new Date(Date.now() - 6 * 86400000).toISOString(), cleaner: false };
+    // Two weeks of income, so the bank has something to lend on (DEMO_INCOME).
+    DEMO_INCOME.forEach((amount, i) => noteIncome(loft, amount, Date.now() - (i + 1) * 86400000));
     const taken = namesInUse(w.pigeons);
     const mine = () => w.pigeons.filter((p) => p.ownerId === user.id);
     // Make sure there is a doffer and a duivin to pair, then fill up.

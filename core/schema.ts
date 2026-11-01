@@ -346,6 +346,48 @@ export interface Loft {
    * was (hygiene neutral, nothing hired). See HYGIENE in gameConfig.
    */
   equipment?: LoftEquipment;
+  /**
+   * De bank (core/game/bank.ts, ⚠️ enkel op dev): the open loans and the income of
+   * the last days the limit is measured on. One JSON column on the loft row, like
+   * `equipment` — no table, no extra query. Absent = never earned or borrowed.
+   */
+  bank?: LoftBank;
+}
+
+/** One loan from the bank (core/game/bank.ts). Whole euros throughout. */
+export interface BankLoan {
+  id: string;
+  /** What the player got. */
+  principal: number;
+  /** Principal + interest: everything he pays back. */
+  total: number;
+  /** What is still to pay. The loan is gone once this reaches 0. */
+  owed: number;
+  /** The headline daily instalment: the first one (ceil(total / days)). */
+  daily: number;
+  /** The term chosen, in days. */
+  days: number;
+  /**
+   * Instalments still to come. Each midnight takes ceil(owed / left), so the loan
+   * is paid off after exactly `days` instalments — some €1 below `daily`, never
+   * above it (a plain ceil(total / days) every day would finish early on a small
+   * loan: €120 over 28 days at €5 is done after 24).
+   */
+  left: number;
+  /** ISO time of the loan. A midnight before this never charges it. */
+  at: string;
+}
+
+export interface LoftBank {
+  loans: BankLoan[];
+  /**
+   * Income per local day, newest first: `income[0]` is day `incomeDay`, `income[1]`
+   * the day before, … (at most BANK.incomeWindowDays + 1 entries). Only what the
+   * game counts as income lands here — see `noteIncome`.
+   */
+  income: number[];
+  /** Local day number (localDayNumber) of `income[0]`. */
+  incomeDay: number;
 }
 
 export interface LoftEquipment {

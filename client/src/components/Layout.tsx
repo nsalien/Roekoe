@@ -85,6 +85,7 @@ const NAV: NavItem[] = [
   { to: '/kweek', label: 'Kweek', short: 'Kweek', icon: '🥚' },
   { to: '/ziekenboeg', label: 'Ziekenboeg', short: 'Zieken', icon: '🏥' },
   { to: '/sponsors', label: 'Sponsors', short: 'Sponsor', icon: '🤝' },
+  { to: '/bank', label: 'Bank', short: 'Bank', icon: '🏦' },
   { to: '/prestaties', label: 'Prestaties', short: 'Prestige', icon: '🎖️' },
   { to: '/ranglijst', label: 'Rang', short: 'Rang', icon: '🏆' },
   { to: '/lokaal', label: 'Het Lokaal', short: 'Lokaal', icon: '🍻' },

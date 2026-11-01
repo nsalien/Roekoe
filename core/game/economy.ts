@@ -19,6 +19,7 @@ import type { Loft, Pigeon } from '../schema.js';
 import { experienceGain, geneCap, isAway, noteAttrChange } from './pigeon.js';
 import { activeContracts, sponsorsPaused } from './sponsors.js';
 import { clamp, hashString, round1 } from './util.js';
+import { loansDueTonight } from './bank.js';
 import { equipmentCostLines, feedHealthMult, libidoTargetBonus, restBonusEnergy, type EquipmentCostLine } from './inrichting.js';
 
 const RACING_ATTRS: RacingAttr[] = ['speed', 'endurance', 'orientation'];
@@ -358,6 +359,9 @@ export interface DailyCostBreakdown {
   equipmentTotal: number;
   /** Duivenverzekering: today's premiums, all insured birds together. */
   insurance: number;
+  /** De bank (bank.ts): the loan instalments due at the next midnight. In `total`,
+   *  but charged by tickLoans — the biller (`dailyRunningCost`) leaves it out. */
+  loans: number;
   /** Staff on the payroll with nothing to treat today, and what they still cost.
    *  ⚠️ Already counted in `doctors`/`physios`/`total` — this is a breakdown of a
    *  cost that IS charged, not a discount (see health.idleCareStaff). */
@@ -408,7 +412,8 @@ export function dailyRunningCostBreakdown(
   const equipment = equipmentCostLines(loft, pigeonCount);
   const equipmentTotal = Math.round(equipment.reduce((s, l) => s + l.amount, 0) * 100) / 100;
   const insurance = extra.insurance;
-  const total = Math.round((upkeepBase + upkeepPerPigeon + coaches + doctors + physios + medicatedFeed + equipmentTotal + insurance) * 100) / 100;
+  const loans = loansDueTonight(loft);
+  const total = Math.round((upkeepBase + upkeepPerPigeon + coaches + doctors + physios + medicatedFeed + equipmentTotal + insurance + loans) * 100) / 100;
   // While the loft must still drop sponsors (seizoen 3 limit), none pays: the
   // balance lists them at €0 so the player sees what he is missing.
   const paused = sponsorsPaused(loft);
@@ -417,16 +422,22 @@ export function dailyRunningCostBreakdown(
   }));
   const sponsorTotal = sponsors.reduce((s, x) => s + x.amount, 0);
   return {
-    upkeepBase, upkeepPerPigeon, upkeepBands, coaches, doctors, physios, medicatedFeed, equipment, equipmentTotal, insurance,
+    upkeepBase, upkeepPerPigeon, upkeepBands, coaches, doctors, physios, medicatedFeed, equipment, equipmentTotal, insurance, loans,
     idleDoctors, idlePhysios, idleStaffCost, total,
     sponsors, sponsorTotal, net: sponsorTotal - total, sponsorsPaused: paused,
   };
 }
 
-/** The total recurring cost charged to a loft for one day (see the breakdown). */
+/**
+ * The total recurring cost charged to a loft for one day (see the breakdown) —
+ * WITHOUT the loan instalments: those are in the Dagbalans total, but tickLoans
+ * charges them (it also counts the loans down), so billing them here too would
+ * charge them twice.
+ */
 export function dailyRunningCost(
   loft: Loft, pigeonCount: number, coachCost: number, infirmaryBirds: number,
   extra: { pairs: number; insurance: number } = { pairs: 0, insurance: 0 },
 ): number {
-  return dailyRunningCostBreakdown(loft, pigeonCount, coachCost, infirmaryBirds, undefined, extra).total;
+  const b = dailyRunningCostBreakdown(loft, pigeonCount, coachCost, infirmaryBirds, undefined, extra);
+  return Math.round((b.total - b.loans) * 100) / 100;
 }

@@ -109,3 +109,10 @@ assert(await moneyNow() === DEMO_MONEY, 'ook vanuit het rood terug naar €100.0
 await setMoney(123456);
 await topUpDemoMoney(d1);
 assert(await moneyNow() === 123456, 'meer dan €100.000 (prijzengeld) blijft staan');
+
+console.log('\nDe bank (enkel dev): de demospeler kan lenen');
+const bank = await call('/bank');
+assert(bank.status === 200 && bank.json.limit >= 6000 && bank.json.limit <= 7000 && !bank.json.blocked,
+  `twee weken inkomsten in de seed → een limiet van €${bank.json?.limit} (DEMO_INCOME)`);
+const lent = await call('/bank/borrow', 'POST', { amount: 1000, days: 7 });
+assert(lent.status === 200 && (await call('/bank')).json.loans.length === 1, 'lenen lukt in de demo');

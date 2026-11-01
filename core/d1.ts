@@ -131,6 +131,7 @@ function rowToLoft(r: any): Loft {
     debtDays: r.debt_days ?? 0,
     debtMisses: r.debt_misses ?? 0,
     equipment: r.equipment ? JSON.parse(r.equipment) : undefined,
+    bank: r.bank ? JSON.parse(r.bank) : undefined,
   };
 }
 
@@ -469,7 +470,7 @@ const LOFT_COLUMNS = [
   'season_points', 'total_wins', 'is_bot', 'infirmary_capacity', 'medicated_food', 'doctors',
   'physios', 'xp', 'level', 'stats', 'badges', 'missions', 'missions_day', 'streak',
   'pending_event', 'sponsorship', 'last_rest_cure', 'awards', 'pending_broods', 'newcomer',
-  'season_wins', 'unlocked_reactions', 'debt_days', 'debt_misses', 'equipment',
+  'season_wins', 'unlocked_reactions', 'debt_days', 'debt_misses', 'equipment', 'bank',
 ];
 
 function loftRow(l: Loft): unknown[] {
@@ -498,6 +499,9 @@ function loftRow(l: Loft): unknown[] {
     // '' for a loft that never touched its hokinrichting, so its column-narrowed
     // UPDATE keeps skipping this column.
     l.equipment ? JSON.stringify(l.equipment) : '',
+    // '' for a loft that never earned or borrowed (every bot), so its
+    // column-narrowed UPDATE keeps skipping this column.
+    l.bank ? JSON.stringify(l.bank) : '',
   ];
 }
 
@@ -1832,6 +1836,9 @@ export const SCHEMA_STEPS: string[] = [
   // Marktwaarde v2: how good the sold bird was beyond her talent (Trade.quality),
   // so a sale is measured against HER, not an average bird.
   'ALTER TABLE trades ADD COLUMN quality REAL',
+  // De bank (core/game/bank.ts): open loans + the income the limit is measured on
+  // (Loft.bank), one JSON blob on the loft row like `equipment`.
+  "ALTER TABLE lofts ADD COLUMN bank TEXT NOT NULL DEFAULT ''",
 ];
 
 /**

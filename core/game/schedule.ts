@@ -75,6 +75,7 @@ import { kinship } from './pedigree.js';
 import { awardBadge, awardFlightBadges, evaluateBadges } from './badges.js';
 import { ensureAuctions, recomputeAuctionLeader } from './auction.js';
 import { tickLoftDebt } from './debt.js';
+import { earn, tickLoans } from './bank.js';
 import { botDailyActions, botEntryContext, botRaceCandidates, fillBotFlocks } from './bots.js';
 import type { BotEntryContext } from './bots.js';
 import { settleFlightBets, voidBetsForWithdrawnPigeon, voidOrphanedBets, refundFlightBets } from './betting.js';
@@ -864,7 +865,7 @@ export function payFinishedFlightPrizes(db: Database, nowMs: number): void {
       // ranking points). Keyed on the flight's START so a race begun inside the
       // window pays double even if the stragglers land after it closed.
       pay.prize = Math.round(pay.prize * winningsMultiplier(loft, startMs));
-      loft.money += pay.prize;
+      earn(loft, pay.prize, nowMs); // income for the bank's limit (bank.ts)
       s.prizePaid = true;
       if (!loft.isBot) {
         const body = flight.relay
@@ -1034,6 +1035,7 @@ export function tickFlights(
         applyFlightEffects(sim, db.pigeons, db.lofts, {
           at: flight.startAt,
           practice: !!flight.practice,
+          nowMs,
         });
         emitFlightNotifications(db, flight, sim);
         // Birds that lost their way: they keep everything (loft place, genes,
@@ -1155,7 +1157,7 @@ export function tickFlights(
               }
             }
             if (bonus > 0) {
-              loft.money += bonus;
+              earn(loft, bonus, nowMs); // sponsor podium bonus = income (bank.ts)
               const places = mine
                 .filter((r) => r.rank <= 3)
                 .sort((a, b) => a.rank - b.rank)
@@ -3234,6 +3236,11 @@ export function tickDailyCare(db: Database, nowMs: number): void {
     const dayNo = localDayNumber(TIMEZONE, dayMidnight);
     for (const loft of slice) {
       const owned = db.pigeons.filter((p) => p.ownerId === loft.userId);
+      // De bank: tonight's instalments (bank.ts). BEFORE the empty-loft skip below —
+      // releasing every bird must not stop a loan from being paid back.
+      if (!loft.isBot) {
+        tickLoans(db, loft, dayMidnight, (d, uid, title, body, id) => pushNotification(d, uid, 'info', title, body, null, id));
+      }
       // ⚠️ A loft with no birds at all is skipped entirely, debt handling
       // included. That is harmless: it is billed nothing, and with DEBT.keepPigeons
       // there is nothing left to auction either.
@@ -3277,7 +3284,8 @@ export function tickDailyCare(db: Database, nowMs: number): void {
         // Sponsors pay a DAILY stipend — same cadence as the running costs, so
         // the player's daily balance is a single honest number (no /7 rounding).
         const stipend = sponsorsPaused(loft) ? 0 : activeContracts(loft).reduce((s, c) => s + c.contract.dailyStipend, 0);
-        if (stipend > 0) loft.money += stipend;
+        // Income of the day that just ended (bank.ts).
+        if (stipend > 0) earn(loft, stipend, dayMidnight - 1);
 
         // A doctor/physio on the payroll is paid every day, ill birds or not —
         // that is deliberate (§4.2 spelregels), but it is also the only recurring

@@ -334,6 +334,8 @@ export interface DailyCostBreakdown {
   equipmentTotal?: number;
   /** Duivenverzekering: today's premiums together. */
   insurance?: number;
+  /** De bank: loan instalments due at the next midnight (already in `total`). */
+  loans?: number;
   /** Staff being paid with nothing of their kind to treat, and what that costs.
    *  Already included in `doctors`/`physios`/`total` — a warning, not a discount. */
   idleDoctors?: number;
@@ -958,6 +960,40 @@ export interface SponsorView {
   maxActive?: number;
   /** Above the limit: the player must drop some (free); until then none pays. */
   mustReduce?: boolean;
+}
+
+/** GET /bank (core/game/bank.ts bankView). */
+export interface BankLoanView {
+  id: string;
+  principal: number;
+  total: number;
+  owed: number;
+  daily: number;
+  days: number;
+  at: string;
+  daysLeft: number;
+  /** Tonight's instalment of this loan. */
+  tonight: number;
+}
+
+export interface BankView {
+  averageIncome: number;
+  incomeWindowDays: number;
+  limitDays: number;
+  maxLimit: number;
+  /** What may be open at the bank (interest included). */
+  limit: number;
+  /** Still to pay back, over all loans. */
+  owed: number;
+  room: number;
+  dueTonight: number;
+  minLoan: number;
+  step: number;
+  maxLoans: number;
+  /** Why borrowing is not possible right now, or null. */
+  blocked: string | null;
+  terms: { days: number; interest: number; max: number }[];
+  loans: BankLoanView[];
 }
 
 export type NotificationKind = 'result' | 'improve' | 'info' | 'health' | 'badge' | 'taunt';

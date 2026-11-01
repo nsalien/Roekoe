@@ -46,6 +46,7 @@ const SECTIONS = [
   { id: 'veilingen', icon: '🔨', label: 'Veilingen & bieden' },
   { id: 'hok', icon: '🏠', label: 'Hok & onderhoudskosten' },
   { id: 'schuld', icon: '🔴', label: 'Rode cijfers & gedwongen veiling' },
+  { id: 'bank', icon: '🏦', label: 'De bank: lenen' },
   { id: 'waarde', icon: '💰', label: 'Wat is een duif waard?' },
   { id: 'afscheid', icon: '👋', label: 'Afscheid nemen' },
   { id: 'duivenlokker', icon: '🧲', label: 'Duivenlokker' },
@@ -1842,6 +1843,48 @@ export function WikiPage() {
           kan zich nooit terugvechten — dat zou een zwaardere straf zijn dan de schuld zelf.
           Duiven die ingeschreven staan voor een vlucht, aan het koppelen zijn of de weg kwijt
           zijn, blijven eveneens buiten schot.
+        </p>
+      </Section>
+
+      <Section id="bank" icon="🏦" title="De bank: lenen">
+        <p className="muted" style={{ marginTop: 0 }}>
+          Op de pagina <Link to="/bank">Bank</Link> leen je geld — bijvoorbeeld om mee te bieden op een duif die je
+          nu nog niet kan betalen. <strong>Lenen kost geld:</strong> je betaalt elke dag af, met rente.
+        </p>
+        <p>
+          <strong>Hoeveel?</strong> Je mag tot <strong>10 dagen van je gemiddelde inkomsten</strong> open hebben staan — wat
+          je de bank nog moet terugbetalen, rente inbegrepen — met een maximum van <strong>€50.000</strong>. Het gemiddelde
+          neemt de laatste <strong>14 volle dagen</strong>; wat je vandaag verdient, telt pas na middernacht mee.
+        </p>
+        <ul>
+          <li><strong>Telt als inkomsten:</strong> prijzengeld (elke vlucht, de leagues, titan en estafette), je sponsors (dagbedrag, podiumpremies, tekengeld), seizoens- en leagueprijzen en de dagopdrachten.</li>
+          <li><strong>Telt niet:</strong> een duif verkopen, terugbetaald inschrijfgeld, weddenschappen en gebeurtenissen. Je kan dus niet lenen op de verkoop van je eigen duiven.</li>
+        </ul>
+        <MiniTable
+          head={['Looptijd', 'Rente', 'Leen je €5.000', 'Samen terug']}
+          rows={[
+            ['7 dagen', '5 %', '€750 per dag', '€5.250'],
+            ['14 dagen', '10 %', '€393 per dag', '€5.500'],
+            ['28 dagen', '20 %', '€215 per dag', '€6.000'],
+          ]}
+        />
+        <p>
+          Overal dezelfde rente per dag: een langere looptijd is een lichtere afbetaling, maar kost samen meer. Je leent
+          vanaf €100, in stappen van €100, en hebt hoogstens 5 leningen tegelijk.
+        </p>
+        <p>
+          <strong>Afbetalen</strong> gebeurt elke middernacht, samen met je vaste onkosten — je ziet het in je{' '}
+          <em>Dagbalans</em>. De afbetaling gaat altijd door: is je kassa leeg, dan zakt ze in het rood, met alles wat
+          daarbij hoort (zie <a href="#schuld">Rode cijfers</a>). Wie in het rood staat, krijgt geen lening.
+        </p>
+        <p>
+          <strong>Aflossen</strong> kan altijd, maar je betaalt wat je nog schuldig bent, <strong>rente inbegrepen</strong>.
+          Vroeger aflossen spaart dus geen rente uit; het haalt wel de dagelijkse afbetaling weg en maakt je limiet weer vrij.
+        </p>
+        <p className="faint" style={{ fontSize: '0.85rem' }}>
+          <strong>Voorbeeld.</strong> Je verdient gemiddeld €600 per dag, dus je limiet is €6.000. Je leent €5.000 over
+          14 dagen: twee weken lang €393 per dag bovenop je onkosten, samen €5.500. Daarna heb je nog €500 ruimte, en
+          elke afbetaling maakt er weer wat vrij.
         </p>
       </Section>
 

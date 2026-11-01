@@ -20,6 +20,7 @@ import { ownerName } from './engine.js';
 import { seasonScore } from './pigeon.js';
 import { reviewSponsorContracts } from './sponsors.js';
 import { round1 } from './util.js';
+import { earn } from './bank.js';
 
 const DAY_MS = 86400000;
 const WEEK_MS = SEASON.weekDays * DAY_MS;
@@ -274,7 +275,8 @@ export function runSeasonEnd(db: Database, endedSeason: number, atMs: number): v
   const atIso = new Date(atMs).toISOString();
   const perLoft = new Map<string, SeasonAward[]>();
   const give = (loft: Loft, award: SeasonAward) => {
-    loft.money += award.reward;
+    // Season, premie and league prizes are income for the bank's limit (bank.ts).
+    earn(loft, award.reward, atMs);
     (loft.awards ??= []).push(award);
     if (!loft.isBot) {
       const arr = perLoft.get(loft.userId) ?? [];

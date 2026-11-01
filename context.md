@@ -84,6 +84,9 @@
 > Het voorstel (met alle getallen en de sketch) staat in de artifact "Roekoe Hokinrichting".
 
 ### Stand van zaken (12 okt 2026) — lees dit eerst
+- **De bank — 1 nov, ⚠️ ENKEL OP DEV** (De Stem, *"Lenen bij de bank"*; eigenaar: "Werk het volgende idee uit op de Dev
+  omgeving … Let op, lenen kost geld. Het toegelaten bedrag … moet rekening houden met wat een speler gemiddeld aan
+  inkomsten heeft"). Zie **§0b *De bank*** hieronder. Nog geen bel, rondleiding of migratie: dat hoort bij het live zetten.
 - **Dev herstart op 1 nov** (eigenaar koos "Dev weer aanzetten" om *Lenen bij de bank* te bekijken): vanaf prod
   `542dfbd` met `git diff d423c1b d2820bf | git apply -3` (d2820bf = de laatste volle Dev-stand, d423c1b de prod-commit
   waar die gelijk mee liep), als samenvoegcommit met ouders `098be3d` (de pauzecommit) en `e80b111` (sessiebranch).
@@ -274,7 +277,7 @@
   De leaguemigratie heet nu overal **v67** (v66 = de afsluiting van seizoen 3); v66 reikt het criterium sindsdien
   uit via `closeCriterium` (`force`). Op prod reikte v67 niets meer uit: v66 had de cyclus die ochtend net
   herstart, en er vloog sindsdien geen criteriumvlucht.
-- **Enkel op dev:** **Marktwaarde v2** en de **demomodus**. Weggehaald van dev en dus nergens:
+- **Enkel op dev:** **Marktwaarde v2**, de **demomodus**, de voorstellen **prijsregel** en **coachprijs**, en **de bank**. Weggehaald van dev en dus nergens:
   koppels, partnerhok, weduwschap, de scout, het nieuwe voer.
 - **Dev herstart op 12 okt** (gebouwd op `claude/breeding-other-player-pigeons-7314iz`, daarna ook
   op `claude/demo-hokinrichting`), precies zoals hieronder beschreven: vanaf prod `4a0c3ad`, de demo
@@ -290,6 +293,9 @@
      zoals nu gebouwd (enkel als de cyclus al ≥ 1 seizoen liep)? De eigenaar koos hier niets ("geen
      voorkeur"); zie *Leagues → Overstap*.
   1. **Marktwaarde v2 naar productie?** (11 okt: nog niet.)
+  1b. **De bank (1 nov, dev):** limiet 10 dagen inkomsten (max €50.000), looptijden 7/14/28 d aan 5/10/20 %, aflossen
+     zonder rentekorting, geen lening in het rood, verkopen tellen niet als inkomsten — goed zo? En bij het live zetten:
+     het inkomstenverleden van de laatste 14 dagen invullen (migratie) of de eerste twee weken aanvaarden?
   2. Moeten de **opvangcentrum-veilingen** (start €25, NPC) buiten de marktwaarde blijven?
   (Beslist op 11 okt: **besmetting per ziekte**, zie §8.)
 - **Dev weer aanzetten (gedaan op 12 okt):** **dev herstarten vanaf prod** en daarop `ac31a45`
@@ -653,6 +659,69 @@
     `studNewsSteps`, spelregels §7.4 en §17. Test: `samen-kweken` (blok "Bots doen niet mee") en
     `samen-kweken-news` (v63 op een wereld die v62 al had: bot-aanbod weg, dat van een speler blijft,
     geen bel).
+
+### De bank — lenen met een limiet op je inkomsten (⚠️ ENKEL OP DEV, 1 nov; `core/game/bank.ts`, `BANK` in gameConfig)
+- **Vraag van de eigenaar** (De Stem, *"Lenen bij de bank"*, spelleiding 19 sep, in stemming): "Spelers kunnen vrij een
+  bedrag lenen bij de bank, met een limiet op hoeveel je open kan hebben staan. Je betaalt dagelijks af, met rente. Zo
+  kan een speler met minder geld toch meebieden op een dure duif — maar wie te veel leent, zit vast aan een dagelijkse
+  afbetaling bovenop zijn onkosten." + (1 nov) "Let op, lenen kost geld. Het toegelaten bedrag op te lenen bij de bank
+  moet rekening houden met wat een speler gemiddeld aan inkomsten heeft." Op Dev, niet op prod.
+- **Zelf gekozen (de eigenaar kan bijstellen; alle knoppen in `BANK`):**
+  - **Limiet** = **10 dagen** (`limitDays`) van het **gemiddelde over de laatste 14 volle dagen** (`incomeWindowDays`;
+    vandaag telt pas na middernacht, zodat de limiet niet midden in een vlucht verspringt), op €100 naar beneden,
+    **max €50.000** (`maxLimit`). De limiet geldt voor wat je **nog moet terugbetalen, rente inbegrepen** ("wat je open
+    hebt staan"), niet voor wat je ooit leende. **Gemeten** (bots, 14 dagen, enkel prijzengeld): €370–€1.190 per dag,
+    mediaan ~€620 → limiet ~€3.600–€12.000: genoeg om mee te bieden op een duif van €10–15.000, niet om een topduif van
+    €25.000+ op krediet te kopen. Spelers hebben daarbovenop sponsors en dagopdrachten.
+  - **Inkomsten** = prijzengeld (elke vlucht, leagues, titan, estafette — de vroege uitbetaling in
+    `payFinishedFlightPrizes` én de rest in `applyFlightEffects`), sponsors (dagbedrag in `tickDailyCare`, podiumpremie in
+    `tickFlights`, tekengeld in `acceptSponsor`), seizoens-/premie-/leagueprijzen (`give` in `runSeasonEnd`) en de
+    dagopdrachten (streakbonus + beloning, missions.ts). **Niet**: een verkoop (kapitaal, geen inkomen — anders leen je op
+    je eigen duiven), terugbetaald inschrijfgeld, weddenschappen, gebeurtenissen, verzekering, voer terugverkopen. Elke
+    bron roept **`earn(loft, bedrag, tijdstip)`** (= `money +=` + `noteIncome`); een nieuwe inkomstenbron moet dat ook doen.
+  - **Drie looptijden** (`terms`): **7 d 5 % · 14 d 10 % · 28 d 20 %** — dezelfde ~0,71 % per dag, dus langer = lichtere
+    afbetaling maar duurder. **Vaste rente**, vooraf gekend: `loanTotal` = bedrag × (100 + rente%) / 100, naar boven op €1
+    (in hele procenten: `5000 × 1.1` is 5500,000000000001 en zou €1 te veel kosten). Vanaf €100, stappen van €100, max 5
+    leningen.
+  - **Afbetalen elke middernacht** (`tickLoans` in `tickDailyCare`, **vóór** de lege-hok-`continue`: wie al zijn duiven
+    vrijlaat, betaalt toch af; vóór `tickLoftDebt`). Per lening `ceil(owed / left)` — zo is ze na **precies** de
+    looptijd rond (een vaste `ceil(total/days)` was bij €100 over 28 dagen na 24 dagen klaar). Een lening van ná de
+    verwerkte middernacht (late tick) betaalt er niets voor. **De afbetaling gaat altijd door**, ook in het rood → de
+    gewone schuldroute (debt.ts). **Wie in het rood staat, krijgt geen lening** (anders ontloop je de gedwongen veiling
+    met krediet). Afbetaald = lening weg + bel `ntf:bank:done:<loanId>`; geen bel per afbetaling (zou spammen).
+  - **Aflossen** kan altijd, maar kost wat nog openstaat, **rente inbegrepen** (geen korting: "lenen kost geld" blijft
+    waar, ook een lening van één dag; anders is de bank een gratis overbrugging voor een veilingbod).
+  - **Bots** lenen niet en houden geen inkomsten bij (hun `bank` blijft `''`).
+- **Opslag:** `Loft.bank` = **`LoftBank {loans: BankLoan[], income: number[], incomeDay}`**, één JSON-kolom `lofts.bank`
+  (`''` als leeg, dus een onaangeroerd hok wordt niet herschreven). `income[0]` = dag `incomeDay` (lokale dagteller,
+  `bankDay` = dezelfde als `localDayNumber` in schedule.ts), daarna de dagen ervoor; hoogstens 15 vakjes.
+  `BankLoan {id, principal, total, owed, daily, days, left, at}`. **Schema:** `ALTER TABLE lofts ADD COLUMN bank` staat
+  **achteraan** `SCHEMA_STEPS` (na dev's `trades.quality`); bij het live zetten achteraan **prod's** lijst. Geen extra query.
+- **Dagbalans:** `dailyRunningCostBreakdown.loans` (= `loansDueTonight`) zit **in** `total` (dus in de tegel en het netto),
+  maar `dailyRunningCost` (de afrekening) trekt ze eraf — `tickLoans` rekent ze af en telt ze af. Niet dubbel: de test
+  vergelijkt het geld om middernacht met het Dagbalans-totaal.
+- **API:** `GET /bank` = `bankView` (limiet, gemiddelde, open, ruimte, vannacht, per looptijd het maximum, `blocked`, de
+  leningen met `daysLeft`/`tonight`) — in `NARROW_PATHS` (leest enkel het eigen hok); `POST /bank/borrow {amount, days}`,
+  `POST /bank/settle {loanId}`.
+- **UI:** pagina **`/bank`** (`pages/BankPage.tsx`, nav 🏦 **Bank** na Sponsors; op gsm onder *Meer*): één regel "Je kan nog
+  €… open hebben staan — 10 dagen van je gemiddelde inkomsten (€…/dag)" + wikilink; kaart *Lenen* (looptijd als chips,
+  bedrag, knop met bevestiging die per dag/samen/rente noemt); kaart *Lopende leningen* (nog open, dagen, vannacht,
+  *Aflossen*). Dagbalans: regel "🏦 Afbetaling lening". Markt: onder een veilingbod dat de kassa niet dekt "Te weinig in
+  kas? 🏦 Leen bij de bank →". Wiki **`#bank`** (na `#schuld`), spelregels **§13.1**.
+- **Demo:** de demospeler krijgt 14 dagen inkomsten (`DEMO_INCOME` in seed.ts, gem. ~€660 → limiet €6.500);
+  `DEMO_VERSION` 15. ⚠️ De demo vult de kassa bij elke start aan tot €100.000 (`topUpDemoMoney`), dus je *voelt* een
+  lening daar niet; je ziet wel de afbetaling in de Dagbalans en op de Bank-pagina (+1 dag in de banner).
+- **Bij het live zetten nog te doen:** (1) **inkomstenverleden**: de bank telt pas vanaf de uitrol, dus de eerste 14
+  dagen kan bijna niemand iets lenen — een eenmalige migratie die het prijzengeld van de laatste 14 dagen uit
+  `pigeon_log_entries` (`raceLog`: prijs + datum per vlucht) in `bank.income` zet, of de eigenaar aanvaardt die
+  opstart; (2) bel + rondleiding + wiki `#nieuw` (zoals elke feature); (3) de schemastap achteraan prod's lijst; (4) het
+  idee op De Stem op "In het spel" zetten.
+- **Test:** `tests/bank.test.mts` (72 controles): formules (geen €1 te veel, exact de looptijd, ook €100/28 d), de
+  inkomsten (vandaag niet, 14 dagen, late betaling, lege dagen, bots), limiet (afronding, max, het maximum per looptijd
+  past precies), lenen (elke weigering, telt niet als inkomen), middernacht (één afbetaling, zonder duiven, geen dubbele
+  afrekening, late tick, rood, bel), aflossen, de bronnen (prijzengeld van een echte vlucht, sponsordagbedrag,
+  seizoensprijs; een verkoop niet), D1 + API (+ bothokken schrijven niets) en wiki/spelregels == `BANK`. `demo-world`
+  controleert dat de demospeler kan lenen.
 
 ### Demomodus (preview-builds) — ⚠️ ENKEL OP DEV, niet op productie
 - **Niet mee naar productie (11 okt):** op prod bestaan `client/demo/`, de Vite-plugin, sql.js en
@@ -1176,7 +1245,8 @@ volgorde:
    aantal gepasseerde middernachten sinds `world.lastDailyTick` wordt ingehaald,
    tot 30 dagen; `world.lastDailyTick` staat telkens op de laatst verwerkte
    lokale middernacht).
-   Verhongerde duiven worden hier verwijderd. **Draait per bothok ook
+   Verhongerde duiven worden hier verwijderd. **De bank (dev):** per echt hok eerst `tickLoans` (de afbetalingen,
+   ook zonder duiven), en het sponsordagbedrag telt als inkomsten (`earn`). **Draait per bothok ook
    `botDailyActions`** (bots.ts): voer/ziekenboeg/rustkuur/coach/hokuitbreiding/
    kweek — bewust op de dagovergang en niet per verzoek, want het schrijft rijen. **Rekent ook alle vaste onkosten dagelijks
    af** (`dailyRunningCost`: onderhoud + coach + ziekenboegstaf/medicatie) en betaalt
@@ -1395,6 +1465,7 @@ Roekoe/
 │       ├── pedigree.ts          stamboom + verwantschap (kinship/ancestorIds/pedigreeOf)
 │       ├── pigeon.ts, weather.ts, util.ts (seededRng/hashString/clamp/pickWith)
 │       ├── lure.ts              duivenlokker: kopen, de loting bij vrijlaten, de wachtkamer + meldingen
+│       ├── bank.ts              de bank (enkel dev): inkomsten bijhouden, limiet, lenen, afbetalen om middernacht
 │       ├── tags.ts              tags op je duiven: opkuisen + zetten (privé, in Pigeon.care)
 │       ├── stem.ts              De Stem: regels van het ideeënbord + de 4 startideeën (géén DB)
 │       ├── lokaal.ts            Het Lokaal (chat): opkuisen/valideren, rem, wie mag weghalen, pollvenster (géén DB)
@@ -1541,6 +1612,8 @@ Entiteiten: `Pigeon`, `Loft`, `User`, `BreedingPair`, `PendingBrood`, `Flight` (
 `World.ageCupStartedAt`/`ageCupSeasonsDone`.
 
 **Tags (§0b):** `PigeonCare.tags` (`string[]`, in de bestaande kolom `care`; gewist door `clearOwnerCare`).
+
+**De bank (§0b, enkel dev):** `Loft.bank` (kolom `bank`, JSON: `loans` + `income` per dag + `incomeDay`).
 
 **Duivenlokker (§0b):** `Loft.equipment.lure` (niveau 0–5, in de bestaande JSON-kolom) en op
 `PendingBrood` `origin: 'lokker'` + `from: {userId, name}` (in `lofts.pending_broods`). Geen schemawijziging.
@@ -1716,6 +1789,8 @@ Entiteiten: `Pigeon`, `Loft`, `User`, `BreedingPair`, `PendingBrood`, `Flight` (
 - **Kweekleeftijd:** `BREEDING.minAgeWeeks` **8** — even oud als de vluchtleeftijd, maar een
   eigen knop. Inteelt: zie `INBREEDING` + `PIGEON_QUIRKS` en §8.
 - **Tags (`PIGEON_TAGS`):** `max 3` per duif, `maxLength 20` tekens.
+- **De bank (`BANK`, enkel dev):** `incomeWindowDays 14`, `limitDays 10`, `maxLimit 50.000`, `minLoan`/`step` 100,
+  `maxLoans 5`, `terms` 7 d 5 % · 14 d 10 % · 28 d 20 %; helpers `loanTotal`, `loanDaily`.
 - **Duivenlokker (`LURE`):** `prices [500,750,1500,3000,5000]` (niveau 1–5, de eigenaar), `pull
   [10,14,19,25,32]`, `freedom 90`; `LURE_MAX_LEVEL` 5, `lureChances(levels)` = de kans per lokker + "nergens".
 - **Samen kweken (`STUD`, dev):** `cost` **1000** per speler bij het akkoord, `maxFee` 100.000,
@@ -2094,6 +2169,7 @@ Entiteiten: `Pigeon`, `Loft`, `User`, `BreedingPair`, `PendingBrood`, `Flight` (
   van een vorig nest** (`pigeonDTO.breedAvailableAt`) vallen uit beide keuzelijsten, met
   eronder één regel hoeveel er rusten en wanneer de eerste weer mag — een duif die
   zwijgend uit de lijst verdwijnt leest als een bug.
+- `BankPage` (`/bank`, enkel dev) — lenen en aflossen; zie §0b *De bank*.
 - Verder: `SponsorsPage`, `LoginPage`.
 
 **Rondleiding (`components/Tour.tsx`):** interactieve spotlight-tour die per stap
@@ -2227,6 +2303,7 @@ npx tsx tests/season-close.test.mts       # v66: seizoen 3 afsluiten (of enkel h
 npx tsx tests/bot-fill.test.mts           # v68: bots tot 10 duiven, ★60–75, in stappen van 3, vaste ids, querykost
 npx tsx tests/erfenis-v69.test.mts        # v69 + v70: erfenis zonder spaarpot (drie spelers + OnlyFlaps), gekozen duif altijd ★75–80, D1 + API; v71: de gewone erfenis voor De Vluchtige Vleugel
 npx tsx tests/market-reference.test.mts   # veilingduiven volgen het gemiddelde: referentie, zondagbanden (+ gedeeld per dag), opvangcentrum
+npx tsx tests/bank.test.mts               # de bank (enkel dev): limiet op inkomsten, lenen, afbetalen om middernacht, aflossen, D1 + API
 ```
 
 > **Geen `tsx` beschikbaar?** (cloud-sessie waar de npm-registry geblokkeerd is: `npx tsx`

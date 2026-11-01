@@ -411,6 +411,58 @@ export const PIGEON_TAGS = {
 } as const;
 
 /**
+ * De bank (core/game/bank.ts, ⚠️ enkel op dev). De Stem, "Lenen bij de bank"
+ * (spelleiding 19 sep); eigenaar 1 nov: "Let op, lenen kost geld. Het toegelaten
+ * bedrag … moet rekening houden met wat een speler gemiddeld aan inkomsten heeft."
+ *
+ * A player borrows a free amount, for one of `terms`, and pays it back in equal
+ * daily instalments at every local midnight (tickDailyCare), principal + a flat
+ * interest. What he may have OPEN (still to pay, interest included) is capped at
+ * `limitDays` × his average daily income over the last `incomeWindowDays` full
+ * days — income being prize money, sponsor money, season/league prizes and the
+ * daily missions (noteIncome); never a sale, a refund, a bet or an event.
+ */
+export const BANK = {
+  /** The average is taken over this many FULL days (today does not count yet). */
+  incomeWindowDays: 14,
+  /** Open debt at the bank may reach this many days of average income. */
+  limitDays: 10,
+  /** …but never more than this, however much a loft earns. */
+  maxLimit: 50_000,
+  /** Smallest loan, and loans go in steps of this much. */
+  minLoan: 100,
+  step: 100,
+  /** At most this many loans open at once. */
+  maxLoans: 5,
+  /**
+   * The terms on offer: the same ~0,71 % per day each time, so a longer term is
+   * a lighter daily instalment but costs more in total. Interest is flat: you
+   * pay `principal × (1 + interest)` back, also when you settle early.
+   */
+  terms: [
+    { days: 7, interest: 0.05 },
+    { days: 14, interest: 0.10 },
+    { days: 28, interest: 0.20 },
+  ],
+} as const;
+
+export type BankTerm = (typeof BANK.terms)[number];
+
+/** What a loan of `principal` over `days` costs back in total (whole euros, rounded up). */
+export function loanTotal(principal: number, days: number): number {
+  const term = BANK.terms.find((t) => t.days === days);
+  if (!term) return NaN;
+  // In whole percents: 5000 × 1.1 is 5500.000000000001 in floating point, and
+  // rounding THAT up would charge €1 too much.
+  return Math.ceil((principal * (100 + Math.round(term.interest * 100))) / 100);
+}
+
+/** The headline daily instalment of a loan with `total` over `days` (rounded up). Some days are €1 less, so it is paid off after exactly `days` (bank.instalment). */
+export function loanDaily(total: number, days: number): number {
+  return Math.ceil(total / days);
+}
+
+/**
  * The local pigeon-soup restaurant. Selling a bird here pays a small fixed sum,
  * but sending a loft-mate to the pot rattles every remaining pigeon: each loses
  * a random `moraleEnergyMin..moraleEnergyMax` energie (form). Releasing a bird
