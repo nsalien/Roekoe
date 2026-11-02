@@ -90,7 +90,7 @@
   `canEnter` kende enkel het criterium (`f.ageCat && p.ageCat !== f.ageCat`) en een leaguevlucht heeft geen `ageCat`,
   dus alle duiven. De server weigerde de verkeerde duif wel. **Fix:** zie §8 *Een verouderd scherm herlaadt zichzelf*.
   Een tab die nú al oud is, heeft die code nog niet: die moet één keer met de hand herladen worden.
-- **De bank — gebouwd op Dev op 1 nov, LIVE sinds 2 nov** (De Stem, *"Lenen bij de bank"*; eigenaar 2 nov: "Zet de bank
+- **De bank — gebouwd op Dev op 1 nov, LIVE sinds 2 nov** (prod `39dd03f` = dev `48fecd0` + `2ed458a`; De Stem, *"Lenen bij de bank"*; eigenaar 2 nov: "Zet de bank
   live in productie"). Zie **§0b *De bank*** hieronder, met *Live zetten* (terugvulling van het inkomen, bel v72,
   rondleiding, wiki `#nieuw`). Tegelijk: **het gsm-menu in rijen van 7** (eigenaar: "het navigatie menu verticaal
   uitbreiden met een derde sectie. 7 icoontjes per sectie. Onderaan 6 + meer/minder") — `BottomNav` in Layout.tsx:
