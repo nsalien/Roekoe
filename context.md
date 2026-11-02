@@ -84,6 +84,13 @@
 > Het voorstel (met alle getallen en de sketch) staat in de artifact "Roekoe Hokinrichting".
 
 ### Stand van zaken (12 okt 2026) — lees dit eerst
+- **Een verouderd scherm herlaadt zichzelf — 2 nov** (eigenaar: "Zorg ervoor dat enkel duiven die aan hun score voldoen
+  voor de league getoond worden bij het inschrijven … worden alle duiven getoond"; op prod, keuzelijst op Vluchten).
+  ⚠️ **De huidige code filtert wél juist** (nagegaan met de echte API, als beheerder, op prod-code, en in de browser:
+  per league enkel haar duiven). De oorzaak is een **tab of gsm-app die nog code van vóór 24 okt draait**: de oude
+  `canEnter` kende enkel het criterium (`f.ageCat && p.ageCat !== f.ageCat`) en een leaguevlucht heeft geen `ageCat`,
+  dus alle duiven. De server weigerde de verkeerde duif wel. **Fix:** zie §8 *Een verouderd scherm herlaadt zichzelf*.
+  Een tab die nú al oud is, heeft die code nog niet: die moet één keer met de hand herladen worden.
 - **De bank — 1 nov, ⚠️ ENKEL OP DEV** (De Stem, *"Lenen bij de bank"*; eigenaar: "Werk het volgende idee uit op de Dev
   omgeving … Let op, lenen kost geld. Het toegelaten bedrag … moet rekening houden met wat een speler gemiddeld aan
   inkomsten heeft"). Zie **§0b *De bank*** hieronder. Nog geen bel, rondleiding of migratie: dat hoort bij het live zetten.
@@ -1427,6 +1434,7 @@ Roekoe/
 │       │                        FlightMap.tsx (live kaart, LAZY geladen) + geo.ts (grootcirkel)
 │       ├── game/GameContext.tsx useGame(): laadt /state, deelt state + refresh()
 │       ├── game/lokaalSeen.ts   bolletje op de Lokaal-knop (localStorage, React-vrij, zoals marketSeen.ts)
+│       ├── game/appVersion.ts   draait deze tab de code die live staat? (/version.json, zie §8)
 │       ├── auth/AuthContext.tsx useAuth(): user + token
 │       ├── api/client.ts        api<T>(path, {method, body}) helper
 │       ├── styles/global.css    design system + thema via [data-theme] (dark default)
@@ -6144,6 +6152,23 @@ De hefbomen die hier ooit als "nog te doen" stonden zijn **uitgevoerd**: trades 
 (`TRADE_LOAD_LIMIT` 40), meldingen viewer-scoped, het live-bord op een eigen smalle load
 (`loadLiveFlight`, **2 rijen**), ruimere pollintervallen en de `advanceRealtime`-throttle.
 Wat nog echt open staat, staat hieronder.
+
+### Een verouderd scherm herlaadt zichzelf (2 nov, `client/src/game/appVersion.ts`)
+**Waarom.** Een tab of thuisscherm-app die openblijft, houdt de JavaScript waarmee ze geopend werd; de server gaat
+eronder verder. Zo toonde een gsm die sinds vóór de leagues openstond bij een leaguevlucht élke duif (de oude keuzelijst
+kende enkel het criterium). Dat kan na elke uitrol opnieuw, bij eender welke regel.
+
+**Hoe.** De Vite-plugin `buildVersion` (client/vite.config.ts) geeft elke build een id (`CF_PAGES_COMMIT_SHA`, lokaal
+een tijdstempel), bakt die in de bundel als `__APP_BUILD__` én schrijft hem naar een statische **`/version.json`**.
+`useNewVersion` (Layout.tsx) vergelijkt: **terugkeren naar de tab** (`visibilitychange` → zichtbaar) met een nieuwere
+versie = meteen herladen (dan wordt er niets getypt); zolang de tab openblijft, om de **5 minuten** een kijk en enkel een
+balk *"Er staat een nieuwe versie van Roekoe klaar · Herladen"* (een half getypt bericht in Het Lokaal gaat niet
+verloren). **Geen lus:** `reloadInto` herlaadt hoogstens één keer per versie per minuut (sessionStorage); serveert de CDN
+heel even nog de oude pagina naast de nieuwe version.json, dan komt de balk i.p.v. een tweede herlading. **Kost:** een
+statisch bestand, geen Worker-verzoek en geen D1-rij. Buiten een echte build (dev-server, tests) is `APP_BUILD` leeg en
+gebeurt er niets. `tests/demo-build.test.mts` bouwt nu met een vaste `CF_PAGES_COMMIT_SHA` (anders verschillen twee
+builds door het id) en controleert `version.json`. Gemeten in de browser (Playwright): zelfde versie = geen herlading;
+nieuwe versie = één herlading bij terugkeren; nog altijd oud daarna = geen lus, wel de balk.
 
 ### Openstaande ideeën / balans om op te letten
 - Weddenschappen als geldbron; rustbonus + sneller herstel + goedkopere vluchten samen →

@@ -25,9 +25,14 @@ function build(branch: string): { dir: string; html: string; files: string[]; js
   const dir = mkdtempSync(join(tmpdir(), 'roekoe-build-'));
   execFileSync('npx', ['vite', 'build', '--outDir', dir, '--emptyOutDir', '--logLevel', 'error'], {
     cwd: client,
-    env: { ...process.env, CF_PAGES_BRANCH: branch, ROEKOE_DEMO: '' },
+    // A fixed commit: the build id (vite.config.ts buildVersion) is baked into the
+    // bundle, so two builds only match byte for byte when they share it — as two
+    // Cloudflare builds of the same commit do.
+    env: { ...process.env, CF_PAGES_BRANCH: branch, CF_PAGES_COMMIT_SHA: 'test-commit', ROEKOE_DEMO: '' },
     stdio: ['ignore', 'ignore', 'inherit'],
   });
+  const version = JSON.parse(readFileSync(join(dir, 'version.json'), 'utf8'));
+  if (version.build !== 'test-commit') throw new Error(`version.json draagt ${version.build}`);
   const files = readdirSync(join(dir, 'assets'));
   const js = files.filter((f) => f.endsWith('.js')).map((f) => readFileSync(join(dir, 'assets', f), 'utf8')).join('\n');
   return { dir, html: readFileSync(join(dir, 'index.html'), 'utf8'), files, js };
