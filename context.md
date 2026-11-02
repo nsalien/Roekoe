@@ -685,7 +685,7 @@
     engine-run vóór de vlucht (zoals prod die allang gehad heeft), anders viel de uitgestelde bel in een gemeten poll;
     de controle zelf bleef even streng. ⚠️ **Een volgende migratie die alle spelers belt, heeft dezelfde wachttijd
     nodig** (of het eerste verzoek van een verse wereld moet goedkoper worden). Op dev schoof de bel van het voorstel prijsregel daarom naar **v73**, en met de duidelijkere bel (v73) naar **v74**. Op prod volgt de rondleiding op die van de leagues.
-  - **Duidelijkere bel = migratie v73** (2 nov, eigenaar: "Stuur een duidelijke communicatie naar de spelers"):
+  - **Duidelijkere bel = migratie v73** (2 nov, live: prod `16e2738` = dev `afa31d2`; eigenaar: "Stuur een duidelijke communicatie naar de spelers"):
     `BANK_NEWS` herschreven in blokjes — hoeveel (10 dagen inkomsten, je eigen limiet op de Bank-pagina), de rente met
     een voorbeeld, elke nacht afbetalen, ⚠️ wat het rood betekent (niets kopen, niet inschrijven, na 10 dagen een
     gedwongen veiling), waar de Bank op gsm staat (*Meer*) en "zie je ze niet: sluit de app volledig". **Zelfde id** als
