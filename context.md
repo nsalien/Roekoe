@@ -83,7 +83,7 @@
 > Het voorstel (met alle getallen en de sketch) staat in de artifact "Roekoe Hokinrichting".
 
 ### Stand van zaken (12 okt 2026) — lees dit eerst
-- **Een verouderd scherm herlaadt zichzelf — 2 nov** (eigenaar: "Zorg ervoor dat enkel duiven die aan hun score voldoen
+- **Een verouderd scherm herlaadt zichzelf — 2 nov, live** (prod `f93d91f` = dev `64ae288`; eigenaar: "Zorg ervoor dat enkel duiven die aan hun score voldoen
   voor de league getoond worden bij het inschrijven … worden alle duiven getoond"; op prod, keuzelijst op Vluchten).
   ⚠️ **De huidige code filtert wél juist** (nagegaan met de echte API, als beheerder, op prod-code, en in de browser:
   per league enkel haar duiven). De oorzaak is een **tab of gsm-app die nog code van vóór 24 okt draait**: de oude
