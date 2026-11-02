@@ -2737,8 +2737,12 @@ export function runDataMigrations(db: Database, nowMs = Date.now()): void {
     db.world.dataVersion = 71;
   }
 
-  // `=== 71` and not in a flight request, for the same reason as v69–v71.
-  if ((db.world.dataVersion ?? 0) === 71 && !startsOrFinishesFlight(db, nowMs)) {
+  // `=== 71` and not in a flight request, for the same reason as v69–v71 — and not
+  // in the request that builds the calendar from scratch (a fresh world: no flights
+  // yet). That request already sits at ~49 of D1's 50 queries (query-budget), and
+  // this bell's INSERT is one more. On production the calendar always exists, so
+  // the bell comes with the first request after the deploy.
+  if ((db.world.dataVersion ?? 0) === 71 && !startsOrFinishesFlight(db, nowMs) && db.flights.length > 0) {
     // De bank live (eigenaar, 2 nov: "Zet de bank live in productie"): one bell per
     // real player, stable id. The income the bank lends on was filled in by a schema
     // step (BANK_INCOME_BACKFILL_SQL in d1.ts), so the limits are there from day one.

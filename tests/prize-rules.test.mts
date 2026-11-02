@@ -19,7 +19,7 @@ import { PRIZE_MONEY, TITAN, REWARD_BIRDS_PER_LOFT, leaguePrizes, prizeForRank }
 import { emptyDatabase } from '../core/schema.js';
 import { MemoryStore, newId } from '../core/store.js';
 import { createLoftForUser, seedWorld } from '../core/game/engine.js';
-import { runDataMigrations } from '../core/game/schedule.js';
+import { advanceRealtime, runDataMigrations } from '../core/game/schedule.js';
 import { PRIZE_RULE_NEWS } from '../core/game/news.js';
 import type { Flight, Pigeon, SimEntry, FlightResult } from '../core/schema.js';
 
@@ -213,6 +213,7 @@ console.log('\nDe aankondiging (migratie v73)');
     return u.id;
   });
   const db = store.data;
+  advanceRealtime(db, Date.now(), new Map()); // plans the calendar: v72 (the bank's bell) waits for it
   runDataMigrations(db);
   ok('een verse wereld loopt door tot v73', db.world.dataVersion === 73);
   // Dev at v72 (production + the bank): the bell goes to every real player, once.

@@ -732,8 +732,13 @@
     podium- en tekenpremies van sponsors (de limiet start dus iets te laag, nooit te hoog). ⚠️ Brusselse dag als UTC+1
     (wintertijd; de stap loopt één keer). ⚠️ `ensureSchema` slikt fouten: de test draait de stap door de echte
     `ensureSchema` op SQLite. Dezelfde query stond eerder hier als losse controle (zie de chat van 1 nov).
-  - **Bel = migratie v72** (`BANK_NEWS` in news.ts, `ntf:news:bank:<id>`, gate `=== 71`, niet in een vluchtverzoek),
-    getallen uit `BANK`. Op dev schoof de bel van het voorstel prijsregel daarom naar **v73**.
+  - **Bel = migratie v72** (`BANK_NEWS` in news.ts, `ntf:news:bank:<id>`, gate `=== 71`, niet in een vluchtverzoek,
+    **en niet zolang er nog geen enkele vlucht bestaat**: het verzoek dat een verse wereld haar kalender geeft, zat al
+    op 49 van de 50 queries en de bel maakte er 50 van — `query-budget` rood), getallen uit `BANK`. Op prod staat de
+    kalender er altijd, dus de bel komt met het eerste verzoek na de uitrol. `idle-writes` kreeg één rustige
+    engine-run vóór de vlucht (zoals prod die allang gehad heeft), anders viel de uitgestelde bel in een gemeten poll;
+    de controle zelf bleef even streng. ⚠️ **Een volgende migratie die alle spelers belt, heeft dezelfde wachttijd
+    nodig** (of het eerste verzoek van een verse wereld moet goedkoper worden). Op dev schoof de bel van het voorstel prijsregel daarom naar **v73**.
   - **Rondleiding `BANK_NEWS_STEPS`** (Tour.tsx: de Bank-pagina `[data-tour="bank"]`, dan de Dagbalans
     `[data-tour="daily-costs"]`), sleutel `roekoe.newsSeen.bank.<id>`, na de vorige runs; `closeTour` zet hem ook.
   - Wiki **`#nieuw`** kreeg een blok bovenaan; "(enkel op Dev)" is weg uit spelregels §13.1 en de code.

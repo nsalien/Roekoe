@@ -91,6 +91,14 @@ for (const h of humans) {
   await s.persist();
 }
 const startMs = Date.parse((await D1Store.load(db, undefined)).data.flights.find((f) => f.id === flight.id)!.startAt);
+// One quiet engine run before the flight, as production has long had: a one-off
+// migration that waits for the calendar (the bank's bell, v72) fires here and not
+// in a measured poll. The polls below are held to the same rule as before.
+{
+  const s = await D1Store.load(db, undefined);
+  advanceRealtime(s.data, T0 + 120_000, new Map());
+  await s.persist();
+}
 
 let failures = 0;
 
