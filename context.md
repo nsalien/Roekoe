@@ -270,11 +270,12 @@
     ★ 81+). Zege sprint/fond: **★ t/m 60 €800/€1.200 · ★ 61–70 €900/€1.350 · ★ 71–80 €1.000/€1.500 · ★ 81+
     €1.100/€1.650**; de lagere plaatsen in dezelfde verhoudingen als de oude criteriumtabel, op €5 (vanaf €250 op
     €25), en een hogere league betaalt op **elke** plaats meer. De seizoensprijzen (`awards`) bleven.
-  - **Communicatie:** bel **`PRIZE_RULE_NEWS`** (news.ts, `ntf:news:prijsregel:<id>`) via **migratie v73** (op dev
-    heette ze eerst v69, toen v72; prod gebruikte v69–v71 voor de erfenissen en v72 voor de bank, gate nu `=== 72`), die **wacht tot v68 klaar is** (anders zou v68 op prod nooit meer lopen); rondleiding `PRIZE_RULE_NEWS_STEPS`
+  - **Communicatie:** bel **`PRIZE_RULE_NEWS`** (news.ts, `ntf:news:prijsregel:<id>`) via **migratie v74** (op dev
+    heette ze eerst v69, toen v72, toen v73; prod gebruikte v69–v71 voor de erfenissen en v72–v73 voor de bank, gate nu
+    `=== 73`), die **wacht tot v68 klaar is** (anders zou v68 op prod nooit meer lopen); rondleiding `PRIZE_RULE_NEWS_STEPS`
     (sleutel `roekoe.newsSeen.prijsregel.<id>`, na de leagues-run); wiki `#nieuw` + `#prijzengeld` + `#leagues`;
     spelregels §2.6 ("Geld voor elke duif, punten voor je beste 3") en §2.10. `DEMO_VERSION` 14.
-  - **Tests:** `prize-rules` (regel + v73), `leagues` (tabellen, spelregels/wiki/rondleiding == config).
+  - **Tests:** `prize-rules` (regel + v74), `leagues` (tabellen, spelregels/wiki/rondleiding == config).
 - **Bots bijgevuld tot 10 duiven op prod (24 okt, migratie v68, prod `684e61f`)** — eigenaar: "vul hun aantal
   duiven bij … random score tussen 60 en 75". `fillBotFlocks` (bots.ts), **in stappen van 3 per verzoek** (één
   nieuwe duif = één D1-query) en enkel vanaf seizoen 4, dus de demo (seizoen 1) blijft ongemoeid. Details in de
@@ -738,14 +739,21 @@
     kalender er altijd, dus de bel komt met het eerste verzoek na de uitrol. `idle-writes` kreeg één rustige
     engine-run vóór de vlucht (zoals prod die allang gehad heeft), anders viel de uitgestelde bel in een gemeten poll;
     de controle zelf bleef even streng. ⚠️ **Een volgende migratie die alle spelers belt, heeft dezelfde wachttijd
-    nodig** (of het eerste verzoek van een verse wereld moet goedkoper worden). Op dev schoof de bel van het voorstel prijsregel daarom naar **v73**.
+    nodig** (of het eerste verzoek van een verse wereld moet goedkoper worden). Op dev schoof de bel van het voorstel prijsregel daarom naar **v73**, en met de duidelijkere bel (v73) naar **v74**.
+  - **Duidelijkere bel = migratie v73** (2 nov, eigenaar: "Stuur een duidelijke communicatie naar de spelers"):
+    `BANK_NEWS` herschreven in blokjes — hoeveel (10 dagen inkomsten, je eigen limiet op de Bank-pagina), de rente met
+    een voorbeeld, elke nacht afbetalen, ⚠️ wat het rood betekent (niets kopen, niet inschrijven, na 10 dagen een
+    gedwongen veiling), waar de Bank op gsm staat (*Meer*) en "zie je ze niet: sluit de app volledig". **Zelfde id** als
+    v72, dus ze **vervangt** die bel (geen tweede); `pushNotification` houdt `read` vast voor een bel die al in de
+    geladen inbox zit, dus v73 zet hem daarna expliciet op ongelezen — voor iedereen ongelezen, bovenaan. Zelfde
+    voorwaarden als v72 (`=== 72`, geen vluchtverzoek, kalender bestaat). Test: blok 10 van `bank.test.mts`.
   - **Rondleiding `BANK_NEWS_STEPS`** (Tour.tsx: de Bank-pagina `[data-tour="bank"]`, dan de Dagbalans
     `[data-tour="daily-costs"]`), sleutel `roekoe.newsSeen.bank.<id>`, na de vorige runs; `closeTour` zet hem ook.
   - Wiki **`#nieuw`** kreeg een blok bovenaan; "(enkel op Dev)" is weg uit spelregels §13.1 en de code.
   - **Schema op dev:** de twee bankstappen staan nu **boven** de "ENKEL OP DEV"-lijn (dev = prod + `trades.quality`);
-    `DEMO_VERSION` 16.
+    `DEMO_VERSION` 16 (17 met de duidelijkere bel).
   - **Nog door de beheerder:** het idee op De Stem op "In het spel" zetten.
-- **Test:** `tests/bank.test.mts` (81 controles; blok 10 = het live zetten: de terugvulling via `ensureSchema`, een nieuwkomer ×2, bots niet, een tweede run verandert niets, de bel v72): formules (geen €1 te veel, exact de looptijd, ook €100/28 d), de
+- **Test:** `tests/bank.test.mts` (84 controles; blok 10 = het live zetten: de terugvulling via `ensureSchema`, een nieuwkomer ×2, bots niet, een tweede run verandert niets, de bel v72): formules (geen €1 te veel, exact de looptijd, ook €100/28 d), de
   inkomsten (vandaag niet, 14 dagen, late betaling, lege dagen, bots), limiet (afronding, max, het maximum per looptijd
   past precies), lenen (elke weigering, telt niet als inkomen), middernacht (één afbetaling, zonder duiven, geen dubbele
   afrekening, late tick, rood, bel), aflossen, de bronnen (prijzengeld van een echte vlucht, sponsordagbedrag,
@@ -1243,7 +1251,7 @@ krijgen.**
 `core/game/schedule.ts` → `advanceRealtime(db, nowMs, weatherByFlight)` roept in
 volgorde:
 1. `runDataMigrations(db)` — eenmalige datafixes, **gated op `world.dataVersion`**
-   (staat nu op **72** (dev **73**: + de bel van het voorstel prijsregel) — v72 = de bel van de bank (2 nov, `BANK_NEWS`; het inkomen zelf is een schemastap), v71 = de gewone erfenis (spaarpot, kampioen, belofte) voor De Vluchtige Vleugel (31 okt), v70 = dezelfde erfenis voor OnlyFlaps (27 okt), v69 = de erfenis zonder spaarpot (★75–80) voor Marcel De Neut, Roekoeloos en Graanabolica (27 okt), v68 = bots bijvullen tot 10 duiven (24 okt, in stappen), v67 = de leagues i.p.v. het leeftijdscriterium (§0b, 24 okt), v66 = seizoen 3 afsluiten + criterium uitreiken (24 okt, zie *Stand van zaken*), v65 = de bel van de tags (`TAGS_NEWS`), v64 = de bel van de duivenlokker (`LURE_NEWS`), v63 = de bots uit samen kweken (hun aanbod gewist, geen bel), v62 = de bellen van samen kweken en van vaccins/verzekering per duif, v61 = de aankondigingsbel van de hokinrichting & co (`core/game/news.ts`), v60 = die van Het Lokaal; nieuwe migratie = nieuw `if ((db.world.dataVersion ?? 0) < N)`
+   (staat nu op **73** (dev **74**: + de bel van het voorstel prijsregel) — v73 = de duidelijkere bankbel (2 nov, vervangt die van v72), v72 = de bel van de bank (2 nov, `BANK_NEWS`; het inkomen zelf is een schemastap), v71 = de gewone erfenis (spaarpot, kampioen, belofte) voor De Vluchtige Vleugel (31 okt), v70 = dezelfde erfenis voor OnlyFlaps (27 okt), v69 = de erfenis zonder spaarpot (★75–80) voor Marcel De Neut, Roekoeloos en Graanabolica (27 okt), v68 = bots bijvullen tot 10 duiven (24 okt, in stappen), v67 = de leagues i.p.v. het leeftijdscriterium (§0b, 24 okt), v66 = seizoen 3 afsluiten + criterium uitreiken (24 okt, zie *Stand van zaken*), v65 = de bel van de tags (`TAGS_NEWS`), v64 = de bel van de duivenlokker (`LURE_NEWS`), v63 = de bots uit samen kweken (hun aanbod gewist, geen bel), v62 = de bellen van samen kweken en van vaccins/verzekering per duif, v61 = de aankondigingsbel van de hokinrichting & co (`core/game/news.ts`), v60 = die van Het Lokaal; nieuwe migratie = nieuw `if ((db.world.dataVersion ?? 0) < N)`
    blok + `db.world.dataVersion = N`). De oudere migraties hebben hun werk gedaan en
    zijn enkel nog van belang als **patroon** — zie §8, kop *Eenmalige migraties*.
 2. `ensureFlightsScheduled(db, nowMs)` — plant vluchten volgens `REAL_SCHEDULE`.
@@ -2333,7 +2341,7 @@ npx tsx tests/season-close.test.mts       # v66: seizoen 3 afsluiten (of enkel h
 npx tsx tests/bot-fill.test.mts           # v68: bots tot 10 duiven, ★60–75, in stappen van 3, vaste ids, querykost
 npx tsx tests/erfenis-v69.test.mts        # v69 + v70: erfenis zonder spaarpot (drie spelers + OnlyFlaps), gekozen duif altijd ★75–80, D1 + API; v71: de gewone erfenis voor De Vluchtige Vleugel
 npx tsx tests/market-reference.test.mts   # veilingduiven volgen het gemiddelde: referentie, zondagbanden (+ gedeeld per dag), opvangcentrum
-npx tsx tests/bank.test.mts               # de bank: limiet op inkomsten, lenen, afbetalen om middernacht, aflossen, D1 + API, terugvulling + bel v72
+npx tsx tests/bank.test.mts               # de bank: limiet op inkomsten, lenen, afbetalen om middernacht, aflossen, D1 + API, terugvulling + bel v72/v73
 ```
 
 > **Geen `tsx` beschikbaar?** (cloud-sessie waar de npm-registry geblokkeerd is: `npx tsx`

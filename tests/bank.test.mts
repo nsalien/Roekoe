@@ -450,6 +450,21 @@ console.log('\n10. Live zetten: het inkomen van vóór de bank, en de bel (v72)'
   await s.persist();
   const bells = d1._raw.prepare("SELECT user_id FROM notifications WHERE id LIKE 'ntf:news:bank:%'").all() as any[];
   ok(bells.length === 2 && bells.every((b) => b.user_id === 'usr_vet' || b.user_id === 'usr_nieuw'), 'één bel per echte speler, geen voor de bots');
+  ok((s.data.world.dataVersion ?? 0) >= 73, 'v73 (de duidelijkere bel) liep mee');
+  // v73 sends the rewritten bell under the SAME id: it replaces v72's, unread again.
+  {
+    const s2 = await D1Store.load(d1, 'usr_vet');
+    const mine = s2.data.notifications.find((n) => n.id === `ntf:news:bank:usr_vet`)!;
+    mine.read = true;
+    await s2.persist();
+    s2.data.world.dataVersion = 72;
+    advanceRealtime(s2.data, nowMs + 120000, new Map());
+    await s2.persist();
+    const rows = d1._raw.prepare("SELECT title, read FROM notifications WHERE id LIKE 'ntf:news:bank:%' AND user_id = 'usr_vet'").all() as any[];
+    ok(rows.length === 1 && rows[0].title === BANK_NEWS.title && !rows[0].read, 'v73 vervangt de bel van v72: één bel, opnieuw ongelezen, de nieuwe tekst');
+  }
+  ok(BANK_NEWS.body.includes('in het rood') && BANK_NEWS.body.includes('geveild') && BANK_NEWS.body.includes('"Meer"')
+    && BANK_NEWS.body.length < 1100, `de bel noemt het rood, de veiling en waar de Bank staat (${BANK_NEWS.body.length} tekens)`);
   const t14 = BANK.terms.find((t) => t.days === 14)!;
   ok(BANK_NEWS.body.includes(`${BANK.limitDays} dagen`) && BANK_NEWS.body.includes(`€${loanDaily(loanTotal(5000, t14.days), t14.days)}`)
     && BANK_NEWS.body.includes(`€${loanTotal(5000, t14.days).toLocaleString('nl-BE')}`), 'de bel noemt de echte getallen');

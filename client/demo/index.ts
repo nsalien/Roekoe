@@ -28,7 +28,7 @@ import { advanceClock, installDemoClock, resetClock } from './clock';
 import { mountBanner } from './banner';
 
 /** Bump when the demo world must be rebuilt for everyone (new seed, new schema). */
-const DEMO_VERSION = '16'; // 15 = de bank (inkomsten van de demospeler), 16 = de bank live (bel v72, prijsregel v73)
+const DEMO_VERSION = '17'; // 15 = de bank (inkomsten van de demospeler), 16 = de bank live (bel v72), 17 = de duidelijkere bankbel (v73, prijsregel v74)
 const DB_KEY = 'roekoe.demo.db';
 const VERSION_KEY = 'roekoe.demo.version';
 const TOKEN_KEY = 'roekoe.token';

@@ -10,7 +10,7 @@
  *     duif vliegt, staat in de uitslag, verbetert en krijgt het geld van haar
  *     plaats, maar scoort geen punten. Die punten schuiven NIET door: de uitslag
  *     op het bord is de uitslag die gevlogen is.
- *  3. De aankondiging (migratie v73 op dev — prod gebruikte v69–v71 voor de erfenissen en v72 voor de bank): één bel per speler, pas ná v72.
+ *  3. De aankondiging (migratie v74 op dev — prod gebruikte v69–v71 voor de erfenissen en v72–v73 voor de bank): één bel per speler, pas ná v73.
  *
  * Draai: npx tsx prize-rules.test.mts
  */
@@ -201,8 +201,8 @@ console.log('\nGroot veld — de achterhoede vliegt niet meer voor niets');
   ok(`de laatst aankomende duif krijgt de bodem (plaats ${laatste.rank}: €${laatste.prize})`, laatste.prize === PRIZE_MONEY.national.rest);
 }
 
-// --- 6. De aankondiging: migratie v73 (enkel dev) -------------------------
-console.log('\nDe aankondiging (migratie v73)');
+// --- 6. De aankondiging: migratie v74 (enkel dev) -------------------------
+console.log('\nDe aankondiging (migratie v74)');
 {
   const store = new MemoryStore(emptyDatabase());
   seedWorld(store);
@@ -213,11 +213,11 @@ console.log('\nDe aankondiging (migratie v73)');
     return u.id;
   });
   const db = store.data;
-  advanceRealtime(db, Date.now(), new Map()); // plans the calendar: v72 (the bank's bell) waits for it
+  advanceRealtime(db, Date.now(), new Map()); // plans the calendar: v72–v73 (the bank's bell) wait for it
   runDataMigrations(db);
-  ok('een verse wereld loopt door tot v73', db.world.dataVersion === 73);
-  // Dev at v72 (production + the bank): the bell goes to every real player, once.
-  db.world.dataVersion = 72;
+  ok('een verse wereld loopt door tot v74', db.world.dataVersion === 74);
+  // Dev at v73 (production + the bank): the bell goes to every real player, once.
+  db.world.dataVersion = 73;
   db.notifications = db.notifications.filter((n) => !n.id.startsWith('ntf:news:prijsregel:'));
   runDataMigrations(db);
   runDataMigrations(db);
@@ -226,7 +226,7 @@ console.log('\nDe aankondiging (migratie v73)');
     bells.length === humans.length && humans.every((u) => bells.some((n) => n.userId === u)));
   ok('de bel legt de regel uit', /élke duif/.test(PRIZE_RULE_NEWS.body) && /3 best geplaatste/.test(PRIZE_RULE_NEWS.body)
     && PRIZE_RULE_NEWS.body.includes('€800') && PRIZE_RULE_NEWS.body.includes('€1.200') && PRIZE_RULE_NEWS.body.length < 900);
-  // While v68 still fills bots (production, in steps), v69–v73 wait for it.
+  // While v68 still fills bots (production, in steps), v69–v74 wait for it.
   db.world.dataVersion = 67;
   db.world.seasonYear = 4;
   db.notifications = db.notifications.filter((n) => !n.id.startsWith('ntf:news:prijsregel:'));

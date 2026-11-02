@@ -2753,11 +2753,29 @@ export function runDataMigrations(db: Database, nowMs = Date.now()): void {
     db.world.dataVersion = 72;
   }
 
-  // ⚠️ ENKEL OP DEV (voorstel prijsregel, 24 okt). Op dev heette dit eerst v69, toen v72;
-  // prod gebruikte v69–v71 voor de erfenissen en v72 voor de bank, dus dev = prod +
-  // deze bel als v73. Gaat het voorstel live, dan krijgt het het eerstvolgende vrije
-  // nummer van prod. `=== 72` and not in a flight request, as above.
-  if ((db.world.dataVersion ?? 0) === 72 && !startsOrFinishesFlight(db, nowMs)) {
+  // `=== 72`, same conditions as v72. Eigenaar, 2 nov: "Stuur een duidelijke
+  // communicatie naar de spelers" — the bank's bell again, rewritten (BANK_NEWS):
+  // how much, what it costs, the red, where to find it. SAME id as v72, so it
+  // replaces that bell (back to unread, on top) instead of adding a second one.
+  if ((db.world.dataVersion ?? 0) === 72 && !startsOrFinishesFlight(db, nowMs) && db.flights.length > 0) {
+    for (const loft of db.lofts) {
+      if (loft.isBot) continue;
+      const id = BANK_NEWS.id(loft.userId);
+      pushNotification(db, loft.userId, 'info', BANK_NEWS.title, BANK_NEWS.body, null, id);
+      // pushNotification keeps `read` for a bell already in the loaded inbox (the
+      // player whose request runs this); everyone else's row is replaced as unread.
+      // The new text is the point, so it is unread for all.
+      const mine = db.notifications.find((n) => n.id === id);
+      if (mine) mine.read = false;
+    }
+    db.world.dataVersion = 73;
+  }
+
+  // ⚠️ ENKEL OP DEV (voorstel prijsregel, 24 okt). Op dev heette dit eerst v69, toen v72,
+  // toen v73; prod gebruikte v69–v71 voor de erfenissen en v72–v73 voor de bank, dus
+  // dev = prod + deze bel als v74. Gaat het voorstel live, dan krijgt het het
+  // eerstvolgende vrije nummer van prod. `=== 73` and not in a flight request, as above.
+  if ((db.world.dataVersion ?? 0) === 73 && !startsOrFinishesFlight(db, nowMs)) {
     // Aankondiging (eigenaar, 24 okt): élke duif krijgt het geld van haar plaats,
     // de punten blijven voor de beste 3 per hok (REWARD_BIRDS_PER_LOFT, flight.ts),
     // en de leagues betalen per vlucht meer (LEAGUES[].sprint/fond). Geen datafix:
@@ -2767,7 +2785,7 @@ export function runDataMigrations(db: Database, nowMs = Date.now()): void {
       if (loft.isBot) continue;
       pushNotification(db, loft.userId, 'info', PRIZE_RULE_NEWS.title, PRIZE_RULE_NEWS.body, null, PRIZE_RULE_NEWS.id(loft.userId));
     }
-    db.world.dataVersion = 73;
+    db.world.dataVersion = 74;
   }
 }
 
