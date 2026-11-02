@@ -84,7 +84,7 @@
 > Het voorstel (met alle getallen en de sketch) staat in de artifact "Roekoe Hokinrichting".
 
 ### Stand van zaken (12 okt 2026) — lees dit eerst
-- **Rustkuur €150 per duif — 2 nov, migratie v74** (eigenaar: "Verlaag de rustkuur kost naar 150 … en melding voor
+- **Rustkuur €150 per duif — 2 nov, migratie v74, live** (prod `8369ff5` = dev `d601366`; eigenaar: "Verlaag de rustkuur kost naar 150 … en melding voor
   spelers"): `REST_CURE.cost` 300 → **150**; de rest van de kuur (48 u, +40 energie, +15 gezondheid, 1× per duif per
   week) bleef. De prijs komt overal uit de config (engine, `/state.economy.restCureCost`, de duifpagina, de bots), enkel
   spelregels §4.3, de wiki (`#energie`) en de welkomstrondleiding schreven €300 uit — die drie zeggen nu €150 (de
