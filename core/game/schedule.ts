@@ -2752,6 +2752,24 @@ export function runDataMigrations(db: Database, nowMs = Date.now()): void {
     }
     db.world.dataVersion = 72;
   }
+
+  // `=== 72`, same conditions as v72. Eigenaar, 2 nov: "Stuur een duidelijke
+  // communicatie naar de spelers" — the bank's bell again, rewritten (BANK_NEWS):
+  // how much, what it costs, the red, where to find it. SAME id as v72, so it
+  // replaces that bell (back to unread, on top) instead of adding a second one.
+  if ((db.world.dataVersion ?? 0) === 72 && !startsOrFinishesFlight(db, nowMs) && db.flights.length > 0) {
+    for (const loft of db.lofts) {
+      if (loft.isBot) continue;
+      const id = BANK_NEWS.id(loft.userId);
+      pushNotification(db, loft.userId, 'info', BANK_NEWS.title, BANK_NEWS.body, null, id);
+      // pushNotification keeps `read` for a bell already in the loaded inbox (the
+      // player whose request runs this); everyone else's row is replaced as unread.
+      // The new text is the point, so it is unread for all.
+      const mine = db.notifications.find((n) => n.id === id);
+      if (mine) mine.read = false;
+    }
+    db.world.dataVersion = 73;
+  }
 }
 
 /**
