@@ -119,7 +119,7 @@ import { pickRelayRoute, relayEntryTeams, relayLegKm, relayTeamComplete } from '
 import { rollAnyTrait, rollTrait } from './traits.js';
 import { season3CoachNote, season3Welcome } from './season3.js';
 import { LOKAAL_INTRO } from './lokaal.js';
-import { BANK_NEWS, CARE_NEWS, INRICHTING_NEWS, LEAGUE_NEWS, LURE_NEWS, STUD_NEWS, TAGS_NEWS } from './news.js';
+import { BANK_NEWS, CARE_NEWS, REST_CURE_PRICE_NEWS, INRICHTING_NEWS, LEAGUE_NEWS, LURE_NEWS, STUD_NEWS, TAGS_NEWS } from './news.js';
 import { bell, clamp, dateTimeFormat, hashString, haversineKm, pick, randFloat, round1, seededRng } from './util.js';
 
 // --- Time-zone helpers -----------------------------------------------------
@@ -2769,6 +2769,17 @@ export function runDataMigrations(db: Database, nowMs = Date.now()): void {
       if (mine) mine.read = false;
     }
     db.world.dataVersion = 73;
+  }
+
+  // `=== 73`, same conditions as v72/v73 (no flight request, the calendar exists).
+  if ((db.world.dataVersion ?? 0) === 73 && !startsOrFinishesFlight(db, nowMs) && db.flights.length > 0) {
+    // Eigenaar, 2 nov: "Verlaag de rustkuur kost naar 150 … en melding voor spelers".
+    // The price itself is REST_CURE.cost; this is only the bell, one per real player.
+    for (const loft of db.lofts) {
+      if (loft.isBot) continue;
+      pushNotification(db, loft.userId, 'info', REST_CURE_PRICE_NEWS.title, REST_CURE_PRICE_NEWS.body, null, REST_CURE_PRICE_NEWS.id(loft.userId));
+    }
+    db.world.dataVersion = 74;
   }
 }
 

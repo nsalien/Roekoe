@@ -83,6 +83,13 @@
 > Het voorstel (met alle getallen en de sketch) staat in de artifact "Roekoe Hokinrichting".
 
 ### Stand van zaken (12 okt 2026) — lees dit eerst
+- **Rustkuur €150 per duif — 2 nov, migratie v74** (eigenaar: "Verlaag de rustkuur kost naar 150 … en melding voor
+  spelers"): `REST_CURE.cost` 300 → **150**; de rest van de kuur (48 u, +40 energie, +15 gezondheid, 1× per duif per
+  week) bleef. De prijs komt overal uit de config (engine, `/state.economy.restCureCost`, de duifpagina, de bots), enkel
+  spelregels §4.3, de wiki (`#energie`) en de welkomstrondleiding schreven €300 uit — die drie zeggen nu €150 (de
+  rondleidingsstap zei ook nog "één dag": nu "twee dagen … +15 gezondheid"). Bel **`REST_CURE_PRICE_NEWS`** (news.ts,
+  `ntf:news:rustkuur150:<id>`) via **v74**, zelfde voorwaarden als v72/v73 (`=== 73`, geen vluchtverzoek, kalender
+  bestaat). Test: `tests/rustkuur-prijs.test.mts`.
 - **Een verouderd scherm herlaadt zichzelf — 2 nov, live** (prod `f93d91f` = dev `64ae288`; eigenaar: "Zorg ervoor dat enkel duiven die aan hun score voldoen
   voor de league getoond worden bij het inschrijven … worden alle duiven getoond"; op prod, keuzelijst op Vluchten).
   ⚠️ **De huidige code filtert wél juist** (nagegaan met de echte API, als beheerder, op prod-code, en in de browser:
@@ -99,8 +106,8 @@
   verdwijnt. Gemeten op 360 en 390 px: twee rijen (7 + 3), geen enkel label afgekapt.
 - **Dev weer aan — 1 nov** (om *Lenen bij de bank* te bekijken): herstart vanaf prod + de dev-only stukken (demo,
   Marktwaarde v2, de voorstellen prijsregel en coachprijs). De volledige uitleg staat in de `context.md` op Dev. ⚠️ Dev
-  gebruikt **v74** voor de bel van het voorstel prijsregel (prod v72–v73 = de bank): een volgende migratie op prod is
-  **v74**, en gaat het voorstel ooit live, dan krijgt het daar een nieuw nummer.
+  gebruikt **v75** voor de bel van het voorstel prijsregel (prod v72–v73 = de bank, v74 = de rustkuur): een volgende
+  migratie op prod is **v75**, en gaat het voorstel ooit live, dan krijgt het daar een nieuw nummer.
 - **De gewone erfenis voor De Vluchtige Vleugel — 31 okt, migratie v71** (eigenaar: "Geef de speler 'de vluchtige
   Vleugel' het evenement van de erfenis van een oude melker met keuze tussen geld, oud kampioen of jonge belofte").
   **Live op prod sinds 31 okt** (`c644026` = dev `408d282`). Anders dan v69/v70 is dit de **gewone** kaart: `handInheritanceCard(db, 'de
@@ -1196,7 +1203,7 @@ krijgen.**
 `core/game/schedule.ts` → `advanceRealtime(db, nowMs, weatherByFlight)` roept in
 volgorde:
 1. `runDataMigrations(db)` — eenmalige datafixes, **gated op `world.dataVersion`**
-   (staat nu op **73** — v73 = de duidelijkere bankbel (2 nov, vervangt die van v72), v72 = de bel van de bank (2 nov, `BANK_NEWS`; het inkomen zelf is een schemastap), v71 = de gewone erfenis (spaarpot, kampioen, belofte) voor De Vluchtige Vleugel (31 okt), v70 = dezelfde erfenis voor OnlyFlaps (27 okt), v69 = de erfenis zonder spaarpot (★75–80) voor Marcel De Neut, Roekoeloos en Graanabolica (27 okt), v68 = bots bijvullen tot 10 duiven (24 okt, in stappen), v67 = de leagues i.p.v. het leeftijdscriterium (§0b, 24 okt), v66 = seizoen 3 afsluiten + criterium uitreiken (24 okt, zie *Stand van zaken*), v65 = de bel van de tags (`TAGS_NEWS`), v64 = de bel van de duivenlokker (`LURE_NEWS`), v63 = de bots uit samen kweken (hun aanbod gewist, geen bel), v62 = de bellen van samen kweken en van vaccins/verzekering per duif, v61 = de aankondigingsbel van de hokinrichting & co (`core/game/news.ts`), v60 = die van Het Lokaal; nieuwe migratie = nieuw `if ((db.world.dataVersion ?? 0) < N)`
+   (staat nu op **74** — v74 = de bel van de rustkuur aan €150 (2 nov), v73 = de duidelijkere bankbel (2 nov, vervangt die van v72), v72 = de bel van de bank (2 nov, `BANK_NEWS`; het inkomen zelf is een schemastap), v71 = de gewone erfenis (spaarpot, kampioen, belofte) voor De Vluchtige Vleugel (31 okt), v70 = dezelfde erfenis voor OnlyFlaps (27 okt), v69 = de erfenis zonder spaarpot (★75–80) voor Marcel De Neut, Roekoeloos en Graanabolica (27 okt), v68 = bots bijvullen tot 10 duiven (24 okt, in stappen), v67 = de leagues i.p.v. het leeftijdscriterium (§0b, 24 okt), v66 = seizoen 3 afsluiten + criterium uitreiken (24 okt, zie *Stand van zaken*), v65 = de bel van de tags (`TAGS_NEWS`), v64 = de bel van de duivenlokker (`LURE_NEWS`), v63 = de bots uit samen kweken (hun aanbod gewist, geen bel), v62 = de bellen van samen kweken en van vaccins/verzekering per duif, v61 = de aankondigingsbel van de hokinrichting & co (`core/game/news.ts`), v60 = die van Het Lokaal; nieuwe migratie = nieuw `if ((db.world.dataVersion ?? 0) < N)`
    blok + `db.world.dataVersion = N`). De oudere migraties hebben hun werk gedaan en
    zijn enkel nog van belang als **patroon** — zie §8, kop *Eenmalige migraties*.
 2. `ensureFlightsScheduled(db, nowMs)` — plant vluchten volgens `REAL_SCHEDULE`.
@@ -1868,7 +1875,7 @@ Entiteiten: `Pigeon`, `Loft`, `User`, `BreedingPair`, `PendingBrood`, `Flight` (
   hok nu een award krijgt, ziet bijna iedereen een prijsuitreiking en krijgt bijna iedereen
   de melding (`ntf:season:<seizoen>:<userId>`; enkel premie → "Bedankt om mee te
   vliegen!"). **Bots dingen mee en kunnen ook winnen** (geld erbij, geen melding). `advanceWeek` doet **geen** seizoensrollover meer.
-- **Rustkuur (`REST_CURE`):** `cost 300`, `durationHours 48`, `energy 40`, `health 15`,
+- **Rustkuur (`REST_CURE`):** `cost 150` (tot 2 nov 300), `durationHours 48`, `energy 40`, `health 15`,
   `cooldownDays 7` — **per DUIF**, geteld vanaf de start van haar vorige kuur via
   `Pigeon.lastRestCureAt` (kolom `last_rest_cure_at`). Meerdere duiven tegelijk op kuur mag
   dus; het oude één-per-**hok**-per-week is weg. De poort zit op
@@ -2284,6 +2291,7 @@ npx tsx tests/season-close.test.mts       # v66: seizoen 3 afsluiten (of enkel h
 npx tsx tests/bot-fill.test.mts           # v68: bots tot 10 duiven, ★60–75, in stappen van 3, vaste ids, querykost
 npx tsx tests/erfenis-v69.test.mts        # v69 + v70: erfenis zonder spaarpot (drie spelers + OnlyFlaps), gekozen duif altijd ★75–80, D1 + API; v71: de gewone erfenis voor De Vluchtige Vleugel
 npx tsx tests/market-reference.test.mts   # veilingduiven volgen het gemiddelde: referentie, zondagbanden (+ gedeeld per dag), opvangcentrum
+npx tsx tests/rustkuur-prijs.test.mts     # rustkuur €150: prijs, de teksten die hem uitschrijven, bel v74
 npx tsx tests/bank.test.mts               # de bank: limiet op inkomsten, lenen, afbetalen om middernacht, aflossen, D1 + API, terugvulling + bel v72/v73
 ```
 

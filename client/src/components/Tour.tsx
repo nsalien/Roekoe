@@ -172,7 +172,7 @@ const STEPS: Step[] = [
   {
     route: '/hok',
     title: '🛌 Rustkuur',
-    body: 'Zit een duif zonder energie? Geef haar via haar duifpagina een betaalde rustkuur: één dag verplicht rusten voor €300, en daarna krijgt ze er +40 energie bij. Let op: maar één rustkuur per week (voor één duif).',
+    body: 'Zit een duif zonder energie? Geef haar via haar duifpagina een betaalde rustkuur: twee dagen verplicht rusten voor €150, en daarna krijgt ze er +40 energie en +15 gezondheid bij. Elke duif hoogstens één keer per week.',
   },
   {
     route: '/markt', selector: '[data-tour="market"]',

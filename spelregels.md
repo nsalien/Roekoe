@@ -1312,7 +1312,7 @@ verplicht onder de hamer. Het volledige traject staat in **§4.5**.
 ### 4.3 Rustkuur (energie én gezondheid kopen met tijd)
 Naast wachten en Herstelvoer kan je een duif een **betaalde rustkuur** geven op
 haar duifpagina:
-- Kost **€300** en duurt **twee dagen** (48 u, echte tijd).
+- Kost **€150** per duif (tot 2 nov €300) en duurt **twee dagen** (48 u, echte tijd).
 - Tijdens de kuur **rust** de duif volledig: ze kan **niets** doen — **geen
   vluchten, geen training, geen koppelen** — tot de 48 u om zijn.
 - Als de kuur voorbij is, krijgt ze in één keer **+40 energie en +15
