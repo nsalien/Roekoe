@@ -8,6 +8,7 @@ import { MARKET_SEEN_EVENT, hasMarketNews, marketSeenAt } from '../game/marketSe
 import { LOKAAL_SEEN_EVENT, hasLokaalNews, lokaalSeenAt } from '../game/lokaalSeen';
 import { STUD_SEEN_EVENT, hasStudNews, studSeenAt } from '../game/studSeen';
 import { api } from '../api/client';
+import { APP_BUILD, liveBuild, reloadInto } from '../game/appVersion';
 import { useToast } from './ui';
 import { NotificationsBell } from './NotificationsBell';
 import { INRICHTING_NEWS_STEPS, LEAGUE_NEWS_STEPS, LOKAAL_NEWS_STEPS, Tour, lureNewsSteps, season3NewsSteps, studNewsSteps, tagNewsSteps } from './Tour';
@@ -102,11 +103,46 @@ const ADMIN_NAV: NavItem = { to: '/beheer', label: 'Beheer', short: 'Beheer', ic
 // sixth is the Ziekenboeg, which the owner wanted out of the overflow row.
 const PRIMARY = 6;
 
+/**
+ * A newer version went live while this tab was open (see game/appVersion.ts).
+ * Coming BACK to the tab — the phone app resumed, the tab focused again — reloads
+ * at once: nothing is being typed at that moment. While the tab stays open it
+ * checks every 5 minutes and only offers the reload, so a half-typed message in
+ * Het Lokaal is never thrown away.
+ */
+function useNewVersion(): boolean {
+  const [stale, setStale] = useState(false);
+  useEffect(() => {
+    if (!APP_BUILD) return; // not a real build (dev server)
+    let alive = true;
+    const check = async (resumed: boolean) => {
+      const live = await liveBuild();
+      if (!alive || !live || live === APP_BUILD) return;
+      if (resumed && reloadInto(live)) return;
+      setStale(true);
+    };
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') void check(true);
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    const timer = window.setInterval(() => {
+      if (document.visibilityState === 'visible') void check(false);
+    }, 5 * 60_000);
+    return () => {
+      alive = false;
+      document.removeEventListener('visibilitychange', onVisible);
+      window.clearInterval(timer);
+    };
+  }, []);
+  return stale;
+}
+
 export function Layout() {
   const { user, logout } = useAuth();
   const { state, refresh } = useGame();
   const toast = useToast();
   const [advancing, setAdvancing] = useState(false);
+  const newVersion = useNewVersion();
 
   // One-time welcome tour, remembered per player (per browser). Closing it —
   // even early — counts as seen, so it never returns on its own. The profile
@@ -480,6 +516,12 @@ export function Layout() {
       </div>
 
       <main className="container page">
+        {newVersion && (
+          <div className="card" style={{ borderColor: 'var(--brand)', marginBottom: 14 }}>
+            🔄 <strong>Er staat een nieuwe versie van Roekoe klaar.</strong>{' '}
+            <button className="btn sm" onClick={() => window.location.reload()}>Herladen</button>
+          </div>
+        )}
         {/* Seizoen 3 sponsor limit: too many contracts → none pays until the player
             has chosen. Shown on every page until it is resolved. */}
         {state?.loft?.sponsorsMustReduce && (
