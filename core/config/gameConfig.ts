@@ -3128,7 +3128,8 @@ export const NEWCOMER = {
 } as const;
 
 export const REST_CURE = {
-  cost: 300,
+  // €150 per bird since 2 nov (owner: "Verlaag de rustkuur kost naar 150"); was €300.
+  cost: 150,
   // Two full days off. EVERY bird may be put on a cure — the old limit of one cure
   // per LOFT per week is gone — but each bird individually may only take one a week
   // (`cooldownDays`, measured from the start of its previous cure and tracked per

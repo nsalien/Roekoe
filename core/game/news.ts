@@ -7,7 +7,7 @@
  * en niet in de migratie, zodat de test hem kan lezen zonder de motor te draaien.
  */
 
-import { BANK, INSURANCE, LEAGUE, LEAGUES, LURE, LURE_MAX_LEVEL, MARKET_BOOST, PIGEON_TAGS, REWARD_BIRDS_PER_LOFT, STUD, VACCINES, leagueAward, loanDaily, loanTotal, studFailedRefund } from '../config/gameConfig.js';
+import { BANK, INSURANCE, REST_CURE, LEAGUE, LEAGUES, LURE, LURE_MAX_LEVEL, MARKET_BOOST, PIGEON_TAGS, REWARD_BIRDS_PER_LOFT, STUD, VACCINES, leagueAward, loanDaily, loanTotal, studFailedRefund } from '../config/gameConfig.js';
 
 export const INRICHTING_NEWS = {
   title: '🧰 Nieuw: je hok inrichten, en meer',
@@ -151,6 +151,26 @@ export const BANK_NEWS = {
   ].join('\n'),
   /** Stabiel per speler: twee verzoeken die tegelijk migreren geven één bel — en v73 vervangt de bel van v72. */
   id: (userId: string) => `ntf:news:bank:${userId}`,
+} as const;
+
+/**
+ * De rustkuur wordt goedkoper (eigenaar, 2 nov: "Verlaag de rustkuur kost naar 150
+ * … en melding voor spelers"). Migratie v74. Getallen uit REST_CURE.
+ */
+export const REST_CURE_PRICE_NEWS = {
+  title: `🛌 Rustkuur goedkoper: nu €${REST_CURE.cost}`,
+  body: [
+    `Een rustkuur kost vanaf nu €${REST_CURE.cost} per duif in plaats van €300.`,
+    '',
+    `Verder blijft alles hetzelfde: ${REST_CURE.durationHours / 24} dagen volledige rust, daarna in één keer +${REST_CURE.energy} energie en `
+      + `+${REST_CURE.health} gezondheid, en elke duif hoogstens één keer per week.`,
+    '',
+    '💡 Ideaal om een duif met een volle tank aan een lange vlucht te laten beginnen: op de fond weegt energie het zwaarst.',
+    '',
+    'Je start een rustkuur op de pagina van de duif (tik op haar naam).',
+  ].join('\n'),
+  /** Stabiel per speler: twee verzoeken die tegelijk migreren geven één bel. */
+  id: (userId: string) => `ntf:news:rustkuur150:${userId}`,
 } as const;
 
 const WEEKDAY_NL = ['zondag', 'maandag', 'dinsdag', 'woensdag', 'donderdag', 'vrijdag', 'zaterdag'];

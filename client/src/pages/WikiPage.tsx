@@ -582,7 +582,7 @@ export function WikiPage() {
 
         <h3 style={{ marginBottom: 4 }}>Rustkuur: tijd omzetten in vorm</h3>
         <ul style={{ marginTop: 0 }}>
-          <li><strong>€300 voor twee volle dagen rust.</strong> Daarna in één keer <strong>+40 energie</strong> en
+          <li><strong>€150 voor twee volle dagen rust.</strong> Daarna in één keer <strong>+40 energie</strong> en
             <strong> +15 gezondheid</strong> — de snelste weg terug naar een groene vluchtvorm.</li>
           <li>Tijdens de kuur kan de duif <strong>niets</strong>: niet vliegen, trainen of koppelen.</li>
           <li><strong>Elke duif mag op kuur</strong>, en gerust meerdere tegelijk — maar <strong>elke duif maar één keer

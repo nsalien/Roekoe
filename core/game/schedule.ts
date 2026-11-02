@@ -119,7 +119,7 @@ import { pickRelayRoute, relayEntryTeams, relayLegKm, relayTeamComplete } from '
 import { rollAnyTrait, rollTrait } from './traits.js';
 import { season3CoachNote, season3Welcome } from './season3.js';
 import { LOKAAL_INTRO } from './lokaal.js';
-import { BANK_NEWS, CARE_NEWS, INRICHTING_NEWS, LEAGUE_NEWS, LURE_NEWS, PRIZE_RULE_NEWS, STUD_NEWS, TAGS_NEWS } from './news.js';
+import { BANK_NEWS, CARE_NEWS, REST_CURE_PRICE_NEWS, INRICHTING_NEWS, LEAGUE_NEWS, LURE_NEWS, PRIZE_RULE_NEWS, STUD_NEWS, TAGS_NEWS } from './news.js';
 import { bell, clamp, dateTimeFormat, hashString, haversineKm, pick, randFloat, round1, seededRng } from './util.js';
 
 // --- Time-zone helpers -----------------------------------------------------
@@ -2771,11 +2771,22 @@ export function runDataMigrations(db: Database, nowMs = Date.now()): void {
     db.world.dataVersion = 73;
   }
 
+  // `=== 73`, same conditions as v72/v73 (no flight request, the calendar exists).
+  if ((db.world.dataVersion ?? 0) === 73 && !startsOrFinishesFlight(db, nowMs) && db.flights.length > 0) {
+    // Eigenaar, 2 nov: "Verlaag de rustkuur kost naar 150 … en melding voor spelers".
+    // The price itself is REST_CURE.cost; this is only the bell, one per real player.
+    for (const loft of db.lofts) {
+      if (loft.isBot) continue;
+      pushNotification(db, loft.userId, 'info', REST_CURE_PRICE_NEWS.title, REST_CURE_PRICE_NEWS.body, null, REST_CURE_PRICE_NEWS.id(loft.userId));
+    }
+    db.world.dataVersion = 74;
+  }
+
   // ⚠️ ENKEL OP DEV (voorstel prijsregel, 24 okt). Op dev heette dit eerst v69, toen v72,
-  // toen v73; prod gebruikte v69–v71 voor de erfenissen en v72–v73 voor de bank, dus
-  // dev = prod + deze bel als v74. Gaat het voorstel live, dan krijgt het het
-  // eerstvolgende vrije nummer van prod. `=== 73` and not in a flight request, as above.
-  if ((db.world.dataVersion ?? 0) === 73 && !startsOrFinishesFlight(db, nowMs)) {
+  // v73, v74; prod gebruikte v69–v71 voor de erfenissen, v72–v73 voor de bank en v74
+  // voor de rustkuur, dus dev = prod + deze bel als v75. Gaat het voorstel live, dan
+  // krijgt het het eerstvolgende vrije nummer van prod. `=== 74`, no flight request.
+  if ((db.world.dataVersion ?? 0) === 74 && !startsOrFinishesFlight(db, nowMs)) {
     // Aankondiging (eigenaar, 24 okt): élke duif krijgt het geld van haar plaats,
     // de punten blijven voor de beste 3 per hok (REWARD_BIRDS_PER_LOFT, flight.ts),
     // en de leagues betalen per vlucht meer (LEAGUES[].sprint/fond). Geen datafix:
@@ -2785,7 +2796,7 @@ export function runDataMigrations(db: Database, nowMs = Date.now()): void {
       if (loft.isBot) continue;
       pushNotification(db, loft.userId, 'info', PRIZE_RULE_NEWS.title, PRIZE_RULE_NEWS.body, null, PRIZE_RULE_NEWS.id(loft.userId));
     }
-    db.world.dataVersion = 74;
+    db.world.dataVersion = 75;
   }
 }
 
