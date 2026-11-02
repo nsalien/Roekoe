@@ -119,6 +119,7 @@ import { pigeonSeasonRankings } from '../../core/game/season.js';
 import { buyStraw, setCleaner } from '../../core/game/hygiene.js';
 import { buyEquipment, buyIrBox, inrichtingEffects, inrichtingLevels, magazineReport, setInsurance, upgradeEquipment, vaccinate, vaccinateLoft } from '../../core/game/inrichting.js';
 import { buyLure, lureCatalogue } from '../../core/game/lure.js';
+import { bankView, borrow, settleLoan } from '../../core/game/bank.js';
 import { setPigeonTags } from '../../core/game/tags.js';
 import { spendAttribute, spendExperience } from '../../core/game/newcomer.js';
 import { velocityBreakdown, weightsForDistance } from '../../core/game/flight.js';
@@ -227,7 +228,8 @@ const READ_ONLY_POSTS = new Set(['/api/bets/preview']);
  * every navigation and after every action, and it used to read all ~264 pigeons
  * for two top-10 lists that are now cached.
  */
-const NARROW_PATHS = new Set(['/api/state', '/api/flights', '/api/bets', '/api/notifications']);
+// '/api/bank' reads only the viewer's own loft row (bank.ts).
+const NARROW_PATHS = new Set(['/api/state', '/api/flights', '/api/bets', '/api/notifications', '/api/bank']);
 
 /**
  * GET/HEAD only — a write never runs on a narrowed world.
@@ -695,6 +697,34 @@ app.post('/sponsors/cancel', async (c) => {
   const body = await c.req.json().catch(() => ({}));
   const store = c.get('store');
   const result = cancelSponsor(store, user.id, String(body.sponsorId ?? ''));
+  await store.persist();
+  if (result.startsWith('!')) return c.json({ error: result.slice(1) }, 400);
+  return c.json({ ok: true, result });
+});
+
+// --- De bank (core/game/bank.ts) ---------------------------------------------
+app.get('/bank', (c) => {
+  const user = requireUser(c);
+  const loft = c.get('store').data.lofts.find((l) => l.userId === user.id);
+  if (!loft) return c.json({ error: 'Geen hok gevonden' }, 404);
+  return c.json(bankView(loft, Date.now()));
+});
+
+app.post('/bank/borrow', async (c) => {
+  const user = requireUser(c);
+  const body = await c.req.json().catch(() => ({}));
+  const store = c.get('store');
+  const result = store.mutate((db) => borrow(db, user.id, Number(body.amount), Number(body.days), Date.now()));
+  await store.persist();
+  if (result.startsWith('!')) return c.json({ error: result.slice(1) }, 400);
+  return c.json({ ok: true, result });
+});
+
+app.post('/bank/settle', async (c) => {
+  const user = requireUser(c);
+  const body = await c.req.json().catch(() => ({}));
+  const store = c.get('store');
+  const result = store.mutate((db) => settleLoan(db, user.id, String(body.loanId ?? '')));
   await store.persist();
   if (result.startsWith('!')) return c.json({ error: result.slice(1) }, 400);
   return c.json({ ok: true, result });

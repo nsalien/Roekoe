@@ -41,6 +41,7 @@ import type {
 import { emptySponsorState } from '../schema.js';
 import { newId } from '../store.js';
 import { clamp } from './util.js';
+import { earn } from './bank.js';
 import { talent } from './pigeon.js';
 
 const BY_ID = new Map(SPONSORS.map((s) => [s.id, s]));
@@ -435,7 +436,7 @@ export function applyAcceptSponsor(
   st.active.push({ id: sponsorId, since: new Date().toISOString(), dailyStipend: offer.dailyStipend, podiumBase: offer.podiumBase });
   if (!st.signed.includes(sponsorId)) {
     st.signed.push(sponsorId);
-    loft.money += offer.signingBonus;
+    earn(loft, offer.signingBonus, Date.now()); // sponsor money is income for the bank (bank.ts)
     notify(db, loft, `${def.icon} ${def.name} tekent bij jou`,
       `Welkomstpremie €${offer.signingBonus}. Vanaf nu €${offer.dailyStipend} per dag, plus een podiumpremie per wedstrijdvlucht (${podiumSummary(offer.podiumBase)}).`);
     return `${def.name} is nu een van je sponsors! Tekengeld: €${offer.signingBonus}.`;

@@ -690,6 +690,12 @@ function AuctionCard({
           {auction.bidBlockedReason}
         </p>
       )}
+      {/* De bank: a bid the kassa cannot carry yet (the button is off above). */}
+      {!auction.bidBlockedReason && amount > money && (
+        <p className="faint" style={{ margin: '8px 0 0', fontSize: '0.82rem' }}>
+          Te weinig in kas? <Link to="/bank">🏦 Leen bij de bank →</Link>
+        </p>
+      )}
       {closingSoon && !outOfBids && (
         <p className="faint" style={{ margin: '8px 0 0', fontSize: '0.78rem' }}>
           Een bod nu zet de klok terug op {auction.antiSnipeMinutes} min — winnen op de valreep lukt niet.

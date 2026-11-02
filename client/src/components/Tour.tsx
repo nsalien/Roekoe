@@ -1103,3 +1103,33 @@ export const LEAGUE_NEWS_STEPS: Step[] = [
     ),
   },
 ];
+
+/**
+ * Aankondiging van DE BANK (eigenaar, 2 nov). De bel is migratie v72 (BANK_NEWS in
+ * news.ts). Eerst de pagina zelf, dan de Dagbalans waar de afbetaling elke nacht staat.
+ */
+export const BANK_NEWS_STEPS: Step[] = [
+  {
+    route: '/bank', selector: '[data-tour="bank"]',
+    title: '🏦 Nieuw: lenen bij de bank',
+    body: (
+      <>
+        Te weinig in kas voor die ene duif? Hier leen je geld. Je mag tot <strong>10 dagen van je gemiddelde
+        inkomsten</strong> open hebben staan. Een langere looptijd is een lichtere afbetaling, maar kost samen meer.
+        Op gsm staat de Bank onder <em>Meer</em>.
+      </>
+    ),
+  },
+  {
+    route: '/', selector: '[data-tour="daily-costs"]',
+    title: '💶 Elke nacht afbetalen',
+    body: (
+      <>
+        Je afbetaling staat in je <strong>Dagbalans</strong> en gaat <strong>altijd</strong> door — ook als je kassa
+        daardoor in het rood zakt, en in het rood kan je niets kopen en niet inschrijven. Lenen kost geld.
+        <br />
+        <span className="faint" style={{ display: 'inline-block', marginTop: 4 }}>Alle regels: 📖 Wiki → De bank.</span>
+      </>
+    ),
+  },
+];

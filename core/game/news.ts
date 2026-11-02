@@ -7,7 +7,7 @@
  * en niet in de migratie, zodat de test hem kan lezen zonder de motor te draaien.
  */
 
-import { INSURANCE, LEAGUE, LEAGUES, LURE, LURE_MAX_LEVEL, MARKET_BOOST, PIGEON_TAGS, STUD, VACCINES, leagueAward, studFailedRefund } from '../config/gameConfig.js';
+import { BANK, INSURANCE, LEAGUE, LEAGUES, LURE, LURE_MAX_LEVEL, MARKET_BOOST, PIGEON_TAGS, STUD, VACCINES, leagueAward, loanDaily, loanTotal, studFailedRefund } from '../config/gameConfig.js';
 
 export const INRICHTING_NEWS = {
   title: '🧰 Nieuw: je hok inrichten, en meer',
@@ -118,6 +118,32 @@ export const TAGS_NEWS = {
   ].join('\n'),
   /** Stabiel per speler: twee verzoeken die tegelijk migreren geven één bel. */
   id: (userId: string) => `ntf:news:tags:${userId}`,
+} as const;
+
+/**
+ * Aankondiging van DE BANK (eigenaar, 2 nov: "Zet de bank live in productie").
+ * Migratie v72 zet deze bel in de inbox van elke echte speler. Getallen uit BANK,
+ * zodat de bel nooit iets anders zegt dan het spel doet.
+ */
+const BANK_EXAMPLE = 5000;
+const BANK_EXAMPLE_TERM = BANK.terms.find((t) => t.days === 14) ?? BANK.terms[0];
+export const BANK_NEWS = {
+  title: '🏦 Nieuw: lenen bij de bank',
+  body: [
+    'Te weinig in kas voor die ene duif? Op de nieuwe pagina Bank leen je geld. Lenen kost geld: je betaalt elke nacht af, met rente.',
+    `• Je mag tot ${BANK.limitDays} dagen van je gemiddelde inkomsten open hebben staan (prijzengeld, sponsors, seizoensprijzen en `
+      + `dagopdrachten van de laatste ${BANK.incomeWindowDays} dagen), met een maximum van €${BANK.maxLimit.toLocaleString('nl-BE')}. `
+      + 'Een duif verkopen telt niet als inkomen.',
+    `• Looptijd: ${BANK.terms.map((t) => `${t.days} dagen (${Math.round(t.interest * 100)} %)`).join(', ')}. `
+      + `Leen je €${BANK_EXAMPLE.toLocaleString('nl-BE')} over ${BANK_EXAMPLE_TERM.days} dagen, dan betaal je `
+      + `${BANK_EXAMPLE_TERM.days} dagen €${loanDaily(loanTotal(BANK_EXAMPLE, BANK_EXAMPLE_TERM.days), BANK_EXAMPLE_TERM.days)} terug, `
+      + `samen €${loanTotal(BANK_EXAMPLE, BANK_EXAMPLE_TERM.days).toLocaleString('nl-BE')}.`,
+    '• De afbetaling gaat altijd door, ook als je kassa daardoor in het rood zakt — en in het rood kan je niets kopen en niet inschrijven. '
+      + 'Je ziet ze elke dag in je Dagbalans. Aflossen kan altijd, rente inbegrepen.',
+    'Op gsm vind je de Bank onder "Meer". Meer uitleg: Wiki → De bank.',
+  ].join('\n'),
+  /** Stabiel per speler: twee verzoeken die tegelijk migreren geven één bel. */
+  id: (userId: string) => `ntf:news:bank:${userId}`,
 } as const;
 
 const WEEKDAY_NL = ['zondag', 'maandag', 'dinsdag', 'woensdag', 'donderdag', 'vrijdag', 'zaterdag'];

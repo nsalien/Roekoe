@@ -2669,6 +2669,58 @@ Verdiend geld kan je investeren in je hok en je duiven (bij *Mijn hok*, de
   nooit een al hoger opgebouwde waarde.
 - **Duif hernoemen** kost €1.000. **Je hok hernoemen** (bij Profiel) kost €2.000.
 
+### 13.1 De bank: lenen
+
+Op de pagina **Bank** leen je geld — bijvoorbeeld om mee te bieden op een duif die
+je nu nog niet kan betalen. **Lenen kost geld**: je betaalt elke dag af, met rente.
+
+**Hoeveel je mag lenen hangt af van wat je verdient.** Wat je de bank nog moet
+terugbetalen (rente inbegrepen) mag nooit meer zijn dan **10 dagen van je
+gemiddelde inkomsten**, met een maximum van **€50.000**:
+
+```
+gemiddelde = inkomsten van de laatste 14 volle dagen / 14     (vandaag telt pas na middernacht mee)
+limiet     = min(€50.000, gemiddelde × 10), afgerond naar beneden op €100
+nog vrij   = limiet − wat je nog terug moet betalen
+```
+
+- **Telt als inkomsten:** prijzengeld (elke vlucht, de leagues, titan en estafette),
+  je sponsors (dagbedrag, podiumpremies, tekengeld), seizoens- en leagueprijzen en de
+  dagopdrachten.
+- **Telt niet:** een duif verkopen, terugbetaald inschrijfgeld, weddenschappen en
+  gebeurtenissen. Je kan dus niet lenen op de verkoop van je eigen duiven.
+
+**Looptijd en rente.** Je kiest een looptijd; de rente staat vast en je kent ze vooraf:
+
+| Looptijd | Rente | Leen je €5.000 | Samen terug |
+|---|---|---|---|
+| 7 dagen | 5 % | €750 per dag | €5.250 |
+| 14 dagen | 10 % | €393 per dag | €5.500 |
+| 28 dagen | 20 % | €215 per dag | €6.000 |
+
+```
+terug te betalen = bedrag × (1 + rente), naar boven afgerond op €1
+per dag          = nog terug te betalen / dagen die nog resten, naar boven afgerond op €1
+                   (zo is het na precies de looptijd afbetaald; sommige dagen €1 minder)
+```
+
+Overal dezelfde rente per dag: een langere looptijd is een lichtere afbetaling, maar
+kost samen meer. Je leent vanaf **€100**, in stappen van €100, en hebt hoogstens
+**5 leningen** tegelijk.
+
+- **Afbetalen** gebeurt elke **middernacht**, samen met je vaste onkosten (§4.2); je
+  ziet het in je *Dagbalans*. Een lening van vandaag betaal je vanaf vannacht af.
+- **De afbetaling gaat altijd door.** Is je kassa leeg, dan zakt ze in het rood, met
+  alles wat daarbij hoort (§4.5). Wie in het rood staat, krijgt geen lening.
+- **Aflossen** kan altijd, maar je betaalt wat je nog schuldig bent, **rente
+  inbegrepen**: vroeger aflossen spaart geen rente uit, het haalt wel de dagelijkse
+  afbetaling weg en maakt je limiet weer vrij.
+- De computermelkers lenen niet.
+
+> **Voorbeeld.** Je verdient gemiddeld €600 per dag, dus je limiet is €6.000. Je
+> leent €5.000 over 14 dagen: twee weken lang €393 per dag bovenop je onkosten,
+> samen €5.500. Daarna heb je nog €500 ruimte, en elke afbetaling maakt er weer wat vrij.
+
 ## 14. Weddenschappen
 
 Vanaf **12 uur voor de start** tot het moment dat de vlucht begint, verschijnt bij

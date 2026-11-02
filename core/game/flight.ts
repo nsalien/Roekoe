@@ -42,6 +42,7 @@ import { relayEntryTeams, relayLegKm, relaySimTeams } from './relay.js';
 import { ageMultiplier, conditionScore, experienceGain, flightForm, noteAttrChange, raceCeil } from './pigeon.js';
 import { applyAilment, randomLuckInjury, randomStrainInjury } from './health.js';
 import { winningsMultiplier } from './newcomer.js';
+import { earn } from './bank.js';
 import { randomWeather, type WeatherResult } from './weather.js';
 import { clamp, hashString, interpolate, pickWith, randFloat, round1, seededRng } from './util.js';
 
@@ -2595,7 +2596,7 @@ export function applyFlightEffects(
   lofts: Loft[],
   /** The flight these effects come from, so each bird can remember when it last
    *  raced (drives the RECOVERY deduction for racing on consecutive days). */
-  raced?: { at: string; practice?: boolean },
+  raced?: { at: string; practice?: boolean; nowMs?: number },
 ): void {
   for (const f of sim.fatigue) {
     const p = pigeons.find((x) => x.id === f.pigeonId);
@@ -2642,7 +2643,8 @@ export function applyFlightEffects(
     const loft = lofts.find((l) => l.userId === pay.ownerId);
     if (!loft) continue;
     const mult = Number.isNaN(racedAtMs) ? 1 : winningsMultiplier(loft, racedAtMs);
-    loft.money += Math.round(pay.prize * mult);
+    // Prize money is income: it counts towards what the bank will lend (bank.ts).
+    earn(loft, Math.round(pay.prize * mult), raced?.nowMs ?? (Number.isNaN(racedAtMs) ? Date.now() : racedAtMs));
     loft.seasonPoints += Math.round(pay.points * mult);
     loft.totalWins += pay.wins;
     loft.seasonWins = (loft.seasonWins ?? 0) + pay.wins;

@@ -285,7 +285,7 @@ console.log('\n5d. v71: de gewone erfenis (spaarpot, kampioen, belofte) voor De 
   const bot = addPlayer(store, 'vv-bot', 'De Vluchtige Vleugel', true);
   const loftOf = (id: string) => db.lofts.find((l) => l.userId === id)!;
   advanceRealtime(db, NOW);
-  ok(db.world.dataVersion === 71, `de migratie liep (dataVersion ${db.world.dataVersion})`);
+  ok((db.world.dataVersion ?? 0) >= 71, `de migratie liep (dataVersion ${db.world.dataVersion})`);
   for (const [id, who] of [[vv, 'hoknaam "De Vluchtige  Vleugel"'], [vv2, 'gebruikersnaam "De vluchtige Vleugel"']] as const) {
     const ev = loftOf(id).pendingEvent;
     ok(JSON.stringify(ev) === JSON.stringify(inheritanceCard()), `${who}: de gewone erfeniskaart (drie keuzes, geen vaste score)`);
@@ -330,7 +330,7 @@ console.log('\n5d. v71: de gewone erfenis (spaarpot, kampioen, belofte) voor De 
   const loft = db.lofts.find((l) => l.userId === vv)!;
   ok(db.world.dataVersion === 70 && loft.pendingEvent === null, 'een vluchtverzoek: v71 wacht');
   advanceRealtime(db, NOW + 1000);
-  ok(db.world.dataVersion === 71 && loft.pendingEvent?.key === 'inheritance', 'het volgende verzoek: v71');
+  ok((db.world.dataVersion ?? 0) >= 71 && loft.pendingEvent?.key === 'inheritance', 'het volgende verzoek: v71');
 }
 
 // ---------------------------------------------------------------------------

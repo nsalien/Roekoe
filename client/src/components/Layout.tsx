@@ -11,7 +11,7 @@ import { api } from '../api/client';
 import { APP_BUILD, liveBuild, reloadInto } from '../game/appVersion';
 import { useToast } from './ui';
 import { NotificationsBell } from './NotificationsBell';
-import { INRICHTING_NEWS_STEPS, LEAGUE_NEWS_STEPS, LOKAAL_NEWS_STEPS, Tour, lureNewsSteps, season3NewsSteps, studNewsSteps, tagNewsSteps } from './Tour';
+import { BANK_NEWS_STEPS, INRICHTING_NEWS_STEPS, LEAGUE_NEWS_STEPS, LOKAAL_NEWS_STEPS, Tour, lureNewsSteps, season3NewsSteps, studNewsSteps, tagNewsSteps } from './Tour';
 import { PrizeCeremony } from './PrizeCeremony';
 
 interface NavItem { to: string; label: string; short: string; icon: string; end?: boolean }
@@ -86,6 +86,7 @@ const NAV: NavItem[] = [
   { to: '/kweek', label: 'Kweek', short: 'Kweek', icon: '🥚' },
   { to: '/ziekenboeg', label: 'Ziekenboeg', short: 'Zieken', icon: '🏥' },
   { to: '/sponsors', label: 'Sponsors', short: 'Sponsor', icon: '🤝' },
+  { to: '/bank', label: 'Bank', short: 'Bank', icon: '🏦' },
   { to: '/prestaties', label: 'Prestaties', short: 'Prestige', icon: '🎖️' },
   { to: '/ranglijst', label: 'Rang', short: 'Rang', icon: '🏆' },
   { to: '/lokaal', label: 'Het Lokaal', short: 'Lokaal', icon: '🍻' },
@@ -102,6 +103,8 @@ const ADMIN_NAV: NavItem = { to: '/beheer', label: 'Beheer', short: 'Beheer', ic
 // (with "Meer" that is seven equal slots, ~51 px each on a 360 px phone); the
 // sixth is the Ziekenboeg, which the owner wanted out of the overflow row.
 const PRIMARY = 6;
+/** Icons per row in the opened "Meer" sheet (owner, 2 nov: "7 icoontjes per sectie"). */
+const SHEET_COLUMNS = 7;
 
 /**
  * A newer version went live while this tab was open (see game/appVersion.ts).
@@ -186,6 +189,7 @@ export function Layout() {
     if (user?.id) { try { localStorage.setItem(`roekoe.newsSeen.lokker.${user.id}`, '1'); } catch { /* private mode */ } }
     if (user?.id) { try { localStorage.setItem(`roekoe.newsSeen.tags.${user.id}`, '1'); } catch { /* private mode */ } }
     if (user?.id) { try { localStorage.setItem(`roekoe.newsSeen.leagues.${user.id}`, '1'); } catch { /* private mode */ } }
+    if (user?.id) { try { localStorage.setItem(`roekoe.newsSeen.bank.${user.id}`, '1'); } catch { /* private mode */ } }
     setShowTour(false);
   }
 
@@ -370,9 +374,37 @@ export function Layout() {
   }, [leagueNewsKey, tagsNewsKey, lureNewsKey, samenNewsKey, inrichtingNewsKey, lokaalNewsKey, newsKey, state?.loft,
     state?.world?.newsAt, showTour, showNews, showLokaalNews, showInrichtingNews, showSamenNews, showLureNews, showTagsNews,
     lokaalNewsDone, inrichtingNewsDone, samenNewsDone, lureNewsDone, tagsNewsDone]);
+  const [leagueNewsDone, setLeagueNewsDone] = useState(false);
   function closeLeagueNews() {
     if (leagueNewsKey) { try { localStorage.setItem(leagueNewsKey, '1'); } catch { /* private mode */ } }
     setShowLeagueNews(false);
+    setLeagueNewsDone(true);
+  }
+
+  // Aankondiging van DE BANK (twee spotlights, eigen sleutel). Zelfde regel als de
+  // runs hierboven: pas als die gezien zijn, nooit twee runs op één bezoek. Bel: v72.
+  const bankNewsKey = user?.id ? `roekoe.newsSeen.bank.${user.id}` : null;
+  const [showBankNews, setShowBankNews] = useState(false);
+  const otherNewsOpen = showTour || showNews || showLokaalNews || showInrichtingNews || showSamenNews || showLureNews
+    || showTagsNews || showLeagueNews;
+  const otherNewsDoneNow = lokaalNewsDone || inrichtingNewsDone || samenNewsDone || lureNewsDone || tagsNewsDone
+    || leagueNewsDone;
+  useEffect(() => {
+    if (!bankNewsKey || !state?.loft || otherNewsOpen || otherNewsDoneNow) return;
+    let seen = true;
+    let earlierPending = false;
+    try {
+      seen = !!localStorage.getItem(bankNewsKey);
+      earlierPending = [leagueNewsKey, tagsNewsKey, lureNewsKey, samenNewsKey, inrichtingNewsKey, lokaalNewsKey]
+        .some((k) => !!k && !localStorage.getItem(k))
+        || (!!newsKey && !!state.world?.newsAt && !localStorage.getItem(newsKey));
+    } catch { /* private mode: treat as seen */ }
+    if (!seen && !earlierPending) setShowBankNews(true);
+  }, [bankNewsKey, leagueNewsKey, tagsNewsKey, lureNewsKey, samenNewsKey, inrichtingNewsKey, lokaalNewsKey,
+    newsKey, state?.loft, state?.world?.newsAt, otherNewsOpen, otherNewsDoneNow]);
+  function closeBankNews() {
+    if (bankNewsKey) { try { localStorage.setItem(bankNewsKey, '1'); } catch { /* private mode */ } }
+    setShowBankNews(false);
   }
 
   // Prijsuitreiking: de prizes of the season that just ended, one screen each.
@@ -561,7 +593,7 @@ export function Layout() {
       {showLeagueNews && !showTagsNews && !showLureNews && !showSamenNews && !showInrichtingNews && !showLokaalNews && !showNews && !showTour && !showCeremony && (
         <Tour steps={LEAGUE_NEWS_STEPS} onClose={closeLeagueNews} />
       )}
-      {state?.pendingEvent && !showTour && !showNews && !showLokaalNews && !showInrichtingNews && !showSamenNews && !showLureNews && !showTagsNews && !showLeagueNews && !showCeremony && <EventModal />}
+      {state?.pendingEvent && !showTour && !showNews && !showLokaalNews && !showInrichtingNews && !showSamenNews && !showLureNews && !showTagsNews && !showLeagueNews && !showBankNews && !showCeremony && <EventModal />}
     </div>
   );
 }
@@ -620,6 +652,14 @@ function BottomNav({ items, badgeFor }: { items: NavItem[]; badgeFor: (n: NavIte
   const [open, setOpen] = useState(false);
   const primary = items.slice(0, PRIMARY);
   const overflow = items.slice(PRIMARY);
+  // The open sheet stacks rows of SHEET_COLUMNS above the bar; the page gets that
+  // much extra room at the bottom (--sheet-rows in global.css), so nothing hides
+  // behind it while it stays open.
+  const rows = open ? Math.ceil(overflow.length / SHEET_COLUMNS) : 0;
+  useEffect(() => {
+    document.documentElement.style.setProperty('--sheet-rows', String(rows));
+    return () => { document.documentElement.style.removeProperty('--sheet-rows'); };
+  }, [rows]);
   // A marker on a button hidden behind "Meer" was invisible on a phone (a new
   // chat message, a sponsor offer), so the closed Meer button carries a dot of
   // its own whenever something behind it wants attention.
@@ -629,8 +669,9 @@ function BottomNav({ items, badgeFor }: { items: NavItem[]; badgeFor: (n: NavIte
   })();
   return (
     <>
-      {/* The overflow row stays open while you navigate; it only collapses when
-          you tap "Minder" (no scrim, no auto-close on a nav tap). */}
+      {/* The overflow rows stay open while you navigate; they only collapse when
+          you tap "Minder" (no scrim, no auto-close on a nav tap). Rows of
+          SHEET_COLUMNS, so a label never runs into its neighbour. */}
       {open && (
         <div className="bottomnav-sheet">
           {overflow.map((n) => (

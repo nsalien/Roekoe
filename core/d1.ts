@@ -131,6 +131,7 @@ function rowToLoft(r: any): Loft {
     debtDays: r.debt_days ?? 0,
     debtMisses: r.debt_misses ?? 0,
     equipment: r.equipment ? JSON.parse(r.equipment) : undefined,
+    bank: r.bank ? JSON.parse(r.bank) : undefined,
   };
 }
 
@@ -468,7 +469,7 @@ const LOFT_COLUMNS = [
   'season_points', 'total_wins', 'is_bot', 'infirmary_capacity', 'medicated_food', 'doctors',
   'physios', 'xp', 'level', 'stats', 'badges', 'missions', 'missions_day', 'streak',
   'pending_event', 'sponsorship', 'last_rest_cure', 'awards', 'pending_broods', 'newcomer',
-  'season_wins', 'unlocked_reactions', 'debt_days', 'debt_misses', 'equipment',
+  'season_wins', 'unlocked_reactions', 'debt_days', 'debt_misses', 'equipment', 'bank',
 ];
 
 function loftRow(l: Loft): unknown[] {
@@ -497,6 +498,9 @@ function loftRow(l: Loft): unknown[] {
     // '' for a loft that never touched its hokinrichting, so its column-narrowed
     // UPDATE keeps skipping this column.
     l.equipment ? JSON.stringify(l.equipment) : '',
+    // '' for a loft that never earned or borrowed (every bot), so its
+    // column-narrowed UPDATE keeps skipping this column.
+    l.bank ? JSON.stringify(l.bank) : '',
   ];
 }
 
@@ -1570,6 +1574,59 @@ const SCHEMA_STEPS_PER_RUN = 20;
  * the first time and left every bird at €0. ensureSchema now also flattens each
  * step defensively; keep this one-line anyway.
  */
+/**
+ * De bank (core/game/bank.ts) lends on the income of the last 14 full days, but it
+ * only starts counting when it ships — so without this, nobody could borrow for
+ * the first two weeks. One-off schema step (like EARNINGS_BACKFILL_SQL): every
+ * human loft without a `bank` yet gets the income it ALREADY had:
+ *   - prize money from the race history (`pigeon_log_entries`, kind 'race', the
+ *     `ownerId` at race time, ×2 inside the newcomer window — what was paid out);
+ *   - season, premie and league prizes (`lofts.awards`);
+ *   - sponsor stipends: one per midnight a contract was active (`sponsorship.active`).
+ * The 14 full days are spread evenly over the 14 buckets (a per-day split would
+ * need an ordered JSON aggregate D1 may not have); today's prize money is today's
+ * bucket. They roll out over the next two weeks as real income rolls in.
+ * NOT recoverable: the daily missions and sponsor podium/signing bonuses (nowhere
+ * stored per day) — the limit starts a little low, never too high.
+ *
+ * ⚠️ Brussels local days as UTC+1 (winter time; it ships in November and runs
+ * exactly once). ⚠️ ONE line after flattening, and ensureSchema swallows errors:
+ * a broken statement would silently backfill nothing — `tests/bank.test.mts` runs
+ * it through ensureSchema on a real SQLite.
+ */
+const BANK_TODAY = "strftime('%Y-%m-%dT%H:%M:%fZ', 'now', '+1 hour', 'start of day', '-1 hour')";
+const BANK_FROM = "strftime('%Y-%m-%dT%H:%M:%fZ', 'now', '+1 hour', 'start of day', '-1 hour', '-14 days')";
+const bankPrize = (from: string, to: string | null) => [
+  'COALESCE((SELECT SUM(json_extract(e.data, \'$.prize\') * CASE WHEN json_valid(lofts.newcomer)',
+  "AND json_extract(e.data, '$.startAt') < json_extract(lofts.newcomer, '$.endsAt') THEN 2 ELSE 1 END)",
+  "FROM pigeon_log_entries e WHERE e.kind = 'race' AND json_extract(e.data, '$.ownerId') = lofts.user_id",
+  `AND json_extract(e.data, '$.startAt') >= ${from}`,
+  to ? `AND json_extract(e.data, '$.startAt') < ${to}` : '',
+  '), 0)',
+].join(' ');
+const bankAwards = (from: string, to: string | null) => [
+  "COALESCE((SELECT SUM(json_extract(a.value, '$.reward')) FROM json_each(CASE WHEN json_valid(lofts.awards) THEN lofts.awards ELSE '[]' END) a",
+  `WHERE json_extract(a.value, '$.at') >= ${from}`,
+  to ? `AND json_extract(a.value, '$.at') < ${to}` : '',
+  '), 0)',
+].join(' ');
+// Midnights a contract was active inside the 14 days, rounded UP (the first night pays too).
+const BANK_SPONSOR_DAYS = `(julianday(${BANK_TODAY}) - max(julianday(${BANK_FROM}), julianday(json_extract(c.value, '$.since'))))`;
+const bankSponsors = [
+  "COALESCE((SELECT SUM(COALESCE(json_extract(c.value, '$.dailyStipend'), 0) *",
+  `max(0, CAST(${BANK_SPONSOR_DAYS} AS INTEGER) + (${BANK_SPONSOR_DAYS} > CAST(${BANK_SPONSOR_DAYS} AS INTEGER))))`,
+  "FROM json_each(CASE WHEN json_valid(lofts.sponsorship) THEN COALESCE(json_extract(lofts.sponsorship, '$.active'), '[]') ELSE '[]' END) c",
+  '), 0)',
+].join(' ');
+export const BANK_INCOME_BACKFILL_SQL = [
+  "UPDATE lofts SET bank = '{\"loans\":[],\"income\":[' ||",
+  `ROUND(${bankPrize(BANK_TODAY, null)} + ${bankAwards(BANK_TODAY, null)}, 2) || ',' ||`,
+  // The same 14-day average fourteen times: hex(zeroblob(14)) is 28 zeros, i.e. 14 × '00'.
+  `rtrim(replace(hex(zeroblob(14)), '00', ROUND((${bankPrize(BANK_FROM, BANK_TODAY)} + ${bankAwards(BANK_FROM, BANK_TODAY)} + ${bankSponsors}) / 14.0, 2) || ','), ',') ||`,
+  `'],\"incomeDay\":' || CAST(julianday(date('now', '+1 hour')) - 2440587.5 AS INTEGER) || '}'`,
+  "WHERE is_bot = 0 AND bank = ''",
+].join(' ');
+
 export const EARNINGS_BACKFILL_SQL = [
   'UPDATE pigeons SET earnings_owner = owner_id, earnings = COALESCE((',
   'SELECT SUM(CASE WHEN x.at < nc.ends THEN x.prize * ' + String(NEWCOMER_WINNINGS_MULT) + ' ELSE x.prize END) FROM (',
@@ -1825,6 +1882,11 @@ export const SCHEMA_STEPS: string[] = [
   'ALTER TABLE flights ADD COLUMN league TEXT',
   'ALTER TABLE flights ADD COLUMN league_sprint INTEGER NOT NULL DEFAULT 0',
   "ALTER TABLE pigeons ADD COLUMN leagues TEXT NOT NULL DEFAULT ''",
+  // De bank (live 2 nov) (core/game/bank.ts): open loans + the income the limit is measured on
+  // (Loft.bank), one JSON blob on the loft row like `equipment`.
+  "ALTER TABLE lofts ADD COLUMN bank TEXT NOT NULL DEFAULT ''",
+  // …and the income every player already had, so the bank can lend from day one.
+  BANK_INCOME_BACKFILL_SQL,
 ];
 
 /**

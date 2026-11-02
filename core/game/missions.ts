@@ -9,6 +9,7 @@ import { newId } from '../store.js';
 import { grantXp } from './badges.js';
 import { makeEvent } from './events.js';
 import { dateTimeFormat, hashString, seededRng } from './util.js';
+import { earn } from './bank.js';
 
 const TZ = 'Europe/Brussels';
 function dayKey(ms: number): string {
@@ -74,7 +75,7 @@ export function refreshDailyMissions(db: Database, loft: Loft, nowMs: number): b
   loft.missionsDay = today;
 
   const bonus = Math.min(25, 5 + loft.streak * 2);
-  loft.money += bonus;
+  earn(loft, bonus, nowMs); // the streak bonus is income for the bank (bank.ts)
   grantXp(db, loft, 5);
   db.notifications.push({
     id: newId('ntf'), userId: loft.userId, kind: 'info',
@@ -100,7 +101,7 @@ export function progressMissions(db: Database, loft: Loft | undefined, event: Mi
     m.progress = Math.min(m.target, m.progress + n);
     if (m.progress >= m.target) {
       m.done = true;
-      loft.money += m.rewardMoney;
+      earn(loft, m.rewardMoney, Date.now()); // a mission reward is income for the bank (bank.ts)
       grantXp(db, loft, m.rewardXp);
       db.notifications.push({
         id: newId('ntf'), userId: loft.userId, kind: 'info',
