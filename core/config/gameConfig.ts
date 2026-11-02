@@ -411,7 +411,7 @@ export const PIGEON_TAGS = {
 } as const;
 
 /**
- * De bank (core/game/bank.ts, ⚠️ enkel op dev). De Stem, "Lenen bij de bank"
+ * De bank (core/game/bank.ts, live sinds 2 nov). De Stem, "Lenen bij de bank"
  * (spelleiding 19 sep); eigenaar 1 nov: "Let op, lenen kost geld. Het toegelaten
  * bedrag … moet rekening houden met wat een speler gemiddeld aan inkomsten heeft."
  *

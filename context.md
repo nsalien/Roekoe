@@ -15,7 +15,7 @@
 
 | Rol | Branch | Doel |
 |-----|--------|------|
-| **Dev** | `claude/demo-hokinrichting` | Alle ontwikkeling/commits komen hier **eerst**. **Sinds 1 nov weer aan** (op vraag van de eigenaar, om *Lenen bij de bank* te bekijken): herstart vanaf prod `542dfbd` (dus mét v69–v71) + precies de dev-only stukken van de vorige Dev-stand `d2820bf` (`git diff d423c1b d2820bf`: demomodus, Marktwaarde v2, het voorstel prijsregel en het voorstel coachprijs), als **samenvoegcommit bovenop de pauzecommit `098be3d`** (geen force-push; de oude dev-geschiedenis blijft via de eerste ouder bereikbaar). Daarvoor op pauze van 25 okt tot 1 nov (derde keer, pauzepagina). De eigenaar test in de demo-preview: **https://claude-demo-hokinrichting.roekoe.pages.dev**. Van dev staat alles live **behalve** Marktwaarde v2, de demomodus, de twee voorstellen en de bank. |
+| **Dev** | `claude/demo-hokinrichting` | Alle ontwikkeling/commits komen hier **eerst**. **Sinds 1 nov weer aan** (op vraag van de eigenaar, om *Lenen bij de bank* te bekijken): herstart vanaf prod `542dfbd` (dus mét v69–v71) + precies de dev-only stukken van de vorige Dev-stand `d2820bf` (`git diff d423c1b d2820bf`: demomodus, Marktwaarde v2, het voorstel prijsregel en het voorstel coachprijs), als **samenvoegcommit bovenop de pauzecommit `098be3d`** (geen force-push; de oude dev-geschiedenis blijft via de eerste ouder bereikbaar). Daarvoor op pauze van 25 okt tot 1 nov (derde keer, pauzepagina). De eigenaar test in de demo-preview: **https://claude-demo-hokinrichting.roekoe.pages.dev**. Van dev staat alles live **behalve** Marktwaarde v2, de demomodus en de twee voorstellen (de bank ging live op 2 nov). |
 | **Dev (sessie 15 okt)** | `claude/duivenlokker-feature-mhf3yb` | Sessiebranch van de **duivenlokker**, vertrokken van prod `9e2a79a` (geen demo, geen Marktwaarde v2). De eigenaar vroeg meteen "implementeren op productie": de feature-commit staat hier als `fc0a933` (met `[CF-Pages-Skip]`, want een preview-build van een prod-tak kan aan de live `roekoe-db` hangen) en staat op prod als **`b4f3ab8`** (zelfde boom, boodschap zonder skip). De gepauzeerde `claude/demo-hokinrichting` heeft de lokker **niet**. Op 17 okt kwamen hier de **tags op je duiven** bij (§0b, `13f6571`), dezelfde dag op vraag van de eigenaar naar prod ("zet op productie"). |
 | **Dev (sessie 27 okt)** | `claude/adoring-bell-7zvxzk` | Sessiebranch van de **erfenis voor drie spelers** (migratie v69) en **de markt volgt het spel** (zie *Stand van zaken*), vertrokken van prod `d423c1b` (geen demo, geen Marktwaarde v2). Commits met `[CF-Pages-Skip]`, om dezelfde reden als hierboven. Beide live op 27 okt: `f26ae4f` → prod `ca78889`, `0f127f6` → prod `610f362`. |
 | **Dev (sessie 31 okt – 1 nov)** | `ccr-9f062ea2-reeikx` | Sessiebranch van **de erfenis voor De Vluchtige Vleugel** (migratie v71; vertrokken van prod `32c2e02`, live op 31 okt: `408d282` → prod `c644026`), daarna van de **herstart van Dev** en **de bank** (1 nov): de herstartcommit heeft deze branch als tweede ouder, dus sindsdien dezelfde commits als `claude/demo-hokinrichting` (preview `https://ccr-9f062ea2-reeikx.roekoe.pages.dev`, ook een demo). |
@@ -91,9 +91,13 @@
   `canEnter` kende enkel het criterium (`f.ageCat && p.ageCat !== f.ageCat`) en een leaguevlucht heeft geen `ageCat`,
   dus alle duiven. De server weigerde de verkeerde duif wel. **Fix:** zie §8 *Een verouderd scherm herlaadt zichzelf*.
   Een tab die nú al oud is, heeft die code nog niet: die moet één keer met de hand herladen worden.
-- **De bank — 1 nov, ⚠️ ENKEL OP DEV** (De Stem, *"Lenen bij de bank"*; eigenaar: "Werk het volgende idee uit op de Dev
-  omgeving … Let op, lenen kost geld. Het toegelaten bedrag … moet rekening houden met wat een speler gemiddeld aan
-  inkomsten heeft"). Zie **§0b *De bank*** hieronder. Nog geen bel, rondleiding of migratie: dat hoort bij het live zetten.
+- **De bank — gebouwd op Dev op 1 nov, LIVE sinds 2 nov** (De Stem, *"Lenen bij de bank"*; eigenaar 2 nov: "Zet de bank
+  live in productie"). Zie **§0b *De bank*** hieronder, met *Live zetten* (terugvulling van het inkomen, bel v72,
+  rondleiding, wiki `#nieuw`). Tegelijk: **het gsm-menu in rijen van 7** (eigenaar: "het navigatie menu verticaal
+  uitbreiden met een derde sectie. 7 icoontjes per sectie. Onderaan 6 + meer/minder") — `BottomNav` in Layout.tsx:
+  `SHEET_COLUMNS` 7, het uitklapvak is een raster (`.bottomnav-sheet`, `repeat(7, minmax(0, 1fr))`, één rij per 7), en
+  zolang het openstaat krijgt `.page` er per rij `--botnav-h` onderaan bij (`--sheet-rows`), zodat er niets achter
+  verdwijnt. Gemeten op 360 en 390 px: twee rijen (7 + 3), geen enkel label afgekapt.
 - **Dev herstart op 1 nov** (eigenaar koos "Dev weer aanzetten" om *Lenen bij de bank* te bekijken): vanaf prod
   `542dfbd` met `git diff d423c1b d2820bf | git apply -3` (d2820bf = de laatste volle Dev-stand, d423c1b de prod-commit
   waar die gelijk mee liep), als samenvoegcommit met ouders `098be3d` (de pauzecommit) en `e80b111` (sessiebranch).
@@ -266,12 +270,11 @@
     ★ 81+). Zege sprint/fond: **★ t/m 60 €800/€1.200 · ★ 61–70 €900/€1.350 · ★ 71–80 €1.000/€1.500 · ★ 81+
     €1.100/€1.650**; de lagere plaatsen in dezelfde verhoudingen als de oude criteriumtabel, op €5 (vanaf €250 op
     €25), en een hogere league betaalt op **elke** plaats meer. De seizoensprijzen (`awards`) bleven.
-  - **Communicatie:** bel **`PRIZE_RULE_NEWS`** (news.ts, `ntf:news:prijsregel:<id>`) via **migratie v72** (op dev
-    heette ze eerst v69; prod gebruikte v69–v71 intussen voor de erfenissen, dus bij de herstart van 1 nov
-    hernummerd, gate `=== 71`), die **wacht tot v68 klaar is** (anders zou v68 op prod nooit meer lopen); rondleiding `PRIZE_RULE_NEWS_STEPS`
+  - **Communicatie:** bel **`PRIZE_RULE_NEWS`** (news.ts, `ntf:news:prijsregel:<id>`) via **migratie v73** (op dev
+    heette ze eerst v69, toen v72; prod gebruikte v69–v71 voor de erfenissen en v72 voor de bank, gate nu `=== 72`), die **wacht tot v68 klaar is** (anders zou v68 op prod nooit meer lopen); rondleiding `PRIZE_RULE_NEWS_STEPS`
     (sleutel `roekoe.newsSeen.prijsregel.<id>`, na de leagues-run); wiki `#nieuw` + `#prijzengeld` + `#leagues`;
     spelregels §2.6 ("Geld voor elke duif, punten voor je beste 3") en §2.10. `DEMO_VERSION` 14.
-  - **Tests:** `prize-rules` (regel + v72), `leagues` (tabellen, spelregels/wiki/rondleiding == config).
+  - **Tests:** `prize-rules` (regel + v73), `leagues` (tabellen, spelregels/wiki/rondleiding == config).
 - **Bots bijgevuld tot 10 duiven op prod (24 okt, migratie v68, prod `684e61f`)** — eigenaar: "vul hun aantal
   duiven bij … random score tussen 60 en 75". `fillBotFlocks` (bots.ts), **in stappen van 3 per verzoek** (één
   nieuwe duif = één D1-query) en enkel vanaf seizoen 4, dus de demo (seizoen 1) blijft ongemoeid. Details in de
@@ -284,7 +287,7 @@
   De leaguemigratie heet nu overal **v67** (v66 = de afsluiting van seizoen 3); v66 reikt het criterium sindsdien
   uit via `closeCriterium` (`force`). Op prod reikte v67 niets meer uit: v66 had de cyclus die ochtend net
   herstart, en er vloog sindsdien geen criteriumvlucht.
-- **Enkel op dev:** **Marktwaarde v2**, de **demomodus**, de voorstellen **prijsregel** en **coachprijs**, en **de bank**. Weggehaald van dev en dus nergens:
+- **Enkel op dev:** **Marktwaarde v2**, de **demomodus** en de voorstellen **prijsregel** en **coachprijs**. Weggehaald van dev en dus nergens:
   koppels, partnerhok, weduwschap, de scout, het nieuwe voer.
 - **Dev herstart op 12 okt** (gebouwd op `claude/breeding-other-player-pigeons-7314iz`, daarna ook
   op `claude/demo-hokinrichting`), precies zoals hieronder beschreven: vanaf prod `4a0c3ad`, de demo
@@ -300,9 +303,9 @@
      zoals nu gebouwd (enkel als de cyclus al ≥ 1 seizoen liep)? De eigenaar koos hier niets ("geen
      voorkeur"); zie *Leagues → Overstap*.
   1. **Marktwaarde v2 naar productie?** (11 okt: nog niet.)
-  1b. **De bank (1 nov, dev):** limiet 10 dagen inkomsten (max €50.000), looptijden 7/14/28 d aan 5/10/20 %, aflossen
-     zonder rentekorting, geen lening in het rood, verkopen tellen niet als inkomsten — goed zo? En bij het live zetten:
-     het inkomstenverleden van de laatste 14 dagen invullen (migratie) of de eerste twee weken aanvaarden?
+  1b. **De bank (live 2 nov):** een tweede grens op de afbetaling (bv. hoogstens 50 % van je gemiddelde inkomsten per dag)?
+     Voorgesteld op 2 nov, nog niet gekozen. Zonder die grens betaalt wie het maximum over 7 dagen leent ±143 % van zijn
+     inkomsten per dag (14 d ±71 %, 28 d ±36 %), en in het rood kan hij niet inschrijven.
   2. Moeten de **opvangcentrum-veilingen** (start €25, NPC) buiten de marktwaarde blijven?
   (Beslist op 11 okt: **besmetting per ziekte**, zie §8.)
 - **Dev weer aanzetten (gedaan op 12 okt):** **dev herstarten vanaf prod** en daarop `ac31a45`
@@ -667,7 +670,7 @@
     `samen-kweken-news` (v63 op een wereld die v62 al had: bot-aanbod weg, dat van een speler blijft,
     geen bel).
 
-### De bank — lenen met een limiet op je inkomsten (⚠️ ENKEL OP DEV, 1 nov; `core/game/bank.ts`, `BANK` in gameConfig)
+### De bank — lenen met een limiet op je inkomsten (LIVE sinds 2 nov, gebouwd op Dev op 1 nov; `core/game/bank.ts`, `BANK` in gameConfig)
 - **Vraag van de eigenaar** (De Stem, *"Lenen bij de bank"*, spelleiding 19 sep, in stemming): "Spelers kunnen vrij een
   bedrag lenen bij de bank, met een limiet op hoeveel je open kan hebben staan. Je betaalt dagelijks af, met rente. Zo
   kan een speler met minder geld toch meebieden op een dure duif — maar wie te veel leent, zit vast aan een dagelijkse
@@ -718,12 +721,26 @@
 - **Demo:** de demospeler krijgt 14 dagen inkomsten (`DEMO_INCOME` in seed.ts, gem. ~€660 → limiet €6.500);
   `DEMO_VERSION` 15. ⚠️ De demo vult de kassa bij elke start aan tot €100.000 (`topUpDemoMoney`), dus je *voelt* een
   lening daar niet; je ziet wel de afbetaling in de Dagbalans en op de Bank-pagina (+1 dag in de banner).
-- **Bij het live zetten nog te doen:** (1) **inkomstenverleden**: de bank telt pas vanaf de uitrol, dus de eerste 14
-  dagen kan bijna niemand iets lenen — een eenmalige migratie die het prijzengeld van de laatste 14 dagen uit
-  `pigeon_log_entries` (`raceLog`: prijs + datum per vlucht) in `bank.income` zet, of de eigenaar aanvaardt die
-  opstart; (2) bel + rondleiding + wiki `#nieuw` (zoals elke feature); (3) de schemastap achteraan prod's lijst; (4) het
-  idee op De Stem op "In het spel" zetten.
-- **Test:** `tests/bank.test.mts` (72 controles): formules (geen €1 te veel, exact de looptijd, ook €100/28 d), de
+- **Live zetten (2 nov):**
+  - **Inkomstenverleden = schemastap `BANK_INCOME_BACKFILL_SQL`** (d1.ts, net na `lofts.bank`, zoals
+    `EARNINGS_BACKFILL_SQL`): de historiek zit niet in de wereldload, dus geen migratie maar één SQL-regel bij de
+    uitrol. Per echt hok met een lege `bank`: het prijzengeld van de laatste 14 volle dagen uit `pigeon_log_entries`
+    (kind `race`, `ownerId` op het moment van de vlucht, ×2 binnen het starterspakket), de seizoens-/premie-/
+    leagueprijzen uit `lofts.awards` en per actief sponsorcontract het dagbedrag per middernacht. Die 14 dagen gaan
+    **gelijk verdeeld** over de 14 vakjes (een geordende JSON-aggregaat per dag is op D1 niet zeker), vandaag in vakje 0;
+    ze schuiven er de komende twee weken uit terwijl het echte inkomen erin komt. Niet terug te halen: dagopdrachten,
+    podium- en tekenpremies van sponsors (de limiet start dus iets te laag, nooit te hoog). ⚠️ Brusselse dag als UTC+1
+    (wintertijd; de stap loopt één keer). ⚠️ `ensureSchema` slikt fouten: de test draait de stap door de echte
+    `ensureSchema` op SQLite. Dezelfde query stond eerder hier als losse controle (zie de chat van 1 nov).
+  - **Bel = migratie v72** (`BANK_NEWS` in news.ts, `ntf:news:bank:<id>`, gate `=== 71`, niet in een vluchtverzoek),
+    getallen uit `BANK`. Op dev schoof de bel van het voorstel prijsregel daarom naar **v73**.
+  - **Rondleiding `BANK_NEWS_STEPS`** (Tour.tsx: de Bank-pagina `[data-tour="bank"]`, dan de Dagbalans
+    `[data-tour="daily-costs"]`), sleutel `roekoe.newsSeen.bank.<id>`, na de vorige runs; `closeTour` zet hem ook.
+  - Wiki **`#nieuw`** kreeg een blok bovenaan; "(enkel op Dev)" is weg uit spelregels §13.1 en de code.
+  - **Schema op dev:** de twee bankstappen staan nu **boven** de "ENKEL OP DEV"-lijn (dev = prod + `trades.quality`);
+    `DEMO_VERSION` 16.
+  - **Nog door de beheerder:** het idee op De Stem op "In het spel" zetten.
+- **Test:** `tests/bank.test.mts` (81 controles; blok 10 = het live zetten: de terugvulling via `ensureSchema`, een nieuwkomer ×2, bots niet, een tweede run verandert niets, de bel v72): formules (geen €1 te veel, exact de looptijd, ook €100/28 d), de
   inkomsten (vandaag niet, 14 dagen, late betaling, lege dagen, bots), limiet (afronding, max, het maximum per looptijd
   past precies), lenen (elke weigering, telt niet als inkomen), middernacht (één afbetaling, zonder duiven, geen dubbele
   afrekening, late tick, rood, bel), aflossen, de bronnen (prijzengeld van een echte vlucht, sponsordagbedrag,
@@ -1221,7 +1238,7 @@ krijgen.**
 `core/game/schedule.ts` → `advanceRealtime(db, nowMs, weatherByFlight)` roept in
 volgorde:
 1. `runDataMigrations(db)` — eenmalige datafixes, **gated op `world.dataVersion`**
-   (staat nu op **71** — v71 = de gewone erfenis (spaarpot, kampioen, belofte) voor De Vluchtige Vleugel (31 okt), v70 = dezelfde erfenis voor OnlyFlaps (27 okt), v69 = de erfenis zonder spaarpot (★75–80) voor Marcel De Neut, Roekoeloos en Graanabolica (27 okt), v68 = bots bijvullen tot 10 duiven (24 okt, in stappen), v67 = de leagues i.p.v. het leeftijdscriterium (§0b, 24 okt), v66 = seizoen 3 afsluiten + criterium uitreiken (24 okt, zie *Stand van zaken*), v65 = de bel van de tags (`TAGS_NEWS`), v64 = de bel van de duivenlokker (`LURE_NEWS`), v63 = de bots uit samen kweken (hun aanbod gewist, geen bel), v62 = de bellen van samen kweken en van vaccins/verzekering per duif, v61 = de aankondigingsbel van de hokinrichting & co (`core/game/news.ts`), v60 = die van Het Lokaal; nieuwe migratie = nieuw `if ((db.world.dataVersion ?? 0) < N)`
+   (staat nu op **72** (dev **73**: + de bel van het voorstel prijsregel) — v72 = de bel van de bank (2 nov, `BANK_NEWS`; het inkomen zelf is een schemastap), v71 = de gewone erfenis (spaarpot, kampioen, belofte) voor De Vluchtige Vleugel (31 okt), v70 = dezelfde erfenis voor OnlyFlaps (27 okt), v69 = de erfenis zonder spaarpot (★75–80) voor Marcel De Neut, Roekoeloos en Graanabolica (27 okt), v68 = bots bijvullen tot 10 duiven (24 okt, in stappen), v67 = de leagues i.p.v. het leeftijdscriterium (§0b, 24 okt), v66 = seizoen 3 afsluiten + criterium uitreiken (24 okt, zie *Stand van zaken*), v65 = de bel van de tags (`TAGS_NEWS`), v64 = de bel van de duivenlokker (`LURE_NEWS`), v63 = de bots uit samen kweken (hun aanbod gewist, geen bel), v62 = de bellen van samen kweken en van vaccins/verzekering per duif, v61 = de aankondigingsbel van de hokinrichting & co (`core/game/news.ts`), v60 = die van Het Lokaal; nieuwe migratie = nieuw `if ((db.world.dataVersion ?? 0) < N)`
    blok + `db.world.dataVersion = N`). De oudere migraties hebben hun werk gedaan en
    zijn enkel nog van belang als **patroon** — zie §8, kop *Eenmalige migraties*.
 2. `ensureFlightsScheduled(db, nowMs)` — plant vluchten volgens `REAL_SCHEDULE`.
@@ -1473,7 +1490,7 @@ Roekoe/
 │       ├── pedigree.ts          stamboom + verwantschap (kinship/ancestorIds/pedigreeOf)
 │       ├── pigeon.ts, weather.ts, util.ts (seededRng/hashString/clamp/pickWith)
 │       ├── lure.ts              duivenlokker: kopen, de loting bij vrijlaten, de wachtkamer + meldingen
-│       ├── bank.ts              de bank (enkel dev): inkomsten bijhouden, limiet, lenen, afbetalen om middernacht
+│       ├── bank.ts              de bank: inkomsten bijhouden, limiet, lenen, afbetalen om middernacht
 │       ├── tags.ts              tags op je duiven: opkuisen + zetten (privé, in Pigeon.care)
 │       ├── stem.ts              De Stem: regels van het ideeënbord + de 4 startideeën (géén DB)
 │       ├── lokaal.ts            Het Lokaal (chat): opkuisen/valideren, rem, wie mag weghalen, pollvenster (géén DB)
@@ -1621,7 +1638,7 @@ Entiteiten: `Pigeon`, `Loft`, `User`, `BreedingPair`, `PendingBrood`, `Flight` (
 
 **Tags (§0b):** `PigeonCare.tags` (`string[]`, in de bestaande kolom `care`; gewist door `clearOwnerCare`).
 
-**De bank (§0b, enkel dev):** `Loft.bank` (kolom `bank`, JSON: `loans` + `income` per dag + `incomeDay`).
+**De bank (§0b):** `Loft.bank` (kolom `bank`, JSON: `loans` + `income` per dag + `incomeDay`).
 
 **Duivenlokker (§0b):** `Loft.equipment.lure` (niveau 0–5, in de bestaande JSON-kolom) en op
 `PendingBrood` `origin: 'lokker'` + `from: {userId, name}` (in `lofts.pending_broods`). Geen schemawijziging.
@@ -1797,7 +1814,7 @@ Entiteiten: `Pigeon`, `Loft`, `User`, `BreedingPair`, `PendingBrood`, `Flight` (
 - **Kweekleeftijd:** `BREEDING.minAgeWeeks` **8** — even oud als de vluchtleeftijd, maar een
   eigen knop. Inteelt: zie `INBREEDING` + `PIGEON_QUIRKS` en §8.
 - **Tags (`PIGEON_TAGS`):** `max 3` per duif, `maxLength 20` tekens.
-- **De bank (`BANK`, enkel dev):** `incomeWindowDays 14`, `limitDays 10`, `maxLimit 50.000`, `minLoan`/`step` 100,
+- **De bank (`BANK`):** `incomeWindowDays 14`, `limitDays 10`, `maxLimit 50.000`, `minLoan`/`step` 100,
   `maxLoans 5`, `terms` 7 d 5 % · 14 d 10 % · 28 d 20 %; helpers `loanTotal`, `loanDaily`.
 - **Duivenlokker (`LURE`):** `prices [500,750,1500,3000,5000]` (niveau 1–5, de eigenaar), `pull
   [10,14,19,25,32]`, `freedom 90`; `LURE_MAX_LEVEL` 5, `lureChances(levels)` = de kans per lokker + "nergens".
@@ -2177,7 +2194,7 @@ Entiteiten: `Pigeon`, `Loft`, `User`, `BreedingPair`, `PendingBrood`, `Flight` (
   van een vorig nest** (`pigeonDTO.breedAvailableAt`) vallen uit beide keuzelijsten, met
   eronder één regel hoeveel er rusten en wanneer de eerste weer mag — een duif die
   zwijgend uit de lijst verdwijnt leest als een bug.
-- `BankPage` (`/bank`, enkel dev) — lenen en aflossen; zie §0b *De bank*.
+- `BankPage` (`/bank`) — lenen en aflossen; zie §0b *De bank*.
 - Verder: `SponsorsPage`, `LoginPage`.
 
 **Rondleiding (`components/Tour.tsx`):** interactieve spotlight-tour die per stap
@@ -2311,7 +2328,7 @@ npx tsx tests/season-close.test.mts       # v66: seizoen 3 afsluiten (of enkel h
 npx tsx tests/bot-fill.test.mts           # v68: bots tot 10 duiven, ★60–75, in stappen van 3, vaste ids, querykost
 npx tsx tests/erfenis-v69.test.mts        # v69 + v70: erfenis zonder spaarpot (drie spelers + OnlyFlaps), gekozen duif altijd ★75–80, D1 + API; v71: de gewone erfenis voor De Vluchtige Vleugel
 npx tsx tests/market-reference.test.mts   # veilingduiven volgen het gemiddelde: referentie, zondagbanden (+ gedeeld per dag), opvangcentrum
-npx tsx tests/bank.test.mts               # de bank (enkel dev): limiet op inkomsten, lenen, afbetalen om middernacht, aflossen, D1 + API
+npx tsx tests/bank.test.mts               # de bank: limiet op inkomsten, lenen, afbetalen om middernacht, aflossen, D1 + API, terugvulling + bel v72
 ```
 
 > **Geen `tsx` beschikbaar?** (cloud-sessie waar de npm-registry geblokkeerd is: `npx tsx`

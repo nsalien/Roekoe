@@ -1,5 +1,5 @@
 /**
- * DE BANK — lenen, met een limiet op je inkomsten (⚠️ enkel op dev).
+ * DE BANK — lenen, met een limiet op je inkomsten (live sinds 2 nov).
  *
  * De Stem, "Lenen bij de bank" (spelleiding 19 sep): "Spelers kunnen vrij een
  * bedrag lenen bij de bank, met een limiet op hoeveel je open kan hebben staan.

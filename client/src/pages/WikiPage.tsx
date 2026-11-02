@@ -12,7 +12,7 @@ import { useEffect } from 'react';
 import { Link } from 'react-router-dom';
 
 const SECTIONS = [
-  { id: 'nieuw', icon: '🧰', label: 'Nieuw: leagues, tags, duivenlokker & meer' },
+  { id: 'nieuw', icon: '🧰', label: 'Nieuw: de bank, leagues, tags, duivenlokker & meer' },
   { id: 'seizoen3', icon: '🎉', label: 'Nieuw in seizoen 3' },
   { id: 'starterspakket', icon: '🎁', label: 'Starterspakket' },
   { id: 'genen', icon: '🧬', label: 'Genen & training' },
@@ -115,9 +115,16 @@ export function WikiPage() {
         </div>
       </div>
 
-      <Section id="nieuw" icon="🧰" title="Nieuw: geld voor elke duif, leagues, tags, duivenlokker & meer">
+      <Section id="nieuw" icon="🧰" title="Nieuw: de bank, geld voor elke duif, leagues, tags, duivenlokker & meer">
         <p className="muted" style={{ marginTop: 0 }}>
-          Wat er in oktober (seizoen 3 en 4) bijkwam en veranderde, op één plek. Deze sectie blijft staan als logboek.
+          Wat er sinds oktober (seizoen 3 en 4) bijkwam en veranderde, op één plek. Deze sectie blijft staan als logboek.
+        </p>
+
+        <h3>🏦 Lenen bij de bank</h3>
+        <p>
+          Te weinig in kas voor die ene duif? Op de pagina <Link to="/bank">Bank</Link> (op gsm onder <em>Meer</em>)
+          leen je geld, tot <strong>10 dagen van je gemiddelde inkomsten</strong>. Je betaalt elke nacht af, met rente
+          — ook als je kassa daardoor in het rood zakt. Lenen kost geld. <a href="#bank">Alles over de bank →</a>
         </p>
 
         <h3>💶 Geld voor élke duif, punten voor je beste 3</h3>

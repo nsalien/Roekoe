@@ -1,4 +1,4 @@
-/** De bank (⚠️ enkel op dev): lenen tot een limiet op je gemiddelde inkomsten,
+/** De bank: lenen tot een limiet op je gemiddelde inkomsten,
  * dagelijks afbetalen met rente. Kort gehouden — de uitleg staat in /wiki#bank. */
 
 import { useCallback, useEffect, useState } from 'react';

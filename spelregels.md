@@ -2693,7 +2693,7 @@ Verdiend geld kan je investeren in je hok en je duiven (bij *Mijn hok*, de
   nooit een al hoger opgebouwde waarde.
 - **Duif hernoemen** kost €1.000. **Je hok hernoemen** (bij Profiel) kost €2.000.
 
-### 13.1 De bank: lenen (enkel op Dev)
+### 13.1 De bank: lenen
 
 Op de pagina **Bank** leen je geld — bijvoorbeeld om mee te bieden op een duif die
 je nu nog niet kan betalen. **Lenen kost geld**: je betaalt elke dag af, met rente.

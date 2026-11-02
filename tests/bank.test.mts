@@ -20,24 +20,28 @@
  *     seizoensprijzen tellen; een verkoop niet;
  *  8. D1 + de echte API: /bank, /bank/borrow, /bank/settle, de kolom overleeft de databank,
  *     een bothok schrijft niets in `bank`;
- *  9. wiki en spelregels == BANK.
+ *  9. wiki en spelregels == BANK;
+ * 10. het live zetten: de schemastap vult het inkomen van de laatste 14 dagen in
+ *     (prijzengeld uit de historiek, ×2 voor een nieuwkomer, seizoensprijzen,
+ *     sponsors), enkel voor echte spelers; migratie v72 belt elke echte speler één keer.
  *
  * Run: npx tsx tests/bank.test.mts
  */
 import { readFileSync } from 'node:fs';
 import { DatabaseSync } from 'node:sqlite';
 import { onRequest } from '../functions/api/[[path]].ts';
-import { D1Store, ensureSchema } from '../core/d1.js';
+import { BANK_INCOME_BACKFILL_SQL, D1Store, SCHEMA_STEPS, ensureSchema } from '../core/d1.js';
 import { signToken } from '../core/auth.js';
 import { BANK, loanDaily, loanTotal } from '../core/config/gameConfig.js';
 import {
-  averageIncome, bankLimit, bankOwed, borrow, instalment, maxPrincipal, noteIncome, settleLoan, tickLoans,
+  averageIncome, bankDay, bankLimit, bankOwed, borrow, instalment, maxPrincipal, noteIncome, settleLoan, tickLoans,
 } from '../core/game/bank.js';
 import { buyPigeon, createLoftForUser, enterFlight, listForSale, seedWorld } from '../core/game/engine.js';
 import { advanceRealtime } from '../core/game/schedule.js';
 import { runSeasonEnd } from '../core/game/season.js';
 import { dailyRunningCost, dailyRunningCostBreakdown } from '../core/game/economy.js';
 import { MemoryStore } from '../core/store.js';
+import { BANK_NEWS } from '../core/game/news.js';
 import { emptyDatabase } from '../core/schema.js';
 import type { Database, Loft, User } from '../core/schema.js';
 
@@ -386,6 +390,69 @@ console.log('\n9. Wiki en spelregels zeggen wat de bank doet');
     }
     ok(text.includes(`${BANK.maxLoans} leningen`) && text.includes(eur(BANK.minLoan)), `${name}: ${BANK.maxLoans} leningen, vanaf ${eur(BANK.minLoan)}`);
   }
+}
+
+// ---------------------------------------------------------------------------
+console.log('\n10. Live zetten: het inkomen van vóór de bank, en de bel (v72)');
+{
+  const d1 = fakeD1();
+  d1._raw.exec(readFileSync('./migrations/0001_init.sql', 'utf8'));
+  d1._raw.prepare('INSERT INTO world (id, current_week, season_year, seeded) VALUES (1, 1, 1, 0)').run();
+  for (let i = 0; i < 40 && !(await ensureSchema(d1)); i++);
+  const nowMs = Date.now();
+  {
+    let s = await D1Store.load(d1);
+    seedWorld(s);
+    await s.persist();
+    s = await D1Store.load(d1);
+    advanceRealtime(s.data, nowMs, new Map());
+    const vet = addPlayer(s, 'usr_vet', 1000);
+    const nieuw = addPlayer(s, 'usr_nieuw', 1000);
+    nieuw.newcomer = { startedAt: new Date(nowMs - 3 * DAY).toISOString(), endsAt: new Date(nowMs + 20 * DAY).toISOString(), expPoints: 0, attrPoints: 0 };
+    vet.awards = [{ kind: 'premie', rank: 4, season: 3, at: new Date(nowMs - 3 * DAY).toISOString(), reward: 1400 },
+      { kind: 'roekoe', rank: 1, season: 2, at: new Date(nowMs - 40 * DAY).toISOString(), reward: 2000 }];
+    vet.sponsorship = { ...(vet.sponsorship as any), active: [{ id: 'zatte_duif', since: new Date(nowMs - 90 * DAY).toISOString(), dailyStipend: 10, podiumBase: 0 }] };
+    s.data.world.dataVersion = 71; // production right before the bank
+    await s.persist();
+  }
+  // Production before the bank: the column is there, but nobody has a `bank` yet.
+  d1._raw.exec("UPDATE lofts SET bank = ''");
+  const race = (owner: string, prize: number, at: number) => d1._raw.prepare('INSERT INTO pigeon_log_entries (id, pigeon_id, kind, at, data) VALUES (?, ?, ?, ?, ?)')
+    .run(`log_${Math.random()}`, 'pig_x', 'race', new Date(at).toISOString(), JSON.stringify({ ownerId: owner, prize, startAt: new Date(at).toISOString() }));
+  race('usr_vet', 700, nowMs - 2 * DAY);
+  race('usr_vet', 300, nowMs - 5 * DAY);
+  race('usr_vet', 5000, nowMs - 20 * DAY); // older than 14 days
+  race('usr_nieuw', 500, nowMs - 4 * DAY);  // newcomer: paid out ×2
+  const bot = (d1._raw.prepare('SELECT user_id FROM lofts WHERE is_bot = 1 LIMIT 1').get() as any).user_id;
+  race(bot, 9999, nowMs - DAY);
+  // Re-run the schema from the bank's backfill step on: exactly what a deploy does.
+  const at = SCHEMA_STEPS.indexOf(BANK_INCOME_BACKFILL_SQL);
+  ok(at > 0 && SCHEMA_STEPS[at - 1].includes('ADD COLUMN bank'), 'de terugvulling is een schemastap, vlak na de kolom');
+  d1._raw.prepare('UPDATE world SET schema_version = ? WHERE id = 1').run(at);
+  for (let i = 0; i < 5 && !(await ensureSchema(d1)); i++);
+  const s = await D1Store.load(d1, 'usr_vet');
+  const vet = s.data.lofts.find((l) => l.userId === 'usr_vet')!;
+  const nieuw = s.data.lofts.find((l) => l.userId === 'usr_nieuw')!;
+  const expected = (700 + 300 + 1400 + 10 * 14) / 14; // prize + premie + sponsor, last 14 full days
+  ok(Math.abs(averageIncome(vet, nowMs) - Math.round(expected)) <= 1 && vet.bank!.incomeDay === bankDay(nowMs),
+    `een speler: gemiddeld €${averageIncome(vet, nowMs)}/dag (prijzengeld + premie + sponsor), limiet €${bankLimit(vet, nowMs)}`);
+  ok(averageIncome(nieuw, nowMs) === Math.round(1000 / 14), 'een nieuwkomer: zijn prijzengeld telt dubbel, zoals het uitbetaald werd');
+  ok(vet.bank!.loans.length === 0 && vet.bank!.income.length === BANK.incomeWindowDays + 1, 'geen leningen, 15 dagvakjes');
+  ok(s.data.lofts.filter((l) => l.isBot).every((l) => l.bank === undefined), 'de bots krijgen niets');
+  // A second run (a retried deploy) changes nothing: it only fills an empty `bank`.
+  const before = JSON.stringify(vet.bank);
+  d1._raw.exec(BANK_INCOME_BACKFILL_SQL);
+  const again = (await D1Store.load(d1, 'usr_vet')).data.lofts.find((l) => l.userId === 'usr_vet')!;
+  ok(JSON.stringify(again.bank) === before, 'een tweede keer: niets verandert');
+  // The bell.
+  advanceRealtime(s.data, nowMs + 60000, new Map());
+  ok((s.data.world.dataVersion ?? 0) >= 72, `de migratie liep (dataVersion ${s.data.world.dataVersion})`);
+  await s.persist();
+  const bells = d1._raw.prepare("SELECT user_id FROM notifications WHERE id LIKE 'ntf:news:bank:%'").all() as any[];
+  ok(bells.length === 2 && bells.every((b) => b.user_id === 'usr_vet' || b.user_id === 'usr_nieuw'), 'één bel per echte speler, geen voor de bots');
+  const t14 = BANK.terms.find((t) => t.days === 14)!;
+  ok(BANK_NEWS.body.includes(`${BANK.limitDays} dagen`) && BANK_NEWS.body.includes(`€${loanDaily(loanTotal(5000, t14.days), t14.days)}`)
+    && BANK_NEWS.body.includes(`€${loanTotal(5000, t14.days).toLocaleString('nl-BE')}`), 'de bel noemt de echte getallen');
 }
 
 console.log(`\n${pass} geslaagd, ${fail} mislukt`);

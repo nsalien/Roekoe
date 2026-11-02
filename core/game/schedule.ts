@@ -119,7 +119,7 @@ import { pickRelayRoute, relayEntryTeams, relayLegKm, relayTeamComplete } from '
 import { rollAnyTrait, rollTrait } from './traits.js';
 import { season3CoachNote, season3Welcome } from './season3.js';
 import { LOKAAL_INTRO } from './lokaal.js';
-import { CARE_NEWS, INRICHTING_NEWS, LEAGUE_NEWS, LURE_NEWS, PRIZE_RULE_NEWS, STUD_NEWS, TAGS_NEWS } from './news.js';
+import { BANK_NEWS, CARE_NEWS, INRICHTING_NEWS, LEAGUE_NEWS, LURE_NEWS, PRIZE_RULE_NEWS, STUD_NEWS, TAGS_NEWS } from './news.js';
 import { bell, clamp, dateTimeFormat, hashString, haversineKm, pick, randFloat, round1, seededRng } from './util.js';
 
 // --- Time-zone helpers -----------------------------------------------------
@@ -2737,11 +2737,23 @@ export function runDataMigrations(db: Database, nowMs = Date.now()): void {
     db.world.dataVersion = 71;
   }
 
-  // ⚠️ ENKEL OP DEV (voorstel prijsregel, 24 okt). Op dev heette dit v69; prod gebruikte
-  // v69–v71 intussen voor de erfenissen, dus dev = prod + deze bel als v72. Gaat het
-  // voorstel live, dan krijgt het het eerstvolgende vrije nummer van prod.
   // `=== 71` and not in a flight request, for the same reason as v69–v71.
   if ((db.world.dataVersion ?? 0) === 71 && !startsOrFinishesFlight(db, nowMs)) {
+    // De bank live (eigenaar, 2 nov: "Zet de bank live in productie"): one bell per
+    // real player, stable id. The income the bank lends on was filled in by a schema
+    // step (BANK_INCOME_BACKFILL_SQL in d1.ts), so the limits are there from day one.
+    for (const loft of db.lofts) {
+      if (loft.isBot) continue;
+      pushNotification(db, loft.userId, 'info', BANK_NEWS.title, BANK_NEWS.body, null, BANK_NEWS.id(loft.userId));
+    }
+    db.world.dataVersion = 72;
+  }
+
+  // ⚠️ ENKEL OP DEV (voorstel prijsregel, 24 okt). Op dev heette dit eerst v69, toen v72;
+  // prod gebruikte v69–v71 voor de erfenissen en v72 voor de bank, dus dev = prod +
+  // deze bel als v73. Gaat het voorstel live, dan krijgt het het eerstvolgende vrije
+  // nummer van prod. `=== 72` and not in a flight request, as above.
+  if ((db.world.dataVersion ?? 0) === 72 && !startsOrFinishesFlight(db, nowMs)) {
     // Aankondiging (eigenaar, 24 okt): élke duif krijgt het geld van haar plaats,
     // de punten blijven voor de beste 3 per hok (REWARD_BIRDS_PER_LOFT, flight.ts),
     // en de leagues betalen per vlucht meer (LEAGUES[].sprint/fond). Geen datafix:
@@ -2751,7 +2763,7 @@ export function runDataMigrations(db: Database, nowMs = Date.now()): void {
       if (loft.isBot) continue;
       pushNotification(db, loft.userId, 'info', PRIZE_RULE_NEWS.title, PRIZE_RULE_NEWS.body, null, PRIZE_RULE_NEWS.id(loft.userId));
     }
-    db.world.dataVersion = 72;
+    db.world.dataVersion = 73;
   }
 }
 

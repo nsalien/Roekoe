@@ -347,7 +347,7 @@ export interface Loft {
    */
   equipment?: LoftEquipment;
   /**
-   * De bank (core/game/bank.ts, ⚠️ enkel op dev): the open loans and the income of
+   * De bank (core/game/bank.ts): the open loans and the income of
    * the last days the limit is measured on. One JSON column on the loft row, like
    * `equipment` — no table, no extra query. Absent = never earned or borrowed.
    */

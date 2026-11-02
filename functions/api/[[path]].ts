@@ -702,7 +702,7 @@ app.post('/sponsors/cancel', async (c) => {
   return c.json({ ok: true, result });
 });
 
-// --- De bank (core/game/bank.ts, enkel dev) -------------------------------------
+// --- De bank (core/game/bank.ts) ---------------------------------------------
 app.get('/bank', (c) => {
   const user = requireUser(c);
   const loft = c.get('store').data.lofts.find((l) => l.userId === user.id);
