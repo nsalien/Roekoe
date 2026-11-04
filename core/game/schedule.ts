@@ -76,6 +76,7 @@ import { awardBadge, awardFlightBadges, evaluateBadges } from './badges.js';
 import { ensureAuctions, recomputeAuctionLeader } from './auction.js';
 import { tickLoftDebt } from './debt.js';
 import { earn, tickLoans } from './bank.js';
+import { markGrownUp } from './grownup.js';
 import { botDailyActions, botEntryContext, botRaceCandidates, fillBotFlocks } from './bots.js';
 import type { BotEntryContext } from './bots.js';
 import { settleFlightBets, voidBetsForWithdrawnPigeon, voidOrphanedBets, refundFlightBets } from './betting.js';
@@ -3270,6 +3271,7 @@ export function tickDailyCare(db: Database, nowMs: number): void {
       db.world.currentWeek += 1;
       runAgeMortality(db, db.world.currentWeek);
       runAgeDecline(db, db.world.currentWeek); // skills fade past the prime (real time)
+      markGrownUp(db, db.world.currentWeek, dayMidnight); // 8 weeks: ready to fly (⚠️ dev, grownup.ts)
     }
   }
 

@@ -9,6 +9,7 @@ import { LOKAAL_SEEN_EVENT, hasLokaalNews, lokaalSeenAt } from '../game/lokaalSe
 import { STUD_SEEN_EVENT, hasStudNews, studSeenAt } from '../game/studSeen';
 import { api } from '../api/client';
 import { APP_BUILD, liveBuild, reloadInto } from '../game/appVersion';
+import { GrownUpCelebration } from './GrownUpCelebration';
 import { useToast } from './ui';
 import { NotificationsBell } from './NotificationsBell';
 import { BANK_NEWS_STEPS, INRICHTING_NEWS_STEPS, LEAGUE_NEWS_STEPS, LOKAAL_NEWS_STEPS, PRIZE_RULE_NEWS_STEPS, Tour, lureNewsSteps, season3NewsSteps, studNewsSteps, tagNewsSteps } from './Tour';
@@ -524,6 +525,27 @@ export function Layout() {
     return { count: 0, news: false, title: '' };
   }
 
+  // ⚠️ dev — a bird of yours turned 8 weeks (ready to fly): a party per bird, once per
+  // device (localStorage; the server keeps `grownUpAt`, see core/game/grownup.ts). Only
+  // the last two weeks, so an old flag never pops up out of nowhere. It waits for the
+  // tours and the prize ceremony, and a dilemma waits for it.
+  const grownKey = user?.id ? `roekoe.grownSeen.${user.id}` : null;
+  const [grownSeen, setGrownSeen] = useState<string[] | null>(null);
+  useEffect(() => {
+    if (!grownKey) return;
+    let seen: string[] = [];
+    try { seen = JSON.parse(localStorage.getItem(grownKey) ?? '[]'); } catch { /* private mode */ }
+    setGrownSeen(Array.isArray(seen) ? seen : []);
+  }, [grownKey]);
+  const grownQueue = grownSeen === null ? [] : (state?.pigeons ?? []).filter((p) =>
+    !!p.grownUpAt && Date.now() - Date.parse(p.grownUpAt) < 14 * 86400000 && !grownSeen.includes(p.id));
+  const showGrownUp = grownQueue.length > 0 && !otherNewsOpen && !showBankNews && !showCeremony;
+  function grownDone(id: string) {
+    const next = [...(grownSeen ?? []), id].slice(-300);
+    setGrownSeen(next);
+    if (grownKey) { try { localStorage.setItem(grownKey, JSON.stringify(next)); } catch { /* private mode */ } }
+  }
+
   return (
     <div className="app">
       <header className="topbar">
@@ -633,7 +655,8 @@ export function Layout() {
       {showBankNews && !showPrizeRuleNews && !showLeagueNews && !showTagsNews && !showLureNews && !showSamenNews && !showInrichtingNews && !showLokaalNews && !showNews && !showTour && !showCeremony && (
         <Tour steps={BANK_NEWS_STEPS} onClose={closeBankNews} />
       )}
-      {state?.pendingEvent && !showTour && !showNews && !showLokaalNews && !showInrichtingNews && !showSamenNews && !showLureNews && !showTagsNews && !showLeagueNews && !showPrizeRuleNews && !showBankNews && !showCeremony && <EventModal />}
+      {state?.pendingEvent && !showTour && !showNews && !showLokaalNews && !showInrichtingNews && !showSamenNews && !showLureNews && !showTagsNews && !showLeagueNews && !showPrizeRuleNews && !showBankNews && !showCeremony && !showGrownUp && <EventModal />}
+      {showGrownUp && <GrownUpCelebration birds={grownQueue} onSeen={grownDone} />}
     </div>
   );
 }

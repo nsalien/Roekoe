@@ -50,6 +50,7 @@ import { newNewcomerPerks } from './newcomer.js';
 import { careSlots, runHealthWeek } from './health.js';
 import { nameKey, namesInUse } from './names.js';
 import { voidBetsForWithdrawnPigeon } from './betting.js';
+import { markGrownUp } from './grownup.js';
 import { featuredListingId, minSalePrice, noteMarketNews, saleQuality } from './market.js';
 import { birdStillOut, flightClaimingDay, flightDay, pigeonAirborne, pigeonCommittedToFlight } from './flight.js';
 import {
@@ -249,6 +250,9 @@ export function advanceWeek(store: Store): WeekSummary {
     // Advance the game-week counter (drives ages/ailments/flight weeks). The
     // SEASON timeline + its rollover run in real time (see season.ts), not here.
     db.world.currentWeek += 1;
+    // The admin's "Volgende week" ages the birds too, so it throws the same party
+    // (⚠️ dev, grownup.ts) — in the demo that button is how you see it at once.
+    markGrownUp(db, db.world.currentWeek, Date.now());
 
     return summary;
   });

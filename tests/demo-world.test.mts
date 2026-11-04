@@ -116,3 +116,9 @@ assert(bank.status === 200 && bank.json.limit >= 6000 && bank.json.limit <= 7000
   `twee weken inkomsten in de seed → een limiet van €${bank.json?.limit} (DEMO_INCOME)`);
 const lent = await call('/bank/borrow', 'POST', { amount: 1000, days: 7 });
 assert(lent.status === 200 && (await call('/bank')).json.loans.length === 1, 'lenen lukt in de demo');
+
+console.log('\nVolwassen (enkel dev): een duif die net 8 weken werd, en een van 7');
+const grownState = await call('/state');
+const grownBird = grownState.json.pigeons.find((p: any) => p.grownUpAt);
+assert(!!grownBird && grownBird.ageWeeks === 8 && grownBird.canRace !== false, `een duif van net 8 weken met een feestje klaar (${grownBird?.name})`);
+assert(grownState.json.pigeons.some((p: any) => p.ageWeeks === 7 && !p.grownUpAt), 'en een van 7 weken die volwassen wordt bij de volgende weekwissel');

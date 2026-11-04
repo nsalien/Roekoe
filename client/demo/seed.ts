@@ -14,7 +14,7 @@
 
 import { D1Store, ensureSchema } from '../../core/d1.js';
 import type { Pigeon, User } from '../../core/schema.js';
-import { LEAGUES } from '../../core/config/gameConfig.js';
+import { LEAGUES, RACE_AGE_WEEKS } from '../../core/config/gameConfig.js';
 import { createLoftForUser, seedWorld, startBreeding } from '../../core/game/engine.js';
 import { advanceRealtime } from '../../core/game/schedule.js';
 import { generatePigeon } from '../../core/game/pigeon.js';
@@ -155,6 +155,20 @@ export async function createDemoWorld(d1: DemoD1): Promise<void> {
       applyAilment(patient, randomDisease(w.world.currentWeek, 60));
       patient.inInfirmary = true;
     }
+    // ⚠️ dev — Volwassen (core/game/grownup.ts): one bird that has JUST turned 8 weeks,
+    // so the party shows the moment the demo opens, and one of 7 weeks in a
+    // compartment that comes of age at the next game week (+1 dag a few times, or the
+    // admin's "Volgende week").
+    const free = w.pigeons.filter((p) => p.ownerId === user.id && !busy.has(p.id) && !leagueBirds.has(p.id) && p !== patient);
+    const grown = free.find((p) => !p.compartment);
+    if (grown) {
+      grown.birthWeek = w.world.currentWeek - RACE_AGE_WEEKS;
+      grown.care = { ...(grown.care ?? {}), grownUpAt: new Date().toISOString() };
+      grown.form = 85;
+      grown.health = 95;
+    }
+    const young = free.find((p) => p.compartment);
+    if (young) young.birthWeek = w.world.currentWeek - (RACE_AGE_WEEKS - 1);
     w.world.leaderboard = JSON.stringify(computeLeaderboard(w));
   });
 
