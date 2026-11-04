@@ -1,5 +1,5 @@
 /**
- * Een duif in je hok wordt 8 weken: ze is volwassen en mag vliegen (⚠️ enkel op dev).
+ * Een duif in je hok wordt 8 weken: ze is volwassen en mag vliegen (live sinds 4 nov).
  *
  * Eigenaar, 4 nov: "zorg voor een leuke animatie die de speler te zien krijgt per
  * duif die volwassen wordt … Nu gebeurt dit gewoon stil." The engine notes the

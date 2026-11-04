@@ -84,9 +84,10 @@
 > Het voorstel (met alle getallen en de sketch) staat in de artifact "Roekoe Hokinrichting".
 
 ### Stand van zaken (12 okt 2026) — lees dit eerst
-- **Volwassen-feestje — 4 nov, ⚠️ ENKEL OP DEV** (eigenaar: "Wanneer een duif volwassen wordt, dus 8 weken wordt,
-  terwijl die in het hok van de speler zit, zorg voor een leuke animatie … enkel op dev en geef me direct een duif die
-  zogezegd 8 weken is geworden"). Zie §0b *Volwassen-feestje*. In de demo (`DEMO_VERSION` 19) staat er meteen een duif
+- **Volwassen-feestje — gebouwd op Dev op 4 nov, LIVE sinds 4 nov, zonder aankondiging** (eigenaar: "Wanneer een duif
+  volwassen wordt, dus 8 weken wordt, terwijl die in het hok van de speler zit, zorg voor een leuke animatie …"; daarna:
+  "Zet het op productie. Spelers zien pas wat er veranderd is als ze effectief een duif hebben die volwassen wordt" —
+  dus **geen bel, geen rondleiding, geen migratie**). Zie §0b *Volwassen-feestje*. In de demo (`DEMO_VERSION` 19) staat er meteen een duif
   van net 8 weken klaar, plus een van 7 weken die bij de volgende speelweek volwassen wordt.
 - **Rustkuur €150 per duif — 2 nov, migratie v74, live** (prod `8369ff5` = dev `d601366`; eigenaar: "Verlaag de rustkuur kost naar 150 … en melding voor
   spelers"): `REST_CURE.cost` 300 → **150**; de rest van de kuur (48 u, +40 energie, +15 gezondheid, 1× per duif per
@@ -299,7 +300,7 @@
   De leaguemigratie heet nu overal **v67** (v66 = de afsluiting van seizoen 3); v66 reikt het criterium sindsdien
   uit via `closeCriterium` (`force`). Op prod reikte v67 niets meer uit: v66 had de cyclus die ochtend net
   herstart, en er vloog sindsdien geen criteriumvlucht.
-- **Enkel op dev:** **Marktwaarde v2**, de **demomodus**, de voorstellen **prijsregel** en **coachprijs**, en het **volwassen-feestje**. Weggehaald van dev en dus nergens:
+- **Enkel op dev:** **Marktwaarde v2**, de **demomodus** en de voorstellen **prijsregel** en **coachprijs**. Weggehaald van dev en dus nergens:
   koppels, partnerhok, weduwschap, de scout, het nieuwe voer.
 - **Dev herstart op 12 okt** (gebouwd op `claude/breeding-other-player-pigeons-7314iz`, daarna ook
   op `claude/demo-hokinrichting`), precies zoals hieronder beschreven: vanaf prod `4a0c3ad`, de demo
@@ -682,7 +683,7 @@
     `samen-kweken-news` (v63 op een wereld die v62 al had: bot-aanbod weg, dat van een speler blijft,
     geen bel).
 
-### Volwassen-feestje — een duif wordt 8 weken in je hok (⚠️ ENKEL OP DEV, 4 nov; `core/game/grownup.ts`, `GrownUpCelebration.tsx`)
+### Volwassen-feestje — een duif wordt 8 weken in je hok (LIVE sinds 4 nov, zonder aankondiging; `core/game/grownup.ts`, `GrownUpCelebration.tsx`)
 - **Waarom:** een jong werd stil vluchtklaar (`RACE_AGE_WEEKS` 8, `canRace`); de speler merkte het niet.
 - **Motor:** `markGrownUp(db, week, atMs)` draait waar duiven ouder worden — bij elke gerolde speelweek in
   `tickDailyCare` (met de verwerkte middernacht als tijdstip, stabiel bij gelijktijdige verzoeken) én in de
@@ -703,8 +704,9 @@
 - **Demo:** de seed geeft een vrije duif een leeftijd van net 8 weken + `grownUpAt` (het feestje verschijnt bij het
   openen) en een duif in een apart hok 7 weken (volwassen bij de volgende speelweek: een paar keer +1 dag, of
   *Volgende week*). `DEMO_VERSION` 19; `demo-world` controleert beide.
-- **Naar productie?** Nog niet gevraagd. Dan: de code zoals hij is (geen schemastap, geen migratie nodig — duiven die
-  daarna 8 weken worden, krijgen het feestje); eventueel een bel.
+- **Live (4 nov):** de code zoals hij is — geen schemastap, geen migratie, **bewust geen bel** (de eigenaar: spelers
+  ontdekken het als hun eigen duif volwassen wordt). Een duif die vóór de uitrol al 8 weken werd, krijgt niets (geen
+  markering); de eerste feestjes komen bij de eerstvolgende speelweek.
 - **Test:** `tests/volwassen.test.mts` (14 controles): de echte dagovergang markeert precies de duif die 8 weken
   wordt, één keer, op de middernacht; ouder, 7 weken en bots niet; *Volgende week* ook; enkel de eigenaar; weg bij
   verkoop; de Layout/het feestje/minder beweging.
@@ -1541,7 +1543,7 @@ Roekoe/
 │       ├── pedigree.ts          stamboom + verwantschap (kinship/ancestorIds/pedigreeOf)
 │       ├── pigeon.ts, weather.ts, util.ts (seededRng/hashString/clamp/pickWith)
 │       ├── lure.ts              duivenlokker: kopen, de loting bij vrijlaten, de wachtkamer + meldingen
-│       ├── grownup.ts           volwassen-feestje (dev): markeer een duif die in je hok 8 weken wordt
+│       ├── grownup.ts           volwassen-feestje: markeer een duif die in je hok 8 weken wordt
 │       ├── bank.ts              de bank: inkomsten bijhouden, limiet, lenen, afbetalen om middernacht
 │       ├── tags.ts              tags op je duiven: opkuisen + zetten (privé, in Pigeon.care)
 │       ├── stem.ts              De Stem: regels van het ideeënbord + de 4 startideeën (géén DB)
@@ -2380,7 +2382,7 @@ npx tsx tests/season-close.test.mts       # v66: seizoen 3 afsluiten (of enkel h
 npx tsx tests/bot-fill.test.mts           # v68: bots tot 10 duiven, ★60–75, in stappen van 3, vaste ids, querykost
 npx tsx tests/erfenis-v69.test.mts        # v69 + v70: erfenis zonder spaarpot (drie spelers + OnlyFlaps), gekozen duif altijd ★75–80, D1 + API; v71: de gewone erfenis voor De Vluchtige Vleugel
 npx tsx tests/market-reference.test.mts   # veilingduiven volgen het gemiddelde: referentie, zondagbanden (+ gedeeld per dag), opvangcentrum
-npx tsx tests/volwassen.test.mts          # volwassen-feestje (dev): markering bij 8 weken, één keer, enkel de eigenaar, weg bij verkoop
+npx tsx tests/volwassen.test.mts          # volwassen-feestje: markering bij 8 weken, één keer, enkel de eigenaar, weg bij verkoop
 npx tsx tests/rustkuur-prijs.test.mts     # rustkuur €150: prijs, de teksten die hem uitschrijven, bel v74
 npx tsx tests/bank.test.mts               # de bank: limiet op inkomsten, lenen, afbetalen om middernacht, aflossen, D1 + API, terugvulling + bel v72/v73
 ```

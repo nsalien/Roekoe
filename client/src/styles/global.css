@@ -607,7 +607,7 @@ table.data td.good { color: var(--good); font-weight: 700; }
   .ceremony-stage, .ceremony-trophy { animation: none; }
 }
 
-/* --- Volwassen: een duif wordt 8 weken (GrownUpCelebration, ⚠️ enkel op dev) --- */
+/* --- Volwassen: een duif wordt 8 weken (GrownUpCelebration) --- */
 /* Het kuiken springt op, krimpt weg terwijl de duif groeit, de stempel komt neer,
    er spat een krans vonken uit en veertjes dwarrelen. Drie lagen rond de duif
    (positie → groei → hupje), zodat de transforms elkaar niet overschrijven. */

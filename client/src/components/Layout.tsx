@@ -525,7 +525,7 @@ export function Layout() {
     return { count: 0, news: false, title: '' };
   }
 
-  // ⚠️ dev — a bird of yours turned 8 weeks (ready to fly): a party per bird, once per
+  // A bird of yours turned 8 weeks (ready to fly): a party per bird, once per
   // device (localStorage; the server keeps `grownUpAt`, see core/game/grownup.ts). Only
   // the last two weeks, so an old flag never pops up out of nowhere. It waits for the
   // tours and the prize ceremony, and a dilemma waits for it.

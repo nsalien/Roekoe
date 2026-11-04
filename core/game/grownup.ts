@@ -1,5 +1,5 @@
 /**
- * VOLWASSEN — een duif wordt in je hok 8 weken en mag vliegen (⚠️ enkel op dev).
+ * VOLWASSEN — een duif wordt in je hok 8 weken en mag vliegen (live sinds 4 nov, zonder aankondiging).
  *
  * Eigenaar, 4 nov: "Wanneer een duif volwassen wordt, dus 8 weken wordt, terwijl die
  * in het hok van de speler zit, zorg voor een leuke animatie die de speler te zien

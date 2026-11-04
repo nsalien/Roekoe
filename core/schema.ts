@@ -429,7 +429,7 @@ export interface PigeonCare {
    *  owner, and like the policy they stay with the old loft when she changes hands. */
   tags?: string[];
   /**
-   * ⚠️ Enkel op dev: when she turned 8 weeks (RACE_AGE_WEEKS) in THIS loft, i.e. became
+   * When she turned 8 weeks (RACE_AGE_WEEKS) in THIS loft, i.e. became
    * ready to fly (core/game/grownup.ts). The client celebrates it once. Owner-private,
    * and like the tags it stays behind when she changes hands.
    */

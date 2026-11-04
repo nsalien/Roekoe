@@ -3271,7 +3271,7 @@ export function tickDailyCare(db: Database, nowMs: number): void {
       db.world.currentWeek += 1;
       runAgeMortality(db, db.world.currentWeek);
       runAgeDecline(db, db.world.currentWeek); // skills fade past the prime (real time)
-      markGrownUp(db, db.world.currentWeek, dayMidnight); // 8 weeks: ready to fly (⚠️ dev, grownup.ts)
+      markGrownUp(db, db.world.currentWeek, dayMidnight); // 8 weeks: ready to fly (grownup.ts)
     }
   }
 

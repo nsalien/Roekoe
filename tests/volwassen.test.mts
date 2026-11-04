@@ -1,5 +1,5 @@
 /**
- * Volwassen (⚠️ enkel dev) — een duif wordt in je hok 8 weken (RACE_AGE_WEEKS) en mag
+ * Volwassen — een duif wordt in je hok 8 weken (RACE_AGE_WEEKS) en mag
  * vliegen: de motor onthoudt het moment (care.grownUpAt, core/game/grownup.ts), de
  * client geeft er één keer een feestje voor (GrownUpCelebration.tsx).
  *

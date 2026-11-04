@@ -251,7 +251,7 @@ export function advanceWeek(store: Store): WeekSummary {
     // SEASON timeline + its rollover run in real time (see season.ts), not here.
     db.world.currentWeek += 1;
     // The admin's "Volgende week" ages the birds too, so it throws the same party
-    // (⚠️ dev, grownup.ts) — in the demo that button is how you see it at once.
+    // (grownup.ts) — in the demo that button is how you see it at once.
     markGrownUp(db, db.world.currentWeek, Date.now());
 
     return summary;
