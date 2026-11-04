@@ -83,7 +83,7 @@
 > Het voorstel (met alle getallen en de sketch) staat in de artifact "Roekoe Hokinrichting".
 
 ### Stand van zaken (12 okt 2026) — lees dit eerst
-- **Volwassen-feestje — gebouwd op Dev op 4 nov, LIVE sinds 4 nov, zonder aankondiging** (eigenaar: "Wanneer een duif
+- **Volwassen-feestje — gebouwd op Dev op 4 nov, LIVE sinds 4 nov, zonder aankondiging** (prod `d09fc52` = dev `2be7b73` + `671efb1`; eigenaar: "Wanneer een duif
   volwassen wordt, dus 8 weken wordt, terwijl die in het hok van de speler zit, zorg voor een leuke animatie …"; daarna:
   "Zet het op productie. Spelers zien pas wat er veranderd is als ze effectief een duif hebben die volwassen wordt" —
   dus **geen bel, geen rondleiding, geen migratie**). Zie §0b *Volwassen-feestje*. In de demo (`DEMO_VERSION` 19) staat er meteen een duif
