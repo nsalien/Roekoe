@@ -607,6 +607,73 @@ table.data td.good { color: var(--good); font-weight: 700; }
   .ceremony-stage, .ceremony-trophy { animation: none; }
 }
 
+/* --- Volwassen: een duif wordt 8 weken (GrownUpCelebration) --- */
+/* Het kuiken springt op, krimpt weg terwijl de duif groeit, de stempel komt neer,
+   er spat een krans vonken uit en veertjes dwarrelen. Drie lagen rond de duif
+   (positie → groei → hupje), zodat de transforms elkaar niet overschrijven. */
+.grown-overlay { background: rgba(8, 12, 22, 0.72); z-index: 95; }
+.grown { text-align: center; border-color: var(--brand); box-shadow: 0 0 0 1px var(--brand-soft), var(--shadow-lg); }
+.grown-sky {
+  position: relative; height: 200px; margin: -4px 0 8px; border-radius: var(--r); overflow: hidden;
+  background:
+    radial-gradient(circle at 50% 62%, color-mix(in srgb, var(--brand) 32%, transparent), transparent 62%),
+    linear-gradient(180deg, color-mix(in srgb, var(--brand) 10%, transparent), transparent);
+}
+.grown-chick {
+  position: absolute; left: 50%; top: 52%; font-size: 3.4rem; line-height: 1;
+  transform: translate(-50%, -50%); animation: grown-chick 1.15s ease-in both;
+}
+.grown-bird { position: absolute; left: 50%; top: 52%; transform: translate(-50%, -50%); }
+.grown-bird-grow { opacity: 0; transform: scale(0.3); animation: grown-grow 0.9s 0.75s cubic-bezier(0.2, 0.9, 0.3, 1.45) forwards; }
+.grown-bird-hop { animation: grown-hop 1.5s 1.8s ease-in-out infinite; }
+.grown-stamp {
+  position: absolute; right: 14px; top: 14px; padding: 4px 10px; border-radius: 8px;
+  border: 2px solid var(--good); color: var(--good); background: color-mix(in srgb, var(--surface) 80%, transparent);
+  font-weight: 900; font-size: 0.8rem; letter-spacing: 0.08em; text-transform: uppercase;
+  opacity: 0; transform: rotate(-12deg) scale(2.2); animation: grown-stamp 0.45s 1.55s cubic-bezier(0.3, 1.4, 0.5, 1) forwards;
+}
+.grown-spark {
+  position: absolute; left: 50%; top: 52%; width: 8px; height: 8px; margin: -4px 0 0 -4px; border-radius: 999px;
+  background: var(--gold); opacity: 0; animation: grown-burst 0.9s 1.45s ease-out forwards;
+}
+.grown-spark:nth-child(odd) { background: var(--brand); }
+.grown-feather {
+  position: absolute; top: -24px; font-size: 1.05rem; opacity: 0;
+  animation-name: grown-fall; animation-timing-function: linear; animation-iteration-count: infinite;
+}
+.grown-text { animation: prize-in 0.45s 1.25s cubic-bezier(0.2, 0.9, 0.3, 1.2) both; }
+@keyframes grown-chick {
+  0% { opacity: 0; transform: translate(-50%, -30%) scale(0.4); }
+  25% { opacity: 1; transform: translate(-50%, -50%) scale(1.1) rotate(-8deg); }
+  45% { transform: translate(-50%, -50%) scale(1) rotate(8deg); }
+  65% { opacity: 1; transform: translate(-50%, -50%) scale(1) rotate(-4deg); }
+  100% { opacity: 0; transform: translate(-50%, -50%) scale(0.2); }
+}
+@keyframes grown-grow { to { opacity: 1; transform: scale(1); } }
+@keyframes grown-hop {
+  0%, 100% { transform: translateY(0) rotate(0); }
+  30% { transform: translateY(-14px) rotate(-3deg); }
+  55% { transform: translateY(0) rotate(2deg); }
+}
+@keyframes grown-stamp { to { opacity: 1; transform: rotate(-12deg) scale(1); } }
+@keyframes grown-burst {
+  0% { opacity: 1; transform: translate(0, 0) scale(1); }
+  100% { opacity: 0; transform: translate(var(--dx), var(--dy)) scale(0.4); }
+}
+@keyframes grown-fall {
+  0% { opacity: 0; transform: translateY(0) rotate(0); }
+  10% { opacity: 0.9; }
+  100% { opacity: 0; transform: translateY(240px) rotate(200deg); }
+}
+/* Wie liever geen beweging heeft: meteen het eindbeeld, zonder kuiken en confetti. */
+@media (prefers-reduced-motion: reduce) {
+  .grown-chick, .grown-spark, .grown-feather { display: none; }
+  .grown-bird-grow, .grown-stamp, .grown-text { animation: none; opacity: 1; }
+  .grown-bird-grow { transform: none; }
+  .grown-stamp { transform: rotate(-12deg); }
+  .grown-bird-hop { animation: none; }
+}
+
 /* --- Prestige: level, badges, trophies ------------------------------------ */
 .level-badge {
   display: inline-flex; align-items: center; padding: 3px 10px; border-radius: 999px;

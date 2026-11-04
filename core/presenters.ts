@@ -158,6 +158,8 @@ export function pigeonDTO(db: Database, p: Pigeon, viewerId?: string, viewerIsAd
     // Tags (core/game/tags.ts): the owner's private notes — ONLY to the owner, never
     // to an admin or a server-internal call without a viewer.
     tags: viewerId !== undefined && p.ownerId === viewerId ? pigeonTags(p) : [],
+    // When she turned 8 weeks in this loft (grownup.ts) — the owner's party, nobody else's.
+    grownUpAt: viewerId !== undefined && p.ownerId === viewerId ? p.care?.grownUpAt ?? null : null,
     magazineRanges: !revealed && readsMagazine(db, viewerId) ? magazineRanges(p) : null,
     // A bird in the infirmary keeps its compartment flag internally (to reclaim the
     // slot on the way out) but is shown as not-in-a-compartment while isolated.

@@ -522,6 +522,7 @@ export function clearOwnerCare(p: Pigeon): void {
   if (!p.care) return;
   p.care.insurance = undefined;
   p.care.tags = undefined;
+  p.care.grownUpAt = undefined; // her coming of age was celebrated in the old loft
   tidy(p);
 }
 

@@ -81,6 +81,8 @@ export interface DailyCareProjection {
 }
 
 export interface Pigeon {
+  /** When she turned 8 weeks in your loft (ready to fly); only for your own birds. */
+  grownUpAt?: string | null;
   id: string;
   ownerId: string;
   ownerName: string;
