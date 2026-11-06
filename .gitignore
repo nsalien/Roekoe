@@ -1,27 +1,2 @@
-# Dependencies
 node_modules/
-
-# Builds
 client/dist/
-server/dist/
-*.tsbuildinfo
-
-# Runtime data (the JSON database) and secrets
-roekoe-db.json
-roekoe-db.json.tmp
-**/data/*.json
-**/data/*.json.tmp
-.env
-*.log
-
-# Cloudflare / Wrangler
-.wrangler/
-.dev.vars
-
-# Editor / OS
-.DS_Store
-.vscode/
-.idea/
-
-# Local-only Wrangler config (see wrangler.example.toml)
-/wrangler.toml
