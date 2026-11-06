@@ -15,10 +15,10 @@
 
 | Rol | Branch | Doel |
 |-----|--------|------|
-| **Dev** | `claude/demo-hokinrichting` | Alle ontwikkeling/commits komen hier **eerst**. **Sinds 1 nov weer aan** (op vraag van de eigenaar, om *Lenen bij de bank* te bekijken; daarvoor op pauze van 25 okt tot 1 nov): herstart vanaf prod `542dfbd` + de dev-only stukken (demomodus, Marktwaarde v2, de voorstellen prijsregel en coachprijs) + **de bank**, als samenvoegcommit `366c321` bovenop de pauzecommit; daarna `493ea74` (de bank, live sinds 2 nov). De volledige uitleg van alles wat enkel op dev staat, staat in de `context.md` óp die branch (§0b). Demo-preview: **https://claude-demo-hokinrichting.roekoe.pages.dev**. |
+| **Dev** | `claude/demo-hokinrichting` | Alle ontwikkeling/commits komen hier **eerst**. ⏸️ **Gepauzeerd sinds 6 nov** (vierde keer, op vraag van de eigenaar: "Zet dev terug inactief"; pauzecommit `f063429`, enkel een pauzepagina, geen Worker of databank). De volledige Dev-stand is **`fd2638e`** (= prod `6799a41` + de dev-only stukken: demomodus, Marktwaarde v2, de voorstellen prijsregel en coachprijs); hoe je hem terugzet staat in de `context.md` óp die branch. Ook `ccr-9f062ea2-reeikx` (zelfde commits) is gepauzeerd. Daarvoor aan van 1 tot 6 nov (bank, volwassen-feestje). |
 | **Dev (sessie 15 okt)** | `claude/duivenlokker-feature-mhf3yb` | Sessiebranch van de **duivenlokker**, vertrokken van prod `9e2a79a` (geen demo, geen Marktwaarde v2). De eigenaar vroeg meteen "implementeren op productie": de feature-commit staat hier als `fc0a933` (met `[CF-Pages-Skip]`, want een preview-build van een prod-tak kan aan de live `roekoe-db` hangen) en staat op prod als **`b4f3ab8`** (zelfde boom, boodschap zonder skip). De gepauzeerde `claude/demo-hokinrichting` heeft de lokker **niet**. Op 17 okt kwamen hier de **tags op je duiven** bij (§0b, `13f6571`), dezelfde dag op vraag van de eigenaar naar prod ("zet op productie"). |
 | **Dev (sessie 27 okt)** | `claude/adoring-bell-7zvxzk` | Sessiebranch van de **erfenis voor drie spelers** (migratie v69) en **de markt volgt het spel** (zie *Stand van zaken*), vertrokken van prod `d423c1b` (geen demo, geen Marktwaarde v2). Commits met `[CF-Pages-Skip]`, om dezelfde reden als hierboven. Beide live op 27 okt: `f26ae4f` → prod `ca78889`, `0f127f6` → prod `610f362`. |
-| **Dev (sessie 31 okt – 1 nov)** | `ccr-9f062ea2-reeikx` | Sessiebranch van **de erfenis voor De Vluchtige Vleugel** (migratie v71; live op 31 okt: `408d282` → prod `c644026`), daarna van de **herstart van Dev** en **de bank** (1 nov) — sindsdien dezelfde commits als `claude/demo-hokinrichting`. |
+| **Dev (sessie 31 okt – 1 nov)** | `ccr-9f062ea2-reeikx` | Sessiebranch van **de erfenis voor De Vluchtige Vleugel** (migratie v71; live op 31 okt: `408d282` → prod `c644026`), daarna van de **herstart van Dev** en **de bank** (1 nov) — sindsdien dezelfde commits als `claude/demo-hokinrichting` — ook gepauzeerd sinds 6 nov (`f063429`). |
 | **Prod** | `claude/roekoe-game-website-jwa0vo` | Elke commit wordt hierheen **gecherry-pickt**; deze branch triggert de **Cloudflare Pages**-deploy naar productie. |
 
 > Vorige dev-branches (niet meer gebruiken): `ccr-9c78dbf3-rdb1ea`, `claude/hallo-nno7pb`, `claude/hallo-r1wgvn`, `claude/hallo-ca55co`, `claude/hallo-qz9tmx`, `claude/hallo-fsp9nx`, `claude/hallo-mzjn0e`, `claude/hallo-su75jy`, `claude/hallo-rkr49f`, `claude/hallo-pvwabx`,
@@ -83,6 +83,9 @@
 > Het voorstel (met alle getallen en de sketch) staat in de artifact "Roekoe Hokinrichting".
 
 ### Stand van zaken (12 okt 2026) — lees dit eerst
+- **Dev gepauzeerd — 6 nov** (eigenaar: "Zet dev terug inactief"): beide dev-branches (`claude/demo-hokinrichting`,
+  `ccr-9f062ea2-reeikx`) zijn één statische pauzepagina zonder `functions/` (pauzecommit `f063429`); de volledige
+  Dev-stand is `fd2638e`. Terugzetten: zie de `context.md` op die branch. Een volgende migratie op prod is **v75**.
 - **Volwassen-feestje — gebouwd op Dev op 4 nov, LIVE sinds 4 nov, zonder aankondiging** (prod `d09fc52` = dev `2be7b73` + `671efb1`; eigenaar: "Wanneer een duif
   volwassen wordt, dus 8 weken wordt, terwijl die in het hok van de speler zit, zorg voor een leuke animatie …"; daarna:
   "Zet het op productie. Spelers zien pas wat er veranderd is als ze effectief een duif hebben die volwassen wordt" —
