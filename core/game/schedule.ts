@@ -91,7 +91,7 @@ import {
   runHealthDay,
   tickHealing,
 } from './health.js';
-import { inheritanceCard } from './events.js';
+import { handPigeon, inheritanceCard } from './events.js';
 import { closeCriterium, endSeasonNow, tickSeason } from './season.js';
 import { progressMissions } from './missions.js';
 import { activeContracts, applyHighTierDoubleMigration, applySponsorLimitMigration, evaluateSponsorOffers, offerStarterSponsor, restoreSeasonReviewDrops, sponsorsPaused } from './sponsors.js';
@@ -114,14 +114,14 @@ import {
 import type { WeatherResult } from './weather.js';
 import { monthTemperature } from './weather.js';
 import { generatePigeonName, isLegacyName, isWrongGenderName, nameKey, namesInUse } from './names.js';
-import { breedingCooldownDaysLeft, breedingCooldownUntil, canRace, conditionScore, generatePigeon, isAway, noteAttrChange, rollBreed, rollGenes, talent } from './pigeon.js';
+import { breedingCooldownDaysLeft, breedingCooldownUntil, canRace, conditionScore, generatePigeon, isAway, noteAttrChange, rollBreed, rollGenes, seasonScore, shapeToScore, talent } from './pigeon.js';
 import { NPC_OWNER_ID, ownerName } from './engine.js';
 import { pickRelayRoute, relayEntryTeams, relayLegKm, relayTeamComplete } from './relay.js';
 import { rollAnyTrait, rollTrait } from './traits.js';
 import { season3CoachNote, season3Welcome } from './season3.js';
 import { LOKAAL_INTRO } from './lokaal.js';
 import { BANK_NEWS, CARE_NEWS, REST_CURE_PRICE_NEWS, INRICHTING_NEWS, LEAGUE_NEWS, LURE_NEWS, STUD_NEWS, TAGS_NEWS } from './news.js';
-import { bell, clamp, dateTimeFormat, hashString, haversineKm, pick, randFloat, round1, seededRng } from './util.js';
+import { bell, clamp, dateTimeFormat, hashString, haversineKm, pick, randFloat, randInt, round1, seededRng } from './util.js';
 
 // --- Time-zone helpers -----------------------------------------------------
 
@@ -2782,6 +2782,22 @@ export function runDataMigrations(db: Database, nowMs = Date.now()): void {
     }
     db.world.dataVersion = 74;
   }
+
+  // `=== 74`, same conditions as v72–v74 (no flight request, the calendar exists):
+  // this one INSERTs a pigeon row (~56 columns = one D1 query of its own) on top of
+  // the bells.
+  if ((db.world.dataVersion ?? 0) === 74 && !startsOrFinishesFlight(db, nowMs) && db.flights.length > 0) {
+    // Eigenaar, 7 nov: "'De Bronstige Bek' is een nieuwe speler. Hij heeft zijn
+    // duiven niet mogen upgraden met punten, waarom niet? Geef deze speler een duif
+    // met score 80 tussen 82."
+    // → a bird of ★80–82 straight into his loft (or waiting at Kweek if it is full),
+    // and — because the sandbox cannot read production — a bell for the admins that
+    // says what his starter package actually holds, so the "waarom" gets answered
+    // from the real data.
+    const gift = giftPigeon(db, 'de bronstige bek', 'ntf:admin:geschenk1', [80, 82], 'v75');
+    reportStarterPack(db, 'De Bronstige Bek', gift, 'ntf:admin:diag-starter1');
+    db.world.dataVersion = 75;
+  }
 }
 
 /**
@@ -2843,6 +2859,120 @@ function handInheritanceCard(
       null,
       `${noteId}:${loft.userId}`,
     );
+  }
+}
+
+/**
+ * Give ONE real player a bird of a fixed score range, as a gift from the beheerder.
+ *
+ * Matched like every hand-out (handInheritanceCard): loft name OR username,
+ * case-insensitive, runs of spaces collapsed, real players only. The bird is an
+ * ordinary generated pigeon in her prime (60–120 weeks: age factor 1.0, years from
+ * the decline at AGING.peakEndWeeks) shaped onto the score with `shapeToScore`
+ * (the three skills around it, averaging exactly it; genes 3–10 above each skill),
+ * named after that shape, and fully rested.
+ *
+ * ⚠️ Her id is FIXED (`pig_gift_<tag>_<userId>`), like `pig_botfill_…`: two requests
+ * that run the migration at the same moment both build her, and with a random id
+ * `persist` would write two birds. With this id they write the same row. A bird
+ * with that id already present (in the loft or waiting) is never built twice.
+ *
+ * Her season score starts at her own score, so the gift does not show up as
+ * "vooruitgang" in the season rankings (same as fillBotFlocks).
+ *
+ * Returns what happened, for the admin report.
+ */
+function giftPigeon(
+  db: Database, target: string, noteId: string, score: [number, number], tag: string,
+): { userId: string; name: string; score: number; waiting: boolean } | null {
+  const norm = (s: string) => s.trim().toLowerCase().replace(/\s+/g, ' ');
+  for (const loft of db.lofts) {
+    if (loft.isBot) continue;
+    const user = db.users.find((u) => u.id === loft.userId);
+    if (![loft.name, user?.username ?? ''].some((n) => norm(n) === target)) continue;
+    const id = `pig_gift_${tag}_${loft.userId}`;
+    const already =
+      db.pigeons.some((p) => p.id === id) ||
+      (loft.pendingBroods ?? []).some((b) => b.young.some((y) => y.id === id));
+    if (already) return null;
+    const week = db.world.currentWeek;
+    const p = generatePigeon({
+      ownerId: loft.userId, currentWeek: week, quality: randFloat(0.8, 0.9),
+      birthWeek: week - randInt(60, 120), taken: namesInUse(db.pigeons),
+    });
+    p.id = id;
+    const s = round1(randFloat(score[0], score[1]));
+    shapeToScore(p, s);
+    p.name = generatePigeonName(p.sex, p, namesInUse(db.pigeons));
+    p.form = 100;
+    p.health = 100;
+    p.seasonStartScore = seasonScore(p);
+    const inLoft = handPigeon(db, loft, p, 'geschenk');
+    pushNotification(
+      db, loft.userId, 'info',
+      '🎁 Een duif cadeau',
+      inLoft
+        ? `De beheerder geeft je ${p.name}, een duif met een algemene score van ★${talent(p)}. Ze zit al in je hok, uitgerust en klaar om te vliegen.`
+        : `De beheerder geeft je ${p.name}, een duif met een algemene score van ★${talent(p)}. Je hok zit vol, dus ze wacht bij Kweek: ` +
+          'maak daar plaats (laat een duif vrij of verkoop er een aan het restaurant) en houd haar.',
+      null,
+      `${noteId}:${loft.userId}`,
+    );
+    return { userId: loft.userId, name: p.name, score: talent(p), waiting: !inLoft };
+  }
+  return null;
+}
+
+/**
+ * Tell the admins what a player's starter package holds (see NEWCOMER). The sandbox
+ * a migration is written in cannot read production, so when the owner asks why a
+ * player could not spend his points, this is how the answer comes from the real
+ * row instead of a guess. Read-only: the package itself is not touched.
+ */
+function reportStarterPack(
+  db: Database, display: string,
+  gift: { userId: string; name: string; score: number; waiting: boolean } | null,
+  noteId: string,
+): void {
+  const norm = (s: string) => s.trim().toLowerCase().replace(/\s+/g, ' ');
+  const target = norm(display);
+  const loft = db.lofts.find((l) => {
+    if (l.isBot) return false;
+    const user = db.users.find((u) => u.id === l.userId);
+    return [l.name, user?.username ?? ''].some((n) => norm(n) === target);
+  });
+  const day = (iso: string | undefined) => {
+    const ms = Date.parse(iso ?? '');
+    return Number.isNaN(ms) ? 'onbekend' : dateTimeFormat('nl-BE', { timeZone: TIMEZONE, day: 'numeric', month: 'long' }).format(ms);
+  };
+  let body: string;
+  if (!loft) {
+    body = `Geen echte speler gevonden met hoknaam of gebruikersnaam "${display}". Er is niets gegeven.`;
+  } else {
+    const user = db.users.find((u) => u.id === loft.userId);
+    const who = `${loft.name} (gebruiker "${user?.username ?? '?'}", geregistreerd op ${day(user?.createdAt)})`;
+    const n = loft.newcomer;
+    if (!n) {
+      body = `${who} heeft GEEN starterspakket op zijn hok. Daarom ziet hij het paneel op het Overzicht niet ` +
+        'en kan hij geen punten geven. Het pakket wordt enkel bij de registratie gezet.';
+    } else {
+      const expBird = n.expPigeonId ? db.pigeons.find((p) => p.id === n.expPigeonId)?.name ?? 'een duif die er niet meer is' : null;
+      const untouched = n.expPoints === NEWCOMER.expPoints && n.attrPoints === NEWCOMER.attrPoints;
+      body = `${who} heeft het starterspakket wél (loopt tot ${day(n.endsAt)}). ` +
+        `Nog over: ${n.expPoints} van ${NEWCOMER.expPoints} ervaringspunten` +
+        (expBird ? ` (vastgelegd op ${expBird})` : ' (nog geen duif gekozen)') +
+        ` en ${n.attrPoints} van ${NEWCOMER.attrPoints} eigenschapspunten. ` +
+        (untouched
+          ? 'Hij heeft nog niets uitgegeven: het paneel "Je starterspakket" staat bovenaan zijn Overzicht.'
+          : 'Een deel is dus wél uitgegeven.');
+    }
+    body += gift
+      ? ` De duif ${gift.name} (★${gift.score}) ${gift.waiting ? 'wacht bij Kweek (zijn hok zit vol)' : 'zit in zijn hok'}.`
+      : '';
+  }
+  for (const admin of db.users) {
+    if (!admin.isAdmin || admin.isBot) continue;
+    pushNotification(db, admin.id, 'info', `🔎 Starterspakket van ${display}`, body, null, `${noteId}:${admin.id}`);
   }
 }
 

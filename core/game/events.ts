@@ -182,7 +182,7 @@ function waitingBody(name: string): string {
  *
  * Returns whether the bird went straight in, so the caller can word its result.
  */
-function handPigeon(db: Database, loft: Loft, p: Pigeon, origin: BroodOrigin): boolean {
+export function handPigeon(db: Database, loft: Loft, p: Pigeon, origin: BroodOrigin): boolean {
   const owned = db.pigeons.filter((x) => x.ownerId === loft.userId).length;
   if (owned < loft.capacity) {
     db.pigeons.push(p);

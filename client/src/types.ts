@@ -1105,7 +1105,7 @@ export interface BroodYoung {
 }
 
 /** Where a waiting bird came from — see `BroodOrigin` in core/schema.ts. */
-export type BroodOrigin = 'nest' | 'erfenis' | 'zwerver' | 'lokker';
+export type BroodOrigin = 'nest' | 'erfenis' | 'zwerver' | 'lokker' | 'geschenk';
 
 /** A bird that arrived into a full loft and is waiting on your keep/let-go choice:
  *  usually a hatched clutch, otherwise a pigeon an event handed you. */
