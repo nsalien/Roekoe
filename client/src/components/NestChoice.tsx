@@ -70,7 +70,9 @@ export function NestChoice({
     ? `🐣 Nest van ${nest.sire} × ${nest.dam}`
     : nest.origin === 'erfenis'
       ? '📜 Een duif uit de erfenis'
-      : lured
+      : nest.origin === 'geschenk'
+        ? '🎁 Een duif cadeau'
+        : lured
         ? '🧲 Gevangen door je duivenlokker'
         : '🕊️ De verdwaalde duif';
 

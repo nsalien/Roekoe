@@ -680,7 +680,7 @@ export interface StudDeal {
  * `resolveBrood` / `startBreeding`). Absent on every row written before this
  * existed, so treat `undefined` as `nest`.
  */
-export type BroodOrigin = 'nest' | 'erfenis' | 'zwerver' | 'lokker';
+export type BroodOrigin = 'nest' | 'erfenis' | 'zwerver' | 'lokker' | 'geschenk';
 
 /**
  * A bird that did not fit in the loft and is waiting on the owner's decision:
