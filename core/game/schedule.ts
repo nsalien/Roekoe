@@ -2798,6 +2798,14 @@ export function runDataMigrations(db: Database, nowMs = Date.now()): void {
     reportStarterPack(db, 'De Bronstige Bek', gift, 'ntf:admin:diag-starter1');
     db.world.dataVersion = 75;
   }
+
+  // `=== 75`, same conditions as v75. Runs strictly AFTER v75, so the admins'
+  // report above describes his package as it was, before this replaces it.
+  if ((db.world.dataVersion ?? 0) === 75 && !startsOrFinishesFlight(db, nowMs) && db.flights.length > 0) {
+    // Eigenaar, 7 nov: "Geef hem ook het starterspakket opnieuw" — De Bronstige Bek.
+    regrantStarterPack(db, 'de bronstige bek', 'ntf:admin:newcomergrant2', nowMs);
+    db.world.dataVersion = 76;
+  }
 }
 
 /**
@@ -2973,6 +2981,48 @@ function reportStarterPack(
   for (const admin of db.users) {
     if (!admin.isAdmin || admin.isBot) continue;
     pushNotification(db, admin.id, 'info', `🔎 Starterspakket van ${display}`, body, null, `${noteId}:${admin.id}`);
+  }
+}
+
+/**
+ * Hand ONE real player a FRESH starter package (see NEWCOMER), replacing whatever
+ * package his loft holds — unlike v39, which skipped a loft that already had one.
+ * Full points again (and the ervaring no longer locked to a bird), and the 28-day
+ * window (free coach, double winnings) starts NOW, with its end bell re-armed.
+ *
+ * Like v39 his birds are topped up to a full tank, except a bird on a flight (a live
+ * race settles energie against a frozen formCost) or one that lost its way.
+ *
+ * The starter sponsor is NOT offered again: that is a one-time introduction he got
+ * at registration, and `offerStarterSponsor` would knock with a second, different
+ * tier-1 sponsor rather than the same one.
+ */
+function regrantStarterPack(db: Database, target: string, noteId: string, nowMs: number): void {
+  const norm = (s: string) => s.trim().toLowerCase().replace(/\s+/g, ' ');
+  for (const loft of db.lofts) {
+    if (loft.isBot) continue;
+    const user = db.users.find((u) => u.id === loft.userId);
+    if (![loft.name, user?.username ?? ''].some((n) => norm(n) === target)) continue;
+    loft.newcomer = newNewcomerPerks(nowMs);
+    let topped = 0;
+    for (const p of db.pigeons) {
+      if (p.ownerId !== loft.userId) continue;
+      if (isAway(p) || pigeonCommittedToFlight(db, p.id, nowMs)) continue;
+      if (p.form >= NEWCOMER.startEnergie) continue;
+      p.form = NEWCOMER.startEnergie;
+      topped++;
+    }
+    pushNotification(
+      db, loft.userId, 'info',
+      '🎁 Je starterspakket opnieuw',
+      `Je krijgt het starterspakket opnieuw, helemaal vers: ${NEWCOMER.expPoints} ervaringspunten voor één duif ` +
+        `naar keuze en ${NEWCOMER.attrPoints} eigenschapspunten om vrij te verdelen. Je vindt ze bovenaan je ` +
+        `Overzicht, onder "Je starterspakket". Vanaf nu is ${NEWCOMER.days} dagen lang je eerste privécoach gratis ` +
+        'en verdien je dubbel prijzengeld én ranglijstpunten op wedstrijdvluchten.' +
+        (topped > 0 ? ' Je duiven zijn bijgetankt naar volle energie.' : ''),
+      null,
+      `${noteId}:${loft.userId}`,
+    );
   }
 }
 

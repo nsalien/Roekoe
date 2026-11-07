@@ -19,7 +19,7 @@
 | **Dev (sessie 15 okt)** | `claude/duivenlokker-feature-mhf3yb` | Sessiebranch van de **duivenlokker**, vertrokken van prod `9e2a79a` (geen demo, geen Marktwaarde v2). De eigenaar vroeg meteen "implementeren op productie": de feature-commit staat hier als `fc0a933` (met `[CF-Pages-Skip]`, want een preview-build van een prod-tak kan aan de live `roekoe-db` hangen) en staat op prod als **`b4f3ab8`** (zelfde boom, boodschap zonder skip). De gepauzeerde `claude/demo-hokinrichting` heeft de lokker **niet**. Op 17 okt kwamen hier de **tags op je duiven** bij (§0b, `13f6571`), dezelfde dag op vraag van de eigenaar naar prod ("zet op productie"). |
 | **Dev (sessie 27 okt)** | `claude/adoring-bell-7zvxzk` | Sessiebranch van de **erfenis voor drie spelers** (migratie v69) en **de markt volgt het spel** (zie *Stand van zaken*), vertrokken van prod `d423c1b` (geen demo, geen Marktwaarde v2). Commits met `[CF-Pages-Skip]`, om dezelfde reden als hierboven. Beide live op 27 okt: `f26ae4f` → prod `ca78889`, `0f127f6` → prod `610f362`. |
 | **Dev (sessie 31 okt – 1 nov)** | `ccr-9f062ea2-reeikx` | Sessiebranch van **de erfenis voor De Vluchtige Vleugel** (migratie v71; live op 31 okt: `408d282` → prod `c644026`), daarna van de **herstart van Dev** en **de bank** (1 nov) — sindsdien dezelfde commits als `claude/demo-hokinrichting` — ook gepauzeerd sinds 6 nov (`f063429`). |
-| **Dev (sessie 7 nov)** | `ccr-bba5995a-iwrslf` | Sessiebranch van **de duif cadeau voor De Bronstige Bek** (migratie v75), vertrokken van prod `4e7a99a` (geen demo, geen Marktwaarde v2) terwijl Dev gepauzeerd is. Commits met `[CF-Pages-Skip]`, om dezelfde reden als hierboven. |
+| **Dev (sessie 7 nov)** | `ccr-bba5995a-iwrslf` | Sessiebranch van **de duif cadeau voor De Bronstige Bek** (migratie v75) en **zijn starterspakket opnieuw** (v76), vertrokken van prod `4e7a99a` (geen demo, geen Marktwaarde v2) terwijl Dev gepauzeerd is. Commits met `[CF-Pages-Skip]`, om dezelfde reden als hierboven. |
 | **Prod** | `claude/roekoe-game-website-jwa0vo` | Elke commit wordt hierheen **gecherry-pickt**; deze branch triggert de **Cloudflare Pages**-deploy naar productie. |
 
 > Vorige dev-branches (niet meer gebruiken): `ccr-9c78dbf3-rdb1ea`, `claude/hallo-nno7pb`, `claude/hallo-r1wgvn`, `claude/hallo-ca55co`, `claude/hallo-qz9tmx`, `claude/hallo-fsp9nx`, `claude/hallo-mzjn0e`, `claude/hallo-su75jy`, `claude/hallo-rkr49f`, `claude/hallo-pvwabx`,
@@ -86,8 +86,16 @@
 ### Stand van zaken (12 okt 2026) — lees dit eerst
 - **Dev gepauzeerd — 6 nov** (eigenaar: "Zet dev terug inactief"): beide dev-branches (`claude/demo-hokinrichting`,
   `ccr-9f062ea2-reeikx`) zijn één statische pauzepagina zonder `functions/` (pauzecommit `f063429`); de volledige
-  Dev-stand is `fd2638e`. Terugzetten: zie de `context.md` op die branch. Een volgende migratie op prod is **v76**
-  (gate op `=== 75`).
+  Dev-stand is `fd2638e`. Terugzetten: zie de `context.md` op die branch. Een volgende migratie op prod is **v77**
+  (gate op `=== 76`).
+- **Het starterspakket opnieuw voor De Bronstige Bek — 7 nov, migratie v76** (eigenaar: "Geef hem ook het
+  starterspakket opnieuw"). `regrantStarterPack` (schedule.ts): een **vers** pakket dat het bestaande vervangt (anders
+  dan v39, dat een hok mét pakket oversloeg): alle punten terug (30 + 5), `expPigeonId` weer leeg, het venster van 28
+  dagen (gratis coach, dubbele winst) loopt vanaf nu en de afloopmelding is opnieuw gewapend. Zijn duiven worden
+  bijgetankt naar 100 zoals bij v39, behalve wie ingeschreven is/vliegt of de weg kwijt is. De startsponsor komt
+  **niet** opnieuw (een eenmalige kennismaking; `offerStarterSponsor` zou een tweede, andere tier-1-sponsor sturen).
+  Bel `ntf:admin:newcomergrant2:<id>`. Gegate op `=== 75`, zelfde voorwaarden als v75, dus altijd ná v75: het
+  beheerdersverslag van v75 beschrijft zijn **oude** pakket. Test: blok 8 van `tests/geschenk-v75.test.mts`.
 - **Een duif cadeau voor De Bronstige Bek — 7 nov, migratie v75, live** (prod `9f616a7` = dev `6896ac3`; eigenaar: "'De Bronstige Bek' is een nieuwe speler.
   Hij heeft zijn duiven niet mogen upgraden met punten, waarom niet? Geef deze speler een duif met score 80 tussen 82.").
   **Waarom geen punten:** in de code niets gevonden. Registreren → paneel *Je starterspakket* → eigenschaps- én
@@ -133,7 +141,8 @@
 - **Dev weer aan — 1 nov** (om *Lenen bij de bank* te bekijken): herstart vanaf prod + de dev-only stukken (demo,
   Marktwaarde v2, de voorstellen prijsregel en coachprijs). De volledige uitleg staat in de `context.md` op Dev. ⚠️ Dev
   gebruikt **v75** voor de bel van het voorstel prijsregel (prod v72–v73 = de bank, v74 = de rustkuur, **v75 = de duif
-  cadeau voor De Bronstige Bek**): op prod is v75 dus bezet, een volgende migratie daar is **v76**, en gaat het voorstel
+  cadeau voor De Bronstige Bek**, v76 = zijn starterspakket opnieuw): op prod zijn v75 en v76 dus bezet, een volgende
+  migratie daar is **v77**, en gaat het voorstel
   ooit live, dan krijgt het daar een nieuw nummer.
 - **De gewone erfenis voor De Vluchtige Vleugel — 31 okt, migratie v71** (eigenaar: "Geef de speler 'de vluchtige
   Vleugel' het evenement van de erfenis van een oude melker met keuze tussen geld, oud kampioen of jonge belofte").
@@ -1258,7 +1267,7 @@ krijgen.**
 `core/game/schedule.ts` → `advanceRealtime(db, nowMs, weatherByFlight)` roept in
 volgorde:
 1. `runDataMigrations(db)` — eenmalige datafixes, **gated op `world.dataVersion`**
-   (staat nu op **75** — v75 = een duif van ★80–82 cadeau voor De Bronstige Bek + een bel voor de beheerders over zijn starterspakket (7 nov), v74 = de bel van de rustkuur aan €150 (2 nov), v73 = de duidelijkere bankbel (2 nov, vervangt die van v72), v72 = de bel van de bank (2 nov, `BANK_NEWS`; het inkomen zelf is een schemastap), v71 = de gewone erfenis (spaarpot, kampioen, belofte) voor De Vluchtige Vleugel (31 okt), v70 = dezelfde erfenis voor OnlyFlaps (27 okt), v69 = de erfenis zonder spaarpot (★75–80) voor Marcel De Neut, Roekoeloos en Graanabolica (27 okt), v68 = bots bijvullen tot 10 duiven (24 okt, in stappen), v67 = de leagues i.p.v. het leeftijdscriterium (§0b, 24 okt), v66 = seizoen 3 afsluiten + criterium uitreiken (24 okt, zie *Stand van zaken*), v65 = de bel van de tags (`TAGS_NEWS`), v64 = de bel van de duivenlokker (`LURE_NEWS`), v63 = de bots uit samen kweken (hun aanbod gewist, geen bel), v62 = de bellen van samen kweken en van vaccins/verzekering per duif, v61 = de aankondigingsbel van de hokinrichting & co (`core/game/news.ts`), v60 = die van Het Lokaal; nieuwe migratie = nieuw `if ((db.world.dataVersion ?? 0) < N)`
+   (staat nu op **76** — v76 = het starterspakket opnieuw voor De Bronstige Bek (7 nov), v75 = een duif van ★80–82 cadeau voor De Bronstige Bek + een bel voor de beheerders over zijn starterspakket (7 nov), v74 = de bel van de rustkuur aan €150 (2 nov), v73 = de duidelijkere bankbel (2 nov, vervangt die van v72), v72 = de bel van de bank (2 nov, `BANK_NEWS`; het inkomen zelf is een schemastap), v71 = de gewone erfenis (spaarpot, kampioen, belofte) voor De Vluchtige Vleugel (31 okt), v70 = dezelfde erfenis voor OnlyFlaps (27 okt), v69 = de erfenis zonder spaarpot (★75–80) voor Marcel De Neut, Roekoeloos en Graanabolica (27 okt), v68 = bots bijvullen tot 10 duiven (24 okt, in stappen), v67 = de leagues i.p.v. het leeftijdscriterium (§0b, 24 okt), v66 = seizoen 3 afsluiten + criterium uitreiken (24 okt, zie *Stand van zaken*), v65 = de bel van de tags (`TAGS_NEWS`), v64 = de bel van de duivenlokker (`LURE_NEWS`), v63 = de bots uit samen kweken (hun aanbod gewist, geen bel), v62 = de bellen van samen kweken en van vaccins/verzekering per duif, v61 = de aankondigingsbel van de hokinrichting & co (`core/game/news.ts`), v60 = die van Het Lokaal; nieuwe migratie = nieuw `if ((db.world.dataVersion ?? 0) < N)`
    blok + `db.world.dataVersion = N`). De oudere migraties hebben hun werk gedaan en
    zijn enkel nog van belang als **patroon** — zie §8, kop *Eenmalige migraties*.
 2. `ensureFlightsScheduled(db, nowMs)` — plant vluchten volgens `REAL_SCHEDULE`.
@@ -2349,7 +2358,7 @@ npx tsx tests/erfenis-v69.test.mts        # v69 + v70: erfenis zonder spaarpot (
 npx tsx tests/market-reference.test.mts   # veilingduiven volgen het gemiddelde: referentie, zondagbanden (+ gedeeld per dag), opvangcentrum
 npx tsx tests/volwassen.test.mts          # volwassen-feestje: markering bij 8 weken, één keer, enkel de eigenaar, weg bij verkoop
 npx tsx tests/rustkuur-prijs.test.mts     # rustkuur €150: prijs, de teksten die hem uitschrijven, bel v74
-npx tsx tests/geschenk-v75.test.mts       # v75: duif ★80–82 voor De Bronstige Bek (match, vaste id, vol hok, één keer, D1) + beheerdersbel over zijn starterspakket
+npx tsx tests/geschenk-v75.test.mts       # v75: duif ★80–82 voor De Bronstige Bek (match, vaste id, vol hok, één keer, D1) + beheerdersbel over zijn starterspakket; v76: zijn starterspakket opnieuw (vers, bijtanken, ná het verslag)
 npx tsx tests/bank.test.mts               # de bank: limiet op inkomsten, lenen, afbetalen om middernacht, aflossen, D1 + API, terugvulling + bel v72/v73
 ```
 
