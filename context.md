@@ -88,7 +88,7 @@
   `ccr-9f062ea2-reeikx`) zijn één statische pauzepagina zonder `functions/` (pauzecommit `f063429`); de volledige
   Dev-stand is `fd2638e`. Terugzetten: zie de `context.md` op die branch. Een volgende migratie op prod is **v76**
   (gate op `=== 75`).
-- **Een duif cadeau voor De Bronstige Bek — 7 nov, migratie v75** (eigenaar: "'De Bronstige Bek' is een nieuwe speler.
+- **Een duif cadeau voor De Bronstige Bek — 7 nov, migratie v75, live** (prod `9f616a7` = dev `6896ac3`; eigenaar: "'De Bronstige Bek' is een nieuwe speler.
   Hij heeft zijn duiven niet mogen upgraden met punten, waarom niet? Geef deze speler een duif met score 80 tussen 82.").
   **Waarom geen punten:** in de code niets gevonden. Registreren → paneel *Je starterspakket* → eigenschaps- én
   ervaringspunten uitgeven werkt van begin tot eind via de echte API (nagespeeld met D1 in het geheugen), en dat een
