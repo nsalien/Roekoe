@@ -88,7 +88,7 @@
   `ccr-9f062ea2-reeikx`) zijn één statische pauzepagina zonder `functions/` (pauzecommit `f063429`); de volledige
   Dev-stand is `fd2638e`. Terugzetten: zie de `context.md` op die branch. Een volgende migratie op prod is **v77**
   (gate op `=== 76`).
-- **Het starterspakket opnieuw voor De Bronstige Bek — 7 nov, migratie v76** (eigenaar: "Geef hem ook het
+- **Het starterspakket opnieuw voor De Bronstige Bek — 7 nov, migratie v76, live** (prod `c1a9767` = dev `a0b0e68`; eigenaar: "Geef hem ook het
   starterspakket opnieuw"). `regrantStarterPack` (schedule.ts): een **vers** pakket dat het bestaande vervangt (anders
   dan v39, dat een hok mét pakket oversloeg): alle punten terug (30 + 5), `expPigeonId` weer leeg, het venster van 28
   dagen (gratis coach, dubbele winst) loopt vanaf nu en de afloopmelding is opnieuw gewapend. Zijn duiven worden
