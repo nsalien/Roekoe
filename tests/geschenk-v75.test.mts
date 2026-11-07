@@ -17,6 +17,12 @@
  *  6. een verzoek dat een vlucht afrondt, geeft niets (de querylimiet);
  *  7. door de database: de duif overleeft D1, met haar vaste id.
  *
+ * En migratie v76 (blok 8, eigenaar: "Geef hem ook het starterspakket opnieuw"):
+ * een vers pakket (alle punten, ervaring niet meer vastgelegd, 28 dagen vanaf nu,
+ * afloopmelding opnieuw gewapend), zijn duiven bijgetankt behalve wie vliegt,
+ * niemand anders, één bel, één keer — en pas ná het verslag van v75, zodat dat
+ * verslag de oude toestand beschrijft. Ook door D1.
+ *
  * Run: npx tsx tests/geschenk-v75.test.mts
  */
 import { DatabaseSync } from 'node:sqlite';
@@ -27,9 +33,9 @@ import { emptyDatabase } from '../core/schema.js';
 import type { User } from '../core/schema.js';
 import { seedWorld, createLoftForUser } from '../core/game/engine.js';
 import { advanceRealtime } from '../core/game/schedule.js';
-import { spendAttribute } from '../core/game/newcomer.js';
+import { spendAttribute, spendExperience } from '../core/game/newcomer.js';
 import { ageInWeeks, seasonScore, talent } from '../core/game/pigeon.js';
-import { AGING, GENE } from '../core/config/gameConfig.js';
+import { AGING, GENE, NEWCOMER } from '../core/config/gameConfig.js';
 
 let pass = 0, fail = 0;
 const ok = (c: boolean, m: string) => { c ? (pass++, console.log(`  ✓ ${m}`)) : (fail++, console.log(`  ✗ ${m}`)); };
@@ -70,7 +76,7 @@ console.log('\n1–3. De duif, de match en de bel');
   const bot = addPlayer(store, 'bek-bot', 'De Bronstige Bek', { bot: true });
   const before = new Map(db.pigeons.map((p) => [p.id, p.ownerId]));
   advanceRealtime(db, NOW);
-  ok(db.world.dataVersion === 75, `de migratie liep (dataVersion ${db.world.dataVersion})`);
+  ok((db.world.dataVersion ?? 0) >= 75, `de migratie liep (dataVersion ${db.world.dataVersion})`);
 
   const mine = gifts(db, bek);
   ok(mine.length === 1, 'De Bronstige Bek krijgt precies één duif');
@@ -134,7 +140,7 @@ console.log('\n1–3. De duif, de match en de bel');
   const admin = addPlayer(store, 'eigenaar', 'Baas', { admin: true });
   addPlayer(store, 'jan', 'Jan zijn hok');
   advanceRealtime(db, NOW);
-  ok(db.world.dataVersion === 75, 'zonder match loopt de migratie ook af');
+  ok((db.world.dataVersion ?? 0) >= 75, 'zonder match loopt de migratie ook af');
   ok(!db.pigeons.some((p) => p.id.startsWith('pig_gift_v75_')), 'er wordt geen duif gemaakt');
   const diag = db.notifications.find((n) => n.id === `ntf:admin:diag-starter1:${admin}`);
   ok(!!diag && diag.body.includes('Geen echte speler gevonden'), 'en de beheerder hoort dat er niemand gevonden is');
@@ -170,7 +176,7 @@ console.log('\n6. Een verzoek dat een vlucht afrondt, geeft niets');
   advanceRealtime(db, NOW);
   ok(db.world.dataVersion === 74 && gifts(db, bek).length === 0, 'het afrondende verzoek slaat haar over (dataVersion blijft 74)');
   advanceRealtime(db, NOW + 60000);
-  ok(db.world.dataVersion === 75 && gifts(db, bek).length === 1, 'het volgende verzoek geeft de duif');
+  ok((db.world.dataVersion ?? 0) >= 75 && gifts(db, bek).length === 1, 'het volgende verzoek geeft de duif');
 }
 
 // ---------------------------------------------------------------------------
@@ -208,9 +214,86 @@ console.log('\n7. Door de database');
   await s.persist();
   s = await D1Store.load(d1, bek);
   const p = s.data.pigeons.find((x) => x.id === `pig_gift_v75_${bek}`);
-  ok(s.data.world.dataVersion === 75, 'dataVersion 75 staat in D1');
+  ok((s.data.world.dataVersion ?? 0) >= 75, 'dataVersion ≥ 75 staat in D1');
   ok(!!p && p.ownerId === bek && inRange(talent(p)), `de duif staat in D1, van hem, ★${p ? talent(p) : '?'}`);
   ok(s.data.notifications.some((n) => n.id === `ntf:admin:geschenk1:${bek}`), 'en zijn bel ook');
+  const n = s.data.lofts.find((l) => l.userId === bek)!.newcomer;
+  ok(s.data.world.dataVersion === 76 && !!n && n.expPoints === NEWCOMER.expPoints && n.attrPoints === NEWCOMER.attrPoints,
+    'v76: het verse starterspakket staat ook in D1');
+}
+
+// ---------------------------------------------------------------------------
+console.log('\n8. v76: het starterspakket opnieuw');
+{
+  const { store, db } = prodWorld();
+  addPlayer(store, 'eigenaar', 'Baas', { admin: true });
+  const bek = addPlayer(store, 'bronstig', 'De Bronstige Bek');
+  const other = addPlayer(store, 'jan', 'Jan zijn hok');
+  const bot = addPlayer(store, 'bek-bot', 'De Bronstige Bek', { bot: true });
+  const loftOf = (id: string) => db.lofts.find((l) => l.userId === id)!;
+  const loft = loftOf(bek);
+  // Zijn pakket zoals het er op prod kan bijstaan: oud, deels uitgegeven, ervaring vastgelegd.
+  const birds = db.pigeons.filter((p) => p.ownerId === bek);
+  spendAttribute(loft, birds[0], 'speed', 2);
+  spendExperience(loft, birds[0], 10);
+  loft.newcomer!.endsAt = new Date(NOW + 2 * 86400000).toISOString();
+  loft.newcomer!.endNotified = true;
+  const otherPack = JSON.stringify(loftOf(other).newcomer);
+  for (const p of birds) p.form = 40;
+  // Eén duif staat ingeschreven voor een vlucht: die wordt niet bijgetankt.
+  const f = db.flights.find((x) => x.status === 'scheduled' && !x.practice && Date.parse(x.startAt) > NOW + 3600000)!;
+  f.entries.push({ pigeonId: birds[1].id, ownerId: bek } as never);
+  for (const p of db.pigeons.filter((x) => x.ownerId === other)) p.form = 40;
+
+  advanceRealtime(db, NOW);
+  ok(db.world.dataVersion === 76, `v75 en v76 liepen (dataVersion ${db.world.dataVersion})`);
+  const n = loft.newcomer!;
+  ok(n.expPoints === NEWCOMER.expPoints && n.attrPoints === NEWCOMER.attrPoints, `alle punten terug (${n.expPoints} + ${n.attrPoints})`);
+  ok(n.expPigeonId === null, 'de ervaringspunten liggen niet meer vast op een duif');
+  const days = (Date.parse(n.endsAt) - NOW) / 86400000;
+  ok(Math.abs(days - NEWCOMER.days) < 0.01, `het venster loopt opnieuw ${NEWCOMER.days} dagen vanaf nu (${days.toFixed(2)})`);
+  ok(n.endNotified === false, 'en de afloopmelding komt straks opnieuw');
+  ok(birds.filter((p) => p !== birds[1]).every((p) => p.form === NEWCOMER.startEnergie), 'zijn duiven zijn bijgetankt naar 100');
+  ok(birds[1].form === 40, 'behalve de duif die ingeschreven staat voor een vlucht');
+  const gift = db.pigeons.find((p) => p.id === `pig_gift_v75_${bek}`);
+  ok(!!gift && gift.form === 100, 'de cadeauduif (v75) is er ook');
+
+  ok(JSON.stringify(loftOf(other).newcomer) === otherPack, 'een andere speler: zijn pakket blijft ongemoeid');
+  ok(db.pigeons.filter((p) => p.ownerId === other).every((p) => p.form === 40), 'en zijn duiven ook');
+  ok(loftOf(bot).newcomer === undefined, 'een bot met de naam "De Bronstige Bek" krijgt niets');
+
+  const bells = db.notifications.filter((x) => x.id.startsWith('ntf:admin:newcomergrant2'));
+  ok(bells.length === 1 && bells[0].userId === bek && bells[0].id === `ntf:admin:newcomergrant2:${bek}` &&
+    bells[0].body.includes(`${NEWCOMER.expPoints} ervaringspunten`) && bells[0].body.includes('bijgetankt'),
+    'één bel voor hem, eigen id, met de punten en het bijtanken');
+
+  const diag = db.notifications.find((x) => x.id.startsWith('ntf:admin:diag-starter1'));
+  ok(!!diag && diag.body.includes('3 van 5') && diag.body.includes('20 van 30') && diag.body.includes('vastgelegd op'),
+    'het verslag van v75 beschrijft het OUDE pakket (v76 loopt erna)');
+
+  // Hij geeft punten uit; een volgend verzoek mag ze niet opnieuw bijvullen.
+  spendAttribute(loft, gift!, 'endurance', 1);
+  const endsAt = n.endsAt;
+  advanceRealtime(db, NOW + 60000);
+  ok(loft.newcomer!.attrPoints === NEWCOMER.attrPoints - 1 && loft.newcomer!.endsAt === endsAt, 'ze vuurt één keer: uitgegeven punten blijven uitgegeven');
+  ok(db.notifications.filter((x) => x.id.startsWith('ntf:admin:newcomergrant2')).length === 1, 'en geen tweede bel');
+}
+{
+  // Een verzoek dat een vlucht afrondt: v76 wacht, net als v75.
+  const { store, db } = prodWorld();
+  const bek = addPlayer(store, 'bronstig', 'De Bronstige Bek');
+  advanceRealtime(db, NOW);
+  ok(db.world.dataVersion === 76, 'eerst lopen v75 en v76 gewoon');
+  db.world.dataVersion = 75;
+  const loft = db.lofts.find((l) => l.userId === bek)!;
+  loft.newcomer!.attrPoints = 0;
+  const f = db.flights.find((x) => x.status === 'scheduled' && !x.practice)!;
+  f.status = 'live';
+  f.startAt = new Date(NOW - 3 * 86400000).toISOString();
+  advanceRealtime(db, NOW + 60000);
+  ok(db.world.dataVersion === 75 && loft.newcomer!.attrPoints === 0, 'het afrondende verzoek slaat v76 over');
+  advanceRealtime(db, NOW + 120000);
+  ok(db.world.dataVersion === 76 && loft.newcomer!.attrPoints === NEWCOMER.attrPoints, 'het volgende verzoek geeft het pakket');
 }
 
 console.log(`\n${fail === 0 ? '✅' : '❌'} ${pass} geslaagd, ${fail} gefaald`);
