@@ -36,7 +36,7 @@ import {
   toggleStemVote,
 } from '../../core/d1.js';
 import type { Database, User } from '../../core/schema.js';
-import { hashPassword, verifyPassword, signToken, verifyToken } from '../../core/auth.js';
+import { PASSWORD_MAX_LENGTH, PASSWORD_MIN_LENGTH, hashPassword, temporaryPassword, verifyPassword, signToken, verifyToken } from '../../core/auth.js';
 import { newId } from '../../core/store.js';
 import {
   ADVANCE_THROTTLE_SECONDS,
@@ -457,8 +457,8 @@ app.post('/auth/register', async (c) => {
   const password = String(body.password ?? '');
   const loftName = String(body.loftName ?? '').trim();
   const inviteCode = String(body.inviteCode ?? '');
-  if (username.length < 2 || username.length > 24 || password.length < 4) {
-    return c.json({ error: 'Ongeldige gegevens (gebruikersnaam min. 2, wachtwoord min. 4 tekens)' }, 400);
+  if (username.length < 2 || username.length > 24 || password.length < PASSWORD_MIN_LENGTH || password.length > PASSWORD_MAX_LENGTH) {
+    return c.json({ error: `Ongeldige gegevens (gebruikersnaam min. 2, wachtwoord min. ${PASSWORD_MIN_LENGTH} tekens)` }, 400);
   }
 
   const inviteRequired = c.env.INVITE_CODE ?? '';
@@ -516,6 +516,34 @@ app.post('/auth/login', async (c) => {
 app.get('/auth/me', (c) => {
   const user = requireUser(c);
   return c.json({ id: user.id, username: user.username, isAdmin: user.isAdmin });
+});
+
+/**
+ * Change your own password (Profiel). The current one must be right: a phone left
+ * logged in should not be enough to lock its owner out. Under /api/auth/, so the
+ * engine does not run; the handler persists the one `users` row itself.
+ * ⚠️ Tokens are stateless JWTs (TOKEN_TTL, 30 days): sessions that are already
+ * logged in elsewhere stay logged in. Fine for a forgotten password, not a defence
+ * against someone who already has your session.
+ */
+app.post('/auth/password', async (c) => {
+  const user = requireUser(c);
+  const body = await c.req.json().catch(() => ({}));
+  const current = String(body.current ?? '');
+  const next = String(body.next ?? '');
+  const store = c.get('store');
+  const me = store.data.users.find((u) => u.id === user.id);
+  if (!me || !(await verifyPassword(current, me.passwordHash))) {
+    return c.json({ error: 'Je huidige wachtwoord klopt niet' }, 400);
+  }
+  if (next.length < PASSWORD_MIN_LENGTH || next.length > PASSWORD_MAX_LENGTH) {
+    return c.json({ error: `Kies een nieuw wachtwoord van minstens ${PASSWORD_MIN_LENGTH} tekens` }, 400);
+  }
+  if (next === current) return c.json({ error: 'Dat is je huidige wachtwoord al' }, 400);
+  const hash = await hashPassword(next);
+  store.mutate((db) => { db.users.find((u) => u.id === user.id)!.passwordHash = hash; });
+  await store.persist();
+  return c.json({ ok: true, result: '🔑 Je wachtwoord is gewijzigd.' });
 });
 
 // --- State -----------------------------------------------------------------
@@ -1937,6 +1965,41 @@ app.post('/admin/flights/:id/finish', async (c) => {
  * Bots staan er niet in — die stemmen niet — maar élke echte speler wel, ook wie
  * nog niets stemde: dat is net wat de beheerder wil zien.
  */
+// --- Beheer: spelers en wachtwoorden ------------------------------------------
+// There is no e-mail in this game (a username and a password, nothing else), so a
+// forgotten password is reset by the admin: a temporary one, shown ONCE, that the
+// player replaces under Profiel (POST /auth/password).
+app.get('/admin/users', (c) => {
+  const user = requireUser(c);
+  if (!user.isAdmin) return c.json({ error: 'Alleen de beheerder mag dit doen' }, 403);
+  const db = c.get('store').data;
+  const players = db.users
+    .filter((u) => !u.isBot)
+    .map((u) => ({
+      id: u.id,
+      username: u.username,
+      loftName: db.lofts.find((l) => l.userId === u.id)?.name ?? '',
+      isAdmin: u.isAdmin,
+      createdAt: u.createdAt,
+    }))
+    .sort((a, b) => (a.loftName || a.username).localeCompare(b.loftName || b.username, 'nl'));
+  return c.json({ players });
+});
+
+app.post('/admin/users/:id/password', async (c) => {
+  const user = requireUser(c);
+  if (!user.isAdmin) return c.json({ error: 'Alleen de beheerder mag dit doen' }, 403);
+  const store = c.get('store');
+  const target = store.data.users.find((u) => u.id === c.req.param('id'));
+  if (!target || target.isBot) return c.json({ error: 'Speler niet gevonden' }, 404);
+  const password = temporaryPassword();
+  const hash = await hashPassword(password);
+  store.mutate((db) => { db.users.find((u) => u.id === target.id)!.passwordHash = hash; });
+  await store.persist();
+  const loftName = store.data.lofts.find((l) => l.userId === target.id)?.name ?? '';
+  return c.json({ ok: true, username: target.username, loftName, password });
+});
+
 app.get('/admin/stem/voters', async (c) => {
   const user = requireUser(c);
   if (!user.isAdmin) return c.json({ error: 'Alleen de beheerder mag dit doen' }, 403);

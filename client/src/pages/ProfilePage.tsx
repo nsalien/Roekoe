@@ -16,6 +16,8 @@ export function ProfilePage() {
   const [name, setName] = useState('');
   const [editing, setEditing] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [pwOpen, setPwOpen] = useState(false);
+  const [pw, setPw] = useState({ current: '', next: '', again: '' });
   const [theme, setTheme] = useState<'light' | 'dark'>(
     typeof document !== 'undefined' && document.documentElement.dataset.theme === 'light' ? 'light' : 'dark',
   );
@@ -45,6 +47,22 @@ export function ProfilePage() {
       toast.show('Hoknaam aangepast! 🕊️', 'ok');
       setEditing(false);
       await refresh();
+    } catch (e) {
+      toast.show(e instanceof Error ? e.message : 'Mislukt', 'err');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function savePassword() {
+    if (pw.next.length < 4) return toast.show('Kies een nieuw wachtwoord van minstens 4 tekens', 'err');
+    if (pw.next !== pw.again) return toast.show('De twee nieuwe wachtwoorden zijn niet gelijk', 'err');
+    setBusy(true);
+    try {
+      const r = await api<{ result?: string }>('/auth/password', { method: 'POST', body: { current: pw.current, next: pw.next } });
+      toast.show(r.result ?? 'Wachtwoord gewijzigd', 'ok');
+      setPw({ current: '', next: '', again: '' });
+      setPwOpen(false);
     } catch (e) {
       toast.show(e instanceof Error ? e.message : 'Mislukt', 'err');
     } finally {
@@ -141,6 +159,42 @@ export function ProfilePage() {
             Start rondleiding
           </button>
         </div>
+        <hr className="sep" />
+        <div className="row" style={{ justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 }}>
+          <div>
+            <strong>🔑 Wachtwoord</strong>
+            <div className="faint" style={{ fontSize: '0.85rem' }}>
+              Kreeg je een tijdelijk wachtwoord van de beheerder? Kies hier je eigen.
+            </div>
+          </div>
+          {!pwOpen && <button className="btn ghost sm" onClick={() => setPwOpen(true)}>Wijzigen</button>}
+        </div>
+        {pwOpen && (
+          <form
+            style={{ marginTop: 10 }}
+            onSubmit={(e) => {
+              e.preventDefault();
+              savePassword();
+            }}
+          >
+            <div className="field">
+              <label>Huidig wachtwoord</label>
+              <input type="password" autoComplete="current-password" value={pw.current} onChange={(e) => setPw({ ...pw, current: e.target.value })} required />
+            </div>
+            <div className="field">
+              <label>Nieuw wachtwoord</label>
+              <input type="password" autoComplete="new-password" value={pw.next} onChange={(e) => setPw({ ...pw, next: e.target.value })} required minLength={4} />
+            </div>
+            <div className="field">
+              <label>Nieuw wachtwoord, nog eens</label>
+              <input type="password" autoComplete="new-password" value={pw.again} onChange={(e) => setPw({ ...pw, again: e.target.value })} required minLength={4} />
+            </div>
+            <div className="row" style={{ gap: 8 }}>
+              <button className="btn" type="submit" disabled={busy}>Opslaan</button>
+              <button className="btn ghost" type="button" onClick={() => { setPwOpen(false); setPw({ current: '', next: '', again: '' }); }}>Annuleer</button>
+            </div>
+          </form>
+        )}
       </div>
 
       {/* Stats overview */}

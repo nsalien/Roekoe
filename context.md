@@ -84,6 +84,17 @@
 > Het voorstel (met alle getallen en de sketch) staat in de artifact "Roekoe Hokinrichting".
 
 ### Stand van zaken (12 okt 2026) — lees dit eerst
+- **Wachtwoord vergeten — 12 nov** (eigenaar: "Iemand is zijn wachtwoord vergeten, hoe op te lossen?" → optie 2):
+  spelers hebben **geen e-mailadres** (enkel gebruikersnaam + wachtwoord), dus geen reset-mail. Nu:
+  **Beheer → Spelers** (`PlayerAdmin` in AdminPage.tsx; `GET /admin/users` = de echte spelers met hoknaam,
+  `POST /admin/users/:id/password` = een **tijdelijk wachtwoord** `temporaryPassword()` in core/auth.ts, twee groepjes
+  van vier uit een alfabet zonder 0/o/1/l/i, **één keer getoond** met een kopieerknop; bots en onbekende ids: 404) en
+  **Profiel → 🔑 Wachtwoord → Wijzigen** (`POST /auth/password {current, next}`: het huidige moet kloppen, minstens
+  `PASSWORD_MIN_LENGTH` 4 en hoogstens 100 tekens, niet hetzelfde). Het inlogscherm zegt "Wachtwoord vergeten? Vraag de
+  beheerder om het te resetten." Beide schrijven enkel `users.password_hash` (PBKDF2) via de gewone persist; geen
+  schemastap, geen migratie, geen bel (niet gevraagd). ⚠️ Tokens zijn stateless JWT's van 30 dagen: een toestel dat al
+  ingelogd is, blijft dat na een reset. Gebouwd terwijl Dev gepauzeerd is, dus als **één commit op prod**, zoals op
+  11 okt. Test: `tests/wachtwoord.test.mts` (20 controles, de echte API op SQLite).
 - **Dev gepauzeerd — 6 nov** (eigenaar: "Zet dev terug inactief"): beide dev-branches (`claude/demo-hokinrichting`,
   `ccr-9f062ea2-reeikx`) zijn één statische pauzepagina zonder `functions/` (pauzecommit `f063429`); de volledige
   Dev-stand is `fd2638e`. Terugzetten: zie de `context.md` op die branch. Een volgende migratie op prod is **v77**
@@ -2128,7 +2139,7 @@ Entiteiten: `Pigeon`, `Loft`, `User`, `BreedingPair`, `PendingBrood`, `Flight` (
   Kaartvolgorde: **kaart → tribune → stand → verslag → samenvatting → uitslag**.
 - `InfirmaryPage` (Ziekenboeg) — zieke/gekwetste duiven; dokter/kinesist/medicatievoer;
   **herstelbalk per duif** (`ailment.healed`).
-- `ProfilePage` — hoknaam, **thema-toggle (donker/licht)**, **"Start rondleiding"**.
+- `ProfilePage` — hoknaam, **thema-toggle (donker/licht)**, **"Start rondleiding"**, **🔑 Wachtwoord wijzigen** (12 nov, zie *Stand van zaken*).
 - `RankingPage` — tabs **Melkers** (seizoenspunten), **Duiven** en **Leagues**
   (`LeaguePanel`: de vier leagues van §2.10 spelregels, stand van dit seizoen; op prod nog
   de tab Criterium). Duiven = drie ranglijsten:
@@ -2181,7 +2192,7 @@ Entiteiten: `Pigeon`, `Loft`, `User`, `BreedingPair`, `PendingBrood`, `Flight` (
   **niet 100% transparant**: richtwaarden i.p.v. exacte formules, geluk blijft benoemd.
   Geen backend/kosten. Cijfers **handmatig** in sync houden met `core/config/gameConfig.ts`.
   `WikiPage` scrollt naar de hash bij mount, dus `/wiki#coach` landt op de juiste sectie.
-- `AdminPage` (`/beheer`, **enkel admins**) — uitbreidbare **beheerconsole** (tabs).
+- `AdminPage` (`/beheer`, **enkel admins**) — uitbreidbare **beheerconsole** (tabs: Vlucht-analyse, Duif-inspector, **Spelers** = wachtwoord resetten, 12 nov).
   Eerste tool **Vlucht-analyse**: per duif van een afgeronde vlucht de volledige
   snelheidsontleding (eigenschappen + weging + energie/gezondheid/ervaring/leeftijd-
   factoren + berekende vs. echte snelheid + residu ≈ geluk). Nav-link + route enkel
@@ -2356,6 +2367,7 @@ npx tsx tests/season-close.test.mts       # v66: seizoen 3 afsluiten (of enkel h
 npx tsx tests/bot-fill.test.mts           # v68: bots tot 10 duiven, ★60–75, in stappen van 3, vaste ids, querykost
 npx tsx tests/erfenis-v69.test.mts        # v69 + v70: erfenis zonder spaarpot (drie spelers + OnlyFlaps), gekozen duif altijd ★75–80, D1 + API; v71: de gewone erfenis voor De Vluchtige Vleugel
 npx tsx tests/market-reference.test.mts   # veilingduiven volgen het gemiddelde: referentie, zondagbanden (+ gedeeld per dag), opvangcentrum
+npx tsx tests/wachtwoord.test.mts         # wachtwoord vergeten: reset door de beheerder, zelf wijzigen, enkel een hash in D1
 npx tsx tests/volwassen.test.mts          # volwassen-feestje: markering bij 8 weken, één keer, enkel de eigenaar, weg bij verkoop
 npx tsx tests/rustkuur-prijs.test.mts     # rustkuur €150: prijs, de teksten die hem uitschrijven, bel v74
 npx tsx tests/geschenk-v75.test.mts       # v75: duif ★80–82 voor De Bronstige Bek (match, vaste id, vol hok, één keer, D1) + beheerdersbel over zijn starterspakket; v76: zijn starterspakket opnieuw (vers, bijtanken, ná het verslag)

@@ -79,6 +79,11 @@ export function LoginPage() {
               {busy ? 'Even geduld…' : mode === 'login' ? 'Inloggen' : 'Hok starten'}
             </button>
           </form>
+          {mode === 'login' && (
+            <p className="faint" style={{ textAlign: 'center', margin: '10px 0 0', fontSize: '0.85rem' }}>
+              Wachtwoord vergeten? Vraag de beheerder om het te resetten.
+            </p>
+          )}
         </div>
         <p className="faint" style={{ textAlign: 'center', marginTop: 12 }}>
           Een spel voor vrienden · bots vliegen mee als tegenstander

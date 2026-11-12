@@ -37,7 +37,7 @@ interface Analysis {
 
 export function AdminPage() {
   const { state } = useGame();
-  const [tab, setTab] = useState<'flights' | 'pigeons'>('flights');
+  const [tab, setTab] = useState<'flights' | 'pigeons' | 'players'>('flights');
 
   if (!state) return <Spinner />;
   if (!state.isAdmin) return <Navigate to="/" replace />;
@@ -52,11 +52,102 @@ export function AdminPage() {
         <div className="pill-tabs">
           <button className={tab === 'flights' ? 'active' : ''} onClick={() => setTab('flights')}>Vlucht-analyse</button>
           <button className={tab === 'pigeons' ? 'active' : ''} onClick={() => setTab('pigeons')}>Duif-inspector</button>
+          <button className={tab === 'players' ? 'active' : ''} onClick={() => setTab('players')}>Spelers</button>
         </div>
       </div>
 
       {tab === 'flights' && <FlightAnalysis />}
       {tab === 'pigeons' && <PigeonInspector />}
+      {tab === 'players' && <PlayerAdmin />}
+    </div>
+  );
+}
+
+interface AdminPlayer { id: string; username: string; loftName: string; isAdmin: boolean; createdAt: string }
+
+/**
+ * Spelers: a forgotten password. There is no e-mail in this game, so the admin
+ * makes a temporary one (shown ONCE, here) and passes it on; the player replaces
+ * it under Profiel → Wachtwoord.
+ */
+function PlayerAdmin() {
+  const [players, setPlayers] = useState<AdminPlayer[] | null>(null);
+  const [busy, setBusy] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [fresh, setFresh] = useState<{ id: string; username: string; loftName: string; password: string } | null>(null);
+  const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    api<{ players: AdminPlayer[] }>('/admin/users').then((r) => setPlayers(r.players)).catch((e) => setError(String(e?.message ?? e)));
+  }, []);
+
+  async function reset(p: AdminPlayer) {
+    const who = p.loftName ? `${p.loftName} (${p.username})` : p.username;
+    if (!window.confirm(`Een nieuw, tijdelijk wachtwoord maken voor ${who}? Het huidige werkt daarna niet meer.`)) return;
+    setBusy(p.id);
+    setError(null);
+    setCopied(false);
+    try {
+      const r = await api<{ username: string; loftName: string; password: string }>(`/admin/users/${p.id}/password`, { method: 'POST' });
+      setFresh({ id: p.id, ...r });
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Mislukt');
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function copy(text: string) {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+    } catch {
+      setCopied(false);
+    }
+  }
+
+  if (error && !players) return <div className="card"><div className="notice err">{error}</div></div>;
+  if (!players) return <Spinner />;
+
+  return (
+    <div className="card">
+      <h2 style={{ marginTop: 0 }}>🔑 Wachtwoord vergeten</h2>
+      <p className="muted" style={{ marginTop: 0 }}>
+        Spelers hebben geen e-mailadres, dus een vergeten wachtwoord los je hier op: maak een tijdelijk wachtwoord en
+        geef het door. Daarna kiest de speler zelf een nieuw onder <em>Profiel → Wachtwoord</em>.
+      </p>
+      {error && <div className="notice err">{error}</div>}
+      {fresh && (
+        <div className="notice" style={{ marginBottom: 12, borderColor: 'var(--good)' }}>
+          <div>
+            Nieuw wachtwoord voor <strong>{fresh.loftName || fresh.username}</strong> (gebruikersnaam{' '}
+            <strong>{fresh.username}</strong>):
+          </div>
+          <div className="row" style={{ gap: 8, marginTop: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+            <code style={{ fontSize: '1.15rem', fontWeight: 800, letterSpacing: '0.04em', userSelect: 'all' }}>{fresh.password}</code>
+            <button className="btn ghost sm" onClick={() => copy(fresh.password)}>{copied ? '✓ Gekopieerd' : 'Kopiëren'}</button>
+          </div>
+          <div className="faint" style={{ fontSize: '0.82rem', marginTop: 6 }}>
+            Je ziet het maar één keer. Geef het door; de speler kan het meteen wijzigen onder Profiel → Wachtwoord.
+          </div>
+        </div>
+      )}
+      <div>
+        {players.map((p) => (
+          <div
+            key={p.id}
+            style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, padding: '8px 0', borderTop: '1px solid var(--border)', flexWrap: 'wrap' }}
+          >
+            <div style={{ minWidth: 0 }}>
+              <div>{p.loftName || p.username}{p.isAdmin && <span className="faint"> · beheerder</span>}</div>
+              <div className="faint" style={{ fontSize: '0.8rem' }}>gebruikersnaam: {p.username}</div>
+            </div>
+            <button className="btn ghost sm" disabled={busy !== null} onClick={() => reset(p)}>
+              {busy === p.id ? 'Even geduld…' : 'Wachtwoord resetten'}
+            </button>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

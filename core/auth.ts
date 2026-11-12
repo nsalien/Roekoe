@@ -104,3 +104,21 @@ export async function verifyToken(token: string, secret: string): Promise<TokenP
     return null;
   }
 }
+
+/** The shortest password the game accepts (registration, changing it, a reset). */
+export const PASSWORD_MIN_LENGTH = 4;
+/** …and the longest, so a pasted novel cannot cost a PBKDF2 run its length. */
+export const PASSWORD_MAX_LENGTH = 100;
+
+/**
+ * A temporary password for an admin reset: two groups of four, from an alphabet
+ * without look-alikes (no 0/o, 1/l/i), so it survives being read out or typed
+ * over from a chat. 31^8 ≈ 8.5 × 10^11 possibilities — fine for a stopgap the
+ * player replaces on the Profiel page.
+ */
+export function temporaryPassword(): string {
+  const alphabet = 'abcdefghjkmnpqrstuvwxyz23456789';
+  const bytes = crypto.getRandomValues(new Uint8Array(8));
+  const chars = [...bytes].map((b) => alphabet[b % alphabet.length]);
+  return `${chars.slice(0, 4).join('')}-${chars.slice(4).join('')}`;
+}
