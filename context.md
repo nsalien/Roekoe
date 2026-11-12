@@ -84,7 +84,7 @@
 > Het voorstel (met alle getallen en de sketch) staat in de artifact "Roekoe Hokinrichting".
 
 ### Stand van zaken (12 okt 2026) — lees dit eerst
-- **Wachtwoord vergeten — 12 nov** (eigenaar: "Iemand is zijn wachtwoord vergeten, hoe op te lossen?" → optie 2):
+- **Wachtwoord vergeten — 12 nov, live** (prod `77f34d4`; eigenaar: "Iemand is zijn wachtwoord vergeten, hoe op te lossen?" → optie 2):
   spelers hebben **geen e-mailadres** (enkel gebruikersnaam + wachtwoord), dus geen reset-mail. Nu:
   **Beheer → Spelers** (`PlayerAdmin` in AdminPage.tsx; `GET /admin/users` = de echte spelers met hoknaam,
   `POST /admin/users/:id/password` = een **tijdelijk wachtwoord** `temporaryPassword()` in core/auth.ts, twee groepjes
