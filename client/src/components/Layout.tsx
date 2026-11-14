@@ -528,7 +528,7 @@ export function Layout() {
       <header className="topbar">
         <div className="container topbar-inner">
           <Link to="/" className="brand">
-            <span className="logo">🕊️</span> Roekoe
+            <span className="logo">🕊️</span> <span className="brand-name">Roekoe</span>
           </Link>
           <DesktopNav items={navItems} badgeFor={badgeFor} />
           <div className="topbar-right">
