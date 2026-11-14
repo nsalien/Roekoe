@@ -12,7 +12,7 @@ import { advanceRealtime } from '../core/game/schedule.js';
 import { newId } from '../core/store.js';
 import { generatePigeon } from '../core/game/pigeon.js';
 import { liveSnapshot, flightCommentary, flightTotalSeconds, finalizeFlight } from '../core/game/flight.js';
-import { flightDTO, liveFlightDTO, pigeonDTO, playerProfile, auctionsDTO } from '../core/presenters.js';
+import { flightDTO, liveFlightDTO, pigeonDTO, pigeonDtoContext, playerProfile, auctionsDTO } from '../core/presenters.js';
 import { previewBet, betsView } from '../core/game/betting.js';
 import { pigeonSeasonRankings } from '../core/game/season.js';
 import type { User, Flight } from '../core/schema.js';
@@ -52,7 +52,9 @@ db._raw.exec(readFileSync('./migrations/0001_init.sql', 'utf8'));
 db._raw.prepare('INSERT INTO world (id, current_week, season_year, seeded) VALUES (1,1,1,0)').run();
 while (!(await ensureSchema(db))) { /* resume */ }
 
-const T0 = Date.parse('2026-08-16T04:00:00Z');
+// The real clock: `enterFlight` reads it, so a fixed date in the past meant every
+// entry was refused and the sweep measured a flight with 0 birds (14 nov).
+const T0 = Date.now();
 let store = await D1Store.load(db, undefined);
 seedWorld(store);
 await store.persist();
@@ -91,18 +93,29 @@ store = await D1Store.load(db, undefined);
 advanceRealtime(store.data, T0 + 120_000, new Map());
 await store.persist();
 store = await D1Store.load(db, undefined);
-const target = store.data.flights.filter((f) => f.status === 'scheduled' && !f.practice && !f.relay).sort((a, b) => b.distanceKm - a.distanceKm)[0]!;
+// A plain competition flight (a league only takes birds of its score, a titan one
+// bird per loft), far enough ahead to enter, the longest there is.
+const target = store.data.flights
+  .filter((f) => f.status === 'scheduled' && !f.practice && !f.relay && !f.titan && !f.league && Date.parse(f.startAt) > T0 + 2 * 3600_000)
+  .sort((a, b) => b.distanceKm - a.distanceKm)[0]!;
+let entered = 0, refused = '';
 for (const h of humans) {
   const s2 = await D1Store.load(db, h);
-  for (const p of s2.data.pigeons.filter((p) => p.ownerId === h).slice(0, 8)) enterFlight(s2, h, target.id, p.id);
+  for (const p of s2.data.pigeons.filter((p) => p.ownerId === h).slice(0, 8)) {
+    const err = enterFlight(s2, h, target.id, p.id);
+    if (err) refused ||= err; else entered += 1;
+  }
   await s2.persist();
+}
+if (entered < 20) {
+  console.error(`⚠️ Maar ${entered} duiven van spelers ingeschreven (${refused || 'geen reden'}) — de vluchtmetingen hieronder zeggen dan weinig.`);
 }
 
 // --- Vóór de start: weddenschappen ---
 const pre = await D1Store.load(db, humans[0]);
 const preFlight = pre.data.flights.find((f) => f.id === target.id)!;
 const myBird = pre.data.pigeons.find((p) => p.ownerId === humans[0] && preFlight.entries.some((e) => e.pigeonId === p.id))!;
-bench(`previewBet (Monte-Carlo, ${preFlight.entries.length} duiven)`, () => previewBet(pre.data, preFlight, 'win', humans[0], myBird.id, null, 100), 5);
+bench(`previewBet (Monte-Carlo, ${preFlight.entries.length} duiven)`, () => previewBet(pre.data, preFlight, humans[0], 'win', myBird.id, null, 100), 5);
 bench('betsView', () => betsView(pre.data, humans[0]));
 
 // --- Live vlucht ---
@@ -132,7 +145,10 @@ bench('playerProfile (/profiel)', () => playerProfile(st.data, humans[0]));
 bench('auctionsDTO (/market)', () => auctionsDTO(st.data, humans[0]));
 bench('pigeonSeasonRankings (/state)', () => pigeonSeasonRankings(st.data));
 const all = st.data.pigeons.filter((p) => p.ownerId !== humans[0]);
-bench(`pigeonDTO x${all.length} (/market biddable)`, () => all.map((p) => pigeonDTO(st.data, p, humans[0])));
+bench(`pigeonDTO x${all.length} zonder context (de oude /market)`, () => all.map((p) => pigeonDTO(st.data, p, humans[0])));
+bench(`pigeonDTO x${all.length} met context`, () => { const ctx = pigeonDtoContext(st.data); return all.map((p) => pigeonDTO(st.data, p, humans[0], false, ctx)); });
+const oneOwner = all.filter((p) => p.ownerId === humans[1]);
+bench(`pigeonDTO x${oneOwner.length} met context (/market/biddable/:speler)`, () => { const ctx = pigeonDtoContext(st.data); return oneOwner.map((p) => pigeonDTO(st.data, p, humans[0], false, ctx)); });
 
 // --- Afronding ---
 const fin = await D1Store.load(db, undefined);

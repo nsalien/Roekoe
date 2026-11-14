@@ -6,7 +6,7 @@ import { api } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
 import { useGame } from '../game/GameContext';
 import { useVisiblePoll } from '../game/useVisiblePoll';
-import { Money, Spinner, TRAIT_LABELS, TraitResultMark, countdownTo, formatFlightTime, useToast } from '../components/ui';
+import { Money, Spinner, TRAIT_LABELS, TraitResultMark, countdownTo, formatFlightTime, useToast, nl } from '../components/ui';
 import { MapErrorBoundary } from '../components/MapErrorBoundary';
 import { ReactionPicker } from '../components/ReactionPicker';
 import type { ChatLine, LiveFlight, LiveResponse } from '../types';
@@ -145,7 +145,7 @@ export function LiveFlightPage() {
           <div>
             <div className="row" style={{ gap: 8 }}>
               <h1 style={{ margin: 0 }}>{flight.name}</h1>
-              {flight.status === 'live' && <span className="badge" style={{ background: 'var(--accent)', color: '#fff' }}>🔴 LIVE</span>}
+              {flight.status === 'live' && <span className="badge" style={{ background: 'var(--accent)', color: 'var(--on-accent)' }}>🔴 LIVE</span>}
               {isDone && <span className="badge sale">🏁 gefinisht</span>}
             </div>
             <div className="faint" style={{ marginTop: 2 }}>
@@ -285,7 +285,7 @@ export function LiveFlightPage() {
                       {mine && <span className="badge club" style={{ marginLeft: 6 }}>jij</span>}
                     </span>
                     <span className="stat-val">
-                      {t.out ? '💥 uitgeschakeld' : t.finished ? '🏁 thuis' : `${t.speedKmh} km/u`}
+                      {t.out ? '💥 uitgeschakeld' : t.finished ? '🏁 thuis' : `${nl(t.speedKmh)} km/u`}
                     </span>
                   </div>
                   <div className="bar" style={{ height: 9, opacity: t.out ? 0.4 : 1 }}>
@@ -357,8 +357,10 @@ export function LiveFlightPage() {
                   key={b.pigeonId}
                   style={mine ? { background: 'var(--brand-soft)', borderLeft: '3px solid var(--brand-strong)', borderRadius: 8, padding: '6px 8px' } : undefined}
                 >
-                  <div className="row" style={{ justifyContent: 'space-between', fontSize: '0.9rem' }}>
-                    <span className="stat-label">
+                  {/* The name may wrap; the speed keeps its own column on the right, so
+                      every row reads the same whatever the length of the name. */}
+                  <div className="row" style={{ justifyContent: 'space-between', alignItems: 'baseline', flexWrap: 'nowrap', fontSize: '0.9rem' }}>
+                    <span className="stat-label" style={{ flex: 1, minWidth: 0 }}>
                       <strong>{b.gaveUp ? '—' : `${b.liveRank}.`}</strong> {mine ? <strong>{b.pigeonName}</strong> : b.pigeonName}
                       {b.traitActive && b.trait && (
                         <span title={`${TRAIT_LABELS[b.trait]?.name ?? 'Kenmerk'} vliegt nu op haar best`}> ✨{TRAIT_LABELS[b.trait]?.emoji ?? ''}</span>
@@ -366,8 +368,8 @@ export function LiveFlightPage() {
                       {mine && <span className="badge club" style={{ marginLeft: 6 }}>jij</span>}
                       <span className="faint"> · {b.ownerName}</span>
                     </span>
-                    <span className="stat-val">
-                      {b.gaveUp ? '🏳️ opgegeven' : b.finished ? '🏁 thuis' : `${b.speedKmh} km/u`}
+                    <span className="stat-val" style={{ flexShrink: 0, whiteSpace: 'nowrap' }}>
+                      {b.gaveUp ? '🏳️ opgegeven' : b.finished ? '🏁 thuis' : `${nl(b.speedKmh)} km/u`}
                     </span>
                   </div>
                   <div className="bar" style={{ height: 9, opacity: b.gaveUp ? 0.4 : 1 }}>
@@ -385,7 +387,7 @@ export function LiveFlightPage() {
                     />
                   </div>
                   <div className="row" style={{ justifyContent: 'space-between' }}>
-                    <span className="faint">{b.kmDone} / {b.kmTotal} km</span>
+                    <span className="faint">{nl(b.kmDone)} / {nl(b.kmTotal)} km</span>
                     {mine && !b.finished && !b.gaveUp ? (
                       <button
                         className="btn ghost sm"
@@ -397,7 +399,7 @@ export function LiveFlightPage() {
                         🏳️ Opgeven
                       </button>
                     ) : (
-                      <span className="faint">{b.gaveUp ? 'opgegeven' : b.finished ? 'binnen' : `nog ${b.kmRemaining} km`}</span>
+                      <span className="faint">{b.gaveUp ? 'opgegeven' : b.finished ? 'binnen' : `nog ${nl(b.kmRemaining)} km`}</span>
                     )}
                   </div>
                 </div>

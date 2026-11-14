@@ -6,7 +6,7 @@ import { api } from '../api/client';
 import { useGame } from '../game/GameContext';
 import { useAuth } from '../auth/AuthContext';
 import { hasStudNews, studSeenAt } from '../game/studSeen';
-import { Money, Spinner, timeUntil, useToast } from '../components/ui';
+import { Money, Spinner, timeUntil, useToast, nl } from '../components/ui';
 import { PigeonAvatar } from '../components/PigeonAvatar';
 import { NestChoice } from '../components/NestChoice';
 import { SamenKweken } from '../components/SamenKweken';
@@ -32,9 +32,11 @@ export function BreedingPage() {
   const loadPairs = useCallback(async () => {
     setView(await api<BreedingView>('/breeding'));
   }, []);
+  const week = state?.world.currentWeek;
   useEffect(() => {
+    if (week === undefined) return; // wait for the state: no double fetch on a direct open
     loadPairs();
-  }, [loadPairs, state?.world.currentWeek]);
+  }, [loadPairs, week]);
 
   if (loading || !state) return <Spinner />;
   const pairs = view?.pairs ?? [];
@@ -178,7 +180,7 @@ export function BreedingPage() {
             <select value={sireId} onChange={(e) => setSireId(e.target.value)}>
               <option value="">— kies een doffer —</option>
               {doffers.map((p) => (
-                <option key={p.id} value={p.id}>{p.name} (★{p.talent} · ❤{Math.round(p.libido ?? 0)} · ⚡{Math.round(p.form ?? 0)})</option>
+                <option key={p.id} value={p.id}>{p.name} (★{nl(p.talent)} · ❤{Math.round(p.libido ?? 0)} · ⚡{Math.round(p.form ?? 0)})</option>
               ))}
             </select>
           </div>
@@ -187,7 +189,7 @@ export function BreedingPage() {
             <select value={damId} onChange={(e) => setDamId(e.target.value)}>
               <option value="">— kies een duivin —</option>
               {duivinnen.map((p) => (
-                <option key={p.id} value={p.id}>{p.name} (★{p.talent} · ❤{Math.round(p.libido ?? 0)} · ⚡{Math.round(p.form ?? 0)})</option>
+                <option key={p.id} value={p.id}>{p.name} (★{nl(p.talent)} · ❤{Math.round(p.libido ?? 0)} · ⚡{Math.round(p.form ?? 0)})</option>
               ))}
             </select>
           </div>

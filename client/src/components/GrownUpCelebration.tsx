@@ -11,6 +11,7 @@
  */
 
 import { useNavigate } from 'react-router-dom';
+import { nl } from './ui';
 import { PigeonAvatar } from './PigeonAvatar';
 import type { Pigeon } from '../types';
 
@@ -58,7 +59,7 @@ export function GrownUpCelebration({ birds, onSeen }: { birds: Pigeon[]; onSeen:
             {she ? 'Ze' : 'Hij'} is <strong>8 weken</strong> oud en mag vanaf nu meevliegen in wedstrijden.
           </p>
           <p className="faint" style={{ margin: '0 0 14px', fontSize: '0.85rem' }}>
-            ★{bird.talent} · ⚡ energie {Math.round(bird.form ?? 0)}
+            ★{nl(bird.talent)} · ⚡ energie {Math.round(bird.form ?? 0)}
           </p>
           <div className="row" style={{ gap: 8, justifyContent: 'center', flexWrap: 'wrap' }}>
             <button

@@ -47,6 +47,7 @@ import type {
   BreedingPair,
   Database,
   Flight,
+  FlightEntry,
   Loft,
   LogAppend,
   LokaalMessage,
@@ -528,6 +529,84 @@ function breedingPairRow(bp: BreedingPair): unknown[] {
 }
 
 /** How `D1Store.load` should size the pigeon read — see the file header. */
+const FLIGHT_COLUMNS = [
+  'id', 'week', 'template_key', 'name', 'type', 'distance_km', 'entry_fee', 'from_city',
+  'to_city', 'start_at', 'status', 'entries', 'sim', 'weather', 'weather_factor', 'results',
+  'recap', 'created_at', 'practice', 'titan', 'relay', 'legs', 'age_cat', 'cup_sprint',
+  'chat', 'weather_along', 'weather_rain', 'temp_c', 'forecast', 'league', 'league_sprint',
+];
+const FLIGHT_ENTRIES_COL = FLIGHT_COLUMNS.indexOf('entries');
+
+/**
+ * A flight as its column values. Flights are compared and written per COLUMN
+ * (like pigeons and lofts), not as one whole row: a request that only posts a
+ * tribune line must not write back the `status`, `sim` and `results` it happened
+ * to load — that is how a flight another request had just finalized could flip
+ * back to `live` and be finalized twice.
+ */
+function flightRow(f: Flight): unknown[] {
+  return [
+    f.id, f.week, f.templateKey, f.name, f.type, f.distanceKm, f.entryFee,
+    f.fromCity, f.toCity, f.startAt, f.status,
+    JSON.stringify(f.entries), JSON.stringify(f.sim), f.weather, f.weatherFactor,
+    JSON.stringify(f.results), f.recap, f.createdAt, b(f.practice), b(f.titan),
+    b(f.relay), f.legs ? JSON.stringify(f.legs) : null, f.ageCat ?? null, b(f.cupSprint),
+    // '' for the many flights nobody shouted at, so their narrowed UPDATE
+    // keeps skipping the column.
+    f.chat?.length ? JSON.stringify(f.chat) : '',
+    f.weatherAlong ?? null, f.weatherRain == null ? null : b(f.weatherRain), f.tempC ?? null,
+    f.forecast ? JSON.stringify(f.forecast) : '',
+    f.league ?? null, b(f.leagueSprint),
+  ];
+}
+
+/** What one request did to a flight's entry list: who came off, who went on. */
+interface EntryDelta { flightId: string; drop: string[]; add: FlightEntry[] }
+
+/**
+ * The difference between a flight's entries as loaded and as they are now, per
+ * bird. A bird whose entry changed (a relay leg swap) is dropped and added again.
+ */
+function entryDelta(flightId: string, beforeJson: string, after: FlightEntry[]): EntryDelta | null {
+  let before: FlightEntry[] = [];
+  try { before = JSON.parse(beforeJson || '[]'); } catch { before = []; }
+  const was = new Map(before.map((e) => [e.pigeonId, JSON.stringify(e)]));
+  const now = new Set(after.map((e) => e.pigeonId));
+  const add = after.filter((e) => was.get(e.pigeonId) !== JSON.stringify(e));
+  const drop = [...before.filter((e) => !now.has(e.pigeonId)).map((e) => e.pigeonId), ...add.map((e) => e.pigeonId)];
+  return add.length === 0 && drop.length === 0 ? null : { flightId, drop, add };
+}
+
+/**
+ * Apply entry deltas to what is in the database NOW, instead of writing back the
+ * list this request loaded. Two players entering the same flight at the same
+ * moment each loaded the list without the other's bird; writing the whole list
+ * made the last one win — the other paid the fee, got "ok", and was not on the
+ * flight (reproduced 14 nov: 6 of 6 simultaneous pairs). Merged in SQL, both
+ * entries survive. A bird in `drop` leaves first, so adding the same bird twice
+ * (two requests running the engine) still yields one entry.
+ * One statement for every flight this request touched (33 per statement).
+ */
+function entryMergeStatements(db: D1Database, deltas: EntryDelta[]): D1PreparedStatement[] {
+  const out: D1PreparedStatement[] = [];
+  const per = Math.floor(D1_MAX_BOUND_PARAMS / 3);
+  for (let i = 0; i < deltas.length; i += per) {
+    const chunk = deltas.slice(i, i + per);
+    const sql =
+      `WITH d(k, gone, added) AS (VALUES ${chunk.map(() => '(?, ?, ?)').join(', ')}) ` +
+      `UPDATE flights SET entries = (` +
+      `SELECT json_group_array(json(x.value)) FROM (` +
+      `SELECT e.value AS value, 0 AS grp, e.key AS ord ` +
+      `FROM json_each(CASE WHEN json_valid(flights.entries) THEN flights.entries ELSE '[]' END) AS e ` +
+      `WHERE json_extract(e.value, '$.pigeonId') NOT IN (SELECT g.value FROM json_each(d.gone) AS g) ` +
+      `UNION ALL SELECT a.value, 1, a.key FROM json_each(d.added) AS a ` +
+      `ORDER BY grp, ord) AS x) ` +
+      `FROM d WHERE flights.id = d.k`;
+    out.push(db.prepare(sql).bind(...chunk.flatMap((x) => [x.flightId, JSON.stringify(x.drop), JSON.stringify(x.add)])));
+  }
+  return out;
+}
+
 export interface LoadOptions {
   /**
    * The caller vouches that this request only READS the viewer's own world. The
@@ -624,7 +703,9 @@ export class D1Store implements Store {
       (opts?.nowMs ?? Date.now()) - lastAdvance < ADVANCE_THROTTLE_SECONDS * 1000;
     // `let`: an oversized entrant list downgrades this back to a full read below.
     let narrowed = !!opts?.narrowWhenIdle && !!viewerId && engineFresh;
-    const [users, lofts, pigeons, breeding, flights, notifications, trades, auctions, openBets, myBets] =
+    // Tables that may not exist on a database the schema has not reached yet.
+    const none = () => ({ results: [] as unknown[] });
+    const [users, lofts, pigeons, breeding, flights, notifications, trades, auctions, openBets, myBets, offerRows, bidRowsRes] =
       await Promise.all([
         db.prepare('SELECT * FROM users').all(),
         db.prepare('SELECT * FROM lofts').all(),
@@ -640,6 +721,10 @@ export class D1Store implements Store {
         // flight, and settling touches every open bet on it, whoever placed it.
         db.prepare("SELECT * FROM bets WHERE status = 'open'").all(),
         db.prepare("SELECT * FROM bets WHERE user_id = ? AND status != 'open'").bind(viewer).all(),
+        // In the same round trip as the rest: these two used to be awaited one
+        // after the other below, two extra waits on every single request.
+        db.prepare('SELECT * FROM offers').all().catch(none),
+        db.prepare('SELECT * FROM auction_bids').all().catch(none),
       ]);
 
     dbObj.users = (users.results as any[]).map(rowToUser);
@@ -654,12 +739,7 @@ export class D1Store implements Store {
     // placed sits on SOMEONE ELSE's bird, and `offersFor` needs that row to exist
     // (see the comment there). Loading it afterwards is what made an outgoing bid
     // vanish from the market on every throttled poll.
-    try {
-      dbObj.offers = ((await db.prepare('SELECT * FROM offers').all()).results as any[]).map(rowToOffer);
-    } catch {
-      // offers table not present yet (database predating it).
-      dbObj.offers = [];
-    }
+    dbObj.offers = (offerRows.results as any[]).map(rowToOffer);
     if (narrowed) {
       // The viewer's own birds (idx_pigeons_owner) plus the relay teams of any
       // flight that has not finished. Those teams are the ONLY birds outside the
@@ -683,6 +763,12 @@ export class D1Store implements Store {
       // hundreds of birds, the > 400 fallback below turns it into a full read.
       for (const o of dbObj.offers) {
         if (o.status === 'pending' && o.fromUserId === viewer) entrantIds.add(o.pigeonId);
+      }
+      // Plus the birds under the hammer (two on a Sunday, the odd opvangduif or
+      // forced sale): `/api/market/auctions`, the 15 s poll of a closing auction,
+      // shows them and nothing else.
+      for (const a of auctions.results as any[]) {
+        if (a.status === 'open' && a.pigeon_id) entrantIds.add(a.pigeon_id);
       }
       // Above a few hundred entrants the narrow read stops being narrow, and the
       // bound parameters start approaching SQLite's variable limit. At that point
@@ -708,8 +794,8 @@ export class D1Store implements Store {
     // Bids live in their own table (clobber-free). Attach them to each auction,
     // overriding the legacy JSON column when present. Guarded so a database that
     // predates the table (before ensureSchema ran) still loads.
-    try {
-      const bidRows = (await db.prepare('SELECT * FROM auction_bids').all()).results as any[];
+    {
+      const bidRows = bidRowsRes.results as any[];
       if (bidRows.length > 0) {
         const byAuction = new Map<string, AuctionBid[]>();
         for (const r of bidRows) {
@@ -722,8 +808,6 @@ export class D1Store implements Store {
           if (t) a.bids = t.sort((x, y) => y.amount - x.amount);
         }
       }
-    } catch {
-      // auction_bids table not present yet — fall back to the JSON column.
     }
 
     // (Private pigeon offers are read further up — the narrow pigeon read needs them.)
@@ -742,7 +826,6 @@ export class D1Store implements Store {
     // see there.
     const snapshots: Record<string, Map<string, string>> = {
       users: snapshot(dbObj.users, (u) => u.id),
-      flights: snapshot(dbObj.flights, (f) => f.id),
       notifications: snapshot(dbObj.notifications, (nt) => nt.id),
       trades: snapshot(dbObj.trades, (t) => t.id),
       auctions: snapshot(dbObj.auctions, (a) => a.id),
@@ -759,6 +842,8 @@ export class D1Store implements Store {
       pigeons: rowSnapshot(dbObj.pigeons, (p) => p.id, pigeonRow),
       lofts: rowSnapshot(dbObj.lofts, (l) => l.userId, loftRow),
       breedingPairs: rowSnapshot(dbObj.breedingPairs, (bp) => bp.id, breedingPairRow),
+      // Flights too: column-narrow updates, and their entries are merged (see flightRow).
+      flights: rowSnapshot(dbObj.flights, (f) => f.id, flightRow),
     };
 
     return new D1Store(db, dbObj, snapshots, rowSnapshots, worldExisted, JSON.stringify(dbObj.world), viewerId, narrowed);
@@ -832,31 +917,31 @@ export class D1Store implements Store {
       stmts,
     });
 
-    diff(this.snapshots.flights, w.flights, (f) => f.id, {
+    // Flights: per column, and the entry list as a merge (see flightRow and
+    // entryMergeStatements). For a flight that already existed, the row keeps the
+    // entries it was loaded with — so the generic diff leaves that column alone —
+    // and what this request added or removed goes into `entryDeltas`.
+    const entryDeltas: EntryDelta[] = [];
+    const loadedFlights = this.rowSnapshots.flights;
+    diff(undefined, w.flights, (f) => f.id, {
       db,
       table: 'flights',
-      columns: [
-        'id', 'week', 'template_key', 'name', 'type', 'distance_km', 'entry_fee', 'from_city',
-        'to_city', 'start_at', 'status', 'entries', 'sim', 'weather', 'weather_factor', 'results',
-        'recap', 'created_at', 'practice', 'titan', 'relay', 'legs', 'age_cat', 'cup_sprint',
-        'chat', 'weather_along', 'weather_rain', 'temp_c', 'forecast', 'league', 'league_sprint',
-      ],
+      columns: FLIGHT_COLUMNS,
       keyColumn: 'id',
-      row: (f) => [
-        f.id, f.week, f.templateKey, f.name, f.type, f.distanceKm, f.entryFee,
-        f.fromCity, f.toCity, f.startAt, f.status,
-        JSON.stringify(f.entries), JSON.stringify(f.sim), f.weather, f.weatherFactor,
-        JSON.stringify(f.results), f.recap, f.createdAt, b(f.practice), b(f.titan),
-        b(f.relay), f.legs ? JSON.stringify(f.legs) : null, f.ageCat ?? null, b(f.cupSprint),
-        // '' for the many flights nobody shouted at, so their narrowed UPDATE
-        // keeps skipping the column.
-        f.chat?.length ? JSON.stringify(f.chat) : '',
-        f.weatherAlong ?? null, f.weatherRain == null ? null : b(f.weatherRain), f.tempC ?? null,
-        f.forecast ? JSON.stringify(f.forecast) : '',
-        f.league ?? null, b(f.leagueSprint),
-      ],
+      row: (f) => {
+        const row = flightRow(f);
+        const before = loadedFlights.get(f.id);
+        if (before && before[FLIGHT_ENTRIES_COL] !== row[FLIGHT_ENTRIES_COL]) {
+          const delta = entryDelta(f.id, String(before[FLIGHT_ENTRIES_COL] ?? '[]'), f.entries);
+          if (delta) entryDeltas.push(delta);
+          row[FLIGHT_ENTRIES_COL] = before[FLIGHT_ENTRIES_COL];
+        }
+        return row;
+      },
+      previousRows: loadedFlights,
       stmts,
     });
+    stmts.push(...entryMergeStatements(db, entryDeltas));
 
     diff(this.snapshots.notifications, w.notifications, (nt) => nt.id, {
       db,
@@ -1151,23 +1236,20 @@ export async function loadStemBoard(db: D1Database, viewerId: string | undefined
   if (ideas.length === 0) ideas = await seedIdeas(db);
   if (ideas.length === 0) return [];
 
+  // The three tallies in one round trip instead of three waits in a row.
+  const [voteRows, commentRows, mineRows] = await Promise.all([
+    db.prepare('SELECT idea_id, COUNT(*) AS n FROM stem_votes GROUP BY idea_id').all(),
+    db.prepare('SELECT idea_id, COUNT(*) AS n FROM stem_comments GROUP BY idea_id').all(),
+    viewerId
+      ? db.prepare('SELECT idea_id FROM stem_votes WHERE user_id = ?').bind(viewerId).all()
+      : Promise.resolve({ results: [] as unknown[] }),
+  ]);
   const votes = new Map<string, number>();
-  for (const r of (await db.prepare('SELECT idea_id, COUNT(*) AS n FROM stem_votes GROUP BY idea_id').all())
-    .results as any[]) {
-    votes.set(r.idea_id, Number(r.n) || 0);
-  }
+  for (const r of voteRows.results as any[]) votes.set(r.idea_id, Number(r.n) || 0);
   const comments = new Map<string, number>();
-  for (const r of (await db.prepare('SELECT idea_id, COUNT(*) AS n FROM stem_comments GROUP BY idea_id').all())
-    .results as any[]) {
-    comments.set(r.idea_id, Number(r.n) || 0);
-  }
+  for (const r of commentRows.results as any[]) comments.set(r.idea_id, Number(r.n) || 0);
   const mine = new Set<string>();
-  if (viewerId) {
-    for (const r of (await db.prepare('SELECT idea_id FROM stem_votes WHERE user_id = ?').bind(viewerId).all())
-      .results as any[]) {
-      mine.add(r.idea_id);
-    }
-  }
+  for (const r of mineRows.results as any[]) mine.add(r.idea_id);
 
   return sortIdeas(
     ideas.map((i) => ({

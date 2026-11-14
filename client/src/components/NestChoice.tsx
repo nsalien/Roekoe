@@ -16,7 +16,7 @@
 import { useState } from 'react';
 import { api } from '../api/client';
 import { useGame } from '../game/GameContext';
-import { Money, useToast } from './ui';
+import { Money, useToast, nl } from './ui';
 import { PigeonAvatar } from './PigeonAvatar';
 import type { BroodYoung, PendingNest } from '../types';
 
@@ -178,7 +178,7 @@ export function NestChoice({
                   <div>
                     <strong>{y.name}</strong>
                     <div className="faint" style={{ fontSize: '0.8rem' }}>
-                      {y.sex === 'doffer' ? '♂ doffer' : '♀ duivin'} · ★{y.talent}
+                      {y.sex === 'doffer' ? '♂ doffer' : '♀ duivin'} · ★{nl(y.talent)}
                       {y.breed?.name && <> · {y.breed.name}</>}
                     </div>
                     {/* An adult has a past: her age and ervaring, and whether she is ill. */}
@@ -251,7 +251,7 @@ export function NestChoice({
             {spare.map((p) => (
               <div key={p.id} className="row" style={{ justifyContent: 'space-between', gap: 8 }}>
                 <span>
-                  {p.name} <span className="faint">★{p.talent} · {p.ageWeeks} wk</span>
+                  {p.name} <span className="faint">★{nl(p.talent)} · {p.ageWeeks} wk</span>
                 </span>
                 {partId === p.id ? (
                   <div className="row" style={{ gap: 6 }}>

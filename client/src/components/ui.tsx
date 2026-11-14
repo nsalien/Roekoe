@@ -12,6 +12,15 @@ export function Money({ value }: { value: number }) {
   );
 }
 
+/**
+ * A number the Belgian way: a comma for the decimals (44,7 km/u, ★ 51,3), like the
+ * money and the spelregels already had. `fixed` keeps trailing zeros (+3,0).
+ */
+export function nl(n: number | null | undefined, digits = 1, fixed = false): string {
+  if (n == null || !Number.isFinite(n)) return '—';
+  return n.toLocaleString('nl-BE', { minimumFractionDigits: fixed ? digits : 0, maximumFractionDigits: digits });
+}
+
 export function SexBadge({ sex }: { sex: Sex }) {
   return (
     <span className={`badge sex-${sex}`}>{sex === 'doffer' ? '♂ doffer' : '♀ duivin'}</span>
@@ -69,7 +78,7 @@ export function StatBar({
               title="Verwachte verandering per dag met de huidige verzorging"
               style={{ fontSize: '0.68rem', fontWeight: 700, color: up ? 'var(--good, #2e9e5b)' : 'var(--bad)' }}
             >
-              {up ? '▲' : '▼'}{up ? '+' : ''}{d.toFixed(1)}
+              {up ? '▲' : '▼'}{up ? '+' : ''}{nl(d, 1, true)}
             </span>
           )}
           <span className="stat-val">{Math.round(value)}</span>
@@ -90,16 +99,19 @@ export function StatBar({
             onClick={(e) => { e.stopPropagation(); e.preventDefault(); setShowCap((s) => !s); }}
             style={{
               position: 'absolute', top: '50%', left: `${capPct}%`,
-              transform: 'translate(-50%, -50%)', width: 3, height: 14, padding: 0,
-              border: 'none', background: 'var(--bad)', borderRadius: 1,
+              // The red line is 3 px wide; the button around it is what a thumb hits.
+              transform: 'translate(-50%, -50%)', width: 30, height: 30, padding: 0,
+              border: 'none', background: 'transparent', display: 'grid', placeItems: 'center',
               cursor: 'pointer', zIndex: 2,
             }}
-          />
+          >
+            <span aria-hidden="true" style={{ width: 3, height: 14, background: 'var(--bad)', borderRadius: 1 }} />
+          </button>
           {showCap && (
             <span
               style={{
                 position: 'absolute', bottom: 'calc(100% + 5px)', left: `${capPct}%`,
-                transform: 'translateX(-50%)', background: 'var(--bad)', color: '#fff',
+                transform: 'translateX(-50%)', background: 'var(--bad)', color: 'var(--on-bad)',
                 fontSize: '0.72rem', fontWeight: 700, lineHeight: 1.3, padding: '2px 7px',
                 borderRadius: 5, whiteSpace: 'nowrap', zIndex: 5,
                 boxShadow: '0 2px 8px rgba(0,0,0,0.4)',

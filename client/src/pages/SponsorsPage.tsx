@@ -200,8 +200,8 @@ function SponsorCard({
             <div className="faint" style={{ fontSize: '0.8rem' }}>{s.categoryLabel} · tier {s.tier}</div>
           </div>
         </div>
-        {active && <span className="badge" style={{ background: 'var(--brand-strong)', color: '#fff' }}>Actief</span>}
-        {highlight && <span className="badge" style={{ background: 'var(--accent)', color: '#fff' }}>Nieuw</span>}
+        {active && <span className="badge" style={{ background: 'var(--btn)', color: 'var(--on-brand)' }}>Actief</span>}
+        {highlight && <span className="badge" style={{ background: 'var(--accent)', color: 'var(--on-accent)' }}>Nieuw</span>}
       </div>
 
       <p className="muted" style={{ margin: '8px 0', fontStyle: 'italic', fontSize: '0.9rem' }}>"{s.tagline}"</p>

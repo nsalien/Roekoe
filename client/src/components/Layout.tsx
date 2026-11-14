@@ -1,16 +1,16 @@
 /** App chrome: sticky top bar with navigation, money purse and admin control. */
 
-import { NavLink, Link, Outlet } from 'react-router-dom';
-import { useEffect, useRef, useState } from 'react';
+import { NavLink, Link, Outlet, useLocation } from 'react-router-dom';
+import { Suspense, useEffect, useRef, useState } from 'react';
 import { useAuth } from '../auth/AuthContext';
-import { useGame } from '../game/GameContext';
+import { STATE_MAX_AGE_MS, useGame } from '../game/GameContext';
 import { MARKET_SEEN_EVENT, hasMarketNews, marketSeenAt } from '../game/marketSeen';
 import { LOKAAL_SEEN_EVENT, hasLokaalNews, lokaalSeenAt } from '../game/lokaalSeen';
 import { STUD_SEEN_EVENT, hasStudNews, studSeenAt } from '../game/studSeen';
 import { api } from '../api/client';
 import { APP_BUILD, liveBuild, reloadInto } from '../game/appVersion';
 import { GrownUpCelebration } from './GrownUpCelebration';
-import { useToast } from './ui';
+import { Spinner, useToast } from './ui';
 import { NotificationsBell } from './NotificationsBell';
 import { BANK_NEWS_STEPS, INRICHTING_NEWS_STEPS, LEAGUE_NEWS_STEPS, LOKAAL_NEWS_STEPS, Tour, lureNewsSteps, season3NewsSteps, studNewsSteps, tagNewsSteps } from './Tour';
 import { PrizeCeremony } from './PrizeCeremony';
@@ -104,6 +104,13 @@ const ADMIN_NAV: NavItem = { to: '/beheer', label: 'Beheer', short: 'Beheer', ic
 // (with "Meer" that is seven equal slots, ~51 px each on a 360 px phone); the
 // sixth is the Ziekenboeg, which the owner wanted out of the overflow row.
 const PRIMARY = 6;
+// The desktop top bar: this many buttons in the bar itself, the rest behind
+// "Meer ▾". All 16 next to each other wrapped into a second row that fell half
+// outside the bar. The last DESKTOP_WIDE_ONLY of them move behind "Meer" too on
+// a narrower window (below 1060 px, see global.css). Measured: six buttons plus
+// "Meer" is what fits next to the logo, the week, the kassa and the bell.
+const DESKTOP_PRIMARY = 6;
+const DESKTOP_WIDE_ONLY = 2;
 /** Icons per row in the opened "Meer" sheet (owner, 2 nov: "7 icoontjes per sectie"). */
 const SHEET_COLUMNS = 7;
 
@@ -143,10 +150,14 @@ function useNewVersion(): boolean {
 
 export function Layout() {
   const { user, logout } = useAuth();
-  const { state, refresh } = useGame();
+  const { state, refresh, refreshIfStale } = useGame();
   const toast = useToast();
   const [advancing, setAdvancing] = useState(false);
   const newVersion = useNewVersion();
+  // Moving to another page shows fresh numbers if the state has gone stale (see
+  // STATE_MAX_AGE_MS): at most one narrow load a minute, and none while you stay put.
+  const { pathname } = useLocation();
+  useEffect(() => { refreshIfStale(STATE_MAX_AGE_MS); }, [pathname, refreshIfStale]);
 
   // One-time welcome tour, remembered per player (per browser). Closing it —
   // even early — counts as seen, so it never returns on its own. The profile
@@ -519,20 +530,7 @@ export function Layout() {
           <Link to="/" className="brand">
             <span className="logo">🕊️</span> Roekoe
           </Link>
-          <nav className="nav">
-            {navItems.map((n) => {
-              const badge = badgeFor(n);
-              return (
-                <NavLink key={n.to} to={n.to} end={n.end} className={({ isActive }) => (isActive ? 'active' : '')}>
-                  {n.label}
-                  {badge.count > 0 && <span className="nav-dot" title={badge.title}>{badge.count}</span>}
-                  {badge.news && (
-                    <span className="nav-dot plain" title={badge.title} aria-label={badge.title} />
-                  )}
-                </NavLink>
-              );
-            })}
-          </nav>
+          <DesktopNav items={navItems} badgeFor={badgeFor} />
           <div className="topbar-right">
             {state && (
               <span className="chip week" title="Seizoensweek">
@@ -545,14 +543,16 @@ export function Layout() {
               </span>
             )}
             {state && <NotificationsBell />}
+            {/* Phones: the account row below is hidden, the avatar leads to Profiel. */}
+            <Link to="/profiel" className="avatar-dot topbar-avatar" aria-label="Profiel" title="Profiel">{initial}</Link>
           </div>
         </div>
       </header>
 
-      <div className="subhead">
+      <div className={`subhead${state?.isAdmin ? ' has-admin' : ''}`}>
         <div className="container subhead-inner">
           <div className="row" style={{ gap: 10 }}>
-            <span className="muted">
+            <span className="muted season">
               {state && <>Seizoen {state.world.seasonYear} · week {state.world.seasonWeek}/4</>}
             </span>
             {state?.isAdmin && (
@@ -584,7 +584,10 @@ export function Layout() {
             sponsor uit. <Link to="/sponsors">Kies je sponsors →</Link>
           </div>
         )}
-        <Outlet />
+        {/* Lazy pages (App.tsx) load inside the chrome, not instead of it. */}
+        <Suspense fallback={<Spinner />}>
+          <Outlet />
+        </Suspense>
       </main>
 
       {/* Bottom tab bar — only shown on phones (see global.css). */}
@@ -653,6 +656,69 @@ function EventModal() {
         </div>
       </div>
     </div>
+  );
+}
+
+/**
+ * The desktop top bar: the first DESKTOP_PRIMARY pages as buttons, the rest in a
+ * "Meer ▾" menu. A marker on a page inside the menu shows on the Meer button too,
+ * like the phone bar does.
+ */
+function DesktopNav({ items, badgeFor }: { items: NavItem[]; badgeFor: (n: NavItem) => NavBadge }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  const { pathname } = useLocation();
+  useEffect(() => { setOpen(false); }, [pathname]);
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); };
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false); };
+    document.addEventListener('mousedown', onDown);
+    document.addEventListener('keydown', onKey);
+    return () => { document.removeEventListener('mousedown', onDown); document.removeEventListener('keydown', onKey); };
+  }, [open]);
+  const wideFrom = DESKTOP_PRIMARY - DESKTOP_WIDE_ONLY;
+  const link = (n: NavItem, extra = '') => {
+    const badge = badgeFor(n);
+    return (
+      <NavLink key={n.to} to={n.to} end={n.end} className={({ isActive }) => `${isActive ? 'active' : ''} ${extra}`.trim()}>
+        {n.label}
+        {badge.count > 0 && <span className="nav-dot" title={badge.title}>{badge.count}</span>}
+        {badge.news && <span className="nav-dot plain" title={badge.title} aria-label={badge.title} />}
+      </NavLink>
+    );
+  };
+  const inMenu = items.slice(wideFrom);
+  const active = (n: NavItem) => (n.end ? pathname === n.to : pathname === n.to || pathname.startsWith(`${n.to}/`));
+  // Whether the page you are on, or something that wants attention, sits in the menu.
+  const flag = (list: NavItem[]) => ({
+    here: list.some(active),
+    news: list.some((n) => { const b = badgeFor(n); return b.count > 0 || b.news; }),
+  });
+  const always = flag(items.slice(DESKTOP_PRIMARY));
+  const narrow = flag(items.slice(wideFrom, DESKTOP_PRIMARY));
+  return (
+    <nav className="nav">
+      {items.slice(0, DESKTOP_PRIMARY).map((n, i) => link(n, i >= wideFrom ? 'nav-wide' : ''))}
+      <div className="nav-more" ref={ref}>
+        <button
+          type="button"
+          className={`nav-more-btn${always.here ? ' active' : ''}${narrow.here ? ' active-narrow' : ''}`}
+          aria-haspopup="menu"
+          aria-expanded={open}
+          onClick={() => setOpen((o) => !o)}
+        >
+          Meer <span aria-hidden="true">▾</span>
+          {always.news && <span className="nav-dot plain" />}
+          {!always.news && narrow.news && <span className="nav-dot plain nav-narrow" />}
+        </button>
+        {open && (
+          <div className="nav-menu" role="menu">
+            {inMenu.map((n, i) => link(n, i < DESKTOP_WIDE_ONLY ? 'nav-narrow' : ''))}
+          </div>
+        )}
+      </div>
+    </nav>
   );
 }
 

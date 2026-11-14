@@ -28,10 +28,11 @@ function Season3NewsCard({ newsAt }: { newsAt?: string }) {
   const at = newsAt ? Date.parse(newsAt) : NaN;
   if (hidden || Number.isNaN(at) || Date.now() > at + 7 * 86400000) return null;
   return (
-    <div className="card row" style={{ marginBottom: 14, justifyContent: 'space-between', gap: 8, borderColor: 'var(--accent)' }}>
-      <span>🎉 <strong>Seizoen 3:</strong> kenmerken, sponsorlimiet en meer — <Link to="/wiki#seizoen3">bekijk wat er nieuw is →</Link></span>
+    <div className="card row" style={{ marginBottom: 14, justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'nowrap', gap: 8, borderColor: 'var(--accent)' }}>
+      <span style={{ flex: 1, minWidth: 0 }}>🎉 <strong>Seizoen 3:</strong> kenmerken, sponsorlimiet en meer — <Link to="/wiki#seizoen3">bekijk wat er nieuw is →</Link></span>
       <button
         className="btn ghost sm"
+        style={{ flexShrink: 0 }}
         aria-label="Verbergen"
         onClick={() => { try { localStorage.setItem(SEASON3_CARD_KEY, '1'); } catch { /* private mode */ } setHidden(true); }}
       >
@@ -67,7 +68,8 @@ export function DashboardPage() {
   const selling = foodMode === 'sell';
   const resaleRate = eco.foodResaleRate ?? 0.8;
   const foodStock = loft.food[buyType] ?? 0;
-  const sellValue = Math.round(buyKg * feedRations[buyType].pricePerKg * resaleRate);
+  // Same rounding as the server (engine.ts): the sale rounds down, the purchase up.
+  const sellValue = Math.floor(buyKg * feedRations[buyType].pricePerKg * resaleRate + 1e-9);
   // Full cumulative daily-cost breakdown (from the loft DTO, same source as what
   // is actually deducted each day). Each row: label, count context, and amount.
   const costs = loft.dailyCosts;
@@ -192,7 +194,7 @@ export function DashboardPage() {
             <div className="tile-label">
               Jouw volgende vlucht
               {myNextFlight.status === 'live' && (
-                <span className="badge" style={{ marginLeft: 6, background: 'var(--accent)', color: '#fff' }}>🔴 LIVE</span>
+                <span className="badge" style={{ marginLeft: 6, background: 'var(--accent)', color: 'var(--on-accent)' }}>🔴 LIVE</span>
               )}
             </div>
             <div style={{ fontWeight: 800, fontSize: '1.05rem', marginTop: 2 }}>{myNextFlight.name}</div>
@@ -507,7 +509,7 @@ export function DashboardPage() {
                 disabled={busy || buyKg <= 0}
                 onClick={() => act(() => api('/loft/food', { method: 'POST', body: { type: buyType, kg: buyKg } }), `${buyKg} kg ${feedRations[buyType].label} gekocht`)}
               >
-                Kopen · <Money value={Math.round(buyKg * feedRations[buyType].pricePerKg)} />
+                Kopen · <Money value={Math.ceil(buyKg * feedRations[buyType].pricePerKg - 1e-9)} />
               </button>
             )}
           </div>
@@ -541,7 +543,7 @@ export function DashboardPage() {
                   <div>
                     <div className="row" style={{ gap: 6 }}>
                       <strong>{f.name}</strong>
-                      {f.status === 'live' && <span className="badge" style={{ background: 'var(--accent)', color: '#fff' }}>🔴 LIVE</span>}
+                      {f.status === 'live' && <span className="badge" style={{ background: 'var(--accent)', color: 'var(--on-accent)' }}>🔴 LIVE</span>}
                     </div>
                     <div className="faint">{f.fromCity} → {f.toCity} · {f.distanceKm} km</div>
                   </div>

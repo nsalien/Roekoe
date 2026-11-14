@@ -7,7 +7,7 @@ import { useAuth } from '../auth/AuthContext';
 import { useGame } from '../game/GameContext';
 import { useVisiblePoll } from '../game/useVisiblePoll';
 import { buildDaysTaken, canEnter, flightDay } from '../game/flightEntry';
-import { Money, Spinner, countdownTo, formatDuration, formatFlightDay, formatFlightDayShort, formatFlightTime, tagText, tierLabel, traitEntryHint, TraitResultMark, useToast } from '../components/ui';
+import { Money, Spinner, countdownTo, formatDuration, formatFlightDay, formatFlightDayShort, formatFlightTime, tagText, tierLabel, traitEntryHint, TraitResultMark, useToast, nl } from '../components/ui';
 import type { BetKind, BetPreview, BetView, Flight, FlightEntrant } from '../types';
 
 /** A ticking clock so countdowns update every second. */
@@ -72,10 +72,12 @@ export function FlightsPage() {
     const res = await api<{ bets: BetView[] }>('/bets');
     setBets(res.bets);
   }, []);
+  const week = state?.world.currentWeek;
   useEffect(() => {
+    if (week === undefined) return; // wait for the state: no double fetch on a direct open
     load();
     loadBets();
-  }, [load, loadBets, state?.world.currentWeek]);
+  }, [load, loadBets, week]);
 
   // Reload periodically so flights flip to live / completed without a manual
   // refresh. Kept deliberately slow — see the note in LiveFlightPage: every poll
@@ -199,7 +201,7 @@ export function FlightsPage() {
               <div className="row" style={{ justifyContent: 'space-between' }}>
                 <div>
                   <div className="row" style={{ gap: 8 }}>
-                    <span className="badge" style={{ background: 'var(--accent)', color: '#fff' }}>🔴 LIVE</span>
+                    <span className="badge" style={{ background: 'var(--accent)', color: 'var(--on-accent)' }}>🔴 LIVE</span>
                     <strong>{f.name}</strong>
                   </div>
                   <div className="faint">{f.fromCity} → {f.toCity} · {f.distanceKm} km · {f.entryCount} duiven</div>
@@ -631,7 +633,7 @@ function BetPanel({ flight, meId, onPlaced }: { flight: Flight; meId?: string; o
         <>
           <label style={{ marginTop: 8 }}>{kind === 'own_top3' ? 'Jouw duif' : 'Duif'}</label>
           <select value={pigeonId} onChange={(e) => setPigeonId(e.target.value)} disabled={busy}>
-            {targets.map((t) => <option key={t.pigeonId} value={t.pigeonId}>{t.name} (★{t.talent} · {t.ownerName})</option>)}
+            {targets.map((t) => <option key={t.pigeonId} value={t.pigeonId}>{t.name} (★{nl(t.talent)} · {t.ownerName})</option>)}
           </select>
         </>
       )}

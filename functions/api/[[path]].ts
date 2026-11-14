@@ -180,6 +180,7 @@ import {
   loftDTO,
   notificationsFor,
   pigeonDTO,
+  pigeonDtoContext,
   pigeonRaceHistory,
   playerProfile,
   rankingRows,
@@ -229,7 +230,8 @@ const READ_ONLY_POSTS = new Set(['/api/bets/preview']);
  * for two top-10 lists that are now cached.
  */
 // '/api/bank' reads only the viewer's own loft row (bank.ts).
-const NARROW_PATHS = new Set(['/api/state', '/api/flights', '/api/bets', '/api/notifications', '/api/bank']);
+// '/api/market/auctions' names only the birds under the hammer, which a narrow load carries.
+const NARROW_PATHS = new Set(['/api/state', '/api/flights', '/api/bets', '/api/notifications', '/api/bank', '/api/market/auctions']);
 
 /**
  * GET/HEAD only — a write never runs on a narrowed world.
@@ -552,16 +554,20 @@ app.get('/state', (c) => {
   const store = c.get('store');
   const db = store.data;
   const loft = db.lofts.find((l) => l.userId === user.id);
+  const ctx = pigeonDtoContext(db);
   const pigeons = db.pigeons
     .filter((p) => p.ownerId === user.id)
-    .map((p) => pigeonDTO(db, p, user.id, user.isAdmin))
+    .map((p) => pigeonDTO(db, p, user.id, user.isAdmin, ctx))
     .sort((a, b) => b.talent - a.talent);
   const upcoming = db.flights
     .filter((f) => f.status === 'scheduled' || f.status === 'live')
     .sort((a, b) => a.startAt.localeCompare(b.startAt))
     .map((f) => flightDTO(db, f));
+  // The cached leaderboard travels parsed, below (`cachedLeaderboard`); sending
+  // its raw JSON string inside `world` as well doubled it on the hottest route.
+  const { leaderboard: _leaderboard, ...world } = db.world;
   return c.json({
-    world: db.world,
+    world,
     isAdmin: user.isAdmin,
     loft: loft ? loftDTO(db, loft) : null,
     pigeons,
@@ -1354,23 +1360,60 @@ app.get('/market', (c) => {
   // "Zoekertje naar boven": the one boosted listing goes first, the rest by price.
   const nowMs = Date.now();
   const featuredId = featuredListingId(db, nowMs);
+  const ctx = pigeonDtoContext(db);
   const listings = db.pigeons
     .filter((p) => p.forSale)
     .map((p) => ({
-      ...pigeonDTO(db, p, user.id, user.isAdmin),
+      ...pigeonDTO(db, p, user.id, user.isAdmin, ctx),
       featured: p.id === featuredId,
       featuredUntil: p.id === featuredId ? new Date(boostEndsAt(p)).toISOString() : null,
     }))
     .sort((a, b) => Number(b.featured) - Number(a.featured) || (a.price ?? 0) - (b.price ?? 0));
-  // Every other real player's pigeon that is NOT already listed — you can make a
-  // private offer on these (see offers.ts). For-sale ones are in `listings`.
-  const biddable = db.pigeons
-    .filter((p) => p.ownerId !== user.id && !botIds.has(p.ownerId) && !p.forSale)
-    .map((p) => pigeonDTO(db, p, user.id, user.isAdmin))
-    .sort((a, b) => b.talent - a.talent);
+  // Every other real player whose birds you can make a private offer on (see
+  // offers.ts) — only WHO, and how many. Their birds are fetched per player when
+  // one is picked (`/market/biddable/:ownerId`): presenting all ~160 of them on
+  // every market load was the dearest thing this route did, for a picker most
+  // visits never open.
+  const perOwner = new Map<string, number>();
+  for (const p of db.pigeons) {
+    if (p.ownerId === user.id || botIds.has(p.ownerId) || p.forSale) continue;
+    if (!ctx.lofts.has(p.ownerId)) continue; // veilinghuis, opvangcentrum
+    perOwner.set(p.ownerId, (perOwner.get(p.ownerId) ?? 0) + 1);
+  }
+  const biddableOwners = [...perOwner]
+    .map(([id, count]) => ({ id, name: ctx.lofts.get(id)!.name, count }))
+    .sort((a, b) => a.name.localeCompare(b.name));
   // Vakblad (hokinrichting): the market report, for subscribers only.
-  const report = db.lofts.find((l) => l.userId === user.id)?.equipment?.magazine ? magazineReport(db, Date.now()) : null;
-  return c.json({ listings, biddable, trades: recentTrades(db, Date.now()), auctions: auctionsDTO(db, user.id), report, boost: MARKET_BOOST });
+  const report = ctx.lofts.get(user.id)?.equipment?.magazine ? magazineReport(db, nowMs) : null;
+  return c.json({ listings, biddableOwners, trades: recentTrades(db, nowMs), auctions: auctionsDTO(db, user.id), report, boost: MARKET_BOOST });
+});
+
+/**
+ * One player's birds you can make a private offer on (not listed, not yours, not
+ * a bot's). Fetched when that player is picked in the offer form.
+ */
+app.get('/market/biddable/:ownerId', (c) => {
+  const user = requireUser(c);
+  const db = c.get('store').data;
+  const ownerId = c.req.param('ownerId');
+  const loft = db.lofts.find((l) => l.userId === ownerId);
+  if (!loft || loft.isBot || ownerId === user.id) return c.json({ pigeons: [] });
+  const ctx = pigeonDtoContext(db);
+  const pigeons = db.pigeons
+    .filter((p) => p.ownerId === ownerId && !p.forSale)
+    .map((p) => pigeonDTO(db, p, user.id, user.isAdmin, ctx))
+    .sort((a, b) => b.talent - a.talent);
+  return c.json({ pigeons });
+});
+
+/**
+ * Only the running auctions — what the market polls every 15 s while one is in
+ * its closing minutes. On the narrow load (core/d1.ts), which carries the birds
+ * under the hammer, so the fastest poll in the game no longer loads the world.
+ */
+app.get('/market/auctions', (c) => {
+  const user = requireUser(c);
+  return c.json({ auctions: auctionsDTO(c.get('store').data, user.id) });
 });
 
 app.post('/auction/bid', async (c) => {
