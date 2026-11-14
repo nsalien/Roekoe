@@ -103,6 +103,13 @@
 }
 
 * { box-sizing: border-box; }
+/* Safety net: nothing may ever make the page wider than the screen. On a phone a
+   single element sticking out widens the whole layout viewport, and the fixed
+   bottom bar stretches along with it — its last buttons slide off the screen.
+   `clip` (not `hidden`) on purpose: it does not create a scroll container, so the
+   sticky top bar keeps working. The real fix for an overflow is still to make the
+   element fit; this only stops one from breaking every page. */
+html, body { overflow-x: clip; }
 html, body, #root { height: 100%; }
 
 body {
@@ -384,8 +391,8 @@ table.data tr.podium-1 td { background: var(--gold-soft); }
 @keyframes spin { to { transform: rotate(360deg); } }
 .center-screen { min-height: 100vh; display: grid; place-items: center; padding: 20px; }
 
-.pill-tabs { display: inline-flex; background: var(--surface-2); border: 1px solid var(--border); border-radius: 999px; padding: 3px; gap: 2px; }
-.pill-tabs button { border: none; background: transparent; font: inherit; font-weight: 650; font-size: 0.88rem; padding: 7px 15px; border-radius: 999px; cursor: pointer; color: var(--text-soft); transition: background 0.14s, color 0.14s; }
+.pill-tabs { max-width: 100%; overflow-x: auto; scrollbar-width: none; display: inline-flex; background: var(--surface-2); border: 1px solid var(--border); border-radius: 999px; padding: 3px; gap: 2px; }
+.pill-tabs button { flex: 0 0 auto; white-space: nowrap; border: none; background: transparent; font: inherit; font-weight: 650; font-size: 0.88rem; padding: 7px 15px; border-radius: 999px; cursor: pointer; color: var(--text-soft); transition: background 0.14s, color 0.14s; }
 .pill-tabs button:hover { color: var(--text); }
 .pill-tabs button.active { background: var(--surface); color: var(--brand-ink); box-shadow: var(--shadow-sm); }
 
@@ -519,6 +526,13 @@ hr.sep { border: none; border-top: 1px solid var(--border); margin: 16px 0; }
      and the account row is the avatar now. Only the beheerder keeps the strip,
      for the "Volgende week"-button. */
   .avatar-dot.topbar-avatar { display: grid; }
+  /* Logo, kassa, bell and avatar must fit next to each other on a 320 px phone.
+     The season week is on the Overzicht; here it only pushed the bar (and with it
+     the page) wider than the screen. */
+  .topbar .chip.week { display: none; }
+  .topbar-inner { min-width: 0; }
+  .topbar-right { min-width: 0; gap: 6px; }
+  .topbar .chip.money { padding: 6px 10px; }
   .subhead { display: none; }
   .subhead.has-admin { display: block; }
   .subhead .who, .subhead .season { display: none; }
@@ -1113,3 +1127,8 @@ a.ped-node:active { transform: translateY(1px); }
 .wiki-chevron { flex: 0 0 auto; color: var(--text-faint); font-size: 1rem; }
 .wiki-section.open .wiki-head { margin-bottom: 12px; }
 .wiki-section[hidden], .wiki-body[hidden] { display: none; }
+
+/* Very narrow phones: the logo alone says Roekoe. */
+@media (max-width: 359px) {
+  .brand .brand-name { display: none; }
+}

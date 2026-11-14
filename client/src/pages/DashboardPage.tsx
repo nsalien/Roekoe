@@ -617,7 +617,7 @@ function AdminAuctions() {
 
   return (
     <div style={{ marginTop: 12 }}>
-      <button className="btn ghost sm" disabled={busy} onClick={load}>
+      <button className="btn ghost sm" style={{ whiteSpace: 'normal', textAlign: 'left' }} disabled={busy} onClick={load}>
         🔨 Toon recente veilingen (wie bood wat)
       </button>
       {rows && rows.length === 0 && <p className="muted" style={{ marginTop: 8 }}>Geen veilingen in het systeem.</p>}

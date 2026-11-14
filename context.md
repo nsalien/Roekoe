@@ -85,6 +85,15 @@
 > Het voorstel (met alle getallen en de sketch) staat in de artifact "Roekoe Hokinrichting".
 
 ### Stand van zaken (12 okt 2026) — lees dit eerst
+- **Gsm schoof zijwaarts — 15 nov, live** (eigenaar, met een screenshot van Mijn hok: "De breedte komt niet mooi uit op
+  mijn gsm, ik kan horizontaal scrollen"). Oorzaak: de avatar die de doorlichting in de gsm-bovenbalk zette. Logo + Week +
+  kassa + bel + avatar paste pas vanaf ~410 px; op een smaller toestel werd de pagina 8–80 px breder dan het scherm, en
+  op een gsm rekt de vaste onderbalk dan mee (de laatste knoppen vielen van het scherm). Mijn eigen meting deed enkel
+  390 px met een kassa van 4 cijfers. Fix (global.css): op gsm geen Week-chip in de balk (staat op het Overzicht),
+  krappere `.topbar-right`, onder 360 px enkel het logo; `.pill-tabs` scrolt in zichzelf; de knop "Toon recente
+  veilingen" breekt af. Plus een **vangnet: `html, body { overflow-x: clip }`** — `clip`, niet `hidden`, zodat de
+  sticky bovenbalk blijft werken. ⚠️ Het vangnet verbergt een te breed element enkel; meet bij elke layoutwijziging op
+  **320, 360, 375 en 390 px** met een lange hoknaam en een kassa van 7 cijfers (gemeten: alle 17 pagina's passen).
 - **Doorlichting — 14 nov, LIVE sinds 14 nov** (prod `4f3435d` = dev `ae14937`, sessiebranch `ccr-1b20c3c1-7g1ni4`; eigenaar: "Ga door alle code
   en ga na of alles performant en efficiënt is geschreven en of alles werkt zoals het hoort … visueel", daarna
   "Los alles op" en "Zet het live"). Geen schemastap, geen migratie (`dataVersion` blijft 76, een volgende is nog altijd **v77**). Wat er
@@ -6374,8 +6383,9 @@ nieuwe versie = één herlading bij terugkeren; nog altijd oud daarna = geen lus
   Vast in `global.css`: `.grid > * { min-width: 0 }`, `.btn.block { white-space: normal }`,
   `.grid.cols-2` → 1 kolom onder 820 px, `.stat { min-width: 0 }` + `.stat-top { flex-wrap:
   wrap }`, en inline kolomdefinities als **`repeat(3, minmax(0, 1fr))`** i.p.v. `1fr 1fr 1fr`
-  (`minmax(0,1fr)` dwingt het track-minimum op 0, los van item-`min-width`). **Meet elke
-  layoutwijziging op 390 px** — en let op **browsercache**: er is geen service worker, maar een
+  (`minmax(0,1fr)` dwingt het track-minimum op 0, los van item-`min-width`). Sinds 15 nov staat er ook
+  `html, body { overflow-x: clip }` als vangnet. **Meet elke
+  layoutwijziging op 320–390 px** — en let op **browsercache**: er is geen service worker, maar een
   harde refresh is nodig om een CSS-fix te zien.
 
 ---
