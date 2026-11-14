@@ -20,7 +20,7 @@
 | **Dev (sessie 27 okt)** | `claude/adoring-bell-7zvxzk` | Sessiebranch van de **erfenis voor drie spelers** (migratie v69) en **de markt volgt het spel** (zie *Stand van zaken*), vertrokken van prod `d423c1b` (geen demo, geen Marktwaarde v2). Commits met `[CF-Pages-Skip]`, om dezelfde reden als hierboven. Beide live op 27 okt: `f26ae4f` → prod `ca78889`, `0f127f6` → prod `610f362`. |
 | **Dev (sessie 31 okt – 1 nov)** | `ccr-9f062ea2-reeikx` | Sessiebranch van **de erfenis voor De Vluchtige Vleugel** (migratie v71; live op 31 okt: `408d282` → prod `c644026`), daarna van de **herstart van Dev** en **de bank** (1 nov) — sindsdien dezelfde commits als `claude/demo-hokinrichting` — ook gepauzeerd sinds 6 nov (`f063429`). |
 | **Dev (sessie 7 nov)** | `ccr-bba5995a-iwrslf` | Sessiebranch van **de duif cadeau voor De Bronstige Bek** (migratie v75) en **zijn starterspakket opnieuw** (v76), vertrokken van prod `4e7a99a` (geen demo, geen Marktwaarde v2) terwijl Dev gepauzeerd is. Commits met `[CF-Pages-Skip]`, om dezelfde reden als hierboven. |
-| **Dev (sessie 14 nov)** | `ccr-1b20c3c1-7g1ni4` | Sessiebranch van de **doorlichting** (analyse + "Los alles op", zie *Stand van zaken*), vertrokken van prod `443129d` (geen demo, geen Marktwaarde v2) terwijl Dev gepauzeerd is. Commits met `[CF-Pages-Skip]`, om dezelfde reden als hierboven. ⚠️ **Nog NIET op productie**: de sessie mocht enkel naar haar eigen branch pushen en het is een grote wijziging aan de opslaglaag — wacht op een uitdrukkelijk "zet live" van de eigenaar. |
+| **Dev (sessie 14 nov)** | `ccr-1b20c3c1-7g1ni4` | Sessiebranch van de **doorlichting** (analyse + "Los alles op", zie *Stand van zaken*), vertrokken van prod `443129d` (geen demo, geen Marktwaarde v2) terwijl Dev gepauzeerd is. Commits met `[CF-Pages-Skip]`, om dezelfde reden als hierboven. Live op 14 nov na een uitdrukkelijk "Zet het live": `ae14937` → prod `4f3435d`. |
 | **Prod** | `claude/roekoe-game-website-jwa0vo` | Elke commit wordt hierheen **gecherry-pickt**; deze branch triggert de **Cloudflare Pages**-deploy naar productie. |
 
 > Vorige dev-branches (niet meer gebruiken): `ccr-9c78dbf3-rdb1ea`, `claude/hallo-nno7pb`, `claude/hallo-r1wgvn`, `claude/hallo-ca55co`, `claude/hallo-qz9tmx`, `claude/hallo-fsp9nx`, `claude/hallo-mzjn0e`, `claude/hallo-su75jy`, `claude/hallo-rkr49f`, `claude/hallo-pvwabx`,
@@ -85,9 +85,9 @@
 > Het voorstel (met alle getallen en de sketch) staat in de artifact "Roekoe Hokinrichting".
 
 ### Stand van zaken (12 okt 2026) — lees dit eerst
-- **Doorlichting — 14 nov, op de sessiebranch `ccr-1b20c3c1-7g1ni4`, ⚠️ NOG NIET LIVE** (eigenaar: "Ga door alle code
+- **Doorlichting — 14 nov, LIVE sinds 14 nov** (prod `4f3435d` = dev `ae14937`, sessiebranch `ccr-1b20c3c1-7g1ni4`; eigenaar: "Ga door alle code
   en ga na of alles performant en efficiënt is geschreven en of alles werkt zoals het hoort … visueel", daarna
-  "Los alles op"). Geen schemastap, geen migratie (`dataVersion` blijft 76, een volgende is nog altijd **v77**). Wat er
+  "Los alles op" en "Zet het live"). Geen schemastap, geen migratie (`dataVersion` blijft 76, een volgende is nog altijd **v77**). Wat er
   veranderde, per laag:
   - **Opslag (`core/d1.ts`) — dé bug.** Vluchten worden nu **per kolom** vergeleken en geschreven (`FLIGHT_COLUMNS`,
     `flightRow`, zoals duiven en hokken; geen JSON-snapshot meer), en de **inschrijvingen worden samengevoegd in SQL**
@@ -140,7 +140,13 @@
     stond op een vaste datum in het verleden: 0 duiven ingeschreven).
   - **Geverifieerd:** beide typechecks, build, alle tests (78 + `cpu-budget` apart), en een browserronde over alle 18
     schermen op 390 en 1280 px: geen JS-fouten, geen enkele pagina schuift nog zijwaarts, de rondleiding loopt door de
-    lazy pagina's. Niet getest op een echt toestel of tegen de echte D1.
+    lazy pagina's. Vóór het live zetten ook op de **echte runtime** gedraaid (`wrangler pages dev` met een lokale D1,
+    dus workerd en zijn SQLite): gelijktijdig in- en uitschrijven, vier inschrijvingen tegelijk op twee vluchten, een
+    vluchtstart en -afronding en alle leesroutes — geen enkele D1-fout. Niet getest op een echt toestel.
+    ⚠️ Daarbij gemerkt: op een **splinternieuwe** databank (enkel `0001_init.sql`, geen `world`-rij) komt het spel niet
+    op gang — `ensureSchema` kan zijn voortgang zonder wereldrij niet bewaren en de wereldload vraagt intussen kolommen
+    die er nog niet zijn. Geen probleem voor productie (die rij bestaat), wel voor een verse installatie: eerst
+    `INSERT INTO world (id, current_week, season_year, seeded) VALUES (1, 1, 1, 0)`, zoals de tests doen. Niet opgelost.
 - **Wachtwoord vergeten — 12 nov, live** (prod `77f34d4`; eigenaar: "Iemand is zijn wachtwoord vergeten, hoe op te lossen?" → optie 2):
   spelers hebben **geen e-mailadres** (enkel gebruikersnaam + wachtwoord), dus geen reset-mail. Nu:
   **Beheer → Spelers** (`PlayerAdmin` in AdminPage.tsx; `GET /admin/users` = de echte spelers met hoknaam,
