@@ -224,15 +224,15 @@ wel. Bij gelijke andere eigenschappen kan een **ervaren duif met weinig energie*
 daardoor nog steeds beter scoren dan een onervaren duif met weinig energie — maar
 ze wint het nooit van een even snelle duif die gewoon uitgerust is.
 
-> **Voorbeeld.** Een sterke duif (snelheid 80, conditie 70, oriëntatie 65,
-> energie 90, gezondheid 85, ervaring 40) op een vlucht van **300 km**:
-> de gewichten worden ≈ snelheid 0.43 / conditie 0.28 / oriëntatie 0.28, dus
-> basisscore ≈ 73. Met de energie- (×1.06), gezondheids- (×0.96) en
-> ervaringbonus (×1.13) en een lichte rugwind (×1.1) komt ze aan
-> **≈ 100 km/u** en doet ze **≈ 2 u 55** over de 300 km.
-> Een futloze duif (energie 30, gezondheid 45) op dezelfde vlucht haalt maar
-> ~70 km/u en verliest zo een half uur — energie en gezondheid maken echt
-> het verschil.
+> **Voorbeeld.** Een sterke duif (snelheid 80, conditie 70, energie 90,
+> gezondheid 85, ervaring 40) op een vlucht van **300 km**: de gewichten worden
+> ≈ snelheid 0,66 / conditie 0,34, dus basisscore ≈ 77. Met de energie- (×1,07)
+> en gezondheidsfactor (×0,96) en een lichte rugwind (×1,1) vraagt ze
+> **≈ 94 km/u** en doet ze **≈ 3 u 10** over de 300 km. Haar oriëntatie en haar
+> ervaring veranderen dat cijfer niet (zie hierboven).
+> Dezelfde duif futloos (energie 30, gezondheid 45) haalt op die vlucht maar
+> ~64 km/u en doet er anderhalf uur langer over — energie en gezondheid maken
+> echt het verschil.
 
 ### 2.3b Conditie: het tempo vasthouden (en terugkomen)
 
@@ -720,21 +720,25 @@ en de ×1,15). Op de lange fond is een goede energie­planning het halve werk:
 > blessure). Vroeg uitvallen spaart wél veel energie.
 
 ### 3.1 Kans op verbetering van een vaardigheid
-Elke deelnemer maakt kans om te groeien in de vaardigheid die voor die afstand
-telt (gewogen keuze uit snelheid/conditie/oriëntatie):
+Elke duif die **thuis raakt** maakt kans om te groeien in de vaardigheid die voor
+die afstand telt (gewogen keuze uit snelheid/conditie/oriëntatie). Hoe **zwakker**
+de duif én hoe **beter haar plaats**, hoe groter de kans en hoe groter de stap:
 ```
-ruimte      = (96 − huidige_waarde) / 96
-plaatsbonus = (aantal − plaats) / aantal · 0.3      // winnaar tot +0.3
-kans        = clamp(0.4 · (0.5 + ruimte) + plaatsbonus, 0, 0.9)
-groei       = willekeurig(0.4 … 1.6) · (0.4 + ruimte)   // cap 96
+plafond     = laagste van 90 en haar gen-cap        // boven 90 enkel de coach (§8)
+ruimte      = (plafond − huidige_waarde) / plafond
+zwakte      = 1 − (gemiddelde van snelheid, conditie, oriëntatie) / 100
+plaats      = (aantal − plaats_in_de_uitslag) / aantal   // winnaar ≈ 1, laatste ≈ 0
+kans        = 0,4 · (0,4 + ruimte) · (0,5 + zwakte · 1,5) · (0,6 + plaats · 0,8)   // hoogstens 0,92
+groei       = willekeurig(0,4 … 1,6) · (0,4 + ruimte) · (1 + zwakte · 0,8)
 ```
 Bij een verbetering krijgt de speler een melding.
 
-> **Voorbeeld.** Een duif met conditie 70 wint een vlucht met 12 deelnemers.
-> Ruimte = (96−70)/96 ≈ 0.27, plaatsbonus (winnaar) = 0.3, dus kans ≈
-> **61%** op groei van ~**+0.7 conditie**. De laatst aankomende duif heeft
-> dezelfde ruimte maar amper plaatsbonus, en dus maar ~35% kans. Winnen én
-> onervaren/zwakke duiven leren dus het snelst bij.
+> **Voorbeeld.** Een duif met alles op 70 wint een vlucht met 12 deelnemers.
+> Ruimte = (90−70)/90 ≈ 0,22, zwakte = 0,30, dus kans ≈ **33 %** op gemiddeld
+> **+0,8**. Wordt ze laatste, dan is dat nog ~16 %. Een zwakke duif met alles op 45
+> die dezelfde vlucht wint, heeft ~**67 %** kans op gemiddeld **+1,3**: een mindere
+> duif die boven haar gewicht presteert, loopt dus het snelst in. Een topduif
+> vlak onder haar plafond wint amper nog iets bij.
 
 ### 3.2 Vluchtvorm: waarom een duif geblesseerd raakt
 
@@ -1151,6 +1155,10 @@ beurt — het eerlijkst voor iedereen.
 > duif in een **apart hok**, dan loopt haar energiegroei op; wissel je van voer,
 > dan verschuiven de cijfers mee. Heeft je duif geen voer meer, dan zie je de
 > cijfers rood worden (▼): honger laat de eigenschappen dalen (zie hieronder).
+>
+> **Kaarten of lijst.** Bovenaan *Mijn hok* kies je de weergave: **Kaarten** (alles
+> per duif, zoals hierboven) of **Lijst** — één regel per duif met haar ★, energie,
+> vluchtvorm en wat ze aan het doen is. Tik een regel aan voor de duifpagina.
 
 **Voorraad wordt per type apart bijgehouden**, en **elke duif** krijgt een eigen
 type (in te stellen bij *Mijn hok* of op de duifpagina). Een duif eet 1/7 van
@@ -1175,7 +1183,8 @@ voerbalie die twee kanten op werkt. Kopen gebeurt aan de prijs uit de tabel
 hierboven. Te veel gekocht, of een voertype dat je niet meer gebruikt? Dan neemt de
 voerhandelaar het terug aan **80 % van de aankoopprijs** — je maakt op een verkoop
 dus **altijd een klein verlies**. Met de knop *Alles* verkoop je in één keer je hele
-voorraad van dat type.
+voorraad van dat type. Voer gaat per **0,1 kg**; de aankoopprijs wordt naar **boven**
+afgerond op een hele euro, de terugkoopprijs naar **beneden**.
 
 | Type | Koopprijs/kg | Terugkoopprijs/kg | Verlies per kg |
 |---|---|---|---|

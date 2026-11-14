@@ -52,6 +52,52 @@ import { BADGES, levelForXp } from './game/badges.js';
 import { round1 } from './game/util.js';
 
 /**
+ * What `pigeonDTO` looks up per bird, gathered ONCE for a route that presents many
+ * birds (the market, /state). Without it every DTO scans the lofts, the auctions,
+ * the breeding pairs and the entry list of every flight a few times over — on the
+ * market that was 160 birds × all of that, the dearest read route in the game
+ * (3.5 ms of a 10 ms CPU budget, measured 14 nov).
+ *
+ * ⚠️ Build it AFTER the request's last mutation and use it for one response: it
+ * is a snapshot, not a view.
+ */
+export interface PigeonDtoContext {
+  lofts: Map<string, Loft>;
+  /** Birds under the hammer in an open auction. */
+  onAuction: Set<string>;
+  /** Birds on a flight that is live right now. */
+  live: Set<string>;
+  /** Birds on any flight that has not finished. */
+  entered: Set<string>;
+  /** Birds sitting on a nest. */
+  breeding: Set<string>;
+  magazine: (viewerId: string | undefined) => boolean;
+}
+
+export function pigeonDtoContext(db: Database): PigeonDtoContext {
+  const lofts = new Map(db.lofts.map((l) => [l.userId, l]));
+  const live = new Set<string>();
+  const entered = new Set<string>();
+  for (const f of db.flights) {
+    if (f.status === 'completed') continue;
+    for (const e of f.entries) {
+      entered.add(e.pigeonId);
+      if (f.status === 'live') live.add(e.pigeonId);
+    }
+  }
+  const breeding = new Set<string>();
+  for (const bp of db.breedingPairs) { breeding.add(bp.sireId); breeding.add(bp.damId); }
+  return {
+    lofts,
+    onAuction: new Set(db.auctions.filter((a) => a.status === 'open').map((a) => a.pigeonId)),
+    live,
+    entered,
+    breeding,
+    magazine: (viewerId) => !!viewerId && !!lofts.get(viewerId)?.equipment?.magazine,
+  };
+}
+
+/**
  * DTO for a pigeon. If `viewerId` is given and is NOT the owner, the bird's
  * individual attributes are WITHHELD (sent as null) — a player only sees what is
  * publicly known about someone else's pigeon: its general score (talent) and
@@ -62,22 +108,22 @@ import { round1 } from './game/util.js';
  * be able to audit ANY bird (the Duif-inspector links straight to a pigeon page),
  * so an admin sees every attribute. Regular players never do.
  */
-export function pigeonDTO(db: Database, p: Pigeon, viewerId?: string, viewerIsAdmin = false) {
+export function pigeonDTO(db: Database, p: Pigeon, viewerId?: string, viewerIsAdmin = false, ctx?: PigeonDtoContext) {
   const week = db.world.currentWeek;
-  const owner = db.lofts.find((l) => l.userId === p.ownerId);
+  const owner = ctx ? ctx.lofts.get(p.ownerId) : db.lofts.find((l) => l.userId === p.ownerId);
   // Attributes are public when: there is no specific viewer (server-internal),
   // the viewer owns the bird, the bird is openly listed for sale on the market, OR
   // it is under the hammer in a running auction — in all of those cases a buyer
   // must be able to see what they are bidding on. Only a bird that is NOT on offer
   // anywhere, viewed by someone else (to make a private/direct offer), hides its
   // attributes.
-  const onAuction = db.auctions.some((a) => a.status === 'open' && a.pigeonId === p.id);
+  const onAuction = ctx ? ctx.onAuction.has(p.id) : db.auctions.some((a) => a.status === 'open' && a.pigeonId === p.id);
   // A bird put up for samen kweken is on offer too: whoever wants to breed with
   // her gets to see what the young would inherit.
   const stud = activeListing(p);
   const publiclyRevealed = viewerId === undefined || p.ownerId === viewerId || p.forSale || onAuction || !!stud;
   const revealed = publiclyRevealed || viewerIsAdmin;
-  const live = db.flights.some((f) => f.status === 'live' && f.entries.some((e) => e.pigeonId === p.id));
+  const live = ctx ? ctx.live.has(p.id) : db.flights.some((f) => f.status === 'live' && f.entries.some((e) => e.pigeonId === p.id));
   // Only an infirmary bird's energie recovery depends on staff coverage, so we
   // only run the (rare) coverage scan for those — the common path stays cheap.
   const infirmaryCovered =
@@ -92,7 +138,7 @@ export function pigeonDTO(db: Database, p: Pigeon, viewerId?: string, viewerIsAd
   return {
     id: p.id,
     ownerId: p.ownerId,
-    ownerName: ownerName(db, p.ownerId),
+    ownerName: owner?.name ?? ownerName(db, p.ownerId),
     ownerIsBot: owner?.isBot ?? false,
     name: p.name,
     sex: p.sex,
@@ -160,7 +206,7 @@ export function pigeonDTO(db: Database, p: Pigeon, viewerId?: string, viewerIsAd
     tags: viewerId !== undefined && p.ownerId === viewerId ? pigeonTags(p) : [],
     // When she turned 8 weeks in this loft (grownup.ts) — the owner's party, nobody else's.
     grownUpAt: viewerId !== undefined && p.ownerId === viewerId ? p.care?.grownUpAt ?? null : null,
-    magazineRanges: !revealed && readsMagazine(db, viewerId) ? magazineRanges(p) : null,
+    magazineRanges: !revealed && (ctx ? ctx.magazine(viewerId) : readsMagazine(db, viewerId)) ? magazineRanges(p) : null,
     // A bird in the infirmary keeps its compartment flag internally (to reclaim the
     // slot on the way out) but is shown as not-in-a-compartment while isolated.
     compartment: revealed ? (!!p.compartment && !p.inInfirmary) : false,
@@ -224,12 +270,13 @@ export function pigeonDTO(db: Database, p: Pigeon, viewerId?: string, viewerIsAd
     })(),
     // Only true while the bird is genuinely tied up: one that already crossed the
     // line is free again, even though its flight runs on for the stragglers.
-    racing: pigeonCommittedToFlight(db, p.id),
+    // (With a context: a bird on no unfinished flight at all cannot be committed.)
+    racing: (!ctx || ctx.entered.has(p.id)) && pigeonCommittedToFlight(db, p.id),
     // In the air right now (the hokoverzicht's "niet thuis"): narrower than
     // `racing`, which also holds for a bird merely entered for a race still to
     // come. The scan only runs for a bird on a live flight.
     flying: live && pigeonAirborne(db, p.id),
-    breeding: revealed && db.breedingPairs.some((bp) => bp.sireId === p.id || bp.damId === p.id),
+    breeding: revealed && (ctx ? ctx.breeding.has(p.id) : db.breedingPairs.some((bp) => bp.sireId === p.id || bp.damId === p.id)),
     dailyCare,
     // GENETICS (own birds only): the per-skill ceilings for the red cap markers,
     // the level-scaled cost of the next manual training step + its 80/geneCap

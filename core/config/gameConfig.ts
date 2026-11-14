@@ -2260,22 +2260,22 @@ export const BREED_RARITY: Record<BreedRarity, { label: string; priceMult: numbe
 /**
  * The rollable breeds (weights straight from roekoe.org/wiki/breeds) plus the
  * special non-rollable `mixed` breed used for cross-breed young. `De Stadsduif`
- * and `mixed` share the default `pigeon.png` photo (the site has no dedicated
+ * and `mixed` share the default `pigeon.webp` photo (the site has no dedicated
  * image for either).
  */
 export const PIGEON_BREEDS: BreedDef[] = [
-  { id: 'stadsduif', name: 'De Stadsduif', rarity: 'algemeen', weight: 130, image: 'pigeon.png' },
-  { id: 'blauwe-geschelpte', name: 'Blauwe Geschelpte', rarity: 'algemeen', weight: 90, image: '1.png' },
-  { id: 'blauwe-band', name: 'Blauwe Band', rarity: 'algemeen', weight: 90, image: '2.png' },
-  { id: 'vale', name: 'Vale', rarity: 'ongewoon', weight: 30, image: '3.png' },
-  { id: 'rode', name: 'Rode', rarity: 'algemeen', weight: 80, image: '4.png' },
-  { id: 'bruine', name: 'Bruine', rarity: 'ongewoon', weight: 50, image: '5.png' },
-  { id: 'witte', name: 'Witte', rarity: 'ongewoon', weight: 50, image: '6.png' },
-  { id: 'schimmel', name: 'Schimmel', rarity: 'algemeen', weight: 80, image: '7.png' },
-  { id: 'bonte', name: 'Bonte', rarity: 'legendarisch', weight: 5, image: '8.png' },
-  { id: 'golden-ace', name: 'Golden Ace', rarity: 'legendarisch', weight: 5, image: '9.png' },
-  { id: 'meulemans', name: 'Meulemans', rarity: 'zeldzaam', weight: 15, image: '10.png' },
-  { id: 'mixed', name: 'Gemengd', rarity: 'gemengd', weight: 0, image: 'pigeon.png' },
+  { id: 'stadsduif', name: 'De Stadsduif', rarity: 'algemeen', weight: 130, image: 'pigeon.webp' },
+  { id: 'blauwe-geschelpte', name: 'Blauwe Geschelpte', rarity: 'algemeen', weight: 90, image: '1.webp' },
+  { id: 'blauwe-band', name: 'Blauwe Band', rarity: 'algemeen', weight: 90, image: '2.webp' },
+  { id: 'vale', name: 'Vale', rarity: 'ongewoon', weight: 30, image: '3.webp' },
+  { id: 'rode', name: 'Rode', rarity: 'algemeen', weight: 80, image: '4.webp' },
+  { id: 'bruine', name: 'Bruine', rarity: 'ongewoon', weight: 50, image: '5.webp' },
+  { id: 'witte', name: 'Witte', rarity: 'ongewoon', weight: 50, image: '6.webp' },
+  { id: 'schimmel', name: 'Schimmel', rarity: 'algemeen', weight: 80, image: '7.webp' },
+  { id: 'bonte', name: 'Bonte', rarity: 'legendarisch', weight: 5, image: '8.webp' },
+  { id: 'golden-ace', name: 'Golden Ace', rarity: 'legendarisch', weight: 5, image: '9.webp' },
+  { id: 'meulemans', name: 'Meulemans', rarity: 'zeldzaam', weight: 15, image: '10.webp' },
+  { id: 'mixed', name: 'Gemengd', rarity: 'gemengd', weight: 0, image: 'pigeon.webp' },
 ];
 
 /** Breed used when two different breeds are crossed. */

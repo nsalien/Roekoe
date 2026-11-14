@@ -12,7 +12,7 @@ import { api } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
 import { useGame } from '../game/GameContext';
 import { markStudSeen } from '../game/studSeen';
-import { Money, useToast } from './ui';
+import { Money, useToast, nl } from './ui';
 import { PigeonAvatar } from './PigeonAvatar';
 import { PigeonCard } from './PigeonCard';
 import type { KinshipDegree, Pigeon, StudCriteria, StudDealView, StudListingView, StudView, StudWants } from '../types';
@@ -140,7 +140,7 @@ function DealCard({
             <Link to={`/duif/${mine.id}`}>{mine.name}</Link> × <Link to={`/duif/${theirs.id}`}>{theirs.name}</Link>
           </div>
           <div className="faint" style={{ fontSize: '0.85rem' }}>
-            ★{mine.talent} × ★{theirs.talent} · met {deal.otherName}
+            ★{nl(mine.talent)} × ★{nl(theirs.talent)} · met {deal.otherName}
           </div>
         </div>
       </div>
@@ -250,7 +250,7 @@ function ListingCard({
             <select value={mateId} onChange={(e) => setMateId(e.target.value)}>
               {candidates.map((m) => (
                 <option key={m.id} value={m.id}>
-                  {m.name} (★{m.talent} · ❤{Math.round(m.libido ?? 0)} · ⚡{Math.round(m.form ?? 0)}) → jong ★{Math.round(estimate.get(m.id)!.youngScore)}{tied(m)}
+                  {m.name} (★{nl(m.talent)} · ❤{Math.round(m.libido ?? 0)} · ⚡{Math.round(m.form ?? 0)}) → jong ★{Math.round(estimate.get(m.id)!.youngScore)}{tied(m)}
                 </option>
               ))}
             </select>
@@ -331,7 +331,7 @@ function OfferOwn({
             const why = p.stud ? '' : p.ailment || p.inInfirmary ? ' — ziek' : p.racing ? ' — ingeschreven' : '';
             return (
               <option key={p.id} value={p.id} disabled={!!why}>
-                {p.stud ? '🤝 ' : ''}{p.name} ({p.sex} · ★{p.talent}){why}
+                {p.stud ? '🤝 ' : ''}{p.name} ({p.sex} · ★{nl(p.talent)}){why}
               </option>
             );
           })}

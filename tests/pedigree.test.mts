@@ -170,7 +170,7 @@ console.log('\nElke duif in de stamboom draagt haar ras én haar afwijking');
   const boxes = [tree, tree.sire!, tree.dam!, ...fam.siblings, ...fam.partners, ...fam.children];
 
   ok(boxes.every((b) => b.breed !== null), 'elke levende duif in het diagram draagt een ras');
-  ok(boxes.every((b) => typeof b.breed?.image === 'string' && b.breed!.image.endsWith('.png')),
+  ok(boxes.every((b) => typeof b.breed?.image === 'string' && b.breed!.image.endsWith('.webp')),
     'en dat ras wijst naar een echte foto');
   ok(tree.sire!.breed!.id === 'meulemans' && tree.sire!.breed!.rarity === 'zeldzaam',
     'de vader draagt zijn eigen ras, niet dat van de duif');

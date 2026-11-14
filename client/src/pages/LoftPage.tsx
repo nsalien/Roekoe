@@ -4,19 +4,59 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useGame } from '../game/GameContext';
 import { api } from '../api/client';
-import { Money, Spinner, formatFlightTime, traitEntryHint, useToast } from '../components/ui';
+import { Money, Spinner, formatFlightTime, traitEntryHint, useToast, nl } from '../components/ui';
 import { useAuth } from '../auth/AuthContext';
 import { buildDaysTaken, canEnter, entryCost } from '../game/flightEntry';
 import { PigeonCard } from '../components/PigeonCard';
+import { PigeonAvatar } from '../components/PigeonAvatar';
 import { LoftView } from '../components/LoftView';
 import type { FeedRation, Flight, Loft, Pigeon } from '../types';
 
 type SortKey = 'talent' | 'speed' | 'endurance' | 'orientation' | 'form' | 'ageWeeks';
 
+/** One bird on one line (the list view): who she is, how she is, what she is doing. */
+function PigeonRow({ pigeon: p }: { pigeon: Pigeon }) {
+  const energy = Math.round(p.form ?? 0);
+  const dot = p.formLabel === 'fris' ? '🟢' : p.formLabel === 'matig' ? '🟡' : '🔴';
+  const status = p.away ? '🧭 niet thuis'
+    : p.ailment ? `${p.ailment.kind === 'ziekte' ? '🤒' : '🩹'} ${p.ailment.name}`
+    : p.flying ? '✈️ vliegt'
+    : p.onCure ? '🛌 rustkuur'
+    : p.breeding ? '🥚 op het nest'
+    : p.racing ? '🏁 ingeschreven'
+    : p.forSale ? '🏷️ te koop'
+    : '';
+  return (
+    <Link to={`/duif/${p.id}`} className="pigeon-row">
+      <PigeonAvatar pigeon={p} size={44} />
+      <span className="pr-main">
+        <strong>{p.name}</strong>
+        <span className="faint">
+          {p.sex === 'doffer' ? '♂' : '♀'} · ★ {nl(p.talent)}{p.trait ? ` · ${p.trait.emoji}` : ''}{status ? ` · ${status}` : ''}
+        </span>
+      </span>
+      <span className="pr-side">
+        <span title="Energie">⚡ {energy}</span>
+        <span className="faint" title="Vluchtvorm">{dot} {p.flightForm ?? '—'}</span>
+      </span>
+    </Link>
+  );
+}
+
 export function LoftPage() {
   const { state, loading, refresh } = useGame();
   const toast = useToast();
   const [sort, setSort] = useState<SortKey>('talent');
+  // Cards (everything per bird) or a compact list (one line per bird). A full
+  // loft of 20 is ~9.000 px of cards on a phone; the list is the overview, a tap
+  // opens the bird. Remembered per browser.
+  const [view, setView] = useState<'cards' | 'list'>(() => {
+    try { return localStorage.getItem('roekoe.hokView') === 'list' ? 'list' : 'cards'; } catch { return 'cards'; }
+  });
+  function chooseView(v: 'cards' | 'list') {
+    setView(v);
+    try { localStorage.setItem('roekoe.hokView', v); } catch { /* private mode */ }
+  }
   const [busy, setBusy] = useState(false);
   const [sellFor, setSellFor] = useState<string | null>(null);
   const [price, setPrice] = useState(0);
@@ -69,6 +109,11 @@ export function LoftPage() {
             <Link to="/inrichting">🧰 uitbreiden, stro, inrichting &amp; vaccins →</Link>
           </p>
         </div>
+        <div className="row" style={{ gap: 10 }}>
+        <div className="seg" role="group" aria-label="Weergave">
+          <button type="button" className={view === 'cards' ? 'active' : ''} aria-pressed={view === 'cards'} onClick={() => chooseView('cards')}>Kaarten</button>
+          <button type="button" className={view === 'list' ? 'active' : ''} aria-pressed={view === 'list'} onClick={() => chooseView('list')}>Lijst</button>
+        </div>
         <label className="row" style={{ gap: 8, marginBottom: 0 }}>
           <span className="faint">Sorteer</span>
           <select value={sort} onChange={(e) => setSort(e.target.value as SortKey)} style={{ width: 'auto' }}>
@@ -80,6 +125,7 @@ export function LoftPage() {
             <option value="ageWeeks">Leeftijd</option>
           </select>
         </label>
+        </div>
       </div>
 
       {state.loft && (
@@ -91,8 +137,14 @@ export function LoftPage() {
         />
       )}
 
-      <div className="grid pigeons">
-        {pigeons.map((p, idx) => (
+      {view === 'list' && (
+        <div className="card pigeon-rows">
+          {pigeons.map((p) => <PigeonRow key={p.id} pigeon={p} />)}
+        </div>
+      )}
+
+      <div className="grid pigeons" style={view === 'list' ? { display: 'none' } : undefined}>
+        {view === 'cards' && pigeons.map((p, idx) => (
           <PigeonCard
             key={p.id}
             pigeon={p}

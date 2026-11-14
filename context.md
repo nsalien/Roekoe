@@ -20,6 +20,7 @@
 | **Dev (sessie 27 okt)** | `claude/adoring-bell-7zvxzk` | Sessiebranch van de **erfenis voor drie spelers** (migratie v69) en **de markt volgt het spel** (zie *Stand van zaken*), vertrokken van prod `d423c1b` (geen demo, geen Marktwaarde v2). Commits met `[CF-Pages-Skip]`, om dezelfde reden als hierboven. Beide live op 27 okt: `f26ae4f` → prod `ca78889`, `0f127f6` → prod `610f362`. |
 | **Dev (sessie 31 okt – 1 nov)** | `ccr-9f062ea2-reeikx` | Sessiebranch van **de erfenis voor De Vluchtige Vleugel** (migratie v71; live op 31 okt: `408d282` → prod `c644026`), daarna van de **herstart van Dev** en **de bank** (1 nov) — sindsdien dezelfde commits als `claude/demo-hokinrichting` — ook gepauzeerd sinds 6 nov (`f063429`). |
 | **Dev (sessie 7 nov)** | `ccr-bba5995a-iwrslf` | Sessiebranch van **de duif cadeau voor De Bronstige Bek** (migratie v75) en **zijn starterspakket opnieuw** (v76), vertrokken van prod `4e7a99a` (geen demo, geen Marktwaarde v2) terwijl Dev gepauzeerd is. Commits met `[CF-Pages-Skip]`, om dezelfde reden als hierboven. |
+| **Dev (sessie 14 nov)** | `ccr-1b20c3c1-7g1ni4` | Sessiebranch van de **doorlichting** (analyse + "Los alles op", zie *Stand van zaken*), vertrokken van prod `443129d` (geen demo, geen Marktwaarde v2) terwijl Dev gepauzeerd is. Commits met `[CF-Pages-Skip]`, om dezelfde reden als hierboven. ⚠️ **Nog NIET op productie**: de sessie mocht enkel naar haar eigen branch pushen en het is een grote wijziging aan de opslaglaag — wacht op een uitdrukkelijk "zet live" van de eigenaar. |
 | **Prod** | `claude/roekoe-game-website-jwa0vo` | Elke commit wordt hierheen **gecherry-pickt**; deze branch triggert de **Cloudflare Pages**-deploy naar productie. |
 
 > Vorige dev-branches (niet meer gebruiken): `ccr-9c78dbf3-rdb1ea`, `claude/hallo-nno7pb`, `claude/hallo-r1wgvn`, `claude/hallo-ca55co`, `claude/hallo-qz9tmx`, `claude/hallo-fsp9nx`, `claude/hallo-mzjn0e`, `claude/hallo-su75jy`, `claude/hallo-rkr49f`, `claude/hallo-pvwabx`,
@@ -84,6 +85,62 @@
 > Het voorstel (met alle getallen en de sketch) staat in de artifact "Roekoe Hokinrichting".
 
 ### Stand van zaken (12 okt 2026) — lees dit eerst
+- **Doorlichting — 14 nov, op de sessiebranch `ccr-1b20c3c1-7g1ni4`, ⚠️ NOG NIET LIVE** (eigenaar: "Ga door alle code
+  en ga na of alles performant en efficiënt is geschreven en of alles werkt zoals het hoort … visueel", daarna
+  "Los alles op"). Geen schemastap, geen migratie (`dataVersion` blijft 76, een volgende is nog altijd **v77**). Wat er
+  veranderde, per laag:
+  - **Opslag (`core/d1.ts`) — dé bug.** Vluchten worden nu **per kolom** vergeleken en geschreven (`FLIGHT_COLUMNS`,
+    `flightRow`, zoals duiven en hokken; geen JSON-snapshot meer), en de **inschrijvingen worden samengevoegd in SQL**
+    (`entryDelta` + `entryMergeStatements`: wie eraf ging en wie erbij kwam, toegepast op wat er NU in de databank
+    staat, één statement voor alle vluchten van het verzoek). Vroeger schreef elk verzoek de hele vluchtrij terug die
+    het geladen had: twee spelers die tegelijk voor dezelfde vlucht inschreven → de laatste won, de andere betaalde,
+    kreeg "ok" en stond er niet op (gereproduceerd, 6 op 6, met een nep-D1 die wacht zoals de echte); en een verzoek
+    dat enkel een tribune-regel postte kon een net afgeronde vlucht terug op `live` zetten (dubbele afronding). Een
+    NIEUWE vlucht gaat nog als hele rij (`INSERT OR REPLACE`, vaste id — ongewijzigd). `offers` en `auction_bids`
+    zitten nu in het parallelle blok van de load (twee wachtmomenten minder per verzoek, zelfde 13 queries). De smalle
+    load neemt ook de **duiven onder de hamer** mee. Test: `tests/flight-concurrency.test.mts` (21 controles).
+    ⚠️ **Niet opgelost, bewust:** `lofts.money` blijft "laatste schrijver wint" tussen overlappende verzoeken (een
+    prijs die de motor van verzoek A bijschrijft terwijl verzoek B iets koopt). Delta's zouden dat fixen maar breken
+    wat de motor nu idempotent maakt (twee verzoeken die dezelfde prijs uitbetalen schrijven hetzelfde absolute
+    bedrag); dat vraagt een grootboek, een aparte ingreep. Zie §8 *Openstaande ideeën*.
+  - **Markt in drie routes** (`functions/api/[[path]].ts`): `/market` stuurt geen `biddable` meer (een volledige DTO
+    voor élke duif van élke andere speler, 3,5 ms van de 10 ms CPU) maar **`biddableOwners`** (id, hoknaam, aantal);
+    **`GET /market/biddable/:ownerId`** geeft de duiven van één speler zodra hij gekozen wordt (`BidCascade`);
+    **`GET /market/auctions`** (in `NARROW_PATHS`) is wat de 15 s-poll van een aflopende veiling nu ophaalt.
+    `pigeonDTO` kreeg een optionele **`PigeonDtoContext`** (`pigeonDtoContext(db)`, presenters.ts): hokken, veilingen,
+    live/ingeschreven duiven en nesten één keer opgezocht i.p.v. per duif — ⚠️ bouw hem ná de laatste mutatie van het
+    verzoek. `/state` stuurt `world` zonder de ruwe `leaderboard`-tekst (die reist al uitgepakt mee).
+    `loadStemBoard` doet zijn drie tellingen parallel. Test: `tests/market-routes.test.mts` (22 controles).
+  - **Voer** (`engine.ts`): per 0,1 kg, aankoop naar **boven** afgerond, terugkoop naar **beneden** (0,16 kg kostte €0
+    en telde als 0,2 kg). De voerbalie op het Overzicht rekent hetzelfde. Test: blok onderaan `food-resale.test.mts`.
+  - **Client — data.** `GameContext.refreshIfStale(STATE_MAX_AGE_MS)` (60 s): `/state` wordt opnieuw opgehaald bij
+    **terugkeren naar de tab** en bij **navigeren**, als hij ouder is dan een minuut (vroeger enkel bij inloggen en na
+    een eigen actie: de app toonde 's ochtends de kassa van gisteren). Geen timer. De pagina's met een eigen fetch
+    (Markt, Kweek, Vluchten, Prestaties, Profiel) wachten nu op de state: bij rechtstreeks openen haalden ze hun data
+    **twee keer** op. **Lazy routes** (`lazyPage` in App.tsx): Inrichting, Kweek, Ziekenboeg, Sponsors, Bank,
+    Prestaties, Profiel, Rang, Stem, Lokaal, Wiki en Beheer laden pas bij openen; startbundel 621 → **390 kB** (gzip
+    183 → 117). ⚠️ Een tab die over een deploy heen openstond vraagt een chunk die niet meer bestaat: `lazyPage`
+    herlaadt dan één keer (sessionStorage `roekoe.chunkReload`). De `<Outlet>` staat in een `<Suspense>` in Layout.
+  - **Client — vorm.** Knoppen: `--btn`, `--on-brand`, `--on-accent`, `--on-bad`, `--on-good` (donker thema: donkere
+    inkt op blauw/oranje, wit haalde 2,1:1), `--text-faint` bijgesteld tot ≥ 4,5:1, `--gold-ink`. **Desktop-menu**:
+    `DesktopNav` toont `DESKTOP_PRIMARY` (6) knoppen + **"Meer ▾"** (onder 1060 px: 4), want 16 knoppen braken in twee
+    rijen. **Gsm-kop**: één rij; de seizoensregel en de accountrij zijn weg (de avatar in de balk linkt naar Profiel,
+    waar nu ook **Uitloggen** staat); enkel de beheerder houdt de strook voor "Volgende week". **Mijn hok**: keuze
+    **Kaarten / Lijst** (`roekoe.hokView` in localStorage, `PigeonRow`). **Wiki**: uitklapbare secties + zoekveld
+    (`WikiCtx`; een link `/wiki#sectie` of een link binnen de wiki klapt de sectie open; 71.000 → ~5.700 px op gsm).
+    Verder: `.money` breekt niet meer tussen muntje en bedrag, `.grid > .card + .card` zonder marge (de eerste kaart
+    van een rij stond 14 px hoger), het raakvlak van het gen-streepje is 30×30, invoervelden 16 px op aanraakschermen
+    (iOS zoomt anders in), `:focus-visible`, `nl()` in ui.tsx voor getallen met een komma (★ 51,3 · 44,7 km/u), de
+    keuzelijst op een vluchtkaart krijgt op gsm de volle breedte, de live-stand heeft een vaste kolom voor km/u.
+  - **Afbeeldingen & thuisscherm.** De rasfoto's zijn **WebP** (`client/public/pigeon-images/*.webp`, 1,1 MB → 149 kB;
+    `BREEDS[].image` wijst ernaar), er is een **`manifest.webmanifest`** met `icon-192/512.png` en een
+    `apple-touch-icon.png`, en `theme-color` volgt het thema.
+  - **Documentatie/diagnose.** Spelregels §2.3 (voorbeeld rekende nog met oriëntatie en een ervaringsbonus) en §3.1 (de
+    oude verbeterformule) kloppen weer met de code; `tests/cpu-sweep.mts` meet weer een echte vlucht (de fixture
+    stond op een vaste datum in het verleden: 0 duiven ingeschreven).
+  - **Geverifieerd:** beide typechecks, build, alle tests (78 + `cpu-budget` apart), en een browserronde over alle 18
+    schermen op 390 en 1280 px: geen JS-fouten, geen enkele pagina schuift nog zijwaarts, de rondleiding loopt door de
+    lazy pagina's. Niet getest op een echt toestel of tegen de echte D1.
 - **Wachtwoord vergeten — 12 nov, live** (prod `77f34d4`; eigenaar: "Iemand is zijn wachtwoord vergeten, hoe op te lossen?" → optie 2):
   spelers hebben **geen e-mailadres** (enkel gebruikersnaam + wachtwoord), dus geen reset-mail. Nu:
   **Beheer → Spelers** (`PlayerAdmin` in AdminPage.tsx; `GET /admin/users` = de echte spelers met hoknaam,
@@ -1256,6 +1313,8 @@ worden enkel gelezen door `loadPigeonLogs`. Zie §8.
 Twee spelers die aan verschillende rijen werken overschrijven elkaar dus niet.
 **Let op — "lost update" op gedeelde hot rows:** dezelfde rij (bv. een veiling,
 een live vlucht) kan door gelijktijdige verzoeken wél overschreven worden. Daarom:
+- **Vluchten** worden per kolom geschreven en hun **inschrijvingen samengevoegd** (`entryMergeStatements`,
+  14 nov): twee spelers die tegelijk inschrijven raken elkaars inschrijving niet meer kwijt.
 - **Veilingbiedingen** staan in een **aparte tabel** `auction_bids` (één rij per
   veiling+bieder) i.p.v. één JSON-kolom → geen verloren biedingen.
 - **Vluchtafhandeling is deterministisch** (seeded op vlucht-id) en meldingen
@@ -2372,6 +2431,8 @@ npx tsx tests/volwassen.test.mts          # volwassen-feestje: markering bij 8 w
 npx tsx tests/rustkuur-prijs.test.mts     # rustkuur €150: prijs, de teksten die hem uitschrijven, bel v74
 npx tsx tests/geschenk-v75.test.mts       # v75: duif ★80–82 voor De Bronstige Bek (match, vaste id, vol hok, één keer, D1) + beheerdersbel over zijn starterspakket; v76: zijn starterspakket opnieuw (vers, bijtanken, ná het verslag)
 npx tsx tests/bank.test.mts               # de bank: limiet op inkomsten, lenen, afbetalen om middernacht, aflossen, D1 + API, terugvulling + bel v72/v73
+npx tsx tests/flight-concurrency.test.mts # gelijktijdige inschrijvingen op één vlucht gaan niet verloren; een verouderd verzoek zet geen afgeronde vlucht terug op live
+npx tsx tests/market-routes.test.mts      # de markt in drie routes: wie (biddableOwners), de duiven van één speler, enkel de veilingen (smal); /state zonder ruwe ranglijst
 ```
 
 > **Geen `tsx` beschikbaar?** (cloud-sessie waar de npm-registry geblokkeerd is: `npx tsx`
@@ -5552,7 +5613,7 @@ Hieronder enkel wat je nodig hebt om eraan te werken.)
   automatisch een ras. **Kweek** (`breeding.ts::inheritBreed`): 2× hetzelfde ras →
   behouden, verschillend → `mixed`. **Prijs**: `estimateValue` × `breedPriceMult`
   (Ongewoon +8 %, Zeldzaam +20 %, Legendarisch +40 %).
-- **Foto's** in `client/public/pigeon-images/` (`pigeon.png` + `1.png`…`10.png`).
+- **Foto's** in `client/public/pigeon-images/` (`pigeon.webp` + `1.webp`…`10.webp`; sinds 14 nov WebP).
   `PigeonAvatar` toont de rasfoto (rond kader, warmere rand voor zeldzaam/legendarisch),
   met de oude SVG als fallback. `PigeonPage` toont een **ras-badge** (naam · zeldzaamheid).
   DTO: `pigeonDTO.breed = { id, name, rarity, rarityLabel, image }` (publiek, ook voor
@@ -6229,7 +6290,7 @@ het dagbudget.
 > featherweight-pad spaart rijen, maar redt je niet als het budget al op is.
 
 De hefbomen die hier ooit als "nog te doen" stonden zijn **uitgevoerd**: trades begrensd
-(`TRADE_LOAD_LIMIT` 40), meldingen viewer-scoped, het live-bord op een eigen smalle load
+(`TRADE_LOAD_LIMIT`, nu 100 — zie §8 "Marktwaarde houdt stand"), meldingen viewer-scoped, het live-bord op een eigen smalle load
 (`loadLiveFlight`, **2 rijen**), ruimere pollintervallen en de `advanceRealtime`-throttle.
 Wat nog echt open staat, staat hieronder.
 
@@ -6256,6 +6317,14 @@ nieuwe versie = één herlading bij terugkeren; nog altijd oud daarna = geen lus
 - **Trofee-showcase** toont enkel podia van **nu-bezeten** duiven (uit `raceLog`);
   medailletellingen (`loft.stats`) blijven wél volledig. Verkochte/overleden duiven vallen
   uit de trofeeënlijst (niet uit de tellingen).
+- **De kassa is "laatste schrijver wint".** `lofts.money` wordt als absoluut bedrag geschreven. Overlappen twee
+  verzoeken — de motor van het ene schrijft een prijs bij, het andere koopt net voer — dan gaat één van beide
+  wijzigingen verloren. Zeldzaam (de verzoeken moeten binnen dezelfde ~100–300 ms vallen), niet gereproduceerd, wel
+  volgt het uit de opslaglaag. Een delta (`money = money + ?`) lost dat op voor speleracties, maar breekt de
+  idempotentie van de motor (twee verzoeken die dezelfde prijs uitbetalen moeten op hetzelfde bedrag uitkomen): dat
+  vraagt een grootboek met stabiele id's per boeking. De vluchtrij is op 14 nov wél aangepakt (per kolom +
+  samengevoegde inschrijvingen, zie *Stand van zaken*); `sim` (prizePaid, opgeven) en `chat` blijven per kolom
+  "laatste schrijver wint".
 - **`breed()` gebruikt rauwe `Math.random()`.** Twee gelijktijdige worpen kunnen een
   verschillend **aantal** jongen opleveren (de ids zijn wél stabiel). Nette fix: `breed()`
   seeden op het koppel-id — dat raakt namen, rassen, genen en de tweelingworp, dus een aparte
@@ -6279,8 +6348,8 @@ nieuwe versie = één herlading bij terugkeren; nog altijd oud daarna = geen lus
   **1 s in de laatste 5 min**), `countdownTo(endAt, nowMs)`; bij het sluiten
   `onExpire → load()+refresh()`. MarketPage pollt bovendien elke 15 s zolang een veiling in
   haar **slotfase (<6 min)** zit → andermans biedingen + anti-snipe-verlenging verschijnen
-  zonder handmatige refresh. ⚠️ Dat is de enige poll onder 60 s in het spel en hij mag enkel
-  in die slotfase lopen.
+  zonder handmatige refresh. ⚠️ Naast Het Lokaal (15 s, zonder wereldload) is dat de enige poll onder 60 s in het spel en hij mag enkel
+  in die slotfase lopen. Sinds 14 nov haalt hij enkel `/market/auctions` op (smalle load).
 - **Dilemma's** (`events.ts`): `doping` (💉, boost of boete+ziekte), `inheritance` (📜,
   **3-keuze**: geld / oude kampioen / jonge belofte), `scout` (🔎, prospect op proef),
   `poacher` (🦅, incl. **sterftekans**), `charity` (🎗️). De client-modal rendert de opties

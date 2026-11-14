@@ -6,7 +6,7 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import { api } from '../api/client';
 import { useGame } from '../game/GameContext';
 import { PigeonAvatar } from '../components/PigeonAvatar';
-import { BreedBadge, Money, PigeonStats, SexBadge, Spinner, TraitBadge, formatFlightTime, useToast } from '../components/ui';
+import { BreedBadge, Money, PigeonStats, SexBadge, Spinner, TraitBadge, formatFlightTime, useToast, nl } from '../components/ui';
 import type { AncestorNode, FamilyTree, Pigeon, RaceHistoryRow } from '../types';
 import { Pedigree } from '../components/Pedigree';
 import { PigeonTags } from '../components/PigeonTags';
@@ -136,7 +136,7 @@ export function PigeonPage() {
               <h1 style={{ marginBottom: 6, overflowWrap: 'anywhere' }}>{p.name}</h1>
               <div className="row" style={{ gap: 6, flexWrap: 'wrap' }}>
                 <SexBadge sex={p.sex} />
-                <span className="badge bot">★ talent {p.talent}</span>
+                <span className="badge bot">★ talent {nl(p.talent)}</span>
                 <BreedBadge breed={p.breed} />
                 {p.quirk && (
                   <span
@@ -224,11 +224,11 @@ export function PigeonPage() {
             <p className="muted" style={{ margin: 0 }}>
               📰 Vakblad: snelheid {p.magazineRanges.speed[0]}–{p.magazineRanges.speed[1]} · conditie{' '}
               {p.magazineRanges.endurance[0]}–{p.magazineRanges.endurance[1]} · oriëntatie{' '}
-              {p.magazineRanges.orientation[0]}–{p.magazineRanges.orientation[1]} (★ {p.talent})
+              {p.magazineRanges.orientation[0]}–{p.magazineRanges.orientation[1]} (★ {nl(p.talent)})
             </p>
           ) : (
             <p className="muted" style={{ margin: 0 }}>
-              🔒 Eigenschappen van andermans duiven zijn verborgen — enkel ★ talent {p.talent} is gekend.
+              🔒 Eigenschappen van andermans duiven zijn verborgen — enkel ★ talent {nl(p.talent)} is gekend.
               Kijk naar de <Link to="/ranglijst">ranglijst</Link> of haar vluchtresultaten.
             </p>
           )}
@@ -397,9 +397,9 @@ export function PigeonPage() {
                     const any = cg.speed > 0 || cg.endurance > 0 || cg.orientation > 0;
                     return any ? (
                       <div className="notice" style={{ margin: '8px 0 0', fontSize: '0.82rem', lineHeight: 1.5 }}>
-                        <strong>Voor {p.name}, per dag:</strong> snelheid <strong>+{cg.speed.toFixed(2)}</strong> · conditie{' '}
-                        <strong>+{cg.endurance.toFixed(2)}</strong> · oriëntatie <strong>+{cg.orientation.toFixed(2)}</strong> ·
-                        ervaring <strong>+{(cg.experience ?? 0).toFixed(2)}</strong>
+                        <strong>Voor {p.name}, per dag:</strong> snelheid <strong>+{nl(cg.speed, 2, true)}</strong> · conditie{' '}
+                        <strong>+{nl(cg.endurance, 2, true)}</strong> · oriëntatie <strong>+{nl(cg.orientation, 2, true)}</strong> ·
+                        ervaring <strong>+{nl((cg.experience ?? 0), 2, true)}</strong>
                       </div>
                     ) : (
                       <div className="notice" style={{ margin: '8px 0 0', fontSize: '0.82rem', lineHeight: 1.5 }}>
@@ -622,7 +622,7 @@ function PedigreeBox({ label, pigeon }: { label: string; pigeon: Pigeon | null }
           <PigeonAvatar pigeon={pigeon} size={44} />
           <div>
             <strong>{pigeon.name}</strong>
-            <div className="faint">★ {pigeon.talent}</div>
+            <div className="faint">★ {nl(pigeon.talent)}</div>
           </div>
         </div>
       ) : (

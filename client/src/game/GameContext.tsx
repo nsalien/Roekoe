@@ -13,7 +13,18 @@ interface GameContextValue {
   loading: boolean;
   error: string | null;
   refresh: () => Promise<void>;
+  /** Refresh, but only if the state on screen is older than `maxAgeMs`. */
+  refreshIfStale: (maxAgeMs: number) => void;
 }
+
+/**
+ * How old the state may get before coming back to the tab, or moving to another
+ * page, fetches it again. `/state` was only loaded at login and after your own
+ * actions, so an app reopened the next morning showed yesterday's kassa, energie,
+ * bell and calendar until you did something. One narrow load (the cheap one) per
+ * minute at most — never a timer, so an idle or hidden tab still costs nothing.
+ */
+export const STATE_MAX_AGE_MS = 60_000;
 
 const GameContext = createContext<GameContextValue | null>(null);
 
@@ -32,6 +43,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
    * that one instead of starting another.
    */
   const inFlight = useRef<Promise<void> | null>(null);
+  const lastLoaded = useRef(0);
 
   const refresh = useCallback(async () => {
     if (!user) return;
@@ -41,6 +53,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
         const s = await api<GameState>('/state');
         setState(s);
         setError(null);
+        lastLoaded.current = Date.now();
       } catch (e) {
         setError(e instanceof Error ? e.message : 'Kon spelstatus niet laden');
       } finally {
@@ -62,8 +75,23 @@ export function GameProvider({ children }: { children: ReactNode }) {
     }
   }, [user, refresh]);
 
+  const refreshIfStale = useCallback((maxAgeMs: number) => {
+    if (!user || lastLoaded.current === 0) return; // not loaded yet: the first load is on its way
+    if (Date.now() - lastLoaded.current >= maxAgeMs) void refresh();
+  }, [user, refresh]);
+
+  // Back on the tab (the phone app resumed, the browser tab focused again).
+  useEffect(() => {
+    if (!user) return;
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') refreshIfStale(STATE_MAX_AGE_MS);
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => document.removeEventListener('visibilitychange', onVisible);
+  }, [user, refreshIfStale]);
+
   return (
-    <GameContext.Provider value={{ state, loading, error, refresh }}>
+    <GameContext.Provider value={{ state, loading, error, refresh, refreshIfStale }}>
       {children}
     </GameContext.Provider>
   );

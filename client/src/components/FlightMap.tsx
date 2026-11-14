@@ -114,7 +114,7 @@ function popupHtml(m: Marked): string {
   if (m.legLabel) rows.push(`<div>${esc(m.legLabel)}</div>`);
   rows.push(`<div>Positie <strong>#${b.liveRank}</strong>${b.finished ? ' · binnen' : ''}</div>`);
   rows.push(`<div>${b.kmDone} van ${b.kmTotal} km${b.finished ? '' : ` · nog ${b.kmRemaining} km`}</div>`);
-  if (!b.finished) rows.push(`<div>${b.speedKmh} km/u${eta ? ` · thuis over ${eta}` : ''}</div>`);
+  if (!b.finished) rows.push(`<div>${b.speedKmh.toLocaleString('nl-BE')} km/u${eta ? ` · thuis over ${eta}` : ''}</div>`);
   if (m.lost) rows.push(`<div class="pop-warn">🧭 van koers — ~${Math.abs(Math.round(b.offCourseKm ?? 0))} km naast de lijn</div>`);
   return `<div class="map-pop"><strong>${esc(b.pigeonName)}</strong><div class="faint">${esc(b.ownerName)}</div>${rows.join('')}</div>`;
 }

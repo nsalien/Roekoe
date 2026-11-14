@@ -69,5 +69,21 @@ store.mutate((d) => { d.lofts.find((l) => l.userId === USER.id)!.food.normal = 3
 ok(sellFood(store, USER.id, 'normal', 3.4) === null, '3,4 kg volledig verkopen mag');
 ok(loft().food.normal === 0, 'en laat niets achter');
 
+// Rounding (14 nov): the price rounds UP and the resale DOWN, so no quantity is
+// free and no sliver of feed pays out more than the rate.
+console.log('\nKleine hoeveelheden: nooit gratis, nooit winst');
+for (const t of types) {
+  for (const kg of [0.04, 0.1, 0.16, 0.2, 0.33, 1.5]) {
+    store.mutate((d) => { const l = d.lofts.find((x) => x.userId === USER.id)!; l.food[t] = 0; l.money = 1000; });
+    const res = buyFood(store, USER.id, t, kg);
+    const got = loft().food[t] ?? 0;
+    const paid = 1000 - loft().money;
+    if (res !== null) { ok(got === 0 && paid === 0, `${kg} kg ${FEED_RATIONS[t].label}: geweigerd, niets geleverd`); continue; }
+    ok(paid >= 1 && paid >= got * FEED_RATIONS[t].pricePerKg - 1e-6, `${kg} kg ${FEED_RATIONS[t].label}: €${paid} voor ${got} kg (niet onder de prijs)`);
+    sellFood(store, USER.id, t, got);
+    ok(loft().money < 1000, `  en terugverkopen laat minder over (€${loft().money})`);
+  }
+}
+
 console.log(failures === 0 ? '\n✅ Alles in orde\n' : `\n❌ ${failures} test(s) gefaald\n`);
 process.exit(failures === 0 ? 0 : 1);

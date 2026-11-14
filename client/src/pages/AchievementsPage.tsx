@@ -28,9 +28,11 @@ export function AchievementsPage() {
   const load = useCallback(async () => {
     setProfile(await api<PlayerProfile>('/profile'));
   }, []);
+  const week = state?.world.currentWeek;
   useEffect(() => {
+    if (week === undefined) return; // wait for the state: no double fetch on a direct open
     load();
-  }, [load, state?.world.currentWeek]);
+  }, [load, week]);
 
   if (!profile) return <Spinner />;
 

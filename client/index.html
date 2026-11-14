@@ -4,7 +4,15 @@
     <meta charset="UTF-8" />
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%95%8A%EF%B8%8F%3C/text%3E%3C/svg%3E" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#0ea5e9" />
+    <meta name="theme-color" content="#0a0f1a" />
+    <meta name="description" content="Roekoe — een duivenmelkersspel voor vrienden: bouw je hok, train je kampioenen en win de vluchten." />
+    <!-- Op het thuisscherm: een echt icoon en een eigen venster (geen browserbalk). -->
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Roekoe" />
     <title>Roekoe — Duivenmelker</title>
     <script>
       // Theme is chosen by the player (default: dark for everyone), stored
@@ -13,6 +21,8 @@
         try {
           var t = localStorage.getItem('theme');
           document.documentElement.dataset.theme = t === 'light' || t === 'dark' ? t : 'dark';
+          // The browser bar takes the colour of the page behind it.
+          if (t === 'light') document.querySelector('meta[name="theme-color"]').setAttribute('content', '#f6f8fb');
         } catch (e) {
           document.documentElement.dataset.theme = 'dark';
         }

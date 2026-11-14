@@ -540,10 +540,14 @@ export function buyFood(store: Store, userId: string, type: string, kg: number):
     const loft = db.lofts.find((l) => l.userId === userId);
     if (!loft) return 'Geen hok gevonden';
     if (!(type in FEED_RATIONS)) return 'Ongeldig voedingstype';
-    if (kg <= 0) return 'Ongeldige hoeveelheid';
+    // Stock is kept per 0.1 kg, so that is what is sold — and the price rounds UP.
+    // Rounded to the nearest euro, 0.16 kg cost €0 and still added 0.2 kg (and
+    // ticked off the "koop voer"-dagopdracht): free feed for whoever asked the API.
+    kg = round1(kg);
+    if (!(kg > 0)) return 'Ongeldige hoeveelheid';
     const key = type as FeedRationKey;
     const debt = debtBlock(loft); if (debt) return debt;
-    const cost = Math.round(kg * FEED_RATIONS[key].pricePerKg);
+    const cost = Math.ceil(kg * FEED_RATIONS[key].pricePerKg - 1e-9);
     if (loft.money < cost) return 'Niet genoeg geld';
     loft.money -= cost;
     loft.food[key] = round1((loft.food[key] ?? 0) + kg);
@@ -554,7 +558,8 @@ export function buyFood(store: Store, userId: string, type: string, kg: number):
 
 /** What the merchant pays for `kg` of `type` — the buy price minus the resale cut. */
 export function foodResaleValue(type: FeedRationKey, kg: number): number {
-  return Math.round(kg * FEED_RATIONS[type].pricePerKg * FOOD_RESALE_RATE);
+  // Rounded DOWN: selling back must never pay more than the resale rate.
+  return Math.floor(kg * FEED_RATIONS[type].pricePerKg * FOOD_RESALE_RATE + 1e-9);
 }
 
 /**
@@ -567,6 +572,7 @@ export function sellFood(store: Store, userId: string, type: string, kg: number)
     const loft = db.lofts.find((l) => l.userId === userId);
     if (!loft) return 'Geen hok gevonden';
     if (!(type in FEED_RATIONS)) return 'Ongeldig voedingstype';
+    kg = round1(kg); // the precision the stock is kept at
     if (!(kg > 0)) return 'Ongeldige hoeveelheid';
     const key = type as FeedRationKey;
     const stock = loft.food[key] ?? 0;

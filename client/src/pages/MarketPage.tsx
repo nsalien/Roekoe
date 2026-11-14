@@ -8,7 +8,7 @@ import { useGame } from '../game/GameContext';
 import { MagazineCard } from '../components/Inrichting';
 import { markMarketSeen } from '../game/marketSeen';
 import { useVisiblePoll } from '../game/useVisiblePoll';
-import { BreedBadge, Money, PigeonStats, Spinner, TraitBadge, countdownTo, timeUntilOrClock, useToast } from '../components/ui';
+import { BreedBadge, Money, PigeonStats, Spinner, TraitBadge, countdownTo, timeUntilOrClock, useToast, nl } from '../components/ui';
 import { PigeonCard } from '../components/PigeonCard';
 import { PigeonAvatar } from '../components/PigeonAvatar';
 import type { AuctionInfo, OfferView, Pigeon, Trade } from '../types';
@@ -36,7 +36,8 @@ export function MarketPage() {
   const { user } = useAuth();
   const toast = useToast();
   const [listings, setListings] = useState<Pigeon[] | null>(null);
-  const [biddable, setBiddable] = useState<Pigeon[]>([]);
+  // Who you can make a private offer to; their birds are fetched per player (BidCascade).
+  const [biddableOwners, setBiddableOwners] = useState<{ id: string; name: string; count: number }[]>([]);
   const [trades, setTrades] = useState<Trade[]>([]);
   const [report, setReport] = useState<MarketReport | null>(null);
   const [auctions, setAuctions] = useState<AuctionInfo[]>([]);
@@ -57,17 +58,22 @@ export function MarketPage() {
   }
 
   const load = useCallback(async () => {
-    const res = await api<{ listings: Pigeon[]; biddable: Pigeon[]; trades: Trade[]; auctions: AuctionInfo[]; report?: MarketReport | null; boost?: { cost: number; hours: number } }>('/market');
+    const res = await api<{ listings: Pigeon[]; biddableOwners?: { id: string; name: string; count: number }[]; trades: Trade[]; auctions: AuctionInfo[]; report?: MarketReport | null; boost?: { cost: number; hours: number } }>('/market');
     setReport(res.report ?? null);
     setBoost(res.boost ?? null);
     setListings(res.listings);
-    setBiddable(res.biddable ?? []);
+    setBiddableOwners(res.biddableOwners ?? []);
     setTrades(res.trades ?? []);
     setAuctions(res.auctions ?? []);
   }, []);
+  // Only once the state is in: this effect also runs again when the game week
+  // rolls, and before the state arrived that made every direct open of the page
+  // fetch its data twice (a full world load each).
+  const week = state?.world.currentWeek;
   useEffect(() => {
+    if (week === undefined) return;
     load();
-  }, [load, state?.world.currentWeek]);
+  }, [load, week]);
 
   // Looking at the market is what clears the dot on the Markt nav button.
   // Marked from what is actually ON SCREEN plus the world marker: the /market
@@ -90,7 +96,18 @@ export function MarketPage() {
     const r = Date.parse(a.endAt) - Date.now();
     return r > 0 && r <= 6 * 60 * 1000;
   });
-  useVisiblePoll(() => void load(), 15000, auctionClosingSoon);
+  // Only the auctions (`/market/auctions`, a narrow load) — not the whole market.
+  // When one of them closes the list changes, and then everything is reloaded:
+  // the bird may be yours now, or the next lot may have opened.
+  const pollAuctions = useCallback(async () => {
+    try {
+      const res = await api<{ auctions: AuctionInfo[] }>('/market/auctions');
+      const before = auctions.map((a) => a.id).join(',');
+      setAuctions(res.auctions ?? []);
+      if ((res.auctions ?? []).map((a) => a.id).join(',') !== before) { void load(); void refresh(); }
+    } catch { /* a missed poll is retried in 15 s */ }
+  }, [auctions, load, refresh]);
+  useVisiblePoll(() => void pollAuctions(), 15000, auctionClosingSoon);
 
   async function unlistOwn(p: Pigeon) {
     setBusy(true);
@@ -266,7 +283,9 @@ export function MarketPage() {
           if (p.ownerId === user?.id) {
             return (
               <PigeonCard key={p.id} pigeon={p} showOwner showBreed showcase avatarSize={104}>
-                <div className="badge" style={{ background: 'var(--gold-soft)', marginBottom: 6 }}>
+                {/* A plain block, not a `.badge`: that is a flex row, and it broke this
+                    sentence into four ragged columns on a phone. */}
+                <div style={{ background: 'var(--gold-soft)', borderRadius: 10, padding: '6px 10px', marginBottom: 6, fontSize: '0.82rem', fontWeight: 700, lineHeight: 1.5 }}>
                   🏷️ Jouw duif · te koop voor <Money value={p.price ?? 0} />
                   {p.minBid != null && <> · bieden vanaf <Money value={p.minBid} /></>}
                 </div>
@@ -324,7 +343,7 @@ export function MarketPage() {
         </div>
       </div>
       <BidCascade
-        biddable={biddable}
+        owners={biddableOwners}
         sent={sent}
         busy={busy}
         money={money}
@@ -418,9 +437,9 @@ export function MarketPage() {
  * knows exactly what they buy.
  */
 function BidCascade({
-  biddable, sent, busy, money, onBid, onWithdraw,
+  owners, sent, busy, money, onBid, onWithdraw,
 }: {
-  biddable: Pigeon[];
+  owners: { id: string; name: string; count: number }[];
   sent: OfferView[];
   busy: boolean;
   money: number;
@@ -431,18 +450,22 @@ function BidCascade({
   const [pigeonId, setPigeonId] = useState('');
   const [amount, setAmount] = useState(0);
 
-  // Distinct owners of biddable pigeons, alphabetical.
-  const owners = Array.from(
-    new Map(biddable.map((p) => [p.ownerId, p.ownerName])).entries(),
-  ).sort((a, b) => a[1].localeCompare(b[1]));
-
-  const ownerPigeons = biddable
-    .filter((p) => p.ownerId === ownerId)
-    .sort((a, b) => b.talent - a.talent);
-  const selected = ownerPigeons.find((p) => p.id === pigeonId) ?? null;
+  // The chosen player's birds, fetched when he is picked (and again after a bid or
+  // a withdrawal — `sent` changes — so a bird that was sold meanwhile drops out).
+  const [ownerPigeons, setOwnerPigeons] = useState<Pigeon[] | null>(null);
+  const sentKey = sent.map((o) => `${o.id}:${o.amount}`).join(',');
+  useEffect(() => {
+    if (!ownerId) { setOwnerPigeons(null); return; }
+    let alive = true;
+    api<{ pigeons: Pigeon[] }>(`/market/biddable/${ownerId}`)
+      .then((res) => { if (alive) setOwnerPigeons(res.pigeons ?? []); })
+      .catch(() => { if (alive) setOwnerPigeons([]); });
+    return () => { alive = false; };
+  }, [ownerId, sentKey]);
+  const selected = ownerPigeons?.find((p) => p.id === pigeonId) ?? null;
   const myOffer = selected ? sent.find((o) => o.pigeonId === selected.id) ?? null : null;
 
-  if (biddable.length === 0) {
+  if (owners.length === 0) {
     return <div className="card muted">Geen duiven van andere spelers om op te bieden.</div>;
   }
 
@@ -456,8 +479,8 @@ function BidCascade({
           onChange={(e) => { setOwnerId(e.target.value); setPigeonId(''); setAmount(0); }}
         >
           <option value="">— kies een speler —</option>
-          {owners.map(([id, name]) => (
-            <option key={id} value={id}>{name}</option>
+          {owners.map((o) => (
+            <option key={o.id} value={o.id}>{o.name} ({o.count})</option>
           ))}
         </select>
       </div>
@@ -470,10 +493,10 @@ function BidCascade({
             disabled={busy}
             onChange={(e) => { setPigeonId(e.target.value); setAmount(0); }}
           >
-            <option value="">— kies een duif —</option>
-            {ownerPigeons.map((p) => (
+            <option value="">{ownerPigeons === null ? 'Laden…' : '— kies een duif —'}</option>
+            {(ownerPigeons ?? []).map((p) => (
               <option key={p.id} value={p.id}>
-                {p.name} · ★{p.talent} · {p.sex}
+                {p.name} · ★{nl(p.talent)} · {p.sex}
               </option>
             ))}
           </select>
@@ -488,7 +511,7 @@ function BidCascade({
               <Link to={`/duif/${selected.id}`} style={{ color: 'inherit' }}>
                 <strong style={{ fontSize: '1.05rem' }}>{selected.name}</strong>
               </Link>
-              <div className="faint">★ talent {selected.talent} · {selected.sex} · {selected.ageWeeks} wk</div>
+              <div className="faint">★ talent {nl(selected.talent)} · {selected.sex} · {selected.ageWeeks} wk</div>
               {selected.magazineRanges ? (
                 // Vakblad: the bands instead of only the ★ — what the subscription is for.
                 <div className="faint" style={{ fontSize: '0.82rem', marginTop: 2 }}>
@@ -597,7 +620,7 @@ function AuctionCard({
     <div className="card" style={{ borderColor: accent, marginBottom: 16 }}>
       <div className="row" style={{ justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
         <div className="row" style={{ gap: 8 }}>
-          <span className="badge" style={{ background: accent, color: '#fff' }}>
+          <span className="badge" style={{ background: accent, color: shelter ? 'var(--on-good)' : 'var(--on-accent)' }}>
             {shelter ? '🏠 OPVANGCENTRUM' : '🔨 ZONDAGVEILING'}
           </span>
           <strong>
@@ -620,7 +643,7 @@ function AuctionCard({
         <PigeonAvatar pigeon={p} size={112} shape="showcase" />
         <div style={{ flex: 1, minWidth: 0 }}>
           <Link to={`/duif/${p.id}`} style={{ color: 'inherit' }}><strong style={{ fontSize: '1.05rem' }}>{p.name}</strong></Link>
-          <div className="faint">★ talent {p.talent} · {p.sex} · geschatte waarde <Money value={p.value} /></div>
+          <div className="faint">★ talent {nl(p.talent)} · {p.sex} · geschatte waarde <Money value={p.value} /></div>
           <div style={{ marginTop: 4 }}>
             {auction.currentBid > 0 ? (
               <>Hoogste bod: <strong><Money value={auction.currentBid} /></strong> <span className="faint">door {auction.currentBidderName}</span></>

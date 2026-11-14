@@ -8,8 +8,8 @@
  * cost. Keep the figures in rough sync with core/config/gameConfig.ts by hand.
  */
 
-import { useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { createContext, useContext, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { Link, useLocation } from 'react-router-dom';
 
 const SECTIONS = [
   { id: 'nieuw', icon: '🧰', label: 'Nieuw: de bank, leagues, tags, duivenlokker & meer' },
@@ -77,25 +77,80 @@ function MiniTable({ head, rows }: { head: string[]; rows: (string | number)[][]
   );
 }
 
+/**
+ * The wiki is an accordion with a search field. With every section open it was
+ * 71.000 px of text on a phone; now a section opens when you tap it, when a link
+ * (`/wiki#bank`, or one inside the wiki) points at it, or when you search.
+ */
+interface WikiState {
+  open: Set<string>;
+  toggle: (id: string) => void;
+  /** Lower-cased search text; '' = no search. */
+  query: string;
+  /** A section reports whether it matches the search, so the page can count. */
+  report: (id: string, match: boolean) => void;
+}
+const WikiCtx = createContext<WikiState>({ open: new Set(), toggle: () => {}, query: '', report: () => {} });
+
 function Section({ id, icon, title, children }: { id: string; icon: string; title: string; children: React.ReactNode }) {
+  const { open, toggle, query, report } = useContext(WikiCtx);
+  const body = useRef<HTMLDivElement>(null);
+  const [match, setMatch] = useState(true);
+  // The text is searched in the DOM (the sections are plain JSX, not data), so the
+  // body stays mounted while collapsed — just hidden.
+  useLayoutEffect(() => {
+    const hit = !query || `${title} ${body.current?.textContent ?? ''}`.toLowerCase().includes(query);
+    setMatch(hit);
+    report(id, hit);
+  }, [query, title, id, report]);
+  const isOpen = open.has(id);
   return (
-    <section id={id} className="card" style={{ scrollMarginTop: 90 }}>
-      <div className="section-title"><h2>{icon} {title}</h2></div>
-      {children}
+    <section id={id} className={`card wiki-section${isOpen ? ' open' : ''}`} style={{ scrollMarginTop: 90 }} hidden={!match}>
+      <button type="button" className="wiki-head" aria-expanded={isOpen} aria-controls={`${id}-body`} onClick={() => toggle(id)}>
+        <h2>{icon} {title}</h2>
+        <span className="wiki-chevron" aria-hidden="true">{isOpen ? '▾' : '▸'}</span>
+      </button>
+      <div id={`${id}-body`} ref={body} className="wiki-body" hidden={!isOpen}>
+        {children}
+      </div>
     </section>
   );
 }
 
 export function WikiPage() {
-  // Arriving from another page with a hash (e.g. a "Hoe de schijven werken →"
-  // link on Mijn hok): the router renders this page but does not scroll to the
-  // anchor itself, so do it once the sections are mounted.
+  const { hash, key } = useLocation();
+  const [open, setOpen] = useState<Set<string>>(() => new Set());
+  const [search, setSearch] = useState('');
+  const query = search.trim().toLowerCase();
+  const matches = useRef(new Map<string, boolean>());
+  const [matchCount, setMatchCount] = useState(SECTIONS.length);
+  const report = useRef((id: string, match: boolean) => {
+    matches.current.set(id, match);
+    setMatchCount([...matches.current.values()].filter(Boolean).length);
+  }).current;
+  const toggle = useRef((id: string) => setOpen((prev) => {
+    const next = new Set(prev);
+    if (next.has(id)) next.delete(id); else next.add(id);
+    return next;
+  })).current;
+
+  // A link to a section — from another page ("Meer info over … →"), from the list
+  // on top, or from inside another section: open it, then scroll to it. `key`
+  // changes on every navigation, so clicking the same link twice works too.
   useEffect(() => {
-    const id = window.location.hash.slice(1);
-    if (id) document.getElementById(id)?.scrollIntoView();
-  }, []);
+    const id = decodeURIComponent(hash.slice(1));
+    if (!id) return;
+    setSearch('');
+    setOpen((prev) => (prev.has(id) ? prev : new Set(prev).add(id)));
+    const t = window.setTimeout(() => document.getElementById(id)?.scrollIntoView(), 30);
+    return () => window.clearTimeout(t);
+  }, [hash, key]);
+
+  const allOpen = open.size >= SECTIONS.length;
+  const listed = query ? SECTIONS.filter((s) => matches.current.get(s.id) !== false) : SECTIONS;
 
   return (
+    <WikiCtx.Provider value={{ open, toggle, query, report }}>
     <div className="stack" style={{ gap: 14 }}>
       <div className="card">
         <div className="section-title"><h2>📖 Wiki — hoe het spel werkt</h2></div>
@@ -106,8 +161,31 @@ export function WikiPage() {
           duif verliest soms, en een underdog wint af en toe. Beschouw de cijfers hieronder
           als <em>richtwaarden, geen garanties</em>.
         </p>
-        <div className="row" style={{ marginTop: 6 }}>
-          {SECTIONS.map((s) => (
+        <div className="row" style={{ gap: 8, flexWrap: 'nowrap', marginTop: 4 }}>
+          <input
+            type="search"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Zoek in de wiki… (bv. rustkuur, tweeling, veiling)"
+            aria-label="Zoek in de wiki"
+            style={{ flex: 1, minWidth: 0 }}
+          />
+          <button
+            type="button"
+            className="btn secondary sm"
+            style={{ flexShrink: 0 }}
+            onClick={() => setOpen(allOpen ? new Set() : new Set(SECTIONS.map((x) => x.id)))}
+          >
+            {allOpen ? 'Alles dicht' : 'Alles open'}
+          </button>
+        </div>
+        {query && (
+          <p className="faint" style={{ margin: '8px 0 0' }}>
+            {matchCount === 0 ? 'Niets gevonden — probeer een ander woord.' : `${matchCount} ${matchCount === 1 ? 'sectie' : 'secties'} met “${search.trim()}”.`}
+          </p>
+        )}
+        <div className="row wiki-toc" style={{ marginTop: 10 }}>
+          {listed.map((s) => (
             <a key={s.id} href={`#${s.id}`} className="chip" style={{ textDecoration: 'none' }}>
               {s.icon} {s.label}
             </a>
@@ -2225,5 +2303,6 @@ export function WikiPage() {
         Onthoud: geluk zit overal in het spel. Deze cijfers helpen je slimmer kiezen — ze beslissen niets op voorhand.
       </p>
     </div>
+    </WikiCtx.Provider>
   );
 }

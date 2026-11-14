@@ -10,7 +10,7 @@ import type { PlayerProfile } from '../types';
 
 export function ProfilePage() {
   const { state, refresh } = useGame();
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   const toast = useToast();
   const [profile, setProfile] = useState<PlayerProfile | null>(null);
   const [name, setName] = useState('');
@@ -25,15 +25,18 @@ export function ProfilePage() {
   function applyTheme(t: 'light' | 'dark') {
     setTheme(t);
     document.documentElement.dataset.theme = t;
+    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', t === 'light' ? '#f6f8fb' : '#0a0f1a');
     try { localStorage.setItem('theme', t); } catch { /* storage unavailable */ }
   }
 
   const load = useCallback(async () => {
     setProfile(await api<PlayerProfile>('/profile'));
   }, []);
+  const week = state?.world.currentWeek;
   useEffect(() => {
+    if (week === undefined) return; // wait for the state: no double fetch on a direct open
     load();
-  }, [load, state?.world.currentWeek]);
+  }, [load, week]);
 
   if (!state || !profile) return <Spinner />;
   const { loft, rankings } = state;
@@ -234,6 +237,15 @@ export function ProfilePage() {
             <span>🥉 {profile.medals.bronze}</span>
           </div>
           <Link to="/prestaties" className="btn ghost sm">Bekijk badges & trofeeën →</Link>
+        </div>
+      </div>
+
+      {/* On a phone the top bar only shows your avatar (it links here), so this is
+          where you log out. */}
+      <div className="card" style={{ marginTop: 16 }}>
+        <div className="row" style={{ justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
+          <span className="muted">Ingelogd als <strong>{user?.username}</strong></span>
+          <button className="btn secondary sm" onClick={logout}>Uitloggen</button>
         </div>
       </div>
     </div>

@@ -3,7 +3,7 @@
 import { Link } from 'react-router-dom';
 import type { Pigeon } from '../types';
 import { PigeonAvatar } from './PigeonAvatar';
-import { BreedBadge, PigeonStats, SexBadge, TagBadges, TraitBadge } from './ui';
+import { BreedBadge, PigeonStats, SexBadge, TagBadges, TraitBadge, nl } from './ui';
 
 function ageLabel(weeks: number): string {
   const years = Math.floor(weeks / 52);
@@ -46,7 +46,7 @@ export function PigeonCard({
         <div className="row" style={{ gap: 6, margin: '4px 0 8px' }}>
           <SexBadge sex={pigeon.sex} />
           <span className="badge" style={{ background: 'var(--surface-2)', color: 'var(--text-soft)' }}>
-            ★ {pigeon.talent}
+            ★ {nl(pigeon.talent)}
           </span>
           <TraitBadge trait={pigeon.trait} />
           <TagBadges tags={pigeon.tags} />
@@ -91,7 +91,7 @@ export function PigeonCard({
         </div>
       ) : (
         <div className="faint" style={{ marginTop: 8, fontSize: '0.85rem', lineHeight: 1.4 }}>
-          🔒 Eigenschappen verborgen — enkel ★ {pigeon.talent} is gekend.
+          🔒 Eigenschappen verborgen — enkel ★ {nl(pigeon.talent)} is gekend.
         </div>
       )}
 
