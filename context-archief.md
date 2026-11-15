@@ -85,7 +85,7 @@
 > Het voorstel (met alle getallen en de sketch) staat in de artifact "Roekoe Hokinrichting".
 
 ### Stand van zaken (12 okt 2026) — lees dit eerst
-- **Meldingenpaneel op gsm — 15 nov, live** (sessiebranch `ccr-7ad60f37-3j4xmg`; eigenaar, met een screenshot:
+- **Meldingenpaneel op gsm — 15 nov, live** (prod `4bfca88` = dev `09e27b1`, sessiebranch `ccr-7ad60f37-3j4xmg`; eigenaar, met een screenshot:
   "Als ik de notifications open, staat deze niet mooi uitgelijnd op mijn scherm. Links valt er een stuk weg").
   Oorzaak: `.bell-panel` hing `right: 0` aan de bel, 360 px breed; sinds de doorlichting staat rechts van de bel de
   avatar, dus tot 393 px breed stak het paneel 13–20 px links buiten het scherm (vanaf 412 px paste het net). Fix
