@@ -19,6 +19,16 @@ const ICON: Record<AppNotification['kind'], string> = {
   taunt: '💬',
 };
 
+/** Most titles open with their own emoji ("🏁 Tinne is binnen"). Show that one in the
+ *  icon column instead of the generic kind icon, so a row doesn't carry two icons. */
+const LEADING_EMOJI = /^(\p{Extended_Pictographic}(?:️|‍\p{Extended_Pictographic}|\p{Emoji_Modifier})*)\s*/u;
+function iconAndTitle(n: AppNotification): { icon: string; title: string } {
+  const m = LEADING_EMOJI.exec(n.title);
+  return m && m[0].length < n.title.length
+    ? { icon: m[1], title: n.title.slice(m[0].length) }
+    : { icon: ICON[n.kind], title: n.title };
+}
+
 /** Short "x min geleden" style relative time. */
 function ago(iso: string): string {
   const s = Math.max(0, Math.floor((Date.now() - Date.parse(iso)) / 1000));
@@ -103,11 +113,12 @@ export function NotificationsBell() {
               <div className="bell-empty">Nog geen meldingen. Schrijf een duif in voor een vlucht!</div>
             )}
             {items.map((n) => {
+              const { icon, title } = iconAndTitle(n);
               const body = (
                 <>
                   <div className="bell-item-top">
-                    <span className="bell-item-ico">{ICON[n.kind]}</span>
-                    <span className="bell-item-title">{n.title}</span>
+                    <span className="bell-item-ico" aria-hidden="true">{icon}</span>
+                    <span className="bell-item-title">{title}</span>
                     <span className="bell-item-time">{ago(n.createdAt)}</span>
                   </div>
                   <div className="bell-item-body">{n.body}</div>
