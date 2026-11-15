@@ -620,11 +620,20 @@ hr.sep { border: none; border-top: 1px solid var(--border); margin: 16px 0; }
 a.bell-item:hover { background: var(--surface-2); }
 .bell-item.unread { background: var(--brand-soft); }
 .bell-item.unread:hover { background: var(--brand-soft); }
-.bell-item-top { display: flex; align-items: center; gap: 7px; }
+/* Baseline: icon and time line up with the first line of a title that wraps. */
+.bell-item-top { display: flex; align-items: baseline; gap: 7px; }
 .bell-item-ico { font-size: 0.95rem; }
 .bell-item-title { font-weight: 700; font-size: 0.9rem; flex: 1; min-width: 0; }
 .bell-item-time { color: var(--text-soft); font-size: 0.72rem; flex-shrink: 0; }
 .bell-item-body { color: var(--text-soft); font-size: 0.84rem; margin-top: 3px; line-height: 1.35; white-space: pre-line; }
+/* Phones and tablets: the avatar sits right of the bell, so a 360 px panel hung on
+   the bell ran off the left edge of the screen (by ~15 px up to 393 px wide). Hang
+   it on the sticky top bar instead — the bell stops being the positioning context —
+   with an 8 px gutter on both sides. */
+@media (max-width: 820px) {
+  .bell-wrap { position: static; }
+  .bell-panel { right: 8px; top: calc(100% + 6px); width: min(380px, calc(100% - 16px)); }
+}
 
 /* --- Race recap ----------------------------------------------------------- */
 .recap {

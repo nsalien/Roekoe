@@ -85,6 +85,15 @@
 > Het voorstel (met alle getallen en de sketch) staat in de artifact "Roekoe Hokinrichting".
 
 ### Stand van zaken (12 okt 2026) — lees dit eerst
+- **Meldingenpaneel op gsm — 15 nov, live** (sessiebranch `ccr-7ad60f37-3j4xmg`; eigenaar, met een screenshot:
+  "Als ik de notifications open, staat deze niet mooi uitgelijnd op mijn scherm. Links valt er een stuk weg").
+  Oorzaak: `.bell-panel` hing `right: 0` aan de bel, 360 px breed; sinds de doorlichting staat rechts van de bel de
+  avatar, dus tot 393 px breed stak het paneel 13–20 px links buiten het scherm (vanaf 412 px paste het net). Fix
+  (global.css): onder 820 px is `.bell-wrap` `position: static`, zodat het paneel aan de sticky `.topbar` hangt:
+  `right: 8px`, `width: min(380px, 100% − 16px)`. Desktop ongewijzigd. Daarnaast (NotificationsBell.tsx): bijna elke
+  titel begint met een eigen emoji, en het paneel zette er nog een type-icoon voor ("ℹ️ 🔨 Zondagveiling…"). Nu
+  komt de emoji uit de titel in de icoonkolom; zonder emoji blijft het type-icoon. `.bell-item-top` lijnt uit op de
+  basislijn: icoon en tijd staan bij de eerste regel van een titel die afbreekt. Gemeten op 320–1280 px.
 - **Gsm schoof zijwaarts — 15 nov, live** (prod `196bfe1` = dev `5668d7c`; eigenaar, met een screenshot van Mijn hok: "De breedte komt niet mooi uit op
   mijn gsm, ik kan horizontaal scrollen"). Oorzaak: de avatar die de doorlichting in de gsm-bovenbalk zette. Logo + Week +
   kassa + bel + avatar paste pas vanaf ~410 px; op een smaller toestel werd de pagina 8–80 px breder dan het scherm, en

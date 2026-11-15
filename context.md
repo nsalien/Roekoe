@@ -59,9 +59,10 @@ de uitdrukkelijke toestemming van de eigenaar.
 
 ### Stand van zaken
 
-- **Prod = dev** op de sessiebranch `ccr-1b20c3c1-7g1ni4`. `world.dataVersion` staat op **76**: een
+- **Prod = dev** op de sessiebranch `ccr-7ad60f37-3j4xmg`. `world.dataVersion` staat op **76**: een
   volgende migratie is **v77**, gegate op `=== 76`.
 - **Recent live** (details in het archief, zoek op de naam):
+  - 15 nov — meldingenpaneel op gsm: hangt aan de bovenbalk (stak links uit), één icoon per melding.
   - 15 nov — documentatie opgeruimd (dit bestand, `spelregels.md`, het archief).
   - 15 nov — gsm schoof zijwaarts: bovenbalk past weer, vangnet `overflow-x: clip` (prod `196bfe1`).
   - 14 nov — doorlichting (prod `4f3435d`): vluchten per kolom + samengevoegde inschrijvingen, de markt
@@ -256,7 +257,8 @@ geschreven; enkele tests vergelijken ze met de config).
   onderbalk rekt mee. Regels: `.grid > * { min-width: 0 }`, kolommen als `repeat(n, minmax(0, 1fr))`,
   `.btn` is `nowrap` (gebruik `.btn.block` of `white-space: normal` voor lange labels), en
   `html, body { overflow-x: clip }` als vangnet. **Meet elke layoutwijziging op 320, 360, 375 en 390 px**,
-  met een lange hoknaam en een kassa van 7 cijfers.
+  met een lange hoknaam en een kassa van 7 cijfers. Een uitklappaneel uit de bovenbalk hangt op gsm aan
+  `.topbar`, niet aan zijn knop (rechts van de bel staat de avatar; zie `.bell-panel`).
 
 ## 7. Werkwijze
 
@@ -277,6 +279,7 @@ for f in tests/*.test.mts; do printf '%-34s ' "$(basename "$f")"; npx tsx "$f" >
   `advance-throttle`, `daily-budget`, `poll-budget`, `cpu-budget`, `flight-concurrency`.
 - **Bekend wankel, ook op ongewijzigde code:** `live-speed` (~1 op 2), `brood-choice` (~1 op 12),
   `cpu-budget` (draai hem apart, niet naast andere tests). Draai een rode test opnieuw vóór je zoekt.
+  `market-routes` faalt op zondag 10:00–20:00 (Brussel): de echte zondagveiling loopt dan mee.
 - **Diagnose zonder assertie:** `cpu-sweep.mts` (CPU per operatie), `cpu-pigeons.mts` (CPU per duif),
   `limits-report.mts` (queries en rijen per verzoek), `vaccine-economics.mts`.
 - **Echte runtime:** `wrangler pages dev client/dist` met een lokale D1 (kopieer
