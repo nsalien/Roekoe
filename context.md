@@ -62,7 +62,8 @@ de uitdrukkelijke toestemming van de eigenaar.
 - **Prod = dev** op de sessiebranch `ccr-7ad60f37-3j4xmg`. `world.dataVersion` staat op **76**: een
   volgende migratie is **v77**, gegate op `=== 76`.
 - **Recent live** (details in het archief, zoek op de naam):
-  - 15 nov — meldingenpaneel op gsm: hangt aan de bovenbalk (stak links uit), één icoon per melding.
+  - 15 nov — meldingenpaneel op gsm: hangt aan de bovenbalk (stak links uit), één icoon per melding
+    (prod `4bfca88`).
   - 15 nov — documentatie opgeruimd (dit bestand, `spelregels.md`, het archief).
   - 15 nov — gsm schoof zijwaarts: bovenbalk past weer, vangnet `overflow-x: clip` (prod `196bfe1`).
   - 14 nov — doorlichting (prod `4f3435d`): vluchten per kolom + samengevoegde inschrijvingen, de markt
