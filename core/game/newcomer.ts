@@ -35,6 +35,31 @@ export function newNewcomerPerks(nowMs: number): NewcomerPerks {
   };
 }
 
+/**
+ * The algemene score (★) for each of a newcomer's `count` starting birds — see
+ * NEWCOMER.starterScores. The first score always falls in the top band, every
+ * other one rolls a band by weight and then a score uniformly inside it. The list
+ * is shuffled so the guaranteed bird is not always the first in the loft. One
+ * decimal each, as `shapeToScore` requires.
+ */
+export function rollStarterScores(count: number, rng: () => number = Math.random): number[] {
+  const { topBand, bands } = NEWCOMER.starterScores;
+  const within = (b: { min: number; max: number }) => round1(b.min + rng() * (b.max - b.min));
+  const total = bands.reduce((s, b) => s + b.weight, 0);
+  const scores: number[] = [];
+  for (let i = 0; i < count; i++) {
+    if (i === 0) { scores.push(within(topBand)); continue; }
+    let r = rng() * total;
+    const band = bands.find((b) => (r -= b.weight) < 0) ?? bands[bands.length - 1];
+    scores.push(within(band));
+  }
+  for (let i = scores.length - 1; i > 0; i--) {
+    const j = Math.floor(rng() * (i + 1));
+    [scores[i], scores[j]] = [scores[j], scores[i]];
+  }
+  return scores;
+}
+
 /** Is this loft still inside its first season (time-boxed perks running)? */
 export function newcomerActive(loft: Loft, nowMs: number): boolean {
   const n = loft.newcomer;

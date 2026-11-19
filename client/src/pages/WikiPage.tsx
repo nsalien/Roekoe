@@ -413,6 +413,15 @@ export function WikiPage() {
           tegoeden die je <strong>zelf verdeelt</strong>, en vier voordelen die <strong>28 dagen</strong>
           (één seizoen) lopen.
         </p>
+        <p><strong>Je zes startduiven</strong> scoren tussen ★50 en ★80, met altijd minstens één van ★75–80.</p>
+        <MiniTable
+          head={['Algemene score', 'Kans per duif']}
+          rows={[
+            ['★50–60', '~21 %'],
+            ['★60–70', '~46 %'],
+            ['★70–80', '~33 % (waarvan één altijd ★75+)'],
+          ]}
+        />
         <p><strong>Tegoeden — deze vervallen niet.</strong></p>
         <MiniTable
           head={['Tegoed', 'Hoeveel', 'Waar het heen mag']}

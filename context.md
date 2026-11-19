@@ -62,6 +62,8 @@ de uitdrukkelijke toestemming van de eigenaar.
 - **Prod = dev** op de sessiebranch `ccr-7ad60f37-3j4xmg`. `world.dataVersion` staat op **76**: een
   volgende migratie is **v77**, gegate op `=== 76`.
 - **Recent live** (details in het archief, zoek op de naam):
+  - 19 nov — startduiven van een nieuwe speler: ★50–80, minstens één ★75–80, ★60–70 het vaakst
+    (`NEWCOMER.starterScores`, `rollStarterScores` in `newcomer.ts`; bots ongewijzigd ~★52).
   - 15 nov — meldingenpaneel op gsm: hangt aan de bovenbalk (stak links uit), één icoon per melding
     (prod `4bfca88`).
   - 15 nov — documentatie opgeruimd (dit bestand, `spelregels.md`, het archief).

@@ -98,7 +98,8 @@ console.log('\nWeg bij een eigendomswissel');
 {
   const sold = mine(A)[0];
   setPigeonTags(store, A.userId, sold.id, 'sprint');
-  ok(listForSale(store, A.userId, sold.id, 500) === null && buyPigeon(store, B.userId, sold.id) === null, 'verkocht op de markt');
+  // Well above 1/5 of any starter's value: a newcomer's bird can be ★80 (§18).
+  ok(listForSale(store, A.userId, sold.id, 2000) === null && buyPigeon(store, B.userId, sold.id) === null, 'verkocht op de markt');
   ok(sold.ownerId === B.userId && pigeonTags(sold).length === 0, 'de koper krijgt haar zonder tags');
 
   const bid = mine(A)[0];
@@ -211,7 +212,8 @@ function fakeD1(): any {
   ok(seen.status === 200 && (seen.json.pigeon.tags ?? []).length === 0, 'een andere speler ziet ze niet op de duifpagina');
   const mineView = await call(ME, `/pigeons/${bird.id}`);
   ok(mineView.json.pigeon.tags?.join('|') === 'sprint|mid-fond', 'de eigenaar wel');
-  await call(ME, '/market/list', 'POST', { pigeonId: bird.id, price: 400 });
+  // Well above 1/5 of any starter's value: a newcomer's bird can be ★80 (§18).
+  await call(ME, '/market/list', 'POST', { pigeonId: bird.id, price: 2000 });
   const market = await call(OTHER, '/market');
   const listing = (market.json.listings ?? []).find((l: any) => (l.pigeon?.id ?? l.id) === bird.id);
   ok(!!listing && ((listing.pigeon ?? listing).tags ?? []).length === 0, 'te koop op de markt: de koper ziet geen tags');
