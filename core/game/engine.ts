@@ -46,9 +46,9 @@ import { botTakeWeeklyActions } from './bots.js';
 import { progressMissions } from './missions.js';
 import { resolveEvent as resolveEventCard } from './events.js';
 import { applyAcceptSponsor, applyCancelSponsor, applyReduceSponsors, applyRefuseSponsor, offerStarterSponsor } from './sponsors.js';
-import { newNewcomerPerks } from './newcomer.js';
+import { newNewcomerPerks, rollStarterScores } from './newcomer.js';
 import { careSlots, runHealthWeek } from './health.js';
-import { nameKey, namesInUse } from './names.js';
+import { generatePigeonName, nameKey, namesInUse } from './names.js';
 import { voidBetsForWithdrawnPigeon } from './betting.js';
 import { markGrownUp } from './grownup.js';
 import { featuredListingId, minSalePrice, noteMarketNews } from './market.js';
@@ -62,6 +62,7 @@ import {
   isAway,
   noteAttrChange,
   onRestCure,
+  shapeToScore,
   talent,
   trainCeil,
   trainingCost,
@@ -140,11 +141,19 @@ export function createLoftForUser(store: Store, user: User, loftName: string): L
     db.lofts.push(loft);
     // The set grows as we go, so the six starters can't collide with each other.
     const taken = namesInUse(db.pigeons);
+    // A newcomer's birds spread over ★50–80 with at least one of ★75+
+    // (NEWCOMER.starterScores, §18 spelregels); a bot keeps the plain roll.
+    const scores = user.isBot ? null : rollStarterScores(STARTING_PIGEONS);
     for (let i = 0; i < STARTING_PIGEONS; i++) {
       const p = generatePigeon({ ownerId: user.id, currentWeek: db.world.currentWeek, quality: randFloat(0.4, 0.6), taken });
-      // Starters begin fully rested: a fresh loft should not lose its first birds
-      // to an injury it had no way to see coming (vluchtvorm, §3.2 spelregels).
-      if (!user.isBot) p.form = NEWCOMER.startEnergie;
+      if (scores) {
+        shapeToScore(p, scores[i]);
+        // Drawn again so a skill-based epithet ("de Snelle") fits the new skills.
+        p.name = generatePigeonName(p.sex, p, taken);
+        // Starters begin fully rested: a fresh loft should not lose its first birds
+        // to an injury it had no way to see coming (vluchtvorm, §3.2 spelregels).
+        p.form = NEWCOMER.startEnergie;
+      }
       taken.add(nameKey(p.name));
       db.pigeons.push(p);
     }

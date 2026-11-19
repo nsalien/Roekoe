@@ -1359,7 +1359,20 @@ Acht bots vullen het veld en spelen met dezelfde regels, zonder extra geld of be
 
 ## 18. Startershulp: je eerste seizoen
 
-Elke nieuwe speler krijgt een starterspakket, bovenaan het Overzicht.
+Elke nieuwe speler krijgt zes startduiven en een starterspakket, bovenaan het Overzicht.
+
+**Startduiven.** Hun algemene score ligt tussen **★50 en ★80**, met altijd **minstens één van
+★75–80**. Elk van de andere vijf loot eerst een schijf en dan een score daarbinnen:
+
+| Schijf | Kans (de andere vijf) | Over alle zes |
+|---|---|---|
+| ★50–60 | 25 % | ~21 % |
+| ★60–70 | **55 %** | ~46 % |
+| ★70–80 | 20 % | ~33 % |
+
+- Gemiddeld scoort een startduif **~★67**. Snelheid, conditie en oriëntatie liggen elk een paar
+  punten rond die score; elke gen-cap ligt minstens 3 punten boven de eigenschap.
+- Bots krijgen de gewone loting (~★52).
 
 ### 18.1 Punten die je zelf verdeelt
 

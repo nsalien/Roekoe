@@ -9,6 +9,8 @@
  *
  * Bewaakt:
  *  1. wat een nieuw hok krijgt (100 energie, punten, sponsoraanbod, geen bots);
+ *  1b. de scores van de startduiven: alle zes tussen ★50 en ★80, minstens één
+ *     van ★75–80, ★60–70 vaker dan ★70–80 en dan ★50–60 (NEWCOMER.starterScores);
  *  2. de puntenportemonnee: gen-cap blijft gelden, ervaring gaat naar ÉÉN duif,
  *     je kan nooit meer uitgeven dan je hebt;
  *  3. de tijdgebonden helft: gratis coach + dubbele winst tijdens, en **niet** erna;
@@ -27,11 +29,12 @@ import {
   newcomerActive,
   newcomerDaysLeft,
   spendAttribute,
+  rollStarterScores,
   spendExperience,
   tickNewcomerExpiry,
   winningsMultiplier,
 } from '../core/game/newcomer.js';
-import { geneCap } from '../core/game/pigeon.js';
+import { geneCap, talent } from '../core/game/pigeon.js';
 import { NEWCOMER, SPONSORS } from '../core/config/gameConfig.js';
 import type { Database, Loft, User } from '../core/schema.js';
 
@@ -74,6 +77,47 @@ ok(
 const botLoft = w.db.lofts.find((l) => l.isBot)!;
 ok(!botLoft.newcomer, 'een bothok krijgt GEEN starterspakket');
 ok(botLoft.sponsorship.offers.length === 0, 'een bothok krijgt geen sponsoraanbod');
+
+// --- 1b. De scores van de startduiven ----------------------------------
+console.log('\nScores van de startduiven');
+{
+  // Eigenaar, 19 nov: "variatie tussen 50 en 80, minstens eentje tussen 75 en 80;
+  // grotere kans tussen 60 en 70 dan tussen 70 en 80, tussen 50 en 60 ook kleiner".
+  // Eerst langs de echte registratie: veel nieuwe hokken in één wereld.
+  const store = new MemoryStore(emptyDatabase());
+  seedWorld(store);
+  let allInRange = true, everyTop = true, capsHold = true, namesUnique = true;
+  for (let i = 0; i < 300; i++) {
+    const u: User = { id: newId('usr'), username: `nieuw${i}`, passwordHash: 'x', isAdmin: false, isBot: false, createdAt: new Date(T0).toISOString() };
+    store.mutate((d) => d.users.push(u));
+    createLoftForUser(store, u, `Hok ${i}`);
+    const birds = store.data.pigeons.filter((p) => p.ownerId === u.id);
+    const s = birds.map((p) => talent(p));
+    if (!s.every((x) => x >= 50 && x <= 80)) allInRange = false;
+    if (!s.some((x) => x >= 75 && x <= 80)) everyTop = false;
+    if (!birds.every((p) => (['speed', 'endurance', 'orientation'] as const).every((a) => p[a] <= geneCap(p, a)))) capsHold = false;
+  }
+  const names = store.data.pigeons.map((p) => p.name.toLowerCase());
+  if (new Set(names).size !== names.length) namesUnique = false;
+  ok(allInRange, 'elke startduif van 300 nieuwe hokken scoort tussen ★50 en ★80');
+  ok(everyTop, 'elk van die hokken heeft minstens één duif van ★75–80');
+  ok(capsHold, 'geen eigenschap boven haar gen-cap');
+  ok(namesUnique, 'alle namen blijven uniek');
+  const bots = store.data.pigeons.filter((p) => store.data.lofts.find((l) => l.userId === p.ownerId)?.isBot);
+  const botAvg = bots.reduce((a, p) => a + talent(p), 0) / bots.length;
+  ok(botAvg < 60, `bots houden de gewone loting (gemiddeld ★${botAvg.toFixed(1)})`);
+
+  // Dan de verdeling zelf, op veel lotingen.
+  const band = [0, 0, 0];
+  let n = 0;
+  for (let i = 0; i < 20000; i++) {
+    for (const x of rollStarterScores(6)) { n++; band[x < 60 ? 0 : x < 70 ? 1 : 2]++; }
+  }
+  const [lo, mid, hi] = band.map((b) => b / n);
+  console.log(`    ★50–60 ${(lo * 100).toFixed(1)} % · ★60–70 ${(mid * 100).toFixed(1)} % · ★70–80 ${(hi * 100).toFixed(1)} %`);
+  ok(mid > hi, '★60–70 komt vaker voor dan ★70–80');
+  ok(mid > lo, '★60–70 komt vaker voor dan ★50–60');
+}
 
 // --- 2. De puntenportemonnee --------------------------------------------
 console.log('\nPunten uitgeven');

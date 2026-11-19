@@ -3061,6 +3061,19 @@ export const NEWCOMER = {
   expPoints: 30, // ervaring to spread over ONE bird
   attrPoints: 5, // snelheid/conditie/orientatie points, spreadable over any birds
   startEnergie: 100, // every starting bird is fully rested
+  // Algemene score (★) of the six starting birds. Owner, 19 nov: "variatie tussen
+  // 50 en 80, minstens eentje tussen 75 en 80; grotere kans tussen 60 en 70 dan
+  // tussen 70 en 80, tussen 50 en 60 ook kleinere kans". One bird always lands in
+  // `topBand`; every other bird rolls a band by weight, then a score uniformly
+  // inside it (see rollStarterScores). Bots keep the old generator (~★52).
+  starterScores: {
+    topBand: { min: 75, max: 80 },
+    bands: [
+      { min: 50, max: 60, weight: 0.25 },
+      { min: 60, max: 70, weight: 0.55 },
+      { min: 70, max: 80, weight: 0.2 },
+    ],
+  },
   freeCoaches: 1, // this many coached birds cost nothing per day
   winningsMultiplier: 2, // prize money AND ranking points, competition flights only
   sponsorTier: 1, // a random tier-1 sponsor knocks immediately
