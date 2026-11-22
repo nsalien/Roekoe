@@ -2837,7 +2837,7 @@ export function lastFlightStartMs(): number {
 }
 
 /** The stable id of THE LAST FLIGHT, so two requests running v77 at once write one row. */
-export const LAST_FLIGHT_ID = 'flt_the_last_flight';
+export const LAST_FLIGHT_ID = LAST_FLIGHT.id;
 
 /**
  * Whether this is the production world (LAST_FLIGHT.liveWorld): at least
@@ -2918,6 +2918,7 @@ function endCalendarWithLastFlight(db: Database, nowMs: number): void {
       'Roekoe neemt afscheid. Alle geplande vluchten zijn van de kalender gehaald en er komen geen nieuwe meer bij.',
       `Er volgt nog één vlucht, de afscheidsvlucht: ${last.name}, ${when}, ${last.fromCity} → ${last.toCity}, ` +
         `${last.distanceKm.toLocaleString('nl-BE')} km. Inschrijven kan nu al bij Vluchten.`,
+      'Op deze vlucht verdient élke duif die thuiskomt punten en prijzengeld voor haar plaats, niet enkel je 3 beste.',
       'Zo\'n afstand vraagt veel energie: geef je duiven vóór vrijdag rust.',
     ];
     if (back > 0) parts.push(`Je inschrijfgeld van de geschrapte vluchten, €${back.toLocaleString('nl-BE')}, is terugbetaald.`);

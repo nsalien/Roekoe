@@ -35,7 +35,7 @@ import {
   TITAN,
   TOURNEY_RISK,
 } from '../config/gameConfig.js';
-import { CITY_COORDS, LEAGUE, RELAY, TRAITS, leaguePrizes, quirkById } from '../config/gameConfig.js';
+import { CITY_COORDS, LAST_FLIGHT, LEAGUE, RELAY, TRAITS, leaguePrizes, quirkById } from '../config/gameConfig.js';
 import { applyTraitBonus, traitActiveAt, traitWindows, type TraitRun } from './traits.js';
 import type { Ailment, Database, Flight, FlightResult, Loft, Pigeon, SimEntry } from '../schema.js';
 import { relayEntryTeams, relayLegKm, relaySimTeams } from './relay.js';
@@ -1256,6 +1256,14 @@ export function flightPrizes(flight: Flight): PrizeTable {
 }
 
 /**
+ * THE LAST FLIGHT (LAST_FLIGHT.everyBirdEarns): no cap per loft, and a place past
+ * the points table still scores. Every other race keeps the usual rules.
+ */
+export function everyBirdEarns(flight: Flight): boolean {
+  return LAST_FLIGHT.everyBirdEarns && flight.id === LAST_FLIGHT.id;
+}
+
+/**
  * Walks a finish order and says, per bird, whether its loft may still be
  * rewarded for it — money AND seizoenspunten.
  *
@@ -1268,12 +1276,13 @@ export function flightPrizes(flight: Flight): PrizeTable {
  * Callers must feed the birds in finishing order — both the early payout and the
  * finalize do, which is what keeps the two in step.
  */
-function rewardGate(): (ownerId: string, finished: boolean) => boolean {
+function rewardGate(flight: Flight): (ownerId: string, finished: boolean) => boolean {
   const used = new Map<string, number>();
+  const cap = everyBirdEarns(flight) ? Infinity : REWARD_BIRDS_PER_LOFT;
   return (ownerId, finished) => {
     if (!finished) return false;
     const n = used.get(ownerId) ?? 0;
-    if (n >= REWARD_BIRDS_PER_LOFT) return false;
+    if (n >= cap) return false;
     used.set(ownerId, n + 1);
     return true;
   };
@@ -1316,7 +1325,7 @@ export function computeFinishPayouts(flight: Flight): FinishPayout[] {
   // The same gate as finalize, walked in the same order — otherwise a loft's
   // fourth bird would be paid the moment it lands and finalize would never take
   // it back (it only skips what `prizePaid` already banked).
-  const eligible = rewardGate();
+  const eligible = rewardGate(flight);
   return finishers.map((s, i) => ({
     pigeonId: s.pigeonId,
     ownerId: s.ownerId,
@@ -1384,7 +1393,7 @@ export function finalizeFlight(flight: Flight, pigeons: Pigeon[]): SimulatedFlig
   const n = finishers.length;
 
   // Only a loft's three best finishers are rewarded — money and points alike.
-  const eligible = rewardGate();
+  const eligible = rewardGate(flight);
 
   ordered.forEach((s, i) => {
     const isDnf = isDnfId(s.pigeonId);
@@ -1396,7 +1405,9 @@ export function finalizeFlight(flight: Flight, pigeons: Pigeon[]): SimulatedFlig
     // De titanenwedstrijd en de leagues geven geen seizoenspunten voor de
     // melkerranglijst (enkel prijzengeld). Een league kent haar eigen punten toe
     // aan de DUIF — dat gebeurt in tickFlights, uit `results[].rank`.
-    const points = !rewarded || flight.titan || leagueRace(flight) ? 0 : RANKING_POINTS[i] ?? 0;
+    const points = !rewarded || flight.titan || leagueRace(flight)
+      ? 0
+      : RANKING_POINTS[i] ?? (everyBirdEarns(flight) ? LAST_FLIGHT.pointsAfterTable : 0);
     const prize = rewarded ? prizeForRank(prizes, rank) : 0;
     results.push({
       rewarded,

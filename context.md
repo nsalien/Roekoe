@@ -63,7 +63,8 @@ de uitdrukkelijke toestemming van de eigenaar.
   migratie is **v78**, gegate op `=== 77`.
 - ⚠️ **De kalender is stilgelegd** (v77, 22 nov): `World.scheduleEndedAt` gezet ⇒ `ensureFlightsScheduled`
   plant niets meer. Enkel **The Last Flight** (vr 27 nov 07:00, Madrid → Brussel, 1.316 km,
-  `LAST_FLIGHT` in `gameConfig.ts`, id `flt_the_last_flight`) staat nog gepland; spelregels §2.11. v77
+  `LAST_FLIGHT` in `gameConfig.ts`, id `flt_the_last_flight`) staat nog gepland; spelregels §2.11. Op die
+  vlucht verdient elke thuisgekomen duif (geen grens van 3 per hok, `everyBirdEarns` in `flight.ts`). v77
   herkent de echte wereld aan ≥ 3 spelers van vóór 15 nov met een duif van ≥ 3 vluchten, en een klok
   tussen 22 nov en 2 u vóór de lossing (`LAST_FLIGHT.liveWorld`); elke andere wereld (alle tests) schuift door naar 77 met een
   lopende kalender. Test: `last-flight`.

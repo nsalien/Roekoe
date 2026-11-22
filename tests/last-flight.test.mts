@@ -26,7 +26,8 @@ import { seedWorld, createLoftForUser } from '../core/game/engine.js';
 import { advanceRealtime, LAST_FLIGHT_ID, lastFlightStartMs } from '../core/game/schedule.js';
 import { placeBet } from '../core/game/betting.js';
 import { generatePigeon } from '../core/game/pigeon.js';
-import { LAST_FLIGHT } from '../core/config/gameConfig.js';
+import { computeFinishPayouts } from '../core/game/flight.js';
+import { LAST_FLIGHT, RANKING_POINTS } from '../core/config/gameConfig.js';
 
 let pass = 0, fail = 0;
 const ok = (c: boolean, m: string) => { c ? (pass++, console.log(`  ✓ ${m}`)) : (fail++, console.log(`  ✗ ${m}`)); };
@@ -130,15 +131,16 @@ ok(P.db.notifications.filter((n) => n.id.startsWith('ntf:admin:lastflight:')).le
 console.log('\nDe dagen erna');
 for (let t = T1 + HOUR; t < lastFlightStartMs() - HOUR; t += 6 * HOUR) advanceRealtime(P.db, t);
 ok(scheduled(P.db).length === 1, 'tot vrijdag komt er geen enkele vlucht bij');
-// Twee spelers schrijven hun beste duiven in, vol getankt.
-for (const id of P.ids.slice(0, 3)) {
-  for (const p of birds(id).slice(0, 3)) {
+// Vier spelers schrijven al hun duiven in, vol getankt: zes per hok, meer dan de
+// gewone 3 die verdienen, en samen met de bots een veld van meer dan 20.
+for (const id of P.ids) {
+  for (const p of birds(id)) {
     p.form = 100; p.health = 95;
-    last.entries.push({ pigeonId: p.id, ownerId: id });
+    if (!last.entries.some((e) => e.pigeonId === p.id)) last.entries.push({ pigeonId: p.id, ownerId: id });
   }
 }
 advanceRealtime(P.db, lastFlightStartMs() + MIN);
-ok(last.status === 'live' && last.sim.length >= 9, `de afscheidsvlucht is gelost (${last.sim.length} duiven)`);
+ok(last.status === 'live' && last.sim.length >= 24, `de afscheidsvlucht is gelost (${last.sim.length} duiven)`);
 let finishedAt = 0;
 for (let t = lastFlightStartMs() + HOUR; t < lastFlightStartMs() + 3 * DAY && !finishedAt; t += HOUR) {
   advanceRealtime(P.db, t);
@@ -147,8 +149,21 @@ for (let t = lastFlightStartMs() + HOUR; t < lastFlightStartMs() + 3 * DAY && !f
 const home = last.results.filter((r) => r.finished).length;
 const times = last.results.filter((r) => r.finished).map((r) => r.timeSeconds / 3600).sort((a, b) => a - b);
 console.log(`    snelste ${times[0]?.toFixed(1)} u, traagste ${times[times.length - 1]?.toFixed(1)} u`);
-ok(finishedAt > 0 && last.results.length >= 9,
+ok(finishedAt > 0 && last.results.length >= 24,
   `ze is afgerond na ~${Math.round((finishedAt - lastFlightStartMs()) / HOUR)} uur (${last.results.length} in de uitslag, ${home} thuis)`);
+// Eigenaar, 22 nov: "Alle duiven krijgen punten en geld voor hun plaats op die vlucht."
+const finishers = last.results.filter((r) => r.finished);
+ok(finishers.every((r) => r.rewarded !== false && r.prize > 0 && r.points > 0),
+  'elke duif die thuiskomt krijgt prijzengeld én punten');
+const perLoft = new Map<string, number>();
+for (const r of finishers) perLoft.set(r.ownerId, (perLoft.get(r.ownerId) ?? 0) + 1);
+ok([...perLoft.values()].some((n) => n > 3), `ook de 4e, 5e en 6e duif van een hok (tot ${Math.max(...perLoft.values())} per hok)`);
+const expected = (rank: number) => RANKING_POINTS[rank - 1] ?? LAST_FLIGHT.pointsAfterTable;
+ok(finishers.every((r) => r.points === expected(r.rank)), 'punten volgens de plaats (top 20 de tabel, daarna 1 punt)');
+ok(finishers.some((r) => r.rank > 20), `er zijn plaatsen voorbij de 20 (${finishers.length} thuis)`);
+ok(last.results.filter((r) => !r.finished).every((r) => r.prize === 0 && r.points === 0), 'wie niet thuiskomt, heeft geen plaats en verdient niets');
+ok(computeFinishPayouts(last).every((x) => finishers.find((r) => r.pigeonId === x.pigeonId)?.prize === x.prize),
+  'het geld bij aankomst is hetzelfde als in de uitslag (niets dubbel, niets vergeten)');
 for (let t = finishedAt; t < lastFlightStartMs() + 6 * DAY; t += 6 * HOUR) advanceRealtime(P.db, t);
 ok(P.db.flights.every((f) => f.id === LAST_FLIGHT_ID), 'en daarna komt er niets meer op de kalender');
 
