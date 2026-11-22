@@ -1233,6 +1233,12 @@ export interface World {
    */
   chatLastAt?: string;
   chatLastBy?: string;
+  /**
+   * When the calendar was stopped for good (migration v77, THE LAST FLIGHT in
+   * gameConfig). Set = `ensureFlightsScheduled` plans nothing any more; the flights
+   * already on the calendar (the farewell race) still run. Empty = the calendar runs.
+   */
+  scheduleEndedAt?: string;
 }
 
 /** The full database document persisted to disk. */

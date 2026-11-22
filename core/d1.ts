@@ -680,6 +680,7 @@ export class D1Store implements Store {
         studNewsAt: worldRow.stud_news_at ?? '',
         studNewsBy: worldRow.stud_news_by ?? '',
         newsAt: worldRow.news_at ?? '',
+        scheduleEndedAt: worldRow.schedule_ended_at ?? '',
         // Read along for free (`SELECT *`), but NEVER written back by `persist`:
         // only `insertLokaalMessage` sets them — see World.chatLastAt.
         chatLastAt: worldRow.chat_last_at ?? '',
@@ -863,16 +864,16 @@ export class D1Store implements Store {
     const wd = w.world;
     if (!this.worldExisted) {
       stmts.push(
-        db.prepare('INSERT INTO world (id, current_week, season_year, seeded, data_version, last_daily_tick, last_shelter_spawn, season_started_at, season_ends_at, season_week, last_advance, daily_care_cursor, leaderboard, age_cup_started_at, age_cup_seasons_done, market_news_at, market_news_by, news_at, stud_news_at, stud_news_by, version) VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)')
-          .bind(wd.currentWeek, wd.seasonYear, b(wd.seeded), wd.dataVersion ?? 0, wd.lastDailyTick ?? '', wd.lastShelterSpawn ?? '', wd.seasonStartedAt ?? '', wd.seasonEndsAt ?? '', wd.seasonWeek ?? 1, wd.lastAdvance ?? '', wd.dailyCareCursor ?? '', wd.leaderboard ?? '', wd.ageCupStartedAt ?? '', wd.ageCupSeasonsDone ?? 0, wd.marketNewsAt ?? '', wd.marketNewsBy ?? '', wd.newsAt ?? '', wd.studNewsAt ?? '', wd.studNewsBy ?? ''),
+        db.prepare('INSERT INTO world (id, current_week, season_year, seeded, data_version, last_daily_tick, last_shelter_spawn, season_started_at, season_ends_at, season_week, last_advance, daily_care_cursor, leaderboard, age_cup_started_at, age_cup_seasons_done, market_news_at, market_news_by, news_at, stud_news_at, stud_news_by, schedule_ended_at, version) VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)')
+          .bind(wd.currentWeek, wd.seasonYear, b(wd.seeded), wd.dataVersion ?? 0, wd.lastDailyTick ?? '', wd.lastShelterSpawn ?? '', wd.seasonStartedAt ?? '', wd.seasonEndsAt ?? '', wd.seasonWeek ?? 1, wd.lastAdvance ?? '', wd.dailyCareCursor ?? '', wd.leaderboard ?? '', wd.ageCupStartedAt ?? '', wd.ageCupSeasonsDone ?? 0, wd.marketNewsAt ?? '', wd.marketNewsBy ?? '', wd.newsAt ?? '', wd.studNewsAt ?? '', wd.studNewsBy ?? '', wd.scheduleEndedAt ?? ''),
       );
     } else if (JSON.stringify(wd) !== this.worldSnapshot) {
       // Only write the world row when something in it actually changed. Previously
       // this ran on EVERY request (even read-only polls), burning the write quota
       // and making `world` (id=1) a hot row that concurrent requests locked on.
       stmts.push(
-        db.prepare('UPDATE world SET current_week = ?, season_year = ?, seeded = ?, data_version = ?, last_daily_tick = ?, last_shelter_spawn = ?, season_started_at = ?, season_ends_at = ?, season_week = ?, last_advance = ?, daily_care_cursor = ?, leaderboard = ?, age_cup_started_at = ?, age_cup_seasons_done = ?, market_news_at = ?, market_news_by = ?, news_at = ?, stud_news_at = ?, stud_news_by = ?, version = version + 1 WHERE id = 1')
-          .bind(wd.currentWeek, wd.seasonYear, b(wd.seeded), wd.dataVersion ?? 0, wd.lastDailyTick ?? '', wd.lastShelterSpawn ?? '', wd.seasonStartedAt ?? '', wd.seasonEndsAt ?? '', wd.seasonWeek ?? 1, wd.lastAdvance ?? '', wd.dailyCareCursor ?? '', wd.leaderboard ?? '', wd.ageCupStartedAt ?? '', wd.ageCupSeasonsDone ?? 0, wd.marketNewsAt ?? '', wd.marketNewsBy ?? '', wd.newsAt ?? '', wd.studNewsAt ?? '', wd.studNewsBy ?? ''),
+        db.prepare('UPDATE world SET current_week = ?, season_year = ?, seeded = ?, data_version = ?, last_daily_tick = ?, last_shelter_spawn = ?, season_started_at = ?, season_ends_at = ?, season_week = ?, last_advance = ?, daily_care_cursor = ?, leaderboard = ?, age_cup_started_at = ?, age_cup_seasons_done = ?, market_news_at = ?, market_news_by = ?, news_at = ?, stud_news_at = ?, stud_news_by = ?, schedule_ended_at = ?, version = version + 1 WHERE id = 1')
+          .bind(wd.currentWeek, wd.seasonYear, b(wd.seeded), wd.dataVersion ?? 0, wd.lastDailyTick ?? '', wd.lastShelterSpawn ?? '', wd.seasonStartedAt ?? '', wd.seasonEndsAt ?? '', wd.seasonWeek ?? 1, wd.lastAdvance ?? '', wd.dailyCareCursor ?? '', wd.leaderboard ?? '', wd.ageCupStartedAt ?? '', wd.ageCupSeasonsDone ?? 0, wd.marketNewsAt ?? '', wd.marketNewsBy ?? '', wd.newsAt ?? '', wd.studNewsAt ?? '', wd.studNewsBy ?? '', wd.scheduleEndedAt ?? ''),
       );
     }
 
@@ -1969,6 +1970,8 @@ export const SCHEMA_STEPS: string[] = [
   "ALTER TABLE lofts ADD COLUMN bank TEXT NOT NULL DEFAULT ''",
   // …and the income every player already had, so the bank can lend from day one.
   BANK_INCOME_BACKFILL_SQL,
+  // THE LAST FLIGHT (22 nov): when the calendar was stopped for good (World.scheduleEndedAt).
+  "ALTER TABLE world ADD COLUMN schedule_ended_at TEXT NOT NULL DEFAULT ''",
 ];
 
 /**

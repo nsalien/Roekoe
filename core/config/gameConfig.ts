@@ -1788,9 +1788,49 @@ export const RACE_CITIES: RaceCity[] = [
   { name: 'Barcelona', lat: 41.39, lon: 2.17, country: 'ES', intlOnly: true },
 ];
 
+/**
+ * THE LAST FLIGHT — the farewell race of the game. Owner, 22 nov 2026: "Haal alle
+ * geplande vluchten weg. Maak enkel de volgende vrijdag nog een vlucht aan van
+ * ongeveer 1300km genaamd 'the last flight' als afscheidsvlucht van het spel."
+ *
+ * Migration v77 (schedule.ts) takes every scheduled flight off the calendar (entry
+ * fees and bets refunded), stops the calendar for good (`World.scheduleEndedAt`)
+ * and plans this one race: an ordinary international competition flight (fee,
+ * prizes, points, bets) on a route of its own. The release point is NOT in
+ * RACE_CITIES, so no ordinary route can ever draw it; it is only added to
+ * CITY_COORDS below, for the weather, the live map and the sun times.
+ *
+ * `liveWorld` is how v77 recognises the production world. Every migration also runs
+ * in the test worlds (they start at v13 and walk the whole chain), and stopping the
+ * calendar there would take every flight test with it. Production is the only world
+ * with `minPlayers` real players who registered before `playersBefore` AND own a bird
+ * that has flown at least `minRaces` races, seen on a clock inside the window from
+ * `armedFrom` to just before the start. (Registration date alone was not enough: a
+ * test may create its players on a fixed date in August and still run the engine on
+ * the real clock.)
+ */
+export const LAST_FLIGHT = {
+  name: 'The Last Flight',
+  release: { name: 'Madrid', lat: 40.42, lon: -3.7, country: 'ES' } as RaceCity,
+  home: 'Brussel',
+  tier: 'international' as const,
+  // Friday 27 November 2026, Brussels wall-clock time.
+  date: { y: 2026, m: 11, d: 27 },
+  hour: 7,
+  minute: 0,
+  liveWorld: {
+    armedFrom: '2026-11-22T00:00:00Z',
+    playersBefore: '2026-11-15T00:00:00Z',
+    minPlayers: 3,
+    minRaces: 3,
+    // The race must still be in the future, with room for players to enter.
+    latestHoursBeforeStart: 2,
+  },
+} as const;
+
 /** Coordinates by city name (derived), for weather lookups. */
 export const CITY_COORDS: Record<string, { lat: number; lon: number }> = Object.fromEntries(
-  RACE_CITIES.map((c) => [c.name, { lat: c.lat, lon: c.lon }]),
+  [...RACE_CITIES, LAST_FLIGHT.release].map((c) => [c.name, { lat: c.lat, lon: c.lon }]),
 );
 
 /** Per-tier settings: which cities, distance window, entry fee and label. */

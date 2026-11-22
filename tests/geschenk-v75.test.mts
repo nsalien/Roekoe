@@ -218,7 +218,7 @@ console.log('\n7. Door de database');
   ok(!!p && p.ownerId === bek && inRange(talent(p)), `de duif staat in D1, van hem, ★${p ? talent(p) : '?'}`);
   ok(s.data.notifications.some((n) => n.id === `ntf:admin:geschenk1:${bek}`), 'en zijn bel ook');
   const n = s.data.lofts.find((l) => l.userId === bek)!.newcomer;
-  ok(s.data.world.dataVersion === 76 && !!n && n.expPoints === NEWCOMER.expPoints && n.attrPoints === NEWCOMER.attrPoints,
+  ok((s.data.world.dataVersion ?? 0) >= 76 && !!n && n.expPoints === NEWCOMER.expPoints && n.attrPoints === NEWCOMER.attrPoints,
     'v76: het verse starterspakket staat ook in D1');
 }
 
@@ -246,7 +246,7 @@ console.log('\n8. v76: het starterspakket opnieuw');
   for (const p of db.pigeons.filter((x) => x.ownerId === other)) p.form = 40;
 
   advanceRealtime(db, NOW);
-  ok(db.world.dataVersion === 76, `v75 en v76 liepen (dataVersion ${db.world.dataVersion})`);
+  ok((db.world.dataVersion ?? 0) >= 76, `v75 en v76 liepen (dataVersion ${db.world.dataVersion})`);
   const n = loft.newcomer!;
   ok(n.expPoints === NEWCOMER.expPoints && n.attrPoints === NEWCOMER.attrPoints, `alle punten terug (${n.expPoints} + ${n.attrPoints})`);
   ok(n.expPigeonId === null, 'de ervaringspunten liggen niet meer vast op een duif');
@@ -283,7 +283,7 @@ console.log('\n8. v76: het starterspakket opnieuw');
   const { store, db } = prodWorld();
   const bek = addPlayer(store, 'bronstig', 'De Bronstige Bek');
   advanceRealtime(db, NOW);
-  ok(db.world.dataVersion === 76, 'eerst lopen v75 en v76 gewoon');
+  ok((db.world.dataVersion ?? 0) >= 76, 'eerst lopen v75 en v76 gewoon');
   db.world.dataVersion = 75;
   const loft = db.lofts.find((l) => l.userId === bek)!;
   loft.newcomer!.attrPoints = 0;
@@ -293,7 +293,7 @@ console.log('\n8. v76: het starterspakket opnieuw');
   advanceRealtime(db, NOW + 60000);
   ok(db.world.dataVersion === 75 && loft.newcomer!.attrPoints === 0, 'het afrondende verzoek slaat v76 over');
   advanceRealtime(db, NOW + 120000);
-  ok(db.world.dataVersion === 76 && loft.newcomer!.attrPoints === NEWCOMER.attrPoints, 'het volgende verzoek geeft het pakket');
+  ok((db.world.dataVersion ?? 0) >= 76 && loft.newcomer!.attrPoints === NEWCOMER.attrPoints, 'het volgende verzoek geeft het pakket');
 }
 
 console.log(`\n${fail === 0 ? '✅' : '❌'} ${pass} geslaagd, ${fail} gefaald`);

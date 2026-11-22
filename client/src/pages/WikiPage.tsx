@@ -12,6 +12,7 @@ import { createContext, useContext, useEffect, useLayoutEffect, useRef, useState
 import { Link, useLocation } from 'react-router-dom';
 
 const SECTIONS = [
+  { id: 'last-flight', icon: '🕊️', label: 'The Last Flight' },
   { id: 'nieuw', icon: '🧰', label: 'Nieuw: de bank, leagues, tags, duivenlokker & meer' },
   { id: 'seizoen3', icon: '🎉', label: 'Nieuw in seizoen 3' },
   { id: 'starterspakket', icon: '🎁', label: 'Starterspakket' },
@@ -192,6 +193,26 @@ export function WikiPage() {
           ))}
         </div>
       </div>
+
+      <Section id="last-flight" icon="🕊️" title="The Last Flight: het afscheid">
+        <p className="muted" style={{ marginTop: 0 }}>
+          Roekoe neemt afscheid. Sinds 22 november staan er geen nieuwe vluchten meer op de kalender; wie
+          ingeschreven was voor een geschrapte vlucht, kreeg zijn inschrijfgeld en zijn inzet terug.
+        </p>
+        <MiniTable
+          head={['', 'The Last Flight']}
+          rows={[
+            ['Wanneer', 'vrijdag 27 november, 07:00'],
+            ['Route', 'Madrid → Brussel, ~1.300 km'],
+            ['Soort', 'internationale wedstrijd: €40 inschrijfgeld, prijzengeld en punten'],
+          ]}
+        />
+        <p>
+          Het is de langste vlucht die het spel ooit vloog. Ze kost een duif ongeveer 65 à 70 energie: schrijf
+          enkel uitgeruste duiven in en geef ze de dagen ervoor rust. Een duif doet er al gauw 15 uur of meer
+          over, dus de vlucht loopt door tot in het weekend.
+        </p>
+      </Section>
 
       <Section id="nieuw" icon="🧰" title="Nieuw: de bank, leagues, tags, duivenlokker, samen kweken & meer">
         <p className="muted" style={{ marginTop: 0 }}>
