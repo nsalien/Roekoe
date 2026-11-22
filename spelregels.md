@@ -309,7 +309,8 @@ De afscheidsvlucht van het spel, en de enige vlucht die nog gepland staat.
 | | |
 |---|---|
 | Route | **Madrid → Brussel, 1.316 km** — de langste vlucht ooit; Madrid is enkel voor deze vlucht |
-| Soort | een gewone **internationale wedstrijd**: €40 inschrijfgeld, prijzengeld (§2.6), punten, medailles, weddenschappen |
+| Soort | een **internationale wedstrijd**: €40 inschrijfgeld, prijzengeld (§2.6), punten, medailles, weddenschappen |
+| Beloning | **elke duif die thuiskomt** verdient geld en punten voor haar plaats — geen grens van 3 per hok; voorbij de 20e plaats 1 punt |
 | Energie | gemiddeld ~64–72 per duif (§3), naargelang de ervaring |
 | Duur | de snelste duiven ~15 uur, de traagste tot ~1,5 dag |
 

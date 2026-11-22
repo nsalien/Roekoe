@@ -205,6 +205,7 @@ export function WikiPage() {
             ['Wanneer', 'vrijdag 27 november, 07:00'],
             ['Route', 'Madrid → Brussel, ~1.300 km'],
             ['Soort', 'internationale wedstrijd: €40 inschrijfgeld, prijzengeld en punten'],
+            ['Beloning', 'élke duif die thuiskomt verdient geld en punten voor haar plaats, niet enkel je 3 beste'],
           ]}
         />
         <p>

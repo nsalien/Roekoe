@@ -1810,7 +1810,14 @@ export const RACE_CITIES: RaceCity[] = [
  * the real clock.)
  */
 export const LAST_FLIGHT = {
+  id: 'flt_the_last_flight', // stable, so two requests running v77 at once write one row
   name: 'The Last Flight',
+  // Owner, 22 nov: "Alle duiven krijgen punten en geld voor hun plaats op die vlucht."
+  // → no REWARD_BIRDS_PER_LOFT cap here: every bird that gets home is paid and
+  // scored for its own place, and a place past the RANKING_POINTS table (top 20)
+  // still scores `pointsAfterTable`. A bird that does not get home has no place.
+  everyBirdEarns: true,
+  pointsAfterTable: 1,
   release: { name: 'Madrid', lat: 40.42, lon: -3.7, country: 'ES' } as RaceCity,
   home: 'Brussel',
   tier: 'international' as const,
