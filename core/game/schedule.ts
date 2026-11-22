@@ -13,6 +13,7 @@
  */
 
 import {
+  LAST_FLIGHT,
   LEAGUE,
   leagueDef,
   isLeagueSprintWeek,
@@ -459,6 +460,9 @@ export function plannedFlightId(templateKey: string): string {
 
 /** Keep the next few days of flights on the calendar (idempotent). */
 export function ensureFlightsScheduled(db: Database, nowMs: number): void {
+  // THE LAST FLIGHT (v77): the calendar was stopped for good. What is still on it
+  // (the farewell race) runs as usual; nothing new is planned.
+  if (db.world.scheduleEndedAt) return;
   // Before anything is added: a slot that is on the calendar twice (left by the
   // old race, see plannedFlightId) goes back to one flight.
   dedupeScheduledFlights(db);
@@ -2805,6 +2809,119 @@ export function runDataMigrations(db: Database, nowMs = Date.now()): void {
     // Eigenaar, 7 nov: "Geef hem ook het starterspakket opnieuw" — De Bronstige Bek.
     regrantStarterPack(db, 'de bronstige bek', 'ntf:admin:newcomergrant2', nowMs);
     db.world.dataVersion = 76;
+  }
+
+  // `=== 76`, same conditions as v72–v76 (no flight request, the calendar exists).
+  if ((db.world.dataVersion ?? 0) === 76 && !startsOrFinishesFlight(db, nowMs) && db.flights.length > 0) {
+    // Eigenaar, 22 nov: "Haal alle geplande vluchten weg. Maak enkel de volgende
+    // vrijdag nog een vlucht aan van ongeveer 1300km genaamd 'the last flight' als
+    // afscheidsvlucht van het spel." → LAST_FLIGHT in gameConfig.
+    //
+    // Only the production world says goodbye (see LAST_FLIGHT.liveWorld). Any other
+    // world just moves on, so its calendar keeps running. The live world, reached
+    // too late for Friday, waits at 76 instead: that needs a new instruction, not a
+    // farewell race in the past.
+    if (!isLastFlightWorld(db)) {
+      db.world.dataVersion = 77;
+    } else if (lastFlightInWindow(nowMs)) {
+      endCalendarWithLastFlight(db, nowMs);
+      db.world.dataVersion = 77;
+    }
+  }
+}
+
+/** Brussels wall-clock start of THE LAST FLIGHT, in UTC ms. */
+export function lastFlightStartMs(): number {
+  const { y, m, d } = LAST_FLIGHT.date;
+  return wallToUtcMs(TIMEZONE, y, m, d, LAST_FLIGHT.hour, LAST_FLIGHT.minute);
+}
+
+/** The stable id of THE LAST FLIGHT, so two requests running v77 at once write one row. */
+export const LAST_FLIGHT_ID = 'flt_the_last_flight';
+
+/**
+ * Whether this is the production world (LAST_FLIGHT.liveWorld): at least
+ * `minPlayers` real players whose account is older than `playersBefore` and who own
+ * a bird with `minRaces` races or more.
+ */
+function isLastFlightWorld(db: Database): boolean {
+  const { playersBefore, minPlayers, minRaces } = LAST_FLIGHT.liveWorld;
+  const before = Date.parse(playersBefore);
+  const real = new Set(db.lofts.filter((l) => !l.isBot).map((l) => l.userId));
+  const raced = new Set(db.pigeons.filter((p) => (p.races ?? 0) >= minRaces).map((p) => p.ownerId));
+  const old = db.users.filter((u) => real.has(u.id) && raced.has(u.id) && Date.parse(u.createdAt) < before);
+  return old.length >= minPlayers;
+}
+
+/** The clock is inside the farewell window: armed, and the race still ahead. */
+function lastFlightInWindow(nowMs: number): boolean {
+  const latest = lastFlightStartMs() - LAST_FLIGHT.liveWorld.latestHoursBeforeStart * 3600_000;
+  return nowMs >= Date.parse(LAST_FLIGHT.liveWorld.armedFrom) && nowMs < latest;
+}
+
+/**
+ * Migration v77: every SCHEDULED flight off the calendar (a live one finishes as
+ * usual), the calendar stopped for good, and THE LAST FLIGHT planned in its place.
+ *
+ * - Entry fees back to every loft, bots included: once per team on an estafette,
+ *   per bird elsewhere (an oefenvlucht costs nothing). Open bets refunded, with
+ *   the refund's own bell.
+ * - One bell per real player with a stable id: the news, the farewell race, and
+ *   what came back to them.
+ * - Idempotent if two requests run it at once: the farewell race has a fixed id
+ *   and is never taken off itself; a flight already removed refunds nothing.
+ */
+function endCalendarWithLastFlight(db: Database, nowMs: number): void {
+  const refunded = new Map<string, number>();
+  const credit = (userId: string, amount: number) => {
+    if (amount <= 0) return;
+    const loft = db.lofts.find((l) => l.userId === userId);
+    if (!loft) return;
+    loft.money += amount;
+    refunded.set(userId, (refunded.get(userId) ?? 0) + amount);
+  };
+  const off = db.flights.filter((f) => f.status === 'scheduled' && f.id !== LAST_FLIGHT_ID);
+  for (const f of off) {
+    if (f.relay) {
+      for (const owner of new Set(f.entries.map((e) => e.ownerId))) credit(owner, f.entryFee);
+    } else {
+      for (const e of f.entries) credit(e.ownerId, f.entryFee);
+    }
+    refundFlightBets(db, f, `${f.name} is van de kalender gehaald: Roekoe neemt afscheid. Je inzet van €{stake} is terugbetaald.`);
+  }
+  const gone = new Set(off.map((f) => f.id));
+  db.flights = db.flights.filter((f) => !gone.has(f.id));
+  db.world.scheduleEndedAt = new Date(nowMs).toISOString();
+
+  let last = db.flights.find((f) => f.id === LAST_FLIGHT_ID);
+  if (!last) {
+    const startMs = lastFlightStartMs();
+    const { y, m, d } = LAST_FLIGHT.date;
+    last = makeRealtimeFlight(`the-last-flight:${y}-${m}-${d}`, LAST_FLIGHT.tier, startMs, db.world.currentWeek);
+    last.id = LAST_FLIGHT_ID;
+    last.name = LAST_FLIGHT.name;
+    last.fromCity = LAST_FLIGHT.release.name;
+    last.toCity = LAST_FLIGHT.home;
+    last.distanceKm = Math.round(haversineKm(LAST_FLIGHT.release, CITY_COORDS[LAST_FLIGHT.home]));
+    last.createdAt = new Date(nowMs).toISOString();
+    db.flights.push(last);
+    botsEnterFlight(db, last);
+  }
+
+  const when = new Date(Date.parse(last.startAt)).toLocaleString('nl-BE', {
+    timeZone: TIMEZONE, weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit',
+  });
+  for (const loft of db.lofts) {
+    if (loft.isBot) continue;
+    const back = refunded.get(loft.userId) ?? 0;
+    const parts = [
+      'Roekoe neemt afscheid. Alle geplande vluchten zijn van de kalender gehaald en er komen geen nieuwe meer bij.',
+      `Er volgt nog één vlucht, de afscheidsvlucht: ${last.name}, ${when}, ${last.fromCity} → ${last.toCity}, ` +
+        `${last.distanceKm.toLocaleString('nl-BE')} km. Inschrijven kan nu al bij Vluchten.`,
+      'Zo\'n afstand vraagt veel energie: geef je duiven vóór vrijdag rust.',
+    ];
+    if (back > 0) parts.push(`Je inschrijfgeld van de geschrapte vluchten, €${back.toLocaleString('nl-BE')}, is terugbetaald.`);
+    pushNotification(db, loft.userId, 'info', `🕊️ ${last.name}`, parts.join(' '), last.id, `ntf:admin:lastflight:${loft.userId}`);
   }
 }
 

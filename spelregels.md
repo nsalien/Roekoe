@@ -33,6 +33,10 @@ ouderdom (§6).
 
 ### 2.1 Kalender (Brussel-tijd)
 
+> ⚠️ **Sinds 22 november 2026 is de kalender stilgelegd** (migratie v77): er worden geen
+> vluchten meer gepland. Enkel **The Last Flight** staat nog op de kalender (§2.11). De tabel
+> hieronder is hoe de kalender liep.
+
 | Dag | Vluchten |
 |---|---|
 | **Maandag** | 06:00 **league ★ t/m 60** (§2.10) · 08:00 internationaal |
@@ -297,6 +301,24 @@ bij haar blijft als ze verkocht wordt. Daarna gaat elke stand op nul.
 | 5e | €150 | €200 | €250 | €300 |
 | 6e | €100 | €150 | €200 | €250 |
 | 7e – 10e | €75 | €100 | €125 | €150 |
+
+### 2.11 The Last Flight (vrijdag 27 november 2026, 07:00)
+
+De afscheidsvlucht van het spel, en de enige vlucht die nog gepland staat.
+
+| | |
+|---|---|
+| Route | **Madrid → Brussel, 1.316 km** — de langste vlucht ooit; Madrid is enkel voor deze vlucht |
+| Soort | een gewone **internationale wedstrijd**: €40 inschrijfgeld, prijzengeld (§2.6), punten, medailles, weddenschappen |
+| Energie | gemiddeld ~64–72 per duif (§3), naargelang de ervaring |
+| Duur | de snelste duiven ~15 uur, de traagste tot ~1,5 dag |
+
+- Het racemodel rekent alles boven 1.200 km als 1.200 km (gewichten, energiefactor); enkel
+  afstand en duur groeien mee.
+- Bij het stilleggen (v77) werden alle geplande vluchten weggehaald: inschrijfgeld terug (per
+  ploeg bij een estafette), weddenschappen terugbetaald, en elke speler kreeg een bel. Een
+  vlucht die al liep, vloog gewoon uit.
+- Daarna plant de kalender niets meer (`World.scheduleEndedAt`).
 
 ---
 
