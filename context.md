@@ -59,7 +59,7 @@ de uitdrukkelijke toestemming van de eigenaar.
 
 ### Stand van zaken
 
-- **Dev** = de sessiebranch `ccr-dd01438d-2ebfwn`. `world.dataVersion` staat op **77**: een volgende
+- **Prod = dev** op de sessiebranch `ccr-dd01438d-2ebfwn` (prod `d8e1740`). `world.dataVersion` staat op **77**: een volgende
   migratie is **v78**, gegate op `=== 77`.
 - ⚠️ **De kalender is stilgelegd** (v77, 22 nov): `World.scheduleEndedAt` gezet ⇒ `ensureFlightsScheduled`
   plant niets meer. Enkel **The Last Flight** (vr 27 nov 07:00, Madrid → Brussel, 1.316 km,
@@ -69,10 +69,11 @@ de uitdrukkelijke toestemming van de eigenaar.
   tussen 22 nov en 2 u vóór de lossing (`LAST_FLIGHT.liveWorld`); elke andere wereld (alle tests) schuift door naar 77 met een
   lopende kalender. Test: `last-flight`.
 - **Recent live** (details in het archief, zoek op de naam):
-  - 22 nov ⏳ (nog niet op prod) — **The Last Flight**: alle geplande vluchten weg (geld en inzet terug), kalender stil,
-    één afscheidsvlucht (v77, zie hierboven).
-  - 19 nov ⏳ (nog niet op prod) — startduiven van een nieuwe speler: ★50–80, minstens één ★75–80, ★60–70 het vaakst
-    (`NEWCOMER.starterScores`, `rollStarterScores` in `newcomer.ts`; bots ongewijzigd ~★52).
+  - 22 nov — **The Last Flight**: alle geplande vluchten weg (geld en inzet terug), kalender stil,
+    één afscheidsvlucht waarop elke duif verdient (v77, zie hierboven) (prod `584bfc6` + `d8e1740`).
+  - 19 nov — startduiven van een nieuwe speler: ★50–80, minstens één ★75–80, ★60–70 het vaakst
+    (`NEWCOMER.starterScores`, `rollStarterScores` in `newcomer.ts`; bots ongewijzigd ~★52)
+    (prod `1db3255`, live 22 nov).
   - 15 nov — meldingenpaneel op gsm: hangt aan de bovenbalk (stak links uit), één icoon per melding
     (prod `4bfca88`).
   - 15 nov — documentatie opgeruimd (dit bestand, `spelregels.md`, het archief).
