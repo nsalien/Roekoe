@@ -4,6 +4,8 @@ Het spel staat **op pauze** op vraag van de eigenaar ("Zet het productiespel op 
 op de achtergrond en er geen resources verbruikt worden van Cloudflare"). Dezelfde werkwijze als de pauzes van Dev
 (laatst 6 nov, `f063429` op `claude/demo-hokinrichting`).
 
+**Live:** pauzecommit prod `c48db34` (dev `d3fa708`), gepusht 28 nov 2026.
+
 ## Wat de pauze doet
 
 - De productiebranch `claude/roekoe-game-website-jwa0vo` bevat enkel een statische pauzepagina
