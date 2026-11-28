@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="nl" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <meta name="theme-color" content="#0a0f1a">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%95%8A%EF%B8%8F%3C/text%3E%3C/svg%3E">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Roekoe">
+  <title>Roekoe staat op pauze</title>
+  <script>
+    // Same theme choice as the game (dark unless the player picked light).
+    try { if (localStorage.getItem('theme') === 'light') document.documentElement.dataset.theme = 'light'; } catch (e) {}
+  </script>
+  <style>
+    :root, :root[data-theme="dark"] { --bg: #0a0f1a; --card: #111827; --line: #1f2a3d; --fg: #eef2f8; --muted: #a7b2c4; }
+    :root[data-theme="light"] { --bg: #f6f8fb; --card: #ffffff; --line: #e6ebf1; --fg: #0f172a; --muted: #4f5b70; }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; min-height: 100vh; background: var(--bg); color: var(--fg); }
+    body { display: grid; place-items: center; padding: 24px 16px;
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+    main { width: 100%; max-width: 30rem; padding: 32px 24px; text-align: center;
+      background: var(--card); border: 1px solid var(--line); border-radius: 16px; }
+    .bird { font-size: 3rem; line-height: 1; margin-bottom: 12px; }
+    h1 { font-size: 1.5rem; margin: 0 0 12px; }
+    p { line-height: 1.55; margin: 8px 0; color: var(--muted); }
+  </style>
+</head>
+<body>
+  <main>
+    <div class="bird" aria-hidden="true">🕊️</div>
+    <h1>Roekoe staat op pauze</h1>
+    <p>Na The Last Flight ligt het hok stil. Er wordt niet gespeeld en er loopt niets op de achtergrond.</p>
+    <p>Je hok, je duiven en je kassa blijven bewaard.</p>
+  </main>
+</body>
+</html>
